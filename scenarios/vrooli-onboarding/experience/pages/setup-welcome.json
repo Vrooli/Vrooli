@@ -6,6 +6,7 @@
     "id": "setup-welcome",
     "title": "Welcome",
     "routes": [
+      "/",
       "/setup/welcome"
     ],
     "purpose": "Orient an operator to the install decision and provide an explicit entry into capability selection.",

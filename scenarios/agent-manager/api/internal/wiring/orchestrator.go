@@ -119,7 +119,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db))
 
 	pricingRepository := database.NewPricingRepository(db, logger)
-	pricingService := pricing.NewServiceWithModelResolver(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider()}, logger, pricing.NewCLIModelResolver())
+	pricingService := pricing.NewServiceWithModelResolver(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider(), providers.NewOpenCodeGoProvider()}, logger, pricing.NewCLIModelResolver())
 	startPricingLifecycle(pricingService, bootLog)
 	runners := NewRunners(pricingCodecAdapter{service: pricingService})
 	registry := runners.Registry

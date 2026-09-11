@@ -1,6 +1,6 @@
 # Credential lifecycle
 
-> [CODE: api/credentials/lifecycle.go] · [CODE: api/credentials/bindings.go] · [CODE: api/credentials/provider.go] · [CODE: api/credentials/distribution.go] · [CODE: internal/cloudtarget/credential.go] · Requirement STC-P0-032
+> [CODE: api/credentials/lifecycle.go] · [CODE: api/credentials/bindings.go] · [CODE: api/credentials/provider.go] · [CODE: api/credentials/distribution.go] · [CODE: ../../internal/cloudtarget/credential.go] · Requirement STC-P0-032
 
 scenario-to-cloud does not own a credential authority. It binds descriptors
 from the deployment closure to versions held by the **target host's credential
@@ -18,6 +18,7 @@ and never retains, logs, echoes or places a value in a command argument.
 | Two descriptors that would fold to one target are refused | `credential_descriptor_collision` from `PlanBindings` (target name lower-cased with `_` and `.` folded to `-`, identity lower-cased, as the target authority does) |
 | Metadata-only reads | every list/get surface returns bindings, versions and acknowledgements; `?reveal=true` is a `forbidden_scope` refusal |
 | Existing generated values survive ordinary redeploy | `Service.Materialize` probes the target and preserves a binding whose value is still configured (P13-A01) |
+| Expiry is authoritative | an expired active version is never preserved during materialisation; it is replaced with a strictly higher version, while list views expose `active`, `renewal_due`, `expired`, `revoked` or `planned` standing and a next action |
 
 ## Bindings
 
@@ -33,6 +34,14 @@ descriptor), `cloud_credential_acks` (binding, consumer, version, verified_at)
 and `cloud_credential_rotations` (one row per lifecycle operation with its
 receipts). PostgreSQL is the authority; the SQLite form exists for routed test
 pools.
+
+An active version may carry `expires_at`, supplied by materialisation, a
+provider preparation result, or a target receipt. The value is metadata only;
+it is persisted with the binding and returned by metadata surfaces. List
+standing enters `renewal_due` during the default 30-day renewal window and
+becomes `expired` after the timestamp. Expired versions are not preserved on
+redeploy, and the next version is always monotonic. A missing expiry means the
+provider has not declared one; it is not treated as already expired.
 
 Resolution without a deployment id must find exactly one binding for the
 descriptor; a descriptor bound on several deployments is

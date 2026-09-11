@@ -7,7 +7,7 @@ every platform gap is a typed `unsupported` entry, and a catalog that cannot
 be read produces a typed `closure_unavailable` error rather than an empty
 closure.
 
-> [CODE: api/closure] — resolver, catalogs, selection mapping
+> [CODE: api/closure/service.go] — resolver, catalogs, selection mapping
 > [CODE: api/domain/closure.go] — wire types
 > [CODE: api/handlers_closure.go] — `GET /api/v1/closure`, `POST /api/v1/closure/explain`
 

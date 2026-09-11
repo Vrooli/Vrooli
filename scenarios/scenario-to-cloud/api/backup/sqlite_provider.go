@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/vrooli/packages/recoverypoint"
 	_ "modernc.org/sqlite" // embedded database engine for sqlite bindings
 )
@@ -29,8 +30,13 @@ type SQLite struct{}
 // Mode implements recoverypoint.Provider.
 func (SQLite) Mode() string { return recoverypoint.ModeDatabaseNative }
 
-func openSQLite(path string) (*sql.DB, error) {
-	return sql.Open("sqlite", path)
+func openSQLite(ctx context.Context, path string) (*database.RoutedDB, error) {
+	return database.Open(ctx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          path,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 }
 
 // Capture implements recoverypoint.Provider.
@@ -41,7 +47,7 @@ func (p SQLite) Capture(ctx context.Context, b recoverypoint.Binding, stageDir s
 	if _, err := os.Stat(b.Locator); err != nil {
 		return recoverypoint.CaptureResult{}, fmt.Errorf("binding %s: database %s is not readable: %w", b.ID, b.Locator, err)
 	}
-	db, err := openSQLite(b.Locator)
+	db, err := openSQLite(ctx, b.Locator)
 	if err != nil {
 		return recoverypoint.CaptureResult{}, fmt.Errorf("binding %s: open database: %w", b.ID, err)
 	}
@@ -100,7 +106,7 @@ func (SQLite) Discard(_ context.Context, _ recoverypoint.Binding, target string)
 // Inventory implements recoverypoint.Provider: total rows across user tables
 // and a checksum over each table's ordered rows.
 func (SQLite) Inventory(ctx context.Context, b recoverypoint.Binding, target string) (recoverypoint.Inventory, error) {
-	db, err := openSQLite(target)
+	db, err := openSQLite(ctx, target)
 	if err != nil {
 		return recoverypoint.Inventory{}, fmt.Errorf("binding %s: open %s: %w", b.ID, target, err)
 	}
@@ -147,7 +153,11 @@ func (SQLite) Inventory(ctx context.Context, b recoverypoint.Binding, target str
 	return recoverypoint.Inventory{Count: count, Checksum: hex.EncodeToString(h.Sum(nil)), Comparable: true}, nil
 }
 
-func sqliteTables(ctx context.Context, db *sql.DB) ([]string, error) {
+type queryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func sqliteTables(ctx context.Context, db queryer) ([]string, error) {
 	rows, err := db.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`)
 	if err != nil {
 		return nil, err

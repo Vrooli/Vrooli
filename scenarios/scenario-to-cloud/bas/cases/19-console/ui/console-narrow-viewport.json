@@ -14,34 +14,22 @@
     "execution_mode": "observer",
     "version": 1
   },
-  "settings": {
-    "executionViewport": { "width": 360, "height": 780, "preset": "mobile" }
-  },
+  "flow_definition": {
+  "settings": { "viewport_width": 360, "viewport_height": 780 },
   "nodes": [
-    {
-      "id": "open-console",
-      "type": "navigate",
-      "data": {
-        "label": "Open the deployment console at 360px",
-        "destinationType": "scenario",
-        "scenario": "scenario-to-cloud",
-        "scenarioPath": "/#deployments/7e493e04-5297-47eb-9df9-74929f185956",
-        "waitUntil": "load",
-        "timeoutMs": 30000,
-        "waitForMs": 3000
-      }
-    },
-    { "id": "identity", "type": "assert", "data": { "label": "Identity header present", "selector": "[data-testid=\"console-identity\"]", "assertMode": "exists", "timeoutMs": 30000, "failureMessage": "Identity header must render at 360px" } },
-    { "id": "inspect", "type": "assert", "data": { "label": "Inspect action reachable", "selector": "[data-testid=\"console-inspect\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Inspect must not be clipped" } },
-    { "id": "operation", "type": "assert", "data": { "label": "Operation panel present", "selector": "[data-testid=\"console-operation\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Operation panel must render at 360px" } },
-    { "id": "recovery", "type": "assert", "data": { "label": "Recovery panel present", "selector": "[data-testid=\"console-recovery\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Recovery panel must render at 360px" } },
-    { "id": "advanced", "type": "assert", "data": { "label": "Advanced disclosure reachable", "selector": "[data-testid=\"console-advanced-toggle\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Advanced disclosure must render at 360px" } }
+    {"id":"open-console","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-cloud","scenario_path":"/#deployments/7e493e04-5297-47eb-9df9-74929f185956","wait_until":"NAVIGATE_WAIT_EVENT_LOAD","timeout_ms":30000},"metadata":{"label":"Open the deployment console at 360px"}}},
+    {"id":"identity","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identity","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Identity header must render at 360px"},"metadata":{"label":"Identity header present"}}},
+    {"id":"inspect","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.reviewOpen","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Review action must be reachable at 360px"},"metadata":{"label":"Inspect action reachable"}}},
+    {"id":"operation","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.operation","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Operation panel must render at 360px"},"metadata":{"label":"Operation panel present"}}},
+    {"id":"recovery","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.recovery","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Recovery panel must render at 360px"},"metadata":{"label":"Recovery panel present"}}},
+    {"id":"advanced","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.advancedToggle","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Advanced disclosure must render at 360px"},"metadata":{"label":"Advanced disclosure reachable"}}}
   ],
   "edges": [
-    { "id": "e1", "source": "open-console", "target": "identity", "type": "smoothstep" },
-    { "id": "e2", "source": "identity", "target": "inspect", "type": "smoothstep" },
-    { "id": "e3", "source": "inspect", "target": "operation", "type": "smoothstep" },
-    { "id": "e4", "source": "operation", "target": "recovery", "type": "smoothstep" },
-    { "id": "e5", "source": "recovery", "target": "advanced", "type": "smoothstep" }
+    { "id": "e1", "source": "open-console", "target": "identity" },
+    { "id": "e2", "source": "identity", "target": "inspect" },
+    { "id": "e3", "source": "inspect", "target": "operation" },
+    { "id": "e4", "source": "operation", "target": "recovery" },
+    { "id": "e5", "source": "recovery", "target": "advanced" }
   ]
+  }
 }

@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T00:00:00Z",
-    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-021",
       "title": "Declaration-derived deployment closure with reasons and digest",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "closure-and-reach",
       "description": "The transitive closure of scenarios, resources, tools, safeguards and credential descriptors derives from component declarations and the analyzer with an inclusion reason per component; missing catalog data yields unavailable readiness, not an empty closure.",
@@ -19,28 +18,28 @@
           "type": "test",
           "ref": "api/closure/resolve_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Transitive closure with a reason per edge, scenario dependency owning its own resource and credential, missing catalog data as closure_unavailable, analyzer outage as closure_unavailable, optional selection rules, repository scope system_required."
         },
         {
           "type": "test",
           "ref": "api/closure/repo_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Real repository catalog through repo-contract and packages/hostreq; no product-name rule."
         },
         {
           "type": "test",
           "ref": "api/deployment/manifest_refresh_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Manifest dependencies/bundle are the closure projection and carry closure_digest; closure failure refuses the refresh."
         },
         {
           "type": "test",
           "ref": "api/handlers_closure_test.go",
           "phase": "api",
-          "status": "passing",
+          "status": "implemented",
           "notes": "GET /closure and POST /closure/explain return the identical closure document; typed errors pass through."
         }
       ]
@@ -48,7 +47,7 @@
     {
       "id": "STC-P0-022",
       "title": "Unsupported platform and capability explanations",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "closure-and-reach",
       "description": "Resources lacking an artifact for the target architecture, dependency cycles and contradictory operating modes produce typed unsupported results naming the dependency.",
@@ -61,14 +60,14 @@
           "type": "test",
           "ref": "api/closure/resolve_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "missing_platform_artifact names the dependency for an absent arm64 artifact; unsupported_platform and unsupported_control_plane_platform; required-edge cycle is closure_cycle with the path, optional cycle resolves; one_shot+auto_restart and disallowed provider mode are closure_conflict; insufficient_capacity including transient update headroom."
         },
         {
           "type": "test",
           "ref": "api/handlers_closure_test.go",
           "phase": "api",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Unsupported list and typed closure_cycle/closure_unavailable over HTTP."
         }
       ]
@@ -76,7 +75,7 @@
     {
       "id": "STC-P0-023",
       "title": "Machine configuration through setup/v1 selection and onboarding handoff",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "closure-and-reach",
       "description": "Cloud supplies configuration through the shared selection contract and resumable onboarding handoff; supervision membership and auto-restart remain independent controls.",
@@ -88,14 +87,14 @@
           "type": "test",
           "ref": "api/closure/selection_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "ToSelection parity: identical Selection bytes for the same closure; Selection and closure cover exactly the same configurable components; explicit field presence."
         },
         {
           "type": "test",
           "ref": "api/closure/resolve_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Supervision membership and auto-restart carried and overridden independently (TestSupervisionAndAutoRestartAreIndependent)."
         }
       ]
@@ -103,7 +102,7 @@
     {
       "id": "STC-P0-024",
       "title": "Shared reach through Bridge and nodereach",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "closure-and-reach",
       "description": "Enrolled machines are resolved through shared target resolution; typed target-local actions are dispatched with grant checks; revoked enrollment never falls back to private transport.",
@@ -145,7 +144,7 @@
     {
       "id": "STC-P0-025",
       "title": "Host repair delegated to control-plane owners",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "closure-and-reach",
       "description": "Cloud contains no private apt, firewall, prune or process-kill implementations; repairs are declared control-plane actions scoped to owned workloads.",
@@ -153,15 +152,15 @@
         "host",
         "privilege"
       ],
-    "validation": [
-      {
-        "type": "manual",
-        "ref": "docs/internal/PROBLEMS.md",
-        "phase": "security",
-        "status": "pending",
-        "notes": "The contract requires host detection and remediation to remain with control-plane owners. Certification remains pending until the managed target-owner repair path is exercised with privilege denial, scoped cleanup and multi-workload isolation evidence."
-      }
-    ]
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/PROBLEMS.md",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "The contract requires host detection and remediation to remain with control-plane owners. Certification remains pending until the managed target-owner repair path is exercised with privilege denial, scoped cleanup and multi-workload isolation evidence."
+        }
+      ]
     }
   ]
 }

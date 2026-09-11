@@ -1,15 +1,15 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-04T03:23:45-04:00"
+    "last_validated_at": "2026-09-11T11:20:33-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-004",
       "title": "Install bundle and run setup",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "vps-setup",
-      "description": "Copy the mini-Vrooli tarball to the VPS, extract it into the deployment workdir, upload a deployment-local native vrooli CLI to <workdir>/.vrooli/bin/vrooli, run `vrooli setup --yes yes --environment production` through that exact binary, configure autoheal scope, and verify the deployment-local CLI is functional.",
+      "description": "Copy the mini-Vrooli tarball to the VPS, extract it into the deployment workdir, upload a deployment-local native vrooli CLI to \u003cworkdir\u003e/.vrooli/bin/vrooli, run `vrooli setup --yes yes --environment production` through that exact binary, configure autoheal scope, and verify the deployment-local CLI is functional.",
       "tags": [
         "ssh",
         "scp",
@@ -22,7 +22,7 @@
           "type": "test",
           "ref": "api/vps_setup_plan_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Covers step order plus deployment-local native CLI setup/verify commands. Tag tests with [REQ:STC-P0-004]."
         },
         {
@@ -50,7 +50,7 @@
           "type": "automation",
           "ref": "test/playbooks/vps/autoheal-scope.yaml",
           "phase": "workflow",
-          "status": "planned",
+          "status": "not_implemented",
           "notes": "E2E planned. Tag with [REQ:STC-P0-010]. Demoted 2026-09-09: no requirements-sync snapshot earned completion."
         }
       ]

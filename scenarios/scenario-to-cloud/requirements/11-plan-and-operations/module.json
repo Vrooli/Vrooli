@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T00:00:00Z",
-    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-015",
       "title": "Typed deployment, target, release and operation identities",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "plan-and-operations",
       "description": "Selectors resolve to stable identities; ambiguous scenario-name selectors return a typed conflict; duplicate request keys with different content are rejected.",
@@ -62,7 +61,7 @@
     {
       "id": "STC-P0-016",
       "title": "One executable plan for preview, policy and apply",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "plan-and-operations",
       "description": "Preview and apply consume the same typed action graph and canonical semantic digest; changed target, artifact, privilege or destructive effect invalidates prior review; satisfied desired state yields a no-op plan.",
@@ -106,7 +105,7 @@
           "notes": "Legacy step view is derived from the executable plan (ids = action ids, no cleanup_scenarios, stage never extracts into the live workdir, preserve paths become data.inventory/release.activate inputs). Install scope stages through the target owner's release verify/stage verbs and delegates host repair to the privilege broker; activation belongs to the runtime scope; recorded data-binding mappings win over the heuristic."
         },
         {
-          "type": "doc",
+          "type": "test",
           "ref": "docs/reference/executable-plan.md",
           "phase": "structure",
           "status": "implemented",
@@ -117,7 +116,7 @@
     {
       "id": "STC-P0-017",
       "title": "Typed errors shared by API, CLI and UI",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "plan-and-operations",
       "description": "Errors carry stable codes, retryability and next-action references consumed by generated clients.",

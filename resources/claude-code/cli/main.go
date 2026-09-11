@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
@@ -89,6 +90,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		[]cliapp.SubcommandGroup{
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}}),
+			configcli.Commands(configcli.Default()),
 			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{

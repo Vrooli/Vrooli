@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/delivery"
@@ -33,6 +34,10 @@ type StorageService interface {
 	GetSettings(context.Context, string) (*delivery.StorageSettings, error)
 }
 
+type StorageTester interface {
+	TestConnection(context.Context, string) error
+}
+
 type CatalogService interface {
 	GetApp(string, string) (*delivery.App, error)
 }
@@ -43,6 +48,7 @@ type RemoteProfileService interface {
 
 type Dependencies struct {
 	Storage        StorageService
+	TestStorage    StorageTester
 	Catalog        CatalogService
 	RemoteProfiles RemoteProfileService
 	BundleKey      func() string
@@ -71,7 +77,7 @@ func Readiness(deps Dependencies) http.HandlerFunc {
 // the legacy REST compatibility endpoint and Connect use this exact workflow.
 func CheckReadiness(ctx context.Context, deps Dependencies, request Request) Response {
 	bundleKey := deps.BundleKey()
-	gates := []Gate{storageGate(ctx, deps.Storage, bundleKey)}
+	gates := []Gate{storageGate(ctx, deps.Storage, deps.TestStorage, bundleKey)}
 	if strings.TrimSpace(request.AppKey) != "" {
 		gates = append(gates, appGate(deps.Catalog, bundleKey, request.AppKey))
 	}
@@ -89,7 +95,7 @@ func CheckReadiness(ctx context.Context, deps Dependencies, request Request) Res
 	return response
 }
 
-func storageGate(ctx context.Context, storage StorageService, bundleKey string) Gate {
+func storageGate(ctx context.Context, storage StorageService, tester StorageTester, bundleKey string) Gate {
 	gate := Gate{Name: "download_storage"}
 	settings, err := storage.GetSettings(ctx, bundleKey)
 	if err != nil {
@@ -99,6 +105,14 @@ func storageGate(ctx context.Context, storage StorageService, bundleKey string) 
 	if settings == nil || strings.TrimSpace(settings.Bucket) == "" {
 		gate.Message = "S3 download storage is not configured"
 		return gate
+	}
+	if tester != nil {
+		probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+		if err := tester.TestConnection(probeCtx, bundleKey); err != nil {
+			gate.Message = fmt.Sprintf("distribution object operations failed: %v", err)
+			return gate
+		}
 	}
 	gate.Ready = true
 	return gate

@@ -13,28 +13,19 @@ import (
 
 // Defaults carries the static config defaults formerly in config/defaults.sh.
 type Defaults struct {
-	Provider           string // cloud default provider (openrouter)
+	Provider           string // active provider (empty = auto-detect)
 	CloudRole          string // openrouter policy role backing the cloud default (code.default)
 	ChatModel          string // cloud default chat model (resolved from CloudRole when empty)
 	CompletionModel    string // cloud default completion model (resolved from CloudRole when empty)
+	GoDefaultModel     string // opencode-go default model when Go subscription is active
 	OllamaDefaultModel string // local model declared in the provider block
 	NumCtx             int    // per-model num_ctx for the local coder
 	LocalRole          string // ollama policy role backing local coding (code.local)
-	// LegacyTargets are old concrete cloud slugs that self-heal (repoint) stale
-	// user configs onto the current default. This is config-cleanup-only
-	// migration data, NOT a runtime default source — never treat these slugs as
-	// a fallback model. Do not expand this list.
-	LegacyTargets []string
+	LegacyTargets      []string
 }
 
 // DefaultDefaults returns the built-in defaults, honoring the same env
 // overrides as the legacy shell configuration.
-//
-// The OpenRouter cloud chat/completion model is intentionally left empty here:
-// it is resolved at write time from the CloudRole policy role via the
-// resource-openrouter SSOT (see Ensure). Greenfield rule: no concrete
-// OpenRouter model slug is a code default — resource-openrouter policy is the
-// sole model-selection authority.
 func DefaultDefaults(getenv func(string) string) Defaults {
 	if getenv == nil {
 		getenv = os.Getenv
@@ -53,9 +44,14 @@ func DefaultDefaults(getenv func(string) string) Defaults {
 	if cloudRole == "" {
 		cloudRole = "code.default"
 	}
+	goModel := strings.TrimSpace(getenv("OPENCODE_GO_DEFAULT_MODEL"))
+	if goModel == "" {
+		goModel = "deepseek-v4.1-flash"
+	}
 	return Defaults{
-		Provider:           "openrouter",
+		Provider:           "",
 		CloudRole:          cloudRole,
+		GoDefaultModel:     goModel,
 		OllamaDefaultModel: localModel,
 		NumCtx:             numCtx,
 		LocalRole:          "code.local",
@@ -72,26 +68,23 @@ type RoleResolution struct {
 // Resolver is the injectable seam over the Ollama probe SSOT
 // (`resource-ollama`). The config writer NEVER probes the daemon directly.
 type Resolver interface {
-	// InstalledModels returns the installed model refs, or an error when the
-	// daemon/SSOT is unreachable (treated as "Ollama not reachable").
 	InstalledModels(ctx context.Context) ([]string, error)
-	// LocalRole resolves the local coding role's model + clamped sampling.
 	LocalRole(ctx context.Context, role string) (RoleResolution, error)
 }
 
 // EnsureOptions configures Ensure.
 type EnsureOptions struct {
-	ConfigPath     string
-	Defaults       Defaults
-	HaveOpenRouter bool
-	Resolver       Resolver
-	Logf           func(format string, args ...any)
+	ConfigPath      string
+	Defaults        Defaults
+	HaveOpenCodeGo  bool
+	HaveOpenRouter  bool
+	Resolver        Resolver
+	Logf            func(format string, args ...any)
 }
 
-// Ensure is the Go port of opencode::ensure_config: it decides the provider
-// (OpenRouter vs local Ollama self-heal), renders opencode.json preserving the
-// permission map and unknown keys, and writes only on a real change. Returns
-// whether the file changed.
+// Ensure decides the provider (OpenCode Go → OpenRouter → local Ollama),
+// renders opencode.json preserving the permission map and unknown keys,
+// and writes only on a real change. Returns whether the file changed.
 func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	logf := opts.Logf
 	if logf == nil {
@@ -99,53 +92,72 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 	d := opts.Defaults
 
-	// Resolve the OpenRouter cloud default model from its policy role (SSOT).
-	// Greenfield rule: there is NO concrete OpenRouter slug fallback in source —
-	// resource-openrouter is the sole model-selection authority. If the role
-	// cannot be resolved we FAIL loudly rather than pinning a hard-coded slug.
-	if d.ChatModel == "" || d.CompletionModel == "" {
-		role := strings.TrimSpace(d.CloudRole)
-		if role == "" {
-			role = "code.default"
-		}
-		model, err := resolveCloudModel(ctx, role)
-		if err != nil {
-			return false, fmt.Errorf("resolve OpenRouter cloud default model (role %q): %w", role, err)
-		}
-		if d.ChatModel == "" {
-			d.ChatModel = model
-		}
-		if d.CompletionModel == "" {
-			d.CompletionModel = model
-		}
-	}
-
-	// Reachability + local model/sampling come from the SSOT.
 	installed, listErr := opts.Resolver.InstalledModels(ctx)
 	ollamaReachable := listErr == nil && len(installed) > 0
 
-	provider := d.Provider
-	chatModel := d.ChatModel
-	completionModel := d.CompletionModel
-	ollamaBlockModel := d.OllamaDefaultModel
-	useOllama := false
+	var (
+		provider       string
+		chatModel      string
+		completionModel string
+		useOllama      bool
+		useOpenCodeGo  bool
+		useOpenRouter  bool
+	)
+
+	// Tier 1: OpenCode Go subscription (cheapest, subscription-billed)
+	if opts.HaveOpenCodeGo {
+		useOpenCodeGo = true
+		provider = goProviderID
+		chatModel = d.GoDefaultModel
+		completionModel = d.GoDefaultModel
+		logf("Selected OpenCode Go subscription (provider=%s, model=%s)", provider, chatModel)
+	}
+
+	// Tier 2: OpenRouter metered API (fallback when no Go key)
+	if !useOpenCodeGo && opts.HaveOpenRouter {
+		useOpenRouter = true
+		if d.ChatModel == "" || d.CompletionModel == "" {
+			role := strings.TrimSpace(d.CloudRole)
+			if role == "" {
+				role = "code.default"
+			}
+			model, err := resolveCloudModel(ctx, role)
+			if err != nil {
+				return false, fmt.Errorf("resolve OpenRouter cloud default model (role %q): %w", role, err)
+			}
+			if d.ChatModel == "" {
+				d.ChatModel = model
+			}
+			if d.CompletionModel == "" {
+				d.CompletionModel = model
+			}
+		}
+		provider = "openrouter"
+		chatModel = d.ChatModel
+		completionModel = d.CompletionModel
+		logf("Selected OpenRouter API (provider=%s, model=%s)", provider, chatModel)
+	}
+
+	// Tier 3: Local Ollama (fallback when no cloud credentials)
+	if !useOpenCodeGo && !useOpenRouter && ollamaReachable {
+		useOllama = true
+		provider = ollamaProviderID
+		chatModel = d.OllamaDefaultModel
+		completionModel = d.OllamaDefaultModel
+		logf("Self-healed to local Ollama (provider=%s, model=%s)", provider, chatModel)
+	}
 
 	var sampling Sampling
 	if ollamaReachable {
 		if rr, err := opts.Resolver.LocalRole(ctx, d.LocalRole); err == nil {
 			sampling = rr.Sampling
 			if rr.Model != "" && containsModel(installed, rr.Model) {
-				ollamaBlockModel = rr.Model
+				if useOllama {
+					chatModel = rr.Model
+					completionModel = rr.Model
+				}
 			}
 		}
-	}
-
-	// Use Ollama as the ACTIVE model only when there is no usable cloud key.
-	if !opts.HaveOpenRouter && ollamaReachable {
-		useOllama = true
-		provider = ollamaProviderID
-		chatModel = ollamaBlockModel
-		completionModel = ollamaBlockModel
 	}
 
 	existing, readErr := os.ReadFile(opts.ConfigPath)
@@ -167,26 +179,27 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 
 	if freshFile {
-		in.Repoint = true // a fresh file pins the chosen model
-	} else {
-		in.MigrateLegacy = true
-		in.LegacyTargets = d.LegacyTargets
-		in.LegacyChat = "openrouter/" + d.ChatModel
-		in.LegacySmall = "openrouter/" + d.CompletionModel
-		// Self-heal repoint only the cloud default or an empty model onto the
-		// reachable local provider; an operator-pinned model is left alone.
-		if useOllama && (currentProvider == "" || currentProvider == "openrouter") {
-			in.Repoint = true
-		}
+		in.Repoint = true
+	} else if useOllama && (currentProvider == "" || currentProvider == "openrouter" || currentProvider == goProviderID) {
+		in.Repoint = true
+	} else if useOpenCodeGo && currentProvider != goProviderID {
+		in.Repoint = true
+	} else if useOpenRouter && currentProvider != "openrouter" {
+		in.Repoint = true
 	}
 
-	// Provider block: write/refresh whenever Ollama is reachable; otherwise
-	// migrate an existing stale block in place.
+	if useOpenCodeGo {
+		in.Go = &GoProvider{
+			BaseURL:    goBaseURL,
+			ChatModel:  chatModel,
+			SmallModel: completionModel,
+		}
+	}
 	if ollamaReachable {
 		in.Ollama = &OllamaProvider{
 			BaseURL:    ollamaBaseURL(os.Getenv) + "/api",
-			ChatModel:  ollamaBlockModel,
-			SmallModel: ollamaBlockModel,
+			ChatModel:  chatModel,
+			SmallModel: completionModel,
 			NumCtx:     d.NumCtx,
 			Sampling:   sampling,
 		}
@@ -218,16 +231,16 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	switch {
 	case freshFile:
 		logf("Created OpenCode config at %s (provider=%s)", opts.ConfigPath, provider)
-	case in.Repoint && useOllama:
-		logf("Self-healed OpenCode model -> %s/%s (no OpenRouter key; local Ollama reachable)", provider, chatModel)
+	case useOpenCodeGo:
+		logf("Switched to OpenCode Go subscription (provider=%s, model=%s)", provider, chatModel)
+	case useOllama:
+		logf("Self-healed OpenCode model -> %s/%s (no cloud key; local Ollama reachable)", provider, chatModel)
 	default:
 		logf("Updated OpenCode config at %s", opts.ConfigPath)
 	}
 
-	// Loud warning when the active provider needs a key we can't resolve and
-	// there is no local fallback — otherwise the failure is silent until a run.
-	if !useOllama && currentProvider == "openrouter" && !opts.HaveOpenRouter && !ollamaReachable {
-		logf("WARNING: OpenCode model %q uses OpenRouter but no OPENROUTER_API_KEY was injected and no local Ollama is reachable — runs will fail. Provision the canonical OpenRouter credential through Vrooli onboarding or `vrooli credentials provision`, then retry.", currentModel)
+	if provider == "" {
+		logf("WARNING: No usable provider credentials found. Set OPENCODE_GO_KEY or OPENROUTER_API_KEY, or ensure Ollama is running.")
 	}
 	return true, nil
 }
@@ -266,8 +279,6 @@ func containsModel(installed []string, model string) bool {
 	return false
 }
 
-// normalize re-parses and re-marshals so a comparison ignores incidental
-// whitespace differences between the on-disk file and a fresh render.
 func normalize(data []byte) []byte {
 	var v any
 	if err := json.Unmarshal(data, &v); err != nil {
@@ -280,9 +291,6 @@ func normalize(data []byte) []byte {
 	return out
 }
 
-// ollamaBaseURL normalizes OLLAMA_HOST into scheme://host:port, mirroring the
-// daemon-side resolution (bare host, host:port, or full URL; default
-// localhost:11434).
 func ollamaBaseURL(getenv func(string) string) string {
 	if getenv == nil {
 		getenv = os.Getenv
@@ -317,16 +325,8 @@ func parseInt(s string) (int, error) {
 
 // --- cloud model role resolver (execs the resource-openrouter SSOT) -----------
 
-// resolveCloudModel resolves an OpenRouter policy role to a concrete model slug.
-// It is a package var so tests can override the SSOT call; the default shells out
-// to `resource-openrouter policy resolve`. Greenfield rule: no concrete slug
-// fallback lives here — resource-openrouter policy is the sole authority.
 var resolveCloudModel = execResolveCloudModel
 
-// execResolveCloudModel runs
-// `resource-openrouter policy resolve --role <role> --field model` and returns
-// the trimmed concrete model slug. A missing binary, a non-zero exit, or an
-// empty result is a hard error (no concrete fallback).
 func execResolveCloudModel(ctx context.Context, role string) (string, error) {
 	out, err := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model").Output()
 	if err != nil {
@@ -341,9 +341,8 @@ func execResolveCloudModel(ctx context.Context, role string) (string, error) {
 
 // --- default Resolver (execs the resource-ollama SSOT) ------------------------
 
-// ExecResolver implements Resolver by shelling out to `resource-ollama`.
 type ExecResolver struct {
-	Command string // defaults to "resource-ollama"
+	Command string
 }
 
 func (r ExecResolver) bin() string {
@@ -353,7 +352,6 @@ func (r ExecResolver) bin() string {
 	return "resource-ollama"
 }
 
-// InstalledModels runs `resource-ollama models list --json`.
 func (r ExecResolver) InstalledModels(ctx context.Context) ([]string, error) {
 	out, err := exec.CommandContext(ctx, r.bin(), "models", "list", "--json").Output()
 	if err != nil {
@@ -368,7 +366,6 @@ func (r ExecResolver) InstalledModels(ctx context.Context) ([]string, error) {
 	return payload.Models, nil
 }
 
-// LocalRole runs `resource-ollama policy resolve --role <role> --json`.
 func (r ExecResolver) LocalRole(ctx context.Context, role string) (RoleResolution, error) {
 	out, err := exec.CommandContext(ctx, r.bin(), "policy", "resolve", "--role", role, "--json").Output()
 	if err != nil {

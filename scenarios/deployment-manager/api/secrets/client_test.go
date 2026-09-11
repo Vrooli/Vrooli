@@ -18,9 +18,18 @@ func TestFetchBundleSecretsUsesTierAndParsesResponse(t *testing.T) {
 	}))
 	defer server.Close()
 	t.Setenv("SECRETS_MANAGER_URL", server.URL)
-	got, err := NewClient().FetchBundleSecrets(context.Background(), "demo", "desktop")
+	got, err := (&Client{serviceToken: "deployment-test-token"}).FetchBundleSecrets(context.Background(), "demo", "desktop")
 	if err != nil || len(got) != 1 || got[0].ID != "key" || got[0].Target.Name != "KEY" {
 		t.Fatalf("secrets = %#v, %v", got, err)
+	}
+}
+
+func TestSelectServiceTokenPrefersAuthorityOverCompatibilityEnvironment(t *testing.T) {
+	if got := selectServiceToken("authority-token", "legacy-token"); got != "authority-token" {
+		t.Fatalf("token = %q, want authority token", got)
+	}
+	if got := selectServiceToken("", "legacy-token"); got != "legacy-token" {
+		t.Fatalf("fallback token = %q, want legacy compatibility token", got)
 	}
 }
 
@@ -43,7 +52,7 @@ func TestFetchBundleSecretsReportsHTTPAndDecodeErrors(t *testing.T) {
 			}))
 			defer server.Close()
 			t.Setenv("SECRETS_MANAGER_URL", server.URL)
-			_, err := NewClient().FetchBundleSecrets(context.Background(), "demo", "desktop")
+			_, err := (&Client{serviceToken: "deployment-test-token"}).FetchBundleSecrets(context.Background(), "demo", "desktop")
 			if err == nil || !strings.Contains(err.Error(), "secrets-manager") {
 				t.Fatalf("error = %v", err)
 			}

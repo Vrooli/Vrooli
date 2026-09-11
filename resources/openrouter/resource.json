@@ -111,6 +111,16 @@
         "required": true,
         "obtain_url": "https://openrouter.ai/keys"
       }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenRouter CLI credential resolver",
+        "source_ref": "cli/internal/auth/auth.go:70",
+        "required": true
+      }
     ]
   },
   "orchestration": {
@@ -156,12 +166,12 @@
     {
       "type": "http",
       "kind": "readiness",
-      "target": "https://openrouter.ai/api/v1/models",
+      "target": "https://openrouter.ai/api/v1/key",
+      "headers": {
+        "Authorization": "Bearer ${OPENROUTER_API_KEY}"
+      },
       "expected_status": [
-        200,
-        400,
-        401,
-        403
+        200
       ],
       "timeout_seconds": 15
     }

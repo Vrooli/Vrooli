@@ -10,6 +10,8 @@ describe('StepCredentials', () => {
   it('shows environment credential guidance and protects configured values behind clear actions', () => {
     const onCredentialsChange = vi.fn();
     render(<StepCredentials provider="aws-s3" credentials={buildDefaultCredentialsForm()} existingSettings={existingSettings} onCredentialsChange={onCredentialsChange} />);
+    expect(screen.getByTestId('storage-credentials-task')).toHaveAttribute('aria-label', 'AWS IAM Credentials');
+    expect(screen.getByText('Stored · verify next')).toBeInTheDocument();
     expect(screen.getByText('Environment credentials detected')).toBeInTheDocument();
     expect(screen.getAllByPlaceholderText('••••••••••••')).toHaveLength(2);
     fireEvent.click(screen.getByRole('checkbox', { name: /Clear saved access key ID/ }));
@@ -19,6 +21,7 @@ describe('StepCredentials', () => {
   it('forwards newly entered credentials without logging or exposing the secret', () => {
     const onCredentialsChange = vi.fn();
     render(<StepCredentials provider="minio" credentials={buildDefaultCredentialsForm()} existingSettings={null} onCredentialsChange={onCredentialsChange} />);
+    expect(screen.getByText('Credentials needed')).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('AKIA...'), { target: { value: 'operator' } });
     fireEvent.change(screen.getByPlaceholderText('Enter secret key'), { target: { value: 'secret-value' } });
     expect(onCredentialsChange).toHaveBeenCalledWith({ accessKeyId: 'operator', clearAccessKeyId: false });

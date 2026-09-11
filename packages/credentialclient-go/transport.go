@@ -69,7 +69,14 @@ func (c *sshClient) Provision(ctx context.Context, request ProvisionRequest) (Pr
 	if err != nil {
 		return ProvisionResponse{}, err
 	}
-	return ProvisionResponse{Identity: request.Identity, Field: request.Field, Provider: "ssh", Status: "provisioned"}, nil
+	status, statusErr := c.Status(ctx, request.Identity, request.Field)
+	if statusErr != nil {
+		return ProvisionResponse{}, fmt.Errorf("credential provisioned but active version could not be confirmed: %w", statusErr)
+	}
+	if strings.TrimSpace(status.Version) == "" {
+		return ProvisionResponse{}, fmt.Errorf("credential provisioned but remote authority returned no active version")
+	}
+	return ProvisionResponse{Identity: request.Identity, Field: request.Field, Version: status.Version, Provider: "ssh", Status: "provisioned"}, nil
 }
 
 func (c *sshClient) Resolve(ctx context.Context, identity, field string) (string, error) {

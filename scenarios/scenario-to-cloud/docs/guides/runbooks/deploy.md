@@ -17,9 +17,9 @@ prepared target.
 ## 1. Author and validate the manifest
 
 ```bash
-scenario-to-cloud manifest init --scenario <scenario-id> --host <target-host> --domain <public-domain> --out scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json
-scenario-to-cloud manifest doctor scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json
-scenario-to-cloud manifest validate scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json
+scenario-to-cloud manifest init --scenario "$SCENARIO_ID" --host "$TARGET_HOST" --domain "$PUBLIC_DOMAIN" --out "scenarios/$SCENARIO_ID/.vrooli/cloud/manifest.prod.json"
+scenario-to-cloud manifest doctor "scenarios/$SCENARIO_ID/.vrooli/cloud/manifest.prod.json"
+scenario-to-cloud manifest validate "scenarios/$SCENARIO_ID/.vrooli/cloud/manifest.prod.json"
 ```
 
 `manifest fix` applies the doctor's proposals; re-run `validate` after it.
@@ -28,7 +28,7 @@ Field reference: `docs/guides/manifest-reference.md`.
 ## 2. Check the target
 
 ```bash
-scenario-to-cloud preflight run scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json --json
+scenario-to-cloud preflight run "scenarios/$SCENARIO_ID/.vrooli/cloud/manifest.prod.json" --json
 ```
 
 Read every `fail` before continuing. The fixes below are owner operations
@@ -37,8 +37,8 @@ stops); they act on an explicit connection because no deployment record
 exists yet:
 
 ```bash
-scenario-to-cloud preflight fix-firewall --scenario <scenario-id> --host <target-host>
-scenario-to-cloud preflight fix-processes --scenario <scenario-id> --host <target-host>
+scenario-to-cloud preflight fix-firewall --scenario "$SCENARIO_ID" --host "$TARGET_HOST"
+scenario-to-cloud preflight fix-processes --scenario "$SCENARIO_ID" --host "$TARGET_HOST"
 ```
 
 A capacity failure (disk, memory, architecture) is not fixed here: choose a
@@ -49,8 +49,8 @@ architecture the resource does not ship for).
 ## 3. Create the deployment record
 
 ```bash
-scenario-to-cloud deployment create scenarios/<scenario-id>/.vrooli/cloud/manifest.prod.json --json
-scenario-to-cloud deployment resolve --scenario <scenario-id> --environment production
+scenario-to-cloud deployment create "scenarios/$SCENARIO_ID/.vrooli/cloud/manifest.prod.json" --json
+scenario-to-cloud deployment resolve --scenario "$SCENARIO_ID" --environment production
 ```
 
 The second line prints the identity line you will reuse:
@@ -61,8 +61,8 @@ one scenario may have several environments, each its own deployment.
 ## 4. Review the plan
 
 ```bash
-scenario-to-cloud deployment plan <deployment-id>
-scenario-to-cloud deployment plan <deployment-id> --show-commands     # derived argv preview, read-only
+scenario-to-cloud deployment plan "$DEPLOYMENT_ID"
+scenario-to-cloud deployment plan "$DEPLOYMENT_ID" --show-commands
 ```
 
 What you are approving (`docs/reference/executable-plan.md`):
@@ -82,7 +82,7 @@ What you are approving (`docs/reference/executable-plan.md`):
 ## 5. Apply exactly what you reviewed
 
 ```bash
-scenario-to-cloud deployment apply <deployment-id> --plan-digest <plan-digest> --request-key deploy-<scenario-id>-1 --timeout 900
+scenario-to-cloud deployment apply "$DEPLOYMENT_ID" --plan-digest "$PLAN_DIGEST" --request-key "deploy-$SCENARIO_ID-1" --timeout 900
 ```
 
 `apply` admits the digest as a durable operation and waits once. Use the
@@ -105,8 +105,8 @@ apply the digest just printed, wait), or `redeploy <manifest.json>`
 ## 6. Verify with a fresh observation
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
 ```
 
 Required before you call it deployed: `status: HEALTHY`, `freshness: CURRENT`,

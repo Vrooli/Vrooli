@@ -2,17 +2,21 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
 
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/closure"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/onboarding"
 	"scenario-to-cloud/operations"
 	"scenario-to-cloud/plansvc"
 	"scenario-to-cloud/vps"
@@ -209,7 +213,7 @@ func (s *Server) compileDeploymentPlanWith(ctx context.Context, deploymentID, sc
 		req.BundlePath = *dctx.Deployment.BundlePath
 	}
 	closureStatus := "derived"
-	if svc, svcErr := closureService(); svcErr == nil && svc != nil {
+	if svc, svcErr := s.closureService(); svcErr == nil && svc != nil {
 		derived, derr := svc.Derive(ctx, closure.Request{
 			ScenarioID:  dctx.Manifest.Scenario.ID,
 			Environment: dctx.Deployment.Environment,
@@ -237,6 +241,11 @@ func (s *Server) compileDeploymentPlanWith(ctx context.Context, deploymentID, sc
 		}
 		return nil, apierrors.New(apierrors.CodeManifestInvalid, "Unable to compile the deployment plan").WithDetail("cause", cerr.Error())
 	}
+	if plan.Outcome == execplan.OutcomeNeedsInput && s.onboardingHandoff != nil {
+		if err := s.issueOnboardingHandoff(ctx, dctx, plan); err != nil {
+			return nil, err
+		}
+	}
 	return &CompiledPlan{
 		SchemaVersion: execplan.SchemaVersion,
 		Plan:          plan,
@@ -245,6 +254,44 @@ func (s *Server) compileDeploymentPlanWith(ctx context.Context, deploymentID, sc
 		Steps:         vps.RenderSteps(plan, dctx.Manifest),
 		ClosureStatus: closureStatus,
 	}, nil
+}
+
+func (s *Server) issueOnboardingHandoff(ctx context.Context, dctx *DeploymentContext, plan *execplan.Plan) *apierrors.Error {
+	if plan == nil || plan.Handoff == nil || len(plan.Actions) == 0 || s.onboardingHandoff == nil {
+		return nil
+	}
+	encoded := strings.TrimSpace(plan.Actions[0].Inputs["selection_json_b64"])
+	if encoded == "" {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Onboarding handoff owner cannot receive the reviewed selection").WithDetail("cause", "selection_json_b64 is absent from the typed plan")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Onboarding handoff owner cannot decode the reviewed selection").WithDetail("cause", err.Error())
+	}
+	selection := &setupv1.Selection{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, selection); err != nil {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Onboarding handoff owner rejected the reviewed selection").WithDetail("cause", err.Error())
+	}
+	target := dctx.Deployment.Target
+	targetName := plan.Target.NodeID
+	if strings.TrimSpace(targetName) == "" {
+		targetName = target.Key()
+	}
+	owner, err := s.onboardingHandoff.Issue(ctx, onboarding.Request{
+		Target: targetName, MachineID: plan.Target.MachineID, NodeID: plan.Target.NodeID, NodeKind: plan.Target.Transport,
+		DeploymentID: plan.DeploymentID, EnrollmentGeneration: plan.Target.EnrollmentGeneration, DesiredRevision: plan.DesiredRevision,
+		SelectionDigest: plan.Handoff.SelectionDigest,
+		RequestKey:      plan.Handoff.Reference, Missing: plan.Handoff.Missing, Selection: selection,
+	})
+	if err != nil {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Onboarding handoff owner is unavailable").WithDetail("cause", err.Error())
+	}
+	plan.Handoff.Reference = owner.GetReference()
+	plan.Handoff.DeploymentID = owner.GetDeploymentId()
+	plan.Handoff.Target = execplan.Target{MachineID: owner.GetMachineId(), NodeID: owner.GetNodeId(), EnrollmentGeneration: owner.GetEnrollmentGeneration(), Transport: target.Transport}
+	plan.Handoff.DesiredRevision = owner.GetDesiredRevision()
+	plan.Handoff.SelectionDigest = owner.GetSelectionDigest()
+	return nil
 }
 
 // applyDeploymentPlan recompiles, compares the reviewed digest, validates

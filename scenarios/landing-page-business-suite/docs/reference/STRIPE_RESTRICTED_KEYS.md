@@ -37,6 +37,11 @@ Provision these through the admin portal (Billing → Stripe) or the credential-
 - `stripe-secret-key`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)
 - `stripe-webhook-secret`: `whsec_...` from your webhook endpoint configuration
 
+Keep the publishable and restricted server keys in the same Stripe mode. LPBS
+rejects a recognizable `pk_test_`/`pk_live_` versus `sk_`/`rk_` mismatch before
+persisting the update. Webhook secrets are validated separately by Stripe's
+signature checks.
+
 Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>/api/v1/webhooks/stripe` and select:
 - `checkout.session.completed`
 - `customer.subscription.created`

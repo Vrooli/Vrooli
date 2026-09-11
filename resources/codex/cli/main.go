@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vrooli/vrooli/resources/codex/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
@@ -61,6 +62,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		[]cliapp.SubcommandGroup{
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."}}}),
+			configcli.Commands(configcli.Default()),
 			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{

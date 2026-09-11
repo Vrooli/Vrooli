@@ -74,6 +74,16 @@ var remoteProfileProxyAllowlist = []string{
 	"/admin/download-artifacts",
 	"/admin/download-assets",
 	"/admin/download-apps",
+	// These are the only secret/settings procedures that may cross a stored
+	// remote-profile session. Keep the list exact: the proxy must not become a
+	// general Connect or remote-shell tunnel.
+	"/landing_page_business_suite.v1.AdministrationService/ListAPIKeys",
+	"/landing_page_business_suite.v1.AdministrationService/CreateAPIKey",
+	"/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey",
+	"/landing_page_business_suite.v1.AdministrationService/TestAPIKey",
+	"/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive",
+	"/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
+	"/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
 }
 
 var remoteProfileProxyAllowedHeaders = map[string]bool{
@@ -487,8 +497,8 @@ func normalizeRemoteProxyPath(raw string) (string, error) {
 		return "", fmt.Errorf("path must not include '..'")
 	}
 	cleaned := path.Clean(trimmed)
-	if !strings.HasPrefix(cleaned, "/admin/") && cleaned != "/admin" {
-		return "", fmt.Errorf("path must start with /admin")
+	if !strings.HasPrefix(cleaned, "/admin/") && cleaned != "/admin" && !isRemoteConnectProcedure(cleaned) {
+		return "", fmt.Errorf("path must start with /admin or be an approved Connect procedure")
 	}
 	return cleaned, nil
 }
@@ -503,6 +513,23 @@ func isAllowedRemoteProxyPath(path string) bool {
 }
 
 func IsAllowedRemoteProxyPath(path string) bool { return isAllowedRemoteProxyPath(path) }
+
+func isRemoteConnectProcedure(path string) bool {
+	return strings.HasPrefix(path, "/landing_page_business_suite.v1.")
+}
+
+func isAllowedRemoteProxyRequest(method, path string) bool {
+	if isRemoteConnectProcedure(path) {
+		return strings.EqualFold(method, http.MethodPost) && isAllowedRemoteProxyPath(path)
+	}
+	return isAllowedRemoteProxyPath(path)
+}
+
+// IsAllowedRemoteProxyRequest exposes the same method-aware policy to CLI and
+// contract tests without exposing the mutable allowlist.
+func IsAllowedRemoteProxyRequest(method, path string) bool {
+	return isAllowedRemoteProxyRequest(method, path)
+}
 
 func (s *RemoteProfileService) List(ctx context.Context) ([]RemoteProfile, error) {
 	rows, err := s.DB.QueryContext(ctx, `

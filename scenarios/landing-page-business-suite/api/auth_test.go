@@ -658,11 +658,37 @@ func TestValidateProductionCredentialsRejectsMissingMagicLinkBaseURL(t *testing.
 	t.Setenv("LPBS_ENVIRONMENT", "production")
 	t.Setenv("SESSION_SECRET", "stable-session-secret")
 	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("PUBLIC_BASE_URL", "")
 	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "")
 
 	err := validateProductionCredentials()
-	if err == nil || !strings.Contains(err.Error(), "AUTH_MAGIC_LINK_BASE_URL") {
+	if err == nil || !strings.Contains(err.Error(), "PUBLIC_BASE_URL") {
 		t.Fatalf("validateProductionCredentials() error = %v, want missing AUTH_MAGIC_LINK_BASE_URL", err)
+	}
+}
+
+func TestResolveMagicLinkBaseURLUsesCanonicalPublicOrigin(t *testing.T) {
+	t.Setenv("PUBLIC_BASE_URL", "https://app.example.test/")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://legacy.example.test/auth/verify")
+
+	if got := resolvePublicBaseURL(); got != "https://app.example.test" {
+		t.Fatalf("resolvePublicBaseURL() = %q, want canonical origin", got)
+	}
+	if got := resolveMagicLinkBaseURL(); got != "https://app.example.test/auth/verify" {
+		t.Fatalf("resolveMagicLinkBaseURL() = %q, want derived callback", got)
+	}
+}
+
+func TestValidateProductionCredentialsAcceptsCanonicalPublicOrigin(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("PUBLIC_BASE_URL", "https://app.example.test")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "")
+
+	if err := validateProductionCredentials(); err != nil {
+		t.Fatalf("validateProductionCredentials() error = %v", err)
 	}
 }
 

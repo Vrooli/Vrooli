@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { useToast } from '../../../shared/ui/useToast';
 import { formatDateTime } from '../../../shared/lib/dateFormatters';
 import type { RemoteProfile } from '../../../shared/api';
+import { RemoteProfileOwnerSettingsDialog } from '../components/RemoteProfileOwnerSettingsDialog';
 import { useRemoteProfilesForm } from '../hooks/useRemoteProfilesForm';
 import {
   DEFAULT_REMOTE_PROFILE_FORM,
@@ -79,6 +80,7 @@ export function RemoteProfiles() {
   const [loginProfile, setLoginProfile] = useState<RemoteProfile | null>(null);
   const [loginForm, setLoginForm] = useState(DEFAULT_REMOTE_PROFILE_LOGIN);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [ownerSettingsProfile, setOwnerSettingsProfile] = useState<RemoteProfile | null>(null);
 
   const openCreateModal = () => {
     setEditingProfile(null);
@@ -450,6 +452,16 @@ export function RemoteProfiles() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => { setOwnerSettingsProfile(profile); }}
+                          disabled={!profile.has_session}
+                          className="gap-1"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          Owner Settings
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => { void handleRemoteRevokeProfile(profile); }}
                           disabled={actions.remoteRevokeId === profile.id || !profile.has_session}
                           className="gap-1 text-rose-400 hover:text-rose-300 hover:border-rose-500/50"
@@ -632,6 +644,12 @@ export function RemoteProfiles() {
           </div>
         </div>
       )}
+
+      <RemoteProfileOwnerSettingsDialog
+        profile={ownerSettingsProfile}
+        open={ownerSettingsProfile !== null}
+        onOpenChange={(open) => { if (!open) setOwnerSettingsProfile(null); }}
+      />
     </AdminLayout>
   );
 }

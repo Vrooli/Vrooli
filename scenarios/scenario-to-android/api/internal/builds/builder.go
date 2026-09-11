@@ -43,10 +43,11 @@ type SigningStore interface {
 }
 
 const (
-	DefaultSigningIdentity = "vrooli/scenario-to-android/android-upload-signing-key"
-	SigningKeystoreField   = "keystore-base64"
-	SigningPasswordField   = "password" //gitleaks:allow -- public credential field label, not credential material
-	SigningAliasField      = "alias"
+	DefaultSigningIdentity  = "vrooli/scenario-to-android/android-upload-signing-key"
+	SigningKeystoreField    = "keystore-base64"
+	SigningPasswordField    = "password"     //gitleaks:allow -- keystore password field label, not credential material
+	SigningKeyPasswordField = "key-password" //gitleaks:allow -- private-key password field label, not credential material
+	SigningAliasField       = "alias"
 )
 
 var _ deliveryramp.Builder = Builder{}

@@ -62,10 +62,10 @@ func (s *Server) publication() *publicationDeps {
 		d.target = sshTargetReader{server: s}
 	}
 	if d.releaseFor == nil {
-		d.releaseFor = releaseForBundle
+		d.releaseFor = s.releaseForBundle
 	}
 	if d.bundleFor == nil {
-		d.bundleFor = bundleForRelease
+		d.bundleFor = s.bundleForRelease
 	}
 	if d.profile == nil {
 		if profile, err := evidence.LoadProfile(evidence.ProfileCloudLaunchV1); err == nil {
@@ -103,12 +103,12 @@ func defaultReceiptSigner(log func(string, map[string]interface{})) (receiptsign
 }
 
 // releaseForBundle finds the stored release whose bundle is bundleSHA.
-func releaseForBundle(bundleSHA string) domain.ReceiptRelease {
+func (s *Server) releaseForBundle(bundleSHA string) domain.ReceiptRelease {
 	bundleSHA = strings.ToLower(strings.TrimSpace(bundleSHA))
 	if bundleSHA == "" {
 		return domain.ReceiptRelease{}
 	}
-	svc, err := releaseService()
+	svc, err := s.releaseService()
 	if err != nil {
 		return domain.ReceiptRelease{}
 	}
@@ -125,12 +125,12 @@ func releaseForBundle(bundleSHA string) domain.ReceiptRelease {
 }
 
 // bundleForRelease finds the bundle sha256 of a complete stored release.
-func bundleForRelease(releaseDigest string) string {
+func (s *Server) bundleForRelease(releaseDigest string) string {
 	releaseDigest = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(releaseDigest), "sha256:"))
 	if releaseDigest == "" {
 		return ""
 	}
-	svc, err := releaseService()
+	svc, err := s.releaseService()
 	if err != nil {
 		return ""
 	}

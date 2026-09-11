@@ -17,7 +17,7 @@ levels:
 
 - **The backlog item** automates completing one piece of work — a feature, a
   bug fix, a chore, research, or an idea being shaped. Create it, workshop one
-  evolving plan until you accept it, execute it with the strategy you choose,
+  evolving plan until you accept it, execute it in the mode you choose,
   review the evidence, decide the outcome, and file the follow-ups. The whole
   arc should be at least as effective as prompting a coding agent yourself.
 - **The goal** automates what a project manager does above that: hold intent,
@@ -123,46 +123,73 @@ Acceptance is the authorization boundary between planning and execution:
 
 ### 4. Run
 
-With a fresh acceptance, the next action becomes **run**:
+With a fresh acceptance, the next action becomes **run**. The Run dialog
+opens with a **plan-shape banner** that reads the accepted plan: **Adaptive
+mandate detected** or **Phased plan**. Below the banner is the **mode picker**.
 
-- The operator picks an **execution strategy** from the declared registry. The
-  highest-effort default is the **phased plan drain**: implement and validate
-  one plan slice at a time. The Run dialog also reads the
-  Agent Manager execution catalog for the preferred runner, model, and effort;
-  it records both the request and the actual selection for later review.
+- **Goal mode** is recommended for a mandate and available for any shape. It
+  starts one Agent Manager run with the finish line installed as `/goal`. The
+  dialog shows the runner (marked native-capable or prompt-carried), model,
+  effort, the allowance, the continuation policy, the scope policy, and the
+  operator note. The dialog does not read a model list before the runner is
+  chosen; a runner without one shows "no model list" and keeps the default.
+- **Sliced mode** runs the `swarm-manager/phased-plan-drain` workflow one
+  slice at a time. The dialog shows the slice cap and the approval mode
+  (manual or automatic at routine phase boundaries) in addition to the runner,
+  model, effort, allowance, continuation, scope, and operator note.
+- The dialog reads the Agent Manager execution catalog for the runner, model,
+  and effort. It records both the request and the actual selection for later
+  review. The runner is a preference, not a pin.
 - Reviewed limits (slices, tokens, wall seconds, turns, charge, children,
   attempts, and retries) are visible in the item form. The operator may narrow
-  them for one run, but changing the item contract clears plan acceptance and
-  requires review again. Goal-session strategy is selectable only when the
-  catalog reports a native-objective runner; otherwise the action is disabled
-  with the reported reason.
-- The item’s continuation policy is either **manual** or **until allowance**.
-  A budget-exhausted run records its handoff and may create a fresh child run
-  only while allowance, scope, and acceptance remain valid. Operators can halt
-  or resume this continuation from execution history. Queueing enforces the
-  same preflight the next-action projection uses: fresh acceptance, dependency
-  order, queue and cost caps, circuit breakers.
+  them for one run. Changing the item contract clears plan acceptance and
+  requires review again. The edit dialog keeps every execution field.
+- The item's continuation policy is either **manual** or **until allowance**.
+  Under **until allowance**, an involuntary interruption (usage window,
+  timeout, crash, session lost) is resumed while allowance, scope, and
+  acceptance remain valid; the same session is preferred, and a fresh run with
+  the handoff is started only when the session is dead. An agent-decided
+  verdict (`complete`, `blocked`, `abstained`) is final and goes to
+  finalization. Operators can halt or resume from execution history. Queueing
+  enforces the same preflight the next-action projection uses: fresh
+  acceptance, dependency order, queue and cost caps, circuit breakers.
 
 ### 5. Execute
 
-Execution is an Agent Manager workflow; Swarm authorizes it, correlates it,
-and applies its typed terminal result exactly once:
+Swarm authorizes the execution, correlates it, and applies its typed terminal
+result exactly once. What runs depends on the mode:
 
-- The **phased drain** works slice by slice: a fresh deep-work run implements
-  one slice with access to prior-slice handoffs, a slice review checks the
-  claimed work, and a bounded correction turn fixes what review flags before
-  the next slice starts. Budgets (slices, corrections) end the run honestly as
+- **Goal mode** is one run. Swarm composes the goal message (destination,
+  proof, sources, boundary, dials, budget, handoff, non-goals, then the
+  operator note verbatim). The agent works toward the finish line, checkpoints
+  progress in Plan Manager and the journal, and stops with a verdict or is
+  interrupted. There is no slice cap and no per-session reviewer; Swarm
+  finalization reviews the result.
+- **Sliced mode** works slice by slice: a fresh worker run implements one
+  slice with access to prior-slice handoffs, a slice review checks the claimed
+  work, and a bounded correction turn fixes what review flags before the next
+  slice starts. Budgets (slices, corrections) end the execution honestly as
   `budget_exhausted` rather than pretending completion.
-- The operator can watch live progress (current slice, workflow state), answer
-  a pause-for-approval when the strategy runs in manual mode, or cancel.
+- The operator can watch live progress (current slice or the run's last
+  handoff), answer a pause-for-approval when sliced mode runs with manual
+  approval, or cancel.
 - Steering beyond approval signals happens by cancelling, revising the plan
   (which clears acceptance), and re-running — never by mutating a running
-  workflow's plan underneath it.
+  execution's plan underneath it.
+
+**Implementation status (2026-09-11).** The Run dialog still offers three
+execution strategies instead of a shape banner and a mode picker. It crashes
+when the first runner in the catalog has no model list, and the edit dialog
+neither loads nor submits the execution fields. Involuntary interruptions are
+not resumed. The
+mapping from today's strategies to the two modes lives in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ### 6. Evidence
 
-When the workflow reaches a terminal outcome, Swarm collects evidence before
-asking the operator anything:
+When the execution reaches a terminal outcome — a workflow result in sliced
+mode, a run verdict in goal mode — Swarm collects evidence before asking the
+operator anything. Finalization is the same for both modes:
 
 - A Git Control Tower **baseline diff** (what regressed, what cleared) and
   **Test Genie** results for each affected scenario.

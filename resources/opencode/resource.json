@@ -131,6 +131,16 @@
         "description": "Optional AI Gateway slug.",
         "required": false,
         "obtain_url": "https://developers.cloudflare.com/ai-gateway/"
+      },
+      {
+        "logical_id": "vrooli/opencode-go",
+        "field": "api-key",
+        "env": "OPENCODE_GO_KEY",
+        "label": "OpenCode Go API key",
+        "provisioning": "operator",
+        "description": "Subscription key for the OpenCode Go model plan (opencode.ai/go).",
+        "required": false,
+        "obtain_url": "https://opencode.ai/auth"
       }
     ],
     "consumers": [
@@ -139,7 +149,15 @@
         "field": "api-key",
         "kind": "environment",
         "consumer": "OpenCode OpenRouter resolver",
-        "source_ref": "cli/internal/secrets/secrets.go:60",
+        "source_ref": "cli/internal/secrets/secrets.go:59",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode-go",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenCode Go key resolver",
+        "source_ref": "cli/internal/secrets/secrets.go:68",
         "required": false
       }
     ]
@@ -303,7 +321,8 @@
     }
   },
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [

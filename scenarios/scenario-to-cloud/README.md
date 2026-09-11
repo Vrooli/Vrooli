@@ -31,12 +31,12 @@ scenario-to-cloud deployment resolve --scenario landing-page-business-suite --en
 scenario-to-cloud deployment plan --scenario landing-page-business-suite --environment production
 
 # Apply the reviewed plan and wait on its durable operation
-scenario-to-cloud deployment apply --scenario landing-page-business-suite --environment production --plan-digest <digest> --request-key launch-<id>
-scenario-to-cloud operation wait <operation-id> --timeout 600
+scenario-to-cloud deployment apply --scenario landing-page-business-suite --environment production --plan-digest "$PLAN_DIGEST" --request-key "launch-$REQUEST_ID"
+scenario-to-cloud operation wait "$OPERATION_ID" --timeout 600
 
 # Inspect target-owned health and operation receipts
-scenario-to-cloud deployment health <deployment-id>
-scenario-to-cloud operation list <deployment-id>
+scenario-to-cloud deployment health "$DEPLOYMENT_ID"
+scenario-to-cloud operation list "$DEPLOYMENT_ID"
 ```
 
 ## Docs

@@ -14,7 +14,7 @@ scenarios retain product and provider authority.
 
 - **Review** all agent-generated plans before anything executes
 - **Refine** plans using the built-in workshop loop and prompt catalog
-- **Control Execution**: Run approved work in manual, scheduled, or YOLO mode
+- **Control Execution**: Run approved work under a manual, scheduled, or YOLO queue policy, in sliced or goal execution mode
 - **Manage Scenarios**: View, configure, and manage the lifecycle of all scenarios
 - **Track Progress**: Monitor scenario health and execution runs
 
@@ -156,29 +156,27 @@ Do not place credentials in request files, prompts, or command arguments.
 
 ## CLI Commands
 
-Development review is available as a non-launching API/CLI preparation step:
+A plan-backed item carries its **execution settings** in its details and in
+`swarm-manager backlog get --kind <kind> --name <name> --json`: the execution
+mode (`sliced` or `goal`), the aggregate limits, the continuation policy
+(`manual` or `until-allowance`), the scope policy (`fixed` or
+`extend-with-record`), the acceptance globs, and the operator note. Plan
+acceptance is the only authorization; it pins the plan content hash, and
+editing any execution setting clears it. Decisions require configured
+verified-human authentication and `swarm-manager:write` authority. The earlier
+development-contract route (`swarm-manager development`, the preview step, and
+its panel) is retired; see
+[Retired route: contract-development](docs/concepts/ARCHITECTURE.md#retired-route-contract-development)
+for what still exists in code today.
+
+Implementation status (2026-09-11): the CLI and API still spell the mode as
+`execution_strategy` with three values, and there is no `operator_note` field;
+the operator note travels in the description for now. The mapping to the two
+modes lives in
+[SCENARIO_DEVELOPMENT.md](../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ```bash
-swarm-manager transitions preview-development --file scenarios/audio-tools/docs/internal/local-dictation-proposal.json --json
-```
-
-This returns target fingerprints, a draft goal and explicit launch blockers;
-it grants no authority and does not create or queue work. See the
-[implementation boundary](docs/concepts/ARCHITECTURE.md#implemented-non-launching-development-review).
-
-Existing backlog items can also be reviewed through the **Development contract**
-panel in their details, or through `swarm-manager development get --item
-<kind/name> --json`. Typed `approve`, `revoke` and `accept` commands take a
-`--file` request containing the expected aggregate version; `approve` additionally
-requires the reviewed proposal digest. `artifact --item <kind/name> --digest
-<approved-digest> --path <path>` reads retained bytes rather than live source.
-These commands never launch work. Decisions require configured verified-human
-authentication and `swarm-manager:write` authority. Runtime continuation and
-production outcome resolvers remain unqualified; see the
-[retained-development implementation](docs/concepts/ARCHITECTURE.md#implemented-retained-development-decisions-and-accounting-core).
-
-```bash
-swarm-manager backlog list [--kinds idea,research,fix,execute]
+swarm-manager backlog list --kind idea,research,fix,execute
 swarm-manager backlog get --kind <kind> --name <name>
 swarm-manager backlog create --data '<json>'
 swarm-manager backlog update --kind <kind> --name <name> --data '<json>'
@@ -229,15 +227,18 @@ swarm-manager prompts preview --id <skill-id> [--vars KEY=VALUE,...] [--with-sco
 swarm-manager prompts simulate --kind <kind> [--mode workshop|initialize|finalize] [--item-title TITLE] [--item-folder PATH]
 ```
 
-Plan-backed primary executions use the bounded Agent Manager
-`phased-plan-drain` workflow. Swarm pins the Plan Manager frontier and remains
-the sole owner of approval and terminal result application; retry, fixup, and
-follow-up retain their existing execution paths. Research items use this same
-plan-backed lifecycle after investigation evidence is captured. The
-workflow enforces the requested slice bound, makes independent review rejection
-drive a reviewed same-conversation correction, and preserves blocked,
-abstained, and budget-exhausted terminal outcomes. See
-[the workflow seam](./docs/internal/SEAMS.md#phased-plan-workflow-pilot-seam).
+Plan-backed primary executions run in one of two modes: sliced mode runs the
+bounded Agent Manager `swarm-manager/phased-plan-drain` workflow one slice at a
+time, and goal mode runs one Agent Manager run with the finish line installed
+as `/goal`. Swarm pins the Plan Manager frontier and remains the sole owner of
+approval and terminal result application; retry, fixup, and follow-up retain
+their existing execution paths. Research items use this same plan-backed
+lifecycle after investigation evidence is captured. The sliced workflow
+enforces the requested slice bound, makes independent review rejection drive a
+reviewed same-conversation correction, and preserves blocked, abstained, and
+budget-exhausted terminal outcomes. Both modes end in Swarm finalization. See
+[Plan-backed execution](./docs/concepts/ARCHITECTURE.md#plan-backed-execution)
+and [the workflow application seam](./docs/internal/SEAMS.md#workflow-application).
 
 `swarm-manager backlog update` uses sparse patch semantics. Omitted fields stay unchanged, empty strings clear scalar fields like `description`, and empty arrays clear list fields like `tags`, `depends_on`, or `acceptance_allow`.
 

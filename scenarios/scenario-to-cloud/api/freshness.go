@@ -31,10 +31,22 @@ func (s *Server) evaluateDeploymentFreshness(_ context.Context, dep *domain.Depl
 			Notes:             []string{fmt.Sprintf("Repository lookup failed: %v", err)},
 		}
 	}
-	return evaluateFreshness(repoRoot, dep, manifest)
+	// Health is an interactive observation surface. It reports live reachability
+	// and observation age on the request path; a full deterministic bundle
+	// fingerprint can traverse a large scenario tree and belongs to the
+	// explicit release/freshness workflow, not every health refresh.
+	return evaluateFreshnessVersionOnly(repoRoot, dep, manifest)
 }
 
 func evaluateFreshness(repoRoot string, dep *domain.Deployment, manifest domain.CloudManifest) *domain.FreshnessStatus {
+	return evaluateFreshnessWithFingerprint(repoRoot, dep, manifest, true)
+}
+
+func evaluateFreshnessVersionOnly(repoRoot string, dep *domain.Deployment, manifest domain.CloudManifest) *domain.FreshnessStatus {
+	return evaluateFreshnessWithFingerprint(repoRoot, dep, manifest, false)
+}
+
+func evaluateFreshnessWithFingerprint(repoRoot string, dep *domain.Deployment, manifest domain.CloudManifest, includeFingerprint bool) *domain.FreshnessStatus {
 	result := &domain.FreshnessStatus{
 		Status:            domain.FreshnessUnknown,
 		Summary:           "Freshness could not be determined",
@@ -64,6 +76,19 @@ func evaluateFreshness(repoRoot string, dep *domain.Deployment, manifest domain.
 				result.Notes = append(result.Notes, "Local scenario version differs from deployed snapshot")
 			}
 		}
+	}
+
+	if !includeFingerprint {
+		result.Notes = append(result.Notes, "Bundle fingerprint comparison is deferred to the release freshness workflow")
+		if result.VersionStatus == domain.FreshnessCurrent || result.VersionStatus == domain.FreshnessOutdated {
+			result.Status = result.VersionStatus
+			if result.Status == domain.FreshnessCurrent {
+				result.Summary = "Deployment version matches local scenario state; bundle fingerprint deferred"
+			} else {
+				result.Summary = "Deployment version differs from local scenario state"
+			}
+		}
+		return result
 	}
 
 	deployedSHA := ""

@@ -15,9 +15,8 @@ import (
 	"strings"
 )
 
-// KeyUsable reports whether a resolved OpenRouter key looks like a real
-// credential (sk-or- prefix, length floor) rather than a placeholder/stub the
-// secrets backend can emit. Mirrors opencode::openrouter::key_usable.
+// KeyUsable reports whether a resolved API key looks like a real
+// credential rather than a placeholder/stub. Generic across providers.
 func KeyUsable(key string) bool {
 	key = strings.TrimSpace(key)
 	if key == "" {
@@ -26,10 +25,7 @@ func KeyUsable(key string) bool {
 	if valueLooksInvalid(key) {
 		return false
 	}
-	if !strings.HasPrefix(key, "sk-or-") {
-		return false
-	}
-	return len(key) >= 40
+	return len(key) >= 20
 }
 
 // valueLooksInvalid flags placeholder/error sentinels the backend may return.
@@ -47,7 +43,8 @@ func valueLooksInvalid(v string) bool {
 // Options injects the environment seam for tests; the zero value reads the
 // process environment populated by the credential authority.
 type Options struct {
-	Getenv func(string) string
+	Getenv   func(string) string
+	AuthPath string // path to auth.json, checked as fallback when env is empty
 }
 
 func (o Options) getenv(k string) string {
@@ -57,26 +54,69 @@ func (o Options) getenv(k string) string {
 	return os.Getenv(k)
 }
 
-// ResolveOpenRouterKey accepts only the ephemeral value injected into this
-// process by the credential authority. It intentionally has no Vault or
-// resource-private-file compatibility path.
+// resolveKeyFromAuth reads a provider's key from the OpenCode auth file.
+func resolveKeyFromAuth(authPath, providerID string) string {
+	if authPath == "" {
+		return ""
+	}
+	data, err := os.ReadFile(authPath)
+	if err != nil {
+		return ""
+	}
+	var auth map[string]struct {
+		Key string `json:"key"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &auth); err != nil {
+		return ""
+	}
+	prov, ok := auth[providerID]
+	if !ok || prov.Type != "api" {
+		return ""
+	}
+	return strings.TrimSpace(prov.Key)
+}
+
+// ResolveOpenRouterKey resolves the OpenRouter API key from the process
+// environment, falling back to the auth file when the env var is empty.
 func ResolveOpenRouterKey(o Options) string {
 	if key := strings.TrimSpace(o.getenv("OPENROUTER_API_KEY")); KeyUsable(key) {
 		return key
 	}
-	return ""
+	return resolveKeyFromAuth(o.AuthPath, "openrouter")
+}
+
+// ResolveOpenCodeGoKey resolves the OpenCode Go subscription key from the
+// process environment, falling back to the auth file when the env var is empty.
+func ResolveOpenCodeGoKey(o Options) string {
+	if key := strings.TrimSpace(o.getenv("OPENCODE_GO_KEY")); KeyUsable(key) {
+		return key
+	}
+	return resolveKeyFromAuth(o.AuthPath, "opencode-go")
+}
+
+// SyncOpenCodeGoAuth syncs the Go API key into the OpenCode auth file
+// under the "opencode-go" provider key.
+func SyncOpenCodeGoAuth(path, key string) (bool, error) {
+	key = strings.TrimSpace(key)
+	if !KeyUsable(key) {
+		return false, nil
+	}
+	return syncProviderAuth(path, "opencode-go", key)
 }
 
 // SyncOpenRouterAuth mirrors the credential-authority value into the auth
-// file consumed by the upstream OpenCode binary. The authority remains the
-// source of truth; this file is only the runtime adapter OpenCode requires.
-// Unrelated provider entries and fields are preserved byte-for-semantic-value.
+// file consumed by the upstream OpenCode binary.
 func SyncOpenRouterAuth(path, key string) (bool, error) {
 	key = strings.TrimSpace(key)
 	if !KeyUsable(key) {
 		return false, nil
 	}
+	return syncProviderAuth(path, "openrouter", key)
+}
 
+// syncProviderAuth writes or updates a provider entry in the OpenCode auth file.
+func syncProviderAuth(path, providerID, key string) (bool, error) {
 	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return false, fmt.Errorf("read OpenCode auth: %w", err)
@@ -89,9 +129,9 @@ func SyncOpenRouterAuth(path, key string) (bool, error) {
 	}
 
 	provider := map[string]json.RawMessage{}
-	if raw := auth["openrouter"]; len(raw) > 0 {
+	if raw := auth[providerID]; len(raw) > 0 {
 		if err := json.Unmarshal(raw, &provider); err != nil {
-			return false, fmt.Errorf("parse OpenRouter auth: %w", err)
+			return false, fmt.Errorf("parse %s auth: %w", providerID, err)
 		}
 	}
 	var currentKey, currentType string
@@ -103,14 +143,14 @@ func SyncOpenRouterAuth(path, key string) (bool, error) {
 	provider["type"] = json.RawMessage(`"api"`)
 	encodedKey, err := json.Marshal(key)
 	if err != nil {
-		return false, fmt.Errorf("encode OpenRouter auth: %w", err)
+		return false, fmt.Errorf("encode %s auth: %w", providerID, err)
 	}
 	provider["key"] = encodedKey
 	encodedProvider, err := json.Marshal(provider)
 	if err != nil {
-		return false, fmt.Errorf("encode OpenRouter provider auth: %w", err)
+		return false, fmt.Errorf("encode %s provider auth: %w", providerID, err)
 	}
-	auth["openrouter"] = encodedProvider
+	auth[providerID] = encodedProvider
 	encoded, err := json.MarshalIndent(auth, "", "  ")
 	if err != nil {
 		return false, fmt.Errorf("encode OpenCode auth: %w", err)

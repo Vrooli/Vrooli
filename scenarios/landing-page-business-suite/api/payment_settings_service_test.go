@@ -165,3 +165,17 @@ func TestPaymentSettingsServiceTreatsUnconfiguredCredentialAsOptional(t *testing
 func ptrStripe(value string) *string {
 	return &value
 }
+
+func TestValidateStripeKeyModePairRejectsMixedMode(t *testing.T) {
+	if err := commerce.ValidateStripeKeyModePair("pk_test_public", "rk_live_secret"); err == nil {
+		t.Fatal("expected mixed Stripe modes to be rejected")
+	}
+}
+
+func TestValidateStripeKeyModePairAcceptsMatchingAndOpaqueFixtures(t *testing.T) {
+	for _, pair := range [][2]string{{"pk_test_public", "sk_test_secret"}, {"pk_live_public", "rk_live_secret"}, {"pk_fixture", "rk_fixture"}} {
+		if err := commerce.ValidateStripeKeyModePair(pair[0], pair[1]); err != nil {
+			t.Fatalf("ValidateStripeKeyModePair(%q, %q) = %v", pair[0], pair[1], err)
+		}
+	}
+}

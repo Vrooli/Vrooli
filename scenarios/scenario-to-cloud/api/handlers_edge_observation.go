@@ -37,9 +37,13 @@ func (s *Server) registerEdgeRoutes(api *mux.Router) {
 }
 
 // edgeListenersForDeployment resolves the closure listeners for a manifest.
-// Tests substitute declared listeners; production resolves the closure.
-var edgeListenersForDeployment = func(ctx context.Context, dep *domain.Deployment, manifest domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error) {
-	svc, err := closureService()
+// The closure service is owned by the Server so distinct instances never
+// share catalogs or failure state.
+func (s *Server) edgeListenersForDeployment(ctx context.Context, dep *domain.Deployment, manifest domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error) {
+	if s != nil && s.edgeListenersOverride != nil {
+		return s.edgeListenersOverride(ctx, dep, manifest)
+	}
+	svc, err := s.closureService()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,7 +74,7 @@ var edgeListenersForDeployment = func(ctx context.Context, dep *domain.Deploymen
 // closure cannot be resolved the manifest ports alone decide (legacy rule:
 // only "ui" is public), which is recorded on the spec's listener ids.
 func (s *Server) edgeSpecFor(ctx context.Context, dc *DeploymentContext) (domain.EdgeSpec, error) {
-	listeners, databases, err := edgeListenersForDeployment(ctx, dc.Deployment, dc.Manifest)
+	listeners, databases, err := s.edgeListenersForDeployment(ctx, dc.Deployment, dc.Manifest)
 	if err != nil {
 		listeners, databases = nil, nil
 	}

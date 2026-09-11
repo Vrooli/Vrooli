@@ -42,6 +42,26 @@ vi.mock("./api/operatorstate", () => ({
   }),
 }));
 
+vi.mock("./api/host", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./api/host")>();
+  return {
+    ...actual,
+    fetchTargets: vi.fn().mockResolvedValue({
+      targets: [
+        { id: "local", name: "This machine", status: "local", online: true, available: true },
+        {
+          id: "minimouse",
+          name: "minimouse",
+          status: "unavailable",
+          online: true,
+          available: false,
+          reason: "vrooli-onboarding is not reachable on this target",
+        },
+      ],
+    }),
+  };
+});
+
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
 });
@@ -172,6 +192,16 @@ describe("App - View Navigation", () => {
     expect(dialog).toHaveTextContent("Link another machine");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps connected but unavailable targets visible with their recovery reason", async () => {
+    await renderApp();
+    fireEvent.click(screen.getByTestId("setup-target-trigger"));
+
+    const unavailable = await screen.findByRole("option", { name: /minimouse/i });
+    expect(unavailable).toHaveAttribute("aria-disabled", "true");
+    expect(unavailable).toBeDisabled();
+    expect(unavailable).toHaveTextContent("vrooli-onboarding is not reachable on this target");
   });
 
   it("shows wizard view by default", async () => {

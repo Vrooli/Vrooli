@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/vrooli/api-core/nodereach"
+	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	"scenario-to-cloud/reach"
 )
 
@@ -22,5 +24,21 @@ func TestObservationProgramIsRefusedByTheBridgeRelay(t *testing.T) {
 	}
 	if _, err := a.OpenSession(context.Background(), target(), reach.SessionSpec{}); !reach.IsKind(err, reach.KindProtocolUnsupported) {
 		t.Fatalf("a client without a session channel must be a typed refusal, got %v", err)
+	}
+}
+
+func TestTypedObservationUsesBridgeRelay(t *testing.T) {
+	c := &fakeClient{call: nodereach.CallResponse{CorrelationID: "corr-observe", Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED, Data: []byte(`{"result":{"stdout":"Filesystem 1024-blocks Used Available Capacity Mounted on\n"}}`)}}
+	a := &Adapter{Client: c}
+	cmd, err := reach.NewObservation("df", "-Pk", "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := a.Exec(context.Background(), target(), cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CorrelationID != "corr-observe" || len(c.calls) != 1 || c.calls[0].Command != "cloud-target" || len(c.calls[0].Args) == 0 || c.calls[0].Args[0] != "host" {
+		t.Fatalf("typed observation relay call=%+v result=%+v", c.calls, result)
 	}
 }

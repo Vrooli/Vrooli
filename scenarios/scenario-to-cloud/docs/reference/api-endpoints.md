@@ -12,7 +12,7 @@ All endpoints are prefixed with `/api/v1`.
 
 > [CODE: api/authz/routes.go] · [DOC: reference/authorization-matrix.md] · [DOC: reference/configuration.md#authentication]
 
-Every route except `GET /health` and `GET /api/v1/health` requires a verified principal (loopback OS user in `personal_local` mode, or a bearer token from a configured shared provider) holding the scope listed in the [Authorization Matrix](authorization-matrix.md). Refusals use the typed envelope with codes `unauthenticated` (401), `forbidden_scope`, `forbidden_target`, `forbidden_revoked`, `forbidden_origin`, `forbidden_host` (403), `request_too_large` (413) and `too_many_requests` (429).
+Every route except `GET /health` and `GET /api/v1/health` requires a verified principal (a runtime-owned local session token in `personal_local` mode, or a bearer token from a configured shared provider) holding the scope listed in the [Authorization Matrix](authorization-matrix.md). Refusals use the typed envelope with codes `unauthenticated` (401), `forbidden_scope`, `forbidden_target`, `forbidden_revoked`, `forbidden_origin`, `forbidden_host` (403), `request_too_large` (413) and `too_many_requests` (429).
 
 ### GET /authz/matrix
 
@@ -68,7 +68,7 @@ Same result as GET with operator inputs in the body:
 
 ## Releases
 
-> [CODE: api/handlers_release.go] · [CODE: api/releasesvc] · [DOC: reference/release-identity.md]
+> [CODE: api/handlers_release.go] · [CODE: api/releasesvc/service.go] · [DOC: reference/release-identity.md]
 
 ### POST /releases/build
 
@@ -97,7 +97,7 @@ step and `details.reason` the cause; the partial report is in `details.report`),
 
 ### GET /releases/{digest}/evidence
 
-> [CODE: api/handlers_publication.go] · [CODE: api/evidence] · [DOC: reference/governance-binding.md]
+> [CODE: api/handlers_publication.go] · [CODE: api/evidence/record.go] · [DOC: reference/governance-binding.md]
 
 Per-cell dispositions of the `cloud-launch-v1` capability profile for one
 release (`?deployment_id=` narrows to that deployment's target). Response:
@@ -476,6 +476,15 @@ Run preflight checks against a VPS.
       "title": "SSH Connectivity",
       "status": "pass",
       "details": "Connected successfully"
+    },
+    {
+      "id": "privilege_strategy",
+      "title": "Privilege strategy",
+      "status": "pass",
+      "details": "Bound SSH user has non-interactive elevation",
+      "data": {
+        "strategy": "sudo_non_interactive"
+      }
     }
   ],
   "issues": [],
@@ -538,89 +547,6 @@ without `scenario_id`, every vrooli-managed process through the top-level
   "message": "Stopped scenario processes",
   "output": "...",
   "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-### POST /preflight/disk/usage
-
-Read root filesystem usage and the largest directories under a fixed root set (`/var`, `/home`, `/root`, `/opt`, `/tmp`). Every read is a `df`/`du` observation program through the bound reach; no caller-supplied path reaches the target. The target is named by its locator only: the transport authenticates with the deployment's credential binding (`vrooli/scenario-to-cloud:ssh-key`) or the operator's ambient SSH identity.
-
-**Request Body:**
-```json
-{
-  "host": "example.com",
-  "port": 22,
-  "user": "root"
-}
-```
-
-**Response:**
-```json
-{
-  "ok": true,
-  "free_space": "10 GB",
-  "free_bytes": 10737418240,
-  "total_space": "50 GB",
-  "total_bytes": 53687091200,
-  "used_percent": 80,
-  "largest_dirs": [
-    { "path": "/var/log", "size": "2.5 GB", "bytes": 2684354560 }
-  ],
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-### POST /preflight/disk/cleanup
-
-Free disk space through owner operations only. Each action is a privilege-broker action run by `vrooli cloud-target host repair` on the target: `journal_vacuum` (`journald.vacuum`, keeps 100 MiB), `docker_prune` (`docker.prune.unused-images`), `docker_prune_volumes` (`docker.prune.unused-volumes`). An action with no owner (`apt_clean`, `tmp_clean`, anything else) is refused before anything runs with the typed error `unsupported_capability`, naming `internal/privilegebroker` as the owner to extend. Omitting `actions` runs `journal_vacuum`.
-
-**Request Body:**
-```json
-{
-  "host": "example.com",
-  "port": 22,
-  "user": "root",
-  "actions": ["journal_vacuum", "docker_prune"]
-}
-```
-
-**Response:**
-```json
-{
-  "ok": false,
-  "space_freed": "1.2 GB",
-  "space_freed_kb": 1258291,
-  "message": "Freed 1.2 GB of disk space",
-  "actions_run": ["journal_vacuum"],
-  "actions_failed": ["docker_prune"],
-  "action_results": [
-    {
-      "action": "journal_vacuum",
-      "ok": true,
-      "exit_code": 0,
-      "summary": "{\"ok\":true}"
-    },
-    {
-      "action": "docker_prune",
-      "ok": false,
-      "exit_code": 2,
-      "summary": "broker_unavailable: docker is not installed",
-      "hint": "Ensure Docker is installed and running, or drop docker_prune from actions."
-    }
-  ],
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Refusal (no owner):**
-```json
-{
-  "error": {
-    "code": "unsupported_capability",
-    "message": "disk cleanup action has no owner operation: apt_clean",
-    "next_action": { "owner": "internal/privilegebroker", "kind": "capability", "reference": "apt_clean" },
-    "details": { "reason": "no privilege-broker action owns apt cache cleaning (apt.packages.ensure only installs)", "supported_actions": ["docker_prune", "docker_prune_volumes", "journal_vacuum"] }
-  }
 }
 ```
 
@@ -1066,7 +992,7 @@ stopped deployment (status `stopped` or `setup_complete`).
 
 ## Reconciliation, retirement and data bindings
 
-> [CODE: api/handlers_reconcile.go] · [CODE: api/reconcile] · [DOC: reference/activation-and-reconciliation.md]
+> [CODE: api/handlers_reconcile.go] · [CODE: api/reconcile/reconcile.go] · [DOC: reference/activation-and-reconciliation.md]
 
 ### GET /deployments/{id}/desired-state
 
@@ -1117,7 +1043,7 @@ recorded paths and adopts their content by rename.
 
 ## Durable operations
 
-> [CODE: api/handlers_operations.go] · [CODE: api/operations] · [DOC: reference/operation-lifecycle.md]
+> [CODE: api/handlers_operations.go] · [CODE: api/operations/service.go] · [DOC: reference/operation-lifecycle.md]
 
 ### GET /operations/{id}
 

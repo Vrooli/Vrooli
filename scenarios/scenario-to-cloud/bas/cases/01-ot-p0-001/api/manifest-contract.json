@@ -19,50 +19,11 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "template",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/manifest/template",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/manifest/template",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.version"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.target"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.scenario"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.dependencies"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.bundle"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest.ports"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"template-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/template","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/template"}}}
+    ],
+    "edges":[]
+  }
 }

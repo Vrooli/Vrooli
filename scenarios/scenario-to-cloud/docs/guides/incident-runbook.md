@@ -13,7 +13,7 @@ timeout (the operation is unchanged; re-attach with `operation resume`).
 Identify the deployment once and reuse the id:
 
 ```bash
-scenario-to-cloud deployment resolve --scenario <id> --environment production --json
+scenario-to-cloud deployment resolve --scenario "$SCENARIO_ID" --environment production --json
 ```
 
 ## 1. Diagnose
@@ -22,9 +22,9 @@ Read three observations before touching anything. Each is a typed record;
 `unknown` is never healthy.
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json     # status, freshness, checks, next_actions
-scenario-to-cloud edge status <deployment-id> --json           # routes, DNS, TLS not_after, renewal_state
-scenario-to-cloud operation list <deployment-id> --json        # anything non-terminal?
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
+scenario-to-cloud operation list "$DEPLOYMENT_ID" --json
 ```
 
 Interpretation:
@@ -41,7 +41,7 @@ Interpretation:
 For a non-terminal operation read its standing:
 
 ```bash
-scenario-to-cloud operation get <operation-id>          # exit 3 while non-terminal; shows state, active step, unknown effects, next_action
+scenario-to-cloud operation get "$OPERATION_ID"
 ```
 
 `reconciling` with an `unknown_effect` means the owner could not learn a
@@ -58,8 +58,8 @@ Stop the bleeding without creating a second writer.
   effect.
 
   ```bash
-  scenario-to-cloud operation cancel <operation-id>
-  scenario-to-cloud operation wait <operation-id> --timeout 120
+  scenario-to-cloud operation cancel "$OPERATION_ID"
+  scenario-to-cloud operation wait "$OPERATION_ID" --timeout 120
   ```
 
   A cancelled operation ends `cancelled` with the receipts of the steps that
@@ -76,7 +76,7 @@ Stop the bleeding without creating a second writer.
 - **The workload must stop serving (bad release, data risk):**
 
   ```bash
-  scenario-to-cloud deployment stop <deployment-id>
+  scenario-to-cloud deployment stop "$DEPLOYMENT_ID"
   ```
 
   This is synchronous and is not an operation; note it in the record.
@@ -93,8 +93,8 @@ what you apply.
 - **Workload down, host and release fine:** start scope.
 
   ```bash
-  scenario-to-cloud deployment plan <deployment-id> --scope start --json    # review
-  scenario-to-cloud deployment start <deployment-id> --yes --timeout 600
+  scenario-to-cloud deployment plan "$DEPLOYMENT_ID" --scope start --json
+  scenario-to-cloud deployment start "$DEPLOYMENT_ID" --yes --timeout 600
   ```
 
 - **Bad release, predecessor known good:** governed rollback. Eligibility is
@@ -103,8 +103,8 @@ what you apply.
   reason, not attempted.
 
   ```bash
-  scenario-to-cloud deployment rollback <deployment-id> --dry-run --json    # preview reference + eligibility
-  scenario-to-cloud deployment rollback <deployment-id> --confirm --preview-ref <ref> --request-key incident-<id>-rollback
+  scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --dry-run --json
+  scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --confirm --preview-ref "$PREVIEW_REF" --request-key "incident-$INCIDENT_ID-rollback"
   ```
 
   `data_compatibility` in the refusal means the predecessor cannot read the
@@ -115,10 +115,10 @@ what you apply.
   newest verified recovery point.
 
   ```bash
-  scenario-to-cloud deployment recovery-points list <deployment-id> --json
-  scenario-to-cloud deployment recovery-points verify <deployment-id> --recovery-point <rp-id> --open
-  scenario-to-cloud deployment recovery-points restore <deployment-id> --recovery-point <rp-id> --target-ref <machine-or-host> --dry-run
-  scenario-to-cloud deployment recovery-points restore <deployment-id> --recovery-point <rp-id> --target-ref <machine-or-host>
+  scenario-to-cloud deployment recovery-points list "$DEPLOYMENT_ID" --json
+  scenario-to-cloud deployment recovery-points verify "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --open
+  scenario-to-cloud deployment recovery-points restore "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --target-ref "$TARGET_REF" --dry-run
+  scenario-to-cloud deployment recovery-points restore "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --target-ref "$TARGET_REF"
   ```
 
   The restore receipt records the measured RTO and the recovery-point age
@@ -128,8 +128,8 @@ what you apply.
   through the edge owner; never disable verification.
 
   ```bash
-  scenario-to-cloud edge tls <deployment-id> --json
-  scenario-to-cloud edge tls-renew <deployment-id>
+  scenario-to-cloud edge tls "$DEPLOYMENT_ID" --json
+  scenario-to-cloud edge tls-renew "$DEPLOYMENT_ID"
   ```
 
 - **Credential rotation pending or a credential compromised:** follow
@@ -140,7 +140,7 @@ Every recovery above is an operation (except stop and tls-renew): wait once,
 and if the wait times out re-attach instead of re-issuing.
 
 ```bash
-scenario-to-cloud operation resume <operation-id> --timeout 600
+scenario-to-cloud operation resume "$OPERATION_ID" --timeout 600
 ```
 
 ## 4. Verify
@@ -148,8 +148,8 @@ scenario-to-cloud operation resume <operation-id> --timeout 600
 Recovery is proven by a fresh observation, not by the operation's success.
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
 ```
 
 Required: `status: HEALTHY`, `freshness: CURRENT`, `observed_release_digest`

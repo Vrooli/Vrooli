@@ -230,9 +230,17 @@ func TestBuilderRejectsBelowAPI36(t *testing.T) {
 func TestProvisionSigningKeyStoresOnlyCredentialFields(t *testing.T) {
 	store := &signingStore{values: map[string]string{}}
 	var keytoolArgs []string
+	var passwordFiles [2]string
+	var passwordValues [2][]byte
 	run := func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		keytoolArgs = append([]string(nil), args...)
 		for index, arg := range args {
+			if arg == "-storepass:file" && index+1 < len(args) {
+				passwordFiles[0] = args[index+1]
+			}
+			if arg == "-keypass:file" && index+1 < len(args) {
+				passwordFiles[1] = args[index+1]
+			}
 			if arg != "-keystore" || index+1 >= len(args) {
 				continue
 			}
@@ -240,20 +248,39 @@ func TestProvisionSigningKeyStoresOnlyCredentialFields(t *testing.T) {
 				return nil, err
 			}
 		}
+		for index, path := range passwordFiles {
+			if path == "" {
+				return nil, errors.New("missing password file")
+			}
+			value, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			passwordValues[index] = value
+		}
 		return nil, nil
 	}
 	if err := ProvisionSigningKey(context.Background(), store, "vrooli/test-signing", "/bin/keytool", run); err != nil {
 		t.Fatal(err)
 	}
-	if store.values[SigningAliasField] != "vrooli-upload" || store.values[SigningPasswordField] == "" {
+	if store.values[SigningAliasField] != "vrooli-upload" || store.values[SigningPasswordField] == "" || store.values[SigningKeyPasswordField] == "" {
 		t.Fatalf("provisioned signing fields are incomplete: %#v", store.values)
+	}
+	if store.values[SigningPasswordField] == store.values[SigningKeyPasswordField] {
+		t.Fatal("keystore and private-key passwords must be distinct")
+	}
+	if passwordFiles[0] == "" || passwordFiles[1] == "" || passwordFiles[0] == passwordFiles[1] {
+		t.Fatalf("keytool did not receive distinct password-file paths: %q", passwordFiles)
+	}
+	if string(passwordValues[0]) == string(passwordValues[1]) {
+		t.Fatal("keytool password files contained the same value")
 	}
 	decoded, err := base64.StdEncoding.DecodeString(store.values[SigningKeystoreField])
 	if err != nil || string(decoded) != "test-keystore" {
 		t.Fatalf("keystore was not provisioned as base64: %v", err)
 	}
 	joinedArgs := strings.Join(keytoolArgs, " ")
-	if strings.Contains(joinedArgs, store.values[SigningPasswordField]) || strings.Contains(joinedArgs, "-storepass ") || strings.Contains(joinedArgs, "-keypass ") {
+	if strings.Contains(joinedArgs, store.values[SigningPasswordField]) || strings.Contains(joinedArgs, store.values[SigningKeyPasswordField]) || strings.Contains(joinedArgs, "-storepass ") || strings.Contains(joinedArgs, "-keypass ") {
 		t.Fatalf("keytool command exposed signing password: %q", joinedArgs)
 	}
 }
@@ -271,9 +298,10 @@ func TestSignedBuildUsesTemporaryCredentialProperties(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := &signingStore{values: map[string]string{
-		SigningKeystoreField: base64.StdEncoding.EncodeToString([]byte("keystore")),
-		SigningPasswordField: "password",
-		SigningAliasField:    "alias",
+		SigningKeystoreField:    base64.StdEncoding.EncodeToString([]byte("keystore")),
+		SigningPasswordField:    "password",
+		SigningKeyPasswordField: "key-password",
+		SigningAliasField:       "alias",
 	}}
 	var gradleArgs []string
 	run := func(_ context.Context, _ string, args ...string) ([]byte, error) {

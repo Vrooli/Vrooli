@@ -48,6 +48,7 @@ func TestResolveCredentialMappingUsesCanonicalDescriptor(t *testing.T) {
 
 // TestHealthHandler tests the health check endpoint
 func TestHealthHandler(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-secrets-manager-build")
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
@@ -91,6 +92,9 @@ func TestHealthHandler(t *testing.T) {
 
 		if response["service"] != "secrets-manager-api" {
 			t.Errorf("Expected service 'secrets-manager-api', got %v", response["service"])
+		}
+		if response["build_identity"] != "sha256:test-secrets-manager-build" {
+			t.Errorf("Expected lifecycle build identity, got %v", response["build_identity"])
 		}
 
 		// Verify timestamp is present and non-empty

@@ -1,9 +1,9 @@
-import { defineConfig, type UserConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // INTEROP-CRITICAL: base and profile aliases must remain safe in embedded,
 // tunneled, and desktop-hosted surfaces.
-export default defineConfig(({ mode }): UserConfig => {
+export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
   return {
     base: "./",

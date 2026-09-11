@@ -63,6 +63,8 @@ export interface AgentCard {
   detail?: string;
   /** True when this card came from capability facts rather than a shortcut. */
   fromCatalogue: boolean;
+  /** Active billing source, e.g. "subscription" | "metered" | "local" | "unknown". */
+  billingSource?: string;
 }
 
 /** The built-in launch verb per agent, used only when no shortcut supplies one. */
@@ -119,6 +121,8 @@ export interface BuildAgentGridInput {
   shortcuts: readonly ShortcutEntry[];
   /** Capability ids whose install this session started and has not seen finish. */
   installing?: readonly string[];
+  /** Per-agent billing sources, keyed by agent ID. */
+  billingSources?: Record<string, string>;
 }
 
 export interface AgentGrid {
@@ -136,7 +140,7 @@ export interface AgentGrid {
  * command list rather than vanishing. A launcher that renders nothing because
  * a probe is missing is worse than one that renders unverified entries.
  */
-export function buildAgentGrid({ readiness, shortcuts, installing = [] }: BuildAgentGridInput): AgentGrid {
+export function buildAgentGrid({ readiness, shortcuts, installing = [], billingSources = {} }: BuildAgentGridInput): AgentGrid {
   const facts = (readiness ?? []).filter((fact) => fact.key.startsWith(CAPABILITY_PREFIX));
   const factByID = new Map(facts.map((fact) => [fact.key.slice(CAPABILITY_PREFIX.length), fact]));
   const installingSet = new Set(installing);
@@ -196,6 +200,7 @@ export function buildAgentGrid({ readiness, shortcuts, installing = [] }: BuildA
       version: fact?.version || undefined,
       detail: fact?.detail || undefined,
       fromCatalogue: true,
+      billingSource: billingSources[agentID],
     } satisfies AgentCard;
   });
 

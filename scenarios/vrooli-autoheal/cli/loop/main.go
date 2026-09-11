@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -65,6 +66,16 @@ func run(args []string) int {
 		log.Printf("state directory unwritable: %v", err)
 		return exitStateUnwritable
 	}
+	loopLock, err := acquireLoopLock(status.path)
+	if err != nil {
+		if errors.Is(err, errLoopAlreadyRunning) {
+			log.Printf("another autoheal loop owns the supervisor lock; exiting without touching its heartbeat: %v", err)
+			return exitSignal
+		}
+		log.Printf("unable to acquire supervisor lock: %v", err)
+		return exitStateUnwritable
+	}
+	defer loopLock.close()
 
 	log.Printf("Vrooli Autoheal Loop starting")
 	log.Printf("  VROOLI_ROOT: %s", config.VrooliRoot)

@@ -61,32 +61,6 @@ func (c *Client) FixProcesses(req FixProcessesRequest) ([]byte, FixProcessesResp
 	return body, resp, nil
 }
 
-// DiskUsage returns disk usage information.
-func (c *Client) DiskUsage(req DiskUsageRequest) ([]byte, DiskUsageResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/preflight/disk/usage", nil, req)
-	if err != nil {
-		return nil, DiskUsageResponse{}, err
-	}
-	var resp DiskUsageResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, DiskUsageResponse{}, err
-	}
-	return body, resp, nil
-}
-
-// DiskCleanup cleans up disk space.
-func (c *Client) DiskCleanup(req DiskCleanupRequest) ([]byte, DiskCleanupResponse, error) {
-	body, err := c.api.Request("POST", "/api/v1/preflight/disk/cleanup", nil, req)
-	if err != nil {
-		return nil, DiskCleanupResponse{}, err
-	}
-	var resp DiskCleanupResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return body, DiskCleanupResponse{}, err
-	}
-	return body, resp, nil
-}
-
 // Requirements returns canonical VPS requirements.
 func (c *Client) Requirements() ([]byte, RequirementsResponse, error) {
 	body, err := c.api.Get("/api/v1/preflight/requirements", nil)

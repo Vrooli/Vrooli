@@ -41,6 +41,83 @@
       }
     ]
   },
+  "exceptions": [
+    {
+      "command": "manifest",
+      "class": "passthrough",
+      "reason": "The root command dispatches the manifest domain's local and API-backed subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "bundle",
+      "class": "passthrough",
+      "reason": "The root command dispatches bundle subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "deployment",
+      "class": "passthrough",
+      "reason": "The root command dispatches deployment subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "publication",
+      "class": "passthrough",
+      "reason": "The root command dispatches publication subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "redeploy",
+      "class": "passthrough",
+      "reason": "The root command dispatches redeploy subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "preflight",
+      "class": "passthrough",
+      "reason": "The root command dispatches preflight subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "vps",
+      "class": "passthrough",
+      "reason": "The root command dispatches VPS subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "inspect",
+      "class": "passthrough",
+      "reason": "The root command dispatches inspect subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "process",
+      "class": "passthrough",
+      "reason": "The root command dispatches process subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "edge",
+      "class": "passthrough",
+      "reason": "The root command dispatches edge subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "secrets",
+      "class": "passthrough",
+      "reason": "The root command dispatches secrets subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "scenario",
+      "class": "passthrough",
+      "reason": "The root command dispatches scenario subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "task",
+      "class": "passthrough",
+      "reason": "The root command dispatches task subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "operation",
+      "class": "passthrough",
+      "reason": "The root command dispatches operation subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "credential",
+      "class": "passthrough",
+      "reason": "The root command dispatches credential subcommands through the scenario CLI adapter."
+    }
+  ],
   "groups": [
     {
       "name": "manifest",
@@ -186,6 +263,15 @@
             }
           ],
           "flags": [
+            {
+              "name": "write",
+              "description": "Write fixes back to the input manifest",
+              "bool": true
+            },
+            {
+              "name": "out",
+              "description": "Write the fixed manifest to this output path"
+            },
             {
               "name": "json",
               "description": "Machine output (proto JSON for typed surfaces)",
@@ -1908,129 +1994,6 @@
             },
             {
               "name": "workdir"
-            },
-            {
-              "name": "json",
-              "description": "Machine output (proto JSON for typed surfaces)",
-              "bool": true
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal",
-              "network:external"
-            ]
-          }
-        },
-        {
-          "name": "disk-usage",
-          "description": "Disk usage on the target (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
-          "positionals": [
-            {
-              "name": "deployment_id",
-              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
-            }
-          ],
-          "flags": [
-            {
-              "name": "deployment",
-              "description": "Deployment id (or pass the id as the positional argument)"
-            },
-            {
-              "name": "scenario",
-              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
-            },
-            {
-              "name": "environment",
-              "description": "Environment name (with --scenario)"
-            },
-            {
-              "name": "domain",
-              "description": "Edge domain (with --scenario)"
-            },
-            {
-              "name": "host",
-              "description": "Target host (with --scenario)"
-            },
-            {
-              "name": "user",
-              "description": "Override SSH user"
-            },
-            {
-              "name": "key-path",
-              "description": "Override SSH key path"
-            },
-            {
-              "name": "ssh-port",
-              "description": "Override SSH port"
-            },
-            {
-              "name": "json",
-              "description": "Machine output (proto JSON for typed surfaces)",
-              "bool": true
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "disk-cleanup",
-          "description": "Run declared cleanup actions on the target (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
-          "positionals": [
-            {
-              "name": "deployment_id",
-              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
-            }
-          ],
-          "flags": [
-            {
-              "name": "deployment",
-              "description": "Deployment id (or pass the id as the positional argument)"
-            },
-            {
-              "name": "scenario",
-              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
-            },
-            {
-              "name": "environment",
-              "description": "Environment name (with --scenario)"
-            },
-            {
-              "name": "domain",
-              "description": "Edge domain (with --scenario)"
-            },
-            {
-              "name": "host",
-              "description": "Target host (with --scenario)"
-            },
-            {
-              "name": "action",
-              "description": "Cleanup action (repeatable)"
-            },
-            {
-              "name": "user",
-              "description": "Override SSH user"
-            },
-            {
-              "name": "key-path",
-              "description": "Override SSH key path"
-            },
-            {
-              "name": "ssh-port",
-              "description": "Override SSH port"
             },
             {
               "name": "json",

@@ -2,165 +2,235 @@
 
 ## Plan-backed execution
 
-Swarm owns the backlog item, exact Plan Manager revision, acceptance, queue,
-execution identity and final disposition. Agent Manager owns the declared
-workflow, its child runs, budget accounting, cancellation and durable journal.
-Product evidence stays with the scenario and its evidence providers.
+Swarm owns the backlog item, the exact Plan Manager revision, acceptance, the
+queue, execution identity and the final disposition. Agent Manager owns the
+declared workflow or run, its child runs, budget accounting, cancellation and
+the durable journal. Product evidence stays with the scenario and its evidence
+providers.
 
-Both ordinary execution strategies use `swarm-manager/phased-plan-drain`:
+A plan-backed item is described by two independent choices:
 
-| Strategy | Work selection and continuation |
-| --- | --- |
-| `phased-plan-drain` | Follow authored phases. A routine phase boundary uses the configured approval policy. |
-| `adaptive-improvement` | The scenario improve skill chooses successive repairs toward the approved target. A coherent repair can return while its evidence milestone remains open. Independently reviewed routine phase boundaries continue under the original approval. |
+| Axis | Values | Where it is set |
+| --- | --- | --- |
+| **Plan shape** — what the work is | `phased` or `mandate` | A field on the Plan Manager plan. |
+| **Execution mode** — how the item runs | `sliced` or `goal` | The Run dialog. The item records the default. |
 
-Neither strategy can reinterpret a protected target or expand authority. The
-slice result identifies `approvalReason=operator-decision` for a target or grant
-change, an explicit operator pause, or another genuine authority boundary. That
-reason waits even when routine approval is automatic. Missing reasons remain
-conservative. The review child verifies actual cited evidence and the plan's
-completion policy; a worker's summary is not its own acceptance receipt.
+Any shape runs under either mode. A **phased plan** is an ordered list of
+phases, each with steps, acceptance and validation. An **adaptive mandate**
+points at the scenario docs, names sensors (setpoint programs), defines done as
+bands, and states scope and authority, stop rules, a suggested arc and a journal
+location. It has no step lists; its progress is the setpoint board, not a phase
+frontier.
 
-Each new slice creates an independent run using `swarm-manager/deep-work`.
-A rejected review continues the named worker in a correction, then reviews the
-replacement result again. The append-only journal supplies bounded continuity.
-The workflow counts actual slice attempts, preserves waits and blocked outcomes,
-and returns `budget_exhausted` when it cannot start the next permitted slice.
+| Mode | What Agent Manager runs | Bound | Review |
+| --- | --- | --- | --- |
+| `sliced` | The workflow `swarm-manager/phased-plan-drain`. | `max_slices` per execution. | An independent review per slice, then a decision node. |
+| `goal` | One Agent Manager run in harness goal mode. No workflow. | The item allowance only. | Swarm finalization after the run ends. |
 
-Queue admission binds the canonical plan hash and item contract, including the
-saved execution strategy, path boundaries and any explicit `execution_limits`.
-Backlog acceptance and execution use the same subject-version contract. Editing
-that contract invalidates acceptance. The UI preserves these values through its
-API mapping, displays aggregate limits before acceptance and launch, and allows
-a run to narrow its slice allowance. Bulk launch retains each item's own settings.
+**Sliced mode.** Each slice is a fresh worker run with bounded turns and time.
+The worker reads prior-slice handoffs from the append-only journal. A review
+child verifies the cited evidence against the plan's completion policy; a
+worker's summary is not its own acceptance receipt. A rejected review continues
+the named worker in a correction, then reviews the replacement result again. A
+routine phase boundary uses the item's approval policy. The slice result
+identifies `approvalReason=operator-decision` for a target or grant change, an
+explicit operator pause, or another genuine authority boundary. That reason
+waits even when routine approval is automatic. Missing reasons stay
+conservative. The workflow counts actual slice attempts, preserves waits and
+blocked outcomes, and returns `budget_exhausted` when it cannot start the next
+permitted slice. No mode may reinterpret a protected target or expand authority.
+
+**Goal mode.** Swarm composes the goal message from `harness-goal-authoring`
+(Shape A for a phased plan, Shape B for a mandate) and dispatches one run. Agent
+Manager installs `/goal <finish line>` in a warm interactive session when the
+runner declares native goal support for the sandbox mode. It carries the finish
+line in the prompt when native support is absent. The finish line is a
+condition, never a feeling of doneness. For a phased plan it is every phase
+recorded finished in Plan Manager with evidence. For a mandate it is every
+setpoint row in band and a passing evidence audit. There is no slice cap and no
+per-session reviewer. The run ends with an agent-decided verdict or an
+involuntary interruption (see Continuation). Swarm finalization is the
+completion authority. Goal mode is the recommended default for a mandate.
+
+**Finalization** is Swarm's item-level completion path after any execution.
+Swarm restarts the scenario, runs the health check, gathers evidence, runs the
+review agent, then lands the item at done, `needs_review`, or follow-up. Sliced
+mode reaches finalization after its per-slice reviews. Goal mode reaches it
+directly.
+
+### Item contract
+
+Queue admission binds the canonical plan hash and the item contract. Backlog
+acceptance and execution share one subject-version contract. Editing the
+contract clears acceptance. The UI preserves these values through its API
+mapping, shows the aggregate limits before acceptance and launch, and lets one
+run narrow its slice allowance. Bulk launch keeps each item's own settings.
+
+| Field | Values | Notes |
+| --- | --- | --- |
+| `plan_ref`, `plan_acceptance` | A Plan Manager plan; acceptance pins the content hash. | The approval digest. |
+| `execution_mode` | `sliced` \| `goal` | Default from the plan shape. A mandate recommends `goal`. |
+| `execution_limits` | `max_slices` (sliced only), `max_tokens`, `max_wall_seconds`, `max_turns`, `max_charge_micro_usd`, `max_children`, `max_node_attempts`, `max_retries` | One aggregate allowance across resumes. |
+| `continuation` | `manual` \| `until-allowance` | Resume policy for involuntary interruptions only. |
+| `scope_policy` | `fixed` \| `extend-with-record` | See Scope policy. |
+| `acceptance_allow`, `acceptance_deny` | Path globs | Narrow to the target scenario, its packages, protos and docs. Use `extend-with-record` for the rest. |
+| `operator_note` | Free text | Reaches the agent verbatim in the goal message and in the slice prompt: intent, reminders, authority to fix shared packages with a record. A run may add its own note. |
+| `execution_preferences` | `preferred_runner`, `model`, `effort` | Carried on the queue request and the execution record, not stored on the item. The runner is a preference, not a pin. It reorders role candidates; the fallthrough reason is visible. |
+
+An item without explicit limits keeps the bounded ordinary defaults. A larger
+allowance requires explicit reviewed limits. Workflow catalog capacity is an
+admission ceiling, not an allowance granted to every item. Agent Manager pins
+the supplied grant to an execution. A resume or retry accounts for earlier
+measured usage; missing authoritative terminal usage never becomes a fresh
+budget. Cost is measured or reported unknown, never zero by default. Money for
+coding agents and money for product inference are separate authorities.
 
 ### Scope policy
 
 The item's authored `acceptance_allow` and `acceptance_deny` remain the
 acceptance and plan-acceptance contract. With `scope_policy: fixed`, an
 out-of-scope edit is an operator decision. With `scope_policy:
-extend-with-record`, the worker records `plan-manager exec boundary-extend`
-before editing; the next slice or goal-session projection reads Plan Manager's
-append-only `boundary_extensions`, unions their `added_allow` paths into its
-effective `writeScope`, and carries the policy in `constraints.scopePolicy`.
-The same effective scope drives finalization scenario selection and review
-expectations. A recorded extension that overlaps `acceptance_deny` is refused,
-and neither the authored allow list nor `plan_acceptance` is rewritten.
-Opening review or a Run dialog does not start work.
-
-An item without explicit limits retains the bounded ordinary defaults. A larger
-item allowance requires explicit reviewed limits; workflow catalog capacity is
-an admission ceiling, not a larger allowance granted to every item. Agent Manager
-pins the supplied grant to an execution. Retry must account for earlier measured
-usage; missing authoritative terminal usage cannot become a fresh budget.
-Money for coding agents and money for product inference are separate authorities.
+extend-with-record`, the agent records `plan-manager exec boundary-extend` with
+a reason before editing. Swarm re-reads Plan Manager's append-only
+`boundary_extensions` at every start, rebuild and apply: the goal message at
+run start, each slice projection, each resume, and finalization. It unions the
+`added_allow` paths into the effective `writeScope` and carries the policy in
+`constraints.scopePolicy`. The same effective scope drives finalization
+scenario selection and review expectations. A recorded extension that overlaps
+`acceptance_deny` is refused. Neither the authored allow list nor
+`plan_acceptance` is rewritten. Opening review or a Run dialog does not start
+work.
 
 ### Continuation
 
-An item with `continuation: until-allowance` may continue only after a parent
-execution reaches `budget_exhausted`. The sweeper creates one pending child at a
-time, copying the parent's strategy and execution preferences while deriving
-the child allowance from settled usage under the same approval digest. Pending,
-running, validating, or approval-gated records, a halt flag, unknown usage,
-and exhausted aggregate dimensions prevent a child. `continuation: manual`
-retains the prior operator-start behavior. Operators can halt or resume the
-chain without cancelling a running execution; the circuit breaker halts after
-three consecutive continuation children with no observed Plan Manager progress.
+Every stop belongs to one of two classes:
 
-Only `budget_exhausted` continues. A child that reaches `complete` closes the
-item through the normal completion path; `blocked`, `abstained`, `failed`, and
-`needs_review` stop the chain for review or operator action. Allowance
-exhaustion records the dimension (`tokens`, `charge`, `wall`, `slices`, or
-another aggregate limit) as `continuation_stopped_reason`; no-progress stops
-record `no_progress`. Parent/child IDs and the halt/stop state are projected in
-execution and backlog responses, while operational continuation fields never
-change the accepted item digest.
+| Stop class | Outcomes | What Swarm does |
+| --- | --- | --- |
+| Agent-decided verdict | `complete`, `blocked`, `abstained` | Finalization. The verdict is final. Nothing resumes it. |
+| Involuntary interruption | Usage window, timeout, crash, or session lost, with no terminal result. | Resume only under `continuation: until-allowance`. |
+
+Under `continuation: manual` every stop is a stop. The operator starts the next
+run.
+
+Under `continuation: until-allowance` Swarm resumes an involuntary interruption:
+
+1. Confirm that allowance remains on every aggregate dimension, that the
+   acceptance digest and the effective scope are still valid, and that no halt
+   flag is set.
+2. Derive the remaining allowance from settled usage under the same approval
+   digest. Unknown usage blocks the resume.
+3. Prefer resuming the same session. Start a fresh run with the last handoff
+   only when the session is dead.
+4. Copy the parent's mode and execution preferences. Create one pending resume
+   at a time.
+5. Halt the item for an operator after three resumes with no observed Plan
+   Manager progress. Record `no_progress` as `continuation_stopped_reason`.
+
+An exhausted dimension (`tokens`, `charge`, `wall`, `slices`, or another
+aggregate limit) is recorded as `continuation_stopped_reason`. Operators can
+halt or resume an item without cancelling a running execution. Parent and child
+IDs and the halt/stop state are projected in execution and backlog responses.
+Operational continuation fields never change the accepted item digest.
 
 This route is for trusted coding agents with ordinary workspace and owner scope
-controls. It does not claim a hard in-flight token ceiling or qualified containment
-of every external effect. Native-goal capability, tracking, protected containment,
-workflow admission, and accounting completeness are distinct facts. Use current
-owner capability evidence and executed qualification, rather than inferring one
-from another or from a declaration's existence.
+controls. It does not claim a hard in-flight token ceiling or qualified
+containment of every external effect. Native-goal capability, tracking,
+protected containment, workflow admission, and accounting completeness are
+distinct facts. Use current owner capability evidence and executed
+qualification, rather than inferring one from another or from a declaration's
+existence.
 
-Swarm accepts a terminal workflow result only when workflow identity, definition
-digest, consumer identity, entity version and frontier digest match. A local claim
-applies the typed transition once. A successful worker result moves work toward
-review; it does not prove that every promised product outcome passed or authorize
-publication. Final review must inspect the approved outcome denominator and actual
-receipts, including unavailable, stale and failed evidence.
+Swarm accepts a terminal workflow or run result only when workflow or run
+identity, definition digest, consumer identity, entity version and frontier
+digest match. A local claim applies the typed transition once. A successful
+worker result moves work toward review; it does not prove that every promised
+product outcome passed or authorize publication. Final review must inspect the
+approved outcome denominator and actual receipts, including unavailable, stale
+and failed evidence.
 
-## Retained development compatibility surface
+**Implementation status (2026-09-11).** The code still stores
+`execution_strategy` with three values: `phased-plan-drain`,
+`adaptive-improvement`, and `goal-session`. The first two run the
+`swarm-manager/phased-plan-drain` workflow. The third runs an interim
+`swarm-manager/goal-session-drain` workflow that goal mode supersedes and that
+will be removed. The generated [transition catalog](../reference/transition-catalog.md)
+shows `plan.execute` bound to that one workflow key, while the registry behind it
+still declares the three strategies. Plans have no `shape` field and items have
+no `operator_note` field. Continuation keys on a `budget_exhausted` workflow
+status that the typed apply never accepts, so involuntary interruptions are not
+resumed today. The strategy-to-mode mapping lives in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
-`TransitionService.PreviewDevelopment`, `swarm-manager development`, and the
-Development contract drawer retain the earlier proposal/engagement API. Existing
-retained items continue through their own owner. New ordinary adaptive plan items
-use the plan-backed route above; they do not need a second development approval.
-Do not bind both lifecycles to one item.
+## Retired route: contract-development
 
-Preview resolves selected skill/program/target files and reports field and source
-completeness. A complete preview is not launch qualification. The retained service
-can store immutable snapshots, compare-and-swap engagement revisions, reserve and
-settle usage, revoke authority, and resolve submitted evidence through injected
-owner adapters. Its `contract-development` transition is registered; registration
-alone does not qualify native/fallback behavior or its production evidence owners.
+The earlier development-contract route is retired in the target design. Its
+transition, workflow, Development contract panel, and the
+`swarm-manager development` CLI are removed. A plan-backed item carries its own
+development grant: the operator authorizes one item within its acceptance
+globs, effect policy and aggregate limits through ordinary plan acceptance. No
+second approval exists, and no item binds two lifecycles.
 
-The retained approval, amendment, revocation and acceptance endpoints require the
-configured verified-human identity and write capability. Agent provenance does
-not confer that authority. No implicit local bypass is enabled. This authentication
-boundary differs from ordinary plan acceptance; do not fabricate human identity
-while rehearsing either route.
+Its preview step (`TransitionService.PreviewDevelopment`) resolved selected
+skill, program and target files and reported field and source completeness.
+Its approval, amendment, revocation and acceptance endpoints required the
+configured verified-human identity and write capability. Those two properties
+survive in the plan-backed route: plan acceptance requires a verified human, and
+a complete preview is never launch qualification.
 
-The retained coordinator reserves before dispatch, binds the owner execution,
-propagates cancellation and settles only known terminal usage. Lost dispatch
-responses and unavailable owner reconciliation retain reservations. Its metered
-cancellation policy charges observed overshoot and stops new dispatch; hard-ceiling
-claims need independent runtime qualification. Historical snapshots retain their
-original policy. The live retained route currently has no registered product
-evidence resolver; generic readable status cannot satisfy full product acceptance.
+**Implementation status (2026-09-11).** The `contract-development` transition is
+still registered, and the preview, development CLI and panel still exist. The
+route is never launch-ready: it has no registered product evidence resolver, and
+its coordinator is not composed into a launch transition. Do not create new
+items on it.
 
 ## Qualification and target adoption
 
-[Contract-driven development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
-owns the shared method. Qualify the selected route with one bounded disposable
-item before using it as evidence of approval-ready product execution:
+[Scenario development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
+owns the shared method. Qualify each mode with one bounded disposable item
+before using it as evidence of approval-ready product execution:
 
-1. Accept and launch one exact plan revision; duplicate admission returns the same
-   work rather than another allowance.
+1. Accept and launch one exact plan revision. Duplicate admission returns the
+   same work rather than another allowance.
 2. Repair two distinct defects with independently inspected evidence and no
    intermediate operator approval. Recover the next repair from durable context.
-3. Preserve original authority and aggregate usage across correction, fresh runs,
-   interruption and retry. Stop new dispatch on revocation or exhausted allowance.
-4. Refuse a weaker target, stale approval, unknown required evidence and an
+3. Preserve original authority and aggregate usage across correction, fresh
+   runs, interruption and resume. Stop new dispatch on revocation or exhausted
+   allowance.
+4. Refuse a weaker target, stale acceptance, unknown required evidence and an
    unsupported hard-ceiling request. Preserve uncertainty through owner outages.
 5. Verify actual workspace changes and apply provenance. A complete harness with
    failed finalization remains a failed execution boundary until owner recovery.
 
-Source tests, catalog reconciliation, live workflow receipts and real provider
-observations establish different parts of this proof. Record the exact handles
-and limits in the active infrastructure plan. Product plans remain unapproved and
-unstarted while this infrastructure is qualified.
+Source tests, catalog reconciliation, live workflow and run receipts, and real
+provider observations establish different parts of this proof. Record the exact
+handles and limits in the active infrastructure plan. Product plans remain
+unaccepted and unstarted while this infrastructure is qualified.
 
 Until Tech Tree Designer's generic revisioned bundles are implemented, a reviewed
 plan can retain proposed target text directly in its canonical content. Its hash
-then binds the target bytes. A mutable external path alone cannot carry approval;
-keep any file copy's digest and source role explicit. Future draft bundles replace
-this verbose fallback only after owner-mediated review/application is qualified.
+then binds the target bytes. A mutable external path alone cannot carry
+acceptance; keep any file copy's digest and source role explicit. Future draft
+bundles replace this verbose fallback only after owner-mediated
+review/application is qualified.
 
 ### Transition dispatch
 
 The transition registry is the runtime catalog for every declared agent
 capability. `internal/transitionrunner` is the only Swarm component permitted
-to select a declared workflow, invoke Agent Manager, collect a terminal result,
-or persist the shared `claimed`/`complete` correlation journal. Subject domains
-contribute only immutable input builders and typed apply functions. Startup
-verifies that every workflow and deterministic `applyAction` resolves to a
-registered function; an incomplete dispatch table fails closed. The Connect
-`TransitionService` and the CLI/UI catalog clients are the generic discovery
-and execution surfaces. Session transitions remain catalog-visible but stay on
-the Agent Session path.
+to select a declared workflow, dispatch a goal-mode run, invoke Agent Manager,
+collect a terminal result, or persist the shared `claimed`/`complete`
+correlation journal. Sliced mode dispatches the `plan.execute` transition to
+the workflow `swarm-manager/phased-plan-drain`. Goal mode dispatches one Agent
+Manager run with the composed goal message; there is no workflow key. Subject
+domains contribute only immutable input builders and typed apply functions.
+Startup verifies that every workflow and deterministic `applyAction` resolves
+to a registered function; an incomplete dispatch table fails closed. The
+Connect `TransitionService` and the CLI/UI catalog clients are the generic
+discovery and execution surfaces. Session transitions remain catalog-visible
+but stay on the Agent Session path.
 
-Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — intake → Plan Workshop authoring → explicit operator acceptance → strategy-selected execution → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. Captures are ephemeral intake events: the ground-and-shape workflow may propose items, goals, and milestones, lands work at `suggested`, or emits one `research` item when evidence is incomplete; the capture is then deleted. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
+Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — intake → Plan Workshop authoring → explicit operator acceptance → mode-selected execution (sliced or goal) → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. Captures are ephemeral intake events: the ground-and-shape workflow may propose items, goals, and milestones, lands work at `suggested`, or emits one `research` item when evidence is incomplete; the capture is then deleted. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
 
 The primary operator surface is the **Plan board** at `/plan`; the **Graph workspace** at `/graph` is the secondary, topology-first navigation surface (see "Operator Surfaces" below).
 
@@ -187,14 +257,14 @@ The primary operator surface is the **Plan board** at `/plan`; the **Graph works
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
 | **Backlog Item** | Unit of work stored as git-tracked folders (`idea`, `research`, `fix`, `execute`, `chore`) | `suggested` -> `backlog`/`ready`; normal flow: `backlog` -> `researching` -> `ready` -> `queued` -> `in_progress` -> `completed`/`failed`/`archived` | [CODE: ui/src/types/domain.ts#BacklogItem] |
-| **Milestone** | Lightweight grouping of related backlog items by a shared label plus explicit milestone metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/milestones/service.go] |
+| **Milestone** | Lightweight grouping of related backlog items by a shared label plus explicit milestone metadata | Derived from member items with explicit operator-managed metadata (`name`, `title`, `description`, `status`) | [CODE: api/internal/backlog/store.go] |
 | **Dependency** | Directed edge between backlog items (`depends_on` field in spec.json) | N/A (structural, validated on write) | [CODE: api/internal/depgraph/graph.go] |
 | **Execution Run** | Governed execution-control record linked to backlog work | `pending` -> `scheduled` -> `running` -> `completed`/`failed`/`canceled` | [CODE: ui/src/types/domain.ts#ExecutionRecord] |
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
 | **Agent Session** | Durable human-led conversation for meta-orchestration and Swarm operations, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
 | **Capture** | Ephemeral raw operator/agent observation (text + optional images) grounded into proposals, one research item, or discard | `pending` -> `classifying` -> deleted after proposal/discard recording | [CODE: api/internal/captures/io.go] |
-| **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (one-shot via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
+| **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (once, via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
 | **Event** | Append-only audit entry for entity state deltas (backlog status, record created/superseded, etc.); queried by named measures | N/A (immutable) | [CODE: api/internal/eventlog/types.go] |
 
 ### Four-Entity Model
@@ -249,7 +319,7 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 4. **Execution lifecycle**
    ```
-   Queue backlog item (manual/scheduled/yolo) -> execution record -> declared Agent Manager workflow -> typed terminal result -> Swarm authorized apply
+   Queue backlog item (manual/scheduled/yolo) -> execution record -> declared Agent Manager workflow (sliced) or one run (goal) -> typed terminal result -> Swarm authorized apply -> finalization
    ```
 
 5. **Backlog auto-filer**

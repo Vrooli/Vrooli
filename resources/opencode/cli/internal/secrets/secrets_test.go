@@ -8,11 +8,11 @@ import (
 )
 
 func TestKeyUsable(t *testing.T) {
-	good := "sk-or-" + makeString(40)
+	good := makeString(20)
 	cases := map[string]bool{
 		good:                        true,
-		"sk-or-short":               false,
-		"sk-proj-" + makeString(40): false,
+		makeString(10):              false,
+		makeString(19):              false,
 		"auto-null-123":             false,
 		"":                          false,
 		"[ERROR] nope":              false,

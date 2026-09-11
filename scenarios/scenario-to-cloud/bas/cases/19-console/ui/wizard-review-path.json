@@ -14,28 +14,16 @@
     "execution_mode": "observer",
     "version": 1
   },
-  "settings": {
-    "executionViewport": { "width": 1280, "height": 900, "preset": "desktop" }
-  },
+  "flow_definition": {
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
   "nodes": [
-    {
-      "id": "open-wizard",
-      "type": "navigate",
-      "data": {
-        "label": "Open the wizard",
-        "destinationType": "scenario",
-        "scenario": "scenario-to-cloud",
-        "scenarioPath": "/#wizard",
-        "waitUntil": "load",
-        "timeoutMs": 30000,
-        "waitForMs": 2000
-      }
-    },
-    { "id": "container", "type": "assert", "data": { "label": "Wizard container present", "selector": "[data-testid=\"wizard-container\"]", "assertMode": "exists", "timeoutMs": 20000, "failureMessage": "Wizard must render" } },
-    { "id": "stepper", "type": "assert", "data": { "label": "Wizard stepper present", "selector": "[data-testid=\"wizard-stepper\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Stepper must render" } }
+    {"id":"open-wizard","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-cloud","scenario_path":"/#wizard","wait_until":"NAVIGATE_WAIT_EVENT_LOAD","timeout_ms":30000},"metadata":{"label":"Open the wizard"}}},
+    {"id":"container","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/wizard.container","mode":"ASSERTION_MODE_EXISTS","timeout_ms":20000,"failure_message":"Wizard must render"},"metadata":{"label":"Wizard container present"}}},
+    {"id":"stepper","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/wizard.stepper","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Stepper must render"},"metadata":{"label":"Wizard stepper present"}}}
   ],
   "edges": [
-    { "id": "e1", "source": "open-wizard", "target": "container", "type": "smoothstep" },
-    { "id": "e2", "source": "container", "target": "stepper", "type": "smoothstep" }
+    { "id": "e1", "source": "open-wizard", "target": "container" },
+    { "id": "e2", "source": "container", "target": "stepper" }
   ]
+  }
 }

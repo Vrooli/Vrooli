@@ -26,10 +26,6 @@ func Run(client *Client, args []string) error {
 		return runFixFirewall(client, args[1:])
 	case "fix-processes":
 		return runFixProcesses(client, args[1:])
-	case "disk-usage":
-		return runDiskUsage(client, args[1:])
-	case "disk-cleanup":
-		return runDiskCleanup(client, args[1:])
 	case "help", "-h", "--help":
 		return printUsage()
 	default:
@@ -45,8 +41,6 @@ Commands:
   requirements           Show canonical VPS requirements/policy
   fix-firewall           Open required firewall ports
   fix-processes          Stop stale scenario processes on target VPS
-  disk-usage             Show disk usage breakdown
-  disk-cleanup           Clean up disk space
 
 Selector flags for target-dependent commands:
   --host <host> | --domain <domain> | --target <domain-or-host>
@@ -215,121 +209,6 @@ func runFixProcesses(client *Client, args []string) error {
 	if strings.TrimSpace(resp.Output) != "" {
 		fmt.Printf("%s\n", strings.TrimSpace(resp.Output))
 	}
-	return nil
-}
-
-func runDiskUsage(client *Client, args []string) error {
-	fs := flag.NewFlagSet("preflight disk-usage", flag.ContinueOnError)
-	targetFlags := registerPreflightTargetFlags(fs)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	target, err := targetFlags.resolve(client, fs.Args())
-	if err != nil {
-		return err
-	}
-
-	body, resp, err := client.DiskUsage(DiskUsageRequest{
-		Host: target.Host,
-		Port: target.Port,
-		User: target.User,
-	})
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Println("Disk Usage")
-	fmt.Println(strings.Repeat("-", 50))
-	fmt.Printf("Total:     %s\n", resp.TotalSpace)
-	fmt.Printf("Used:      %d%%\n", resp.UsedPercent)
-	fmt.Printf("Available: %s\n", resp.FreeSpace)
-
-	if len(resp.LargestDirs) > 0 {
-		fmt.Println("\nLargest Directories:")
-		fmt.Printf("  %-12s %s\n", "SIZE", "PATH")
-		for _, d := range resp.LargestDirs {
-			fmt.Printf("  %-12s %s\n", d.Size, d.Path)
-		}
-	}
-
-	return nil
-}
-
-func runDiskCleanup(client *Client, args []string) error {
-	fs := flag.NewFlagSet("preflight disk-cleanup", flag.ContinueOnError)
-	targetFlags := registerPreflightTargetFlags(fs)
-	var actions cliutil.StringList
-	fs.Var(&actions, "action", "Cleanup action (repeatable): apt_clean, journal_vacuum, docker_prune, tmp_clean")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	target, err := targetFlags.resolve(client, fs.Args())
-	if err != nil {
-		return err
-	}
-
-	requestedActions := actions.Values()
-	if len(requestedActions) == 0 {
-		requestedActions = []string{"apt_clean", "journal_vacuum"}
-	}
-
-	body, resp, err := client.DiskCleanup(DiskCleanupRequest{
-		Host:    target.Host,
-		Port:    target.Port,
-		User:    target.User,
-		Actions: requestedActions,
-	})
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	if resp.OK {
-		fmt.Printf("Disk cleanup completed: freed %s\n", resp.SpaceFreed)
-	} else {
-		fmt.Printf("Disk cleanup completed with failures: freed %s\n", resp.SpaceFreed)
-	}
-	if strings.TrimSpace(resp.Message) != "" {
-		fmt.Printf("%s\n", strings.TrimSpace(resp.Message))
-	}
-	if len(resp.ActionsRun) > 0 {
-		fmt.Printf("Actions run: %s\n", strings.Join(resp.ActionsRun, ", "))
-	}
-
-	if len(resp.ActionResults) > 0 {
-		fmt.Println("Action results:")
-		for _, result := range resp.ActionResults {
-			status := "ok"
-			if !result.OK {
-				status = "failed"
-			}
-			fmt.Printf("  - %s: %s", result.Action, status)
-			if result.ExitCode != 0 {
-				fmt.Printf(" (exit %d)", result.ExitCode)
-			}
-			fmt.Println()
-			if strings.TrimSpace(result.Summary) != "" {
-				fmt.Printf("    summary: %s\n", result.Summary)
-			}
-			if strings.TrimSpace(result.Hint) != "" {
-				fmt.Printf("    hint: %s\n", result.Hint)
-			}
-		}
-	}
-
 	return nil
 }
 

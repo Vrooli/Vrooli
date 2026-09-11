@@ -36,6 +36,51 @@ type Command struct {
 	// runs outside the bound workdir's vrooli binary and is refused by
 	// transports that only relay scenario verbs.
 	Program string
+	// Observation is the typed target-owner observation contract. Program is
+	// retained only for compatibility with older callers; new callers must use
+	// NewObservation so transports carry a cloud-target owner verb instead of
+	// an arbitrary host executable.
+	Observation *ObservationSpec
+}
+
+// ObservationSpec names a bounded read owned by the target control plane.
+// Args are semantic arguments for Kind and are validated again by the target
+// owner before it performs the read.
+type ObservationSpec struct {
+	Kind string
+	Args []string
+}
+
+// NewObservation converts the historical probe name into the canonical typed
+// target observation operation. The mapping is deliberately closed: adding a
+// host fact requires an owner operation and its authorization tests.
+func NewObservation(program string, args ...string) (Command, error) {
+	kind, ok := ObservationKinds[strings.TrimSpace(program)]
+	if !ok {
+		return Command{}, &Error{Kind: KindInvalidArgument, Detail: "program " + strings.TrimSpace(program) + " has no typed target observation"}
+	}
+	return Command{Program: strings.TrimSpace(program), Observation: &ObservationSpec{Kind: kind, Args: append([]string(nil), args...)}, RequiredScope: "vrooli:read", Timeout: DefaultObservationTimeout}, nil
+}
+
+const DefaultObservationTimeout = 45 * time.Second
+
+// ObservationKinds is the compatibility map from old probe names to typed
+// owner operations. The program name never crosses the transport boundary.
+var ObservationKinds = map[string]string{
+	"cat":        "file",
+	"df":         "disk",
+	"du":         "directory_usage",
+	"find":       "directory_entries",
+	"grep":       "grep",
+	"journalctl": "journal",
+	"ls":         "directory_listing",
+	"pgrep":      "process_match",
+	"ps":         "processes",
+	"ss":         "sockets",
+	"stat":       "file_stat",
+	"uname":      "os",
+	"head":       "file_head",
+	"sudo":       "privilege",
 }
 
 // ObservationPrograms is the closed set of host programs a Program command
@@ -48,6 +93,7 @@ var ObservationPrograms = map[string]bool{
 	"du":         true,
 	"find":       true,
 	"grep":       true,
+	"sudo":       true,
 	"journalctl": true,
 	"ls":         true,
 	"pgrep":      true,
@@ -60,11 +106,20 @@ var ObservationPrograms = map[string]bool{
 
 // IsObservation reports whether the command names a host observation
 // program rather than a vrooli verb.
-func (c Command) IsObservation() bool { return strings.TrimSpace(c.Program) != "" }
+func (c Command) IsObservation() bool {
+	return c.Observation != nil || strings.TrimSpace(c.Program) != ""
+}
 
 // Argv returns the full argument vector for the command: the vrooli verb
 // path, or the observation program, followed by the arguments.
 func (c Command) Argv() []string {
+	if c.Observation != nil {
+		argv := []string{"vrooli", "cloud-target", "host", "observe", "--kind", c.Observation.Kind}
+		for _, arg := range c.Observation.Args {
+			argv = append(argv, "--arg", arg)
+		}
+		return argv
+	}
 	if c.IsObservation() {
 		return append([]string{c.Program}, c.Args...)
 	}
@@ -254,6 +309,28 @@ func ValidateArgs(args []string) error {
 // An observation program must come from ObservationPrograms, carry no verb,
 // no stdin and no effect.
 func ValidateCommand(cmd Command) error {
+	if cmd.Observation != nil {
+		if cmd.Observation == nil || strings.TrimSpace(cmd.Observation.Kind) == "" {
+			return &Error{Kind: KindInvalidArgument, Detail: "typed observation kind is required"}
+		}
+		if strings.TrimSpace(cmd.Verb) != "" {
+			return &Error{Kind: KindInvalidArgument, Detail: "a command names a typed observation or a verb, not both"}
+		}
+		if cmd.Effectful || len(cmd.Stdin) > 0 {
+			return &Error{Kind: KindInvalidArgument, Detail: "typed observations are read-only and take no stdin"}
+		}
+		known := false
+		for _, kind := range ObservationKinds {
+			if kind == cmd.Observation.Kind {
+				known = true
+				break
+			}
+		}
+		if !known {
+			return &Error{Kind: KindInvalidArgument, Detail: "unknown typed observation " + cmd.Observation.Kind}
+		}
+		return ValidateArgs(cmd.Observation.Args)
+	}
 	if cmd.IsObservation() {
 		switch {
 		case !ObservationPrograms[cmd.Program]:
@@ -264,6 +341,9 @@ func ValidateCommand(cmd Command) error {
 			return &Error{Kind: KindInvalidArgument, Detail: "a command names a verb or a program, not both"}
 		case len(cmd.Stdin) > 0:
 			return &Error{Kind: KindInvalidArgument, Detail: "observation programs take no stdin"}
+		}
+		if cmd.Program == "sudo" && !sameArgs(cmd.Args, "-n", "-l") {
+			return &Error{Kind: KindInvalidArgument, Detail: "sudo observation is limited to non-interactive privilege listing"}
 		}
 		return ValidateArgs(cmd.Args)
 	}
@@ -281,6 +361,18 @@ func ValidateCommand(cmd Command) error {
 		}
 	}
 	return ValidateArgs(cmd.Args)
+}
+
+func sameArgs(got []string, want ...string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // RevocationPolicy answers whether a target's authority has been withdrawn.

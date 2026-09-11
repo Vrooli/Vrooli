@@ -96,7 +96,7 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 	if err != nil {
 		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: err.Error()}
 	}
-	if !isAllowedRemoteProxyPath(pathValue) {
+	if !isAllowedRemoteProxyRequest(method, pathValue) {
 		return nil, ErrRemoteProfileDisallowedPath
 	}
 
@@ -115,7 +115,7 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 		return nil, ErrRemoteProfileSessionMissing
 	}
 
-	remoteURL, err := s.buildRemoteURL(rec.APIBase, pathValue, req.Query)
+	remoteURL, err := s.buildRemoteProxyURL(rec.APIBase, pathValue, req.Query)
 	if err != nil {
 		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: err.Error()}
 	}
@@ -130,6 +130,9 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 		return nil, err
 	}
 	httpReq.Header.Set("Accept", "application/json")
+	if isRemoteConnectProcedure(pathValue) {
+		httpReq.Header.Set("Connect-Protocol-Version", "1")
+	}
 	for key, value := range req.Headers {
 		keyLower := strings.ToLower(strings.TrimSpace(key))
 		if keyLower == "" || !remoteProfileProxyAllowedHeaders[keyLower] {

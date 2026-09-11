@@ -1843,7 +1843,7 @@ Tests: `engine_metered_budget_test.go` covers stop failure, restart, overshoot,
 deadline, unknown final usage, cancellation and unsupported-path admission;
 `workflow_metering_test.go` covers live metrics, deduplication and terminal
 reconciliation. These are deterministic tests, not live provider qualification.
-Swarm per-engagement grants, provider capability qualification, native-goal parity
+Swarm development grants, provider capability qualification, native-goal parity
 and lost-dispatch fencing remain separate implementation work.
 
 ## Codec-pipe session-home seam
@@ -1863,25 +1863,55 @@ The session-home regression proves turn two reads the rollout turn one wrote.
 Codex's private goal database is intentionally outside Agent Manager's
 analytical contract; canonical consumption comes from the run usage projection.
 
-Codex TUI goal markers, when present in an imported or interactive transcript,
-use an `event_msg` envelope with `payload.type=thread_goal_updated` and
-`payload.goal={objective,status}`. The typed status seam preserves `active`,
-`paused`, `blocked`, `usage_limited`, `budget_limited`, and `complete`; it does
-not collapse the values to a boolean. `codex exec` has no native goal surface,
-so codec-pipe delivery carries Swarm's bounded `until` completion test in the
-workflow prompt while interactive delivery may use the harness goal surface.
+## Goal-marker seam
 
-Interactive goal observation is a provider-neutral `goal_status_changed` run
-event. The tailer invokes the selected codec's marker parser for each durable
-JSONL line and the coordinator deduplicates changes before persisting objective,
-status, iteration, and last-reason metadata. Claude's on-disk `attachment` /
-`goal_status` records are supported alongside Codex's `thread_goal_updated`
-envelope. Workflow runtime consumes the latest marker only when no validated
-structured result is present: complete succeeds, blocked blocks, usage/budget
-limited exhausts, and active/paused abstains. Harness corroboration remains
-observable without bypassing the workflow result contract.
+The target is one parser seam that reads harness goal markers for every path
+that consumes a transcript: the live interactive tail, restart recovery, and transcript import.
+The seam is `Codec.GoalStatusFromTranscriptLine(line) (GoalMarker, bool)`; each
+codec supplies its own line shape and the consumer never inspects the shape.
 
-## Related Documentation
+- Codex markers use an `event_msg` envelope with
+  `payload.type=thread_goal_updated` and `payload.goal={objective,status}`.
+- Claude markers are `goal_status` objects inside on-disk `attachment` records,
+  found by walking JSON objects only, so assistant prose cannot pose as a marker.
+
+The typed status vocabulary is `active`, `paused`, `blocked`, `usage_limited`,
+`budget_limited`, and `complete`; the seam never collapses it to a boolean. A
+marker with a status other than `active` or `paused` is a deliberate harness
+terminal, not a process failure. The consumer emits one provider-neutral
+`goal_status_changed` run event per changed marker (objective, status,
+iteration, last reason) and deduplicates repeats.
+
+In goal mode the marker is the delivery ack for `/goal` and the source of the
+run's terminal class: `complete` and `blocked` are agent-decided verdicts;
+`usage_limited` and `budget_limited` are involuntary interruptions. `codex exec`
+has no native goal surface, so codec-pipe delivery carries the finish line in
+the prompt while interactive delivery uses the harness goal surface. The full
+run contract is in
+[ARCHITECTURE.md](../concepts/ARCHITECTURE.md#target-goal-mode-run-contract).
+
+The retired `contract-development` engagement path is not part of the target
+design. Goal mode replaces it: one run per goal execution with Swarm finalization
+as the completion authority. Its name may still appear in history notes and
+migration text.
+
+**Implementation status.** The seam is not yet shared. The live and recovery
+paths act on the `result.Goal` a codec's `ParseTranscriptLine` sets
+(`transcript_consumer.go:138`); only Claude sets it (`codecs/claude.go:680-682`).
+Codex's `codexGoalStatus` (`codecs/goal_markers.go:11`, wired at
+`codecs/codex.go:92`) is reached only through
+`baseCodec.GoalStatusFromTranscriptLine` (`codecs/base.go:58-62`), which serves
+transcript import, so a live Codex run cannot produce a goal marker today.
+Claude's parser maps the on-disk `goal_status` record to `active` or
+`complete` only, so `blocked`, `usage_limited`, and `budget_limited` have no
+live source yet. The
+coordinator deduplicates changes and persists the
+marker metadata. Workflow runtime consumes the latest marker only when no
+validated structured result is present: complete succeeds, blocked blocks,
+usage/budget limited exhausts, and active/paused abstains. The marker is not
+yet used as a delivery ack for `/goal`, and terminal classes are not modelled
+on the run. See the interim mapping in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ## Friction investigation seam
 
@@ -1918,6 +1948,8 @@ observational until a pricing allocator is configured.
 [CODE: api/internal/adapters/database/repository_invocation_read_model.go#RunBreakdown] •
 [CODE: api/internal/adapters/database/repository_pricing.go#CreateSubscriptionPeriod] •
 [UI: ui/src/features/stats/components/measure/MeasureFrame.tsx]
+
+## Related Documentation
 
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start

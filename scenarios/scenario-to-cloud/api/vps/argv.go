@@ -194,7 +194,17 @@ func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand,
 		}
 		return out, nil
 	case execplan.OpConfigApply:
-		return []TargetCommand{effectful(action.ID, "setup", []string{"--yes", "yes", "--environment", in["environment"]}, timeout)}, nil
+		args := []string{"--yes", "yes", "--environment", in["environment"]}
+		if resources := strings.TrimSpace(in["resources"]); resources != "" {
+			args = append(args, "--resources", resources)
+		}
+		if scenarios := strings.TrimSpace(in["scenarios"]); scenarios != "" {
+			args = append(args, "--scenarios", scenarios)
+		}
+		if selection := strings.TrimSpace(in["selection_json_b64"]); selection != "" {
+			args = append(args, "--selection-b64", selection)
+		}
+		return []TargetCommand{effectful(action.ID, "setup", args, timeout)}, nil
 	case execplan.OpRuntimeStartDeps:
 		var out []TargetCommand
 		for _, res := range csv(in["resources"]) {

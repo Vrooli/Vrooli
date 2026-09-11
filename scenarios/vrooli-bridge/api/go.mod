@@ -1,6 +1,6 @@
 module vrooli-bridge
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.2
@@ -17,7 +17,7 @@ require (
 	github.com/vrooli/ssh-core v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
 )

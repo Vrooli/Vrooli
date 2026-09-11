@@ -14,19 +14,26 @@ non-root VM username, and an authorized SSH key. The two profiles are:
 - `headless-linux`: serial console and no desktop display.
 - `desktop-linux`: a graphical display for desktop-session validation.
 
+Inspect and install the scenario-owned host requirements through the selected
+scenario setup path. Global setup status does not include these declarations:
+
+```text
+vrooli setup --scenarios scenario-to-cloud --dry-run
+vrooli setup --scenarios scenario-to-cloud --sudo-mode ask
+```
+
+The dry run is read-only. The apply command is the only supported elevation
+boundary for these tools; it may require operator authentication.
+
 Example CLI flow:
 
 ```text
-scenario-to-cloud vps instance plan --name lane-a --image /var/lib/vm/base.qcow2 \
-  --workdir /var/lib/vm/lane-a --profile headless-linux \
-  --authorized-key "$(cat ~/.ssh/id_ed25519.pub)"
-scenario-to-cloud vps instance create --name lane-a --image /var/lib/vm/base.qcow2 \
-  --workdir /var/lib/vm/lane-a --profile headless-linux \
-  --authorized-key "$(cat ~/.ssh/id_ed25519.pub)"
-scenario-to-cloud vps instance wait-for-ssh <id>
-scenario-to-cloud vps instance snapshot <id> clean
-scenario-to-cloud vps instance reset <id> clean
-scenario-to-cloud vps instance destroy <id>
+scenario-to-cloud vps instance plan --name lane-a --image /var/lib/vm/base.qcow2 --workdir /var/lib/vm/lane-a --profile headless-linux --authorized-key "$(cat ~/.ssh/id_ed25519.pub)"
+scenario-to-cloud vps instance create --name lane-a --image /var/lib/vm/base.qcow2 --workdir /var/lib/vm/lane-a --profile headless-linux --authorized-key "$(cat ~/.ssh/id_ed25519.pub)"
+scenario-to-cloud vps instance wait-for-ssh "$INSTANCE_ID"
+scenario-to-cloud vps instance snapshot "$INSTANCE_ID" clean
+scenario-to-cloud vps instance reset "$INSTANCE_ID" clean
+scenario-to-cloud vps instance destroy "$INSTANCE_ID"
 ```
 
 The provider reports a typed readiness error when QEMU or the provisioning

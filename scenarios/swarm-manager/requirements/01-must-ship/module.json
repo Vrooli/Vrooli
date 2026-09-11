@@ -40,11 +40,11 @@
     },
     {
       "id": "SWM-P0-002",
-      "title": "Explicit work shape",
+      "title": "Canonical work package",
       "status": "planned",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "Each backlog item shall declare plan-based or contract-development work; plan-based items shall retain one evolving implementation plan, and contract-development items shall retain a reviewed target contract without requiring a finite implementation plan",
+      "description": "Each meaningful implementation backlog item shall retain one canonical Plan Manager plan whose shape (phased or mandate) is a field on the plan; the item shall carry the grant and execution settings for that plan",
       "validation": [
         {
           "type": "test",
@@ -85,7 +85,7 @@
       "status": "planned",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "description": "The system shall block execution until the operator accepts the current plan or development-mandate revision, retain the reviewed target contents and grants, and require renewed approval for material target or authority amendments",
+      "description": "The system shall block execution until the operator accepts the current plan content hash together with the item's execution settings and acceptance globs, and shall clear acceptance when any of them changes",
       "validation": [
         {
           "type": "test",
@@ -353,8 +353,8 @@
           "notes": "Two repairs under one approval, repository reopen, ambiguous start reservation, unknown usage, cancellation and overrun accounting. Native/fallback execution-owner wiring and monetary/delegated usage remain pending."
         }
       ],
-      "title": "Contract-development continuity",
-      "description": "While a contract-development engagement runs, the system shall permit successive authorized repairs under one item and preserve aggregate incurred and reserved usage, checkpoints, cancellation and budget limits across continuations and restarts"
+      "title": "Plan-backed continuity",
+      "description": "While an accepted item runs in either execution mode, the system shall permit successive authorized repairs under one item, resume only involuntary interruptions when the item declares continuation until-allowance, treat an agent verdict of complete, blocked or abstained as final, and preserve aggregate incurred and reserved usage, checkpoints, cancellation and budget limits across resumes and restarts"
     },
     {
       "id": "SWM-P0-016",
@@ -375,8 +375,8 @@
           "notes": "Owner receipt fixture tests reject missing, stale, failed, future and wrong target/source/run/product evidence. Production outcome resolvers remain pending."
         }
       ],
-      "title": "Evidence-bound contract acceptance",
-      "description": "When a contract-development engagement submits completion, the system shall resolve required outcome evidence against the approved target and refuse acceptance of missing, stale, failed or mismatched evidence regardless of harness completion"
+      "title": "Evidence-bound finalization",
+      "description": "When an execution ends, the system shall resolve required outcome evidence against the accepted plan in finalization and refuse acceptance of missing, stale, failed or mismatched evidence regardless of harness completion"
     },
     {
       "id": "SWM-P0-017",
@@ -411,8 +411,8 @@
           "notes": "Review invalidation, bound approval, error visibility and no incidental start. Full next-action and acceptance-decision UI remain pending."
         }
       ],
-      "title": "Development review surface",
-      "description": "The system shall expose contract-development target snapshots, grants, budgets, goal message, progress, evidence and launch blockers through consistent API, CLI and board views before operator authorization"
+      "title": "Run review surface",
+      "description": "The system shall expose the plan reference and shape, execution mode, limits, continuation and scope policy, operator note, composed goal message, progress, evidence and launch blockers through consistent API, CLI and board views before the operator runs an item"
     }
   ]
 }

@@ -25,6 +25,9 @@ func TestNewHTTPCloudHealthClientUsesConfiguredURL(t *testing.T) {
 	if client.baseURL != "http://cloud.example" {
 		t.Fatalf("baseURL = %q", client.baseURL)
 	}
+	if !client.receiptVerificationStrict {
+		t.Fatal("production cloud client must require receipt verification")
+	}
 }
 
 func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {

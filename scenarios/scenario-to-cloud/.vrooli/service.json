@@ -28,6 +28,58 @@
           "max_bytes": "256MiB",
           "rationale": "The database measured 0 bytes on 2026-08-27; 256 MiB is an alarm ceiling and does not authorize deletion."
         }
+      },
+      "bundle_database_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "bundles/database.db-wal",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead-log sidecar for the durable bundle database.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The WAL is bounded by the primary bundle database ceiling and can be checkpointed without deleting durable records."
+        }
+      },
+      "bundle_database_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "bundles/database.db-shm",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable bundle database.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "SQLite shared memory is regenerable and bounded; the ceiling detects abnormal growth."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "subpath": "deployment/deployment-report.json",
+        "regenerable": false,
+        "rationale": "The lifecycle deployment report is retained operational evidence written beneath the scenario data root.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "max_age": "30d",
+          "rationale": "The current report is approximately 169 MiB; a 256 MiB ceiling bounds retained deployment evidence without authorizing deletion."
+        }
+      },
+      "retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Retention enforcement receipts are bounded regenerable operational state."
+        }
       }
     },
     "rationale": "Storage surfaces separate regenerable deployment bundles from durable bundle metadata."
@@ -227,6 +279,11 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/scenario-to-cloud/SKILL.md"
     }
   },
   "credentials": {

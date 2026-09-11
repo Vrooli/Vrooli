@@ -17,7 +17,7 @@
   "flow_definition": {
     "settings": { "viewport_width": 390, "viewport_height": 844 },
     "nodes": [
-      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/welcome", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
+      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "vrooli-onboarding", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
       { "id": "wait-shell", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/wizard.shell", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 }, "metadata": { "label": "Wizard shell renders" } } },
       { "id": "assert-one-progress", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/wizard.shell", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-rcl-progress-count", "expected": { "stringValue": "1" }, "timeout_ms": 10000, "failure_message": "Every wizard screen must expose exactly one progress affordance" }, "metadata": { "label": "Exactly one progress affordance" } } }
     ],

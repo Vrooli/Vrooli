@@ -17,7 +17,7 @@ Code rollback and data restoration are separate operations with different prereq
 Owner verb: `cloud-target:data.backup`
 
 ```
-vrooli cloud-target data backup --deployment <id> --operation <op> --step data.backup --fence <n> --binding '<json>'... --key-ref <logical_id:field> --schema-version <v> --configuration-digest <d> --credential-version-ref <ref>... --provider data-backup-manager --migration-posture <posture>
+vrooli cloud-target data backup --deployment "$DEPLOYMENT_ID" --operation "$OPERATION_ID" --step data.backup --fence "$FENCE" --binding "$BINDING_JSON" --key-ref "$KEY_REF" --schema-version "$SCHEMA_VERSION" --configuration-digest "$CONFIGURATION_DIGEST" --credential-version-ref "$CREDENTIAL_VERSION_REF" --provider data-backup-manager --migration-posture "$MIGRATION_POSTURE"
 ```
 
 Preconditions:
@@ -35,7 +35,7 @@ Evidence: Receipt operations/<op>/data.backup.json and recovery-points/<id>/reco
 Owner verb: `cloud-target:data.verify`
 
 ```
-vrooli cloud-target data verify --deployment <id> --recovery-point <id> [--open] [--expect '<json>']
+vrooli cloud-target data verify --deployment "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" [--open] [--expect "$EXPECTED_JSON"]
 ```
 
 Preconditions:
@@ -51,7 +51,7 @@ Evidence: Verify report: artifacts_intact, key_resolved, artifacts_opened, invar
 Owner verb: `cloud-target:data.restore`
 
 ```
-vrooli cloud-target data restore --deployment <id> --operation <op> --step data.restore --fence <n> --recovery-point <id> --into <binding>=<locator>...
+vrooli cloud-target data restore --deployment "$DEPLOYMENT_ID" --operation "$OPERATION_ID" --step data.restore --fence "$FENCE" --recovery-point "$RECOVERY_POINT_ID" --into "$BINDING_LOCATOR"
 ```
 
 Preconditions:

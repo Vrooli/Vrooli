@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T00:00:00Z",
-    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-018",
       "title": "Operation intent persisted before effects with monotonic fence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "durable-operations",
       "description": "Operations are admitted durably with request-key idempotency and a fence; stale workers cannot commit or mutate the target.",
@@ -42,7 +41,7 @@
     {
       "id": "STC-P0-019",
       "title": "Owner restart reconciliation and lost-reply handling",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "durable-operations",
       "description": "Admitted and running operations are reconciled on startup using target receipts; unknown remote effects are recorded explicitly rather than inferred as failure or success.",
@@ -70,7 +69,7 @@
     {
       "id": "STC-P0-020",
       "title": "Durable wait, cancellation and attach contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "durable-operations",
       "description": "Clients attach by operation ID after disconnect; cancellation stops at declared safe points; observer timeout never changes operation state.",

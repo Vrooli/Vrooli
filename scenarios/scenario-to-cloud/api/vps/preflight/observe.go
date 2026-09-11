@@ -28,7 +28,12 @@ func (o observer) observe(ctx context.Context, program string, args ...string) (
 	if o.reach == nil {
 		return reach.Result{}, &reach.Error{Kind: reach.KindUnavailable, Target: o.target.Key(), Detail: "no reach bound for preflight"}
 	}
-	return o.reach.Exec(ctx, o.target, reach.Command{Program: program, Args: args, RequiredScope: "vrooli:read", Timeout: observationTimeout})
+	cmd, err := reach.NewObservation(program, args...)
+	if err != nil {
+		return reach.Result{}, err
+	}
+	cmd.Timeout = observationTimeout
+	return o.reach.Exec(ctx, o.target, cmd)
 }
 
 // ok reports a probe that ran and exited zero.

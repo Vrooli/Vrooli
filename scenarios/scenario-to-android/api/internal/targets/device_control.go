@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices"
 	devicesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices/devices_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // DeviceControlInventory is the provider-neutral read adapter used by the
@@ -79,10 +81,17 @@ func (c DeviceControlInventory) List(ctx context.Context) ([]DeviceObservation, 
 		observations = append(observations, DeviceObservation{
 			ID: device.Id, Label: device.Name, NodeID: device.HostNodeId, Serial: device.Serial, ADBTransport: device.Transport,
 			OS: "Android", Architecture: device.Model, Transport: deliveryramp.Transport{Kind: transport, ID: device.Serial, Available: available},
-			Capabilities: capabilities, Available: available, Reason: firstReason(device.HealthReason, device.Status),
+			Capabilities: capabilities, Available: available, Reason: firstReason(device.HealthReason, device.Status), ObservedAt: observedAt(device.ObservedAt),
 		})
 	}
 	return observations, nil
+}
+
+func observedAt(value *timestamppb.Timestamp) time.Time {
+	if value == nil || !value.IsValid() {
+		return time.Time{}
+	}
+	return value.AsTime().UTC()
 }
 
 func normalizeCapability(raw string) string {

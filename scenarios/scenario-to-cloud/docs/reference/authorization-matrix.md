@@ -124,8 +124,6 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | POST | `/api/v1/operations/{id}/cancel` | workload_mutation | `scenario-to-cloud:destructive` | - | no | no | no | Record a cancellation intent honoured at the next declared cancel point. |
 | GET | `/api/v1/operations/{id}/wait` | read | `scenario-to-cloud:read` | - | no | yes | no | Block server-side until the operation is terminal or the observer bound elapses; never mutates. |
 | POST | `/api/v1/preflight` | read | `scenario-to-cloud:read` | body | yes | no | no | Run preflight checks against a target named in the body. |
-| POST | `/api/v1/preflight/disk/cleanup` | host | `scenario-to-cloud:destructive` | body | yes | no | no | Free disk space on a target. |
-| POST | `/api/v1/preflight/disk/usage` | read | `scenario-to-cloud:read` | body | yes | no | no | Read disk usage on a target. |
 | POST | `/api/v1/preflight/fix/firewall` | host | `scenario-to-cloud:destructive` | body | yes | no | no | Open firewall ports on a target. |
 | POST | `/api/v1/preflight/fix/stop-processes` | host | `scenario-to-cloud:destructive` | body | yes | no | no | Stop scenario processes on a target. |
 | GET | `/api/v1/preflight/requirements` | read | `scenario-to-cloud:read` | - | no | yes | no | Preflight requirement catalog. |

@@ -39,8 +39,6 @@ const successfulCalls: Array<[string, () => Promise<unknown>]> = [
   ["deleteDeployment", () => api.deleteDeployment("deployment/1", { stopOnVPS: true, cleanupBundles: true })],
   ["stopPortServices", () => api.stopPortServices(opaqueRequest)],
   ["openFirewallPorts", () => api.openFirewallPorts(opaqueRequest)],
-  ["getDiskUsage", () => api.getDiskUsage(opaqueRequest)],
-  ["runDiskCleanup", () => api.runDiskCleanup(opaqueRequest)],
   ["stopScenarioProcesses", () => api.stopScenarioProcesses(opaqueRequest)],
   ["getLiveState", () => api.getLiveState("deployment/1")],
   ["getFiles", () => api.getFiles("deployment/1", "/srv/vrooli")],

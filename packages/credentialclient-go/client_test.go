@@ -57,7 +57,8 @@ func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "value-not-output"}); err != nil {
+	provisioned, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "value-not-output"})
+	if err != nil {
 		t.Fatal(err)
 	}
 	status, err := client.Status(context.Background(), "vrooli/test", "api-key")
@@ -66,6 +67,9 @@ func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {
 	}
 	if !status.Configured || status.ProviderState != "available" {
 		t.Fatalf("status = %+v", status)
+	}
+	if provisioned.Version == "" || provisioned.Version != status.Version {
+		t.Fatalf("provision response version = %q, status version = %q", provisioned.Version, status.Version)
 	}
 	value, err := client.Resolve(context.Background(), "vrooli/test", "api-key")
 	if err != nil || value != "value-not-output" {
@@ -91,12 +95,86 @@ func TestInProcessHydrateLabelsExplicitRuntimeInjection(t *testing.T) {
 		t.Fatal("in-process client must expose the explicit hydration seam")
 	}
 	target := map[string]string{}
-	result, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", Env: "TEST_API_KEY", Target: target})
+	status, err := client.Status(context.Background(), "vrooli/test", "api-key")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ExposureMode != ExposureRuntimeInjection || !result.Injected || result.LeaseID == "" || result.ExpiresAt.Before(time.Now()) || target["TEST_API_KEY"] != "one-process-secret" {
+	result, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", TargetID: "local", ExpectedVersion: status.Version, Env: "TEST_API_KEY", Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExposureMode != ExposureRuntimeInjection || !result.Injected || result.RestartRequired || result.NextAction != "start-consumer" || result.TargetID != "local" || result.Version != status.Version || result.LeaseID == "" || result.ExpiresAt.Before(time.Now()) || target["TEST_API_KEY"] != "one-process-secret" {
 		t.Fatalf("hydration result = %+v target = %#v", result, target)
+	}
+}
+
+func TestInProcessHydrateReportsRestartForRunningConsumer(t *testing.T) {
+	store := &testStore{value: "running-process-secret"}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.(HydrationProvider).Hydrate(context.Background(), HydrationRequest{
+		Identity: "vrooli/test", Field: "api-key", TargetID: "local", Env: "TEST_API_KEY", Target: map[string]string{}, ProcessRunning: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.RestartRequired || result.NextAction != "restart-consumer" {
+		t.Fatalf("hydration result = %+v, want an explicit restart requirement", result)
+	}
+}
+
+func TestInProcessHydrateRejectsChangedVersionAndUnboundedLease(t *testing.T) {
+	store := &testStore{}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "version-bound-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	hydrator := client.(HydrationProvider)
+	target := map[string]string{}
+	if _, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", TargetID: "local", ExpectedVersion: "stale-version", Env: "TEST_API_KEY", Target: target}); err == nil || len(target) != 0 {
+		t.Fatalf("changed-version hydration = %v target = %#v, want rejection without injection", err, target)
+	}
+	target["TEST_API_KEY"] = "caller-owned-value"
+	if _, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", TargetID: "local", LeaseTTL: maxHydrationLeaseTTL + time.Second, Env: "TEST_API_KEY", Target: target}); err == nil || target["TEST_API_KEY"] != "caller-owned-value" {
+		t.Fatalf("unbounded hydration = %v target = %#v, want rejection without injection", err, target)
+	}
+}
+
+func TestInProcessHydrateDoesNotOverwriteCallerOwnedEnvironment(t *testing.T) {
+	store := &testStore{}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "secret-value"}); err != nil {
+		t.Fatal(err)
+	}
+	target := map[string]string{"TEST_API_KEY": "caller-owned"}
+	_, err = client.(HydrationProvider).Hydrate(context.Background(), HydrationRequest{
+		Identity: "vrooli/test", Field: "api-key", TargetID: "local", Env: "TEST_API_KEY", Target: target,
+	})
+	if err == nil || !strings.Contains(err.Error(), "already contains") {
+		t.Fatalf("Hydrate error = %v, want caller-owned target rejection", err)
+	}
+	if target["TEST_API_KEY"] != "caller-owned" {
+		t.Fatalf("target = %#v, caller-owned value was changed", target)
 	}
 }
 
@@ -113,7 +191,7 @@ func TestInProcessHydrationRevocationSeparatesFutureDeliveryFromProcessExposure(
 	hydrator := client.(HydrationProvider)
 	revoker := client.(HydrationRevocationProvider)
 	target := map[string]string{}
-	hydrated, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", Env: "TEST_API_KEY", Target: target})
+	hydrated, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", TargetID: "local", Env: "TEST_API_KEY", Target: target})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +201,35 @@ func TestInProcessHydrationRevocationSeparatesFutureDeliveryFromProcessExposure(
 	}
 	if !result.FutureDeliveryStopped || result.ProcessExposure != "already_running_process" || target["TEST_API_KEY"] != "" {
 		t.Fatalf("revocation result = %+v target = %#v", result, target)
+	}
+}
+
+func TestInProcessHydrationExpiryClearsEphemeralTarget(t *testing.T) {
+	store := &testStore{}
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Provision(context.Background(), ProvisionRequest{Identity: "vrooli/test", Field: "api-key", Value: "expires-secret"}); err != nil {
+		t.Fatal(err)
+	}
+	hydrator := client.(HydrationProvider)
+	target := map[string]string{}
+	hydrated, err := hydrator.Hydrate(context.Background(), HydrationRequest{Identity: "vrooli/test", Field: "api-key", TargetID: "local", LeaseTTL: 10 * time.Millisecond, Env: "TEST_API_KEY", Target: target})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Target is caller-owned and must not be read while the expiry callback can
+	// delete from it. Wait past the bounded lease and acquire the lifecycle
+	// mutex through revocation before inspecting the cleanup.
+	time.Sleep(50 * time.Millisecond)
+	_, _ = client.(HydrationRevocationProvider).RevokeHydration(context.Background(), HydrationRevocationRequest{LeaseID: hydrated.LeaseID})
+	if target["TEST_API_KEY"] != "" {
+		t.Fatalf("expired hydration retained target value %q", target["TEST_API_KEY"])
 	}
 }
 
@@ -232,6 +339,42 @@ func TestInProcessRecoveryExportRecordsVerifiedReceipt(t *testing.T) {
 	if _, err := credentialauthority.InspectRecovery(mustReadFile(t, outputPath), "correct horse battery staple"); err != nil {
 		t.Fatalf("exported bundle does not decrypt after receipt: %v", err)
 	}
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != credentialBundleFileMode {
+		t.Fatalf("recovery bundle permissions = %04o, want %04o", info.Mode().Perm(), credentialBundleFileMode)
+	}
+}
+
+func TestInProcessRecoveryImportRejectsBroadPermissionsAndSymlinks(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(&testStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	broadPath := filepath.Join(t.TempDir(), "broad.bundle")
+	if err := os.WriteFile(broadPath, []byte("bundle"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(broadPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.RecoveryVerify(context.Background(), RecoveryVerifyRequest{InputPath: broadPath, Passphrase: "passphrase"}); err == nil || !strings.Contains(err.Error(), "permissions") {
+		t.Fatalf("broad-permission import error = %v, want permission rejection", err)
+	}
+
+	symlinkPath := filepath.Join(t.TempDir(), "linked.bundle")
+	if err := os.Symlink(broadPath, symlinkPath); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := client.RecoveryVerify(context.Background(), RecoveryVerifyRequest{InputPath: symlinkPath, Passphrase: "passphrase"}); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("symlink import error = %v, want symlink rejection", err)
+	}
 }
 
 func mustReadFile(t *testing.T, path string) []byte {
@@ -261,11 +404,16 @@ type recordingSSHRunner struct {
 
 func (r *recordingSSHRunner) Run(_ context.Context, _ string, args []string, stdin io.Reader) ([]byte, error) {
 	r.args = append([]string(nil), args...)
-	data, err := io.ReadAll(stdin)
-	if err != nil {
-		return nil, err
+	if stdin != nil {
+		data, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, err
+		}
+		r.input = string(data)
 	}
-	r.input = string(data)
+	if len(args) >= 3 && args[0] == "vrooli" && args[1] == "credentials" && args[2] == "status" {
+		return []byte(`{"version":"remote-version","configured":true,"provider_state":"available"}`), nil
+	}
 	return nil, nil
 }
 

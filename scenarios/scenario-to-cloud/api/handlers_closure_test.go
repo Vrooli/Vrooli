@@ -3,14 +3,19 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/backup"
 	"scenario-to-cloud/closure"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/health"
+	"scenario-to-cloud/release"
+	"scenario-to-cloud/releasesvc"
 )
 
 func fixtureClosureService(t *testing.T, repo string) *closure.Service {
@@ -25,12 +30,39 @@ func fixtureClosureService(t *testing.T, repo string) *closure.Service {
 
 func newClosureTestServer(t *testing.T, repo string) *Server {
 	t.Helper()
-	previous := closureServiceOverride
-	closureServiceOverride = fixtureClosureService(t, repo)
-	t.Cleanup(func() { closureServiceOverride = previous })
 	srv := newTestServer()
+	srv.closureSvc = fixtureClosureService(t, repo)
 	srv.registerClosureRoutes(srv.router.PathPrefix("/api/v1").Subrouter())
 	return srv
+}
+
+func TestServerOwnedCapabilityStateDoesNotCrossInstances(t *testing.T) {
+	first := newTestServer()
+	second := newTestServer()
+
+	first.closureSvc = fixtureClosureService(t, "basic")
+	second.closureSvc = fixtureClosureService(t, "basic")
+	first.releaseSvc = releasesvc.New(releasesvc.Config{StoreDir: t.TempDir(), TrustMode: release.TrustDevelopmentLocal})
+	second.releaseSvc = releasesvc.New(releasesvc.Config{StoreDir: t.TempDir(), TrustMode: release.TrustDevelopmentLocal})
+	first.backupSvc = &backup.Service{}
+	second.backupSvc = &backup.Service{}
+	first.healthSvc = &health.Alerter{}
+	second.healthSvc = &health.Alerter{}
+
+	firstClosure, _ := first.closureService()
+	secondClosure, _ := second.closureService()
+	firstRelease, _ := first.releaseService()
+	secondRelease, _ := second.releaseService()
+	firstBackup, _ := first.backupService()
+	secondBackup, _ := second.backupService()
+	if firstClosure == secondClosure || firstRelease == secondRelease || firstBackup == secondBackup || first.alerter() == second.alerter() {
+		t.Fatal("server capabilities must not be shared between instances")
+	}
+
+	first.releaseErr = errors.New("first server release failure")
+	if _, err := second.releaseService(); err != nil {
+		t.Fatalf("second server inherited first server failure: %v", err)
+	}
 }
 
 func decodeClosure(t *testing.T, rec *httptest.ResponseRecorder) domain.Closure {

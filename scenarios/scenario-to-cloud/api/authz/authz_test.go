@@ -538,6 +538,29 @@ func TestFromEnvironmentNeverAnonymous(t *testing.T) {
 	}
 }
 
+func TestFromEnvironmentPersonalLocalUsesRuntimeTokenFile(t *testing.T) {
+	tokenPath := filepath.Join(t.TempDir(), "local-session-token")
+	if err := os.WriteFile(tokenPath, []byte("runtime-session-token\n"), 0o600); err != nil {
+		t.Fatalf("write token: %v", err)
+	}
+	env := func(key string) string {
+		if key == EnvAuthLocalToken {
+			return tokenPath
+		}
+		return ""
+	}
+	cfg, err := FromEnvironment(env)
+	if err != nil {
+		t.Fatalf("FromEnvironment: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/api/v1/health", nil)
+	request.RemoteAddr = "127.0.0.1:12345"
+	request.Header.Set("Authorization", "LocalSession runtime-session-token")
+	if _, err := cfg.Authn.Providers[0].VerifyRequest(context.Background(), request); err != nil {
+		t.Fatalf("runtime token should authenticate personal_local: %v", err)
+	}
+}
+
 // Personal-local owners are unrestricted by default; every other unnamed
 // principal has no target grant.
 func TestPolicyDefaults(t *testing.T) {

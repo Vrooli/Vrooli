@@ -33,6 +33,12 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 
+  it("keeps the keyboard skip link in the shell viewport", async () => {
+    renderShell();
+    const skipLink = await screen.findByRole("link", { name: "layout.mainLabel" });
+    expect(skipLink).toHaveAttribute("href", `#${selectors.layout.shell}-main`);
+  });
+
   it("renders the locale switcher with toggles for every supported locale", async () => {
     renderShell();
     expect(await screen.findByTestId(selectors.locale.switcher)).toBeInTheDocument();

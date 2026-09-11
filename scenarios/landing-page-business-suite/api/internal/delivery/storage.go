@@ -24,6 +24,14 @@ type ObjectReader interface {
 	ReadObject(ctx context.Context, bucket, key string) (io.ReadCloser, int64, string, error)
 }
 
+// OperationVerifier is an optional provider capability for readiness checks.
+// A provider that implements it must use a bounded, cleanup-owned key and
+// verify the actual operations required by distribution, not just bucket
+// discovery.
+type OperationVerifier interface {
+	VerifyOperations(ctx context.Context, bucket, prefix string) error
+}
+
 // StorageProvider builds a request-safe storage implementation from persisted
 // delivery settings.
 type StorageProvider interface {

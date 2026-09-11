@@ -77,6 +77,20 @@ type CredentialVersion struct {
 	Number     int64     `json:"number"`
 	ContentRef string    `json:"content_ref"`
 	CreatedAt  time.Time `json:"created_at"`
+	// ExpiresAt is provider- or target-supplied metadata. A missing value means
+	// the owner has not declared an expiry policy; it must not be fabricated by
+	// the cloud owner.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+// Expired reports whether the version is no longer valid at now.
+func (v CredentialVersion) Expired(now time.Time) bool {
+	return v.ExpiresAt != nil && !now.Before(v.ExpiresAt.UTC())
+}
+
+// RenewalDue reports whether the version is inside the owner's renewal window.
+func (v CredentialVersion) RenewalDue(now time.Time, window time.Duration) bool {
+	return v.ExpiresAt != nil && !v.Expired(now) && window > 0 && !now.Before(v.ExpiresAt.UTC().Add(-window))
 }
 
 // CredentialBindingState is the binding's standing on its deployment.

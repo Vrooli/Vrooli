@@ -66,13 +66,20 @@ func reviewedPlan(w http.ResponseWriter, compile func() (*execplan.Plan, error),
 	return plan, true
 }
 
-// admitAdHocOperation records a durable operation when the caller binds the
-// ad hoc apply to a stored deployment. Without a deployment id the apply is
-// executed unrecorded (legacy behaviour, documented).
+// admitAdHocOperation records a durable operation for the reviewed plan. An
+// apply without a stored deployment cannot establish an owner, target
+// identity, or recovery record, so it is refused before any effect.
 func (s *Server) admitAdHocOperation(ctx context.Context, w http.ResponseWriter, deploymentID, requestKey string, plan *execplan.Plan) (string, bool) {
 	deploymentID = strings.TrimSpace(deploymentID)
-	if deploymentID == "" || s.repo == nil {
-		return "", true
+	if deploymentID == "" {
+		apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "deployment_id is required for VPS apply; create or select a stored deployment before applying").WithNextAction(apierrors.NextAction{
+			Owner: "scenario-to-cloud", Kind: "deployment", Reference: "/api/v1/deployments", Label: "Create or select the deployment record",
+		}))
+		return "", false
+	}
+	if s.repo == nil || s.operations == nil {
+		apierrors.Write(w, apierrors.New(apierrors.CodeInternal, "durable operation owner is not configured"))
+		return "", false
 	}
 	op, _, err := operations.Admit(ctx, s.repo, deploymentID, requestKey, plan)
 	if err != nil {
@@ -120,15 +127,10 @@ func (s *Server) handleVPSSetupApply(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
-	defer cancel()
-
-	progress := 0.0
-	resp := vps.RunSetupPlanWithProgress(ctx, plan, manifest, req.BundlePath, s.executionRuntime(manifest, req.DeploymentID, operationID), vps.NoopProgressHub{}, vps.NoopProgressRepo{}, req.DeploymentID, &progress)
-	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"result":       resp,
-		"plan_digest":  resp.PlanDigest,
+	s.operations.Submit(r.Context(), operationID, operations.ExecuteOptions{})
+	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
+		"state":        string(operations.Admitted),
+		"plan_digest":  plan.MustDigest(),
 		"operation_id": operationID,
 		"issues":       issues,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
@@ -171,15 +173,10 @@ func (s *Server) handleVPSDeployApply(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Minute)
-	defer cancel()
-
-	progress := 0.0
-	resp := vps.RunDeployPlanWithProgress(ctx, plan, manifest, s.executionRuntime(manifest, req.DeploymentID, operationID), vps.NoopProgressHub{}, vps.NoopProgressRepo{}, req.DeploymentID, &progress, vps.DeployOptions{})
-	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"result":       resp,
-		"plan_digest":  resp.PlanDigest,
+	s.operations.Submit(r.Context(), operationID, operations.ExecuteOptions{})
+	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
+		"state":        string(operations.Admitted),
+		"plan_digest":  plan.MustDigest(),
 		"operation_id": operationID,
 		"issues":       issues,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),

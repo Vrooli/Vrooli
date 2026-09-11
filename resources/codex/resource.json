@@ -314,7 +314,8 @@
     }
   },
   "capabilities": {
-    "supports_logs": false
+    "supports_logs": false,
+    "supports_ensure": true
   },
   "upstream_cli": {
     "version_command": [

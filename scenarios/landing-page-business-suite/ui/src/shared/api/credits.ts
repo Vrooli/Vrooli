@@ -218,7 +218,6 @@ export const TIER_OPTIONS = [
 ] as const;
 
 export const PROVIDER_OPTIONS = [
-  { value: 'openrouter', label: 'OpenRouter', description: 'Access to multiple AI models' },
   { value: 'openai', label: 'OpenAI', description: 'GPT-4 and other OpenAI models' },
   { value: 'anthropic', label: 'Anthropic', description: 'Claude models' },
 ] as const;

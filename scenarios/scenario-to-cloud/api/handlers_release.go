@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"sync"
 
 	"github.com/gorilla/mux"
 
@@ -13,24 +12,11 @@ import (
 	"scenario-to-cloud/releasesvc"
 )
 
-// releaseServiceOverride lets tests substitute a fixture-backed service. The
-// production service is built lazily from the repository the API runs in and
-// the local bundle store.
-var (
-	releaseServiceOverride *releasesvc.Service
-	releaseServiceOnce     sync.Once
-	releaseServiceValue    *releasesvc.Service
-	releaseServiceErr      error
-)
-
-func releaseService() (*releasesvc.Service, error) {
-	if releaseServiceOverride != nil {
-		return releaseServiceOverride, nil
+func (s *Server) releaseService() (*releasesvc.Service, error) {
+	if s == nil {
+		return nil, apierrors.Internal("release service unavailable", nil)
 	}
-	releaseServiceOnce.Do(func() {
-		releaseServiceValue, releaseServiceErr = newDefaultReleaseService()
-	})
-	return releaseServiceValue, releaseServiceErr
+	return s.releaseSvc, s.releaseErr
 }
 
 // newDefaultReleaseService binds the repository root, the bundle store and
@@ -55,14 +41,14 @@ func (s *Server) registerReleaseRoutes(api *mux.Router) {
 	api.HandleFunc("/releases/build", s.handleBuildRelease).Methods("POST")
 	api.HandleFunc("/releases/{digest}", s.handleGetRelease).Methods("GET")
 	api.HandleFunc("/releases/{digest}/verify", s.handleVerifyRelease).Methods("POST")
-	if svc, err := releaseService(); err == nil {
+	if svc, err := s.releaseService(); err == nil {
 		path, handler := svc.Handler()
 		s.router.PathPrefix(path).Handler(handler)
 	}
 }
 
 func (s *Server) handleBuildRelease(w http.ResponseWriter, r *http.Request) {
-	svc, err := releaseService()
+	svc, err := s.releaseService()
 	if err != nil {
 		apierrors.Write(w, apierrors.Internal("release service unavailable", err))
 		return
@@ -80,7 +66,7 @@ func (s *Server) handleBuildRelease(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetRelease(w http.ResponseWriter, r *http.Request) {
-	svc, err := releaseService()
+	svc, err := s.releaseService()
 	if err != nil {
 		apierrors.Write(w, apierrors.Internal("release service unavailable", err))
 		return
@@ -94,7 +80,7 @@ func (s *Server) handleGetRelease(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleVerifyRelease(w http.ResponseWriter, r *http.Request) {
-	svc, err := releaseService()
+	svc, err := s.releaseService()
 	if err != nil {
 		apierrors.Write(w, apierrors.Internal("release service unavailable", err))
 		return

@@ -29,6 +29,7 @@ const cloudCredentialsPostgresDDL = `
 		version_number BIGINT NOT NULL DEFAULT 0,
 		version_content_ref TEXT NOT NULL DEFAULT '',
 		version_created_at TIMESTAMPTZ,
+		version_expires_at TIMESTAMPTZ,
 		previous_version JSONB,
 		consumer_refs JSONB NOT NULL DEFAULT '[]'::jsonb,
 		grant_ref TEXT NOT NULL DEFAULT '',
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS cloud_credential_bindings (
 	 version_number INTEGER NOT NULL DEFAULT 0,
 	 version_content_ref TEXT NOT NULL DEFAULT '',
 	 version_created_at TIMESTAMP,
+	 version_expires_at TIMESTAMP,
 	 previous_version TEXT,
 	 consumer_refs TEXT NOT NULL DEFAULT '[]',
 	 grant_ref TEXT NOT NULL DEFAULT '',
@@ -115,24 +117,31 @@ CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_binding ON cloud_crede
 const credentialBindingColumns = `
 		id, deployment_id, logical_id, field, class, source_class, target_type, target_name,
 		version_number, version_content_ref, version_created_at, previous_version, consumer_refs,
+		version_expires_at,
 		grant_ref, recovery_key_ref, state, created_at, updated_at`
 
 func scanCredentialBinding(row rowScanner) (*domain.CredentialBinding, error) {
 	b := &domain.CredentialBinding{}
 	var (
 		versionCreated sql.NullTime
+		versionExpires sql.NullTime
 		previous       domain.NullRawMessage
 		consumers      domain.NullRawMessage
 	)
 	if err := row.Scan(
 		&b.ID, &b.DeploymentID, &b.Descriptor.LogicalID, &b.Descriptor.Field, &b.Class, &b.SourceClass, &b.Target.Type, &b.Target.Name,
 		&b.Version.Number, &b.Version.ContentRef, &versionCreated, &previous, &consumers,
+		&versionExpires,
 		&b.GrantRef, &b.RecoveryKeyRef, &b.State, &b.CreatedAt, &b.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 	if versionCreated.Valid {
 		b.Version.CreatedAt = versionCreated.Time.UTC()
+	}
+	if versionExpires.Valid {
+		expires := versionExpires.Time.UTC()
+		b.Version.ExpiresAt = &expires
 	}
 	if previous.Valid && len(previous.Data) > 0 && string(previous.Data) != "null" {
 		var prev domain.CredentialVersion
@@ -184,19 +193,24 @@ func (r *Repository) UpsertBinding(ctx context.Context, binding *domain.Credenti
 	if !binding.Version.CreatedAt.IsZero() {
 		versionCreated = binding.Version.CreatedAt.UTC()
 	}
+	var versionExpires any
+	if binding.Version.ExpiresAt != nil {
+		versionExpires = binding.Version.ExpiresAt.UTC()
+	}
 	const q = `
 		INSERT INTO cloud_credential_bindings (` + credentialBindingColumns + `)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		ON CONFLICT (id) DO UPDATE SET
 			class = EXCLUDED.class, source_class = EXCLUDED.source_class,
 			target_type = EXCLUDED.target_type, target_name = EXCLUDED.target_name,
 			version_number = EXCLUDED.version_number, version_content_ref = EXCLUDED.version_content_ref,
-			version_created_at = EXCLUDED.version_created_at, previous_version = EXCLUDED.previous_version,
+			version_created_at = EXCLUDED.version_created_at, version_expires_at = EXCLUDED.version_expires_at,
+			previous_version = EXCLUDED.previous_version,
 			consumer_refs = EXCLUDED.consumer_refs, grant_ref = EXCLUDED.grant_ref,
 			recovery_key_ref = EXCLUDED.recovery_key_ref, state = EXCLUDED.state, updated_at = EXCLUDED.updated_at`
 	_, err = r.db.ExecContext(ctx, q,
 		binding.ID, binding.DeploymentID, binding.Descriptor.LogicalID, binding.Descriptor.Field, string(binding.Class), binding.SourceClass, binding.Target.Type, binding.Target.Name,
-		binding.Version.Number, binding.Version.ContentRef, versionCreated, previous, string(consumers),
+		binding.Version.Number, binding.Version.ContentRef, versionCreated, previous, string(consumers), versionExpires,
 		binding.GrantRef, binding.RecoveryKeyRef, string(binding.State), binding.CreatedAt.UTC(), binding.UpdatedAt.UTC(),
 	)
 	if err != nil {

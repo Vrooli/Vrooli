@@ -178,8 +178,6 @@ var Table = []Route{
 	{Method: "GET", Path: api + "/preflight/requirements", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Preflight requirement catalog."},
 	{Method: "POST", Path: api + "/preflight/fix/firewall", Effect: EffectHost, Scope: ScopeDestructive, BodyTarget: true, RemoteReach: true, Description: "Open firewall ports on a target."},
 	{Method: "POST", Path: api + "/preflight/fix/stop-processes", Effect: EffectHost, Scope: ScopeDestructive, BodyTarget: true, RemoteReach: true, Description: "Stop scenario processes on a target."},
-	{Method: "POST", Path: api + "/preflight/disk/usage", Effect: EffectRead, Scope: ScopeRead, BodyTarget: true, RemoteReach: true, Description: "Read disk usage on a target."},
-	{Method: "POST", Path: api + "/preflight/disk/cleanup", Effect: EffectHost, Scope: ScopeDestructive, BodyTarget: true, RemoteReach: true, Description: "Free disk space on a target."},
 
 	// Credential material.
 	{Method: "GET", Path: api + "/secrets/{scenario}", Effect: EffectSecret, Scope: ScopeDestructive, NoStore: true, Description: "Fetch bundle secret values for a scenario."},

@@ -249,9 +249,11 @@ the deployment secret store. Development uses an ephemeral password hash when
 it is absent, so a known built-in admin credential can never authenticate a
 request.
 
-Production startup also requires `AUTH_MAGIC_LINK_BASE_URL`. It must be an
-absolute HTTPS URL for the public `/auth/verify` route. This prevents a
-deployment from sending customers a localhost or HTTP verification link.
+Production startup also requires the canonical `PUBLIC_BASE_URL`. It must be an
+absolute HTTPS URL. `AUTH_MAGIC_LINK_BASE_URL` remains a legacy callback-URL
+fallback for migrations and is ignored when `PUBLIC_BASE_URL` is present. This
+prevents a deployment from sending customers a localhost or HTTP verification
+link.
 
 ### Dependency advisory posture
 

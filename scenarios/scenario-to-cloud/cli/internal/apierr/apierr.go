@@ -292,7 +292,7 @@ func Format(err error) string {
 		}
 	}
 	if typed.Code == "unauthenticated" {
-		b.WriteString("\nSign in: run on the API host as its OS user (personal_local), or set SCENARIO_TO_CLOUD_API_TOKEN / VROOLI_API_TOKEN to a bearer token from the configured provider (vrooli-bridge auth for a paired node).")
+		b.WriteString("\nSign in: provide the runtime-owned local session token (personal_local), or set SCENARIO_TO_CLOUD_API_TOKEN / VROOLI_API_TOKEN to a bearer token from the configured provider (vrooli-bridge auth for a paired node).")
 	}
 	return b.String()
 }

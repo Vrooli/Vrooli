@@ -341,4 +341,10 @@ func TestSaveProjectsConfiguredToolBeforePlugin(t *testing.T) {
 	if !strings.Contains(string(raw), "tool.execute.before") || !strings.Contains(string(raw), "policy-runner") {
 		t.Fatalf("unexpected plugin projection: %s", raw)
 	}
+	// The event body must reach the runner. Bun.spawnSync takes the body as a
+	// TypedArray on stdin; a Node-style "input" option is ignored and the
+	// runner then exits 1 with "hook input is empty", refusing every bash call.
+	if strings.Contains(string(raw), "input:") || !strings.Contains(string(raw), "stdin: new TextEncoder().encode(JSON.stringify(event))") {
+		t.Fatalf("plugin does not feed the event to the runner over stdin: %s", raw)
+	}
 }

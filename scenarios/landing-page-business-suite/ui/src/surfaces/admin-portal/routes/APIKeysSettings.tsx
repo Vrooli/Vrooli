@@ -97,7 +97,7 @@ export function APIKeysSettings() {
         <Callout
           type="info"
           title="How API Keys Work"
-          message="These API keys are used when customers don't provide their own keys (BYOK). When a user performs an AI operation, the system uses these keys and charges the user's credit balance. Keys are encrypted at rest."
+          message="These provider keys are used for supported BYOK fallbacks and are encrypted at rest. OpenRouter is managed separately by the shared resource credential authority so hosted metering and other scenarios use one provider credential path."
         />
 
         {/* Keys List */}

@@ -196,7 +196,7 @@ func securityHeadersMiddleware(next http.Handler) http.Handler {
 
 func registerDeployReadinessRoute(s *Server) {
 	deps := deploymenthttp.Dependencies{
-		Storage: s.downloadHosting, Catalog: s.downloadService, RemoteProfiles: s.remoteProfileService,
+		Storage: s.downloadHosting, TestStorage: s.downloadHosting, Catalog: s.downloadService, RemoteProfiles: s.remoteProfileService,
 		BundleKey: s.planService.BundleKey,
 		WriteError: func(w http.ResponseWriter, status int, message, kind string) {
 			writeJSONError(w, status, message, kind)

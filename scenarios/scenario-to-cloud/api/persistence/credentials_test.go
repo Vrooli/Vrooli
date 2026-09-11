@@ -31,11 +31,12 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 	}
 	descriptor := domain.CredentialDescriptor{LogicalID: "fixture/store", Field: "Pass_Word"}
 	created := time.Date(2026, 9, 9, 10, 0, 0, 0, time.UTC)
+	expires := created.Add(30 * 24 * time.Hour)
 	binding := &domain.CredentialBinding{
 		ID: credentials.BindingID("dep-1", descriptor), DeploymentID: "dep-1", Descriptor: descriptor,
 		Class: domain.CredentialClassGeneratedDatabasePassword, SourceClass: domain.SecretClassPerInstallGenerated,
 		Target:          domain.BundleSecretTarget{Type: "env", Name: "STORE_PASSWORD"},
-		Version:         domain.CredentialVersion{Number: 2, ContentRef: "cref_abc", CreatedAt: created},
+		Version:         domain.CredentialVersion{Number: 2, ContentRef: "cref_abc", CreatedAt: created, ExpiresAt: &expires},
 		PreviousVersion: &domain.CredentialVersion{Number: 1, ContentRef: "cref_old", CreatedAt: created.Add(-time.Hour)},
 		ConsumerRefs:    []string{"resource:store", "scenario:app"}, GrantRef: "grant-1", RecoveryKeyRef: "",
 		State: domain.CredentialBindingMaterialized, CreatedAt: created, UpdatedAt: created,
@@ -52,6 +53,9 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 	}
 	if !got.Version.CreatedAt.Equal(created) {
 		t.Fatalf("version created_at = %s", got.Version.CreatedAt)
+	}
+	if got.Version.ExpiresAt == nil || !got.Version.ExpiresAt.Equal(expires) {
+		t.Fatalf("version expires_at = %v", got.Version.ExpiresAt)
 	}
 	if other, _ := store.GetBinding(ctx, "dep-2", binding.ID); other != nil {
 		t.Fatal("binding visible from another deployment")

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/smtp"
@@ -126,12 +127,18 @@ func TestSendGridConfig_IsConfigured_MissingFromEmail(t *testing.T) {
 // ============================================================================
 
 func TestSendViaSendGrid_Success(t *testing.T) {
+	var receivedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if !strings.Contains(r.Header.Get("Authorization"), "Bearer") {
+		if r.Header.Get("Authorization") != "Bearer SG.test" {
 			t.Error("expected Authorization header")
+		}
+		var err error
+		receivedBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
 		}
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -143,14 +150,18 @@ func TestSendViaSendGrid_Success(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// Override the URL by creating a custom handler
-	// Note: In production, sendgrid URL is hardcoded, so we test via the full method
-	// For testing, we can verify the service was configured
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err != nil {
+		t.Fatalf("sendViaSendGrid failed: %v", err)
+	}
+	if !strings.Contains(string(receivedBody), `"email":"to@example.com"`) {
+		t.Errorf("request body did not contain recipient: %s", receivedBody)
+	}
+	if !strings.Contains(string(receivedBody), `"subject":"subject"`) {
+		t.Errorf("request body did not contain subject: %s", receivedBody)
 	}
 }
 
@@ -180,12 +191,12 @@ func TestSendMagicLink_SendGridConfigured(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test App",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// Verify it's configured correctly
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.SendMagicLink("to@example.com", "https://example.com/magic?token=synthetic", "Test App"); err != nil {
+		t.Fatalf("SendMagicLink failed: %v", err)
 	}
 }
 
@@ -742,12 +753,13 @@ func TestSendViaSendGrid_APIError(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// We can't easily test the actual sendViaSendGrid with a custom URL
-	// because the URL is hardcoded. But we can verify the service is configured.
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err == nil {
+		t.Fatal("expected SendGrid API error")
+	} else if !strings.Contains(err.Error(), "Invalid email") {
+		t.Fatalf("expected provider error detail, got: %v", err)
 	}
 }

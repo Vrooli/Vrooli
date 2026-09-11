@@ -4,6 +4,31 @@
 
 No cutover-specific open issue is known.
 
+### Execution modes supersede execution strategies — 2026-09-11
+
+Audit: <https://claude.ai/code/artifact/9a603669-8080-419d-a662-3f47ffe4f2f9>.
+Scope: <https://claude.ai/code/artifact/9343ee6a-89c7-4d3f-ab0f-57d801b46e73>.
+
+- The goal route as a workflow (`goal-session` strategy,
+  `swarm-manager/goal-session-drain`) is superseded by goal mode as one Agent
+  Manager run with `/goal <finish line>` installed. The three stored
+  `execution_strategy` values collapse to `execution_mode: sliced | goal`, with
+  plan shape (`phased` | `mandate`) carried on the Plan Manager plan. The
+  interim workflow and the `swarm-manager-workflow-goal-session` prompt retire
+  with it.
+- Continuation keyed on `budget_exhausted` never applies. The typed apply for
+  `plan.execute` requires a succeeded workflow, so a `budget_exhausted` result
+  never reaches the sweeper that would create the continuation child. The
+  target design resumes only involuntary interruptions (usage window, timeout,
+  crash, session lost) under `continuation: until-allowance`; agent-decided
+  verdicts go to finalization.
+- The Run dialog crashes when the first runner in the execution catalog has no
+  model list. The target dialog reads the model list per selected runner and
+  tolerates its absence.
+- The edit dialog neither loads nor submits the execution fields (mode, limits,
+  continuation, scope policy); it shows defaults and relies on sparse patch
+  semantics to leave the stored values untouched.
+
 ### Owner-grant boundary — 2026-09-09
 
 - Agent Manager now accepts and durably stores `WorkflowEngagementGrant` on a
@@ -25,6 +50,13 @@ No cutover-specific open issue is known.
   reclassified as evidence for this owner-boundary change.
 
 ## Contract-driven development readiness — 2026-09-08
+
+Retained for provenance. The contract-development route this section
+qualified is retired in the target design; a plan-backed item now carries its
+own grant and runs in sliced or goal mode. See
+[Retired route: contract-development](../concepts/ARCHITECTURE.md#retired-route-contract-development)
+and [SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status)
+for what still exists in code. Do not create new items on this route.
 
 Latest continuation — adopted budget policy (supersedes the policy question below):
 

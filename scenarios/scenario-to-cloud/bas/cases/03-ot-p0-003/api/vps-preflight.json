@@ -20,47 +20,11 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "requirements",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/preflight/requirements",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/preflight/requirements",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path",
-            "path": "$.vps.os.required_family",
-            "expected": "ubuntu-lts"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.vps.os.recommended_version"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.vps.os.unsupported_behavior"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.vps.os.compatibility_behavior"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.vps.disk.min_disk_free_kb"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"requirements-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/preflight/requirements","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/preflight/requirements"}}}
+    ],
+    "edges":[]
+  }
 }

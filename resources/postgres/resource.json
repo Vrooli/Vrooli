@@ -99,6 +99,16 @@
         "required": true,
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/resources/postgres"
       }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/postgres",
+        "field": "password",
+        "kind": "environment",
+        "consumer": "managed PostgreSQL server bootstrap",
+        "source_ref": "resource.json:356",
+        "required": true
+      }
     ]
   },
   "deployment": {

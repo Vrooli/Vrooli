@@ -65,7 +65,9 @@ This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`
   - [CODE: ui/src/surfaces/admin-portal/routes/BillingSettings.tsx]
 - Plans (`/admin/tiers`): Subscription tier management (marked as "Soon" in UI).
   - [CODE: ui/src/surfaces/admin-portal/routes/TiersManagement.tsx]
-- AI Keys (`/admin/api-keys`): Manage AI provider API keys.
+- AI Keys (`/admin/api-keys`): Manage supported legacy/BYOK provider keys. The
+  OpenRouter credential is managed by the shared resource credential authority
+  and is not configured here.
   - [CODE: ui/src/surfaces/admin-portal/routes/APIKeysSettings.tsx]
 
 ### Apps
@@ -216,7 +218,7 @@ Downloads are gated by subscription status in the public experience.
 
 CLI automation (optional):
 - Upload + apply a managed artifact: `landing-page-business-suite admin-downloads-upload-managed --file <path> --app-key <app> --platform <platform> --release-version <version>`
-- Proxy remote admin calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...`
+- Proxy allowlisted remote admin/settings calls via stored sessions: `landing-page-business-suite remote-profiles-proxy <id> --method <METHOD> --path /admin/...` (or one of the documented Connect settings procedures). Arbitrary remote paths and secret-reveal procedures are refused.
 
 ### Desktop Auto-Update Endpoints
 

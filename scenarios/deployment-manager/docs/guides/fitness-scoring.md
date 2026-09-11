@@ -263,7 +263,9 @@ Secrets get their own `.vrooli/secrets-deployment.json` so lifecycle metadata st
 }
 ```
 
-`strategy_ref` strings inside `service.json` point to anchors (e.g., `file:.vrooli/secrets-deployment.json#postgres_connection.tier-2-desktop`) so deployment-manager knows how to prep secrets for each tier.
+`strategy_ref` strings inside `service.json` point to anchors (for example,
+`.vrooli/secrets-deployment.json#postgres_connection.tier-2-desktop`) so
+deployment-manager knows how to prep secrets for each tier.
 
 ## Calculation Strategy
 

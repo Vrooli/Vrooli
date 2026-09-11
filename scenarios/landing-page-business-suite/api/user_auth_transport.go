@@ -19,7 +19,7 @@ func userAuthHandlerDependencies(service userauthhttp.UserAuthService, limiter u
 		SessionID:     getSessionID,
 		UserID:        getUserID,
 		ResolveSecret: resolveSecret,
-		SecureCookies: func() bool { return strings.HasPrefix(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"), "https://") },
+		SecureCookies: func() bool { return strings.HasPrefix(resolveMagicLinkBaseURL(), "https://") },
 		Now:           time.Now,
 		WriteError:    writeJSONError,
 		Log:           logx.Info,

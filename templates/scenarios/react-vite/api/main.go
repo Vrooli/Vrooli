@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"{{SCENARIO_ID}}/internal/capabilities"
 	"{{SCENARIO_ID}}/internal/modules"
 	"{{SCENARIO_ID}}/internal/server"
@@ -12,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
@@ -96,6 +98,14 @@ func main() {
 	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
+	var sharedAuth *authn.Config
+	if authConfig.Enabled() {
+		sharedAuth = &authConfig
+	}
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -103,8 +113,9 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:        handler,
+		Authentication: sharedAuth,
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

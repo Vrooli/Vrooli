@@ -25,6 +25,10 @@ type PrepareResult struct {
 	// its rollout is a maintenance ordering documented in credential-lifecycle.md.
 	DualAccept bool
 	Details    map[string]any
+	// ExpiresAt is optional provider evidence for the new version. Providers
+	// that do not expose expiry leave it nil; the cloud owner never invents a
+	// deadline.
+	ExpiresAt *time.Time
 }
 
 // VerifyRequest asks a provider to confirm consumers use the new version.

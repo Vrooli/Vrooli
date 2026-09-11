@@ -167,7 +167,8 @@ Every management route passes through one boundary. There is no anonymous mode: 
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VROOLI_AUTH_MODE` | `personal_local` | `personal_local` proves the current OS user for loopback requests (no token) and appends any shared providers; `shared` uses only `VROOLI_AUTH_PROVIDERS` and fails startup when that list is empty. |
+| `VROOLI_AUTH_MODE` | `personal_local` | `personal_local` accepts loopback requests only with the runtime-owned token from `VROOLI_AUTH_LOCAL_TOKEN_FILE` and appends any shared providers; `shared` uses only `VROOLI_AUTH_PROVIDERS` and fails startup when that list is empty. |
+| `VROOLI_AUTH_LOCAL_TOKEN_FILE` | empty | Owner-only file containing the personal-local session token. An empty or unreadable path fails authentication closed; the owning runtime must provision it. |
 | `VROOLI_AUTH_PROVIDERS` | empty | Comma list of shared providers handled by `api-core/authn` (`scenario_authenticator`, `cloudflare_access`) with their own `VROOLI_AUTH_*` settings. |
 | `VROOLI_AUTH_RECOVERY_URL` | provider default | Sign-in URL returned as the `next_action` of an `unauthenticated` refusal. |
 | `API_BIND_ADDRESS` | `127.0.0.1` | Read by `api-core/server`. A non-loopback bind requires `VROOLI_ALLOWED_HOSTS`. |
@@ -178,14 +179,14 @@ Every management route passes through one boundary. There is no anonymous mode: 
 
 ### Scopes
 
-Scopes are the shared coarse vocabulary declared in `.vrooli/service.json` (`authentication.capabilities`): `scenario-to-cloud:read`, `scenario-to-cloud:write`, `scenario-to-cloud:destructive`. The personal-local owner holds all three. Wildcards `*`, `scenario-to-cloud:*` and `*:<effect>` resolve through `scopecatalog.Resolve`.
+Scopes are the shared coarse vocabulary declared in `.vrooli/service.json` (`authentication.capabilities`): `scenario-to-cloud:read`, `scenario-to-cloud:write`, `scenario-to-cloud:destructive`. The personal-local owner holds all three. The global wildcard, scenario-wide wildcard, and effect wildcard resolve through `scopecatalog.Resolve`.
 
 ### Target policy
 
 ```json
 {
   "principals": {
-    "osuser:1000":      { "environments": ["*"] },
+    "local-session:<digest-prefix>": { "environments": ["*"] },
     "ops@example.net":  { "environments": ["staging"], "machines": ["machine:m-2"] }
   },
   "revoked": ["former-operator"]
@@ -194,7 +195,7 @@ Scopes are the shared coarse vocabulary declared in `.vrooli/service.json` (`aut
 
 - A `personal_local` owner that the file does not name is unrestricted; every other unnamed principal has no target grant.
 - A named principal may act on a deployment when the grant lists its environment or its target key (`machine:<id>` / `host:<host>`); `*` grants all.
-- Legacy routes that name the target inside the request body (`/preflight`, `/preflight/fix/*`, `/preflight/disk/*`, `/vps/*`) are closed to restricted principals because the boundary cannot resolve that target ahead of the handler.
+- Legacy routes that name the target inside the request body (`/preflight`, `/preflight/fix/*`, `/vps/*`) are closed to restricted principals because the boundary cannot resolve that target ahead of the handler. The former `/preflight/disk/*` routes are retired.
 - `revoked` subjects are refused at admission and at the effect recheck; the file is re-read when its modification time changes.
 - Refusals are `forbidden_target` and never disclose whether the id exists or where it lives.
 
@@ -212,4 +213,4 @@ Effectful handlers call `RequireEffect` immediately before their first side effe
 
 ### CLI
 
-The CLI sends `SCENARIO_TO_CLOUD_API_TOKEN` (or `VROOLI_API_TOKEN`, or the configured `token`) as a bearer credential. In `personal_local` mode no token is needed from the API host. A typed `unauthenticated` or `forbidden_*` refusal exits 2 and prints the server's `next_action`.
+The CLI sends `SCENARIO_TO_CLOUD_API_TOKEN` (or `VROOLI_API_TOKEN`, or the configured `token`) as a bearer credential. In `personal_local` mode that value may be the runtime-owned local session token; the API host must not rely on loopback location alone. A typed `unauthenticated` or `forbidden_*` refusal exits 2 and prints the server's `next_action`.

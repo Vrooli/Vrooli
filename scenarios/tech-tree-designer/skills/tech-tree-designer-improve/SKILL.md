@@ -8,7 +8,7 @@ metadata:
   modes: [practice]
   tags: [ecosystem, development, evidence, proposals, improvement]
   status: active
-  revision: 1
+  revision: 2
   requires:
     scenarios: [tech-tree-designer, program-runtime]
     commands: [program-runtime library run, prompt-manager skill read]
@@ -35,7 +35,9 @@ maps every outcome to its measurement gap, protocol and repair owner.
 Run `tech-tree-designer.setpoint-read` through `program-runtime library run`.
 Its contract owns row IDs, output semantics and bounds; its 18 outcome IDs match
 the PRD's `OT-*` IDs, without folding optional tiers into P0 acceptance.
-As of 2026-09-09 every outcome reading is `null`, reason `pending_telemetry`.
+As of 2026-09-11 `tech-tree-designer.setpoint-read` exceeds its 60-second
+wall-clock ceiling and returns no board. The first intervention is to make it
+read; do not estimate rows while the board is absent.
 Numeric acceptance for OT-P0-008 is undecided, separately from sensor absence.
 Registry and ontology readings are diagnostic-only and never satisfy OT-P0-009.
 

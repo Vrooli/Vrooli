@@ -114,6 +114,7 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	}
 
 	var lastCookie string
+	var lastConnectProtocol string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/landing_page_business_suite.v1.AdminAuthService/Login":
@@ -148,6 +149,15 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 			lastCookie = cookie.Value
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"ok":true}`))
+		case "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys":
+			cookie, _ := r.Cookie(remoteProfileCookieName)
+			if cookie == nil || cookie.Value != "session-123" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			lastConnectProtocol = r.Header.Get("Connect-Protocol-Version")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"keys":[]}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -186,6 +196,21 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	}
 	if lastCookie != "session-123" {
 		t.Fatalf("expected proxy to forward session cookie, got %s", lastCookie)
+	}
+
+	connectResult, err := svc.Proxy(ctx, profile.ID, RemoteProfileProxyRequest{
+		Method: http.MethodPost,
+		Path:   "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys",
+		Body:   json.RawMessage(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("Connect settings proxy returned error: %v", err)
+	}
+	if connectResult.StatusCode != http.StatusOK || string(connectResult.Body) != `{"keys":[]}` {
+		t.Fatalf("unexpected Connect settings proxy result: %#v", connectResult)
+	}
+	if lastConnectProtocol != "1" {
+		t.Fatalf("expected Connect protocol header, got %q", lastConnectProtocol)
 	}
 }
 
@@ -1442,6 +1467,15 @@ func TestIsAllowedRemoteProxyPath(t *testing.T) {
 	}
 	if isAllowedRemoteProxyPath("/admin/users") {
 		t.Fatalf("expected disallowed path")
+	}
+	if !administration.IsAllowedRemoteProxyRequest(http.MethodPost, "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys") {
+		t.Fatalf("expected API-key Connect procedure to be allowed")
+	}
+	if administration.IsAllowedRemoteProxyRequest(http.MethodGet, "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys") {
+		t.Fatalf("expected API-key Connect procedure to require POST")
+	}
+	if isAllowedRemoteProxyPath("/landing_page_business_suite.v1.AdministrationService/RevealSecret") {
+		t.Fatalf("expected unknown Connect procedure to remain disallowed")
 	}
 }
 

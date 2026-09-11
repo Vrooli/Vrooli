@@ -48,8 +48,11 @@ type SMTPSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg
 // EmailServiceOptions configures the EmailService for testing.
 type EmailServiceOptions struct {
 	SendGridConfig *SendGridConfig
-	HTTPClient     *http.Client
-	SMTPSender     SMTPSenderFunc
+	// SendGridEndpoint is injectable so provider behavior can be tested against
+	// a bounded local server without weakening the production endpoint.
+	SendGridEndpoint string
+	HTTPClient       *http.Client
+	SMTPSender       SMTPSenderFunc
 	// SMTPPasswordResolver supplies the authority-owned SMTP secret. The
 	// branding model deliberately cannot provide this value.
 	SMTPPasswordResolver func() (string, error)
@@ -63,10 +66,20 @@ type EmailServiceOptions struct {
 // authority-owned provider credentials.
 type EmailService struct {
 	sendGridConfig            *SendGridConfig
+	sendGridEndpoint          string
 	httpClient                *http.Client
 	smtpSender                SMTPSenderFunc
 	smtpPasswordResolver      func() (string, error)
 	allowUnconfiguredDelivery bool
+}
+
+const defaultSendGridEndpoint = "https://api.sendgrid.com/v3/mail/send"
+
+func firstNonEmpty(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
 }
 
 // NewEmailService creates a new email service
@@ -102,7 +115,8 @@ func NewEmailService() *EmailService {
 	}
 
 	return &EmailService{
-		sendGridConfig: sgConfig,
+		sendGridConfig:   sgConfig,
+		sendGridEndpoint: defaultSendGridEndpoint,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -130,6 +144,7 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 
 	return &EmailService{
 		sendGridConfig:            opts.SendGridConfig,
+		sendGridEndpoint:          firstNonEmpty(opts.SendGridEndpoint, defaultSendGridEndpoint),
 		httpClient:                httpClient,
 		smtpSender:                sender,
 		smtpPasswordResolver:      passwordResolver,
@@ -313,7 +328,11 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		return fmt.Errorf("marshal SendGrid payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "https://api.sendgrid.com/v3/mail/send", bytes.NewReader(jsonBody))
+	endpoint := s.sendGridEndpoint
+	if endpoint == "" {
+		endpoint = defaultSendGridEndpoint
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(jsonBody))
 	if err != nil {
 		return fmt.Errorf("create SendGrid request: %w", err)
 	}

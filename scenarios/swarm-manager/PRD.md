@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-- **Purpose**: Operator-facing command center for collaborating with coding agents at scale. Swarm Manager automates how an operator completes software work — create a backlog item, shape one canonical implementation plan, choose a phased or adaptive execution strategy, execute accepted work through governed agent workflows, review the evidence, and turn verified outcomes into follow-up work. Above the item layer, Goals capture higher-level intent (with milestones and acceptance criteria) so the system tracks true progress, proposes new work, and keeps the operator thinking at the project level instead of re-prompting agents task by task.
+- **Purpose**: Operator-facing command center for collaborating with coding agents at scale. Swarm Manager automates how an operator completes software work — create a backlog item, shape one canonical plan (phased or mandate), accept it, run it in sliced or goal execution mode, review the evidence, and turn verified outcomes into follow-up work. Above the item layer, Goals capture higher-level intent (with milestones and acceptance criteria) so the system tracks true progress, proposes new work, and keeps the operator thinking at the project level instead of re-prompting agents task by task.
 - **Primary users / verticals**: Vrooli operators managing autonomous change work; session and workflow agents acting on their behalf; developers extending the scenario ecosystem.
 - **Deployment surfaces**: CLI, API (Connect-RPC + REST), UI (React + Vite), and agent surfaces (agent sessions, agent-manager workflow contracts).
 - **Value promise**: Working through Swarm Manager is at least as effective as prompting a coding agent directly, with the next recommended action always explicit at both the item and the goal level.
@@ -19,10 +19,10 @@
 ### 🔴 P0 – Must ship for viability
 
 - [ ] OT-P0-001 | Backlog work intake | The system shall let operators and agents create backlog items (idea, research, fix, execute, chore) directly, from grounded capture proposals at `suggested`, and from accepted proposals; captures may also propose a goal or milestone through the same decision rail
-- [ ] OT-P0-002 | Canonical work package | Each meaningful implementation backlog item shall retain one canonical Plan Manager implementation plan; the item may choose phased execution or adaptive successive improvement over that plan
+- [ ] OT-P0-002 | Canonical work package | Each meaningful implementation backlog item shall retain one canonical Plan Manager plan whose shape (phased or mandate) is a field on the plan; the item carries the grant and execution settings for that plan
 - [ ] OT-P0-003 | Plan workshop loop | When a workshop round runs, the system shall present typed proposals and open decisions and shall change the plan only through operator-approved responses
-- [ ] OT-P0-004 | Revision-bound acceptance gate | The system shall block execution until the operator accepts the current plan and selected strategy grant, retain reviewed target contents and grants, and require renewed approval for material target or authority amendments
-- [ ] OT-P0-005 | Strategy-selectable execution | When an accepted item is run, the system shall let the operator select an execution strategy from a declared strategy registry
+- [ ] OT-P0-004 | Revision-bound acceptance gate | The system shall block execution until the operator accepts the current plan content hash together with the item's execution settings and acceptance globs, and shall clear acceptance when any of them changes
+- [ ] OT-P0-005 | Mode-selectable execution | When an accepted item is run, the system shall read the plan shape and let the operator choose the execution mode (sliced or goal), defaulting from the shape
 - [ ] OT-P0-006 | Phased slice execution | While a phased execution runs, the system shall implement and validate one plan slice at a time with access to prior-slice handoffs, per-slice review, and bounded correction turns
 - [ ] OT-P0-007 | Independent post-run review | When an execution completes, the system shall produce an independent review verdict over the deliverable, baseline diff, and test evidence as advisory input to the operator
 - [ ] OT-P0-008 | Operator-owned terminal decisions | The system shall reach a terminal item status (completed, failed, needs follow-up) only through an explicit operator review decision
@@ -32,9 +32,9 @@
 - [ ] OT-P0-012 | Goal planning loop | When goal planning runs, the system shall clarify goal intent and emit typed proposals (milestones, acceptance criteria, item assignments, new backlog items) into the operator's decision inbox
 - [ ] OT-P0-013 | Milestone review on completion | When all member items of a milestone reach terminal status, the system shall review the milestone's acceptance criteria against repository evidence and propose follow-up items for unmet criteria
 - [ ] OT-P0-014 | Governed workflow execution | The system shall run all agentic work through declared agent-manager workflows whose prompts are canon-conformant contract skills with typed result schemas
-- [ ] OT-P0-015 | Adaptive plan continuity | While an adaptive strategy runs against an accepted plan, the system shall permit successive authorized repairs under one item and preserve aggregate incurred and reserved usage, checkpoints, cancellation and budget limits across continuations and restarts
-- [ ] OT-P0-016 | Evidence-bound plan acceptance | When an adaptive engagement submits completion, the system shall resolve required outcome evidence against the approved plan package and refuse acceptance of missing, stale, failed or mismatched evidence regardless of harness completion
-- [ ] OT-P0-017 | Development review surface | The system shall expose the canonical plan reference, adaptive target snapshots, grants, budgets, goal message, progress, evidence and launch blockers through consistent API, CLI and board views before operator authorization
+- [ ] OT-P0-015 | Plan-backed continuity | While an accepted item runs in either mode, the system shall permit successive authorized repairs under one item, resume only involuntary interruptions under `continuation: until-allowance`, treat an agent verdict as final, and preserve aggregate usage, checkpoints, cancellation and limits across resumes
+- [ ] OT-P0-016 | Evidence-bound finalization | When an execution ends, the system shall resolve required outcome evidence against the accepted plan in finalization and refuse acceptance of missing, stale, failed or mismatched evidence regardless of harness completion
+- [ ] OT-P0-017 | Run review surface | The system shall expose the plan reference and shape, execution mode, limits, continuation and scope policy, operator note, composed goal message, progress, evidence and launch blockers through consistent API, CLI and board views before the operator runs an item
 
 ### 🟠 P1 – Should have post-launch
 
@@ -42,7 +42,7 @@
 - [ ] OT-P1-002 | Goal progress and velocity | The system should report per-goal progress, ETA bands, scope-creep history, and completion velocity against the goal's trajectory
 - [ ] OT-P1-003 | Goal-scoped discovery | When goal discovery runs, the system should identify missing or at-risk work inside the goal's scope and propose backlog items to close the gaps
 - [ ] OT-P1-004 | Swarm management sessions | The system should provide conversational agent sessions primed with an operator-loop skill that can drive the full create, workshop, accept, execute, review cycle
-- [ ] OT-P1-005 | One-shot execution strategy | The system should offer a one-shot full-plan execution strategy alongside the phased drain in the strategy registry
+- [ ] OT-P1-005 | Goal execution mode | The system should offer goal execution mode (one Agent Manager run under a harness goal, no workflow) alongside sliced mode, selectable when an item is run
 - [ ] OT-P1-006 | Live execution progress | While an execution runs, the system should surface live slice progress, workflow state, and cancellation controls
 - [ ] OT-P1-007 | Unified work activity feed | The system should present one per-item feed spanning runs, reviews, proposals, operator decisions, and status changes
 - [ ] OT-P1-008 | Execution policy modes | The system should enforce manual, scheduled, and yolo execution policies with configurable delays, queue caps, and circuit breakers

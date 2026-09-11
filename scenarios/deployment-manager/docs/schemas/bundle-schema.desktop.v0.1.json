@@ -393,7 +393,8 @@
       "properties": {
         "certificate_source": {
           "type": "string",
-          "enum": ["file", "store", "azure_keyvault", "aws_kms"]
+          "enum": ["file", "store", "azure_keyvault", "aws_kms"],
+          "description": "Supported sources are file and store. azure_keyvault and aws_kms are retained for wire compatibility but are currently rejected because no qualified signer adapter exists."
         },
         "certificate_file": { "type": "string" },
         "certificate_password_env": { "type": "string" },

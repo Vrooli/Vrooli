@@ -158,6 +158,25 @@ func Run(
 	}
 	pass(domain.PreflightSSHConnectID, "Target reachability", "Remote observation executed successfully", connData)
 
+	if strings.EqualFold(strings.TrimSpace(target.Locator.User), "root") {
+		pass(domain.PreflightPrivilegeID, "Privilege strategy", "The bound SSH user is root; host preparation can use the target owner", map[string]string{"user": target.Locator.User, "strategy": "root"})
+	} else {
+		privilegeRes, privilegeErr := obs.observe(ctx, "sudo", "-n", "-l")
+		if !ok(privilegeRes, privilegeErr) {
+			detail := fmt.Sprintf("Bound SSH user %q does not have verified non-interactive elevation", target.Locator.User)
+			if privilegeErr != nil {
+				detail += ": " + privilegeErr.Error()
+			} else if strings.TrimSpace(privilegeRes.Stderr) != "" {
+				detail += ": " + strings.TrimSpace(privilegeRes.Stderr)
+			}
+			fail(domain.PreflightPrivilegeID, "Privilege strategy", detail,
+				"Grant the bound user the required non-interactive elevation through the target owner, or connect as an approved privileged user before host preparation.",
+				map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
+		} else {
+			pass(domain.PreflightPrivilegeID, "Privilege strategy", fmt.Sprintf("Bound SSH user %q has non-interactive elevation", target.Locator.User), map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
+		}
+	}
+
 	osRes, osErr := obs.observe(ctx, "cat", "/etc/os-release")
 	if !ok(osRes, osErr) {
 		fail(domain.PreflightOSReleaseID, "Ubuntu version", "Unable to read /etc/os-release",

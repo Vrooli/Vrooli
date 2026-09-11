@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, Trash2, Info, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square, X } from "lucide-react";
+import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
-import type { PreflightCheck, PreflightCheckStatus, DiskUsageResponse, DiskUsageEntry } from "../../lib/api";
-import { stopPortServices, getDiskUsage, runDiskCleanup, stopScenarioProcesses, openFirewallPorts } from "../../lib/api";
+import type { PreflightCheck, PreflightCheckStatus } from "../../lib/api";
+import { stopPortServices, stopScenarioProcesses, openFirewallPorts } from "../../lib/api";
 import { DEFAULT_VPS_WORKDIR } from "../../lib/constants";
 
 interface StepPreflightProps {
@@ -300,110 +300,6 @@ function CopyButton({ text }: CopyButtonProps) {
   );
 }
 
-interface DiskUsageModalProps {
-  usage: DiskUsageResponse | null;
-  loading: boolean;
-  onClose: () => void;
-  onCleanup: (actions: string[]) => void;
-  cleanupLoading: boolean;
-}
-
-export function DiskUsageModal({ usage, loading, onClose, onCleanup, cleanupLoading }: DiskUsageModalProps) {
-  if (!usage && !loading) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-slate-800 rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
-          <HardDrive className="h-5 w-5" />
-          Disk Usage Details
-        </h3>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-          </div>
-        ) : usage ? (
-          <div className="space-y-4">
-            {/* Summary */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-slate-200">{usage.free_space}</div>
-                <div className="text-xs text-slate-400">Free</div>
-              </div>
-              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-slate-200">{usage.total_space}</div>
-                <div className="text-xs text-slate-400">Total</div>
-              </div>
-              <div className="bg-slate-700/50 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-slate-200">{usage.used_percent}%</div>
-                <div className="text-xs text-slate-400">Used</div>
-              </div>
-            </div>
-
-            {/* Largest directories */}
-            {usage.largest_dirs && usage.largest_dirs.length > 0 && (
-              <div>
-                <h4 className="text-sm font-medium text-slate-300 mb-2">Largest Directories</h4>
-                <div className="bg-slate-900/50 rounded-lg p-3 space-y-1">
-                  {usage.largest_dirs.map((dir: DiskUsageEntry, i: number) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-slate-400 font-mono truncate">{dir.path}</span>
-                      <span className="text-slate-300 ml-2">{dir.size}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cleanup actions */}
-            <div>
-              <h4 className="text-sm font-medium text-slate-300 mb-2">Quick Cleanup</h4>
-              <div className="flex flex-wrap gap-2">
-                <ActionButton
-                  onClick={() => onCleanup(["journal_vacuum"])}
-                  loading={cleanupLoading}
-                  icon={Trash2}
-                  variant="secondary"
-                >
-                  Vacuum journals
-                </ActionButton>
-                <ActionButton
-                  onClick={() => onCleanup(["docker_prune"])}
-                  loading={cleanupLoading}
-                  icon={Trash2}
-                  variant="secondary"
-                >
-                  Prune Docker
-                </ActionButton>
-                <ActionButton
-                  onClick={() => onCleanup(["docker_prune_volumes"])}
-                  loading={cleanupLoading}
-                  icon={Trash2}
-                  variant="secondary"
-                >
-                  Prune Docker volumes
-                </ActionButton>
-                <ActionButton
-                  onClick={() => onCleanup(["journal_vacuum", "docker_prune", "docker_prune_volumes"])}
-                  loading={cleanupLoading}
-                  icon={Zap}
-                >
-                  Run All
-                </ActionButton>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex justify-end">
-          <Button variant="ghost" onClick={onClose}>Close</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 interface PortStopModalProps {
   bindings: PortBindingInfo[];
   selections: { services: Record<string, boolean>; pids: Record<number, boolean> };
@@ -568,7 +464,6 @@ function CheckItem({
 
   // Determine if this check has actions available
   const hasPortsAction = id === "ports_80_443" && state === "fail" && portBindings.length > 0;
-  const hasDiskAction = id === "disk_free" && (state === "fail" || state === "warn");
   const hasFirewallAction = id === "firewall_inbound" && state === "fail";
   const hasDNSInstructions =
     (id === "dns_edge_apex" || id === "dns_edge_www" || id === "dns_do_origin") &&
@@ -617,16 +512,6 @@ function CheckItem({
               icon={Zap}
             >
               Review & Stop
-            </ActionButton>
-          )}
-          {actionsEnabled && hasDiskAction && onAction && (
-            <ActionButton
-              onClick={() => onAction("show_disk")}
-              loading={actionLoading}
-              icon={Info}
-              variant="secondary"
-            >
-              Details
             </ActionButton>
           )}
           {actionsEnabled && hasFirewallAction && onAction && (
@@ -742,9 +627,6 @@ export function usePreflightActions({
 }: UsePreflightActionsOptions) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [diskUsage, setDiskUsage] = useState<DiskUsageResponse | null>(null);
-  const [showDiskModal, setShowDiskModal] = useState(false);
-  const [cleanupLoading, setCleanupLoading] = useState(false);
   const [showPortModal, setShowPortModal] = useState(false);
   const [portSelections, setPortSelections] = useState<{ services: Record<string, boolean>; pids: Record<number, boolean> }>({
     services: {},
@@ -794,16 +676,6 @@ export function usePreflightActions({
         } else {
           setActionError(result.message || "Failed to update firewall rules.");
         }
-        return;
-      }
-      if (action === "show_disk") {
-        const usage = await getDiskUsage({
-          host: sshConfig.host,
-          port: sshConfig.port,
-          user: sshConfig.user,
-        });
-        setDiskUsage(usage);
-        setShowDiskModal(true);
         return;
       }
       if (action === "stop_scenario" || action === "stop_all") {
@@ -892,40 +764,9 @@ export function usePreflightActions({
     }));
   }, []);
 
-  const handleCleanup = useCallback(async (actions: string[]) => {
-    const sshConfig = getSSHConfig();
-    if (!sshConfig.host) return;
-
-    setCleanupLoading(true);
-    try {
-      await runDiskCleanup({
-        host: sshConfig.host,
-        port: sshConfig.port,
-        user: sshConfig.user,
-        actions,
-      });
-      const usage = await getDiskUsage({
-        host: sshConfig.host,
-        port: sshConfig.port,
-        user: sshConfig.user,
-      });
-      setDiskUsage(usage);
-      await onRecheck?.();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setActionError(`Cleanup failed: ${errorMessage}`);
-    } finally {
-      setCleanupLoading(false);
-    }
-  }, [getSSHConfig, onRecheck]);
-
   return {
     actionLoading,
     actionError,
-    diskUsage,
-    showDiskModal,
-    setShowDiskModal,
-    cleanupLoading,
     showPortModal,
     setShowPortModal,
     portSelections,
@@ -935,7 +776,6 @@ export function usePreflightActions({
     handlePortStop,
     togglePortService,
     togglePortPID,
-    handleCleanup,
   };
 }
 
@@ -1000,10 +840,6 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
   const {
     actionLoading,
     actionError,
-    diskUsage,
-    showDiskModal,
-    setShowDiskModal,
-    cleanupLoading,
     showPortModal,
     setShowPortModal,
     portSelections,
@@ -1012,7 +848,6 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
     handlePortStop,
     togglePortService,
     togglePortPID,
-    handleCleanup,
   } = usePreflightActions({
     manifest,
     preflightChecks,
@@ -1117,17 +952,6 @@ export function StepPreflight({ deployment }: StepPreflightProps) {
             </div>
           </label>
         </div>
-      )}
-
-      {/* Disk Usage Modal */}
-      {showDiskModal && (
-        <DiskUsageModal
-          usage={diskUsage}
-          loading={actionLoading === "disk_free:show_disk"}
-          onClose={() => setShowDiskModal(false)}
-          onCleanup={handleCleanup}
-          cleanupLoading={cleanupLoading}
-        />
       )}
 
       {/* Port Stop Modal */}

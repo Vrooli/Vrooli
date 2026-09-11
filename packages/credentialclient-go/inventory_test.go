@@ -104,6 +104,9 @@ func TestDescriptorsForScopeIncludesProjectManifest(t *testing.T) {
 		if ref.LogicalID == "vrooli/alpha" && (ref.Owner != "alpha-owner" || ref.SourceRef == "" || !reflect.DeepEqual(ref.ConsumerRefs, []string{"alpha session broker", "alpha.session"}) || ref.Provider != "alpha-provider" || ref.RequirementGroup != "alpha.auth" || len(ref.CompanionSettings) != 1 || ref.AcquisitionRef != "alpha.connect" || ref.VerificationRef != "alpha.verify" || ref.RecoveryRef != "alpha.recover" || ref.HelpRef != "alpha-help" || ref.EvidencePolicy != "release-required" || ref.AppliesWhen == nil || len(ref.Provenance) != 1 || ref.Provenance[0].Owner != "alpha-owner") {
 			t.Fatalf("alpha descriptor lost owner/source/consumer provenance: %+v", ref)
 		}
+		if ref.LogicalID == "vrooli/beta" && (!reflect.DeepEqual(ref.Tiers, []string{"tier-1-local"}) || len(ref.Provenance) != 1 || !reflect.DeepEqual(ref.Provenance[0].Tiers, []string{"tier-1-local"})) {
+			t.Fatalf("beta descriptor lost tier applicability metadata: %+v", ref)
+		}
 		if ref.LogicalID != "vrooli/remote-desktop" {
 			if ref.LogicalID == "vrooli/one" && ref.ObtainURL != "https://example.test/one" {
 				t.Fatalf("resource descriptor lost acquisition guide: %+v", ref)

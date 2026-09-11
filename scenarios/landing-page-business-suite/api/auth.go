@@ -67,6 +67,27 @@ func resolveGeneratedSecret(key string, mint func() (string, error)) (string, er
 
 func resolveConfig(key string) string { return administration.ResolveConfig(key) }
 
+// resolvePublicBaseURL is the canonical public origin used by hosted links.
+// AUTH_MAGIC_LINK_BASE_URL predates the shared public-base-url setting and is
+// retained only as a compatibility fallback for existing deployments.
+func resolvePublicBaseURL() string {
+	if value := strings.TrimRight(resolveConfig("PUBLIC_BASE_URL"), "/"); value != "" {
+		return value
+	}
+	legacy := strings.TrimRight(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"), "/")
+	return strings.TrimSuffix(legacy, "/auth/verify")
+}
+
+func resolveMagicLinkBaseURL() string {
+	if public := resolvePublicBaseURL(); public != "" {
+		if strings.HasSuffix(public, "/auth/verify") {
+			return public
+		}
+		return public + "/auth/verify"
+	}
+	return strings.TrimRight(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"), "/")
+}
+
 // getAdminDefaults returns an explicitly configured admin credential. Development
 // uses an ephemeral password so a committed default can never authenticate a user.
 func getAdminDefaults() (email string, passwordHash string, err error) {
@@ -188,13 +209,13 @@ func validateProductionCredentials() error {
 	if len([]rune(adminPassword)) < 12 {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be at least 12 characters in production")
 	}
-	magicLinkBaseURL := resolveConfig("AUTH_MAGIC_LINK_BASE_URL")
+	magicLinkBaseURL := resolveMagicLinkBaseURL()
 	if magicLinkBaseURL == "" {
-		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be configured in production")
+		return fmt.Errorf("PUBLIC_BASE_URL (or legacy AUTH_MAGIC_LINK_BASE_URL) must be configured in production")
 	}
 	parsedMagicLinkBaseURL, err := url.Parse(magicLinkBaseURL)
 	if err != nil || parsedMagicLinkBaseURL.Scheme != "https" || parsedMagicLinkBaseURL.Host == "" {
-		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be an absolute https URL in production")
+		return fmt.Errorf("PUBLIC_BASE_URL (or legacy AUTH_MAGIC_LINK_BASE_URL) must be an absolute https URL in production")
 	}
 	return nil
 }

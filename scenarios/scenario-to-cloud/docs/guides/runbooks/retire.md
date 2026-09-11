@@ -13,8 +13,8 @@ the CLI uses.
 ## 1. Identify and freeze
 
 ```bash
-scenario-to-cloud deployment resolve --scenario <scenario-id> --environment <env>
-scenario-to-cloud operation list <deployment-id> --json
+scenario-to-cloud deployment resolve --scenario "$SCENARIO_ID" --environment "$ENVIRONMENT"
+scenario-to-cloud operation list "$DEPLOYMENT_ID" --json
 ```
 
 No non-terminal operation may be open. Confirm you are retiring the right
@@ -24,8 +24,8 @@ with separate ids and target keys.
 ## 2. Protect the data you might need later
 
 ```bash
-scenario-to-cloud deployment recovery-points capture <deployment-id> --json
-scenario-to-cloud deployment recovery-points verify <deployment-id> --recovery-point <rp-id> --open
+scenario-to-cloud deployment recovery-points capture "$DEPLOYMENT_ID" --json
+scenario-to-cloud deployment recovery-points verify "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --open
 ```
 
 Retirement with `retention_policy: retain` leaves every binding in place on
@@ -36,7 +36,7 @@ itself, so copy it out before the provider resources go (§6).
 ## 3. Plan the retirement
 
 ```bash
-curl -sS -X POST "$STC_API/api/v1/deployments/<deployment-id>/retire/plan" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d '{"retention_policy":"retain"}'
+curl -sS -X POST "$STC_API/api/v1/deployments/$DEPLOYMENT_ID/retire/plan" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d '{"retention_policy":"retain"}'
 ```
 
 The response lists, in owner order, what will be **deleted** and what will be
@@ -57,8 +57,8 @@ listing.
 ## 4. Apply the reviewed digest
 
 ```bash
-curl -sS -X POST "$STC_API/api/v1/deployments/<deployment-id>/retire/apply" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d '{"retention_policy":"retain","plan_digest":"<plan-digest>","request_key":"retire-<deployment-id>-<date>"}'
-scenario-to-cloud operation wait <operation-id> --timeout 600
+curl -sS -X POST "$STC_API/api/v1/deployments/$DEPLOYMENT_ID/retire/apply" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d "{\"retention_policy\":\"retain\",\"plan_digest\":\"$PLAN_DIGEST\",\"request_key\":\"retire-$DEPLOYMENT_ID-$DATE\"}"
+scenario-to-cloud operation wait "$OPERATION_ID" --timeout 600
 ```
 
 `plan_digest_mismatch` means the listing changed since you read it: plan
@@ -68,9 +68,9 @@ again. The operation records `desired_state: retired` on success; observers
 ## 5. Verify
 
 ```bash
-scenario-to-cloud edge status <deployment-id> --json          # no route for the public host
-scenario-to-cloud deployment health <deployment-id> --json    # workload not running is the expected state
-curl -sS "$STC_API/api/v1/deployments/<deployment-id>/desired-state" -H "Authorization: Bearer $STC_TOKEN"
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+curl -sS "$STC_API/api/v1/deployments/$DEPLOYMENT_ID/desired-state" -H "Authorization: Bearer $STC_TOKEN"
 ```
 
 Required: `desired_state: retired`, `observation_may_restart: false`; the
@@ -93,7 +93,7 @@ the record deletes the identity every receipt refers to; keep the retirement
 receipt and the recovery-point id in the record first.
 
 ```bash
-scenario-to-cloud deployment delete <deployment-id> --cleanup
+scenario-to-cloud deployment delete "$DEPLOYMENT_ID" --cleanup
 ```
 
 ## Record

@@ -22,18 +22,19 @@ vrooli scenario start deployment-manager
 vrooli scenario start scenario-to-desktop
 
 # Create and inspect a desktop profile
-deployment-manager profile create my-profile my-scenario --tier 2
-deployment-manager analyze my-scenario
-deployment-manager fitness my-scenario --tier 2
+deployment-manager profiles create "my-profile" "my-scenario" --tier 2
+deployment-manager analyze "my-scenario"
+deployment-manager fitness "my-scenario" --tier 2
 
 # Apply a declared, reviewed swap when the target plan requires one
-deployment-manager swaps list my-scenario
-deployment-manager swaps apply <profile-id> postgres sqlite
+deployment-manager swaps list "my-scenario"
+deployment-manager swaps apply "<profile-id>" postgres sqlite
 
 # Prepare the release review and build the primary Linux target
-deployment-manager readiness prepare <scenario> <profile-id> <commit> <artifact-digest> stable linux
+deployment-manager readiness-reviews prepare \
+  "<scenario>" "<profile-id>" "<commit>" "<artifact-digest>" stable linux
 deployment-manager deploy-desktop \
-  --profile my-profile \
+  --profile "my-profile" \
   --platforms linux \
   --timeout 20m
 ```
@@ -80,7 +81,7 @@ Authentication contract](../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md).
 ## Troubleshooting
 
 ```bash
-deployment-manager releases health <release-id>
+deployment-manager releases health "<release-id>"
 ```
 
 For target-specific failures, continue with the [desktop workflow](workflows/desktop-deployment.md),

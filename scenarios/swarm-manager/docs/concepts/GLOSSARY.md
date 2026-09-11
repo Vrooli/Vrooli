@@ -110,10 +110,18 @@ member items complete.
 A tracked run record for queued work, with status transitions through
 pending/scheduled/running/completed/failed/canceled.
 
-## Execution Strategy
-A declared way to execute an accepted plan, selected by the operator at queue
-time from the strategy registry (e.g. the phased plan drain). Strategies map
-to Agent Manager workflow declarations; the registry is the single catalog.
+## Execution Mode
+How a plan-backed item runs, chosen in the Run dialog for any plan shape:
+`sliced` (the `swarm-manager/phased-plan-drain` workflow, one reviewed slice
+at a time) or `goal` (one Agent Manager run under a harness goal, completed by
+Swarm finalization). Today the code spells this as `execution_strategy` with
+three values; the mapping is in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+
+## Plan Shape
+What the work is, as a field on the Plan Manager plan: `phased` (ordered
+phases with steps and acceptance) or `mandate` (a target pointer, sensors and
+setpoint bands, no step lists). Any shape runs under either execution mode.
 
 ## Execution Policy
 Default execution behavior for new queue actions (`manual`, `scheduled`,

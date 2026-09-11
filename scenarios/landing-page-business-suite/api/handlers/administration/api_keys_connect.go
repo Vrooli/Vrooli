@@ -46,6 +46,9 @@ func (h *APIKeyConnectHandler) CreateAPIKey(ctx context.Context, request *connec
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("API key request is required"))
 	}
+	if admin.IsSharedProvider(request.Msg.GetProvider()) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("OpenRouter is managed by the shared credential authority; configure the resource credential instead"))
+	}
 	key, err := h.service.Store(ctx, request.Msg.GetProvider(), request.Msg.GetKey())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid API key request"))

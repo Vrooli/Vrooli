@@ -87,9 +87,9 @@ vrooli scenario start deployment-manager
 # Opens at http://localhost:{UI_PORT} (port assigned by lifecycle system)
 
 # CLI usage
-deployment-manager --help
+deployment-manager help
 deployment-manager analyze picker-wheel
-deployment-manager fitness picker-wheel --tier 2  # Desktop tier
+deployment-manager fitness "picker-wheel" --tier 2
 deployment-manager profiles list
 
 > The CLI is now implemented in Go using `packages/cli-core` for consistent cross-platform behavior. Install with `./packages/cli-core/install.sh scenarios/deployment-manager/cli --name deployment-manager` (or run the bundled `install.sh`). The legacy Bash CLI is preserved at `scenarios/deployment-manager/cli-old/` for reference only.
@@ -98,9 +98,9 @@ deployment-manager profiles list
 make test  # All phases: dependencies, structure, CLI, API, UI
 
 ## CLI cheat sheet (agent-friendly)
-- Global output: prefix any command with `--json` or `--format table` (consumed once, applies to nested commands).
-- Discovery: `deployment-manager status`, `deployment-manager analyze <scenario>`, `deployment-manager fitness <scenario> --tier 3`.
-- Profiles: `profiles` (list), `profile create <name> <scenario> --tier <n>`, `profile export <id> --output /path`, `profile import <file>`, and `profile update <id>`.
+- Global output: prefix a command with `--json` when machine-readable output is required.
+- Discovery: `deployment-manager status`, `deployment-manager analyze "<scenario>"`, `deployment-manager fitness "<scenario>" --tier 3`.
+- Profiles: `profiles list`, `profiles create "<name>" "<scenario>" --tier <n>`, `profiles show "<id>"`, `profiles update "<id>"`, and `profiles versions "<id>"`.
 - Swaps: `swaps list <scenario>`, `swaps analyze <from> <to>`, `swaps apply <profile> <from> <to> --show-fitness`.
 - Deployments: `deploy <profile> --dry-run`, `deploy-desktop --profile <id> --dry-run`, and the typed `releases` lifecycle. Legacy build, logs, profile-validation, and cost-estimate commands remain discoverable but return retirement guidance because their REST handlers are no longer mounted.
 - Release review: `readiness prepare ...`, `readiness get ...`, `releases dossier <release-id>`, and `releases health <release-id>`.

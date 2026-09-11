@@ -37,8 +37,8 @@ deliberate return to the same loop, not an added workflow family.
 
 ## After queueing
 
-Queueing hands the item to the execution arc: strategy-selected workflow
-execution, evidence collection (baseline diff, test results, independent
+Queueing hands the item to the execution arc: mode-selected execution (sliced
+or goal), evidence collection (baseline diff, test results, independent
 review verdict), the operator's review decision (the only path to a terminal
 status), and typed follow-up proposals. That tail is narrated in
 [DOC: docs/concepts/OPERATOR-JOURNEYS.md] (Journey 1, steps 4-8); this guide

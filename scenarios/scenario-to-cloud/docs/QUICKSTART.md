@@ -20,11 +20,7 @@ From the Dashboard, click **Start New Deployment** to launch the deployment wiza
 Use `manifest init` to generate a starter manifest:
 
 ```bash
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out cloud-manifest.json
+scenario-to-cloud manifest init --scenario your-scenario-name --host your-server.com --domain app.your-domain.com --out cloud-manifest.json
 ```
 
 Equivalent minimal contract:
@@ -130,11 +126,7 @@ Check current state by selector (no manifest required). If deployment is missing
 ```bash
 scenario-to-cloud deployment health --host your-server.com --scenario your-scenario-name --json
 
-scenario-to-cloud manifest init \
-  --scenario your-scenario-name \
-  --host your-server.com \
-  --domain app.your-domain.com \
-  --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
+scenario-to-cloud manifest init --scenario your-scenario-name --host your-server.com --domain app.your-domain.com --out scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 
 scenario-to-cloud manifest validate scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json
 scenario-to-cloud redeploy scenarios/your-scenario-name/.vrooli/cloud/manifest.prod.json

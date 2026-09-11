@@ -16,6 +16,31 @@ func domain0(h *harness) domain.Deployment {
 	return domain.Deployment{ID: h.depID, ScenarioID: h.manifest.Scenario.ID, Environment: "certification", Target: targetRef()}
 }
 
+func containsArg(args []string, want string) bool {
+	for _, arg := range args {
+		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsArgSequence(args []string, want ...string) bool {
+	for i := 0; i+len(want) <= len(args); i++ {
+		matched := true
+		for j := range want {
+			if args[i+j] != want[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
 // [REQ:STC-P0-016] The install-scope verbs never touch the live scenario
 // tree: staging is the target owner's `release stage` into its releases
 // directory, the inventory is the read-only `data inventory` verb, and
@@ -48,7 +73,7 @@ func TestInstallScopeVerbsNeverTouchTheLiveTree(t *testing.T) {
 				t.Fatalf("inventory must be a read verb: %+v", commands[0])
 			}
 		case execplan.OpConfigApply:
-			if commands[0].Command.Verb != "setup" || strings.Join(commands[0].Command.Args, " ") != "--yes yes --environment production --json" {
+			if commands[0].Command.Verb != "setup" || !containsArgSequence(commands[0].Command.Args, "--yes", "yes", "--environment", "production") || !containsArg(commands[0].Command.Args, "--selection-b64") {
 				t.Fatalf("setup argv = %v", commands[0].Command.Argv())
 			}
 		case execplan.OpReleaseActivate:

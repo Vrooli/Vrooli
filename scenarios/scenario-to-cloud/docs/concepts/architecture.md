@@ -195,7 +195,7 @@ The cloud touches a target only through `reach.Reach`: a typed command (`{verb, 
 
 ### Preflight on a bare host
 
-Preflight runs before the target owner exists, so every host fact is an observation program through reach (`vps/preflight/observe.go`): OS release and firewall state from their files, sockets from `ss`, disk and memory from `df`/`grep`, tools from one `find`, stale processes from `pgrep`. Outbound reachability is not observable through the read-only set and is reported as `warn`; `host.prepare` surfaces a blocked egress at apply time.
+Preflight runs before the target owner exists, so every host fact is an observation program through reach (`vps/preflight/observe.go`): OS release and firewall state from their files, sockets from `ss`, disk and memory from `df`/`grep`, tools from one `find`, stale processes from `pgrep`, and non-root elevation from the fixed `sudo -n -l` probe. The sudo probe is constrained by the reach allowlist and cannot execute an arbitrary command. Outbound reachability is not observable through the read-only set and is reported as `warn`; `host.prepare` surfaces a blocked egress at apply time.
 
 ### Live State Parallel Inspection
 

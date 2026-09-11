@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T16:36:03-04:00"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
@@ -103,7 +103,7 @@
     {
       "id": "STC-P0-036",
       "title": "Edge routing, DNS and TLS lifecycle",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-015",
       "category": "health-and-governance",
       "description": "Public and private listeners derive from declarations; edge updates are transactional and preserve unrelated routes; certificate expiry and renewal produce actionable status; wrong DNS cannot claim external readiness.",
@@ -117,21 +117,21 @@
           "type": "test",
           "ref": "api/edge/policy_test.go",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "[REQ:STC-P0-036] declared listener policy, ACME staging/production authority, snippet never inlines secrets"
         },
         {
           "type": "test",
           "ref": "api/edge/checks_test.go",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "DNS family binding, local vs external readiness, port conflicts, TLS renewal states, Caddy journal parsing"
         },
         {
           "type": "test",
           "ref": "api/handlers_edge_observation_test.go",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "typed edge observation without secrets; wrong DNS cannot claim readiness; IPv6-only"
         }
       ]

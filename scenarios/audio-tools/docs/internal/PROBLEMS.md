@@ -1387,7 +1387,7 @@ setup pass. These limitations do not block authorized local diagnosis and repair
 ## Work ladder
 
 Interpret these dated observations under the current `scenario-work-ladder`
-skill and [development contract](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+skill and [development grant model](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
 A missing named Swarm goal is not itself a contract defect: explicit user intent,
 an authorized plan, and product requirements can supply the target. An unavailable
 search and a successful search with no match are different evidence states.
@@ -1406,3 +1406,10 @@ Neither permits a claim that unread requirements or failed gates have passed.
   historical results, not current certification. Choose subsequent validation by
   actual impact under the [test protocol](../../../../docs/TESTING.md), and retain
   the failed suite when reporting evidence.
+- **2026-09-11, W2 observation:** governed read
+  `prog_3a9a98e3-0d66-4d45-a654-625fefd14cc8` (method
+  `audio-tools-evidence-board-v2`, target `portable-voice-v1`, 21 s) returned all
+  15 outcome rows `pending_telemetry` and 3 diagnostics readable (2 available
+  engines, 1 native-streaming engine, 4 capabilities); acceptance `unknown`. The
+  board reads; owner-backed receipt joins remain unimplemented. This is an
+  inventory read, not voice evidence.

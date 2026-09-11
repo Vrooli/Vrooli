@@ -19,7 +19,8 @@ type SetupRequest struct {
 	BundlePath string               `json:"bundle_path"`
 	// PlanDigest is the semantic digest of the reviewed plan (apply only).
 	PlanDigest string `json:"plan_digest,omitempty"`
-	// DeploymentID and RequestKey admit a durable operation when present.
+	// DeploymentID and RequestKey identify the durable operation owner; apply
+	// refuses requests that omit them.
 	DeploymentID string `json:"deployment_id,omitempty"`
 	RequestKey   string `json:"request_key,omitempty"`
 }

@@ -60,9 +60,13 @@ func TestOperationProtoCarriesLifecycleStanding(t *testing.T) {
 	if OperationError(nil, rotation) != nil {
 		t.Fatal("nil error mapped to a refusal")
 	}
-	view := BindingViewProto(credentials.BindingView{Binding: domain.CredentialBinding{ID: "cb_1", Descriptor: domain.CredentialDescriptor{LogicalID: "fixture/store", Field: "Pass_Word"}, PreviousVersion: &domain.CredentialVersion{Number: 1}, RecoveryKeyRef: "fixture/backup:recovery-key"}, Acks: []domain.CredentialAck{{BindingID: "cb_1", Consumer: "scenario:app", Version: 1, VerifiedAt: now}}})
+	expires := now.Add(time.Hour)
+	view := BindingViewProto(credentials.BindingView{Binding: domain.CredentialBinding{ID: "cb_1", Descriptor: domain.CredentialDescriptor{LogicalID: "fixture/store", Field: "Pass_Word"}, PreviousVersion: &domain.CredentialVersion{Number: 1}, Version: domain.CredentialVersion{ExpiresAt: &expires}, RecoveryKeyRef: "fixture/backup:recovery-key"}, LifecycleState: "renewal_due", LifecycleDetail: "renew soon", NextAction: "rotate", Acks: []domain.CredentialAck{{BindingID: "cb_1", Consumer: "scenario:app", Version: 1, VerifiedAt: now}}})
 	if view.GetBinding().GetDescriptor_().GetField() != "Pass_Word" || view.GetBinding().GetPreviousVersion().GetNumber() != 1 || view.GetBinding().GetRecoveryKeyRef() == "" || len(view.GetAcks()) != 1 {
 		t.Fatalf("binding view = %v", view)
+	}
+	if view.GetLifecycleState() != "renewal_due" || view.GetNextAction() != "rotate" || view.GetBinding().GetVersion().GetExpiresAt() == nil {
+		t.Fatalf("lifecycle metadata = %v", view)
 	}
 	if raw, _ := json.Marshal(rotation); strings.Contains(string(raw), `"value"`) {
 		t.Fatal("rotation JSON has a value field")

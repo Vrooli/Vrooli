@@ -756,3 +756,18 @@ readiness, answer, and re-apply journey with independent remote evidence.
 `vrooli-bridge://minimouse/6a43fa2a-5749-4c79-a4b2-c464cb8bfc02`,
 scenario-qa bug `knw-1789036207323889110`, and the certification index under
 `/home/matthalloran8/.vrooli/plan-artifacts/vrooli-bridge-deployment-foundation-certification/evidence/`.
+
+### 2026-09-10 — Scenario proxy now preserves target compatibility failures
+
+The target-aware raw-protobuf proxy now classifies node-reported scenario
+failures before they leave Bridge. A missing target procedure is surfaced as
+Connect `failed_precondition` with `target_incompatible`, while timeouts,
+authorization failures, and target 5xx responses retain distinct retry and
+recovery semantics. The Web Console maps those classifications to an
+operator-facing onboarding incompatibility state. This prevents a target API
+contract mismatch from appearing as an undifferentiated Bridge 502.
+
+Focused evidence: `go test ./handlers/scenario ./internal/scenario` in
+`scenarios/vrooli-bridge/api`, plus the Web Console configuration and error
+mapping regressions. The target-side minimouse route remains unresolved until
+an authorized refresh or redeployment supplies the missing procedure.

@@ -62,14 +62,18 @@ func (h *Handlers) Ensure(args []string) error {
 	}
 	ctx := context.Background()
 
-	key := secrets.ResolveOpenRouterKey(secrets.Options{Getenv: getenv})
-	haveOpenRouter := secrets.KeyUsable(key)
+	secretsOpts := secrets.Options{Getenv: getenv, AuthPath: authPath(getenv)}
+	goKey := secrets.ResolveOpenCodeGoKey(secretsOpts)
+	haveGo := secrets.KeyUsable(goKey)
+	orKey := secrets.ResolveOpenRouterKey(secretsOpts)
+	haveOpenRouter := secrets.KeyUsable(orKey)
 
 	changed, err := config.Ensure(ctx, config.EnsureOptions{
-		ConfigPath:     configPath(getenv),
-		Defaults:       config.DefaultDefaults(getenv),
-		HaveOpenRouter: haveOpenRouter,
-		Resolver:       config.ExecResolver{},
+		ConfigPath:      configPath(getenv),
+		Defaults:        config.DefaultDefaults(getenv),
+		HaveOpenCodeGo:  haveGo,
+		HaveOpenRouter:  haveOpenRouter,
+		Resolver:        config.ExecResolver{},
 		Logf: func(format string, a ...any) {
 			fmt.Fprintf(h.Stdout, format+"\n", a...)
 		},
@@ -77,15 +81,27 @@ func (h *Handlers) Ensure(args []string) error {
 	if err != nil {
 		return err
 	}
-	if key != "" {
-		changedAuth, err := secrets.SyncOpenRouterAuth(authPath(getenv), key)
+
+	// Sync available keys into the auth file.
+	if goKey != "" {
+		changedAuth, err := secrets.SyncOpenCodeGoAuth(authPath(getenv), goKey)
 		if err != nil {
 			return err
 		}
 		if changedAuth {
-			fmt.Fprintf(h.Stdout, "Updated OpenCode auth at %s\n", authPath(getenv))
+			fmt.Fprintf(h.Stdout, "Updated OpenCode auth (opencode-go) at %s\n", authPath(getenv))
 		}
 	}
+	if orKey != "" {
+		changedAuth, err := secrets.SyncOpenRouterAuth(authPath(getenv), orKey)
+		if err != nil {
+			return err
+		}
+		if changedAuth {
+			fmt.Fprintf(h.Stdout, "Updated OpenCode auth (openrouter) at %s\n", authPath(getenv))
+		}
+	}
+
 	if !changed {
 		fmt.Fprintln(h.Stdout, "opencode.json already current")
 	}

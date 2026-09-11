@@ -6,6 +6,7 @@ import type { DownloadStorageSettingsSnapshot } from '../../../../shared/api';
 import { Callout } from '../Callout';
 import { HelpModal } from './HelpModal';
 import { AwsCredentialsHelp, CloudflareR2SetupHelp, MinioSetupHelp } from './help-content';
+import { SetupTask, type SetupTaskStatus } from '@vrooli/react-component-library/SetupTask/0';
 
 interface StepCredentialsProps {
   provider: StorageProviderId;
@@ -62,6 +63,18 @@ export function StepCredentials({
 
   const help = getProviderHelp();
   const hasEnvCredentials = existingSettings?.credentials_from_env ?? false;
+  const hasStoredCredentials = Boolean(
+    existingSettings?.access_key_id_set && existingSettings?.secret_access_key_set,
+  );
+  const credentialsAvailable = hasEnvCredentials || hasStoredCredentials;
+  const taskStatus: SetupTaskStatus = credentialsAvailable ? 'unknown' : 'needs_attention';
+  const providerLabel = provider === 'aws-s3'
+    ? 'AWS S3'
+    : provider === 'cloudflare-r2'
+      ? 'Cloudflare R2'
+      : provider === 'minio'
+        ? 'MinIO'
+        : 'S3-compatible storage';
 
   const getCredentialsHelpContent = () => {
     switch (provider) {
@@ -105,13 +118,21 @@ export function StepCredentials({
   const credentialsCalloutMessage = getCredentialsCalloutMessage();
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-white">{help.title}</h3>
-        <p className="mt-1 text-sm text-slate-400">
-          Enter your credentials to authenticate with {provider === 'aws-s3' ? 'AWS S3' : provider === 'cloudflare-r2' ? 'Cloudflare R2' : provider === 'minio' ? 'MinIO' : 'your storage provider'}
-        </p>
-      </div>
+    <SetupTask
+      title={help.title}
+      purpose={`Authenticate the ${providerLabel} storage destination used by the download service.`}
+      target="local admin settings"
+      account={providerLabel}
+      status={taskStatus}
+      statusLabel={credentialsAvailable ? 'Stored · verify next' : 'Credentials needed'}
+      guidance={
+        credentialsAvailable
+          ? 'Values are available to the server, but storage access is not considered verified until the connection test succeeds on the Verify step.'
+          : 'Provide the access identity and secret, then save and test the connection on the Verify step.'
+      }
+      testId="storage-credentials-task"
+    >
+      <div className="space-y-6">
 
       {credentialsCalloutMessage && (
         <Callout
@@ -296,6 +317,7 @@ export function StepCredentials({
           {getCredentialsHelpContent()}
         </HelpModal>
       )}
-    </div>
+      </div>
+    </SetupTask>
   );
 }

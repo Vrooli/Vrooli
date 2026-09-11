@@ -101,10 +101,10 @@ the edge observation (`GET /api/v1/deployments/{id}/edge`, certificate
 | `check_id` | Condition | Severity | Next action |
 |---|---|---|---|
 | `service_unavailable` | current observation with status `UNHEALTHY` (`DEGRADED` → warning) | critical | `docs/guides/incident-runbook.md#diagnose` |
-| `health_observation_stale` | no observation, freshness ≠ `CURRENT`, `observed_at` older than 120 s on the consumer clock, or an unknown status | critical | `scenario-to-cloud deployment health --deployment <id>` |
-| `certificate_expiring` | `not_after` − now ≤ 14 d (critical once expired) | warning | `scenario-to-cloud edge status --deployment <id>` |
-| `backup_freshness` | deployment has protected writes and the newest recovery point is older than the RPO (or none exists) | critical | `scenario-to-cloud deployment recovery-points capture --deployment <id>` |
-| `credential_rotation_pending` | at least one binding has a pending rotation | warning | `scenario-to-cloud credential list --deployment <id>` |
+| `health_observation_stale` | no observation, freshness ≠ `CURRENT`, `observed_at` older than 120 s on the consumer clock, or an unknown status | critical | `scenario-to-cloud deployment health --deployment "$DEPLOYMENT_ID"` |
+| `certificate_expiring` | `not_after` − now ≤ 14 d (critical once expired) | warning | `scenario-to-cloud edge status --deployment "$DEPLOYMENT_ID"` |
+| `backup_freshness` | deployment has protected writes and the newest recovery point is older than the RPO (or none exists) | critical | `scenario-to-cloud deployment recovery-points capture --deployment "$DEPLOYMENT_ID"` |
+| `credential_rotation_pending` | at least one binding has a pending rotation | warning | `scenario-to-cloud credential list --deployment "$DEPLOYMENT_ID"` |
 
 Invariants:
 

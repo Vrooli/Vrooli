@@ -197,3 +197,19 @@ Health still rejects existing group help and the Test Genie registry manifest
 omits build arguments/effects. These separate owner findings remain visible.
 The architecture diagram is explicitly fenced as text, not executable shell.
 See PROGRESS.md for exact evidence and the new owner report IDs.
+
+### 2026-09-11 — setpoint-read exhausts its own wall-clock ceiling
+
+Symptom: `program-runtime library run tech-tree-designer.setpoint-read --json`
+ends `PROGRAM_STATUS_FAILED`, cause `FAILURE_CAUSE_KERNEL_RUNTIME`, detail
+"wall-clock budget exhausted: ceiling=1m0s consumed=1m0.005s", no envelope
+(runs `prog_48c45916-560a-46e3-9200-7f38e52de2c7` at 16:39 UTC and an earlier
+one at 06:25 UTC). The ceiling is the program's own declared budget
+(`.vrooli/program-runtime/setpoint-read.json`, `wall_ms: 60000`).
+
+Why it matters: the same digest `dd6402b7…` succeeded on 2026-09-09 in
+6811 ms (PROGRESS.md, run `20260909-170118-74e98643`), so this is a regression
+in a child read, not a design limit. Until it reads, the mandate for this
+scenario has no board: the improve skill and the Swarm item both name this as
+the first intervention. Owner: this scenario (the program and its child
+reads); Program Runtime only enforces the declared ceiling.

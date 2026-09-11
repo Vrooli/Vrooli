@@ -1,6 +1,6 @@
 # Governance binding: evidence, approval, publication and recovery
 
-> [CODE: api/evidence] · [CODE: api/ramp] · [CODE: api/handlers_publication.go] · [CODE: api/handlers_deployment_recovery.go] · [CODE: packages/proto/schemas/scenario-to-cloud/v1/evidence/evidence.proto] · [DOC: reference/health-contract.md] · [DOC: reference/release-identity.md]
+> [CODE: api/evidence/record.go] · [CODE: api/ramp/driver.go] · [CODE: api/handlers_publication.go] · [CODE: api/handlers_deployment_recovery.go] · [CODE: ../../packages/proto/schemas/scenario-to-cloud/v1/evidence/evidence.proto] · [DOC: reference/health-contract.md] · [DOC: reference/release-identity.md]
 
 scenario-to-cloud is the owner of target execution and target evidence.
 Deployment Manager is the owner of the release decision. Neither side

@@ -18,7 +18,7 @@
           "label": "Open Glossary"
         },
         "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
           "scenario": "vrooli-onboarding",
           "scenario_path": "/glossary",
           "timeout_ms": 30000,

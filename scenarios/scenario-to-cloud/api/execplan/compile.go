@@ -3,7 +3,9 @@ package execplan
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"path"
 	"sort"
@@ -11,6 +13,7 @@ import (
 	"strings"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/closure"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/edge"
 	"scenario-to-cloud/identity"
@@ -148,10 +151,10 @@ func Compile(_ context.Context, in CompileInputs) (*Plan, error) {
 	if missing := missingInputs(in); len(missing) > 0 && in.Scope != ScopeRetire && in.Scope != ScopeStop {
 		plan.Outcome = OutcomeNeedsInput
 		plan.Handoff = &Handoff{
-			Owner:     HandoffOwner,
-			Kind:      HandoffKind,
-			Reference: handoffReference(in.Deployment.ID, missing),
-			Missing:   missing,
+			Owner: HandoffOwner, Kind: HandoffKind,
+			Reference: handoffReference(in.Deployment.ID, plan.Target, in.DesiredRevision, plan.ClosureDigest, missing),
+			Missing:   missing, DeploymentID: in.Deployment.ID, Target: plan.Target,
+			DesiredRevision: in.DesiredRevision, SelectionDigest: plan.ClosureDigest,
 		}
 		plan.Actions = append(plan.Actions, Action{
 			ID:                 OpInputResumeHandoff,
@@ -159,10 +162,15 @@ func Compile(_ context.Context, in CompileInputs) (*Plan, error) {
 			Effect:             EffectNone,
 			RequiredCapability: "onboarding:resume",
 			Inputs: map[string]string{
-				"owner":     HandoffOwner,
-				"kind":      HandoffKind,
-				"reference": plan.Handoff.Reference,
-				"missing":   strings.Join(missing, ","),
+				"owner":                 HandoffOwner,
+				"kind":                  HandoffKind,
+				"reference":             plan.Handoff.Reference,
+				"missing":               strings.Join(missing, ","),
+				"deployment_id":         in.Deployment.ID,
+				"target":                plan.Target.NodeID,
+				"enrollment_generation": strconv.FormatUint(plan.Target.EnrollmentGeneration, 10),
+				"desired_revision":      strconv.FormatUint(in.DesiredRevision, 10),
+				"selection_digest":      plan.ClosureDigest,
 			},
 			DependsOn:    []string{},
 			Verification: "inputs_satisfied",
@@ -348,8 +356,9 @@ func missingInputs(in CompileInputs) []string {
 	return sortedKeys(missing)
 }
 
-func handoffReference(deploymentID string, missing []string) string {
-	sum := sha256.Sum256([]byte(strings.Join(missing, "\n")))
+func handoffReference(deploymentID string, target Target, desiredRevision uint64, selectionDigest string, missing []string) string {
+	parts := []string{deploymentID, target.MachineID, target.NodeID, strconv.FormatUint(target.EnrollmentGeneration, 10), strconv.FormatUint(desiredRevision, 10), selectionDigest, strings.Join(missing, "\n")}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return fmt.Sprintf("vrooli-onboarding://deployments/%s/resume/%s", deploymentID, hex.EncodeToString(sum[:8]))
 }
 
@@ -537,6 +546,7 @@ func installActions(in CompileInputs) []Action {
 				"workdir":             lay.workdir,
 				"environment":         "production",
 				"selection":           "setup/v1",
+				"selection_json_b64":  selectionJSON(in),
 				"scenario_id":         in.Manifest.Scenario.ID,
 				"resources":           strings.Join(sortedUnique(in.Manifest.Dependencies.Resources), ","),
 				"scenarios":           strings.Join(sortedUnique(in.Manifest.Dependencies.Scenarios), ","),
@@ -551,6 +561,28 @@ func installActions(in CompileInputs) []Action {
 		},
 	)
 	return actions
+}
+
+// selectionJSON is the one cloud-side projection of the shared setup/v1
+// contract. The target action still owns application, but the executable plan
+// carries the exact closure-derived selection it reviewed so onboarding and
+// setup cannot silently reconstruct a different workload union.
+func selectionJSON(in CompileInputs) string {
+	if in.Closure == nil {
+		return ""
+	}
+	target := in.Deployment.Target.NodeID
+	if target == "" {
+		target = in.Deployment.Target.MachineID
+	}
+	selection := closure.ToSelection(*in.Closure, target, closure.Overrides{})
+	encoded, err := json.Marshal(selection)
+	if err != nil {
+		return ""
+	}
+	// Action inputs are argv-shaped metadata and must remain shell-free. The
+	// setup owner decodes this URL-safe payload at the onboarding handoff.
+	return base64.RawURLEncoding.EncodeToString(encoded)
 }
 
 func runtimeActions(in CompileInputs, startOnly bool) []Action {

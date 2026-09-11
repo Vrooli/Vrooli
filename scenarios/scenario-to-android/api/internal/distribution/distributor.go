@@ -3,6 +3,7 @@ package distribution
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -27,7 +28,16 @@ type Distributor struct {
 
 var _ deliveryramp.Distributor = Distributor{}
 
-func (d Distributor) Distribute(ctx context.Context, request deliveryramp.DistributionRequest) (deliveryramp.DistributionResult, error) {
+func (d Distributor) Distribute(ctx context.Context, request deliveryramp.DistributionRequest) (result deliveryramp.DistributionResult, err error) {
+	defer func() {
+		if err != nil {
+			return
+		}
+		if validationErr := request.ValidateResult(result); validationErr != nil {
+			err = fmt.Errorf("validate Android distribution result: %w", validationErr)
+			result = deliveryramp.DistributionResult{}
+		}
+	}()
 	if strings.TrimSpace(request.Artifact.ImmutableRef) == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "artifact has no immutable identity"}, nil
 	}

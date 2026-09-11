@@ -9,9 +9,9 @@ metadata:
   tags: ["practice","execution","planning","implementation","scope","friction"]
   icon: "play"
   status: "active"
-  revision: 4
+  revision: 5
   createdAt: "2026-08-07T00:00:00Z"
-  updatedAt: "2026-09-08T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "swarm-manager"]
     commands: ["plan-manager", "prompt-manager skill read", "swarm-manager"]
@@ -53,6 +53,12 @@ Optional reading:
 | You are authoring a plan | No | Use `implementation-plan-authoring` |
 | You are executing one delegated slice under a slice budget | No | Use `swarm-manager-workflow-phased-plan-slice`; a delegated run has narrower authority on purpose (§6) |
 | You are doing unplanned work | No | No plan means no plan-fidelity question |
+
+A plan runs under Swarm in sliced mode (the `swarm-manager/phased-plan-drain`
+workflow hands out slices and the worker follows
+`swarm-manager-workflow-phased-plan-slice`) or in goal mode (one Agent Manager
+run under a harness goal composed by `harness-goal-authoring`); the divergence
+tiers and the blocked rule in this skill apply in both modes.
 
 ---
 

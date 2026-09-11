@@ -1,6 +1,8 @@
 package generation
 
 import (
+	"fmt"
+
 	"deployment-manager/codesigning"
 )
 
@@ -112,6 +114,9 @@ func GenerateElectronBuilderJSON(config *codesigning.SigningConfig, opts *Option
 	if config == nil || !config.Enabled {
 		return nil, nil
 	}
+	if config.Windows != nil && !isSupportedWindowsCertificateSource(config.Windows.CertificateSource) {
+		return nil, fmt.Errorf("unsupported Windows certificate source %q: use %q or %q", config.Windows.CertificateSource, codesigning.CertSourceFile, codesigning.CertSourceStore)
+	}
 
 	if opts == nil {
 		opts = DefaultOptions()
@@ -141,4 +146,8 @@ func GenerateElectronBuilderJSON(config *codesigning.SigningConfig, opts *Option
 	}
 
 	return result, nil
+}
+
+func isSupportedWindowsCertificateSource(source string) bool {
+	return source == codesigning.CertSourceFile || source == codesigning.CertSourceStore
 }

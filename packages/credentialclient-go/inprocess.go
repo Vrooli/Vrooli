@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,9 @@ const (
 	credentialTokenBytes     = 32
 	credentialHTTPTimeout    = 15 * time.Second
 	credentialResponseLimit  = 1 << 20
+	maxRecoveryBundleSize    = 8 << 20
 	defaultHydrationLeaseTTL = 5 * time.Minute
+	maxHydrationLeaseTTL     = 15 * time.Minute
 	recoveryFreshnessWindow  = 30 * 24 * time.Hour
 )
 
@@ -50,6 +53,7 @@ type hydrationLease struct {
 	env     string
 	target  map[string]string
 	expires time.Time
+	timer   *time.Timer
 }
 
 func NewInProcess(options InProcessOptions) (Client, error) {
@@ -75,23 +79,35 @@ func (c *inProcessClient) Provision(_ context.Context, request ProvisionRequest)
 	if err := c.authority.ActivateCandidate(candidate); err != nil {
 		return ProvisionResponse{}, err
 	}
-	return ProvisionResponse{Identity: string(identity), Field: request.Field, Provider: c.authority.Provider(), Status: "provisioned"}, nil
+	return ProvisionResponse{Identity: string(identity), Field: request.Field, Version: candidate.Version, Provider: c.authority.Provider(), Status: "provisioned"}, nil
 }
 
-func (c *inProcessClient) Hydrate(_ context.Context, request HydrationRequest) (HydrationResponse, error) {
+func (c *inProcessClient) Hydrate(ctx context.Context, request HydrationRequest) (HydrationResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	select {
+	case <-ctx.Done():
+		return HydrationResponse{}, ctx.Err()
+	default:
+	}
 	identity, err := credentialauthority.ParseIdentity(request.Identity)
 	if err != nil {
 		return HydrationResponse{}, err
 	}
-	if strings.TrimSpace(request.Env) == "" || request.Target == nil {
-		return HydrationResponse{}, fmt.Errorf("runtime injection requires an environment name and target")
-	}
-	if err := c.authority.Inject(identity, request.Field, request.Env, request.Target); err != nil {
-		return HydrationResponse{}, err
+	if strings.TrimSpace(request.TargetID) == "" || strings.TrimSpace(request.Env) == "" || request.Target == nil {
+		return HydrationResponse{}, fmt.Errorf("runtime injection requires a target id, environment name, and target")
 	}
 	ttl := request.LeaseTTL
 	if ttl <= 0 {
 		ttl = defaultHydrationLeaseTTL
+	}
+	if ttl > maxHydrationLeaseTTL {
+		return HydrationResponse{}, fmt.Errorf("hydration lease ttl cannot exceed %s", maxHydrationLeaseTTL)
+	}
+	version, err := c.authority.InjectExpected(identity, request.Field, request.Env, request.Target, request.ExpectedVersion)
+	if err != nil {
+		return HydrationResponse{}, err
 	}
 	leaseID, err := newHydrationLeaseID()
 	if err != nil {
@@ -104,7 +120,33 @@ func (c *inProcessClient) Hydrate(_ context.Context, request HydrationRequest) (
 	c.reapExpiredLocked(now)
 	c.leases[leaseID] = &hydrationLease{env: request.Env, target: request.Target, expires: expires}
 	c.leaseMu.Unlock()
-	return HydrationResponse{Identity: string(identity), Field: request.Field, ExposureMode: ExposureRuntimeInjection, Injected: true, LeaseID: leaseID, ExpiresAt: expires}, nil
+	// Expiry is an active cleanup boundary, not merely metadata for a later
+	// request. The caller still owns process lifecycle, but the ephemeral map
+	// supplied to this client is cleared as soon as the delivery lease ends.
+	timer := time.AfterFunc(ttl, func() { c.expireHydrationLease(leaseID) })
+	c.leaseMu.Lock()
+	if lease, ok := c.leases[leaseID]; ok {
+		lease.timer = timer
+	} else {
+		timer.Stop()
+	}
+	c.leaseMu.Unlock()
+	nextAction := "start-consumer"
+	if request.ProcessRunning {
+		nextAction = "restart-consumer"
+	}
+	return HydrationResponse{
+		Identity:        string(identity),
+		Field:           request.Field,
+		TargetID:        request.TargetID,
+		Version:         version,
+		ExposureMode:    ExposureRuntimeInjection,
+		Injected:        true,
+		RestartRequired: request.ProcessRunning,
+		NextAction:      nextAction,
+		LeaseID:         leaseID,
+		ExpiresAt:       expires,
+	}, nil
 }
 
 func (c *inProcessClient) RevokeHydration(_ context.Context, request HydrationRevocationRequest) (HydrationRevocationResponse, error) {
@@ -117,6 +159,9 @@ func (c *inProcessClient) RevokeHydration(_ context.Context, request HydrationRe
 	c.reapExpiredLocked(now)
 	lease, ok := c.leases[leaseID]
 	if ok {
+		if lease.timer != nil {
+			lease.timer.Stop()
+		}
 		delete(lease.target, lease.env)
 		delete(c.leases, leaseID)
 	}
@@ -134,10 +179,24 @@ func (c *inProcessClient) RevokeHydration(_ context.Context, request HydrationRe
 func (c *inProcessClient) reapExpiredLocked(now time.Time) {
 	for leaseID, lease := range c.leases {
 		if !lease.expires.After(now) {
+			if lease.timer != nil {
+				lease.timer.Stop()
+			}
 			delete(lease.target, lease.env)
 			delete(c.leases, leaseID)
 		}
 	}
+}
+
+func (c *inProcessClient) expireHydrationLease(leaseID string) {
+	c.leaseMu.Lock()
+	defer c.leaseMu.Unlock()
+	lease, ok := c.leases[leaseID]
+	if !ok || lease.expires.After(time.Now().UTC()) {
+		return
+	}
+	delete(lease.target, lease.env)
+	delete(c.leases, leaseID)
 }
 
 func newHydrationLeaseID() (string, error) {
@@ -154,7 +213,7 @@ func (c *inProcessClient) Status(_ context.Context, identity, field string) (Cre
 		return CredentialStatus{}, err
 	}
 	status := c.authority.Status(parsed, field)
-	return CredentialStatus{Identity: string(status.Identity), Field: status.Field, Configured: status.Configured, Provider: status.Provider, ProviderState: string(status.ProviderState), ProviderDetail: status.ProviderDetail}, nil
+	return CredentialStatus{Identity: string(status.Identity), Field: status.Field, Version: status.Version, Configured: status.Configured, Provider: status.Provider, ProviderState: string(status.ProviderState), ProviderDetail: status.ProviderDetail}, nil
 }
 
 func (c *inProcessClient) Resolve(_ context.Context, identity, field string) (string, error) {
@@ -382,23 +441,21 @@ func (c *inProcessClient) RecoveryExport(_ context.Context, request RecoveryExpo
 	if strings.TrimSpace(request.OutputPath) == "" {
 		return RecoveryExportResponse{}, fmt.Errorf("recovery output path is required")
 	}
-	if err := os.MkdirAll(filepath.Dir(request.OutputPath), credentialBundleDirMode); err != nil { //nolint:mnd // credential bundle directory mode is a security contract
-		return RecoveryExportResponse{}, err
-	}
-	if err := os.WriteFile(request.OutputPath, bundle, credentialBundleFileMode); err != nil {
+	outputPath, err := writeRecoveryBundle(request.OutputPath, bundle)
+	if err != nil {
 		return RecoveryExportResponse{}, err
 	}
 	if c.stateDir != "" {
 		now := time.Now().UTC()
-		if err := credentialauthority.WriteRecoveryReceiptWithMetadata(c.stateDir, request.OutputPath, entries, credentialauthority.RecoveryReceipt{VerifiedAt: now, Verification: "decrypt-readback", ScheduleState: "manual"}, now); err != nil {
+		if err := credentialauthority.WriteRecoveryReceiptWithMetadata(c.stateDir, outputPath, entries, credentialauthority.RecoveryReceipt{VerifiedAt: now, Verification: "decrypt-readback", ScheduleState: "manual"}, now); err != nil {
 			return RecoveryExportResponse{}, fmt.Errorf("record verified recovery receipt: %w", err)
 		}
 	}
-	return RecoveryExportResponse{Path: request.OutputPath, EntryCount: len(entries)}, nil
+	return RecoveryExportResponse{Path: outputPath, EntryCount: len(entries)}, nil
 }
 
 func (c *inProcessClient) RecoveryVerify(_ context.Context, request RecoveryVerifyRequest) (RecoveryVerifyResponse, error) {
-	bundle, err := os.ReadFile(request.InputPath)
+	bundle, err := readRecoveryBundle(request.InputPath)
 	if err != nil {
 		return RecoveryVerifyResponse{}, err
 	}
@@ -414,11 +471,87 @@ func (c *inProcessClient) RecoveryVerify(_ context.Context, request RecoveryVeri
 }
 
 func (c *inProcessClient) RecoveryRestore(_ context.Context, request RecoveryRestoreRequest) error {
-	bundle, err := os.ReadFile(request.InputPath)
+	bundle, err := readRecoveryBundle(request.InputPath)
 	if err != nil {
 		return err
 	}
 	return c.authority.RestoreRecovery(bundle, request.Passphrase)
+}
+
+func readRecoveryBundle(path string) ([]byte, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil, fmt.Errorf("recovery input path is required")
+	}
+	path = filepath.Clean(path)
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("recovery input must not be a symbolic link")
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("recovery input must be a regular file")
+	}
+	if info.Size() <= 0 || info.Size() > maxRecoveryBundleSize {
+		return nil, fmt.Errorf("recovery input must be between 1 byte and %d bytes", maxRecoveryBundleSize)
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		return nil, fmt.Errorf("recovery input permissions %04o are too broad; use owner-only permissions", info.Mode().Perm())
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	bundle, err := io.ReadAll(io.LimitReader(file, maxRecoveryBundleSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(bundle) > maxRecoveryBundleSize {
+		return nil, fmt.Errorf("recovery input exceeds %d bytes", maxRecoveryBundleSize)
+	}
+	return bundle, nil
+}
+
+func writeRecoveryBundle(path string, bundle []byte) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("recovery output path is required")
+	}
+	if len(bundle) == 0 || len(bundle) > maxRecoveryBundleSize {
+		return "", fmt.Errorf("recovery output exceeds %d bytes", maxRecoveryBundleSize)
+	}
+	path = filepath.Clean(path)
+	if err := os.MkdirAll(filepath.Dir(path), credentialBundleDirMode); err != nil { //nolint:mnd // credential bundle directory mode is a security contract
+		return "", err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".vrooli-recovery-*.tmp")
+	if err != nil {
+		return "", err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(credentialBundleFileMode); err != nil {
+		_ = temporary.Close()
+		return "", err
+	}
+	if _, err := temporary.Write(bundle); err != nil {
+		_ = temporary.Close()
+		return "", err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return "", err
+	}
+	if err := temporary.Close(); err != nil {
+		return "", err
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (c *inProcessClient) StoreStatus(context.Context) (StoreStatus, error) {

@@ -36,7 +36,7 @@ import { CapabilityState } from "@vrooli/proto-types/vrooli-onboarding/v1/capabi
 import { SafeguardDisposition } from "@vrooli/proto-types/vrooli-onboarding/v1/host/host_pb";
 import type { Answer } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorinputs/operatorinputs_pb";
 import { ReadinessState } from "@vrooli/proto-types/vrooli-onboarding/v1/readiness/readiness_pb";
-import { API_BASE, REST_API_BASE, onboardingTransport } from "./base";
+import { API_BASE, REST_API_BASE, onboardingFetch, onboardingTransport } from "./base";
 import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply } from "./apply";
 import { applyCapability, fetchCapabilities, fetchCapabilityStatus, previewCapability, verifyCapability } from "./capabilities";
 import { searchConfiguration } from "./configuration";
@@ -63,6 +63,31 @@ describe("typed onboarding API adapters", () => {
     expect(API_BASE).toBe("http://onboarding.test/api/v1");
     expect(REST_API_BASE).toBe("http://onboarding.test/api/v1/");
     expect(onboardingTransport()).toEqual({});
+  });
+
+  it("binds local-session authentication without exposing or replacing credentials", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.desktop = { auth: { getLocalSessionToken: vi.fn().mockResolvedValue(null) } };
+    await onboardingFetch("/without-token", { credentials: "same-origin" });
+    expect(fetchMock).toHaveBeenLastCalledWith("/without-token", { credentials: "same-origin" });
+
+    window.desktop = undefined;
+    await onboardingFetch("/without-desktop");
+    expect(fetchMock).toHaveBeenLastCalledWith("/without-desktop", { credentials: "include" });
+
+    window.desktop = { auth: { getLocalSessionToken: vi.fn().mockResolvedValue("local-session-token") } };
+    await onboardingFetch("/with-token", { headers: { "X-Request": "credential-flow" } });
+    const tokenRequest = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
+    expect(tokenRequest?.[0]).toBe("/with-token");
+    expect(tokenRequest?.[1]?.credentials).toBe("include");
+    expect((tokenRequest?.[1]?.headers as Headers).get("Authorization")).toBe("LocalSession local-session-token");
+    expect((tokenRequest?.[1]?.headers as Headers).get("X-Request")).toBe("credential-flow");
+
+    await onboardingFetch("/with-explicit-auth", { headers: { Authorization: "Bearer explicit" } });
+    const explicitAuthRequest = fetchMock.mock.calls[fetchMock.mock.calls.length - 1];
+    expect((explicitAuthRequest?.[1]?.headers as Headers).get("Authorization")).toBe("Bearer explicit");
   });
 
   it("maps apply requests and plan responses at the wire boundary", async () => {

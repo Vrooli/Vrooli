@@ -17,7 +17,9 @@ agent-manager **tailing the agent-owned transcript file** the CLI writes, using
 the per-agent transcript parser (`ParseTranscriptLine` / `NewTranscriptParser`).
 Completion is a transcript terminal marker, the same mechanism crash recovery
 already uses. Stdin is a free-for-all (human + agent-manager both type; no
-lease). Interactive mode is allowed only for non-protected (in-place) runs.
+lease). Interactive mode runs only in the sandbox modes a codec's interactive
+spawn capability declares (today `tracking` and `off`); protected runs stay on
+the codec-pipe path.
 
 ---
 
@@ -96,12 +98,12 @@ accumulator, or SIGTERM `Stop`.
 
 ### Where it physically lives
 
-An orchestration-level execution strategy branch (in `run_executor` /
+An orchestration-level execution-path branch (in `run_executor` /
 `phases/execute`), selected by the run's `ExecutionMode`, is preferable to a new
 method on `core.Runner`, because it must call the web-console Connect client and
 own the session lifecycle — concerns that live at the orchestration layer, above
 the codec-parameterised `core.Runner`. `core.Runner` stays the codec-pipe engine;
-the interactive strategy borrows only `runner.Consume` and the codec's transcript
+the interactive path borrows only `runner.Consume` and the codec's transcript
 parser (both already exported and used cross-package by recovery).
 
 ---
@@ -243,7 +245,7 @@ types, and where they live:
 
 | Concern | Domain field (`internal/domain/types.go` `Run`) | DB column | Proto (`v1/domain/run.proto`) | Notes |
 |---------|--------------------------------------------------|-----------|-------------------------------|-------|
-| Execution mode | `ExecutionMode ExecutionMode` (new string enum: `codec_pipe` \| `interactive`; default `codec_pipe`) | `execution_mode` (text, default `'codec_pipe'`) | new field `execution_mode` (next free tag `= 37`), backed by a proto enum `ExecutionMode` in `run.proto`/`types.proto` | orthogonal to `RunMode` (sandboxed/in_place). UI shows it; drives the strategy branch in run_executor. |
+| Execution mode | `ExecutionMode ExecutionMode` (new string enum: `codec_pipe` \| `interactive`; default `codec_pipe`) | `execution_mode` (text, default `'codec_pipe'`) | new field `execution_mode` (next free tag `= 37`), backed by a proto enum `ExecutionMode` in `run.proto`/`types.proto` | orthogonal to `RunMode` (sandboxed/in_place). UI shows it; drives the execution-path branch in run_executor. |
 | web-console session id | `WebConsoleSessionID string` | `web_console_session_id` (text) | new field `web_console_session_id` (`= 38`) | used to build the run-detail deep link and to route Continue/Stop `SendInput` + `Delete`. |
 | Resolved transcript path | **reuse** existing `TranscriptPath string` (`transcript_path`) | existing | existing (db-only recovery metadata; not proto-exposed) | for interactive runs this holds the **discovered agent-owned** path; for codec-pipe it holds the agent-manager-written stdout file. Same field, provenance differs. `TranscriptCursor`/`TranscriptLastSeq` reused as-is for tail resume. |
 
@@ -256,10 +258,13 @@ Migration: additive columns only (`execution_mode` with default, and
 enum default keeps every existing run `codec_pipe`, so behavior is unchanged for
 non-interactive runs.
 
-Policy gate: interactive mode is rejected at run-validation time only for
-`SandboxModeProtected`, with a clear error. `SandboxModeTracking` remains host
+Policy gate: the domain validator (`ValidateInteractiveRunMode`) checks only the
+execution-mode vocabulary and rejects no sandbox mode. Feasibility of an
+execution-mode/sandbox pair is resolved from the codec's declared interactive
+spawn capability and profile policy. `SandboxModeTracking` remains host
 execution with provenance capture, so it is supported and uses the sandbox
-working directory; Protected runs keep the sandbox launcher / codec-pipe path.
+working directory; Protected runs keep the sandbox launcher / codec-pipe path
+because no codec declares an interactive `protected` capability.
 
 ---
 
@@ -339,7 +344,8 @@ stdout `result`/`turn.completed`/`end` events.
    does not replace it. ✔ (surfaced, not contradicted)
 3. completion = transcript terminal markers, same as recovery → §1, §7b. ✔
 4. stdin free-for-all, attribution diagnostic only, no lease → §2. ✔
-5. interactive only for non-protected runs, enforced at validation → §5. ✔
+5. interactive only for non-protected runs; enforced by spawn-capability
+   resolution, not by the domain validator (§5, §11.5). ✔ (surfaced, not contradicted)
 6. Continue via `SendInput`, Stop = interrupt seq + session delete fallback → §1, §2. ✔
 7. run records mark execution mode; detail UI links to live session → §5, §2. ✔
 
@@ -354,8 +360,8 @@ stdout `result`/`turn.completed`/`end` events.
 - **R2 (Phase 4/5):** claude has no on-disk `result` line — ordinary completion
   is synthesized from `stop_reason=end_turn` plus an idle-debounce. A goal-driven
   run continues past the first end-turn and ends on native goal completion,
-  structured-result success, timeout/turn cap, or session exit; the selected
-  rule is persisted as `terminalReason`.
+  structured-result success, a timeout/turn cap (target, §11.3; not enforced
+  today), or session exit; the selected rule is persisted as `terminalReason`.
 - **R3 (Phase 2/4/5):** claude transcript file discovery on the **shared**
   `~/.claude/projects` tree starts with a newest-ctime-after-launch heuristic;
   concurrent sessions in one cwd could race. Mitigation: capture the runner
@@ -402,9 +408,9 @@ finalizes the run Failed immediately, no debounce.
 For a goal-driven run, a provider success marker that is not a native `goal_*`
 marker remains a turn boundary unless the persisted deterministic structured
 result already satisfies the run's `ResultSpec`. In that case the coordinator
-ends the run with `terminal_reason=structured_result`. This lets a goal-session
-worker finish with its required workflow JSON when the provider does not emit a
-second native goal marker. Constrained extraction never ends the tail because it
+ends the run with `terminal_reason=structured_result`. This lets a goal-mode
+worker finish with its required structured result when the provider does not
+emit a second native goal marker. Constrained extraction never ends the tail because it
 can require an unavailable or asynchronous extractor.
 
 For a non-empty engine-owned `until`, native goal markers take precedence over
@@ -541,3 +547,108 @@ This is why manual replays that shelled out per keystroke (natural inter-process
 gaps) always submitted while the back-to-back client path intermittently did not.
 The fix applies to both the initial-turn delivery and Continue, which share
 `SendPrompt`.
+---
+
+## 11. Target contract — native goal delivery and run termination
+
+This section states the intended design for goal mode on the interactive
+substrate. It builds on §9 and §10 and does not change the seam decisions in §1.
+The Agent Manager side of the contract is summarized in
+[ARCHITECTURE.md](concepts/ARCHITECTURE.md#target-goal-mode-run-contract); the
+shared vocabulary (plan shape, execution mode, finish line, stop classes) is in
+the [scenario development doc](../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+
+### 11.1 Delivery after readiness, verified by a goal marker
+
+The launch order is: create session, submit launch command, wait for harness
+readiness, install `/goal`, verify, deliver the task prompt, discover the
+transcript.
+
+1. **Readiness is observed.** After the launch command, wait for one of: the
+   harness input surface is visible in the session, or the transcript file
+   exists. A fixed delay is a floor, not the readiness signal.
+2. **Install `/goal <finish line>`** through the literal-input seam. The finish
+   line is the run's `until`. When it exceeds the harness field limit, install
+   the short delegation text and keep the full finish line in the prompt.
+3. **Verify with a goal marker.** The codec transcript parser reports a goal
+   marker with the objective and status `active`. That marker is the ack for
+   `/goal`, the same way transcript appearance is the ack for the task prompt.
+4. **Resend on silence.** If no marker appears within the resend window, send
+   `/goal` again on the discovery cadence. After a bounded count, record
+   `native_goal_delivery_failed` with the reason on the run and continue with
+   the prompt-carried finish line. The run records the mechanism in use.
+5. **Deliver the task prompt** with `SendPrompt`, then discover the transcript
+   as in §10.3.
+
+Prompt-carried fallback applies when the runner declares no native goal support
+for the sandbox mode, or when delivery verification fails. The prompt carries
+the finish line as a "Completion contract" block. Both mechanisms end the run
+through the same terminal classes.
+
+### 11.2 Terminal classes
+
+The coordinator maps transcript evidence to one terminal class. Verdicts are
+agent-decided and final. Interruptions are involuntary and leave no terminal
+result; Swarm decides whether to resume them.
+
+| Class | Family | Evidence |
+|---|---|---|
+| `complete` | verdict | goal marker `complete`; or a validated structured result that satisfies the `ResultSpec` |
+| `blocked` | verdict | goal marker `blocked`; or a structured result with status `blocked` |
+| `abstained` | verdict | structured result with status `abstained` |
+| `usage_window` | interruption | goal marker `usage_limited` or `budget_limited`; or a rate-limit event from the codec |
+| `timeout` | interruption | `timeout` or `max_turns` ceiling reached |
+| `crash` | interruption | harness exited, or Agent Manager restarted, with no retained terminal |
+| `session_lost` | interruption | web-console session gone with no retained terminal |
+
+Every terminal record carries the last handoff: the Plan Manager checkpoint
+reference and the journal location the agent wrote before stopping. The
+turn-boundary debounce in §9.1 stays as the turn detector; it never finalizes a
+goal-mode run by itself.
+
+### 11.3 Ceilings
+
+`LaunchParams` carries `MaxTurns` and `Timeout` from the run configuration. The
+coordinator counts each success terminal (a turn boundary) toward `MaxTurns`
+and enforces `Timeout` on the wall clock from launch. Reaching either ceiling
+sends the interrupt sequence, waits for the transcript to settle, and finalizes
+the run in the `timeout` class. The item's aggregate allowance across resumes is
+Swarm's concern; Agent Manager enforces only the per-run values it was given.
+
+### 11.4 Re-attach after web-console recovery
+
+Interactive-run liveness is the web-console session. On restart, or when a
+mid-tail `GetSession` watcher reports the session gone and then present again,
+the reconciler re-attaches the tailer from the persisted cursor with no
+duplicate events. A retained terminal marker in the transcript finalizes the run
+without a new turn. A session gone with no retained terminal ends the run in
+`session_lost`; Swarm may resume with the handoff under `continuation:
+until-allowance`.
+
+### 11.5 Implementation status
+
+The code implements §9 and §10 and part of §11. `/goal` is typed once after the
+fixed `promptBootDelay` in `Substrate.Launch`
+(`orchestration/interactive/substrate.go`, near line 341) with no marker
+verification and no resend; only the task prompt is resent while discovery
+waits. `ValidateInteractiveRunMode` in `internal/domain/validation.go` is a
+no-op, so the §5 policy gate is not enforced in the domain layer; feasibility is
+a spawn-capability concern (Claude Code and Codex declare `tracking` and `off`).
+`nativeObjectiveFor` in `orchestration/run_execution.go` installs `/goal` for any
+sandbox mode the capability declares, including tracking. `LaunchParams` has no
+`MaxTurns` or `Timeout`; the only bounded waits are shell readiness and
+transcript discovery. Terminal classes are not modelled: `Finalize` produces
+`completed` or `failed`, and a lost session is `failed`. On the live path only
+Claude produces goal markers: the tailer acts on the `result.Goal` that a
+codec's `ParseTranscriptLine` sets (`transcript_consumer.go:138`), which
+`codecs/claude.go:680-682` does and the Codex parser never does. Codex's
+`codexGoalStatus` (`codecs/goal_markers.go:11`, wired at `codecs/codex.go:92`)
+is reachable only through `baseCodec.GoalStatusFromTranscriptLine`
+(`codecs/base.go:58-62`) on the transcript import path, so a live Codex run
+cannot produce a goal marker today. Claude's parser yields only `active` and
+`complete` (`codecs/goal_markers.go`), so the `blocked`, `usage_limited`, and
+`budget_limited` rows in §11.2 have no live source yet. The §11.1 bound on the
+`/goal` field (4,000 characters, short delegation text in its place) is
+implemented by `boundedNativeObjective` in `orchestration/run_execution.go`.
+See the interim mapping in
+[SCENARIO_DEVELOPMENT.md](../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).

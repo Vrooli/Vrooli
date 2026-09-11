@@ -24,16 +24,19 @@ downloads an image on its own.
 
 ### 1. Install the host tools through `vrooli setup`
 
-`qemu` and `cloud-localds` are declared in `.vrooli/service.json` `hostTools`.
-`vrooli setup` is the only elevation boundary; do not run `apt`, `sudo`, or any
-other package manager by hand.
+`qemu` and `cloud-localds` are declared in
+`scenarios/scenario-to-cloud/.vrooli/service.json` under `hostTools`. Select the
+scenario when resolving setup requirements; global setup inspection omits these
+scenario-owned tools. `vrooli setup` is the only elevation boundary; do not run
+`apt`, `sudo`, or any other package manager by hand.
 
 ```text
-vrooli setup status
-vrooli setup explain qemu
-vrooli setup explain cloud-localds
-vrooli setup --scenarios scenario-to-cloud
+vrooli setup --scenarios scenario-to-cloud --dry-run
+vrooli setup --scenarios scenario-to-cloud --sudo-mode ask
 ```
+
+The dry run inspects the resolved requirements without changing the host. The
+second command applies missing tools and may require operator authentication.
 
 The readiness report needs four binaries: `qemu-system-x86_64`,
 `qemu-system-aarch64`, `qemu-img` and `cloud-localds`. Accelerated amd64 guests
@@ -95,9 +98,7 @@ yourself and prepend the inputs to the source:
 
 ```text
 program-runtime sessions create --name qemu-lane --grants effect:destructive --wall-budget 180s --json
-printf 'inputs = %s\n' '{"request_id":"cloud-certification-fixture-v1-amd64-qemu-001","release_ref":"sha256:<digest>","target_ref":"local-qemu:lane-a","environment_ref":"<isolated environment>","workload_ref":"stateless-web","authorization_ref":"grant:<operator grant>","cases":["RUN-01","RUN-03","DATA-05","OPS-07"],"faults":{"allowed":["worker_restart","target_reboot"]}}' \
-  | cat - .vrooli/program-runtime/cloud-qemu-qualification.py \
-  | program-runtime programs submit --session-id <id> --provenance operator --source-file - --async --wait-timeout 180s --json
+printf 'inputs = %s\n' "{\"request_id\":\"cloud-certification-fixture-v1-amd64-qemu-001\",\"release_ref\":\"$RELEASE_REF\",\"target_ref\":\"local-qemu:lane-a\",\"environment_ref\":\"$ENVIRONMENT_REF\",\"workload_ref\":\"stateless-web\",\"authorization_ref\":\"$AUTHORIZATION_REF\",\"cases\":[\"RUN-01\",\"RUN-03\",\"DATA-05\",\"OPS-07\"],\"faults\":{\"allowed\":[\"worker_restart\",\"target_reboot\"]}}" | cat - .vrooli/program-runtime/cloud-qemu-qualification.py | program-runtime programs submit --session-id "$SESSION_ID" --provenance operator --source-file - --async --wait-timeout 180s --json
 ```
 
 Admission refuses, before any read or mutation:

@@ -156,10 +156,14 @@ type Action struct {
 // Handoff is the single durable reference an operator resumes from when the
 // plan needs input the closure declares but nothing has satisfied.
 type Handoff struct {
-	Owner     string   `json:"owner"`
-	Kind      string   `json:"kind"`
-	Reference string   `json:"reference"`
-	Missing   []string `json:"missing"`
+	Owner           string   `json:"owner"`
+	Kind            string   `json:"kind"`
+	Reference       string   `json:"reference"`
+	Missing         []string `json:"missing"`
+	DeploymentID    string   `json:"deployment_id"`
+	Target          Target   `json:"target"`
+	DesiredRevision uint64   `json:"desired_revision"`
+	SelectionDigest string   `json:"selection_digest"`
 }
 
 // Presentation is human text. It is excluded from the semantic digest.

@@ -236,6 +236,9 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 		`},
 		{"add_cloud_operations", cloudOperationsPostgresDDL},
 		{"add_cloud_credentials", cloudCredentialsPostgresDDL},
+		{"add_cloud_credential_expiry", `
+			ALTER TABLE cloud_credential_bindings ADD COLUMN IF NOT EXISTS version_expires_at TIMESTAMPTZ;
+		`},
 		{"add_cloud_operations_active_step", `
 			ALTER TABLE cloud_operations ADD COLUMN IF NOT EXISTS active_step JSONB;
 		`},
@@ -384,6 +387,13 @@ CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recover
 	} else if !columns["binding"] {
 		if _, err := db.ExecContext(ctx, `ALTER TABLE cloud_recovery_operations ADD COLUMN binding TEXT`); err != nil {
 			return fmt.Errorf("add recovery binding column: %w", err)
+		}
+	}
+	if columns, err := sqliteColumns(ctx, db, "cloud_credential_bindings"); err != nil {
+		return err
+	} else if !columns["version_expires_at"] {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE cloud_credential_bindings ADD COLUMN version_expires_at TIMESTAMP`); err != nil {
+			return fmt.Errorf("add credential expiry column: %w", err)
 		}
 	}
 	// A pool that already holds a predecessor-shaped deployments table (for

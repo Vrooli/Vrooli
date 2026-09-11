@@ -13,6 +13,9 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/receiptsigning"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
 
 // CloudHealthClient checks the health of one exact cloud deployment for the
@@ -148,6 +151,50 @@ type CloudDeploymentReceipt struct {
 	Publication *CloudPublication     `json:"-"`
 }
 
+// CanonicalJSON returns the exact payload scenario-to-cloud signs: the
+// receipt fields with the signature removed and JSON object keys normalized.
+// The wire signature remains raw JSON so this package does not couple its
+// transport model to the producer's signing implementation.
+func (r CloudDeploymentReceipt) CanonicalJSON() ([]byte, error) {
+	r.Signature = nil
+	r.Evidence, r.Publication = nil, nil
+	raw, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	var generic map[string]any
+	if err := json.Unmarshal(raw, &generic); err != nil {
+		return nil, err
+	}
+	return json.Marshal(generic)
+}
+
+// VerifySignature independently verifies the producer attestation. An
+// unsigned receipt is never considered an acceptable deployment proof.
+func (r CloudDeploymentReceipt) VerifySignature(ctx context.Context, verifier receiptsigning.ReceiptSigner) error {
+	if len(bytes.TrimSpace(r.Signature)) == 0 {
+		return fmt.Errorf("receipt carries no producer signature")
+	}
+	if verifier == nil {
+		return fmt.Errorf("receipt verifier is unavailable")
+	}
+	var envelope receiptsigning.SignatureEnvelope
+	if err := json.Unmarshal(r.Signature, &envelope); err != nil {
+		return fmt.Errorf("decode receipt signature: %w", err)
+	}
+	if err := envelope.Validate(); err != nil {
+		return fmt.Errorf("invalid receipt signature envelope: %w", err)
+	}
+	if envelope.Purpose != receiptsigning.PurposeCloudEvidenceReceipt {
+		return fmt.Errorf("receipt signature purpose %q is not %q", envelope.Purpose, receiptsigning.PurposeCloudEvidenceReceipt)
+	}
+	canonical, err := r.CanonicalJSON()
+	if err != nil {
+		return err
+	}
+	return verifier.Verify(ctx, envelope, canonical)
+}
+
 // cloudReceiptProducerRef is the only producer DM accepts a cloud receipt from.
 const cloudReceiptProducerRef = "scenario-to-cloud"
 
@@ -208,25 +255,41 @@ type HTTPCloudHealthClient struct {
 	baseURL      string
 	log          func(string, map[string]interface{})
 	pollInterval time.Duration
+	// receiptVerifier is the independent consumer-side trust root for
+	// scenario-to-cloud receipts. Direct struct construction is retained for
+	// lightweight tests and legacy callers; production constructors require
+	// verification and fail closed when the verifier is unavailable.
+	receiptVerifier           receiptsigning.ReceiptSigner
+	receiptVerificationStrict bool
 }
 
 const cloudDeploymentPollInterval = time.Second
+const cloudReceiptSigningIdentity = "scenario-to-cloud/receipt-signing"
 
 // NewHTTPCloudHealthClient constructs the default cloud health client through
 // scenario discovery.
 func NewHTTPCloudHealthClient(log func(string, map[string]interface{})) (*HTTPCloudHealthClient, error) {
+	verifier, err := newCloudReceiptVerifier()
+	if err != nil && log != nil {
+		log("cloud receipt verification unavailable", map[string]interface{}{"error": err.Error()})
+	}
 	if configured := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_URL")); configured != "" {
-		return NewHTTPCloudHealthClientAt(configured, log), nil
+		client := NewHTTPCloudHealthClientAt(configured, log)
+		client.receiptVerifier = verifier
+		client.receiptVerificationStrict = true
+		return client, nil
 	}
 	baseURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-cloud")
 	if err != nil {
 		return nil, fmt.Errorf("resolve scenario-to-cloud URL: %w", err)
 	}
 	return &HTTPCloudHealthClient{
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
-		baseURL:      baseURL,
-		log:          log,
-		pollInterval: cloudDeploymentPollInterval,
+		httpClient:                &http.Client{Timeout: 30 * time.Second},
+		baseURL:                   baseURL,
+		log:                       log,
+		pollInterval:              cloudDeploymentPollInterval,
+		receiptVerifier:           verifier,
+		receiptVerificationStrict: true,
 	}, nil
 }
 
@@ -239,6 +302,21 @@ func NewHTTPCloudHealthClientAt(baseURL string, log func(string, map[string]inte
 		log:          log,
 		pollInterval: cloudDeploymentPollInterval,
 	}
+}
+
+// newCloudReceiptVerifier loads the same credential-authority trust root used
+// by scenario-to-cloud's production receipt signer. Key material stays inside
+// the authority-backed signer; it never enters this client.
+func newCloudReceiptVerifier() (receiptsigning.ReceiptSigner, error) {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return nil, err
+	}
+	return credentialauthoritysigning.New(credentialauthoritysigning.Config{
+		Identity:        credentialauthority.Identity(cloudReceiptSigningIdentity),
+		Store:           authority,
+		AllowedPurposes: []receiptsigning.Purpose{receiptsigning.PurposeCloudEvidenceReceipt},
+	})
 }
 
 // DeployCloud creates a scenario-to-cloud deployment, starts its server-owned
@@ -305,6 +383,14 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 			}
 			if err := validateCloudReceipt(envelope.Receipt, created.Deployment.ID, request); err != nil {
 				return nil, err
+			}
+			if c.receiptVerificationStrict {
+				if c.receiptVerifier == nil {
+					return nil, fmt.Errorf("cloud deployment %s receipt verifier is unavailable", created.Deployment.ID)
+				}
+				if err := envelope.Receipt.VerifySignature(ctx, c.receiptVerifier); err != nil {
+					return nil, fmt.Errorf("cloud deployment %s receipt signature is invalid: %w", created.Deployment.ID, err)
+				}
 			}
 			// The receipt's health field is derived from the deployment
 			// record's status; only the typed observation proves the

@@ -63,8 +63,7 @@ func edgeTestDeployment(t *testing.T, domainName, host string) *domain.Deploymen
 
 func newEdgeTestServer(t *testing.T, dep *domain.Deployment, dnsAnswers map[string][]string, probe tlsinfo.ProbeResult, journal string) *Server {
 	t.Helper()
-	previousListeners := edgeListenersForDeployment
-	edgeListenersForDeployment = func(context.Context, *domain.Deployment, domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error) {
+	listenersOverride := func(context.Context, *domain.Deployment, domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error) {
 		return []domain.ClosureListener{
 			{ID: "app/ui", Owner: "scenario:app", PortName: "ui", Visibility: domain.EdgeVisibilityPublicViaEdge},
 			{ID: "app/api", Owner: "scenario:app", PortName: "api", Visibility: domain.EdgeVisibilityPrivate},
@@ -74,7 +73,6 @@ func newEdgeTestServer(t *testing.T, dep *domain.Deployment, dnsAnswers map[stri
 	previousExternal := externalReadinessProbe
 	externalReadinessProbe = func(context.Context, string, int) error { return nil }
 	t.Cleanup(func() {
-		edgeListenersForDeployment = previousListeners
 		externalReadinessProbe = previousExternal
 	})
 	runner := &FakeSSHRunner{Handler: func(command string) (sshadapter.Result, error, bool) {
@@ -90,6 +88,7 @@ func newEdgeTestServer(t *testing.T, dep *domain.Deployment, dnsAnswers map[stri
 		return sshadapter.Result{}, errors.New("unexpected command: " + command), true
 	}}
 	srv := newTLSHandlerServer(&FakeDeploymentRepo{Deployment: dep}, runner, fakeTLSService{result: probe}, func(context.Context, string) tlsinfo.ALPNCheck { return tlsinfo.ALPNCheck{Status: tlsinfo.ALPNPass} })
+	srv.edgeListenersOverride = listenersOverride
 	srv.repo = nil
 	srv.dnsService = fakeEdgeDNS{answers: dnsAnswers}
 	srv.registerEdgeRoutes(srv.router.PathPrefix("/api/v1").Subrouter())

@@ -6,6 +6,14 @@
   },
   "defaultRole": "code.default",
   "roles": {
+    "code.flatrate": {
+      "description": "Long-horizon coding on the operator's flat-rate coding-agent subscription (OpenCode Go). A launch either runs there or fails loudly; it never falls through to the Claude or Codex pools.",
+      "intent": "flat-rate long-horizon coding",
+      "orderingReason": "OpenCode is the only candidate on purpose: the role exists to protect the metered and Claude subscription pools, so a silent runner fallback would defeat it.",
+      "candidates": [
+        {"runner": "opencode", "resourceRole": "code.default"}
+      ]
+    },
     "code.default": {
       "description": "Balanced implementation work with portable fallback.",
       "intent": "balanced coding",

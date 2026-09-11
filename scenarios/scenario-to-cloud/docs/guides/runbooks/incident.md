@@ -9,10 +9,10 @@ outage.
 ## 1. Diagnose (read only, three observations)
 
 ```bash
-scenario-to-cloud deployment resolve --scenario <scenario-id> --environment production --json
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
-scenario-to-cloud operation list <deployment-id> --json
+scenario-to-cloud deployment resolve --scenario "$SCENARIO_ID" --environment production --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
+scenario-to-cloud operation list "$DEPLOYMENT_ID" --json
 ```
 
 | You see | Go to |
@@ -27,7 +27,7 @@ scenario-to-cloud operation list <deployment-id> --json
 For a non-terminal operation:
 
 ```bash
-scenario-to-cloud operation get <operation-id>
+scenario-to-cloud operation get "$OPERATION_ID"
 ```
 
 `reconciling` with an `unknown_effect` means the owner could not learn a
@@ -39,8 +39,8 @@ step's outcome; `next_action` names the fix. Never re-run the step by hand.
   cancel point (never mid-effect):
 
   ```bash
-  scenario-to-cloud operation cancel <operation-id>
-  scenario-to-cloud operation wait <operation-id> --timeout 120
+  scenario-to-cloud operation cancel "$OPERATION_ID"
+  scenario-to-cloud operation wait "$OPERATION_ID" --timeout 120
   ```
 
 - **Owner restarted or lost the target reply** — reconciliation reacquires
@@ -54,7 +54,7 @@ step's outcome; `next_action` names the fix. Never re-run the step by hand.
 - **Must stop serving** (bad release, data at risk):
 
   ```bash
-  scenario-to-cloud deployment stop <deployment-id>
+  scenario-to-cloud deployment stop "$DEPLOYMENT_ID"
   ```
 
 Do not delete bundles, recovery points or receipts to make room; the
@@ -66,15 +66,15 @@ are protected.
 **a. Workload down, host and release fine**
 
 ```bash
-scenario-to-cloud deployment plan <deployment-id> --scope start --json
-scenario-to-cloud deployment start <deployment-id> --yes --timeout 600
+scenario-to-cloud deployment plan "$DEPLOYMENT_ID" --scope start --json
+scenario-to-cloud deployment start "$DEPLOYMENT_ID" --yes --timeout 600
 ```
 
 **b. Bad release, predecessor retained** (`update.md` §6a)
 
 ```bash
-scenario-to-cloud deployment rollback <deployment-id> --dry-run --json
-scenario-to-cloud deployment rollback <deployment-id> --confirm --preview-ref <preview-ref> --request-key incident-<id>-rollback
+scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --dry-run --json
+scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --confirm --preview-ref "$PREVIEW_REF" --request-key "incident-$INCIDENT_ID-rollback"
 ```
 
 `data_compatibility` in the refusal → `restore.md`, then roll back.
@@ -82,8 +82,8 @@ scenario-to-cloud deployment rollback <deployment-id> --confirm --preview-ref <p
 **c. Certificate renewal failing**
 
 ```bash
-scenario-to-cloud edge tls <deployment-id> --json
-scenario-to-cloud edge tls-renew <deployment-id>
+scenario-to-cloud edge tls "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge tls-renew "$DEPLOYMENT_ID"
 ```
 
 Never disable verification.
@@ -96,14 +96,14 @@ Every recovery except stop and tls-renew is an operation: wait once, and if
 the wait times out reattach instead of re-issuing.
 
 ```bash
-scenario-to-cloud operation resume <operation-id> --timeout 600
+scenario-to-cloud operation resume "$OPERATION_ID" --timeout 600
 ```
 
 ## 4. Verify
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
 ```
 
 Required: `HEALTHY`, `CURRENT`, `observed_release_digest` equal to the

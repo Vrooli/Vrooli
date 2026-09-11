@@ -174,7 +174,7 @@ func operationResponse(rotation *domain.CredentialRotation, err error) (*connect
 
 // BindingViewProto maps a binding and its acks.
 func BindingViewProto(view credentials.BindingView) *credentialsv1.BindingView {
-	out := &credentialsv1.BindingView{Binding: BindingProto(view.Binding)}
+	out := &credentialsv1.BindingView{Binding: BindingProto(view.Binding), LifecycleState: view.LifecycleState, LifecycleDetail: view.LifecycleDetail, NextAction: view.NextAction}
 	for _, ack := range view.Acks {
 		out.Acks = append(out.Acks, &credentialsv1.CredentialAck{BindingId: ack.BindingID, Consumer: ack.Consumer, Version: ack.Version, VerifiedAt: timestamppb.New(ack.VerifiedAt)})
 	}
@@ -206,6 +206,9 @@ func versionProto(v domain.CredentialVersion) *credentialsv1.CredentialVersion {
 	out := &credentialsv1.CredentialVersion{Number: v.Number, ContentRef: v.ContentRef}
 	if !v.CreatedAt.IsZero() {
 		out.CreatedAt = timestamppb.New(v.CreatedAt)
+	}
+	if v.ExpiresAt != nil {
+		out.ExpiresAt = timestamppb.New(*v.ExpiresAt)
 	}
 	return out
 }

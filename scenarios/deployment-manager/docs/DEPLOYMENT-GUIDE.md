@@ -32,9 +32,9 @@ operation returns an explicit refusal.
 For a cloud release, inspect the release dossier first:
 
 ```bash
-deployment-manager releases dossier <release-id> --format json
-deployment-manager releases recover <release-id> --review-key <review-key> --candidate-id <candidate-id> --destination-revision-id <destination-revision-id> --dry-run
-deployment-manager releases recover <release-id> --review-key <review-key> --candidate-id <candidate-id> --destination-revision-id <destination-revision-id> --action halt --confirmation "halt <release-id>"
+deployment-manager --json releases dossier "<release-id>"
+deployment-manager releases recover "<release-id>" --review-key "<review-key>" --candidate-id "<candidate-id>" --destination-revision-id "<destination-revision-id>" --dry-run
+deployment-manager releases recover "<release-id>" --review-key "<review-key>" --candidate-id "<candidate-id>" --destination-revision-id "<destination-revision-id>" --action halt --confirmation "halt <release-id>"
 ```
 
 The dossier is the reviewer-facing read model. It joins the durable release
@@ -83,7 +83,7 @@ qualification sink against the deployment-manager scenario:
 ```bash
 data-backup-manager safety register-targets --scenario deployment-manager
 data-backup-manager safety backup-now --scenario deployment-manager
-data-backup-manager restores verify --target <ledger-target> --destination <backup-destination> --snapshot <snapshot-id>
+data-backup-manager restores verify --target "<ledger-target>" --destination "<backup-destination>" --snapshot "<snapshot-id>"
 ```
 
 Restore into an isolated qualification location, verify the snapshot before
@@ -97,10 +97,10 @@ For a release-trust compromise drill, inspect the managed authority before
 taking action and keep the old trust root available for evidence review:
 
 ```bash
-vrooli release-authority status --format json
+vrooli release-authority status --json
 # In an isolated qualification authority only:
 vrooli release-authority regenerate --replace-trust-anchor
-vrooli release-authority status --format json
+vrooli release-authority status --json
 ```
 
 Regeneration is a trust-root replacement. It requires explicit authority,

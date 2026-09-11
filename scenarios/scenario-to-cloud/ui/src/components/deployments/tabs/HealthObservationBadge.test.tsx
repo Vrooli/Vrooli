@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { HealthObservation } from "../../../lib/api";
 import { HealthObservationBadge } from "./HealthObservationBadge";
 
+// provider-free-exception: the badge is a pure presentational projection; all state is supplied by props.
+
 const base: HealthObservation = {
   deployment_id: "3c1c9a1e-5f3a-4a4d-9b1f-0d9d9f5b2f11",
   target_id: "host:203.0.113.10",

@@ -26,7 +26,7 @@ export const selectors = {
 } as const;
 
 export const selectorsManifest = {
-  schemaVersion: "2025.11",
+  schemaVersion: 1,
   generatedAt: "managed-by-secrets-manager",
   selectors: {
     ...Object.fromEntries(Object.entries(selectors.navigation).map(([id, selector]) => [`navigation.${id}`, { selector }])),

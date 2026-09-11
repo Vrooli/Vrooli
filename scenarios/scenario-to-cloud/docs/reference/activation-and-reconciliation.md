@@ -1,6 +1,6 @@
 # Activation and Reconciliation
 
-> [CODE: api/execplan/compile.go] · [CODE: api/vps/argv.go] · [CODE: api/vps/execute.go] · [CODE: api/reconcile] · [CODE: api/handlers_reconcile.go] · [CODE: internal/cloudtarget/activate.go] · [CODE: internal/cloudtarget/persistent_data.go]
+> [CODE: api/execplan/compile.go] · [CODE: api/vps/argv.go] · [CODE: api/vps/execute.go] · [CODE: api/reconcile/reconcile.go] · [CODE: api/handlers_reconcile.go] · [CODE: ../../internal/cloudtarget/activate.go] · [CODE: ../../internal/cloudtarget/persistent_data.go]
 
 A release reaches a target as an immutable, verified artifact set; it becomes
 the active release through the target-local owner (`vrooli cloud-target`)
@@ -276,7 +276,6 @@ and no port kill anywhere on the cloud side.
 - Health reports the bundle digest while the target owner reports the
   canonical release id; readiness compares the target pointer with the plan's
   release id and `no_op` detection still keys on the bundle digest.
-- `/preflight/fix/ports` is retired; `/preflight/disk/*` now reads `df`/`du`
-  observations through reach and repairs only through privilege-broker actions
-  (`journald.vacuum`, `docker.prune.*`); `apt_clean`/`tmp_clean` are refused
-  with the missing owner named.
+- `/preflight/fix/ports` and the legacy `/preflight/disk/*` routes are retired.
+  Disk capacity remains a read-only `df`/`du` observation in preflight; target
+  repairs are owned by typed privilege-broker actions and bundle-GC operations.

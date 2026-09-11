@@ -574,5 +574,6 @@ restored content.
   servers must compose fake adapters rather than reuse the live server.
 - `scripts/prove-backup-restore.sh` now runs only Go fixtures. It never starts a
   scenario, creates catalog records, invokes Kopia, or removes user paths.
-- Temporary destinations under `/tmp`, `/var/tmp`, and `/run` fail preflight as
-  `destination_ephemeral`; a reachable temporary repository is not durable.
+- Temporary destinations under the platform temporary-directory roots fail
+  preflight as `destination_ephemeral`; a reachable temporary repository is
+  not durable.

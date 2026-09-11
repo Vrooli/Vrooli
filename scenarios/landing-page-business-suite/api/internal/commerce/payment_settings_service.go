@@ -46,6 +46,29 @@ type StripeSettingsInput struct {
 	AnomalyRateLimits     *string
 }
 
+// ValidateStripeKeyModePair rejects a recognizable test/live mismatch while
+// leaving provider-specific or fixture keys that do not carry a Stripe mode
+// untouched. A publishable key and server key must address the same account
+// mode before checkout can be considered configured.
+func ValidateStripeKeyModePair(publishableKey, secretKey string) error {
+	mode := func(value string) string {
+		value = strings.TrimSpace(value)
+		switch {
+		case strings.HasPrefix(value, "pk_test_"), strings.HasPrefix(value, "sk_test_"), strings.HasPrefix(value, "rk_test_"):
+			return "test"
+		case strings.HasPrefix(value, "pk_live_"), strings.HasPrefix(value, "sk_live_"), strings.HasPrefix(value, "rk_live_"):
+			return "live"
+		default:
+			return ""
+		}
+	}
+	publicMode, secretMode := mode(publishableKey), mode(secretKey)
+	if publicMode != "" && secretMode != "" && publicMode != secretMode {
+		return fmt.Errorf("Stripe publishable and server keys use different modes (%s and %s)", publicMode, secretMode)
+	}
+	return nil
+}
+
 func NewPaymentSettingsService(db PaymentSettingsStore) *PaymentSettingsService {
 	return &PaymentSettingsService{db: db, testCredentials: make(map[string]string)}
 }
@@ -146,6 +169,9 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	nextPublishable := updateStringField(current.PublishableKey, pub)
 	nextSecret := updateStringField(current.SecretKey, sec)
 	nextWebhook := updateStringField(current.WebhookSecret, webhook)
+	if err := ValidateStripeKeyModePair(nextPublishable, nextSecret); err != nil {
+		return nil, err
+	}
 	nextDashboard := updateOptionalField(current.DashboardUrl, dashboard)
 	nextAnomalyURL := updateStringField(current.AnomalyWebhookUrl, anomalyURL)
 	nextAnomalyEnabled := current.AnomalyWebhookEnabled

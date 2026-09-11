@@ -3,6 +3,7 @@ package delivery
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -39,5 +40,22 @@ func TestResolveOptionalS3CredentialPreservesProviderFailure(t *testing.T) {
 	}, "delivery-s3-secret-access-key")
 	if !errors.Is(err, providerErr) {
 		t.Fatalf("error = %v; want provider error", err)
+	}
+}
+
+func TestReadinessObjectKeyKeepsProbeInsideSafePrefix(t *testing.T) {
+	key, err := readinessObjectKey("releases/desktop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(key, "releases/desktop/.vrooli-readiness-") {
+		t.Fatalf("readiness object key = %q, want bounded prefix", key)
+	}
+	unsafe, err := readinessObjectKey("../../outside")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(unsafe, "../") || strings.Contains(unsafe, "/../") {
+		t.Fatalf("unsafe readiness object key = %q", unsafe)
 	}
 }

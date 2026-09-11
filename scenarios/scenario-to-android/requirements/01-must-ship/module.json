@@ -102,7 +102,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "../../resources/android-sdk/cli/main_test.go::TestInstallDownloadsAndExposesADB",
+          "ref": "../../resources/android-sdk/cli/internal/androidsdk/implementation_test.go::TestInstallDownloadsAndValidatesPlatformTools",
           "phase": "integration",
           "status": "implemented",
           "notes": "[REQ:S2A-P0-006] The ramp consumes the governed resource; resource lifecycle coverage remains resource-owned. Installed tools: adb, sdkmanager, avdmanager, emulator under ~/.vrooli/bin; AVD: vrooli-api36."
@@ -129,7 +129,7 @@
           "ref": "api/internal/builds/builder_test.go::TestProvisionSigningKeyStoresOnlyCredentialFields",
           "phase": "unit",
           "status": "implemented",
-          "notes": "[REQ:S2A-P0-007] Provisioning generates the keystore through keytool, stores only base64/password/alias via the credential-client seam, and returns no material."
+          "notes": "[REQ:S2A-P0-007] Provisioning generates the keystore through keytool, stores only base64/keystore-password/key-password/alias via the credential-client seam, and returns no material."
         },
         {
           "type": "test",

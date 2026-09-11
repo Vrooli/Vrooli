@@ -1,4 +1,4 @@
-// DOC: docs/reference/deployment-lifecycle.md — deployment stages and status transitions
+// DOC: docs/reference/activation-and-reconciliation.md — deployment stages and status transitions
 package deployment
 
 import (

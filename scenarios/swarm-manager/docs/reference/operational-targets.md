@@ -17,7 +17,7 @@ References:
 - [CODE: api/internal/captures/classify.go]
 - [CODE: api/internal/proposals/types.go]
 
-### OT-P0-002 - One evolving plan per item
+### OT-P0-002 - Canonical work package
 Status: Implemented.
 References:
 - [DOC: docs/guides/workshop-workflow.md]
@@ -31,22 +31,24 @@ References:
 - [CODE: api/internal/planworkshop/service.go]
 - [CODE: api/routes_plan_workshop.go]
 
-### OT-P0-004 - Explicit plan acceptance gate
+### OT-P0-004 - Revision-bound acceptance gate
 Status: Implemented.
 References:
 - [DOC: docs/concepts/GLOSSARY.md] (Plan Acceptance)
 - [CODE: api/internal/backlog/plan_acceptance.go]
 - [CODE: api/internal/execution/preflight.go]
 
-### OT-P0-005 - Strategy-selectable execution
-Status: In progress — `phased-plan-drain` is the single declared fallback of
-record and is exposed with operator-facing description and cost. End-to-end
-live execution evidence remains outstanding.
+### OT-P0-005 - Mode-selectable execution
+Status: In progress — the Run dialog still offers three `execution_strategy`
+values from the strategy registry instead of a plan-shape banner and a
+sliced/goal mode picker. Sliced mode is served by `phased-plan-drain`; goal
+mode as one run is not built. The strategy-to-mode mapping lives in
+`docs/agent-system/SCENARIO_DEVELOPMENT.md` §Implementation status.
 References:
+- [DOC: docs/concepts/ARCHITECTURE.md] (Plan-backed execution)
 - [CODE: api/internal/execution/service_queue.go]
 - [CODE: api/internal/execution/strategies.go]
 - [CODE: .vrooli/swarm-transitions/registry.json]
-- [CODE: api/internal/execution/strategies.go]
 
 ### OT-P0-006 - Phased slice execution
 Status: Implemented.
@@ -116,6 +118,34 @@ References:
 - [CODE: api/internal/transitions/registry.go]
 - [CODE: api/internal/agentmanager/workflow.go]
 
+### OT-P0-015 - Plan-backed continuity
+Status: Partial — aggregate limits, halt/resume state and a continuation
+sweeper exist, but the sweeper keys on a `budget_exhausted` workflow status
+that the typed apply never accepts, so no execution is resumed today. The
+accounting core was built for the retired contract-development route
+(`internal/development`) and is not yet bound to plan-backed execution.
+References:
+- [DOC: docs/concepts/ARCHITECTURE.md] (Continuation)
+- [CODE: api/internal/execution/continuation.go]
+- [CODE: api/internal/transitionrun/transitionrun.go]
+
+### OT-P0-016 - Evidence-bound finalization
+Status: Partial — finalization gathers Test Genie and Git Control Tower
+evidence and runs the independent review; the evidence-bound acceptance
+predicate lives in the retired development package and has no production
+outcome resolvers.
+References:
+- [CODE: api/internal/execution/finalization.go]
+- [CODE: api/internal/review/workflow_apply.go]
+
+### OT-P0-017 - Run review surface
+Status: Partial — the run sheet shows limits, continuation and scope policy;
+there is no plan-shape banner, no `operator_note` field, and no composed goal
+message. The Development contract panel belongs to the retired route.
+References:
+- [CODE: ui/src/components/backlog/run-sheet.tsx]
+- [CODE: ui/src/components/backlog/backlog-form-details-section.tsx]
+
 ## P1 Targets
 
 ### OT-P1-001 - Goal next-action chaining
@@ -146,8 +176,8 @@ References:
 - [DOC: docs/internal/AGENT-SESSIONS.md]
 - [CODE: api/internal/agentsessions/service.go]
 
-### OT-P1-005 - One-shot execution strategy
-Status: Not implemented (strategy registry seam is ready for it).
+### OT-P1-005 - Goal execution mode
+Status: Not implemented — an interim workflow-based `goal-session` strategy exists and is superseded; see docs/concepts/ARCHITECTURE.md §Plan-backed execution.
 References:
 - [CODE: api/internal/execution/service_queue.go]
 

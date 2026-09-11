@@ -47,7 +47,10 @@ type Client struct {
 
 // NewClient creates a new secrets-manager client.
 func NewClient() *Client {
-	return &Client{serviceToken: strings.TrimSpace(os.Getenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN"))}
+	// The authority is the primary source. The environment variable remains an
+	// explicit compatibility adapter for older managed deployments and tests;
+	// it is never the only documented way to configure this client.
+	return &Client{}
 }
 
 // FetchBundleSecrets retrieves bundle secrets from the secrets-manager service.
@@ -98,20 +101,24 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string) 
 }
 
 func (c *Client) token(ctx context.Context) string {
-	if c.serviceToken != "" {
-		return c.serviceToken
+	if c != nil && strings.TrimSpace(c.serviceToken) != "" {
+		return strings.TrimSpace(c.serviceToken)
 	}
+	authorityToken := ""
 	identity, err := credentialauthority.ParseIdentity("vrooli/secrets-manager/deployment")
-	if err != nil {
-		return ""
+	if err == nil {
+		if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
+			if value, requireErr := authority.Require(identity, "service-token"); requireErr == nil {
+				authorityToken = value
+			}
+		}
 	}
-	authority, err := credentialauthority.Default()
-	if err != nil {
-		return ""
+	return selectServiceToken(authorityToken, os.Getenv("SECRETS_MANAGER_DEPLOYMENT_TOKEN"))
+}
+
+func selectServiceToken(authorityToken, compatibilityToken string) string {
+	if token := strings.TrimSpace(authorityToken); token != "" {
+		return token
 	}
-	token, err := authority.Require(identity, "service-token")
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(token)
+	return strings.TrimSpace(compatibilityToken)
 }

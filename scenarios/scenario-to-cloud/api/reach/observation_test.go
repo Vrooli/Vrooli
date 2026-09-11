@@ -14,7 +14,7 @@ import (
 func TestObservationProgramsAreBoundedReads(t *testing.T) {
 	for program := range ObservationPrograms {
 		switch program {
-		case "cat", "df", "du", "find", "grep", "journalctl", "ls", "pgrep", "ps", "ss", "stat", "uname", "head":
+		case "cat", "df", "du", "find", "grep", "sudo", "journalctl", "ls", "pgrep", "ps", "ss", "stat", "uname", "head":
 		default:
 			t.Fatalf("observation allowlist admits %q, which is not an inspection tool", program)
 		}
@@ -26,6 +26,9 @@ func TestObservationProgramsAreBoundedReads(t *testing.T) {
 	if got := valid.Argv(); len(got) != 3 || got[0] != "df" {
 		t.Fatalf("observation argv = %v", got)
 	}
+	if err := ValidateCommand(Command{Program: "sudo", Args: []string{"-n", "-l"}}); err != nil {
+		t.Fatalf("fixed sudo privilege observation should validate: %v", err)
+	}
 	refused := []Command{
 		{Program: "bash", Args: []string{"-c", "true"}},
 		{Program: "df", Effectful: true},
@@ -34,6 +37,7 @@ func TestObservationProgramsAreBoundedReads(t *testing.T) {
 		{Program: "ss", Args: []string{"-ltnp; rm -rf /"}},
 		{Program: "systemctl", Args: []string{"stop", "nginx"}},
 		{Program: "kill", Args: []string{"1"}},
+		{Program: "sudo", Args: []string{"-n", "bash"}},
 	}
 	for _, cmd := range refused {
 		if err := ValidateCommand(cmd); !IsKind(err, KindInvalidArgument) {

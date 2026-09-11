@@ -55,7 +55,15 @@ type ProcessInfo struct {
 }
 
 func observe(id, program string, args ...string) probe {
-	return probe{id: id, cmd: reach.Command{Program: program, Args: args, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+	cmd, err := reach.NewObservation(program, args...)
+	if err != nil {
+		// Probe definitions are static and must be reviewed with the owner
+		// mapping. Keep an invalid definition visible to the caller rather than
+		// silently falling back to a host program.
+		return probe{id: id, cmd: reach.Command{Verb: "cloud-target host observe", Args: []string{"--kind", "invalid"}, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+	}
+	cmd.Timeout = DefaultProbeTimeout
+	return probe{id: id, cmd: cmd}
 }
 
 func verb(id, verb string, args ...string) probe {

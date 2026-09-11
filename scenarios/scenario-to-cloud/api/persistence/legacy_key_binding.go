@@ -57,7 +57,7 @@ func convertLegacyKeyPathBindings(ctx context.Context, db DB) error {
 		consumers, _ := json.Marshal(binding.ConsumerRefs)
 		if _, err := db.ExecContext(ctx, `
 			INSERT INTO cloud_credential_bindings (`+credentialBindingColumns+`)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL, $12, '', '', $13, $14, $15)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL, $12, NULL, '', '', $13, $14, $15)
 			ON CONFLICT (deployment_id, logical_id, field) DO NOTHING`,
 			binding.ID, binding.DeploymentID, binding.Descriptor.LogicalID, binding.Descriptor.Field, string(binding.Class), binding.SourceClass,
 			binding.Target.Type, binding.Target.Name, binding.Version.Number, binding.Version.ContentRef, now, string(consumers),

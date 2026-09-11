@@ -879,7 +879,7 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 
 	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
-	body := `{"provider": "openrouter", "key": "test-openrouter-key-12345678"}`
+	body := `{"provider": "openai", "key": "test-openai-key-12345678"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -895,11 +895,30 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if resp.Provider != "openrouter" {
-		t.Errorf("Expected provider 'openrouter', got '%s'", resp.Provider)
+	if resp.Provider != "openai" {
+		t.Errorf("Expected provider 'openai', got '%s'", resp.Provider)
 	}
 	if resp.KeyHint != "****5678" {
 		t.Errorf("Expected key hint '****5678', got '%s'", resp.KeyHint)
+	}
+}
+
+func TestHandleCreateAPIKey_RejectsSharedOpenRouterCredential(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(`{"provider":"openrouter","key":"sk-or-managed"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d: %s", w.Code, http.StatusConflict, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "shared credential authority") {
+		t.Fatalf("response = %q, want shared-authority guidance", w.Body.String())
 	}
 }
 
@@ -927,7 +946,7 @@ func TestHandleCreateAPIKey_EmptyKey(t *testing.T) {
 
 	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
-	body := `{"provider": "openrouter", "key": ""}`
+	body := `{"provider": "openai", "key": ""}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

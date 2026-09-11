@@ -61,62 +61,6 @@ type FixProcessesResponse struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// DiskUsageResponse represents the response from disk usage query.
-type DiskUsageResponse struct {
-	OK          bool             `json:"ok"`
-	FreeSpace   string           `json:"free_space"`
-	FreeBytes   int64            `json:"free_bytes"`
-	TotalSpace  string           `json:"total_space"`
-	TotalBytes  int64            `json:"total_bytes"`
-	UsedPercent int              `json:"used_percent"`
-	LargestDirs []DiskUsageEntry `json:"largest_dirs,omitempty"`
-	Timestamp   string           `json:"timestamp"`
-}
-
-// DiskUsageEntry represents one directory usage row.
-type DiskUsageEntry struct {
-	Path  string `json:"path"`
-	Size  string `json:"size"`
-	Bytes int64  `json:"bytes"`
-}
-
-// DiskUsageRequest represents the request for disk usage.
-type DiskUsageRequest struct {
-	Host string `json:"host"`
-	Port int    `json:"port,omitempty"`
-	User string `json:"user,omitempty"`
-}
-
-// DiskCleanupRequest represents the request for disk cleanup.
-type DiskCleanupRequest struct {
-	Host    string   `json:"host"`
-	Port    int      `json:"port,omitempty"`
-	User    string   `json:"user,omitempty"`
-	Actions []string `json:"actions,omitempty"` // apt_clean, journal_vacuum, docker_prune, tmp_clean
-}
-
-// DiskCleanupResponse represents the response from disk cleanup.
-type DiskCleanupResponse struct {
-	OK            bool                `json:"ok"`
-	SpaceFreed    string              `json:"space_freed"`
-	SpaceFreedKB  int64               `json:"space_freed_kb"`
-	Message       string              `json:"message,omitempty"`
-	ActionsRun    []string            `json:"actions_run,omitempty"`
-	ActionsFailed []string            `json:"actions_failed,omitempty"`
-	ActionResults []DiskCleanupAction `json:"action_results,omitempty"`
-	Timestamp     string              `json:"timestamp"`
-}
-
-// DiskCleanupAction captures execution details for one cleanup action.
-type DiskCleanupAction struct {
-	Action   string `json:"action"`
-	OK       bool   `json:"ok"`
-	ExitCode int    `json:"exit_code"`
-	Summary  string `json:"summary,omitempty"`
-	Stderr   string `json:"stderr,omitempty"`
-	Hint     string `json:"hint,omitempty"`
-}
-
 // RequirementsResponse represents canonical VPS requirements from the API.
 type RequirementsResponse struct {
 	VPS struct {

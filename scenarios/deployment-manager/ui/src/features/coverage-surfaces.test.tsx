@@ -248,14 +248,21 @@ describe("uncovered operator surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hide help" }));
 
     cleanup();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
     const layout = renderWithProviders(<Layout><div>content</div></Layout>);
-    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
-    fireEvent.click(screen.getAllByText("Profiles")[0]!);
-    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
-    const mobileOverlay = layout.container.querySelector(".fixed.inset-0.z-40");
-    if (mobileOverlay) fireEvent.click(mobileOverlay);
-    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
-    expect(screen.getByText("content")).toBeInTheDocument();
+    fireEvent.click(layout.getByTestId("deployment-manager-app-shell-menu"));
+    fireEvent.click(layout.getAllByText("Profiles")[0]!);
+    fireEvent.click(layout.getByTestId("deployment-manager-app-shell-menu"));
+    fireEvent.click(layout.getByTestId("deployment-manager-app-shell-sidebar-close"));
+    fireEvent.click(layout.getByTestId("deployment-manager-app-shell-menu"));
+    fireEvent.click(layout.getByTestId("deployment-manager-app-shell-sidebar-backdrop"));
+    expect(layout.getByText("content")).toBeInTheDocument();
   });
 
   it("surfaces migration task filing failures", async () => {

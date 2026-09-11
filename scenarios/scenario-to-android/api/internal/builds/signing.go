@@ -24,9 +24,13 @@ func (b Builder) prepareSigningFiles(ctx context.Context, projectRoot, identity 
 	if err != nil {
 		return nil, fmt.Errorf("Android signing unavailable: resolve %s/%s: %w", identity, SigningKeystoreField, err)
 	}
-	password, err := b.Signing.Resolve(ctx, identity, SigningPasswordField)
+	storePassword, err := b.Signing.Resolve(ctx, identity, SigningPasswordField)
 	if err != nil {
 		return nil, fmt.Errorf("Android signing unavailable: resolve %s/%s: %w", identity, SigningPasswordField, err)
+	}
+	keyPassword, err := b.Signing.Resolve(ctx, identity, SigningKeyPasswordField)
+	if err != nil {
+		return nil, fmt.Errorf("Android signing unavailable: resolve %s/%s: %w", identity, SigningKeyPasswordField, err)
 	}
 	alias, err := b.Signing.Resolve(ctx, identity, SigningAliasField)
 	if err != nil {
@@ -50,7 +54,7 @@ func (b Builder) prepareSigningFiles(ctx context.Context, projectRoot, identity 
 		_ = os.RemoveAll(secretDir)
 		return nil, fmt.Errorf("write temporary Android keystore: %w", err)
 	}
-	properties := fmt.Sprintf("storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n", escapeProperties(keystorePath), escapeProperties(password), escapeProperties(alias), escapeProperties(password))
+	properties := fmt.Sprintf("storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n", escapeProperties(keystorePath), escapeProperties(storePassword), escapeProperties(alias), escapeProperties(keyPassword))
 	if err := os.WriteFile(propertiesPath, []byte(properties), 0o600); err != nil {
 		_ = os.RemoveAll(secretDir)
 		return nil, fmt.Errorf("write temporary Android signing properties: %w", err)
@@ -75,7 +79,7 @@ func escapeProperties(value string) string {
 	return strings.NewReplacer("\\", "\\\\", "\n", "\\n", "\r", "\\r", "=", "\\=", ":", "\\:").Replace(value)
 }
 
-// ProvisionSigningKey creates an upload key only when the three declared
+// ProvisionSigningKey creates an upload key only when the four declared
 // credential fields are all absent. It never returns key material. Partial
 // configuration is rejected because silently replacing one field would make
 // an existing Play upload identity unusable.
@@ -92,8 +96,8 @@ func ProvisionSigningKey(ctx context.Context, store SigningProvisioner, identity
 	if identity == "" {
 		identity = DefaultSigningIdentity
 	}
-	values := make(map[string]string, 3)
-	fields := []string{SigningKeystoreField, SigningPasswordField, SigningAliasField}
+	values := make(map[string]string, 4)
+	fields := []string{SigningKeystoreField, SigningPasswordField, SigningKeyPasswordField, SigningAliasField}
 	configured := 0
 	for _, field := range fields {
 		value, err := store.Resolve(ctx, identity, field)
@@ -116,9 +120,13 @@ func ProvisionSigningKey(ctx context.Context, store SigningProvisioner, identity
 			return fmt.Errorf("keytool is unavailable: %w", err)
 		}
 	}
-	password, err := randomSecret(32)
+	storePassword, err := randomSecret(32)
 	if err != nil {
-		return fmt.Errorf("generate signing password: %w", err)
+		return fmt.Errorf("generate keystore password: %w", err)
+	}
+	keyPassword, err := randomSecret(32)
+	if err != nil {
+		return fmt.Errorf("generate key password: %w", err)
 	}
 	secretDir, err := os.MkdirTemp("", "vrooli-android-provision-")
 	if err != nil {
@@ -127,17 +135,21 @@ func ProvisionSigningKey(ctx context.Context, store SigningProvisioner, identity
 	defer os.RemoveAll(secretDir)
 	_ = os.Chmod(secretDir, 0o700)
 	keystorePath := filepath.Join(secretDir, "upload.keystore")
-	passwordPath := filepath.Join(secretDir, "upload.password")
+	storePasswordPath := filepath.Join(secretDir, "upload.store-password")
+	keyPasswordPath := filepath.Join(secretDir, "upload.key-password")
 	alias := "vrooli-upload"
-	if err := os.WriteFile(passwordPath, []byte(password+"\n"), 0o600); err != nil {
-		return fmt.Errorf("write temporary Android signing password: %w", err)
+	if err := os.WriteFile(storePasswordPath, []byte(storePassword+"\n"), 0o600); err != nil {
+		return fmt.Errorf("write temporary Android keystore password: %w", err)
+	}
+	if err := os.WriteFile(keyPasswordPath, []byte(keyPassword+"\n"), 0o600); err != nil {
+		return fmt.Errorf("write temporary Android key password: %w", err)
 	}
 	if run == nil {
 		run = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 			return exec.CommandContext(ctx, name, args...).CombinedOutput() // #nosec G702 -- explicit governed keytool binary; tests inject Run
 		}
 	}
-	output, err := run(ctx, keytoolBin, "-genkeypair", "-alias", alias, "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000", "-storetype", "PKCS12", "-keystore", keystorePath, "-storepass:file", passwordPath, "-keypass:file", passwordPath, "-dname", "CN=Vrooli Android Upload,O=Vrooli")
+	output, err := run(ctx, keytoolBin, "-genkeypair", "-alias", alias, "-keyalg", "RSA", "-keysize", "2048", "-validity", "10000", "-storetype", "JKS", "-keystore", keystorePath, "-storepass:file", storePasswordPath, "-keypass:file", keyPasswordPath, "-dname", "CN=Vrooli Android Upload,O=Vrooli")
 	if err != nil {
 		return fmt.Errorf("generate Android upload key: %w: %s", err, strings.TrimSpace(string(output)))
 	}
@@ -146,7 +158,7 @@ func ProvisionSigningKey(ctx context.Context, store SigningProvisioner, identity
 		return fmt.Errorf("read generated upload key: %w", err)
 	}
 	encoded := base64.StdEncoding.EncodeToString(data)
-	for field, value := range map[string]string{SigningKeystoreField: encoded, SigningPasswordField: password, SigningAliasField: alias} {
+	for field, value := range map[string]string{SigningKeystoreField: encoded, SigningPasswordField: storePassword, SigningKeyPasswordField: keyPassword, SigningAliasField: alias} {
 		if _, err := store.Provision(ctx, credentialclient.ProvisionRequest{Identity: identity, Field: field, Value: value}); err != nil {
 			return fmt.Errorf("provision signing identity %s/%s: %w", identity, field, err)
 		}

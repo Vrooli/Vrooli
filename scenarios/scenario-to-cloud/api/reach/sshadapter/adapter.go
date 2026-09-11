@@ -129,7 +129,7 @@ func (a *Adapter) Exec(ctx context.Context, target identity.TargetRef, cmd reach
 	}
 	argv := cmd.Argv()
 	remote := RemoteCommand(target.Locator.Workdir, argv[1:])
-	if cmd.IsObservation() {
+	if cmd.IsObservation() && cmd.Observation == nil {
 		remote = ObservationCommand(argv)
 	}
 	opts := DefaultRunOptions()

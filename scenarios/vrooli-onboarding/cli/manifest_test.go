@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/auth"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )

@@ -37,10 +37,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-
-	"github.com/vrooli/vrooli/internal/cliout"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // legacyManagedKey is the retired pre-1.0 inline top-level key that once
@@ -325,11 +325,14 @@ export const VrooliPolicy = async () => ({
       arguments: input.args ? [JSON.stringify(input.args)] : [],
       occurred_at: new Date().toISOString()
     };
+    // Bun.spawnSync feeds a TypedArray given as stdin to the child and then
+    // closes it; there is no Node-style "input" option. With stdin: "pipe" and
+    // no writer the runner read an empty body, exited 1 with "hook input is
+    // empty", and every bash call was refused.
     const result = Bun.spawnSync([%q, "hook", "--runner", "opencode"], {
-      stdin: "pipe",
+      stdin: new TextEncoder().encode(JSON.stringify(event)),
       stdout: "pipe",
-      stderr: "pipe",
-      input: JSON.stringify(event)
+      stderr: "pipe"
     });
     if (result.exitCode !== 0) {
       throw new Error("Vrooli policy runner denied or could not evaluate this tool call");

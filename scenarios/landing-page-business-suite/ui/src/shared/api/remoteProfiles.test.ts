@@ -38,6 +38,62 @@ describe('remote profile API transport', () => {
     expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profile-sessions/session%2F1', { method: 'DELETE' });
   });
 
+  it('sends remote owner settings through the constrained proxy endpoint', async () => {
+    await expect(remoteProfiles.proxyRemoteProfileAdmin(7, {
+      method: 'POST',
+      path: '/landing_page_business_suite.v1.AdministrationService/ListAPIKeys',
+      body: {},
+    })).resolves.toEqual({});
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/remote-profiles/7/proxy', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }));
+  });
+
+  it('normalizes remote owner settings without exposing secret values', async () => {
+    mockApiCall
+      .mockResolvedValueOnce({ keys: [{ id: 'key-1', provider: 'anthropic', keyHint: 'sk-...abc', isActive: true }] })
+      .mockResolvedValueOnce({ settings: { dashboardUrl: 'https://dashboard.stripe.com', secretKey: 'must-not-be-used', anomalyWebhookUrlSet: true }, snapshot: { publishableKeyPreview: 'pk_test_...abc', publishableKeySet: true, secretKeySet: true, webhookSecretSet: false, source: 'CONFIG_SOURCE_DATABASE' } });
+
+    await expect(remoteProfiles.listRemoteAPIKeysAdmin(7)).resolves.toEqual({
+      keys: [{ id: 'key-1', provider: 'anthropic', key_hint: 'sk-...abc', is_active: true, last_verified_at: undefined, created_at: undefined, updated_at: undefined }],
+    });
+    await expect(remoteProfiles.getRemoteStripeSettingsAdmin(7)).resolves.toMatchObject({
+      dashboard_url: 'https://dashboard.stripe.com',
+      publishable_key_preview: 'pk_test_...abc',
+      secret_key_set: true,
+      anomaly_webhook_url_set: true,
+    });
+    const calls = mockApiCall.mock.calls.map(([, options]) => JSON.parse(String(options?.body ?? '{}')));
+    expect(calls[0].body).toEqual({});
+    expect(calls[1].body).toEqual({});
+    expect(calls[1].body.secretKey).toBeUndefined();
+  });
+
+  it('keeps remote owner mutations on the approved Connect procedures', async () => {
+    mockApiCall
+      .mockResolvedValueOnce({ key: { id: 'key-2', provider: 'openai', key_hint: 'sk-...xyz', is_active: true } })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ success: true, message: 'ok' })
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ settings: {}, snapshot: {} });
+
+    await expect(remoteProfiles.createRemoteAPIKeyAdmin(7, 'openai', 'secret')).resolves.toMatchObject({ provider: 'openai', key_hint: 'sk-...xyz' });
+    await remoteProfiles.deleteRemoteAPIKeyAdmin(7, 'openai');
+    await expect(remoteProfiles.testRemoteAPIKeyAdmin(7, 'openai')).resolves.toEqual({ success: true, message: 'ok' });
+    await remoteProfiles.setRemoteAPIKeyActiveAdmin(7, 'openai', false);
+    await remoteProfiles.updateRemoteStripeSettingsAdmin(7, { dashboard_url: 'https://dashboard.stripe.com' });
+
+    const paths = mockApiCall.mock.calls.map(([, options]) => JSON.parse(String(options?.body ?? '{}')).path);
+    expect(paths).toEqual([
+      '/landing_page_business_suite.v1.AdministrationService/CreateAPIKey',
+      '/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey',
+      '/landing_page_business_suite.v1.AdministrationService/TestAPIKey',
+      '/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive',
+      '/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings',
+    ]);
+  });
+
   it('returns validated profile and session records for lifecycle actions', async () => {
     const profile = {
       id: 7, tag: 'partner', label: 'Partner', api_base: 'https://partner.example/api/v1', status: 'active', has_session: true,

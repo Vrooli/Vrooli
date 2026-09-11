@@ -26,6 +26,41 @@ publication was performed; the production deployment was only read.
 Evidence freshness and what a re-certification requires:
 `docs/reference/support-policy.md` §"Compatibility policy and evidence freshness".
 
+## Current execution handoff — 2026-09-11
+
+The active completion execution is Plan Manager execution
+`a1241c60-3eb3-42c6-97f1-d834c341ce95`; its durable handoff is
+`268672c1-45ab-4213-921c-c924f2b3138e` and is intentionally
+`COMPLETENESS_PARTIAL`. The current Plan Manager validation remains
+`VALIDATION_VERDICT_UNKNOWN`; its collection receipt is not ready because the
+shared `stable-v8` snapshot has unrelated scoped deltas. This handoff is the
+operator-facing standing for the current working tree and does not create a
+certification claim.
+
+There is no immutable release candidate, staging publication, destination
+readback, or production promotion in this execution. The production LPBS
+deployment was observed read-only; no disposable target, delegated DNS zone,
+QEMU guest, independent reviewer, BAS mutation run, or soak resource was
+created. Therefore the exact next action is to obtain the external inputs in
+`plan-artifacts/.../proposals/external-inputs.md`, build a fresh candidate, and
+rerun only the applicable QEMU, real-VPS, publication, review, BAS, and soak
+lanes. Never substitute the package-lane placeholder receipts above for that
+candidate.
+
+The durable owner commands are documented in
+`docs/guides/runbooks/deploy.md`, `update.md`, `incident.md`, `restore.md`,
+`rotate.md`, and `retire.md`; the declaration contract for the next scenario
+is `docs/guides/next-scenario-onboarding.md`. Cleanup standing is empty for
+this execution because no disposable cloud resource or credential was
+allocated. The production TLS renewal observation remains open and must be
+resolved before its 2026-12-07 certificate deadline.
+
+The manifest-derived CLI reference now renders required placeholders in shell-safe
+quotes. CLI module tests pass, and the latest docs run
+`20260911-170416-a644f567` passes; its remaining reference-integrity findings
+are attributable to the unavailable CLI Health catalog refresh recorded in
+`docs/internal/PROBLEMS.md`.
+
 ## What shipped, by phase
 
 | Phase | Shipped | Evidence |
@@ -55,6 +90,12 @@ Evidence freshness and what a re-certification requires:
 | 24 Generality (deterministic) | Newcomer fixture deployed through declarations only, two-environment isolation, unsupported-architecture naming, routes across update, generic fixture golden | `evidence/P24-generality.md`, `docs/guides/next-scenario-onboarding.md` |
 | 25 Consolidation | Route retirements (`/ssh/*`, `bundles/vps/list|delete`, `preflight/fix/ports`), `api/ssh` deleted with the runner inside `reach/sshadapter`, manifest `key_path` replaced by an SSH-key credential binding, `preflight/disk/*` on observation programs and broker actions, canonical documentation set, architecture conformance tests (`api/archtest`), operator runbooks (`docs/guides/runbooks/`), this file | `evidence/P25-consolidation.md` |
 
+2026-09-11 consolidation follow-up: the remaining `/preflight/disk/usage` and
+`/preflight/disk/cleanup` HTTP, CLI, and UI consumers are retired. Disk capacity
+is observation-only in preflight; target cleanup is owned by the typed
+`cloud-target host repair` and bundle-GC operations. API, CLI, and UI targeted
+validation passed after the retirement.
+
 Whole-module `go test ./...` for `api/` passed on 2026-09-09 (all packages);
 `cli/` 12 packages pass; `ui/` 44 test files pass with type-check clean
 (`evidence/P26-certification.md`).
@@ -70,15 +111,16 @@ Not delivered:
 | Phase 22 independent review and live adversarial journeys | EXT-07 / EXT-01 |
 | Phase 23 soak, real pressure, live alert delivery | EXT-09 / EXT-01 |
 | Phase 24 on a target; hosted-consumer journey | EXT-01 |
-| Phase 25 remainder | operator walkthrough (DL-09) and the legacy data-inventory adoption on the production row (DL-04); the `api/ssh` package, manifest `key_path` and the `preflight/disk/*` shell were retired the same day (`evidence/P25-consolidation.md`; standing per row in `ledgers/deletion-ledger.md`) |
+| Phase 25 remainder | operator walkthrough (DL-09) and the legacy data-inventory adoption on the production row (DL-04); the `api/ssh` package, manifest `key_path` and the `preflight/disk/*` shell are retired (`evidence/P25-consolidation.md`; current follow-up above; standing per row in `ledgers/deletion-ledger.md`) |
 | Phase 26 | staging publication and production promotion inputs (EXT-01, EXT-11) |
 
 Deletion-ledger rows still partial at the time of writing: DL-02 (cloud
 SSH transport authority), DL-03 (private host repair for disk cleanup),
 DL-04 (directory-name heuristic for unmapped legacy paths, retires once the
 production inventory is adopted), DL-08 (SSH error classifiers), DL-09
-(docs; closed by this phase except for the walkthrough), DL-11
-(`preflight/disk/*` routes). Closed: DL-01, 05, 06, 07, 10, 12, 13, 14, 15.
+(docs; closed by this phase except for the walkthrough). DL-11's routes are
+retired by the 2026-09-11 follow-up; its historical ledger row remains for
+traceability. Closed: DL-01, 05, 06, 07, 10, 12, 13, 14, 15.
 
 Known functional limitations carried in the reference docs:
 

@@ -73,6 +73,32 @@ func TestEvaluateFreshnessOutdatedByVersion(t *testing.T) {
 	}
 }
 
+func TestEvaluateFreshnessVersionOnlyDefersBundleFingerprint(t *testing.T) {
+	scenarioID := "demo-scenario"
+	repoRoot := setupFreshnessFixture(t, scenarioID, "1.4.0", "1.4.0")
+	manifest := testManifest(scenarioID)
+	manifest.Scenario.Ref = "1.4.0"
+	mismatch := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	dep := &domain.Deployment{BundleSHA256: &mismatch}
+
+	freshness := evaluateFreshnessVersionOnly(repoRoot, dep, manifest)
+	if freshness.Status != domain.FreshnessCurrent {
+		t.Fatalf("expected version-only freshness to be current, got %q", freshness.Status)
+	}
+	if freshness.VersionStatus != domain.FreshnessCurrent {
+		t.Fatalf("expected version status current, got %q", freshness.VersionStatus)
+	}
+	if freshness.FingerprintStatus != domain.FreshnessUnknown {
+		t.Fatalf("expected fingerprint status unknown while deferred, got %q", freshness.FingerprintStatus)
+	}
+	if freshness.LocalBundleSHA256 != "" {
+		t.Fatalf("version-only health path computed a local bundle fingerprint: %q", freshness.LocalBundleSHA256)
+	}
+	if freshness.DeployedBundleSHA256 != "" {
+		t.Fatalf("version-only health path compared the deployed bundle fingerprint: %q", freshness.DeployedBundleSHA256)
+	}
+}
+
 func TestEvaluateFreshnessOutdatedByFingerprint(t *testing.T) {
 	scenarioID := "demo-scenario"
 	repoRoot := setupFreshnessFixture(t, scenarioID, "1.0.0", "1.0.0")

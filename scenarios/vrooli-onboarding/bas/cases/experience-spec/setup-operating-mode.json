@@ -18,7 +18,7 @@
           "label": "Open Operating mode"
         },
         "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
           "scenario": "vrooli-onboarding",
           "scenario_path": "/setup/operating-mode",
           "timeout_ms": 30000,

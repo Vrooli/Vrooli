@@ -14,7 +14,7 @@ declare global {
 export const API_BASE = resolveApiBase();
 export const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 
-async function onboardingFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export async function onboardingFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const token = typeof window !== "undefined"
     ? await window.desktop?.auth?.getLocalSessionToken?.()
     : null;

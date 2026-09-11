@@ -37,6 +37,7 @@ func healthyHost(ramKB string, portsInUse bool, portProcess string) *reachtest.S
 		Strict: true,
 		Answers: map[string]reachtest.Answer{
 			"uname -s":            answer("Linux"),
+			"sudo -n -l":          answer("User root may run the following commands..."),
 			"cat /etc/os-release": answer("ID=ubuntu\nVERSION_ID=\"24.04\""),
 			"ss -ltnpH ( sport = :80 or sport = :443 )": answer(edge),
 			"cat /etc/ufw/ufw.conf":                     answer("ENABLED=no"),
@@ -86,6 +87,14 @@ func runPreflight(t *testing.T, host *reachtest.Scripted, opts RunOptions) domai
 	return Run(context.Background(), manifest, dnsService, host, domain.TargetRefFromManifest(manifest), opts)
 }
 
+func runPreflightAsUser(t *testing.T, host *reachtest.Scripted, user string, opts RunOptions) domain.PreflightResponse {
+	t.Helper()
+	manifest := testManifest()
+	manifest.Target.VPS.User = user
+	dnsService := dns.NewService(mapResolver{}, dns.WithTimeout(2*time.Second))
+	return Run(context.Background(), manifest, dnsService, host, domain.TargetRefFromManifest(manifest), opts)
+}
+
 func checkByID(resp domain.PreflightResponse, id string) (domain.PreflightCheck, bool) {
 	for _, c := range resp.Checks {
 		if c.ID == id {
@@ -115,7 +124,7 @@ func TestRun_HappyPathUsesOnlyObservationPrograms(t *testing.T) {
 			t.Fatalf("program %q is outside the observation set", call.Program)
 		}
 	}
-	for _, id := range []string{domain.PreflightSSHConnectID, domain.PreflightOSReleaseID, domain.PreflightFirewallID, domain.PreflightDiskFreeID, domain.PreflightRAMTotalID, domain.PreflightDockerID, domain.PreflightSystemdID, domain.PreflightAptAccessID, domain.PreflightStaleProcessesID} {
+	for _, id := range []string{domain.PreflightSSHConnectID, domain.PreflightPrivilegeID, domain.PreflightOSReleaseID, domain.PreflightFirewallID, domain.PreflightDiskFreeID, domain.PreflightRAMTotalID, domain.PreflightDockerID, domain.PreflightSystemdID, domain.PreflightAptAccessID, domain.PreflightStaleProcessesID} {
 		c, found := checkByID(resp, id)
 		if !found || c.Status != domain.PreflightPass {
 			t.Fatalf("check %s = %+v, want pass", id, c)
@@ -123,6 +132,26 @@ func TestRun_HappyPathUsesOnlyObservationPrograms(t *testing.T) {
 	}
 	if c, _ := checkByID(resp, domain.PreflightOutboundNetworkID); c.Status != domain.PreflightWarn {
 		t.Fatalf("outbound network must be reported as unobserved (warn), got %+v", c)
+	}
+}
+
+func TestRun_VerifiesNonRootPrivilegeStrategy(t *testing.T) {
+	t.Parallel()
+	host := healthyHost("2097152", false, "")
+	resp := runPreflightAsUser(t, host, "deploy", testOptions(nil))
+	if !resp.OK {
+		t.Fatalf("expected non-root user with sudo to pass preflight, got: %+v", resp.Checks)
+	}
+	check, found := checkByID(resp, domain.PreflightPrivilegeID)
+	if !found || check.Status != domain.PreflightPass || check.Data["strategy"] != "sudo_non_interactive" {
+		t.Fatalf("privilege check = %+v, want sudo_non_interactive pass", check)
+	}
+
+	host.Answers["sudo -n -l"] = reachtest.Answer{Result: reach.Result{ExitCode: 1, Stderr: "deploy is not allowed to run sudo"}}
+	resp = runPreflightAsUser(t, host, "deploy", testOptions(nil))
+	check, found = checkByID(resp, domain.PreflightPrivilegeID)
+	if !found || check.Status != domain.PreflightFail || !strings.Contains(check.Hint, "target owner") {
+		t.Fatalf("privilege refusal = %+v, want actionable target-owner guidance", check)
 	}
 }
 

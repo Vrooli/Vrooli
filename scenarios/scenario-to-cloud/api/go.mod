@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/miekg/dns v1.1.69
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/delivery-ramp-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -30,7 +31,6 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	golang.org/x/mod v0.37.0 // indirect

@@ -781,54 +781,6 @@ export interface StopPortServicesResponse {
   timestamp: string;
 }
 
-export interface DiskUsageRequest {
-  host: string;
-  port?: number;
-  user?: string;
-}
-
-export interface DiskUsageEntry {
-  path: string;
-  size: string;
-  bytes: number;
-}
-
-export interface DiskUsageResponse {
-  ok: boolean;
-  free_space: string;
-  free_bytes: number;
-  total_space: string;
-  total_bytes: number;
-  used_percent: number;
-  largest_dirs: DiskUsageEntry[];
-  timestamp: string;
-}
-
-export interface DiskCleanupRequest {
-  host: string;
-  port?: number;
-  user?: string;
-  actions?: string[];
-}
-
-export interface DiskCleanupResponse {
-  ok: boolean;
-  space_freed: string;
-  space_freed_kb: number;
-  message: string;
-  actions_run: string[];
-  actions_failed?: string[];
-  action_results?: {
-    action: string;
-    ok: boolean;
-    exit_code: number;
-    summary?: string;
-    stderr?: string;
-    hint?: string;
-  }[];
-  timestamp: string;
-}
-
 export interface FirewallFixRequest {
   host: string;
   port?: number;
@@ -880,44 +832,6 @@ export async function openFirewallPorts(
     throw new Error(`Failed to open firewall ports: ${res.status} ${text}`);
   }
   return res.json() as Promise<FirewallFixResponse>;
-}
-
-/**
- * Get detailed disk usage information
- */
-export async function getDiskUsage(
-  request: DiskUsageRequest
-): Promise<DiskUsageResponse> {
-  const url = buildApiUrl("/preflight/disk/usage", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to get disk usage: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<DiskUsageResponse>;
-}
-
-/**
- * Run disk cleanup operations
- */
-export async function runDiskCleanup(
-  request: DiskCleanupRequest
-): Promise<DiskCleanupResponse> {
-  const url = buildApiUrl("/preflight/disk/cleanup", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to run disk cleanup: ${res.status} ${text}`);
-  }
-  return res.json() as Promise<DiskCleanupResponse>;
 }
 
 export interface StopScenarioProcessesRequest {

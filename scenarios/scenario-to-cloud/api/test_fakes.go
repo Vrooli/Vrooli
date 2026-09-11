@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"sync"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/secrets"
 
@@ -56,8 +59,15 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ sshadapter.ConnectionConfig, co
 	f.Calls = append(f.Calls, command)
 	f.mu.Unlock()
 
-	// Try handler first (supports prefix/regex matching)
+	// Try the legacy semantic spelling first for typed observations so old
+	// handlers remain meaningful while the production transport changes.
 	if f.Handler != nil {
+		if legacy, ok := f.typedObservationLegacy(command); ok {
+			if res, err, handled := f.Handler(legacy); handled {
+				return res, err
+			}
+		}
+		// Try handler first for all other commands (supports prefix/regex matching).
 		if res, err, handled := f.Handler(command); handled {
 			return res, err
 		}
@@ -70,10 +80,66 @@ func (f *FakeSSHRunner) Run(_ context.Context, _ sshadapter.ConnectionConfig, co
 	if res, ok := f.Responses[command]; ok {
 		return res, nil
 	}
+	if res, ok := f.typedObservationResponse(command); ok {
+		return res, nil
+	}
 	if f.DefaultErr != nil {
 		return sshadapter.Result{ExitCode: 1}, f.DefaultErr
 	}
 	return sshadapter.Result{Stdout: "", ExitCode: 127}, fmt.Errorf("unknown command: %s", command)
+}
+
+var quotedToken = regexp.MustCompile(`'([^']*)'`)
+
+// typedObservationResponse keeps legacy semantic fixtures reusable while the
+// SSH adapter now invokes the target-owned cloud-target host observe verb.
+// It is test compatibility only; production never parses remote shell text.
+func (f *FakeSSHRunner) typedObservationResponse(command string) (sshadapter.Result, bool) {
+	legacy, ok := f.typedObservationLegacy(command)
+	if !ok {
+		return sshadapter.Result{}, false
+	}
+	if result, ok := f.Responses[legacy]; ok {
+		return result, true
+	}
+	return sshadapter.Result{}, false
+}
+
+func (f *FakeSSHRunner) typedObservationLegacy(command string) (string, bool) {
+	if !strings.Contains(command, "'cloud-target' 'host' 'observe'") {
+		return "", false
+	}
+	matches := quotedToken.FindAllStringSubmatch(command, -1)
+	var tokens []string
+	for _, match := range matches {
+		tokens = append(tokens, match[1])
+	}
+	kindIndex := -1
+	for i, token := range tokens {
+		if token == "--kind" && i+1 < len(tokens) {
+			kindIndex = i + 1
+			break
+		}
+	}
+	if kindIndex < 0 {
+		return "", false
+	}
+	kind := tokens[kindIndex]
+	var args []string
+	for i := kindIndex + 1; i+1 < len(tokens); i++ {
+		if tokens[i] == "--arg" {
+			args = append(args, tokens[i+1])
+			i++
+		}
+	}
+	for program, mapped := range reach.ObservationKinds {
+		if mapped != kind {
+			continue
+		}
+		legacy := sshadapter.ObservationCommand(append([]string{program}, args...))
+		return legacy, true
+	}
+	return "", false
 }
 
 // FakeSCPRunner provides a controllable sshadapter.SCPRunner for testing.

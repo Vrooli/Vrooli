@@ -14,6 +14,7 @@ import (
 // docs/reference/configuration.md.
 const (
 	EnvAuthMode       = "VROOLI_AUTH_MODE"
+	EnvAuthLocalToken = "VROOLI_AUTH_LOCAL_TOKEN_FILE" // #nosec G101 -- environment variable name, not credential material.
 	EnvAllowedOrigins = "VROOLI_ALLOWED_ORIGINS"
 	EnvAllowedHosts   = "VROOLI_ALLOWED_HOSTS"
 	EnvBindAddress    = "API_BIND_ADDRESS"
@@ -66,8 +67,8 @@ type Config struct {
 // FromEnvironment resolves the boundary from the runtime environment.
 //
 //   - VROOLI_AUTH_MODE empty or personal_local: the loopback personal-local
-//     provider with this scenario's three scopes, followed by any shared
-//     providers from VROOLI_AUTH_PROVIDERS.
+//     provider bound to VROOLI_AUTH_LOCAL_TOKEN_FILE with this scenario's
+//     three scopes, followed by any shared providers from VROOLI_AUTH_PROVIDERS.
 //   - VROOLI_AUTH_MODE shared: only the shared providers; an empty chain is a
 //     startup error because the boundary never falls back to anonymous access.
 //   - API_BIND_ADDRESS non-loopback requires VROOLI_ALLOWED_HOSTS.
@@ -90,7 +91,7 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 	switch mode {
 	case "", ModePersonalLocal:
 		cfg.Mode = ModePersonalLocal
-		providers := []authn.Provider{authn.NewPersonalLocalProvider(Scopes()...)}
+		providers := []authn.Provider{authn.NewPersonalLocalProviderWithTokenFile(getenv(EnvAuthLocalToken), Scopes()...)}
 		cfg.Authn = authn.Config{Providers: append(providers, shared.Providers...), RecoveryURL: shared.RecoveryURL}
 	case ModeShared:
 		cfg.Mode = ModeShared

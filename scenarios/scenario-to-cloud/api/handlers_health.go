@@ -8,8 +8,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/vrooli/api-core/eventbus"
-
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
@@ -22,8 +20,10 @@ import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/health"
 )
 
-// healthInspectionTimeout bounds one live-state + DNS + TLS inspection.
-const healthInspectionTimeout = 2 * time.Minute
+// healthInspectionTimeout bounds one live-state + DNS + TLS inspection. The
+// console is an operator surface, so an unreachable target must settle to a
+// typed unknown/degraded observation within a bounded interactive interval.
+const healthInspectionTimeout = 15 * time.Second
 
 // registerHealthRoutes mounts the typed observation surface beside the
 // legacy report. The legacy GET /deployments/{id}/health route stays where
@@ -41,44 +41,11 @@ var evaluateFreshnessForHealth = func(s *Server, ctx context.Context, dep *domai
 	return s.evaluateDeploymentFreshness(ctx, dep, manifest)
 }
 
-// healthAlerter publishes scenario-to-cloud.deployment.alert.v1 transitions
-// for every produced observation (Phase 23 contract). It is built lazily on
-// first use from the discovered vrooli-events client and the phase-23
-// detection budget; tests replace it through setHealthAlerter. A Server
-// field would be the better home once main.go owners wire it.
-var (
-	healthAlerterOnce sync.Once
-	healthAlerter     *health.Alerter
-	healthAlerterMu   sync.RWMutex
-)
-
 func (s *Server) alerter() *health.Alerter {
-	healthAlerterMu.RLock()
-	current := healthAlerter
-	healthAlerterMu.RUnlock()
-	if current != nil {
-		return current
+	if s == nil {
+		return nil
 	}
-	healthAlerterOnce.Do(func() {
-		detection, source := health.LoadDetection()
-		s.log("deployment alerting configured", map[string]interface{}{"budgets": source, "stale_after_seconds": detection.StaleObservationAfterSeconds, "certificate_warning_days": detection.CertificateExpiryWarningDays})
-		built := health.NewAlerter(eventbus.NewDiscoveredClient(context.Background()), detection, s.log)
-		healthAlerterMu.Lock()
-		if healthAlerter == nil {
-			healthAlerter = built
-		}
-		healthAlerterMu.Unlock()
-	})
-	healthAlerterMu.RLock()
-	defer healthAlerterMu.RUnlock()
-	return healthAlerter
-}
-
-// setHealthAlerter replaces the process-wide alerter (tests).
-func setHealthAlerter(a *health.Alerter) {
-	healthAlerterMu.Lock()
-	healthAlerter = a
-	healthAlerterMu.Unlock()
+	return s.healthSvc
 }
 
 // healthInspection is one producer pass over a deployment: the legacy

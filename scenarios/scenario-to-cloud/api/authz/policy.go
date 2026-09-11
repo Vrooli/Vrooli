@@ -36,8 +36,8 @@ type Grant struct {
 // PolicyDocument is the operator-owned policy file shape.
 type PolicyDocument struct {
 	// Principals maps a verified subject to its grant. Subjects are the
-	// provider subjects (osuser:<uid> for personal_local, the JWT subject for
-	// shared providers).
+	// provider subjects (the runtime-issued local-session subject for
+	// personal_local, the JWT subject for shared providers).
 	Principals map[string]Grant `json:"principals"`
 	// Revoked lists subjects whose grants are withdrawn; a revoked subject is
 	// refused at the effect boundary even when its credential still verifies.

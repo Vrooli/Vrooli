@@ -20,52 +20,12 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "list",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/bundles",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/bundles",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.bundles"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.timestamp"
-          }
-        ]
-      }
-    },
-    {
-      "id": "stats",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/bundles/stats",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/bundles/stats",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"list-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/bundles","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/bundles"}}},
+      {"id":"stats-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/bundles/stats","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/bundles/stats"}}}
+    ],
+    "edges":[{"source":"list-open","target":"stats-open"}]
+  }
 }

@@ -119,22 +119,26 @@ transcripts under `internal/adapters/runner/codecs/testdata/corpus/`.
 >     `HostLauncher`, `SandboxLauncher`, and the `/processes`
 >     git-allowlist enforcement.
 
-## Interactive execution mode is rejected for protected runs
+## Interactive execution mode is not a protected path
 
 Everything below describes the **codec-pipe** execution path, where agent-manager
 owns the agent child process and can route it through the `runner.Launcher` seam
 into workspace-sandbox bwrap isolation. The **interactive** execution mode
 (`ExecutionMode == interactive`, see
 [interactive-runner-design.md](interactive-runner-design.md)) launches the real
-agent CLI inside a web-console tmux session on the host — there is no
-agent-manager-owned process tree to place inside a protected sandbox, so its
-guarantees cannot hold. Interactive mode is therefore **rejected at run
-validation** for any sandboxed run (`RunMode == RunModeSandboxed`, which covers
-both the protected and tracking sandbox modes), with a clear error; such runs
-stay on the codec-pipe / sandbox-launcher path documented here. Interactive mode
-requires an in-place run (`RunMode == RunModeInPlace`, i.e. sandbox off). The
-gate lives in `internal/domain/validation.go` and is pinned by
-`internal/domain/interactive_gate_test.go`.
+agent CLI inside a web-console tmux session on the host. There is no
+agent-manager-owned process tree to place inside a protected sandbox, so the
+protected guarantees below cannot hold for it. Whether an interactive run may
+use a given sandbox mode is a **runner capability and profile policy** decision,
+not a domain-level prohibition: each codec declares the sandbox modes its
+interactive spawn capability supports (today `tracking` and `off` for Claude
+Code and Codex; no codec declares `protected`), and the spawn resolver selects
+among declared capabilities as described under "Native objective capability"
+below. `ValidateInteractiveRunMode` in
+`internal/domain/validation.go` validates only the execution-mode vocabulary and
+returns no error for any sandbox mode; `internal/domain/interactive_gate_test.go`
+pins that behavior. A tracking-mode interactive run is host execution with
+provenance capture, never protected containment.
 
 ## Native objective capability
 
@@ -153,10 +157,21 @@ a successful terminal event; ordinary prose that merely mentions a goal does
 not satisfy this contract. The CLI exposes the same completion test through
 `agent-manager run create --until ...`.
 
-Native interactive objectives require an in-place run because interactive
-sessions run in web-console's host tmux. A protected/tracking workspace may be
-selected only when the policy explicitly allows it; the process must not be
-described as protected containment. The spawn resolver falls back to a
+Today only the Claude Code live path reports goal markers: its transcript
+parser sets the marker the tailer acts on (`codecs/claude.go`) and maps the
+on-disk record to `active` or `complete` only. Codex declares the capability
+and receives `/goal`, but its marker parser (`codecs/goal_markers.go`, wired at
+`codecs/codex.go:92`) is reached only by transcript import, so a live Codex run
+cannot yet finish on a native goal marker. See the
+[goal-marker seam](internal/SEAMS.md#goal-marker-seam).
+
+Native interactive objectives are delivered for any sandbox mode the selected
+capability declares: `nativeObjectiveFor` in
+`internal/orchestration/run_execution.go` returns the objective when the runner's
+interactive capability lists the run's resolved sandbox mode, so a tracking
+sandbox run receives `/goal` the same way an in-place run does. The session
+still runs in web-console's host tmux; a tracking workspace records provenance
+and must not be described as protected containment. The spawn resolver falls back to a
 declared capability when preferences have no match, while a non-empty
 `require` clause remains fail-closed. A runner with no declared capabilities
 uses the historical codec-pipe/off fallback only when no capability is
@@ -208,6 +223,13 @@ its host `mergedDir`) and no pid-namespace isolation. See
 for the backend detail.
 
 ## Per-runner / per-path matrix
+
+> **Historical names.** The per-runner files this matrix and the status block
+> above name (`claude_code.go`, `codex.go`, `opencode.go` under
+> `internal/adapters/runner/`) were since folded into the shared engine
+> `internal/adapters/runner/core/runner.go`; the files under `codecs/` hold
+> only dialect, capabilities, and goal markers. The launcher-seam routing
+> described here still applies; the function names are pre-consolidation.
 
 Every cell is shipped via the launcher seam. Tracking-mode and Protected
 mode share the same code path; the only difference is whether `Pick`
@@ -308,10 +330,10 @@ exit 0). Each resource exposes an opt-in `update` verb off its
 - `launcherSelector` (shared routing seam): `internal/adapters/runner/launcher_selector.go`
 - `buildEnvWrappedLaunchRequest` (shared LaunchRequest builder): `internal/adapters/runner/launch_request.go`
 - `extractExitCode` (host/sandbox-uniform exit-code helper): `internal/adapters/runner/exit_code.go`
-- Per-runner Execute + Continue + durable wiring:
-  - `internal/adapters/runner/claude_code.go`
-  - `internal/adapters/runner/codex_runner.go`
-  - `internal/adapters/runner/opencode_runner.go`
+- Per-runner codecs (stream decoding, transcript parsing, capabilities, goal
+  markers): `internal/adapters/runner/codecs/` (`claude.go`, `codex.go`,
+  `opencode.go`, `goal_markers.go`); the shared Execute + Continue engine is
+  `internal/adapters/runner/core/`
 - Wire-encoder that materializes `Behavior.Protected.GitAllowlist`:
   `internal/adapters/sandbox/wire_encoder.go` (covered by `wire_encoder_test.go`)
 - Workspace-sandbox `/exec` git-allowlist enforcement:

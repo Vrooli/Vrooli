@@ -185,7 +185,7 @@ func (a *Adapter) Exec(ctx context.Context, target identity.TargetRef, cmd reach
 	if node == "" {
 		return reach.Result{}, &reach.Error{Kind: reach.KindEnrollmentRevoked, Transport: identity.TransportBridge, Target: target.Key(), Detail: "target binding has no enrolled node"}
 	}
-	if cmd.IsObservation() {
+	if cmd.IsObservation() && cmd.Observation == nil {
 		// The relay exposes scenario verbs, never arbitrary host programs; the
 		// facts an observation program would read are the node agent's to
 		// report through a typed verb.

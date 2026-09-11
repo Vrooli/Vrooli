@@ -14,46 +14,34 @@
     "execution_mode": "observer",
     "version": 1
   },
-  "settings": {
-    "executionViewport": { "width": 1280, "height": 900, "preset": "desktop" }
-  },
+  "flow_definition": {
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
   "nodes": [
-    {
-      "id": "open-console",
-      "type": "navigate",
-      "data": {
-        "label": "Open the deployment console",
-        "destinationType": "scenario",
-        "scenario": "scenario-to-cloud",
-        "scenarioPath": "/#deployments/7e493e04-5297-47eb-9df9-74929f185956",
-        "waitUntil": "load",
-        "timeoutMs": 30000,
-        "waitForMs": 3000
-      }
-    },
-    { "id": "identity", "type": "assert", "data": { "label": "Identity header present", "selector": "[data-testid=\"console-identity\"]", "assertMode": "exists", "timeoutMs": 30000, "failureMessage": "Identity header must render" } },
-    { "id": "environment", "type": "assert", "data": { "label": "Environment named", "selector": "[data-testid=\"console-identity-environment\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Environment must be named" } },
-    { "id": "target", "type": "assert", "data": { "label": "Target key named", "selector": "[data-testid=\"console-identity-target\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Target key must be named" } },
-    { "id": "transport", "type": "assert", "data": { "label": "Transport named", "selector": "[data-testid=\"console-identity-transport\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Transport must be named" } },
-    { "id": "release", "type": "assert", "data": { "label": "Release panel present", "selector": "[data-testid=\"console-release\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Release panel must render" } },
-    { "id": "health", "type": "assert", "data": { "label": "Health panel present", "selector": "[data-testid=\"console-health\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Health panel must render" } },
-    { "id": "operation", "type": "assert", "data": { "label": "Operation panel present", "selector": "[data-testid=\"console-operation\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Operation panel must render" } },
-    { "id": "recovery", "type": "assert", "data": { "label": "Recovery panel present", "selector": "[data-testid=\"console-recovery\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Recovery panel must render" } },
-    { "id": "health-settled", "type": "assert", "data": { "label": "Health observation settled with a verdict", "selector": "[data-testid=\"console-health\"]:not([data-state=\"loading\"])", "assertMode": "exists", "timeoutMs": 90000, "failureMessage": "Health panel must leave the loading state" } },
-    { "id": "health-status", "type": "assert", "data": { "label": "Health status and freshness shown separately", "selector": "[data-testid=\"console-health-freshness\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Freshness pill must render next to the verdict" } },
-    { "id": "advanced-collapsed", "type": "assert", "data": { "label": "Advanced surfaces stay behind a disclosure", "selector": "[data-testid=\"console-advanced-toggle\"][aria-expanded=\"false\"]", "assertMode": "exists", "timeoutMs": 10000, "failureMessage": "Terminal, files and raw process controls must be collapsed by default" } }
+    {"id":"open-console","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-cloud","scenario_path":"/#deployments/7e493e04-5297-47eb-9df9-74929f185956","wait_until":"NAVIGATE_WAIT_EVENT_LOAD","timeout_ms":30000},"metadata":{"label":"Open the deployment console"}}},
+    {"id":"identity","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identity","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Identity header must render"},"metadata":{"label":"Identity header present"}}},
+    {"id":"environment","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityEnvironment","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Environment must be named"},"metadata":{"label":"Environment named"}}},
+    {"id":"target","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityTarget","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Target key must be named"},"metadata":{"label":"Target key named"}}},
+    {"id":"transport","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.identityTransport","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Transport must be named"},"metadata":{"label":"Transport named"}}},
+    {"id":"release","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.release","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Release panel must render"},"metadata":{"label":"Release panel present"}}},
+    {"id":"health","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.health","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Health panel must render"},"metadata":{"label":"Health panel present"}}},
+    {"id":"operation","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.operation","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Operation panel must render"},"metadata":{"label":"Operation panel present"}}},
+    {"id":"recovery","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.recovery","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Recovery panel must render"},"metadata":{"label":"Recovery panel present"}}},
+    {"id":"health-settled","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.healthFreshness","mode":"ASSERTION_MODE_EXISTS","timeout_ms":30000,"failure_message":"Health observation must settle with a freshness standing"},"metadata":{"label":"Health observation settled with a verdict"}}},
+    {"id":"health-status","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.healthFreshness","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Freshness pill must render next to the verdict"},"metadata":{"label":"Health status and freshness shown separately"}}},
+    {"id":"advanced-collapsed","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/console.advancedToggle","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000,"failure_message":"Terminal, files and raw process controls must be collapsed by default"},"metadata":{"label":"Advanced surfaces stay behind a disclosure"}}}
   ],
   "edges": [
-    { "id": "e1", "source": "open-console", "target": "identity", "type": "smoothstep" },
-    { "id": "e2", "source": "identity", "target": "environment", "type": "smoothstep" },
-    { "id": "e3", "source": "environment", "target": "target", "type": "smoothstep" },
-    { "id": "e4", "source": "target", "target": "transport", "type": "smoothstep" },
-    { "id": "e5", "source": "transport", "target": "release", "type": "smoothstep" },
-    { "id": "e6", "source": "release", "target": "health", "type": "smoothstep" },
-    { "id": "e7", "source": "health", "target": "operation", "type": "smoothstep" },
-    { "id": "e8", "source": "operation", "target": "recovery", "type": "smoothstep" },
-    { "id": "e9", "source": "recovery", "target": "health-settled", "type": "smoothstep" },
-    { "id": "e10", "source": "health-settled", "target": "health-status", "type": "smoothstep" },
-    { "id": "e11", "source": "health-status", "target": "advanced-collapsed", "type": "smoothstep" }
+    { "id": "e1", "source": "open-console", "target": "identity" },
+    { "id": "e2", "source": "identity", "target": "environment" },
+    { "id": "e3", "source": "environment", "target": "target" },
+    { "id": "e4", "source": "target", "target": "transport" },
+    { "id": "e5", "source": "transport", "target": "release" },
+    { "id": "e6", "source": "release", "target": "health" },
+    { "id": "e7", "source": "health", "target": "operation" },
+    { "id": "e8", "source": "operation", "target": "recovery" },
+    { "id": "e9", "source": "recovery", "target": "health-settled" },
+    { "id": "e10", "source": "health-settled", "target": "health-status" },
+    { "id": "e11", "source": "health-status", "target": "advanced-collapsed" }
   ]
+  }
 }

@@ -41,6 +41,68 @@ func TestMaterializePreservesGeneratedValuesOnRedeploy(t *testing.T) {
 	}
 }
 
+func TestMaterializeDoesNotPreserveExpiredVersion(t *testing.T) {
+	h := newHarness(t)
+	h.materialize(nil)
+	binding := h.bindingFor("password")
+	expired := h.clock.Add(-time.Minute)
+	binding.Version.ExpiresAt = &expired
+	if err := h.store.UpsertBinding(context.Background(), &binding); err != nil {
+		t.Fatal(err)
+	}
+	h.target.values[binding.ID] = "old-expired-value"
+	result, err := h.svc.Materialize(context.Background(), MaterializeRequest{Target: h.targetRef(), Bindings: h.plan()})
+	if err != nil {
+		t.Fatalf("materialize expired version: %v", err)
+	}
+	if len(result.Preserved) != 1 || len(result.Materialized) != 1 || result.Materialized[0] != binding.ID {
+		t.Fatalf("materialize result = %+v, want expired binding rematerialized", result)
+	}
+	if got := h.bindingFor("password"); got.Version.Number != 2 || got.Version.ExpiresAt != nil {
+		t.Fatalf("expired binding was not replaced cleanly: %+v", got)
+	}
+}
+
+func TestListBindingsProjectsExpiryStandingAndNextAction(t *testing.T) {
+	h := newHarness(t)
+	h.materialize(nil)
+	binding := h.bindingFor("password")
+	soon := h.clock.Add(7 * 24 * time.Hour)
+	binding.Version.ExpiresAt = &soon
+	if err := h.store.UpsertBinding(context.Background(), &binding); err != nil {
+		t.Fatal(err)
+	}
+	views, err := h.svc.ListBindings(context.Background(), "dep-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found BindingView
+	for _, view := range views {
+		if view.Binding.ID == binding.ID {
+			found = view
+			break
+		}
+	}
+	if found.LifecycleState != LifecycleRenewalDue || found.NextAction != "rotate the credential before it expires" || found.LifecycleDetail == "" {
+		t.Fatalf("renewal standing = %+v", found)
+	}
+
+	expired := h.clock.Add(-time.Minute)
+	binding.Version.ExpiresAt = &expired
+	if err := h.store.UpsertBinding(context.Background(), &binding); err != nil {
+		t.Fatal(err)
+	}
+	views, err = h.svc.ListBindings(context.Background(), "dep-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, view := range views {
+		if view.Binding.ID == binding.ID && (view.LifecycleState != LifecycleExpired || view.NextAction != "rotate the credential before retrying release") {
+			t.Fatalf("expired standing = %+v", view)
+		}
+	}
+}
+
 // [REQ:STC-P0-032] P13-A02 / SECRET-02: every intended consumer acknowledges
 // the new version before the predecessor is revoked, in the documented order.
 func TestRotationVerifiesConsumersBeforePredecessorRetirement(t *testing.T) {
@@ -595,5 +657,39 @@ func TestLockedStoreFailsClosedBeforeAnyWrite(t *testing.T) {
 	h.target.unreachable = true
 	if _, err := h.svc.Materialize(context.Background(), MaterializeRequest{Target: h.targetRef(), Bindings: h.plan()}); !IsUnreachable(err) {
 		t.Fatalf("materialize onto unreachable target = %v", err)
+	}
+}
+
+// A stored binding is not sufficient to authorize rotation. The provider
+// declaration is part of the lifecycle contract and must be checked before
+// the operation ledger or target receives a new version.
+func TestRotationRefusesUndeclaredProviderBeforeAnyEffect(t *testing.T) {
+	h := newHarness(t)
+	h.materialize(nil)
+	binding := h.bindingFor("password")
+	delete(h.svc.Providers, binding.Class)
+	argvBefore := len(h.target.argv)
+
+	rotation, err := h.svc.Rotate(context.Background(), RotateRequest{
+		Target:       h.targetRef(),
+		DeploymentID: "dep-1",
+		BindingID:    binding.ID,
+		RequestKey:   "rotation-missing-provider",
+	})
+	if err == nil || !apierrors.Is(err, CodeRotationRefused) {
+		t.Fatalf("rotation error = %v, want provider refusal", err)
+	}
+	if rotation != nil {
+		t.Fatalf("provider refusal created a rotation: %+v", rotation)
+	}
+	if len(h.target.argv) != argvBefore {
+		t.Fatalf("provider refusal reached target: before=%d after=%d", argvBefore, len(h.target.argv))
+	}
+	stored, err := h.store.ListRotations(context.Background(), "dep-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored) != 0 {
+		t.Fatalf("provider refusal persisted rotations: %+v", stored)
 	}
 }

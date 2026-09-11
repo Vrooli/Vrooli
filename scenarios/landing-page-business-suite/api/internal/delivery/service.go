@@ -270,6 +270,9 @@ func (s *Service) TestConnection(ctx context.Context, bundleKey string) error {
 	if err != nil {
 		return err
 	}
+	if verifier, ok := storage.(OperationVerifier); ok {
+		return verifier.VerifyOperations(ctx, settings.Bucket, settings.DefaultPrefix)
+	}
 	return storage.TestConnection(ctx, settings.Bucket)
 }
 

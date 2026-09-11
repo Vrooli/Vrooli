@@ -7,9 +7,9 @@ closure digest and the nonsecret configuration digest, bound by one
 compiled or fetched at deploy time, and the target verifies the same manifest
 before it extracts anything.
 
-> [CODE: packages/cloudrelease] — manifest shape, canonical JSON, digest rule (shared with `internal/cloudtarget`)
-> [CODE: api/release] — builder, verifier, store, provenance, target-delivery resolver
-> [CODE: api/releasesvc] — Connect `ReleasesService` + REST adapter
+> [CODE: ../../packages/cloudrelease/cloudrelease.go] — manifest shape, canonical JSON, digest rule (shared with `internal/cloudtarget`)
+> [CODE: api/release/verify.go] — builder, verifier, store, provenance, target-delivery resolver
+> [CODE: api/releasesvc/service.go] — Connect `ReleasesService` + REST adapter
 > [CODE: api/handlers_release.go] — `POST /api/v1/releases/build`, `GET /api/v1/releases/{digest}`, `POST /api/v1/releases/{digest}/verify`
 > [CODE: api/vps/native_cli.go] — delivery of the release's native binary (no deploy-time build)
 > [PROTO: packages/proto/schemas/scenario-to-cloud/v1/releases/releases.proto]

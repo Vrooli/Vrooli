@@ -1,5 +1,5 @@
-import { screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { ReleaseDetail } from "./ReleaseDetail";
@@ -12,6 +12,8 @@ describe("ReleaseDetail", () => {
     vi.clearAllMocks();
     window.history.pushState({}, "", "/releases/release-1");
   });
+
+  afterEach(() => cleanup());
 
   it("shows one reviewable workspace for identity, execution, and receipts", async () => {
     vi.mocked(api.getRelease).mockResolvedValue({
@@ -53,5 +55,68 @@ describe("ReleaseDetail", () => {
     expect(screen.getByText("release-authority")).toBeInTheDocument();
     expect(api.getRelease).toHaveBeenCalledWith("release-1");
     expect(api.getReleaseOperation).toHaveBeenCalledWith("operation-1");
+  });
+
+  it("shows explicit incomplete-state guidance when durable evidence is missing", async () => {
+    vi.mocked(api.getRelease).mockResolvedValue({
+      id: "release-incomplete",
+      profile_id: "profile-1",
+      git_commit_hash: "commit-incomplete",
+      release_version: "2.0.0",
+      channel: "beta",
+      status: "failed",
+      created_at: "2026-09-09T12:00:00Z",
+      updated_at: "2026-09-09T12:00:00Z",
+      candidate: {
+        source_revision: "commit-incomplete",
+        profile_revision: "profile-revision-1",
+        dependency_lock_digest: "lock-incomplete",
+        policy_digest: "policy-incomplete",
+        artifacts: [],
+      },
+    });
+    vi.mocked(api.getReleaseDossier).mockResolvedValue({
+      schema_version: 1,
+      generated_at: "2026-09-09T12:01:00Z",
+      release: {} as api.Release,
+      health: undefined,
+      missing_proof: ["publication receipt"],
+    } as unknown as api.ReleaseDossier);
+
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/releases/release-incomplete"]}>
+        <Routes><Route path="/releases/:id" element={<ReleaseDetail />} /></Routes>
+      </MemoryRouter>,
+      { withoutRouter: true },
+    );
+
+    expect(await screen.findByTestId("release-detail")).toBeInTheDocument();
+    expect(screen.getByText("Candidate evidence")).toBeInTheDocument();
+    expect(screen.getByText("Current release standing")).toBeInTheDocument();
+    expect(screen.getByText(/Canonical health is unavailable/)).toBeInTheDocument();
+    expect(screen.getByText("No external effect receipt has been recorded.")).toBeInTheDocument();
+    expect(screen.getByText("Destination kind:")).toBeInTheDocument();
+    expect(screen.getByText("No platform execution rows.")).toBeInTheDocument();
+  });
+
+  it("reports release retrieval failures and empty records", async () => {
+    vi.mocked(api.getRelease).mockRejectedValueOnce(new Error("release unavailable"));
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/releases/release-1"]}>
+        <Routes><Route path="/releases/:id" element={<ReleaseDetail />} /></Routes>
+      </MemoryRouter>,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByText("release unavailable")).toBeInTheDocument();
+
+    cleanup();
+    vi.mocked(api.getRelease).mockResolvedValueOnce(null as unknown as api.Release);
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/releases/release-1"]}>
+        <Routes><Route path="/releases/:id" element={<ReleaseDetail />} /></Routes>
+      </MemoryRouter>,
+      { withoutRouter: true },
+    );
+    expect(await screen.findByText("Release record was not returned.")).toBeInTheDocument();
   });
 });

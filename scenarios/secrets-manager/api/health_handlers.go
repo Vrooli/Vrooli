@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -64,11 +65,12 @@ func (h *HealthHandlers) Health(w http.ResponseWriter, r *http.Request) {
 
 	// Build response compliant with health-api.schema.json
 	response := map[string]interface{}{
-		"status":    status,
-		"service":   "secrets-manager-api",
-		"timestamp": time.Now().Format(time.RFC3339),
-		"readiness": readiness,
-		"version":   "1.0.0",
+		"status":         status,
+		"service":        "secrets-manager-api",
+		"timestamp":      time.Now().Format(time.RFC3339),
+		"readiness":      readiness,
+		"version":        "1.0.0",
+		"build_identity": os.Getenv("VROOLI_BUILD_IDENTITY"),
 		"dependencies": map[string]interface{}{
 			"database": map[string]interface{}{
 				"connected":  dbConnected,

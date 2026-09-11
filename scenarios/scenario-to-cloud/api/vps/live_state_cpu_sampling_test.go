@@ -47,7 +47,7 @@ func liveStateReach() *reachtest.Scripted {
 }
 
 // [REQ:STC-P0-024] Live state is gathered through typed reads only: every
-// probe is a vrooli verb or an observation program, no argument carries
+// probe is a vrooli verb or a target-owner observation, no argument carries
 // shell syntax, and the CPU sample runs after the concurrent probes so it
 // is not inflated by them.
 func TestRunLiveStateInspection_ProbesAreTypedAndCPUSamplesLast(t *testing.T) {
@@ -90,7 +90,8 @@ func TestRunLiveStateInspection_ProbesAreTypedAndCPUSamplesLast(t *testing.T) {
 		}
 	}
 	last := keys[len(keys)-1]
-	if last != "cat /proc/stat" || keys[len(keys)-2] != "cat /proc/stat" {
+	wantCPU := "vrooli cloud-target host observe --kind file --arg /proc/stat"
+	if last != wantCPU || keys[len(keys)-2] != wantCPU {
 		t.Fatalf("expected the two /proc/stat samples last, got %v", keys[len(keys)-2:])
 	}
 }

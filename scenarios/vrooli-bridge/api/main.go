@@ -824,8 +824,16 @@ func main() {
 	handoffCtx, handoffCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(handoffCtx, "vrooli-onboarding"); handoffErr == nil {
 		handoffURL := internalonboarding.HandoffEndpoint(handoffEndpoint)
-		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffURL}))
-		log.Printf("onboard: scenario selection handoff enabled at %s", handoffURL)
+		handoffToken := strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_API_TOKEN"))
+		if handoffToken == "" {
+			handoffToken = strings.TrimSpace(os.Getenv("VROOLI_API_TOKEN"))
+		}
+		if handoffToken == "" {
+			log.Printf("onboard: configuration handoff unavailable; VROOLI_ONBOARDING_API_TOKEN is not configured")
+		} else {
+			onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffURL, Token: handoffToken}))
+			log.Printf("onboard: scenario selection handoff enabled at %s", handoffURL)
+		}
 	} else {
 		log.Printf("onboard: configuration handoff unavailable; pairing-only onboarding remains available: %v", handoffErr)
 	}

@@ -574,7 +574,6 @@ function CredentialList({
         <div data-testid="credential-status">
           <SetupTask
             title={credential.label || credential.field}
-            purpose={credential.description}
             target={credential.logical_id}
             account={credential.resource}
             consumerScope={credential.consumer_scope}
@@ -594,6 +593,7 @@ function CredentialList({
               </InputGroup.Segment>
             </InputGroup> : undefined}
           >
+            {credential.description && <p className="credential-list__item-copy" data-testid="credential-purpose">{credential.description}</p>}
             {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}
             {credential.provisioning === "generated" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.generated")}</p>}
             {credential.detail && <p className="credential-list__item-copy">{credential.detail}</p>}

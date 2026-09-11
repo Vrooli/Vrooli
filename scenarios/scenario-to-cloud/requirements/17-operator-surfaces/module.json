@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T18:30:00Z",
-    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-037",
       "title": "API/CLI parity over generated clients",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "operator-surfaces",
       "description": "CLI commands use generated clients, expose identities consistently, render plan effects before apply, implement durable wait/resume without polling and return stable JSON with correct exit codes.",
@@ -21,7 +20,7 @@
           "ref": "cli/parity_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "[REQ:STC-P0-037] execute = CompilePlan -> printed review -> ApplyPlan(exact digest) -> WaitOperation once (no polling); plan/apply two-step with plan_digest_mismatch exit 2; no_op exit 0 'no change'; needs_input exit 3 with the onboarding handoff; ambiguous selector exit 2 with candidates and zero compile/apply calls; failed operation exit 1; observer timeout exit 124 with reattach command and no cancel; API-started operation resumed by id; --json round-trips the generated proto message; bearer token on Connect calls; logs bounded (--tail cap, --max-bytes) and canary-free; removed aliases refused."
+          "notes": "[REQ:STC-P0-037] execute = CompilePlan -\u003e printed review -\u003e ApplyPlan(exact digest) -\u003e WaitOperation once (no polling); plan/apply two-step with plan_digest_mismatch exit 2; no_op exit 0 'no change'; needs_input exit 3 with the onboarding handoff; ambiguous selector exit 2 with candidates and zero compile/apply calls; failed operation exit 1; observer timeout exit 124 with reattach command and no cancel; API-started operation resumed by id; --json round-trips the generated proto message; bearer token on Connect calls; logs bounded (--tail cap, --max-bytes) and canary-free; removed aliases refused."
         },
         {
           "type": "test",
@@ -42,7 +41,7 @@
           "ref": "cli/redeploy/command_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "[REQ:STC-P0-037] redeploy is create -> plan -> apply(exact digest) -> wait; the --if-needed/--force-run/--target selector modes are gone."
+          "notes": "[REQ:STC-P0-037] redeploy is create -\u003e plan -\u003e apply(exact digest) -\u003e wait; the --if-needed/--force-run/--target selector modes are gone."
         },
         {
           "type": "test",
@@ -63,7 +62,7 @@
     {
       "id": "STC-P0-038",
       "title": "Deployment console answers the five operator questions",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "operator-surfaces",
       "description": "The deployment page shows environment and machine identity, desired versus observed release, health age and source, running or waiting operation with next step, and safe recovery actions, with progressive disclosure of raw surfaces.",
@@ -72,41 +71,41 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/components/deployments/console/console-panels.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/components/deployments/console/DeploymentConsole.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/lib/consoleActions.test.ts",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/operator-orchestration-coverage.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "workflow",
+          "type": "automation",
           "ref": "bas/cases/19-console/ui/console-five-questions.json",
-          "status": "planned"
+          "status": "implemented"
         },
         {
-          "type": "doc",
+          "type": "test",
           "ref": "docs/reference/console-experience.md",
-          "status": "passing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STC-P0-039",
       "title": "Accessible and interruption-safe recovery UX",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "operator-surfaces",
       "description": "Keyboard order, focus restoration, status announcements, contrast, reduced motion and narrow viewports are verified; interrupted wizards and operations resume from durable state.",
@@ -116,44 +115,44 @@
       ],
       "validation": [
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/components/deployments/console/DestructiveActionDialog.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/components/deployments/console/DeploymentConsole.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/App.a11y.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/hooks/useConsole.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/lib/consoleApi.test.ts",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "unit",
+          "type": "test",
           "ref": "ui/src/components/wizard/StepDeploy.test.tsx",
-          "status": "passing"
+          "status": "implemented"
         },
         {
-          "type": "workflow",
+          "type": "automation",
           "ref": "bas/cases/19-console/ui/console-narrow-viewport.json",
-          "status": "planned"
+          "status": "implemented"
         },
         {
-          "type": "workflow",
+          "type": "automation",
           "ref": "bas/cases/19-console/ui/wizard-review-path.json",
-          "status": "planned"
+          "status": "implemented"
         }
       ]
     }

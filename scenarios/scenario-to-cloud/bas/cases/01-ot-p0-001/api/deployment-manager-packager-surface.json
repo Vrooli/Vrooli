@@ -21,82 +21,13 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "schema",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/manifest/schema",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/manifest/schema",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.schema"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.timestamp"
-          }
-        ]
-      }
-    },
-    {
-      "id": "template",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/manifest/template",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/manifest/template",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.manifest"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.variant"
-          }
-        ]
-      }
-    },
-    {
-      "id": "requirements",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/preflight/requirements",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/preflight/requirements",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.vps.os.required_id"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"schema-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/schema","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/schema"}}},
+      {"id":"template-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/manifest/template","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/manifest/template"}}},
+      {"id":"requirements-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/preflight/requirements","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/preflight/requirements"}}}
+    ],
+    "edges":[{"source":"schema-open","target":"template-open"},{"source":"template-open","target":"requirements-open"}]
+  }
 }

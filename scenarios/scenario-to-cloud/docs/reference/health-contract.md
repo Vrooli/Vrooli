@@ -136,9 +136,9 @@ readiness fetch the observation as well; Deployment Manager does this
 immediately after receipt validation and again in its release gate with the
 expected bundle digest.
 
-## 5. Known limitation
+## 5. Freshness cost boundary
 
-`release_freshness` and the legacy `freshness` block hash the local scenario
-bundle on every call (about 11 s for a real scenario). It is the dominant
-cost of a health call and is unrelated to observation freshness; the release
-domain (phase 10) replaces it with digest comparison.
+Interactive health calls compare the declared scenario version and defer the
+full local bundle fingerprint to the explicit release-freshness workflow. This
+keeps the live observation path bounded; the fingerprint workflow remains the
+authoritative check when release parity is required.

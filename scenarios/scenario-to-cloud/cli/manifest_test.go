@@ -227,7 +227,7 @@ func TestCLIDocMatchesManifest(t *testing.T) {
 	if string(got) != want {
 		t.Fatalf("%s is stale; regenerate with STC_WRITE_CLI_DOC=1 go test ./ -run TestCLIDocMatchesManifest", path)
 	}
-	for _, needle := range []string{"scenario-to-cloud deployment plan [deployment_id]", "| 124 |", "deployment_selector_ambiguous", "scenario-to-cloud operation resume <operation_id>"} {
+	for _, needle := range []string{"scenario-to-cloud deployment plan [deployment_id]", "| 124 |", "deployment_selector_ambiguous", `scenario-to-cloud operation resume "<operation_id>"`} {
 		if !strings.Contains(want, needle) {
 			t.Fatalf("generated doc lacks %q", needle)
 		}

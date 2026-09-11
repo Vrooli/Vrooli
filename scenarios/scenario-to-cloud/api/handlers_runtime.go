@@ -84,12 +84,12 @@ func (s *Server) credentialBinder() deployment.CredentialBinder {
 // the release service (bundle, manifest, native control plane, lease).
 func (s *Server) releaseBuilder() deployment.ReleaseBuilder {
 	return func(ctx context.Context, manifest domain.CloudManifest, platform release.Platform) (release.Release, error) {
-		svc, err := releaseService()
+		svc, err := s.releaseService()
 		if err != nil {
 			return release.Release{}, err
 		}
 		closureDigest := manifest.Dependencies.ClosureDigest
-		if closureSvc, cerr := closureService(); cerr == nil && closureSvc != nil {
+		if closureSvc, cerr := s.closureService(); cerr == nil && closureSvc != nil {
 			if derived, derr := closureSvc.Resolve(ctx, manifest.Scenario.ID, manifest.Environment); derr == nil {
 				closureDigest = derived.Digest
 			}

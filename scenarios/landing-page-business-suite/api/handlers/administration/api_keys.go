@@ -35,6 +35,10 @@ func CreateAPIKey(deps APIKeyDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusBadRequest, "Invalid request body", "validation")
 			return
 		}
+		if admin.IsSharedProvider(request.Provider) {
+			deps.WriteError(w, http.StatusConflict, "OpenRouter is managed by the shared credential authority; configure the resource credential instead", "managed_externally")
+			return
+		}
 		key, err := deps.Service.Store(r.Context(), request.Provider, request.Key)
 		if err != nil {
 			deps.LogError("create_api_key_failed", map[string]any{"error": err.Error(), "provider": request.Provider})

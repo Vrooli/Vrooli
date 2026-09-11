@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/bundle"
@@ -17,24 +16,12 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-// closureServiceOverride lets tests substitute a fixture-backed service. The
-// production service is built lazily from the repository the API runs in.
-var (
-	closureServiceOverride *closure.Service
-	closureServiceOnce     sync.Once
-	closureServiceValue    *closure.Service
-	closureServiceErr      error
-)
-
-// closureService returns the process-wide closure service.
-func closureService() (*closure.Service, error) {
-	if closureServiceOverride != nil {
-		return closureServiceOverride, nil
+// closureService returns the server-owned closure service.
+func (s *Server) closureService() (*closure.Service, error) {
+	if s == nil {
+		return nil, fmt.Errorf("closure service unavailable")
 	}
-	closureServiceOnce.Do(func() {
-		closureServiceValue, closureServiceErr = newDefaultClosureService()
-	})
-	return closureServiceValue, closureServiceErr
+	return s.closureSvc, s.closureErr
 }
 
 // newDefaultClosureService binds the repository catalog, the analyzer over
@@ -95,7 +82,7 @@ func (s *Server) writeClosure(w http.ResponseWriter, r *http.Request, request cl
 		apierrors.Write(w, err)
 		return
 	}
-	service, err := closureService()
+	service, err := s.closureService()
 	if err != nil {
 		apierrors.Write(w, &apierrors.Error{Code: apierrors.CodeClosureUnavailable, Message: "closure catalogs are not available", Details: map[string]any{"cause": err.Error()}})
 		return

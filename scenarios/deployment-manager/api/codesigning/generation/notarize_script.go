@@ -42,7 +42,7 @@ exports.default = async function notarizing(context) {
         await notarize({
             tool: 'notarytool',
             appPath: appPath,
-            appleApiKey: process.env.{{.APIKeyIDEnv}} || '{{.APIKeyID}}',
+            appleApiKey: process.env.{{.APIKeyFileEnv}} || '{{.APIKeyFile}}',
             appleApiKeyId: process.env.{{.APIKeyIDEnv}} || '{{.APIKeyID}}',
             appleApiIssuer: process.env.{{.APIIssuerEnv}} || '{{.APIIssuer}}',
             teamId: '{{.TeamID}}'
@@ -121,14 +121,17 @@ func generateNotarizeJS(config *codesigning.MacOSSigningConfig) ([]byte, error) 
 		// Keep the default name explicit while avoiding treating an environment
 		// variable name as credential material in source scanners.
 		apiKeyIDEnv := strings.Join([]string{"APPLE", "API", "KEY", "ID"}, "_")
+		apiKeyFileEnv := "APPLE_API_KEY_PATH" // #nosec G101 -- this is an environment-variable name, not credential material.
 		apiIssuerEnv := "APPLE_API_ISSUER"
 
 		data = map[string]string{
-			"APIKeyID":     config.AppleAPIKeyID,
-			"APIKeyIDEnv":  apiKeyIDEnv,
-			"APIIssuer":    config.AppleAPIIssuerID,
-			"APIIssuerEnv": apiIssuerEnv,
-			"TeamID":       config.TeamID,
+			"APIKeyFile":    config.AppleAPIKeyFile,
+			"APIKeyFileEnv": apiKeyFileEnv,
+			"APIKeyID":      config.AppleAPIKeyID,
+			"APIKeyIDEnv":   apiKeyIDEnv,
+			"APIIssuer":     config.AppleAPIIssuerID,
+			"APIIssuerEnv":  apiIssuerEnv,
+			"TeamID":        config.TeamID,
 		}
 	} else {
 		// App-Specific Password method

@@ -23,12 +23,12 @@ metadata:
 Improve the Swarm Manager control plane from owner evidence while preserving the
 operator-selected destination. `scenario-improvement-campaign` owns successive
 authorized repairs; this skill selects the concern and its evidence. Product
-targets remain in the Swarm PRD and approved development contract.
+targets remain in the Swarm PRD and approved development grant.
 
 ### 1. Focus and scope
 
 The regulated plant is the operator loop across backlog, plans, goals,
-development contracts, workflow execution, evidence and terminal decisions.
+development grants, workflow execution, evidence and terminal decisions.
 This skill may improve Swarm-owned implementation, tests, programs and docs
 inside the active grant. It does not redefine a product target, approve work,
 own Agent Manager execution, own Test Genie results, or make Audio Tools,
@@ -39,9 +39,14 @@ billing, credentials or deployment decisions.
 | Required outcome | Owner source and check | Current interpretation |
 |---|---|---|
 | OT-P0-001 through OT-P0-014 | `scenarios/swarm-manager/PRD.md`, requirements module, focused owner tests | Preserve the published backlog, plan, goal, evidence, workflow and operator-decision contract; each row needs current owner evidence |
-| OT-P0-015 adaptive plan continuity | ordinary plan execution, transition runner and development package tests | Check one accepted plan, campaign checkpoint, aggregate budget and cancellation identity across successive repairs and restart |
-| OT-P0-016 evidence-bound acceptance | development evidence contract and registered owner resolvers | Missing, stale, failed, mismatched or unavailable evidence remains unmet; no local fixture is a product receipt |
-| OT-P0-017 development review surface | API, CLI and UI development response | Check target, grant, budget, campaign, cancellation, blockers and human decision standing agree across surfaces |
+| OT-P0-015 plan-backed continuity | plan-backed execution, continuation sweeper and transition runner tests | Check one accepted plan, aggregate allowance and cancellation identity across successive repairs and resumes; a verdict is final, only involuntary interruptions resume |
+| OT-P0-016 evidence-bound finalization | finalization, review apply and registered owner resolvers | Missing, stale, failed, mismatched or unavailable evidence remains unmet; no local fixture is a product receipt |
+| OT-P0-017 run review surface | item detail, run sheet, API and CLI projections | Check plan shape, mode, limits, continuation, scope policy, operator note, blockers and acceptance standing agree across surfaces |
+
+The contract-development route (`swarm-manager development`, its panel and
+`internal/development`) is retired; read it only for existing engagements.
+The plan-backed target and today's mapping are in
+`path:docs/agent-system/SCENARIO_DEVELOPMENT.md`.
 | P1/P2 outcomes | PRD and owner requirements | Keep planned or future status until their owner evidence and authority exist |
 
 The PRD checkboxes are intent metadata, not a passing sensor. A focused test is
@@ -49,8 +54,9 @@ evidence for its covered behavior; it does not certify unrelated targets.
 
 ### 3. Sensors
 
-Use `swarm-manager backlog get`, `swarm-manager goals get` and
-`swarm-manager development get` for current owner state. Use the declared
+Use `swarm-manager backlog get`, `swarm-manager goals get` and, for a
+retained engagement on the retired route only, `swarm-manager development get`
+for current owner state. Use the declared
 Swarm measures endpoints for count and rate questions. Use
 `prompt-manager skill-set validate swarm-manager` and
 `program-runtime library run program-runtime.skill-set-read` for structural

@@ -6,8 +6,8 @@ credentials, health) reads what the scenario and its resources declare; it has
 no product-specific branch and no cloud source is edited to adopt a new
 scenario. The executable example is the `newcomer-service` fixture:
 
-> [CODE: fixtures/workloads/newcomer-service] — declaration tree, seed, oracle
-> [CODE: api/generality] — the in-process journey that proves it (`go test ./generality/`)
+> [CODE: fixtures/workloads/newcomer-service/fixture.json] — declaration tree, seed, oracle
+> [CODE: api/generality/generality_test.go] — the in-process journey that proves it (`go test ./generality/`)
 > [DOC: reference/closure.md] · [DOC: reference/executable-plan.md] · [DOC: reference/credential-lifecycle.md] · [DOC: guides/manifest-reference.md]
 
 ## 1. What the scenario declares (`.vrooli/service.json`)
@@ -86,7 +86,7 @@ curl "http://localhost:${API_PORT}/api/v1/closure?scenario=newcomer-service&envi
 scenario-to-cloud deployment plan --scenario newcomer-service --environment production
 
 # Admit the reviewed digest as a durable operation and wait once
-scenario-to-cloud deployment apply --scenario newcomer-service --environment production --plan-digest <digest> --request-key <key>
+scenario-to-cloud deployment apply --scenario newcomer-service --environment production --plan-digest "$PLAN_DIGEST" --request-key "$REQUEST_KEY"
 ```
 
 What the preview tells you:

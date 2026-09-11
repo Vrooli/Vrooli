@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { vi } from "vitest";
 
@@ -7,8 +7,6 @@ import { vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   stopPortServices: vi.fn(),
-  getDiskUsage: vi.fn(),
-  runDiskCleanup: vi.fn(),
   stopScenarioProcesses: vi.fn(),
   openFirewallPorts: vi.fn(),
 }));
@@ -20,7 +18,6 @@ vi.mock("../../lib/api", async () => {
 
 import {
   CHECK_DEFINITIONS,
-  DiskUsageModal,
   PortStopModal,
   PreflightChecksPanel,
   StepPreflight,
@@ -28,7 +25,7 @@ import {
   buildReadOnlyChecks,
   usePreflightActions,
 } from "./StepPreflight";
-import type { DiskUsageResponse, PreflightCheck } from "../../lib/api";
+import type { PreflightCheck } from "../../lib/api";
 
 const manifest = {
   scenario: { id: "demo-scenario" },
@@ -52,17 +49,6 @@ describe("StepPreflight support and action flows", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.stopPortServices.mockResolvedValue({ ok: true, message: "stopped" });
-    api.getDiskUsage.mockResolvedValue({
-      ok: true,
-      free_space: "20 GB",
-      free_bytes: 20,
-      total_space: "100 GB",
-      total_bytes: 100,
-      used_percent: 80,
-      largest_dirs: [{ path: "/var/lib/docker", size: "10 GB", bytes: 10 }],
-      timestamp: "now",
-    });
-    api.runDiskCleanup.mockResolvedValue({ ok: true, space_freed: "1 GB" });
     api.stopScenarioProcesses.mockResolvedValue({ ok: true, message: "stopped" });
     api.openFirewallPorts.mockResolvedValue({ ok: true, message: "opened" });
   });
@@ -98,32 +84,6 @@ describe("StepPreflight support and action flows", () => {
     expect(readOnlyAction).not.toHaveBeenCalled();
   });
 
-  it("supports disk usage modal loading, cleanup actions, and close", async () => {
-    const onCleanup = vi.fn();
-    const onClose = vi.fn();
-    const diskUsage: DiskUsageResponse = {
-      ok: true,
-      free_space: "20 GB",
-      free_bytes: 20,
-      total_space: "100 GB",
-      total_bytes: 100,
-      used_percent: 80,
-      largest_dirs: [{ path: "/var/lib/docker", size: "10 GB", bytes: 10 }],
-      timestamp: "now",
-    };
-    const { rerender } = render(<DiskUsageModal usage={null} loading onClose={onClose} onCleanup={onCleanup} cleanupLoading={false} />);
-    expect(document.querySelector(".animate-spin")).toBeInTheDocument();
-    rerender(<DiskUsageModal usage={diskUsage} loading={false} onClose={onClose} onCleanup={onCleanup} cleanupLoading={false} />);
-    expect(screen.getByText("/var/lib/docker")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Clean apt cache" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Vacuum journals" }));
-    fireEvent.click(screen.getByRole("button", { name: "Run All" }));
-    expect(onCleanup).toHaveBeenNthCalledWith(1, ["journal_vacuum"]);
-    expect(onCleanup).toHaveBeenNthCalledWith(2, ["journal_vacuum", "docker_prune", "docker_prune_volumes"]);
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
-    expect(onClose).toHaveBeenCalledOnce();
-  });
-
   it("renders port listeners and only confirms selected stop actions", () => {
     const onConfirm = vi.fn();
     const onToggleService = vi.fn();
@@ -151,15 +111,11 @@ describe("StepPreflight support and action flows", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
-  it("runs firewall, disk, process, and port-stop actions through the shared SSH config", async () => {
+  it("runs firewall, process, and port-stop actions through the shared SSH config", async () => {
     const onRecheck = vi.fn().mockResolvedValue(undefined);
     const { result } = renderHook(() => usePreflightActions({ manifest, preflightChecks: checks, onRecheck }));
     await act(async () => { await result.current.handleAction("firewall_inbound", "open_firewall"); });
     expect(api.openFirewallPorts).toHaveBeenCalledWith({ host: "vps.example.test", port: 2222, user: "deploy", ports: [80, 443] });
-    await act(async () => { await result.current.handleAction("disk_free", "show_disk"); });
-    expect(result.current.showDiskModal).toBe(true);
-    await act(async () => { await result.current.handleCleanup(["journal_vacuum"]); });
-    expect(api.runDiskCleanup).toHaveBeenCalled();
     await act(async () => { await result.current.handleAction("stale_processes", "stop_scenario"); });
     expect(api.stopScenarioProcesses).toHaveBeenCalledWith(expect.objectContaining({ scenario_id: "demo-scenario" }));
     await act(async () => { await result.current.handleAction("ports_80_443", "stop_ports"); });
@@ -184,13 +140,6 @@ describe("StepPreflight support and action flows", () => {
     }));
     await act(async () => { await withKey.result.current.handleAction("firewall_inbound", "open_firewall"); });
     expect(withKey.result.current.actionError).toBe("firewall denied");
-    api.getDiskUsage.mockRejectedValueOnce(new Error("disk unavailable"));
-    await act(async () => { await withKey.result.current.handleAction("disk_free", "show_disk"); });
-    expect(withKey.result.current.actionError).toBe("Action failed: disk unavailable");
-    api.getDiskUsage.mockResolvedValueOnce({ ok: true, free_space: "21 GB", free_bytes: 21, total_space: "100 GB", total_bytes: 100, used_percent: 79, largest_dirs: [], timestamp: "now" });
-    api.runDiskCleanup.mockRejectedValueOnce(new Error("cleanup denied"));
-    await act(async () => { await withKey.result.current.handleCleanup(["journal_vacuum"]); });
-    expect(withKey.result.current.actionError).toBe("Cleanup failed: cleanup denied");
   });
 
   it("normalizes malformed port data and all read-only check states", () => {
@@ -226,10 +175,9 @@ describe("StepPreflight support and action flows", () => {
     expect(setPreflightOverride).toHaveBeenCalledWith(true);
   });
 
-  it("covers disk, DNS, firewall, and process action variants", () => {
+  it("covers DNS, firewall, and process action variants", () => {
     const onAction = vi.fn();
     const actionChecks: PreflightCheck[] = [
-      { id: "disk_free", title: "Disk space", status: "warn", details: "Low disk" },
       { id: "dns_edge_www", title: "WWW domain", status: "fail", hint: "Add the www record" },
       { id: "dns_do_origin", title: "Origin domain", status: "fail", hint: "- DNS: point origin\nAdditional context" },
       { id: "firewall_inbound", title: "Firewall", status: "fail", details: "Blocked" },
@@ -239,22 +187,16 @@ describe("StepPreflight support and action flows", () => {
     render(<PreflightChecksPanel checksToDisplay={buildChecksToDisplay(actionChecks, false)} onAction={onAction} />);
     fireEvent.click(screen.getByRole("button", { name: "Show instructions" }));
     fireEvent.click(screen.getByRole("button", { name: "Open 80/443" }));
-    fireEvent.click(screen.getByRole("button", { name: "Details" }));
     fireEvent.click(screen.getByRole("button", { name: "Open 80/443" }));
     fireEvent.click(screen.getByRole("button", { name: "Review & Stop" }));
     fireEvent.click(screen.getByRole("button", { name: "Stop Scenario" }));
-    expect(onAction).toHaveBeenCalledWith("disk_free", "show_disk");
     expect(onAction).toHaveBeenCalledWith("firewall_inbound", "open_firewall");
     expect(onAction).toHaveBeenCalledWith("ports_80_443", "stop_ports");
   });
 
-  it("handles empty disk data, loading port controls, and running/error wizard states", () => {
+  it("handles loading port controls and running/error wizard states", () => {
     const onClose = vi.fn();
-    const onCleanup = vi.fn();
-    const { rerender } = render(<DiskUsageModal usage={{ ok: false, free_space: "", free_bytes: 0, total_space: "", total_bytes: 0, used_percent: 0, largest_dirs: [], timestamp: "now" }} loading={false} onClose={onClose} onCleanup={onCleanup} cleanupLoading />);
-    expect(screen.getByText("Disk Usage Details")).toBeInTheDocument();
-    expect(screen.queryByText("Largest directories")).not.toBeInTheDocument();
-    rerender(<PortStopModal bindings={[{ port: 80, pid: 9 }]} selections={{ services: {}, pids: { 9: true } }} loading onToggleService={vi.fn()} onTogglePID={vi.fn()} onConfirm={vi.fn()} onClose={onClose} />);
+    render(<PortStopModal bindings={[{ port: 80, pid: 9 }]} selections={{ services: {}, pids: { 9: true } }} loading onToggleService={vi.fn()} onTogglePID={vi.fn()} onConfirm={vi.fn()} onClose={onClose} />);
     expect(screen.getByRole("button", { name: /Stop Selected/ })).toBeDisabled();
     cleanup();
     const runPreflight = vi.fn();

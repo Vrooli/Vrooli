@@ -26,9 +26,8 @@ func releaseTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	releaseServiceOverride = releasesvc.New(releasesvc.Config{RepoRoot: root, StoreDir: t.TempDir(), NativeCLI: release.NativeCLIOptions{ModuleDir: native, Package: "."}, TrustMode: release.TrustDevelopmentLocal})
-	t.Cleanup(func() { releaseServiceOverride = nil })
 	srv := newTestServer()
+	srv.releaseSvc = releasesvc.New(releasesvc.Config{RepoRoot: root, StoreDir: t.TempDir(), NativeCLI: release.NativeCLIOptions{ModuleDir: native, Package: "."}, TrustMode: release.TrustDevelopmentLocal})
 	srv.registerReleaseRoutes(srv.router.PathPrefix("/api/v1").Subrouter())
 	return srv
 }

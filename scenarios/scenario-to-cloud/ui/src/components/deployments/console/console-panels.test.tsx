@@ -233,11 +233,11 @@ describe("RecoveryPanel", () => {
     await userEvent.click(screen.getByTestId("console-recovery-restore"));
     const dialog = screen.getByRole("dialog");
     expect(screen.getByTestId("console-destructive-target")).toHaveTextContent(FIXTURE_TARGET_KEY);
-    expect(screen.getByTestId("console-destructive-data")).toHaveTextContent("postgres:main (postgres) → postgres://localhost:5432/app");
+    expect(screen.getByTestId("console-destructive-data")).toHaveTextContent("postgres:main (postgres) → postgres://fixture-db:5432/app");
     expect(dialog).toHaveTextContent("rp-0001");
     await userEvent.type(screen.getByTestId("console-destructive-confirm-input"), "0f4d2c1a");
     await userEvent.click(screen.getByTestId("console-destructive-confirm"));
-    await waitFor(() => expect(onRestore).toHaveBeenCalledWith({ recoveryPointId: "rp-0001", into: { "postgres:main": "postgres://localhost:5432/app" } }));
+    await waitFor(() => expect(onRestore).toHaveBeenCalledWith({ recoveryPointId: "rp-0001", into: { "postgres:main": "postgres://fixture-db:5432/app" } }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 

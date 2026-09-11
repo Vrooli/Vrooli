@@ -1,6 +1,6 @@
 # Executable Plan
 
-> [CODE: api/execplan/plan.go] · [CODE: api/execplan/compile.go] · [CODE: api/vps/plan.go] · [CODE: api/vps/execute.go] · [CODE: packages/proto/schemas/scenario-to-cloud/v1/plans/plans.proto]
+> [CODE: api/execplan/plan.go] · [CODE: api/execplan/compile.go] · [CODE: api/vps/plan.go] · [CODE: api/vps/execute.go] · [CODE: ../../packages/proto/schemas/scenario-to-cloud/v1/plans/plans.proto]
 
 One typed action graph is compiled from desired state, the declared closure
 and target observations. Preview renders it; policy checks it; apply admits

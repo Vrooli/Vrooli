@@ -290,6 +290,23 @@
         "provisioning": "operator",
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/deployment-manager/docs/workflows/saas-deployment.md"
       }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/secrets-manager/deployment",
+        "field": "service-token",
+        "kind": "authority",
+        "consumer": "Deployment Manager secrets-manager client",
+        "source_ref": "api/secrets/client.go:107",
+        "required": false
+      },
+      {
+        "address_pattern": "vrooli/secrets-manager/deployment:service-token",
+        "kind": "environment",
+        "consumer": "legacy managed deployment compatibility adapter",
+        "source_ref": "api/secrets/client.go:113",
+        "required": false
+      }
     ]
   },
   "components": {

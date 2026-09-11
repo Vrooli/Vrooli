@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-09T00:00:00Z",
-    "plan": "scenario-to-cloud-professional-vps-delivery-certification"
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-012",
       "title": "Shared authentication on every management entry point",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "management-authority",
       "description": "Cloud server startup configures the shared api-core authentication so REST, Connect, SSE, WebSocket and legacy routes reject anonymous callers before any target effect.",
@@ -49,7 +48,7 @@
     {
       "id": "STC-P0-013",
       "title": "Route/effect/target authorization matrix",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "management-authority",
       "description": "A table-driven matrix classifies each route by effect (read, workload mutation, secret, host, interactive) and binds access checks to deployment, target, environment and scope; wrong-target, revoked and insufficient-scope requests are denied without disclosure.",
@@ -84,7 +83,7 @@
     {
       "id": "STC-P0-014",
       "title": "Browser origin, CSRF and WebSocket upgrade enforcement",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "management-authority",
       "description": "Cross-origin mutation and unauthorized terminal upgrades are refused; interactive session lifetime obeys grant policy.",

@@ -80,11 +80,11 @@
     },
     {
       "id": "SWM-P1-005",
-      "title": "One-shot execution strategy",
+      "title": "Goal execution mode",
       "status": "planned",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
-      "description": "The system should offer a one-shot full-plan execution strategy alongside the phased drain in the strategy registry",
+      "description": "The system should offer goal execution mode, one Agent Manager run under a harness goal with no workflow, alongside sliced mode, selectable when an item is run",
       "validation": [
         {
           "type": "manual",

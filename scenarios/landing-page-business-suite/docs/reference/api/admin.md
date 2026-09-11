@@ -400,6 +400,21 @@ Proxies an allowlisted remote admin request using the stored remote session cook
 - `/admin/download-assets`
 - `/admin/download-apps`
 
+The proxy also permits these exact Connect settings procedures, always with
+`POST` and the Connect protocol header:
+
+- `/landing_page_business_suite.v1.AdministrationService/ListAPIKeys`
+- `/landing_page_business_suite.v1.AdministrationService/CreateAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/TestAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive`
+- `/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings`
+- `/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings`
+
+Secret reveal procedures and arbitrary Connect methods remain unavailable. The
+remote profile identifies the target; credentials are kept in the remote
+session and response bodies are returned only to the authenticated local admin.
+
 **Response:** Pass-through status + body from remote LPBS
 
 ---

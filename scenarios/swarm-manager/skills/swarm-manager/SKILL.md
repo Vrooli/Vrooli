@@ -1,6 +1,6 @@
 ---
 name: "swarm-manager"
-description: "Use Swarm Manager to inspect backlog and goals, review development contracts, preserve operator authority, and follow one owned next action through evidence and decision."
+description: "Use Swarm Manager to inspect backlog and goals, review development grants, preserve operator authority, and follow one owned next action through evidence and decision."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["backlog", "goals", "development", "approval", "evidence", "operator", "learning-spine"]
   icon: "list-checks"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-09T00:00:00Z"
-  updatedAt: "2026-09-10T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   learning:
     scope: "swarm-manager-usage"
     capture: "every attempt"
@@ -24,7 +24,7 @@ metadata:
 ## Tools focus: Swarm Manager
 
 Use Swarm Manager as the operator-facing control plane for backlog work, goals,
-evidence and retained development contracts. It stores durable decisions and
+evidence and retained development grants. It stores durable decisions and
 projects the next action; an agent or review result cannot complete work or widen
 its authority. Role and rung ownership are defined in
 `path:docs/agent-system/SKILL_AUTHORING.md`.
@@ -51,23 +51,59 @@ Read the rows in order. Each leaf is one bounded step.
 | Need goal standing or next work | Run `swarm-manager goals get --name <goal>` or `swarm-manager goals list --json`. **[S1]** |
 | Need to understand why a next action is offered | Read the item detail and its plan, dependency, evidence and execution status before acting. The server-owned next-action projection is authoritative. **[S0]** |
 | Need to create or refine work | Use `swarm-manager backlog create`, `backlog update`, or the Plan Workshop route after reading the current item. Preserve the existing work identity. **[S1]** |
-| Need to inspect a development target | Run `swarm-manager development get --item <kind/name>`. Preview output is review material and grants no authority. **[S1]** |
-| Need a development contract | Use the typed preview and exact retained artifact revision. Approval is a human decision and does not launch an agent. **[S1]** |
-| Need to approve, revoke, or accept a development decision | Prepare the typed request file with its expected version and run `swarm-manager development approve|revoke|accept --file <request.json>`. **[S1]** |
-| Need to recover a retained artifact | Run `swarm-manager development artifact --item <kind/name> --digest <digest> --path <path>`. Verify the returned digest before use. **[S1]** |
-| Need to execute an approved scenario-improvement plan | Queue the ordinary plan-backed item with `execution_strategy=adaptive-improvement`. The retained plan acceptance supplies the target revision, grant, write scope and aggregate limits; the campaign chooses successive in-scope repairs without creating another backlog item. **[S0]** |
+| Need a development grant | Accept the plan-backed item. Plan acceptance is the only grant; there is no second approval. **[S1]** |
+| Need to inspect an existing retained development engagement (retired route; create no new items on it) | Run `swarm-manager development get --item <kind/name>`. Preview output is review material and grants no authority. **[S1]** |
+| Need to revoke or accept an existing development decision (retired route) | Prepare the typed request file with its expected version and run `swarm-manager development revoke|accept --file <request.json>`. **[S1]** |
+| Need to recover a retained artifact (retired route) | Run `swarm-manager development artifact --item <kind/name> --digest <digest> --path <path>`. Verify the returned digest before use. **[S1]** |
+| Need to execute an approved plan-backed item | Choose the execution mode in the Run dialog: `sliced` (the `phased-plan-drain` workflow, one reviewed slice at a time) or `goal` (one Agent Manager run under a harness goal). The retained plan acceptance supplies the target revision, grant, write scope and aggregate limits; a mandate-shaped plan lets the campaign choose successive in-scope repairs without another backlog item. Item fields: see "Plan-backed item recipe" below. **[S0]** |
 | Need successive repairs under one approval | Continue the existing campaign checkpoint; do not create a new backlog approval for each in-scope repair. Keep required, completed and remaining outcomes distinct. **[S0]** |
 | Need owner progress or a pending operation | Attach to the owner execution and checkpoint identity. Wait through the owner surface once; do not start a replacement run after reconnect. **[S0]** |
 | Need evidence or final disposition | Read owner-derived evidence, Test Genie results and the independent review. Submit a typed operator decision only after required evidence is present. **[S1]** |
 | Need a new goal, target, effect, device, credential or paid provider | Stop at the boundary and request the specific operator decision or amendment. A sensor, review, or recommendation never grants it. **[S0]** |
 
-The adaptive-improvement strategy is scenario-neutral. Audio Tools is one
-possible target and keeps its product, corpus, provider and accounting authority;
-Swarm supplies orchestration, identity, checkpoints and operator disposition.
-The internal `contract-development` transition remains a compatibility adapter
-for older records, not a second operator-facing backlog kind or approval path.
-Use `prompt-manager skill read scenario-improvement-campaign` for campaign
-execution and the target scenario's `*-improve` skill for domain judgment.
+Both execution modes are scenario-neutral. Audio Tools is one possible target
+and keeps its product, corpus, provider and accounting authority; Swarm supplies
+orchestration, identity, checkpoints and operator disposition. Use
+`prompt-manager skill read scenario-improvement-campaign` for the improvement
+loop and the target scenario's `*-improve` skill for domain judgment.
+
+### Plan-backed item recipe
+
+Create or update the item with the fields the CLI accepts today (`kind` is one
+of `idea`, `research`, `fix`, `execute`, `chore`). Send only these fields.
+
+```bash
+swarm-manager backlog create --data '{
+  "kind": "execute",
+  "name": "<name>",
+  "title": "<end state, present tense>",
+  "description": "<outcome>\n\nDone when:\n- <Gherkin or command>\n\nOperator note\n<intent, reminders, authority to fix shared packages with a record>",
+  "plan_ref": {"provider": "plan-manager", "plan_id": "<plan uuid>", "slug": "<plan slug>", "role": "execution_spec"},
+  "execution_strategy": "phased-plan-drain",
+  "execution_limits": {"max_slices": 8, "max_tokens": 4000000, "max_wall_seconds": 28800, "max_turns": 400, "max_charge_micro_usd": 20000000, "max_children": 16, "max_node_attempts": 64, "max_retries": 4},
+  "continuation": "until-allowance",
+  "scope_policy": "extend-with-record",
+  "acceptance_allow": ["scenarios/<scenario>/**", "packages/<shared-package>/**", "protos/<scenario>/**", "docs/agent-system/**"],
+  "acceptance_deny": ["scenarios/<scenario>/data/**"]
+}'
+swarm-manager backlog update --kind execute --name <name> --data '{
+  "execution_strategy": "adaptive-improvement",
+  "continuation": "until-allowance",
+  "scope_policy": "extend-with-record"
+}'
+```
+
+Field meanings: `execution_strategy` is today's spelling of the execution mode
+(`phased-plan-drain` = sliced over a phased plan; `adaptive-improvement` =
+sliced over a mandate-shaped plan; `goal-session` = the interim workflow-based
+goal mode, superseded). The target fields are `execution_mode` (`sliced` |
+`goal`) and `operator_note`; until they exist, the description carries the
+operator note under an "Operator note" heading. `execution_limits` is one
+aggregate allowance across resumes; `max_slices` applies to sliced mode only.
+`continuation` is `manual` or `until-allowance` and governs involuntary
+interruptions only. `scope_policy` is `fixed` or `extend-with-record`.
+`acceptance_allow` and `acceptance_deny` are globs; `acceptance_deny` refuses
+even after a boundary extension.
 
 ### Development continuity
 

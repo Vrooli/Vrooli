@@ -108,7 +108,7 @@ func verificationRequest(target string, request *capabilitiesv1.VerificationRequ
 		requestedTarget = target
 	}
 	result := operatorcapability.VerificationRequest{
-		CapabilityID: request.GetCapabilityId(), TargetID: requestedTarget, Environment: request.GetEnvironment(), AccountIdentity: request.GetAccountIdentity(), Operation: request.GetOperation(), Context: request.GetContext(),
+		CapabilityID: request.GetCapabilityId(), TargetID: requestedTarget, Environment: request.GetEnvironment(), AccountIdentity: request.GetAccountIdentity(), Operation: request.GetOperation(), Context: request.GetContext(), ContextDigest: request.GetContextDigest(), CatalogRevision: request.GetCatalogRevision(), ConfigurationRevision: request.GetConfigurationRevision(), ProviderAdapterVersion: request.GetProviderAdapterVersion(),
 		Effect:  operatorcapability.EffectBudget{Class: operatorcapability.EffectClass(request.GetEffectClass()), MaxOperations: int(request.GetMaxOperations()), CleanupPolicy: request.GetCleanupPolicy()},
 		Timeout: time.Duration(request.GetTimeoutSeconds()) * time.Second,
 	}
@@ -202,7 +202,7 @@ func evidenceToProto(evidence []operatorcapability.EvidenceReference) []*capabil
 		if item.CredentialRef != nil {
 			credentialRef = &capabilitiesv1.CredentialEvidenceRef{LogicalId: item.CredentialRef.LogicalID, Field: item.CredentialRef.Field, Version: item.CredentialRef.Version}
 		}
-		result = append(result, &capabilitiesv1.CapabilityEvidence{Kind: item.Kind, ArtifactIdentity: item.ArtifactIdentity, SourceGeneration: item.SourceGeneration, Checksum: item.Checksum, Coverage: item.Coverage, ObservedAt: timestamp(item.ObservedAt), Verified: item.Verified, Remediation: item.Remediation, SchemaVersion: item.SchemaVersion, CapabilityId: item.CapabilityID, CredentialRef: credentialRef, TargetId: item.TargetID, Environment: item.Environment, AccountIdentity: item.AccountIdentity, Operation: item.Operation, Status: item.Status, ExpiresAt: timestamp(item.ExpiresAt), ArtifactRefs: item.ArtifactRefs, Limitations: item.Limitations, NextAction: item.NextAction, EffectClass: item.EffectClass, EffectsUsed: int32(item.EffectsUsed), CleanupCompleted: item.CleanupCompleted, Stage: string(item.Stage)})
+		result = append(result, &capabilitiesv1.CapabilityEvidence{Kind: item.Kind, ArtifactIdentity: item.ArtifactIdentity, SourceGeneration: item.SourceGeneration, Checksum: item.Checksum, Coverage: item.Coverage, ObservedAt: timestamp(item.ObservedAt), Verified: item.Verified, Remediation: item.Remediation, SchemaVersion: item.SchemaVersion, CapabilityId: item.CapabilityID, CredentialRef: credentialRef, TargetId: item.TargetID, Environment: item.Environment, AccountIdentity: item.AccountIdentity, Operation: item.Operation, Status: item.Status, ExpiresAt: timestamp(item.ExpiresAt), ArtifactRefs: item.ArtifactRefs, Limitations: item.Limitations, NextAction: item.NextAction, EffectClass: item.EffectClass, EffectsUsed: int32(item.EffectsUsed), CleanupCompleted: item.CleanupCompleted, Stage: string(item.Stage), Owner: item.Owner, ContextDigest: item.ContextDigest, CatalogRevision: item.CatalogRevision, ConfigurationRevision: item.ConfigurationRevision, ProviderAdapterVersion: item.ProviderAdapterVersion})
 	}
 	return result
 }

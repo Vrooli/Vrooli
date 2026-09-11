@@ -7,9 +7,9 @@ Time: 3–10 minutes; declared maintenance downtime is bounded by the plan.
 ## 1. Identify the deployment and its current state
 
 ```bash
-scenario-to-cloud deployment resolve --scenario <scenario-id> --environment production
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud operation list <deployment-id> --json
+scenario-to-cloud deployment resolve --scenario "$SCENARIO_ID" --environment production
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud operation list "$DEPLOYMENT_ID" --json
 ```
 
 Do not start an update while `operation list` shows a non-terminal
@@ -26,8 +26,8 @@ schema (`recovery_point_required` precondition). Capture one explicitly when
 you want a named restore point independent of the operation:
 
 ```bash
-scenario-to-cloud deployment recovery-points capture <deployment-id> --json
-scenario-to-cloud deployment recovery-points verify <deployment-id> --recovery-point <rp-id> --open
+scenario-to-cloud deployment recovery-points capture "$DEPLOYMENT_ID" --json
+scenario-to-cloud deployment recovery-points verify "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --open
 ```
 
 The point is bound to the recorded release; retention protection is
@@ -40,7 +40,7 @@ not just that the bytes are intact.
 ## 3. Review the update plan
 
 ```bash
-scenario-to-cloud deployment plan <deployment-id> --force-bundle
+scenario-to-cloud deployment plan "$DEPLOYMENT_ID" --force-bundle
 ```
 
 `--force-bundle` rebuilds and re-signs the release from the current source;
@@ -59,7 +59,7 @@ the target already runs it). Read, in this order:
 ## 4. Apply the reviewed digest
 
 ```bash
-scenario-to-cloud deployment apply <deployment-id> --plan-digest <plan-digest> --request-key update-<scenario-id>-<release-short> --timeout 900
+scenario-to-cloud deployment apply "$DEPLOYMENT_ID" --plan-digest "$PLAN_DIGEST" --request-key "update-$SCENARIO_ID-$RELEASE_SHORT" --timeout 900
 ```
 
 Exit handling is the same as in `deploy.md` §5. Activation order on the
@@ -73,9 +73,9 @@ operation, it is never completed by hand.
 ## 5. Verify
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
-scenario-to-cloud inspect drift <deployment-id> --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
+scenario-to-cloud inspect drift "$DEPLOYMENT_ID" --json
 ```
 
 Required: `status: HEALTHY`, `freshness: CURRENT`, `observed_release_digest`
@@ -88,8 +88,8 @@ upstream, listener id), private listeners still unrouted, `drift` reporting
 **a. Roll back to the retained predecessor** (eligible per step 3):
 
 ```bash
-scenario-to-cloud deployment rollback <deployment-id> --dry-run --json
-scenario-to-cloud deployment rollback <deployment-id> --confirm --preview-ref <preview-ref> --request-key rollback-<scenario-id>-<release-short>
+scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --dry-run --json
+scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --confirm --preview-ref "$PREVIEW_REF" --request-key "rollback-$SCENARIO_ID-$RELEASE_SHORT"
 ```
 
 Rollback is governed: the dry run issues a preview reference bound to the
@@ -105,7 +105,7 @@ point from step 2 or the one the operation captured, then roll back.
 reconciliation `blocked` with `resolve_interrupted_activation`):
 
 ```bash
-curl -sS -X POST "$STC_API/api/v1/deployments/<deployment-id>/reconcile" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d '{}'
+curl -sS -X POST "$STC_API/api/v1/deployments/$DEPLOYMENT_ID/reconcile" -H "Authorization: Bearer $STC_TOKEN" -H "Content-Type: application/json" -d '{}'
 ```
 
 The response carries the report and the compiled correction plan; resubmit

@@ -7,27 +7,33 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/authz"
+	"scenario-to-cloud/backup"
 	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/closure"
 	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/deploymentsvc"
 	"scenario-to-cloud/dns"
+	"scenario-to-cloud/domain"
 	stchealth "scenario-to-cloud/health"
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/instance"
 	"scenario-to-cloud/investigation"
 	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/onboarding"
 	"scenario-to-cloud/operations"
 	"scenario-to-cloud/operationsvc"
 	"scenario-to-cloud/persistence"
 	"scenario-to-cloud/reach"
 	bridgereach "scenario-to-cloud/reach/bridge"
 	"scenario-to-cloud/reach/sshadapter"
+	"scenario-to-cloud/releasesvc"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
@@ -38,10 +44,13 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
 	vpspreflight "scenario-to-cloud/vps/preflight"
@@ -59,6 +68,7 @@ type Server struct {
 	config           *ServerConfig
 	router           *mux.Router
 	db               *database.RoutedDB
+	fileRoots        *filerouting.RoutedRoots
 	repo             *persistence.Repository
 	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
@@ -96,12 +106,27 @@ type Server struct {
 	deploymentRepo DeploymentRepository
 	// Reach: typed target access selected by the deployment binding.
 	reach reach.Reach
+	// onboardingHandoff is the owner-issued handoff seam. It is enabled only
+	// when the deployment supplies the onboarding service credential; tests and
+	// local installs retain the pure-plan fallback until that peer is available.
+	onboardingHandoff onboarding.Issuer
 	// Seam: instance provider (defaults to the local disposable QEMU lane).
 	instanceProvider instance.Provider
-	// publicationDeps are the governance seams (governor, receipt signer,
-	// target pointer reader, release resolver); production values resolve
-	// lazily, tests substitute fakes.
+	// publicationDeps are the per-server governance seams (governor, receipt
+	// signer, target pointer reader, release resolver); tests substitute fakes.
 	publicationDeps *publicationDeps
+
+	// Optional capabilities are constructed once per server. Keeping their
+	// state here prevents one server instance (or test fixture) from sharing a
+	// repository, closure catalog, or failure with another instance.
+	releaseSvc            *releasesvc.Service
+	releaseErr            error
+	backupSvc             *backup.Service
+	backupErr             error
+	closureSvc            *closure.Service
+	closureErr            error
+	healthSvc             *stchealth.Alerter
+	edgeListenersOverride func(context.Context, *domain.Deployment, domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error)
 }
 
 // devRoutingMux adapts gorilla/mux's fluent registration API to api-core's
@@ -124,6 +149,11 @@ func NewServer() (*Server, error) {
 	cfg := &ServerConfig{
 		Port: requireEnv("API_PORT"),
 	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		return nil, fmt.Errorf("resolve file storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
 
 	// Connect to database
 	db, err := database.Open(context.Background(), database.Config{
@@ -200,6 +230,7 @@ func NewServer() (*Server, error) {
 		config:           cfg,
 		router:           mux.NewRouter(),
 		db:               db,
+		fileRoots:        fileRoots,
 		repo:             repo,
 		deploymentRepo:   repo,
 		progressHub:      progressHub,
@@ -215,6 +246,9 @@ func NewServer() (*Server, error) {
 		tlsService:       tlsService,
 		tlsALPNRunner:    tlsALPNRunner,
 		instanceProvider: instance.LocalQEMUProvider{},
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_HANDOFF_ENABLED")), "true") {
+		srv.onboardingHandoff = onboarding.NewClient()
 	}
 	authConfig.Logger = srv.log
 	enforcer, err := authz.New(authConfig, targetResolver{repo: repo})
@@ -232,6 +266,13 @@ func NewServer() (*Server, error) {
 		db.Close()
 		return nil, fmt.Errorf("closure service: %w", err)
 	}
+	srv.closureSvc = closureSvc
+	releaseSvc, releaseErr := newDefaultReleaseService()
+	srv.releaseSvc, srv.releaseErr = releaseSvc, releaseErr
+	srv.backupSvc, srv.backupErr = srv.newDefaultBackupService()
+	detection, detectionSource := stchealth.LoadDetection()
+	srv.log("deployment alerting configured", map[string]interface{}{"budgets": detectionSource, "stale_after_seconds": detection.StaleObservationAfterSeconds, "certificate_warning_days": detection.CertificateExpiryWarningDays})
+	srv.healthSvc = stchealth.NewAlerter(eventbus.NewDiscoveredClient(context.Background()), detection, srv.log)
 	manifestRefresher := deployment.NewManifestRefresher(deployment.ManifestRefresherConfig{
 		SecretsFetcher: secretsFetcher,
 		Closure:        closureSvc,
@@ -303,11 +344,12 @@ func (s *Server) setupRoutes() {
 	}
 	gate := s.authz.EffectGate
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	var healthDB *sql.DB
-	if s.db != nil {
-		healthDB = s.db.Primary()
-	}
-	healthHandler := health.Handler(health.DB(healthDB))
+	healthHandler := health.Handler(health.Func("database", func(ctx context.Context) error {
+		if s.db == nil {
+			return fmt.Errorf("database not configured")
+		}
+		return s.db.PingContext(ctx)
+	}))
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -415,8 +457,6 @@ func (s *Server) setupRoutes() {
 	// and enrollment is vrooli-bridge onboard; there is no /ssh surface.
 	api.HandleFunc("/preflight/fix/firewall", gate(authz.EffectHost, vpspreflight.HandleOpenFirewallPorts(s.adHocReach))).Methods("POST")
 	api.HandleFunc("/preflight/fix/stop-processes", gate(authz.EffectHost, vpspreflight.HandleStopScenarioProcesses(s.adHocReach))).Methods("POST")
-	api.HandleFunc("/preflight/disk/usage", vpspreflight.HandleDiskUsage(s.adHocReach)).Methods("POST")
-	api.HandleFunc("/preflight/disk/cleanup", gate(authz.EffectHost, vpspreflight.HandleDiskCleanup(s.adHocReach))).Methods("POST")
 
 	// Investigation endpoints (agent-manager integration) - legacy, kept for backward compatibility
 	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
@@ -461,17 +501,46 @@ func (s *Server) setupRoutes() {
 		path, handler := deploymentsvc.New(s.repo).Handler()
 		s.router.PathPrefix(path).Handler(handler)
 	}
-
-	// Test-genie uses a leased shadow pool in development. The registration is
-	// deliberately dev-only inside api-core and is never exposed in production.
-	if s.db != nil {
-		devrouting.Register(devRoutingMux{router: s.router}, s.db)
-	}
 }
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return apihttp.TestModeMiddleware(handlers.RecoveryHandler()(securityHeadersMiddleware(s.router)))
+	rootMux := http.NewServeMux()
+	// Test-genie uses leased shadow database and file roots in development. The
+	// registration is deliberately dev-only inside api-core and is never
+	// exposed in production.
+	if s.db != nil && s.fileRoots != nil {
+		devrouting.RegisterWithFileRoots(rootMux, s.db, s.fileRoots)
+	}
+	rootMux.Handle("/", s.router)
+	return apihttp.TestModeMiddleware(handlers.RecoveryHandler()(securityHeadersMiddleware(rootMux)))
+}
+
+// scenarioStorageRoots resolves the scenario-owned filesystem classes once at
+// startup. Request-scoped writers select a class through fileRootPath so a
+// leased test request cannot fall back to the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-cloud")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve scenario storage namespace: %w", err)
+	}
+	return storage.EnsureAllDirs(resolver, storage.Options{ScenarioID: scenarioID}, 0o755)
+}
+
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	// RoutedRoots.Pick(ctx, class) is the request-scoped file isolation seam.
+	root, err := roots.Pick(ctx, class)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
 }
 
 // securityHeadersMiddleware centralizes the baseline browser boundary for

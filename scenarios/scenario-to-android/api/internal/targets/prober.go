@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/targetmodel"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
@@ -30,6 +31,7 @@ type DeviceObservation struct {
 	Capabilities []string
 	Available    bool
 	Reason       string
+	ObservedAt   time.Time
 }
 
 // DeviceInventory is intentionally smaller than device-control's generated
@@ -94,6 +96,7 @@ func (p Prober) Probe(ctx context.Context, request deliveryramp.ProbeRequest) (d
 		if err := targets[index].Validate(); err != nil {
 			return deliveryramp.Inventory{}, err
 		}
+		targets[index].OperationReadiness = targetmodel.EvaluateOperations(targets[index], now().UTC())
 	}
 	return deliveryramp.Inventory{Targets: targets, Observed: now().UTC()}, nil
 }
@@ -160,11 +163,14 @@ func targetFromObservation(observation DeviceObservation, required []string) del
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(observation.Serial)), "emulator-") {
 		deviceKind, mode = "emulator", "emulator"
 	}
+	if observation.NodeID != "" || observation.Transport.Kind == deliveryramp.TransportBridge {
+		deviceKind = "attached"
+	}
 	return deliveryramp.Target{
 		ID: observation.ID, Ramp: "scenario-to-android", Label: observation.Label,
 		Platform: "android", OS: observation.OS, Architecture: observation.Architecture,
 		DeviceKind: deviceKind, Transport: observation.Transport, NodeID: observation.NodeID,
-		Mode: mode, Capabilities: observation.Capabilities, Available: available,
+		Mode: mode, LastSeenAt: observation.ObservedAt, Capabilities: observation.Capabilities, Available: available,
 		Reason: observation.Reason, MissingCapability: missing, NextAction: nextAction,
 		Health: deliveryramp.TargetHealth{Status: healthStatus(available), Reason: observation.Reason},
 	}

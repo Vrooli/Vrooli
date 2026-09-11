@@ -26,6 +26,7 @@ type CredentialRef struct {
 	Kind                 string                               `json:"kind,omitempty"`
 	Provider             string                               `json:"provider,omitempty"`
 	AppliesWhen          *credentialspec.Applicability        `json:"applies_when,omitempty"`
+	Tiers                []string                             `json:"tiers,omitempty"`
 	RequirementGroup     string                               `json:"requirement_group,omitempty"`
 	ConsumerRefs         []string                             `json:"consumer_refs,omitempty"`
 	CompanionSettings    []string                             `json:"companion_settings,omitempty"`
@@ -60,6 +61,7 @@ type CredentialProvenance struct {
 	Kind                 string                         `json:"kind,omitempty"`
 	Provider             string                         `json:"provider,omitempty"`
 	AppliesWhen          *credentialspec.Applicability  `json:"applies_when,omitempty"`
+	Tiers                []string                       `json:"tiers,omitempty"`
 	RequirementGroup     string                         `json:"requirement_group,omitempty"`
 	ConsumerRefs         []string                       `json:"consumer_refs,omitempty"`
 	CompanionSettings    []string                       `json:"companion_settings,omitempty"`
@@ -99,6 +101,7 @@ type CredentialConsumerProvenance struct {
 type CredentialStatus struct {
 	Identity       string `json:"identity"`
 	Field          string `json:"field"`
+	Version        string `json:"version,omitempty"`
 	Configured     bool   `json:"configured"`
 	Provider       string `json:"provider"`
 	ProviderState  string `json:"provider_state"`
@@ -114,6 +117,9 @@ type ProvisionRequest struct {
 type ProvisionResponse struct {
 	Identity string `json:"identity"`
 	Field    string `json:"field"`
+	// Version is the opaque active authority version after activation. It is
+	// metadata only and never permits recovery of the protected value.
+	Version  string `json:"version,omitempty"`
 	Provider string `json:"provider"`
 	Status   string `json:"status"`
 }
@@ -131,8 +137,24 @@ const (
 type HydrationRequest struct {
 	Identity string
 	Field    string
-	Env      string
-	Target   map[string]string
+	// TargetID binds the delivery lease to the reviewed consumer target. The
+	// target map is still caller-owned and ephemeral; this identity makes the
+	// handoff auditable and prevents an unlabelled local injection.
+	TargetID string
+	// ExpectedVersion binds runtime delivery to the authority version reviewed
+	// by the owner. An empty value preserves broker-only callers that do not
+	// carry an exercised credential receipt.
+	ExpectedVersion string
+	Env             string
+	// Target is caller-owned and is cleared by lease expiry or revocation. The
+	// caller must not read or write it concurrently with Hydrate, RevokeHydration,
+	// or lease expiry; prepare the process environment before starting the
+	// consumer and use the lifecycle methods as the synchronization boundary.
+	Target map[string]string
+	// ProcessRunning tells the authority whether the receiving process already
+	// exists. Environment changes cannot be observed by an already-running
+	// process, so Hydrate reports that a restart is required in its response.
+	ProcessRunning bool
 	// LeaseTTL bounds how long the caller may deliver this value to a
 	// receiving process. The lifecycle owner must revoke the lease when that
 	// process stops; the default is deliberately short for callers that omit it.
@@ -140,12 +162,16 @@ type HydrationRequest struct {
 }
 
 type HydrationResponse struct {
-	Identity     string       `json:"identity"`
-	Field        string       `json:"field"`
-	ExposureMode ExposureMode `json:"exposure_mode"`
-	Injected     bool         `json:"injected"`
-	LeaseID      string       `json:"lease_id,omitempty"`
-	ExpiresAt    time.Time    `json:"expires_at,omitempty"`
+	Identity        string       `json:"identity"`
+	Field           string       `json:"field"`
+	TargetID        string       `json:"target_id"`
+	Version         string       `json:"version,omitempty"`
+	ExposureMode    ExposureMode `json:"exposure_mode"`
+	Injected        bool         `json:"injected"`
+	RestartRequired bool         `json:"restart_required"`
+	NextAction      string       `json:"next_action,omitempty"`
+	LeaseID         string       `json:"lease_id,omitempty"`
+	ExpiresAt       time.Time    `json:"expires_at,omitempty"`
 }
 
 // HydrationProvider is optional because broker-only consumers do not need to

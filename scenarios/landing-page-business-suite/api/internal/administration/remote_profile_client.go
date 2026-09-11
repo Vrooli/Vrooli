@@ -36,6 +36,16 @@ func (s *RemoteProfileService) buildRemoteURL(apiBase string, pathValue string, 
 	return parsed.String(), nil
 }
 
+func (s *RemoteProfileService) buildRemoteProxyURL(apiBase string, pathValue string, query map[string]string) (string, error) {
+	if isRemoteConnectProcedure(pathValue) {
+		if len(query) != 0 {
+			return "", errors.New("Connect settings procedures do not accept query parameters")
+		}
+		return remoteConnectURL(apiBase, pathValue)
+	}
+	return s.buildRemoteURL(apiBase, pathValue, query)
+}
+
 func (s *RemoteProfileService) BuildRemoteURL(apiBase string, pathValue string, query map[string]string) (string, error) {
 	return s.buildRemoteURL(apiBase, pathValue, query)
 }

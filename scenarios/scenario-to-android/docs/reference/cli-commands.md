@@ -174,7 +174,7 @@ target unless `ANDROID_TARGET_ID` is supplied. It requires
 ones accepted by `android build`.
 
 `android signing-provision` generates an upload key with the governed `keytool`
-and stores its keystore, password, and alias through `secrets-manager`; it never
+and stores its keystore, separate keystore/key passwords, and alias through `secrets-manager`; it never
 prints key material. Set `ANDROID_SIGNING=required` for `android build` to
 produce release APK/AAB outputs. A missing or partially configured identity
 fails closed and names the signing rung instead of falling back to a local key.

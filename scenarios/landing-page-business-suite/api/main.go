@@ -29,6 +29,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	authhandler "landing-page-business-suite-api/handlers/administration"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/administration"
@@ -331,7 +332,7 @@ func NewServer() (*Server, error) {
 		ConsumerSigningKeyID:  consumerKeyID,
 		ConsumerPreviousKeys:  previousConsumerKeys,
 		ConsumerClockSkew:     30 * time.Second,
-		BaseURL:               resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
+		BaseURL:               resolveMagicLinkBaseURL(),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
 		Log:                   logx.Info,
 		LogError:              logx.Error,
@@ -365,8 +366,16 @@ func NewServer() (*Server, error) {
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
 
 	// Initialize metered inference provider service
+	aiCredentialAuthority, err := credentialauthority.Default()
+	if err != nil {
+		return nil, fmt.Errorf("initialize shared AI credential authority: %w", err)
+	}
+	aiCredentialClient, err := credentialclient.NewClient(credentialclient.ClientOptions{Authority: aiCredentialAuthority})
+	if err != nil {
+		return nil, fmt.Errorf("initialize shared AI credential client: %w", err)
+	}
 	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{
-		APIKeyService:  apiKeyService,
+		APIKeyService:  intelligence.CredentialAuthorityAPIKeyService{Client: aiCredentialClient},
 		UsageService:   newCommerceUsageServicer(usageService),
 		AccountService: accountService,
 		Logger:         logx.Info,

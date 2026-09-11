@@ -1,10 +1,14 @@
 package delivery
 
 import (
+	"bytes"
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -100,6 +104,68 @@ func (s *s3Storage) TestConnection(ctx context.Context, bucket string) error {
 	}
 	_, err := s.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
 	return err
+}
+
+// VerifyOperations proves the bounded distribution contract with an object
+// that is unique to this readiness attempt and is always deleted. HeadBucket
+// alone is insufficient: a role can discover a bucket while lacking object
+// write, read, or cleanup permissions.
+func (s *s3Storage) VerifyOperations(ctx context.Context, bucket, prefix string) (err error) {
+	if err := s.TestConnection(ctx, bucket); err != nil {
+		return err
+	}
+	key, err := readinessObjectKey(prefix)
+	if err != nil {
+		return err
+	}
+	payload := []byte("vrooli-s3-readiness-v1")
+	if _, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(payload),
+		ContentType: aws.String("application/octet-stream"),
+	}); err != nil {
+		return fmt.Errorf("write readiness object: %w", err)
+	}
+	defer func() {
+		if cleanupErr := s.deleteReadinessObject(ctx, bucket, key); err == nil && cleanupErr != nil {
+			err = fmt.Errorf("delete readiness object: %w", cleanupErr)
+		}
+	}()
+
+	response, err := s.client.GetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		return fmt.Errorf("read readiness object: %w", err)
+	}
+	read, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil {
+		return fmt.Errorf("read readiness object body: %w", readErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close readiness object body: %w", closeErr)
+	}
+	if !bytes.Equal(read, payload) {
+		return fmt.Errorf("readiness object content did not round-trip")
+	}
+	return nil
+}
+
+func (s *s3Storage) deleteReadinessObject(ctx context.Context, bucket, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	return err
+}
+
+func readinessObjectKey(prefix string) (string, error) {
+	cleanPrefix := path.Clean(strings.Trim(strings.TrimSpace(prefix), "/"))
+	if cleanPrefix == "." || cleanPrefix == ".." || strings.HasPrefix(cleanPrefix, "../") {
+		cleanPrefix = ".vrooli/readiness"
+	}
+	var token [12]byte
+	if _, err := cryptorand.Read(token[:]); err != nil {
+		return "", fmt.Errorf("generate readiness object identity: %w", err)
+	}
+	return cleanPrefix + "/.vrooli-readiness-" + hex.EncodeToString(token[:]), nil
 }
 
 func (s *s3Storage) PresignGet(ctx context.Context, bucket, key string, ttl time.Duration) (string, error) {

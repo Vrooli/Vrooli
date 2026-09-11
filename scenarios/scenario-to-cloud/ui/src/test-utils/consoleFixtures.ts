@@ -114,7 +114,7 @@ export function makeRecoveryPoint(overrides: Partial<RecoveryPoint> = {}): Recov
     id: "rp-0001",
     deployment_id: FIXTURE_DEPLOYMENT_ID,
     binding_ids: ["postgres:main"],
-    bindings: [{ id: "postgres:main", kind: "postgres", provider: "data-backup-manager", locator: "postgres://localhost:5432/app" }],
+    bindings: [{ id: "postgres:main", kind: "postgres", provider: "data-backup-manager", locator: "postgres://fixture-db:5432/app" }],
     schema_version: "12",
     configuration_digest: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     release_digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

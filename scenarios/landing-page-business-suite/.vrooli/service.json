@@ -29,6 +29,7 @@
     }
   },
   "environment": {
+    "PUBLIC_BASE_URL": "http://localhost:${UI_PORT}",
     "AUTH_MAGIC_LINK_BASE_URL": "http://localhost:${UI_PORT}/auth/verify"
   },
   "generation": {
@@ -417,6 +418,7 @@
       {"logical_id":"vrooli/landing-page-business-suite","field":"session-secret-previous","kind":"authority","consumer":"session rotation verifier","source_ref":"api/auth.go:135","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"service-secret","kind":"generated","consumer":"LPBS service identity bootstrap","source_ref":"api/main.go:209","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"api-key-encryption-key","kind":"generated","consumer":"provider-key encryption ring","source_ref":"api/main.go:209","required":true},
+      {"logical_id":"vrooli/openrouter","field":"api-key","kind":"authority","consumer":"LPBS metered inference provider","source_ref":"api/internal/intelligence/credential_authority_api_key_service.go:25","required":false},
       {"logical_id":"vrooli/landing-page-business-suite","field":"remote-profile-encryption-key","kind":"generated","consumer":"remote-profile encryption ring","source_ref":"api/main.go:209","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"consumer-auth-private-key","kind":"generated","consumer":"customer token signer","source_ref":"api/main.go:464","required":true},
       {"logical_id":"vrooli/landing-page-business-suite","field":"admin-default-password","kind":"authority","consumer":"seeded administrator bootstrap","source_ref":"api/auth.go:79","required":true},

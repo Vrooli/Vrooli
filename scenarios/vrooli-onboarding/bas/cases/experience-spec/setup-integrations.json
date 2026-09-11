@@ -18,7 +18,7 @@
           "label": "Open Integrations"
         },
         "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
           "scenario": "vrooli-onboarding",
           "scenario_path": "/setup/integrations",
           "timeout_ms": 30000,

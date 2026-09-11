@@ -14,7 +14,7 @@ func Register(deps appctx.Dependencies) cliapp.CommandGroup {
 			{
 				Name:        "preflight",
 				NeedsAPI:    true,
-				Description: "Preflight checks and remediation actions (run, requirements, fix, disk tools)",
+				Description: "Preflight checks and owner-routed remediation actions",
 				Run: func(args []string) error {
 					return preflightcmd.Run(deps.PreflightClient, args)
 				},

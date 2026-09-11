@@ -174,7 +174,7 @@ func example(cli string, path []string, c Command) string {
 	parts = append(parts, c.Name)
 	for _, p := range c.Positionals {
 		if p.Required {
-			parts = append(parts, "<"+p.Name+">")
+			parts = append(parts, `"<`+p.Name+`>"`)
 		} else {
 			parts = append(parts, "["+p.Name+"]")
 		}
@@ -186,11 +186,11 @@ func example(cli string, path []string, c Command) string {
 		case f.Required && f.Bool:
 			parts = append(parts, "--"+f.Name)
 		case f.Required:
-			parts = append(parts, "--"+f.Name+" <"+f.Name+">")
+			parts = append(parts, `--`+f.Name+` "<`+f.Name+`>"`)
 		case f.Bool:
 			parts = append(parts, "[--"+f.Name+"]")
 		default:
-			parts = append(parts, "[--"+f.Name+" <value>]")
+			parts = append(parts, `[--`+f.Name+` "<value>"]`)
 		}
 	}
 	return strings.Join(parts, " ")

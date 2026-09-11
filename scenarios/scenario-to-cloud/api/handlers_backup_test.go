@@ -22,14 +22,13 @@ func backupTestServer(t *testing.T) (*Server, string) {
 	srv, repo := newIdentityTestServer(t, "backup-"+t.Name())
 	seedDeployment(t, repo, "dep-1", "demo-app", "production", "203.0.113.10", "demo.example")
 	root := t.TempDir()
-	backupServiceOverride = &backup.Service{
+	srv.backupSvc = &backup.Service{
 		Repo: repo, Root: filepath.Join(root, "recovery-points"),
 		Keys:      recoverypoint.StaticKeys{"fixture/recovery:key": []byte("fixture-recovery-key-material")},
 		Sealer:    recoverypoint.Sealer{Iterations: 1000},
 		Providers: recoverypoint.Registry{domain.BackupProviderObjectStore: recoverypoint.ObjectStore{}},
 		Budgets:   backup.Budgets{FreshHostRestoreSeconds: 900, RecoveryPointSeconds: 300},
 	}
-	t.Cleanup(func() { backupServiceOverride = nil })
 	srv.registerBackupRoutes(srv.router.PathPrefix("/api/v1").Subrouter())
 	return srv, root
 }

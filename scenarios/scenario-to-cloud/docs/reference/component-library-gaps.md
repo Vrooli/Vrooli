@@ -4,7 +4,7 @@ This product keeps its specialized workspace frame because the library shell doe
 carry the simultaneous workflow regions described in the review record.
 
 ```shell-ejection
-{"archetype":"navigated-console","reason":"Deployment wizard workspace owns dashboard, deployments, docs, wizard backtracking, health refresh, and a documentation sub-navigation. AppShell/2 cannot carry the wizard/documentation transition contract without moving product workflow controls into generic chrome.","files":["ui/src/components/layout/Layout.tsx","ui/src/components/docs/DocsSidebar.tsx","ui/src/hooks/useHashRouter.ts"]}
+{"archetype":"navigated-console","reason":"Deployment wizard workspace owns dashboard, deployments, docs, wizard backtracking, health refresh, and a documentation sub-navigation. AppShell/2 cannot carry the wizard/documentation transition contract without moving product workflow controls into generic chrome.","files":["ui/src/components/layout/Layout.tsx","ui/src/components/docs/DocsSidebar.tsx","ui/src/hooks/useHashRouter.ts","ui/src/components/deployments/DeploymentsPage.tsx","ui/src/components/deployments/tabs/ConfirmationDialog.tsx","ui/src/components/deployments/tabs/SecretsTab.tsx","ui/src/components/wizard/InvestigationReport.tsx","ui/src/components/wizard/SpawnAgentButton.tsx","ui/src/components/wizard/StepPreflight.tsx"]}
 ```
 
 ## Deployment console (phase 19, 2026-09-09)

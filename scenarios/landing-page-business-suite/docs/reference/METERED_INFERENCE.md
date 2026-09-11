@@ -1,6 +1,6 @@
 # LPBS Metered Inference
 
-The LPBS Metered Inference provides centralized AI access with credit management for all Vrooli applications. It receives AI requests, atomically checks and charges credits, calls AI providers (OpenRouter), and returns responses.
+The LPBS Metered Inference provides centralized AI access with credit management for all Vrooli applications. It receives AI requests, atomically checks and charges credits, resolves the OpenRouter credential from the shared credential authority, calls the provider, and returns responses. LPBS owns entitlement and credit accounting; it does not own a second OpenRouter API-key setting.
 
 ## Architecture
 
@@ -18,12 +18,19 @@ The LPBS Metered Inference provides centralized AI access with credit management
 │                                        │                                     │
 │                                        ├─► Check user auth (JWT)            │
 │                                        ├─► Check credits (atomic)           │
+│                                        ├─► Resolve vrooli/openrouter        │
 │                                        ├─► Call OpenRouter                  │
 │                                        ├─► Charge credits                   │
 │                                        └─► Return response (stream/full)    │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+OpenRouter is configured through the `resource-openrouter` credential
+authority entry (`vrooli/openrouter`, `api-key`). The LPBS administrator API
+key table is not consulted by metered inference. This keeps provider
+credentials with the resource owner while LPBS remains the server-authorized
+metering owner.
 
 ## API Endpoints
 
@@ -284,16 +291,19 @@ if provider.IsAvailable(ctx) {
 
 ### LPBS Side
 
-Requires an OpenRouter API key stored in the `api_keys` table:
+The OpenRouter credential is owned by the shared `resource-openrouter`
+authority. Provision it through the credential workflow, not LPBS settings:
 
 ```bash
-# Store the API key via the admin UI or API
-POST /api/v1/api-keys
-{
-  "provider": "openrouter",
-  "key": "sk-or-..."
-}
+# Provision the shared authority entry through the governed credential flow.
+vrooli credentials provision --identity vrooli/openrouter --field api-key
+# The command reads the value from stdin and does not place it in arguments.
 ```
+
+The LPBS metered service resolves `vrooli/openrouter:api-key` in memory. The
+LPBS API-key settings surface intentionally rejects new OpenRouter entries;
+legacy rows are not used by metered inference and should be removed after the
+shared resource credential is provisioned.
 
 ### BAS Side
 
@@ -311,4 +321,5 @@ The auth token is obtained when a user authenticates with LPBS.
 2. **Rate Limiting:** Per-user rate limiting prevents abuse
 3. **Input Validation:** Strict validation of all request parameters
 4. **Credit Isolation:** Users can only spend their own credits
-5. **API Key Security:** OpenRouter key is encrypted at rest
+5. **Provider credential security:** OpenRouter credentials stay in the shared
+   authority; LPBS only receives the value for the in-memory provider call

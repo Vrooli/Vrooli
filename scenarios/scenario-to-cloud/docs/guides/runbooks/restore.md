@@ -13,7 +13,7 @@ receipt with passing invariants proves the application can come back from it.
 ## 1. Choose the recovery point
 
 ```bash
-scenario-to-cloud deployment recovery-points list <deployment-id> --json
+scenario-to-cloud deployment recovery-points list "$DEPLOYMENT_ID" --json
 ```
 
 Pick by `captured_at`, `release_digest` and `schema_version`: the point must
@@ -23,7 +23,7 @@ not automatically the right one after a schema change.
 ## 2. Verify before touching anything
 
 ```bash
-scenario-to-cloud deployment recovery-points verify <deployment-id> --recovery-point <rp-id> --open
+scenario-to-cloud deployment recovery-points verify "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --open
 ```
 
 `--open` also proves the recovery key resolves through the credential
@@ -34,7 +34,7 @@ authority on the operator side. Refusals stop the procedure:
 ## 3. Dry run
 
 ```bash
-scenario-to-cloud deployment recovery-points restore <deployment-id> --recovery-point <rp-id> --dry-run --json
+scenario-to-cloud deployment recovery-points restore "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --dry-run --json
 ```
 
 Prints what would be restored (bindings, paths, the invariants that will be
@@ -49,8 +49,8 @@ A running workload writing into the binding during restore corrupts the
 result. Stop it through the owner and confirm:
 
 ```bash
-scenario-to-cloud deployment stop <deployment-id>
-scenario-to-cloud deployment health <deployment-id> --json      # application_readiness failed is expected now
+scenario-to-cloud deployment stop "$DEPLOYMENT_ID"
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
 ```
 
 The stop records `desired_state: stopped`; observers never restart a stopped
@@ -59,8 +59,8 @@ deployment on their own (`docs/reference/activation-and-reconciliation.md` §7).
 ## 5. Restore
 
 ```bash
-scenario-to-cloud deployment recovery-points restore <deployment-id> --recovery-point <rp-id> --request-key restore-<deployment-id>-<rp-id>
-scenario-to-cloud deployment recovery-points restore <deployment-id> --recovery-point <rp-id> --target-ref <machine-or-host> --request-key restore-<deployment-id>-<rp-id>   # replacement host
+scenario-to-cloud deployment recovery-points restore "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --request-key "restore-$DEPLOYMENT_ID-$RECOVERY_POINT_ID"
+scenario-to-cloud deployment recovery-points restore "$DEPLOYMENT_ID" --recovery-point "$RECOVERY_POINT_ID" --target-ref "$TARGET_REF" --request-key "restore-$DEPLOYMENT_ID-$RECOVERY_POINT_ID"
 ```
 
 The restore is a durable operation (wait/resume rules as everywhere).
@@ -73,7 +73,7 @@ result. A failed invariant is a failed restore even if the bytes landed.
 Same host:
 
 ```bash
-scenario-to-cloud deployment start <deployment-id> --yes --timeout 600
+scenario-to-cloud deployment start "$DEPLOYMENT_ID" --yes --timeout 600
 ```
 
 Replacement host: the deployment's target binding now points at the new
@@ -82,8 +82,8 @@ credentials (`rotate.md` §5 first when the store was lost) are put in place
 around the restored data:
 
 ```bash
-scenario-to-cloud deployment plan <deployment-id>
-scenario-to-cloud deployment apply <deployment-id> --plan-digest <plan-digest> --request-key rebuild-<deployment-id>-<date> --timeout 900
+scenario-to-cloud deployment plan "$DEPLOYMENT_ID"
+scenario-to-cloud deployment apply "$DEPLOYMENT_ID" --plan-digest "$PLAN_DIGEST" --request-key "rebuild-$DEPLOYMENT_ID-$DATE" --timeout 900
 ```
 
 The plan binds the restored persistent data by recorded mapping; it never
@@ -92,8 +92,8 @@ copies or deletes it.
 ## 7. Verify
 
 ```bash
-scenario-to-cloud deployment health <deployment-id> --json
-scenario-to-cloud edge status <deployment-id> --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
+scenario-to-cloud edge status "$DEPLOYMENT_ID" --json
 ```
 
 Required: `HEALTHY`/`CURRENT` at the intended release; the application's own

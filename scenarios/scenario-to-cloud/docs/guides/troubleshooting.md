@@ -4,6 +4,14 @@ Common issues and how to resolve them.
 
 ## Preflight Failures
 
+### Privilege Strategy Failed
+
+**Symptoms**: Preflight reports `Privilege strategy` as failed for a non-root SSH user.
+
+**Cause**: The configured SSH user can connect, but the target did not confirm non-interactive elevation with `sudo -n -l`. Host preparation is intentionally not attempted in this state.
+
+**Solution**: Grant the configured user the required non-interactive elevation through the target owner, or bind the deployment to an approved privileged user. Do not add a provider API token to resolve an SSH privilege failure; provider credentials are only needed for provider-owned lifecycle actions.
+
 ### SSH Connection Failed
 
 **Symptoms**: Preflight shows "SSH connectivity" as failed.

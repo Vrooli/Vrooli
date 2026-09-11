@@ -19,48 +19,12 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "deployed",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/deployments?status=deployed",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/deployments?status=deployed",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.deployments"
-          }
-        ]
-      }
-    },
-    {
-      "id": "docs",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/docs/manifest",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/docs/manifest",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"deployed-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/deployments?status=deployed","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/deployments?status=deployed"}}},
+      {"id":"docs-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/docs/manifest","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/docs/manifest"}}}
+    ],
+    "edges":[{"source":"deployed-open","target":"docs-open"}]
+  }
 }

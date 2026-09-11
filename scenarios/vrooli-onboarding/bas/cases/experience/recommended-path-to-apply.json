@@ -17,10 +17,10 @@
   "flow_definition": {
     "settings": { "viewport_width": 1280, "viewport_height": 800 },
     "nodes": [
-      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/welcome", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
+      { "id": "open-welcome", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "vrooli-onboarding", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open onboarding welcome" } } },
       { "id": "wait-plan", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/apply.summary", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Recommended plan renders" } } },
       { "id": "accept-recommendation", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/apply.summary button:first-of-type" }, "metadata": { "label": "Use recommended setup" } } },
-      { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply" } } },
+      { "id": "open-apply", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "vrooli-onboarding", "scenario_path": "/setup/apply", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE" }, "metadata": { "label": "Open apply" } } },
       { "id": "wait-apply-plan", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/apply.plan", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Apply plan renders" } } },
       { "id": "apply-recommendation", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/apply.summary button:first-of-type" }, "metadata": { "label": "Apply selection" } } },
       { "id": "wait-run", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/run.ladder", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Run ladder renders" } } },

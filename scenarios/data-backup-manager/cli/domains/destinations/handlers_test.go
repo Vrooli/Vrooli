@@ -204,6 +204,9 @@ func TestParseBackendKind(t *testing.T) {
 	if _, err := parseBackendKind("nope"); err == nil {
 		t.Error("parseBackendKind(\"nope\") should error")
 	}
+	if _, err := parseBackendKind(""); err == nil {
+		t.Error("parseBackendKind(\"\") should require a backend")
+	}
 }
 
 // TestRegisterDestinationsLoadsFromManifest proves the manifest wiring produces

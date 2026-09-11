@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -44,8 +45,35 @@ func TestConnectReadinessUsesSharedWorkflow(t *testing.T) {
 	}
 }
 
+func TestReadinessUsesBoundedStorageProbeWhenProvided(t *testing.T) {
+	probe := readinessStorageProbe{err: fmt.Errorf("put object denied")}
+	handler := NewConnectHandler(Dependencies{
+		BundleKey:   func() string { return "bundle" },
+		Storage:     readinessStorageWithSettings{},
+		TestStorage: probe,
+	})
+
+	response, err := handler.CheckReadiness(context.Background(), connect.NewRequest(&lpbsv1.CheckDeploymentReadinessRequest{}))
+	if err != nil {
+		t.Fatalf("CheckReadiness: %v", err)
+	}
+	if response.Msg.GetReady() || !strings.Contains(response.Msg.GetGates()[0].GetMessage(), "put object denied") {
+		t.Fatalf("probe failure opened readiness: %+v", response.Msg.GetGates())
+	}
+}
+
 type readinessStorage struct{}
 
 func (readinessStorage) GetSettings(context.Context, string) (*delivery.StorageSettings, error) {
 	return nil, nil
 }
+
+type readinessStorageWithSettings struct{}
+
+func (readinessStorageWithSettings) GetSettings(context.Context, string) (*delivery.StorageSettings, error) {
+	return &delivery.StorageSettings{Bucket: "bucket", SignedURLTTLSeconds: 900}, nil
+}
+
+type readinessStorageProbe struct{ err error }
+
+func (probe readinessStorageProbe) TestConnection(context.Context, string) error { return probe.err }

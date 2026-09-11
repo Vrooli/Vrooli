@@ -500,7 +500,7 @@ describe("V2 onboarding wizard steps", () => {
     const input = await screen.findByLabelText("Value for OpenRouter key");
     fireEvent.change(input, { target: { value: "secret-value" } });
     fireEvent.click(screen.getByRole("button", { name: "Save securely" }));
-    expect(await screen.findByTestId("credential-list")).toHaveTextContent("Credential provisioning failed");
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent("Could not save this credential");
     expect(input).toHaveValue("secret-value");
   });
 

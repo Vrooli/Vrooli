@@ -40,10 +40,8 @@ func planTestServer(t *testing.T, name string) (*Server, *persistence.Repository
 	if err := repo.InitSchemaOnDialect(context.Background(), db, "sqlite"); err != nil {
 		t.Fatalf("init schema: %v", err)
 	}
-	previous := closureServiceOverride
-	closureServiceOverride = fixtureClosureService(t, "basic")
-	t.Cleanup(func() { closureServiceOverride = previous })
 	srv := newTestServer()
+	srv.closureSvc = fixtureClosureService(t, "basic")
 	srv.repo = repo
 	srv.deploymentRepo = repo
 	srv.historyRecorder = repo
@@ -367,6 +365,27 @@ func TestVPSSetupApplyRequiresReviewedDigest(t *testing.T) {
 	if len(fake.Calls) != 0 {
 		t.Fatalf("refused apply must not reach the target: %v", fake.Calls)
 	}
+}
+
+func TestAdHocVPSApplyRequiresDurableDeployment(t *testing.T) {
+	srv := newTestServer()
+	rec := httptest.NewRecorder()
+	_, ok := srv.admitAdHocOperation(context.Background(), rec, "", "request-1", &execplan.Plan{})
+	if ok {
+		t.Fatal("ad hoc VPS apply must not execute without a durable deployment owner")
+	}
+	if rec.Code != http.StatusBadRequest || errorCodeFromResponse(t, rec) != "invalid_request" {
+		t.Fatalf("expected typed durable-owner refusal, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func errorCodeFromResponse(t *testing.T, rec *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	return errorCode(body)
 }
 
 func errorsAs(err error, target **connect.Error) bool {

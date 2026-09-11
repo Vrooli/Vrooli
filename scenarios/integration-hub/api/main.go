@@ -25,9 +25,16 @@ func main() {
 	}
 	hub := NewHub(store, cliCredentialStore{})
 	mux := http.NewServeMux()
+	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"status": "healthy", "service": "integration-hub", "timestamp": time.Now().UTC().Format(time.RFC3339), "readiness": true})
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":         "healthy",
+			"service":        "integration-hub",
+			"timestamp":      time.Now().UTC().Format(time.RFC3339),
+			"readiness":      true,
+			"build_identity": buildIdentity,
+		})
 	})
 	path, handler := commonv1connect.NewConnectionServiceHandler(hub)
 	mux.Handle(path, handler)

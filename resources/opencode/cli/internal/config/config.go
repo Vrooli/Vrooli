@@ -36,6 +36,10 @@ const (
 	ollamaProviderID = "ollama"
 	ollamaNPM        = "ollama-ai-provider-v2"
 	ollamaName       = "Ollama (local)"
+	goProviderID     = "opencode-go"
+	goNPM            = "@ai-sdk/openai-compatible"
+	goName           = "OpenCode Go"
+	goBaseURL        = "https://opencode.ai/zen/go/v1"
 
 	// retiredOllamaModelSubstr is dropped from the provider block: its family
 	// narrates tool calls as text instead of emitting structured tool_calls.
@@ -62,6 +66,12 @@ type OllamaProvider struct {
 }
 
 // Inputs is the fully-decided render request (decisions made in ensure.go).
+type GoProvider struct {
+	BaseURL    string
+	ChatModel  string
+	SmallModel string
+}
+
 type Inputs struct {
 	// Active model selection (provider/model). Empty Provider leaves model
 	// management to the merge/repoint flags below.
@@ -82,6 +92,9 @@ type Inputs struct {
 
 	// Ollama, when non-nil, writes/refreshes the local provider block.
 	Ollama *OllamaProvider
+
+	// Go, when non-nil, writes/refreshes the OpenCode Go provider block.
+	Go *GoProvider
 }
 
 // Render produces the new opencode.json bytes from the existing file content
@@ -127,6 +140,12 @@ func Render(existing []byte, in Inputs) ([]byte, error) {
 
 	if in.Ollama != nil {
 		if err := writeOllamaProvider(top, in.Ollama); err != nil {
+			return nil, err
+		}
+	}
+
+	if in.Go != nil {
+		if err := writeGoProvider(top); err != nil {
 			return nil, err
 		}
 	}
@@ -193,6 +212,36 @@ func writeOllamaProvider(top map[string]json.RawMessage, op *OllamaProvider) err
 	ollama["models"] = mustRaw(modelsMap)
 
 	providers[ollamaProviderID] = mustRaw(ollama)
+	top[keyProvider] = mustRaw(providers)
+	return nil
+}
+
+// writeGoProvider writes or refreshes the OpenCode Go provider block.
+func writeGoProvider(top map[string]json.RawMessage) error {
+	providers := map[string]json.RawMessage{}
+	if raw, ok := top[keyProvider]; ok && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &providers); err != nil {
+			return fmt.Errorf("parse provider block: %w", err)
+		}
+	}
+
+	goBlock := map[string]json.RawMessage{}
+	if raw, ok := providers[goProviderID]; ok && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &goBlock); err != nil {
+			return fmt.Errorf("parse go provider: %w", err)
+		}
+	}
+	goBlock["npm"] = mustRaw(goNPM)
+	goBlock["name"] = mustRaw(goName)
+
+	opts := map[string]json.RawMessage{}
+	if raw, ok := goBlock["options"]; ok && len(raw) > 0 {
+		_ = json.Unmarshal(raw, &opts)
+	}
+	opts["baseURL"] = mustRaw(goBaseURL)
+	goBlock["options"] = mustRaw(opts)
+
+	providers[goProviderID] = mustRaw(goBlock)
 	top[keyProvider] = mustRaw(providers)
 	return nil
 }

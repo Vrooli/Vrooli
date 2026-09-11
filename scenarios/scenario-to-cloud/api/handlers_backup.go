@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -18,30 +19,18 @@ import (
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/vps"
 
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/packages/recoverypoint"
-)
-
-// backupServiceOverride lets tests substitute a fixture-backed service. The
-// production service is built lazily over the server repository, the local
-// bundle store and the operator credential authority.
-var (
-	backupServiceOverride *backup.Service
-	backupServiceOnce     sync.Once
-	backupServiceValue    *backup.Service
-	backupServiceErr      error
 )
 
 // BackupSchemaVersion is the response schema version clients negotiate on.
 const BackupSchemaVersion = "1"
 
 func (s *Server) backupService() (*backup.Service, error) {
-	if backupServiceOverride != nil {
-		return backupServiceOverride, nil
+	if s == nil {
+		return nil, apierrors.Internal("recovery service unavailable", nil)
 	}
-	backupServiceOnce.Do(func() {
-		backupServiceValue, backupServiceErr = s.newDefaultBackupService()
-	})
-	return backupServiceValue, backupServiceErr
+	return s.backupSvc, s.backupErr
 }
 
 // newDefaultBackupService binds the repository, the recovery-point store
@@ -52,7 +41,7 @@ func (s *Server) newDefaultBackupService() (*backup.Service, error) {
 	if s.repo == nil {
 		return nil, apierrors.New(apierrors.CodeInternal, "recovery service requires the deployment repository")
 	}
-	storeDir, err := bundle.GetLocalBundlesDir()
+	storeDir, err := s.localBundleDir(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +57,20 @@ func (s *Server) newDefaultBackupService() (*backup.Service, error) {
 		Boundary:  recoverypoint.ApplicationHooks{Runner: backup.OSRunner{}},
 		Registrar: backup.DBMRegistrar{}, Budgets: budgets,
 	}, nil
+}
+
+func (s *Server) localBundleDir(ctx context.Context) (string, error) {
+	if s.fileRoots == nil {
+		return bundle.GetLocalBundlesDir()
+	}
+	dir, err := fileRootPath(ctx, s.fileRoots, storage.ClassCache, "bundles")
+	if err != nil {
+		return "", fmt.Errorf("resolve routed bundle directory: %w", err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create routed bundle directory: %w", err)
+	}
+	return dir, nil
 }
 
 // registerBackupRoutes mounts the recovery-point surface. Mount line for
@@ -111,7 +114,7 @@ type PruneRequest struct {
 // deploymentClosure derives the closure for a deployment (nil with a reason
 // when the closure service is unavailable).
 func (s *Server) deploymentClosure(ctx context.Context, dctx *DeploymentContext) (*domain.Closure, string) {
-	svc, err := closureService()
+	svc, err := s.closureService()
 	if err != nil || svc == nil {
 		return nil, "closure service not configured"
 	}

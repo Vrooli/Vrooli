@@ -38,7 +38,10 @@ The governing rule is intentionally simple:
 | Code assembles input and code needs a typed result to continue. | A declared Agent Manager **Workflow**, even for one agent turn. |
 
 The raw Run API remains the execution substrate underneath workflow nodes. It
-is not the normal scenario-integration surface for programmatic work.
+is not the normal scenario-integration surface for programmatic work. Goal
+mode is the one declared exception: Swarm dispatches a single run with a
+composed goal message, accepts only its typed verdict, and hands completion to
+finalization (see [Work shaping and completion](#work-shaping-and-completion)).
 
 For a workflow adoption, Swarm retains only two domain adapters:
 
@@ -54,21 +57,23 @@ authorization check.
 
 ## Concepts and their roles
 
-### Contract-driven development target
+### Development grant
 
-One approved item may authorize successive implementation decisions toward a
-reviewed scenario contract. Swarm remains the authority and work ledger; the
-agent uses scenario improvement judgment inside that engagement. New targets,
-effects, or budgets need amendment, not every in-scope repair. See
-[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+One accepted plan-backed item authorizes successive implementation decisions
+toward its finish line, within its acceptance globs, effect policy and
+aggregate limits. Swarm remains the authority and work ledger; the agent uses
+scenario improvement judgment inside that grant. A new target, effect, or
+budget needs a re-accepted item, not every in-scope repair. See
+[Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
 
 New adaptive development uses ordinary plan acceptance and the plan-backed
 execution path. See [current implementation](ARCHITECTURE.md#plan-backed-execution)
 for ownership, continuation and qualification limits. The earlier development
-domain remains a [compatibility surface](ARCHITECTURE.md#retained-development-compatibility-surface)
-with its own authorization and evidence requirements; it does not add a second
-approval to an ordinary plan item. The transition catalog remains authoritative
-for executable actions. Whole-goal execution is a separate extension.
+domain is a [retired route](ARCHITECTURE.md#retired-route-contract-development);
+it does not add a second approval to an ordinary plan item, and the plan-backed
+item carries its own grant. The transition catalog remains authoritative
+for executable actions. Executing a whole Swarm goal (the intent above its
+items) is a separate extension; it is not goal execution mode.
 
 | Concept | Why it exists | It owns | It does not own |
 | --- | --- | --- | --- |
@@ -161,16 +166,19 @@ operator approval satisfy the item's or milestone's completion policy. Swarm
 then applies the terminal domain change, writes the learning record, and emits
 events that power throughput, quality, and regression statistics.
 
-Plan execution has one registry-declared fallback of record:
-`phased-plan-drain`. It retains the per-phase review gate, creates fresh runs
-for bounded slices, invokes `phased-plan-slice-review` as a reachable child
-workflow, and uses the item's approval policy at routine phase boundaries.
-For `adaptive-improvement`, independently reviewed routine boundaries continue
-under the original acceptance. An `operator-decision` reason always parks at
-durable operator approval. Agent Manager resolves the
-substrate from declared runner capabilities and profile preferences. Any
-weaker sandbox or substrate preference is surfaced as a run-level resolution
-event.
+Plan execution has two modes, chosen in the Run dialog for any plan shape.
+Sliced mode runs one registry-declared workflow, `swarm-manager/phased-plan-drain`.
+It retains the per-phase review gate, creates fresh runs for bounded slices,
+invokes `phased-plan-slice-review` as a reachable child workflow, and uses the
+item's approval policy at routine phase boundaries. Goal mode dispatches one
+Agent Manager run with the finish line installed as `/goal`; it has no workflow
+key, no slice cap, and no per-session reviewer, and Swarm finalization is its
+completion authority. An `operator-decision` reason always parks at durable
+operator approval. Agent Manager resolves the substrate from declared runner
+capabilities and profile preferences. Any weaker sandbox or substrate
+preference is surfaced as a run-level resolution event. Today's implementation
+is mapped to these modes in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 ### Operator inbox and goal completion
 
@@ -310,7 +318,7 @@ scenario owns a duplicate loop/branch engine.
 ## Migration guardrails
 
 - Preserve backlog items, milestones, plans, records, events, and operator
-  history. Any persisted-model change requires a one-shot, observable migration
+  history. Any persisted-model change requires a single, observable migration
   and no long-lived compatibility behavior in request paths.
 - Do not translate every existing operating mode mechanically. First identify
   the desired domain transition and its typed contract; then select or author a
@@ -326,7 +334,7 @@ scenario owns a duplicate loop/branch engine.
 
 - [DOC: OPERATOR-JOURNEYS.md] — the operator-facing narrative of both journeys
 - [DOC: ../../../agent-manager/docs/reference/scenario-declarations.md#the-declared-run-doctrine]
-- [DOC: ARCHITECTURE.md#typed-workflow-pilots]
+- [DOC: ARCHITECTURE.md#plan-backed-execution]
 - [DOC: ../internal/AGENT-SESSIONS.md#supported-kinds]
 - [CODE: api/internal/agentsessions/types.go]
 - [CODE: api/internal/execution/phased_plan_workflow.go]

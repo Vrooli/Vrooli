@@ -38,12 +38,12 @@ Cloud manifest authoring and validation
 Examples:
 
 ```bash
-scenario-to-cloud manifest validate <manifest> [--json]
+scenario-to-cloud manifest validate "<manifest>" [--json]
 scenario-to-cloud manifest schema [--json]
-scenario-to-cloud manifest init [--scenario <value>] [--host <value>] [--domain <value>] [--out <value>] [--json]
+scenario-to-cloud manifest init [--scenario "<value>"] [--host "<value>"] [--domain "<value>"] [--out "<value>"] [--json]
 scenario-to-cloud manifest template [--json]
-scenario-to-cloud manifest doctor <manifest> [--json]
-scenario-to-cloud manifest fix <manifest> [--json]
+scenario-to-cloud manifest doctor "<manifest>" [--json]
+scenario-to-cloud manifest fix "<manifest>" [--write] [--out "<value>"] [--json]
 ```
 
 ### bundle
@@ -63,13 +63,13 @@ Release bundles (local store and target)
 Examples:
 
 ```bash
-scenario-to-cloud bundle build <manifest> [--json]
+scenario-to-cloud bundle build "<manifest>" [--json]
 scenario-to-cloud bundle list [--json]
 scenario-to-cloud bundle stats [--json]
-scenario-to-cloud bundle delete [--sha <value>] [--filename <value>] [--json]
-scenario-to-cloud bundle cleanup [--scenario <value>] [--keep <value>] [--json]
-scenario-to-cloud bundle vps-list [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud bundle vps-gc [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--keep <value>] [--dry-run] [--json]
+scenario-to-cloud bundle delete [--sha "<value>"] [--filename "<value>"] [--json]
+scenario-to-cloud bundle cleanup [--scenario "<value>"] [--keep "<value>"] [--json]
+scenario-to-cloud bundle vps-list [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud bundle vps-gc [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--keep "<value>"] [--dry-run] [--json]
 ```
 
 ### deployment
@@ -95,19 +95,19 @@ Deployment lifecycle over identities, executable plans and durable operations
 Examples:
 
 ```bash
-scenario-to-cloud deployment create <manifest> [--name <value>] [--json]
-scenario-to-cloud deployment resolve [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment list [--scenario <value>] [--environment <value>] [--status <value>] [--page-size <value>] [--page-token <value>]
-scenario-to-cloud deployment get [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment delete [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--stop] [--cleanup] [--json]
-scenario-to-cloud deployment plan [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--scope <value>] [--force-bundle] [--show-commands] [--json]
-scenario-to-cloud deployment apply [deployment_id] --plan-digest <plan-digest> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--scope <value>] [--request-key <value>] [--preflight] [--no-wait] [--timeout <value>] [--json]
-scenario-to-cloud deployment execute [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--yes] [--scope <value>] [--force-bundle] [--show-commands] [--request-key <value>] [--preflight] [--no-wait] [--timeout <value>] [--json]
-scenario-to-cloud deployment start [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--yes] [--force-bundle] [--show-commands] [--request-key <value>] [--preflight] [--no-wait] [--timeout <value>] [--json]
-scenario-to-cloud deployment stop [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment history [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment health [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment rollback [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--dry-run] [--confirm] [--preview-ref <value>] [--review-ref <value>] [--release-digest <value>] [--repair-bundle-sha256 <value>] [--expected-bundle-sha256 <value>] [--data-compatibility <value>] [--request-key <value>] [--json]
+scenario-to-cloud deployment create "<manifest>" [--name "<value>"] [--json]
+scenario-to-cloud deployment resolve [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment list [--scenario "<value>"] [--environment "<value>"] [--status "<value>"] [--page-size "<value>"] [--page-token "<value>"]
+scenario-to-cloud deployment get [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment delete [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--stop] [--cleanup] [--json]
+scenario-to-cloud deployment plan [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--scope "<value>"] [--force-bundle] [--show-commands] [--json]
+scenario-to-cloud deployment apply [deployment_id] --plan-digest "<plan-digest>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--scope "<value>"] [--request-key "<value>"] [--preflight] [--no-wait] [--timeout "<value>"] [--json]
+scenario-to-cloud deployment execute [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--yes] [--scope "<value>"] [--force-bundle] [--show-commands] [--request-key "<value>"] [--preflight] [--no-wait] [--timeout "<value>"] [--json]
+scenario-to-cloud deployment start [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--yes] [--force-bundle] [--show-commands] [--request-key "<value>"] [--preflight] [--no-wait] [--timeout "<value>"] [--json]
+scenario-to-cloud deployment stop [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment history [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment health [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment rollback [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--dry-run] [--confirm] [--preview-ref "<value>"] [--review-ref "<value>"] [--release-digest "<value>"] [--repair-bundle-sha256 "<value>"] [--expected-bundle-sha256 "<value>"] [--data-compatibility "<value>"] [--request-key "<value>"] [--json]
 ```
 
 ### deployment recovery-points
@@ -124,10 +124,10 @@ Consistent recovery points and restore
 Examples:
 
 ```bash
-scenario-to-cloud deployment recovery-points list [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud deployment recovery-points capture [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--retention <value>] [--recovery-point <value>] [--release-digest <value>] [--json]
-scenario-to-cloud deployment recovery-points verify [deployment_id] --recovery-point <recovery-point> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--open] [--json]
-scenario-to-cloud deployment recovery-points restore [deployment_id] --recovery-point <recovery-point> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--target-ref <value>] [--into <value>] [--dry-run] [--json]
+scenario-to-cloud deployment recovery-points list [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud deployment recovery-points capture [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--retention "<value>"] [--recovery-point "<value>"] [--release-digest "<value>"] [--json]
+scenario-to-cloud deployment recovery-points verify [deployment_id] --recovery-point "<recovery-point>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--open] [--json]
+scenario-to-cloud deployment recovery-points restore [deployment_id] --recovery-point "<recovery-point>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--target-ref "<value>"] [--into "<value>"] [--dry-run] [--json]
 ```
 
 ### publication
@@ -143,9 +143,9 @@ Governed publication bound to an approved review
 Examples:
 
 ```bash
-scenario-to-cloud publication request [deployment_id] --request-key <request-key> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--profile <value>] [--candidate-commit <value>] [--artifact-digest <value>] [--channel <value>] [--json]
-scenario-to-cloud publication apply [deployment_id] --request-key <request-key> --review-ref <review-ref> --plan-digest <plan-digest> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud publication status [deployment_id] --request-key <request-key> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
+scenario-to-cloud publication request [deployment_id] --request-key "<request-key>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--profile "<value>"] [--candidate-commit "<value>"] [--artifact-digest "<value>"] [--channel "<value>"] [--json]
+scenario-to-cloud publication apply [deployment_id] --request-key "<request-key>" --review-ref "<review-ref>" --plan-digest "<plan-digest>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud publication status [deployment_id] --request-key "<request-key>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
 ```
 
 ### redeploy (top level)
@@ -159,7 +159,7 @@ Manifest-first convenience wrapper
 Examples:
 
 ```bash
-scenario-to-cloud redeploy <manifest> [--name <value>] [--yes] [--no-wait] [--request-key <value>] [--timeout <value>] [--force-bundle] [--preflight] [--show-commands] [--json]
+scenario-to-cloud redeploy "<manifest>" [--name "<value>"] [--yes] [--no-wait] [--request-key "<value>"] [--timeout "<value>"] [--force-bundle] [--preflight] [--show-commands] [--json]
 ```
 
 ### preflight
@@ -172,18 +172,14 @@ Target readiness checks and host fixes
 | `preflight requirements` | read | true | local | Print the canonical VPS requirement policy |
 | `preflight fix-firewall` | destructive | false | local | Open the required inbound ports on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 | `preflight fix-processes` | destructive | false | local | Stop stale scenario processes on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `preflight disk-usage` | read | true | local | Disk usage on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
-| `preflight disk-cleanup` | destructive | false | local | Run declared cleanup actions on the target (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
 
 Examples:
 
 ```bash
-scenario-to-cloud preflight run <manifest> [--json]
+scenario-to-cloud preflight run "<manifest>" [--json]
 scenario-to-cloud preflight requirements [--json]
-scenario-to-cloud preflight fix-firewall [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--user <value>] [--key-path <value>] [--ssh-port <value>] [--json]
-scenario-to-cloud preflight fix-processes [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--user <value>] [--key-path <value>] [--ssh-port <value>] [--workdir <value>] [--json]
-scenario-to-cloud preflight disk-usage [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--user <value>] [--key-path <value>] [--ssh-port <value>] [--json]
-scenario-to-cloud preflight disk-cleanup [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--action <value>] [--user <value>] [--key-path <value>] [--ssh-port <value>] [--json]
+scenario-to-cloud preflight fix-firewall [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--user "<value>"] [--key-path "<value>"] [--ssh-port "<value>"] [--json]
+scenario-to-cloud preflight fix-processes [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--user "<value>"] [--key-path "<value>"] [--ssh-port "<value>"] [--workdir "<value>"] [--json]
 ```
 
 ### vps
@@ -202,8 +198,8 @@ Host setup plan
 Examples:
 
 ```bash
-scenario-to-cloud vps setup plan <manifest> <bundle>
-scenario-to-cloud vps setup apply <manifest> <bundle> [--plan-digest <value>]
+scenario-to-cloud vps setup plan "<manifest>" "<bundle>"
+scenario-to-cloud vps setup apply "<manifest>" "<bundle>" [--plan-digest "<value>"]
 ```
 
 ### vps deploy
@@ -218,8 +214,8 @@ Runtime deploy plan
 Examples:
 
 ```bash
-scenario-to-cloud vps deploy plan <manifest>
-scenario-to-cloud vps deploy apply <manifest> [--plan-digest <value>]
+scenario-to-cloud vps deploy plan "<manifest>"
+scenario-to-cloud vps deploy apply "<manifest>" [--plan-digest "<value>"]
 ```
 
 ### vps instance
@@ -240,14 +236,14 @@ Disposable local QEMU instances
 Examples:
 
 ```bash
-scenario-to-cloud vps instance plan [--name <value>] [--image <value>] [--workdir <value>]
-scenario-to-cloud vps instance create [--name <value>] [--image <value>] [--workdir <value>] [--memory <value>] [--cpus <value>] [--profile <value>] [--user <value>] [--authorized-key <value>] [--ssh-port <value>]
-scenario-to-cloud vps instance start <instance_id>
-scenario-to-cloud vps instance stop <instance_id>
-scenario-to-cloud vps instance wait-for-ssh <instance_id>
-scenario-to-cloud vps instance snapshot <instance_id> [snapshot]
-scenario-to-cloud vps instance reset <instance_id> [snapshot]
-scenario-to-cloud vps instance destroy <instance_id>
+scenario-to-cloud vps instance plan [--name "<value>"] [--image "<value>"] [--workdir "<value>"]
+scenario-to-cloud vps instance create [--name "<value>"] [--image "<value>"] [--workdir "<value>"] [--memory "<value>"] [--cpus "<value>"] [--profile "<value>"] [--user "<value>"] [--authorized-key "<value>"] [--ssh-port "<value>"]
+scenario-to-cloud vps instance start "<instance_id>"
+scenario-to-cloud vps instance stop "<instance_id>"
+scenario-to-cloud vps instance wait-for-ssh "<instance_id>"
+scenario-to-cloud vps instance snapshot "<instance_id>" [snapshot]
+scenario-to-cloud vps instance reset "<instance_id>" [snapshot]
+scenario-to-cloud vps instance destroy "<instance_id>"
 ```
 
 ### inspect
@@ -267,13 +263,13 @@ Remote state, drift, metrics, bounded logs and files
 Examples:
 
 ```bash
-scenario-to-cloud inspect plan <manifest> [--json]
-scenario-to-cloud inspect status <manifest> [--json]
-scenario-to-cloud inspect live <deployment_id> [--json]
-scenario-to-cloud inspect drift <deployment_id> [--json]
-scenario-to-cloud inspect metrics <deployment_id> [--json]
-scenario-to-cloud inspect logs <deployment_id> [--source <value>] [--level <value>] [--search <value>] [--tail <value>] [--since <value>] [--max-bytes <value>] [--json]
-scenario-to-cloud inspect files <deployment_id> [--content] [--json]
+scenario-to-cloud inspect plan "<manifest>" [--json]
+scenario-to-cloud inspect status "<manifest>" [--json]
+scenario-to-cloud inspect live "<deployment_id>" [--json]
+scenario-to-cloud inspect drift "<deployment_id>" [--json]
+scenario-to-cloud inspect metrics "<deployment_id>" [--json]
+scenario-to-cloud inspect logs "<deployment_id>" [--source "<value>"] [--level "<value>"] [--search "<value>"] [--tail "<value>"] [--since "<value>"] [--max-bytes "<value>"] [--json]
+scenario-to-cloud inspect files "<deployment_id>" [--content] [--json]
 ```
 
 ### process
@@ -290,10 +286,10 @@ Remote process control
 Examples:
 
 ```bash
-scenario-to-cloud process kill <deployment_id> <pid> [--signal <value>] [--json]
-scenario-to-cloud process restart <deployment_id> [--json]
-scenario-to-cloud process control <deployment_id> <action> [--json]
-scenario-to-cloud process vps-action <deployment_id> <action> [--json]
+scenario-to-cloud process kill "<deployment_id>" "<pid>" [--signal "<value>"] [--json]
+scenario-to-cloud process restart "<deployment_id>" [--json]
+scenario-to-cloud process control "<deployment_id>" "<action>" [--json]
+scenario-to-cloud process vps-action "<deployment_id>" "<action>" [--json]
 ```
 
 ### edge
@@ -312,12 +308,12 @@ Edge routing, DNS and TLS
 Examples:
 
 ```bash
-scenario-to-cloud edge status [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud edge dns-check <deployment_id> [--json]
-scenario-to-cloud edge dns-records <deployment_id> [--json]
-scenario-to-cloud edge caddy <deployment_id> <action> [--json]
-scenario-to-cloud edge tls <deployment_id> [--json]
-scenario-to-cloud edge tls-renew <deployment_id> [--domain <value>] [--force] [--json]
+scenario-to-cloud edge status [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud edge dns-check "<deployment_id>" [--json]
+scenario-to-cloud edge dns-records "<deployment_id>" [--json]
+scenario-to-cloud edge caddy "<deployment_id>" "<action>" [--json]
+scenario-to-cloud edge tls "<deployment_id>" [--json]
+scenario-to-cloud edge tls-renew "<deployment_id>" [--domain "<value>"] [--force] [--json]
 ```
 
 ### secrets
@@ -335,11 +331,11 @@ Workspace, scenario and deployment secrets (values never in arguments)
 Examples:
 
 ```bash
-scenario-to-cloud secrets set <key> [--value <value>] [--generate <value>] [--targets <value>] [--restart] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--all-deployments] [--json]
-scenario-to-cloud secrets get <key> [--targets <value>] [--reveal] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--all-deployments] [--json]
-scenario-to-cloud secrets verify <key> [--targets <value>] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--all-deployments] [--json]
-scenario-to-cloud secrets delete <key> [--targets <value>] [--restart] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--all-deployments] [--json]
-scenario-to-cloud secrets plan-get <scenario_id> [--json]
+scenario-to-cloud secrets set "<key>" [--value "<value>"] [--generate "<value>"] [--targets "<value>"] [--restart] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--all-deployments] [--json]
+scenario-to-cloud secrets get "<key>" [--targets "<value>"] [--reveal] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--all-deployments] [--json]
+scenario-to-cloud secrets verify "<key>" [--targets "<value>"] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--all-deployments] [--json]
+scenario-to-cloud secrets delete "<key>" [--targets "<value>"] [--restart] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--all-deployments] [--json]
+scenario-to-cloud secrets plan-get "<scenario_id>" [--json]
 ```
 
 ### scenario
@@ -356,8 +352,8 @@ Examples:
 
 ```bash
 scenario-to-cloud scenario list [--json]
-scenario-to-cloud scenario ports <scenario_id> [--json]
-scenario-to-cloud scenario deps <scenario_id> [--impact] [--verbose] [--json]
+scenario-to-cloud scenario ports "<scenario_id>" [--json]
+scenario-to-cloud scenario deps "<scenario_id>" [--impact] [--verbose] [--json]
 ```
 
 ### task
@@ -375,10 +371,10 @@ Investigation tasks
 Examples:
 
 ```bash
-scenario-to-cloud task create <deployment_id> [--type <value>] [--json]
+scenario-to-cloud task create "<deployment_id>" [--type "<value>"] [--json]
 scenario-to-cloud task list [--json]
-scenario-to-cloud task get <task_id> [--json]
-scenario-to-cloud task stop <task_id> [--json]
+scenario-to-cloud task get "<task_id>" [--json]
+scenario-to-cloud task stop "<task_id>" [--json]
 scenario-to-cloud task agent-status [--json]
 ```
 
@@ -397,11 +393,11 @@ Durable cloud operations: attach by id across disconnects and owner restarts
 Examples:
 
 ```bash
-scenario-to-cloud operation get <operation_id>
-scenario-to-cloud operation wait <operation_id> [--timeout <value>]
-scenario-to-cloud operation resume <operation_id> [--timeout <value>] [--json]
-scenario-to-cloud operation cancel <operation_id>
-scenario-to-cloud operation list [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
+scenario-to-cloud operation get "<operation_id>"
+scenario-to-cloud operation wait "<operation_id>" [--timeout "<value>"]
+scenario-to-cloud operation resume "<operation_id>" [--timeout "<value>"] [--json]
+scenario-to-cloud operation cancel "<operation_id>"
+scenario-to-cloud operation list [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
 ```
 
 ### credential
@@ -420,12 +416,12 @@ Deployment credential bindings (values only on standard input)
 Examples:
 
 ```bash
-scenario-to-cloud credential list [deployment_id] [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud credential rotate [deployment_id] --binding <binding> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--value-stdin] [--request-key <value>] [--json]
-scenario-to-cloud credential revoke [deployment_id] --binding <binding> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--request-key <value>] [--json]
-scenario-to-cloud credential recover [deployment_id] --bundle-ref <bundle-ref> --passphrase-stdin [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--request-key <value>] [--json]
-scenario-to-cloud credential rotation-get [deployment_id] --rotation <rotation> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--json]
-scenario-to-cloud credential rotation-resume [deployment_id] --rotation <rotation> [--deployment <value>] [--scenario <value>] [--environment <value>] [--domain <value>] [--host <value>] [--operator-confirmed] [--json]
+scenario-to-cloud credential list [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud credential rotate [deployment_id] --binding "<binding>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--value-stdin] [--request-key "<value>"] [--json]
+scenario-to-cloud credential revoke [deployment_id] --binding "<binding>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--request-key "<value>"] [--json]
+scenario-to-cloud credential recover [deployment_id] --bundle-ref "<bundle-ref>" --passphrase-stdin [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--request-key "<value>"] [--json]
+scenario-to-cloud credential rotation-get [deployment_id] --rotation "<rotation>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud credential rotation-resume [deployment_id] --rotation "<rotation>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--operator-confirmed] [--json]
 ```
 
 ## RPCs without a direct command

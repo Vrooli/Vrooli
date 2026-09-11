@@ -52,6 +52,26 @@ func (s *Scripted) Exec(_ context.Context, target identity.TargetRef, cmd reach.
 	if a, ok := s.Answers[key]; ok {
 		return a.Result, a.Err
 	}
+	// Keep existing semantic fixtures reusable while the transport migrates:
+	// typed observations still record the owner verb, but their old fixture
+	// answer is looked up by the closed compatibility mapping.
+	if cmd.Observation != nil {
+		for program, kind := range reach.ObservationKinds {
+			if kind != cmd.Observation.Kind {
+				continue
+			}
+			legacy := strings.Join(append([]string{program}, cmd.Observation.Args...), " ")
+			if a, ok := s.Answers[legacy]; ok {
+				return a.Result, a.Err
+			}
+			for prefix, a := range s.Prefixes {
+				if strings.HasPrefix(legacy, prefix) {
+					return a.Result, a.Err
+				}
+			}
+			break
+		}
+	}
 	for prefix, a := range s.Prefixes {
 		if strings.HasPrefix(key, prefix) {
 			return a.Result, a.Err

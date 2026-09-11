@@ -159,21 +159,138 @@
         "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
         "field": "keystore-base64",
         "label": "Android upload keystore",
-        "description": "Base64 PKCS12 upload keystore held by the credential authority; resolved only in memory during signing.",
-        "required": false
+        "description": "Base64 JKS upload keystore held by the credential authority; resolved only in memory during signing. This is the operator-held upload identity and is distinct from Google's Play App Signing key.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.android.com/studio/publish/app-signing"
       },
       {
         "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
         "field": "password",
         "label": "Android upload keystore password",
-        "description": "Upload keystore password held by the credential authority.",
-        "required": false
+        "description": "Upload keystore password held by the credential authority. It is distinct from the private-key password when the imported keystore requires one.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.android.com/studio/publish/app-signing"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "key-password",
+        "label": "Android upload key password",
+        "description": "Private-key password inside the upload keystore. Keep it as a separate authority field so imported keystores do not collapse store and key protection into one value.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.android.com/studio/publish/app-signing"
       },
       {
         "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
         "field": "alias",
         "label": "Android upload key alias",
         "description": "Alias of the upload key inside the credential-authority-held keystore.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.android.com/studio/publish/app-signing"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-app-signing-key",
+        "field": "google-held-reference",
+        "label": "Google Play App Signing key reference",
+        "description": "Reference to the app-signing identity held by Google Play. It is not the local upload keystore and cannot be reconstructed from the upload key.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://support.google.com/googleplay/android-developer/answer/9842756"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/google-play-publishing",
+        "field": "service-account-reference",
+        "label": "Google Play publishing identity",
+        "description": "Least-privilege reference used for Play Console publishing. Keep publishing authority separate from the upload and Google-held app-signing identities; rotate or reissue it through the owning Google project.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developers.google.com/android-publisher/getting_started"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/google-play-publishing",
+        "field": "package-name",
+        "label": "Google Play package name",
+        "description": "Public package identifier for the selected Play listing. It is configuration, not proof of registration or verification.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://play.google.com/console"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/google-play-publishing",
+        "field": "store-link",
+        "label": "Google Play public store link",
+        "description": "Public listing URL used after publication. A link never establishes that the package, product, or publisher identity is valid.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://play.google.com/console"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "keystore-base64",
+        "kind": "authority",
+        "consumer": "Android release signer",
+        "source_ref": "api/internal/builds/signing.go:23",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "password",
+        "kind": "authority",
+        "consumer": "Android release signer",
+        "source_ref": "api/internal/builds/signing.go:27",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "key-password",
+        "kind": "authority",
+        "consumer": "Android release signer",
+        "source_ref": "api/internal/builds/signing.go:31",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "alias",
+        "kind": "authority",
+        "consumer": "Android release signer",
+        "source_ref": "api/internal/builds/signing.go:35",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "keystore-base64",
+        "kind": "authority",
+        "consumer": "Android signing provisioner",
+        "source_ref": "api/internal/builds/signing.go:161",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "password",
+        "kind": "authority",
+        "consumer": "Android signing provisioner",
+        "source_ref": "api/internal/builds/signing.go:161",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "key-password",
+        "kind": "authority",
+        "consumer": "Android signing provisioner",
+        "source_ref": "api/internal/builds/signing.go:161",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "alias",
+        "kind": "authority",
+        "consumer": "Android signing provisioner",
+        "source_ref": "api/internal/builds/signing.go:161",
         "required": false
       }
     ]

@@ -1,0 +1,10 @@
+# This test contains a public, synthetic capability name used to prove that
+# owner-issued handoffs persist metadata without leaking credential values.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed synthetic handoff test vector"
+paths = [
+  '''^api/v2_handoff_test\.go$''',
+]

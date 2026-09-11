@@ -19,60 +19,12 @@
     "reset": "none",
     "execution_mode": "observer"
   },
-  "settings": {},
-  "nodes": [
-    {
-      "id": "scenarios",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/scenarios",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/scenarios",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.scenarios"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.timestamp"
-          }
-        ]
-      }
-    },
-    {
-      "id": "health",
-      "type": "http_request",
-      "data": {
-        "label": "GET /api/v1/health",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/health",
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "assertions": [
-          {
-            "type": "status_code",
-            "expected": 200
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.status"
-          },
-          {
-            "type": "json_path_exists",
-            "path": "$.readiness"
-          }
-        ]
-      }
-    }
-  ],
-  "edges": []
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"scenarios-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/scenarios","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/scenarios"}}},
+      {"id":"health-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/health","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/health"}}}
+    ],
+    "edges":[{"source":"scenarios-open","target":"health-open"}]
+  }
 }

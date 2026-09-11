@@ -9,9 +9,9 @@ metadata:
   tags: ["planning","handoff","implementation","documentation","execution"]
   icon: "file-text"
   status: "active"
-  revision: 12
+  revision: 13
   createdAt: "2026-02-09T00:00:00Z"
-  updatedAt: "2026-09-11T06:40:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "vrooli"]
     commands: ["plan-manager", "prompt-manager discover", "prompt-manager skill read", "vrooli scenario"]
@@ -41,6 +41,15 @@ what happens when a finalized plan turns out to be wrong during execution. Read
 it before authoring the Boundaries and stakes content below — knowing which
 divergences execution is expected to make on its own tells you what the plan
 must state and what it can leave to judgment.
+
+**Choose the plan shape first.** A plan has a shape: `phased` or `mandate`.
+This skill authors phased plans: ordered phases, each with steps, acceptance
+and validation. An adaptive mandate (a target pointer, sensors, bands, scope,
+stop rules and a suggested arc, with no step list) is authored with
+`prompt-manager skill read adaptive-mandate-authoring`. The rule for choosing
+between them lives in `path:docs/agent-system/SWARM_MANAGER_WORK.md` §"Work
+shapes"; read it before starting a session, and do not author a phased plan
+over a scenario whose route is not yet clear.
 
 ---
 

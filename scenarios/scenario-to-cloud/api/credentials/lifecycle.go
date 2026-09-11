@@ -110,6 +110,9 @@ type MaterializeRequest struct {
 	// OperatorValues are explicit instructions for this deploy and always
 	// produce a new version.
 	OperatorValues map[string]string
+	// ExpiresAt carries owner-observed expiry for an initial materialization.
+	// It is metadata only and is never inferred from the secret value.
+	ExpiresAt map[string]time.Time
 }
 
 // MaterializeResult is metadata only.
@@ -147,8 +150,9 @@ func (s *Service) Materialize(ctx context.Context, req MaterializeRequest) (*Mat
 			return nil, err
 		}
 		operatorValue := strings.TrimSpace(req.OperatorValues[binding.ID])
-		if operatorValue == "" && binding.Version.Number > 0 && probe.Configured && binding.State != domain.CredentialBindingRevoked {
-			binding.UpdatedAt = s.now()
+		now := s.now()
+		if operatorValue == "" && binding.Version.Number > 0 && probe.Configured && binding.State != domain.CredentialBindingRevoked && !binding.Version.Expired(now) {
+			binding.UpdatedAt = now
 			if err := s.Store.UpsertBinding(ctx, &binding); err != nil {
 				return nil, err
 			}
@@ -178,11 +182,18 @@ func (s *Service) Materialize(ctx context.Context, req MaterializeRequest) (*Mat
 		if err != nil {
 			return nil, err
 		}
-		version := domain.CredentialVersion{Number: next, ContentRef: newContentRef(), CreatedAt: s.now()}
+		version := domain.CredentialVersion{Number: next, ContentRef: newContentRef(), CreatedAt: now}
+		if expires, ok := req.ExpiresAt[binding.ID]; ok {
+			expires = expires.UTC()
+			version.ExpiresAt = &expires
+		}
 		step := "materialize-" + sanitizeStep(binding.Descriptor.Field) + "-v" + fmt.Sprint(version.Number)
 		receipt, err := s.Distributor.Deliver(ctx, DeliverRequest{Target: req.Target, Binding: binding, Version: version, Value: value, OperationID: req.OperationID, Step: step})
 		if err != nil {
 			return nil, err
+		}
+		if expires, ok := expiryFromDetails(receipt.Details); ok {
+			version.ExpiresAt = &expires
 		}
 		if binding.Version.Number > 0 {
 			prev := binding.Version
@@ -427,6 +438,11 @@ func (s *Service) advance(ctx context.Context, rotation *domain.CredentialRotati
 				details = map[string]any{}
 			}
 			details["dual_accept"] = prepared.DualAccept
+			if prepared.ExpiresAt != nil {
+				expires := prepared.ExpiresAt.UTC()
+				version.ExpiresAt = &expires
+				details["expires_at"] = expires
+			}
 			if err := s.record(ctx, rotation, "provider-prepare", domain.RotationProviderPrepared, "prepared", "", details); err != nil {
 				return rotation, err
 			}
@@ -650,25 +666,54 @@ func (s *Service) collectAcks(ctx context.Context, rotation *domain.CredentialRo
 }
 
 func versionFromReceipts(rotation *domain.CredentialRotation) *domain.CredentialVersion {
+	var version *domain.CredentialVersion
 	for _, receipt := range rotation.Receipts {
-		if receipt.Step != "new-version" {
+		if receipt.Step != "new-version" && receipt.Step != "provider-prepare" {
 			continue
 		}
-		v := domain.CredentialVersion{Number: rotation.ToVersion}
+		if version == nil {
+			version = &domain.CredentialVersion{Number: rotation.ToVersion}
+		}
 		if ref, ok := receipt.Details["content_ref"].(string); ok {
-			v.ContentRef = ref
+			version.ContentRef = ref
 		}
 		switch created := receipt.Details["created_at"].(type) {
 		case time.Time:
-			v.CreatedAt = created
+			version.CreatedAt = created
 		case string:
 			if parsed, err := time.Parse(time.RFC3339Nano, created); err == nil {
-				v.CreatedAt = parsed
+				version.CreatedAt = parsed
 			}
 		}
-		return &v
+		switch expires := receipt.Details["expires_at"].(type) {
+		case time.Time:
+			value := expires.UTC()
+			version.ExpiresAt = &value
+		case string:
+			if parsed, err := time.Parse(time.RFC3339Nano, expires); err == nil {
+				parsed = parsed.UTC()
+				version.ExpiresAt = &parsed
+			}
+		}
 	}
-	return nil
+	return version
+}
+
+func expiryFromDetails(details map[string]any) (time.Time, bool) {
+	value, ok := details["expires_at"]
+	if !ok {
+		return time.Time{}, false
+	}
+	switch expires := value.(type) {
+	case time.Time:
+		return expires.UTC(), true
+	case string:
+		parsed, err := time.Parse(time.RFC3339Nano, expires)
+		if err == nil {
+			return parsed.UTC(), true
+		}
+	}
+	return time.Time{}, false
 }
 
 func sortedKeys(m map[string]string) []string {
@@ -1016,10 +1061,41 @@ func (s *Service) SweepBreakGlass(ctx context.Context, deploymentID string, targ
 	return followOns, nil
 }
 
-// BindingView is the metadata-only read surface: bindings, versions, acks.
+const (
+	LifecyclePlanned    = "planned"
+	LifecycleActive     = "active"
+	LifecycleRenewalDue = "renewal_due"
+	LifecycleExpired    = "expired"
+	LifecycleRevoked    = "revoked"
+)
+
+const DefaultRenewalWindow = 30 * 24 * time.Hour
+
+// BindingView is the metadata-only read surface: bindings, versions, acks and
+// a derived lifecycle standing. The standing is deliberately not persisted;
+// it is evaluated against the read clock so expiry cannot become stale state.
 type BindingView struct {
-	Binding domain.CredentialBinding `json:"binding"`
-	Acks    []domain.CredentialAck   `json:"acks"`
+	Binding         domain.CredentialBinding `json:"binding"`
+	Acks            []domain.CredentialAck   `json:"acks"`
+	LifecycleState  string                   `json:"lifecycle_state"`
+	LifecycleDetail string                   `json:"lifecycle_detail,omitempty"`
+	NextAction      string                   `json:"next_action,omitempty"`
+}
+
+func lifecycleStanding(binding domain.CredentialBinding, now time.Time) (string, string, string) {
+	switch binding.State {
+	case domain.CredentialBindingRevoked:
+		return LifecycleRevoked, "This credential was revoked and cannot be used for new distribution.", "materialize a replacement credential"
+	case domain.CredentialBindingPlanned:
+		return LifecyclePlanned, "This credential has not been materialized on the target.", "materialize the credential"
+	}
+	if binding.Version.Expired(now) {
+		return LifecycleExpired, "The active credential version has expired and is not release-ready.", "rotate the credential before retrying release"
+	}
+	if binding.Version.RenewalDue(now, DefaultRenewalWindow) {
+		return LifecycleRenewalDue, "The active credential version is inside its renewal window.", "rotate the credential before it expires"
+	}
+	return LifecycleActive, "The active credential version is within its declared validity period.", ""
 }
 
 // ListBindings returns every binding with its acknowledgements.
@@ -1029,6 +1105,7 @@ func (s *Service) ListBindings(ctx context.Context, deploymentID string) ([]Bind
 		return nil, err
 	}
 	out := make([]BindingView, 0, len(bindings))
+	now := s.now()
 	for _, b := range bindings {
 		acks, err := s.Store.ListAcks(ctx, b.ID)
 		if err != nil {
@@ -1037,7 +1114,8 @@ func (s *Service) ListBindings(ctx context.Context, deploymentID string) ([]Bind
 		if acks == nil {
 			acks = []domain.CredentialAck{}
 		}
-		out = append(out, BindingView{Binding: b, Acks: acks})
+		state, detail, next := lifecycleStanding(b, now)
+		out = append(out, BindingView{Binding: b, Acks: acks, LifecycleState: state, LifecycleDetail: detail, NextAction: next})
 	}
 	return out, nil
 }

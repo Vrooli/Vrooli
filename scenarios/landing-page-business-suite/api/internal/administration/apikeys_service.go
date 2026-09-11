@@ -54,10 +54,16 @@ type APIKey struct {
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
-// APIKeyCreateRequest is the request to create a new API key.
+// APIKeyCreateRequest is the request to create a new legacy/BYOK provider key.
 type APIKeyCreateRequest struct {
-	Provider string `json:"provider"` // openrouter, openai, anthropic
+	Provider string `json:"provider"` // openai, anthropic; OpenRouter is shared
 	Key      string `json:"key"`
+}
+
+// IsSharedProvider reports providers whose credentials are owned by another
+// resource authority and therefore must not be configured in LPBS settings.
+func IsSharedProvider(provider string) bool {
+	return strings.EqualFold(strings.TrimSpace(provider), "openrouter")
 }
 
 // NewAPIKeyServiceWithRuntime wires application-owned secret, environment,

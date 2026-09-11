@@ -8,7 +8,7 @@ metadata:
   modes: [practice]
   tags: [audio, improvement, streaming, reliability, evidence, monetization]
   status: active
-  revision: 2
+  revision: 3
   requires:
     scenarios: [audio-tools, program-runtime, test-genie, business-health]
     commands: [program-runtime library run, audio-tools, business-health, vrooli scenario test, prompt-manager skill read]
@@ -21,9 +21,9 @@ Close the highest broken contract, obligation, evidence, or implementation layer
 for the authorized voice target. Preserve unknown results until the relevant
 product path has been measured.
 
-When Audio Tools is a target of Swarm's `contract-development` workflow, keep
-the Swarm approval, campaign checkpoint and aggregate grant as the engagement
-identity. This skill supplies Audio's outcome judgment and owner routes; it does
+When Audio Tools is the target of a Swarm development grant on a mandate plan,
+run in goal or sliced mode, keep the Swarm approval, campaign checkpoint and
+aggregate grant as the engagement identity. This skill supplies Audio's outcome judgment and owner routes; it does
 not approve the target, launch a private branch, or convert a workflow result
 into product acceptance.
 
@@ -31,7 +31,9 @@ into product acceptance.
 
 Read `path:docs/agent-system/SCENARIO_DEVELOPMENT.md`, then
 `prompt-manager skill read scenario-work-ladder` and
-`prompt-manager skill read improvement-do-and-dont`.
+`prompt-manager skill read improvement-do-and-dont`. The improvement loop
+itself belongs to `prompt-manager skill read scenario-improvement-campaign`;
+this skill supplies only Audio's sensors, priorities, routes and stop rules.
 Read `path:scenarios/audio-tools/PRD.md`,
 `path:scenarios/audio-tools/docs/internal/TESTING.md`, and prior findings in
 `path:scenarios/audio-tools/docs/internal/PROBLEMS.md`.
@@ -54,7 +56,7 @@ owners in the change boundary. Commercial decisions do not follow from a sensor.
 | provider-evidence | PRD OT-P1-001 | Provider-neutral persisted cells and verdicts |
 | mobile-recovery | PRD OT-P1-002 | User-accessible recovery and metadata diagnostics |
 | device-qualification | PRD OT-P2-001 | Named native-device receipts; simulation remains separate |
-| interactive-latency, corpus-quality, owned-settlement | PRD OT-P0-005, OT-P0-006, OT-P0-007; TESTING.md and MONETIZATION.md | Published scope; numeric bands, corpus and billing policy still require adoption |
+| interactive-latency, corpus-quality, owned-settlement | PRD OT-P0-005, OT-P0-006, OT-P0-007; TESTING.md and `docs/business/MONETIZATION.md` | Published scope; numeric bands, corpus and billing policy still require adoption |
 | Explicit routing, host compatibility, privacy, full receipt coverage | PRD OT-P0-004, OT-P0-008, OT-P0-009, OT-P0-010 | v2 lists the required outcomes; owner-backed sensors are still absent |
 | Adapter maintainability and other voice operations | PRD OT-P1-003, OT-P1-004 | Governed shared contracts and operation-specific evidence; identify explicitly which expansion is in the mandate |
 
@@ -65,9 +67,9 @@ coverage as that contract evolves. W2 work must still add owner-backed joins.
 Do not equate target enumeration, engine count or replay metrics with acceptance.
 Preserve pending decisions and unmeasured outcomes separately; never fill either
 with a zero or a passing band.
-The 2026-09-08 setup observation is nine unknown outcome rows, with live inventory
-and selected replay metrics readable. See PROBLEMS.md for run references. Re-read
-the board each cycle; this dated observation is not a cached acceptance decision.
+As of 2026-09-11 the board reads 15 outcome rows `pending_telemetry` and 3
+diagnostic rows readable. See PROBLEMS.md for run references. Re-read the board
+each cycle; this dated observation is not a cached acceptance decision.
 
 ### Sensors
 

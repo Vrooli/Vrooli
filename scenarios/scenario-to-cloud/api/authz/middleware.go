@@ -207,7 +207,7 @@ func (e *Enforcer) unauthenticated(cause error) *apierrors.Error {
 		action.Reference = e.cfg.Authn.RecoveryURL
 	case e.cfg.Mode == ModePersonalLocal:
 		action.Reference = "docs/reference/configuration.md#authentication"
-		action.Label = "Call from the host that runs this API as its OS user, or configure a shared provider and present a bearer token"
+		action.Label = "Use the runtime-owned local session token, or configure a shared provider and present a bearer token"
 	default:
 		action.Reference = "docs/reference/configuration.md#authentication"
 	}

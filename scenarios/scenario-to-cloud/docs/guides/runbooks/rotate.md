@@ -8,7 +8,7 @@ Contract: `docs/reference/credential-lifecycle.md`.
 ## 0. Read the bindings first
 
 ```bash
-scenario-to-cloud credential list <deployment-id> --json
+scenario-to-cloud credential list "$DEPLOYMENT_ID" --json
 ```
 
 Each binding shows its lifecycle class, active version, consumers and their
@@ -22,13 +22,13 @@ another rotation, break-glass or deploy-time materialisation is open is
 Provider-generated value (the provider mints the new version):
 
 ```bash
-scenario-to-cloud credential rotate <deployment-id> --binding <binding-id> --request-key rotate-<binding-id>-<date>
+scenario-to-cloud credential rotate "$DEPLOYMENT_ID" --binding "$BINDING_ID" --request-key "rotate-$BINDING_ID-$DATE"
 ```
 
 Operator-supplied value (never on argv; read from standard input once):
 
 ```bash
-printf '%s' "$NEW_VALUE" | scenario-to-cloud credential rotate <deployment-id> --binding <binding-id> --value-stdin --request-key rotate-<binding-id>-<date>
+printf '%s' "$NEW_VALUE" | scenario-to-cloud credential rotate "$DEPLOYMENT_ID" --binding "$BINDING_ID" --value-stdin --request-key "rotate-$BINDING_ID-$DATE"
 ```
 
 The command returns the rotation id and standing. States you will see
@@ -45,9 +45,9 @@ The command returns the rotation id and standing. States you will see
 ## 2. Resume or inspect a parked rotation
 
 ```bash
-scenario-to-cloud credential rotation-get <deployment-id> --rotation <rotation-id> --json
-scenario-to-cloud credential rotation-resume <deployment-id> --rotation <rotation-id>
-scenario-to-cloud credential rotation-resume <deployment-id> --rotation <rotation-id> --operator-confirmed   # only after you revoked the predecessor at the provider
+scenario-to-cloud credential rotation-get "$DEPLOYMENT_ID" --rotation "$ROTATION_ID" --json
+scenario-to-cloud credential rotation-resume "$DEPLOYMENT_ID" --rotation "$ROTATION_ID"
+scenario-to-cloud credential rotation-resume "$DEPLOYMENT_ID" --rotation "$ROTATION_ID" --operator-confirmed
 ```
 
 `--operator-confirmed` is a statement you make; the receipt records it under
@@ -56,8 +56,8 @@ your identity.
 ## 3. Verify
 
 ```bash
-scenario-to-cloud credential list <deployment-id> --json
-scenario-to-cloud deployment health <deployment-id> --json
+scenario-to-cloud credential list "$DEPLOYMENT_ID" --json
+scenario-to-cloud deployment health "$DEPLOYMENT_ID" --json
 ```
 
 Required: the binding's active version is the new one; every consumer
@@ -67,7 +67,7 @@ new value is proven by the observation, not by the rotation's success).
 ## 4. Revoke (compromise, off-boarding)
 
 ```bash
-scenario-to-cloud credential revoke <deployment-id> --binding <binding-id> --request-key revoke-<binding-id>-<date>
+scenario-to-cloud credential revoke "$DEPLOYMENT_ID" --binding "$BINDING_ID" --request-key "revoke-$BINDING_ID-$DATE"
 ```
 
 Revocation deletes the active version from every target authority it was
@@ -85,7 +85,7 @@ bundle reference and its passphrase come from your recovery custody, never
 from the target being restored:
 
 ```bash
-printf '%s' "$RECOVERY_PASSPHRASE" | scenario-to-cloud credential recover <deployment-id> --bundle-ref <bundle-ref> --passphrase-stdin --request-key recover-<deployment-id>-<date>
+printf '%s' "$RECOVERY_PASSPHRASE" | scenario-to-cloud credential recover "$DEPLOYMENT_ID" --bundle-ref "$BUNDLE_REF" --passphrase-stdin --request-key "recover-$DEPLOYMENT_ID-$DATE"
 ```
 
 A wrong passphrase or an unavailable bundle is a typed refusal
@@ -100,8 +100,8 @@ Workspace and scenario secrets that are not deployment credential bindings
 for non-production convenience and from `--generate` otherwise:
 
 ```bash
-scenario-to-cloud secrets verify <KEY> --deployment <deployment-id>
-scenario-to-cloud secrets set <KEY> --generate 32 --deployment <deployment-id> --restart
+scenario-to-cloud secrets verify "$SECRET_KEY" --deployment "$DEPLOYMENT_ID"
+scenario-to-cloud secrets set "$SECRET_KEY" --generate 32 --deployment "$DEPLOYMENT_ID" --restart
 ```
 
 ## Never

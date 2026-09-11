@@ -1253,6 +1253,11 @@
       "reason": "Wizard run consumes the complete step model."
     },
     {
+      "service": "AuthService",
+      "method": "Login",
+      "reason": "Authentication is a browser-session bootstrap owned by the web surface; the onboarding CLI uses its configured local or authenticated API transport rather than accepting interactive account credentials."
+    },
+    {
       "service": "SelectionService",
       "method": "GetUnion",
       "reason": "Exposed through the local file-backed union.export exception, which still calls the typed RPC."

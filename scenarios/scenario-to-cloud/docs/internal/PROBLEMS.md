@@ -9,15 +9,22 @@
 
 ## Open Issues
 
-- **Remaining SSH-era surfaces**: the executor runs every effect as typed argv through `api/reach`; what remains is tracked in the deletion ledger rows DL-02/DL-03/DL-08 (`api/ssh` residue, manifest `key_path`, `preflight/disk/*`) and is being retired in phase 25.
+- **Remaining SSH-era surfaces**: the executor runs every effect as typed argv through `api/reach`; the preflight disk routes and their CLI/UI consumers are retired, while the remaining transport, repair, and error-classifier work stays tracked in deletion-ledger rows DL-02/DL-03/DL-08.
 - **Pre-enrollment egress check**: preflight cannot observe outbound reachability through the read-only observation set before a host is enrolled; the check reports `warn` and `host.prepare` surfaces a blocked egress at apply time.
 - **Legacy data bindings**: the production deployment's mutable directories are only inventoried (`cloud-target data inventory`); mapping them to declared `persistent_data` bindings has not been executed.
 - **Operator console**: the console, plan review and durable operation view shipped (phase 19); the independent operator walkthrough (EXT-08) and a real BAS run are still pending.
-- **Governance**: cloud → Deployment Manager calls need a service bearer for the `scenario-to-cloud` principal; DM does not verify the Ed25519 receipt signature; publication is fail-closed until a qualification lane drives the ramp Driver.
+- **Governance**: cloud → Deployment Manager calls need a service bearer for the `scenario-to-cloud` principal; Deployment Manager now independently verifies Ed25519 receipt signatures, while publication remains fail-closed until a qualification lane drives the ramp Driver.
 - **Production TLS renewal**: the live edge observation on vrooli.com reports `renewal_failed` (tls-alpn challenge) while the certificate is valid until 2026-12-07.
 - **Scope governance**: `cli/manifest.json` now declares the scenario scopes; destructive verbs (`deployment apply|rollback`, `recovery-points restore`) are run-eligible only with confirmation under `scenario-to-cloud:destructive`, so a governed program applying against a fixture needs a session grant.
-- **Health call cost**: the legacy health report hashes the local bundle on every call (~11 s).
 - **Browser-automation dependency**: UI smoke and BAS journeys require browser-automation-studio; only observer API cases are registered today.
+- **CLI reference catalog**: the manifest and generated command reference contain the recovery, edge, credential and inspection leaf commands, but the current CLI Health catalog does not expose all of them. Its validator reports `unknown_command` for those current paths, and a scenario-scoped reindex is denied because the search control plane is unavailable. The generated examples now quote required placeholders; rerun the docs phase after the owner restores reindex authority.
+
+## Resolved in current execution
+
+- **Health call cost (2026-09-11)**: the health path now compares the declared
+  scenario version and defers the full local bundle fingerprint to the explicit
+  release-freshness workflow; the version-only regression proves it does not
+  hash the local bundle on interactive health calls.
 
 ## Deferred (explicitly out of scope for the certification plan)
 

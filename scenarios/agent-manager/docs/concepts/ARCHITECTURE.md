@@ -703,52 +703,140 @@ a malformed sibling cannot partially activate a catalog. Source files remain
 the sole desired-state writer. The catalog contains no command, callback, or
 consumer-domain action node.
 
-## Target: development-engagement continuity
+## Target: goal-mode run contract
 
-This contract extends, but does not claim implementation beyond, the existing run
-and workflow lifecycle. Swarm owns mandate authority and acceptance; Agent Manager
-owns capability resolution, dispatch, continuity, accounting, and stop propagation.
-See the [shared development contract](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+This section describes the intended design for one Agent Manager run that
+executes a plan-backed Swarm item in goal mode. It extends the existing run and
+workflow lifecycle. Swarm owns the development grant, the goal message, and
+finalization; Agent Manager owns capability resolution, dispatch, run terminal
+classes, accounting, and stop propagation. The shared model is in the
+[scenario development doc](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+Sliced mode is unchanged by this section: workflows remain its substrate.
 
-Resolve native goal support from declared and exercised harness capabilities. If it
-is unavailable, select a qualified bounded workflow with the same target, grants,
-accounting, cancellation, and handoff obligations. Do not infer support from a model
-name. Native and fallback execution must report the mechanism actually selected and
-its limitations. Neither mechanism changes the product's completion policy.
+### One run per goal execution
 
-Carry one engagement identity across runs, children, recovery, and compaction.
-Checkpoints reference the approved target revision, current intervention, evidence,
-unmet outcomes, pending owner operations, and remaining limits. Retain skill-read
-content identities when available; report unobserved consumption explicitly.
+A goal execution is one run. Swarm creates the run with the composed goal
+message as the prompt and the finish line as `until`. No workflow wraps the run,
+no slice cap applies, and no per-session reviewer runs. When the run reaches a
+terminal class, Swarm finalization decides the item outcome.
+
+### Native goal delivery on the interactive substrate
+
+Select the interactive substrate when the selected runner declares native goal
+support for the run's sandbox mode. The declaration is a spawn capability; do not
+infer it from a model or runner name.
+
+1. Create the web-console session and submit the launch command.
+2. Wait until the harness is ready. Readiness is observed, not assumed: the
+   session shows the harness input surface, or the transcript exists.
+3. Install `/goal <finish line>` as a typed input.
+4. Verify delivery with a goal marker in the transcript. The marker carries the
+   objective and a status of `active`.
+5. If no marker appears in the resend window, send `/goal` again. Stop after a
+   bounded count and record the failure reason on the run.
+6. Deliver the goal message as the task prompt.
+
+When the runner has no native goal support for the sandbox mode, carry the finish
+line in the prompt. The run records which mechanism it used. Both mechanisms
+use the same terminal classes and the same completion authority.
+
+### Run terminal classes
+
+A run ends in one of two families. Each terminal record carries the last handoff
+the agent wrote (the Plan Manager checkpoint reference and journal location) so a
+resumed run can continue from it.
+
+| Family | Class | Source | Swarm reaction |
+|---|---|---|---|
+| Agent-decided verdict | `complete` | goal marker `complete`, or a validated structured result | finalization |
+| Agent-decided verdict | `blocked` | goal marker `blocked`, or a structured `blocked` result | finalization; item needs an operator |
+| Agent-decided verdict | `abstained` | structured `abstained` result | finalization; item needs an operator |
+| Involuntary interruption | usage window | goal marker `usage_limited` or `budget_limited`, or a runner rate-limit event | resume under `continuation: until-allowance` |
+| Involuntary interruption | timeout | wall-clock or turn ceiling reached | resume under `continuation: until-allowance` |
+| Involuntary interruption | crash | harness process or Agent Manager process ended without a terminal | resume under `continuation: until-allowance` |
+| Involuntary interruption | session lost | web-console session gone with no retained terminal | resume under `continuation: until-allowance` |
+
+A verdict is final. An interruption has no terminal result and never reads as
+product-complete. Under `continuation: manual` every stop is a stop.
+
+### Ceilings on interactive runs
+
+Interactive runs accept the same `max_turns` and `timeout` as codec-pipe runs.
+The coordinator counts turn boundaries and enforces the wall clock. Reaching a
+ceiling produces the `timeout` interruption class, not a failure. The item's
+aggregate allowance is one budget across resumes: a resumed run receives the
+remainder, and a run that exhausts the remainder ends as an interruption with a
+resumable checkpoint.
+
+### Session re-attach
+
+When web-console recovers a session after a restart, the reconciler re-attaches
+the tailer from the persisted cursor and lets the run continue. A retained
+terminal marker in the transcript finalizes the run without a new turn. A
+session that is gone with no retained terminal ends the run in the `session
+lost` class.
+
+### Cost
+
+Cost is measured or reported unknown. A run never reports zero by default. Token
+usage comes from the transcript receipt that the codec marks as reconciliation
+authority. A currency charge comes from a runner receipt or from pricing applied
+to that usage; when neither exists the run reports the charge as unknown and the
+allowance stays reserved until reconciled.
+
+### Runner preference
+
+`execution_preferences.preferred_runner` is a preference, not a pin. Role
+resolution reorders the role's candidates so the preferred runner is tried
+first. When the preferred runner is not selected, the resolution snapshot records
+a visible fallthrough reason (preflight failure or runner not in the role). Goal
+mode needs a runner with native goal support; when the selected runner lacks it,
+the run falls back to the prompt-carried finish line and records that fact.
+
+### Metered cancellation and reservations
 
 Aggregate allowances are not per-run allowances. Reserve before dispatch, settle
 actual usage once, and reconcile uncertain costs before granting replacements.
-Retries, interrupted children, native continuations, and fallback slices consume
-the same allowance. Unknown usage is not zero. Parent cancellation and revocation
-stop new child effects; late receipts still settle incurred costs. Budget exhaustion
-preserves a resumable checkpoint and cannot emit product-complete status.
-
-Metered cancellation records the provider observation cadence alongside the durable
-stop intent: sample count, first/last observation, mean interval, and maximum
-interval. The cadence is diagnostic evidence for expected cancellation lag, not a
-hard ceiling. A stop request is persisted before the owner call; a terminal
-provider reconciliation receipt is required before usage settles. If the provider
-does not supply terminal authority, the reservation remains retained and acceptance
+Retries, interrupted children, resumed runs, and sliced-mode slices consume the
+same allowance. Parent cancellation and revocation stop new child effects; late
+receipts still settle incurred costs. A stop request is persisted before the
+owner call; a terminal provider reconciliation receipt is required before usage
+settles. Without that receipt the reservation stays retained and acceptance
 cannot proceed.
 
-The execution API now carries `WorkflowEngagementGrant` for this owner boundary.
-Agent Manager validates that each supplied dimension narrows the pinned
-declaration, persists the grant with the execution, reapplies it after reload,
-and exposes it in the operator projection. Swarm must still reserve and bind a
-development attempt before dispatch; until that coordinator is composed with a
-qualified native/fallback transition, development launch remains fail-closed.
+### Implementation status
 
-Qualification pairs native and fallback fixtures for scope, budget, crash/resume,
-duplicate result delivery, cancellation, and false harness completion. A live smoke
-requires explicit effect and spending limits under `docs/TESTING.md`; deterministic
-fixtures alone do not qualify a particular vendor harness or unattended operation.
-
-## Related Documentation
+The code today differs from the contract above in these ways. The interim
+mapping between the target vocabulary and the current fields is in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
+Goal mode exists only as the interim `goal-session` workflow; there is no
+workflow-free goal run. The `until` text is appended to the prompt raw, not
+template-rendered, in `api/internal/workflowruntime/engine.go` (the prompt
+builder near line 1302 and the child request near line 1353), and the run
+executor appends it again as a "Completion contract" block. `/goal` is typed once
+after a fixed boot delay in `api/internal/orchestration/interactive/substrate.go`
+(near line 341); there is no marker verification and no resend of `/goal`, only
+the task prompt is resent. In goal mode a provider success terminal that is not
+a `goal_*` marker is discarded unless a validated structured result exists
+(`interactive/tail.go` lines 210-216), so the run keeps tailing. Interactive runs
+have no `max_turns` or wall-clock ceiling; only transcript discovery and shell
+readiness are bounded. A live Codex run cannot produce a goal marker today: the
+live tail acts only on the `result.Goal` a codec's `ParseTranscriptLine` sets
+(`transcript_consumer.go:138`), Claude sets it (`codecs/claude.go:680-682`), and
+Codex never does; its `codexGoalStatus` parser (`codecs/goal_markers.go:11`,
+wired at `codecs/codex.go:92`) is reached only through
+`baseCodec.GoalStatusFromTranscriptLine` (`codecs/base.go:58-62`), which serves
+transcript import. Claude's parser maps the on-disk `goal_status` record to
+`active` or `complete` only (`codecs/goal_markers.go`), so no live run can
+produce a `blocked`, `usage_limited`, or `budget_limited` marker today. The
+4,000-character bound on the `/goal` field (short delegation text in its
+place) is implemented by `boundedNativeObjective` in `run_execution.go`.
+Interactive Claude runs record
+per-turn token usage and mark the final turn as reconciliation authority; no
+currency charge is recorded for them. The runner-preference fallthrough reason
+(`preferred_unavailable:<reason>`) is implemented in `run_creation.go`. Terminal
+classes are not modelled: the run finalizes as `completed` or `failed`, and a
+lost session finalizes as `failed`.
 
 ## Friction investigation transport
 
@@ -757,6 +845,8 @@ fixtures alone do not qualify a particular vendor harness or unattended operatio
 `ImportTranscript`. The CLI invokes each through its generated Connect client;
 the retained REST paths are compatibility routes rather than new command
 bindings. Episode cohort selection is owned by `MeasuresService.EpisodeCohort`.
+
+## Related Documentation
 
 - [SEAMS.md](../internal/SEAMS.md) - Architectural boundaries and interfaces
 - [FAILURE_TOPOGRAPHY.md](../FAILURE_TOPOGRAPHY.md) - Failure mode analysis

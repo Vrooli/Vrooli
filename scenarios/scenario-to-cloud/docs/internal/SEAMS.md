@@ -59,7 +59,7 @@ Test-only seams that must not leak into production: `faultinject/` (armed only u
 | `handlers_progress.go` | SSE-based deployment progress streaming |
 | `handlers_tasks.go` | Task management endpoints |
 | `handlers_health.go` | Health check endpoints |
-| `vps/preflight/handlers.go` | Preflight checks and fix actions (port cleanup, disk management) |
+| `vps/preflight/handlers.go` | Preflight checks and owner-routed fix actions |
 | `secrets/handlers.go` | Secret retrieval for deployments |
 | `secrets/handlers_management.go` | Secret management operations |
 | `ssh/handlers.go` | SSH key management and connection testing |

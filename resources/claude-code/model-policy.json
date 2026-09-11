@@ -1,27 +1,140 @@
 {
   "schema_version": "v1",
   "runner": "claude-code",
-  "provenance": {"source": "Claude Code --model alias surface and pinned upstream catalog (claude 2.1.221; refreshed 2026-08-30)", "observed_at": "2026-08-30"},
-  "billing": {"mode": "subscription", "source": "operator-declared-claude-code-subscription"},
+  "provenance": {"source": "Claude Code --model alias surface and pinned upstream catalog (claude 2.1.257; refreshed 2026-09-11); added multi-source fallback", "observed_at": "2026-09-11"},
+  "billing": {
+    "mode": "subscription",
+    "source": "operator-declared-claude-code-subscription",
+    "sources": [
+      {"id": "claude-subscription", "label": "Claude Subscription", "billing_mode": "subscription", "credential_key": "ANTHROPIC_API_KEY", "endpoint": "https://api.anthropic.com/v1"},
+      {"id": "opencode-go", "label": "OpenCode Go", "billing_mode": "subscription", "credential_key": "OPENCODE_GO_KEY", "endpoint": "https://opencode.ai/zen/go/v1"},
+      {"id": "openrouter", "label": "OpenRouter", "billing_mode": "metered", "credential_key": "OPENROUTER_API_KEY", "endpoint": "https://openrouter.ai/api/v1"}
+    ]
+  },
   "model_aliases": {
-    "sonnet": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "openrouter"},
-    "claude-sonnet-5": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "openrouter"},
-    "opus": {"canonical_model": "anthropic/claude-opus-5", "provider": "openrouter"},
-    "claude-opus-5": {"canonical_model": "anthropic/claude-opus-5", "provider": "openrouter"},
-    "haiku": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "openrouter"},
-    "claude-haiku-4-5-20251001": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "openrouter"},
-    "fable": {"canonical_model": "anthropic/claude-fable-5", "provider": "openrouter"},
-    "claude-fable-5": {"canonical_model": "anthropic/claude-fable-5", "provider": "openrouter"}
+    "sonnet": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "anthropic"},
+    "claude-sonnet-5": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "anthropic"},
+    "opus": {"canonical_model": "anthropic/claude-opus-5", "provider": "anthropic"},
+    "claude-opus-5": {"canonical_model": "anthropic/claude-opus-5", "provider": "anthropic"},
+    "haiku": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "anthropic"},
+    "claude-haiku-4-5-20251001": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "anthropic"},
+    "fable": {"canonical_model": "anthropic/claude-fable-5-1", "provider": "anthropic"},
+    "claude-fable-5-1": {"canonical_model": "anthropic/claude-fable-5-1", "provider": "anthropic"},
+    "claude-fable-5": {"canonical_model": "anthropic/claude-fable-5", "provider": "anthropic"},
+    "openrouter/deepseek/deepseek-v4.1-flash": {"canonical_model": "openrouter/deepseek/deepseek-v4.1-flash", "provider": "openrouter"},
+    "opencode-go/deepseek-v4.1-flash": {"canonical_model": "opencode-go/deepseek-v4.1-flash", "provider": "opencode-go"},
+    "opencode-go/mimo-v2.5": {"canonical_model": "opencode-go/mimo-v2.5", "provider": "opencode-go"}
   },
   "roles": {
-    "code.default": {"model": "sonnet", "canonical_model": "anthropic/claude-sonnet-5", "fallbacks": ["claude-sonnet-5"], "description": "Balanced Claude Code implementation work.", "capabilities": ["code", "tools"]},
-    "code.fast": {"model": "sonnet", "canonical_model": "anthropic/claude-sonnet-5", "fallbacks": ["haiku"], "description": "Low-latency Claude Code edits.", "capabilities": ["code", "tools"]},
-    "code.smart": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "Highest-capability Claude Code reasoning.", "capabilities": ["code", "tools", "reasoning"]},
-    "code.cheap": {"model": "haiku", "canonical_model": "anthropic/claude-haiku-4-5-20251001", "fallbacks": ["claude-haiku-4-5-20251001"], "description": "Cost-conscious Claude Code tasks.", "capabilities": ["code", "tools"]},
-    "code.ux": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "User-facing interaction and frontend work where quality matters most.", "capabilities": ["code", "tools", "ux"]},
-    "code.judgment": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "High-level judgment, challenge, and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
-    "code.inspection": {"model": "sonnet", "canonical_model": "anthropic/claude-sonnet-5", "fallbacks": ["claude-sonnet-5"], "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
-    "code.longrun": {"model": "fable", "canonical_model": "anthropic/claude-fable-5", "fallbacks": ["claude-fable-5"], "description": "Long-horizon autonomous coding work.", "capabilities": ["code", "tools", "reasoning"]},
-    "write.default": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "Natural-prose writing and editorial work.", "capabilities": ["writing", "tools"]}
+    "code.default": {
+      "models": [
+        {"model": "sonnet", "source": "claude-subscription", "effort": null},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "sonnet",
+      "canonical_model": "anthropic/claude-sonnet-5",
+      "fallbacks": ["claude-sonnet-5"],
+      "description": "Balanced Claude Code implementation work with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.fast": {
+      "models": [
+        {"model": "sonnet", "source": "claude-subscription", "effort": null},
+        {"model": "haiku", "source": "claude-subscription", "effort": null},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "sonnet",
+      "canonical_model": "anthropic/claude-sonnet-5",
+      "fallbacks": ["haiku"],
+      "description": "Low-latency Claude Code edits with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.smart": {
+      "models": [
+        {"model": "fable", "source": "claude-subscription", "effort": "high"},
+        {"model": "opus", "source": "claude-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5-1",
+      "fallbacks": ["claude-fable-5-1", "claude-fable-5", "claude-opus-5"],
+      "description": "Highest-capability Claude Code reasoning and long-horizon agentic work.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.cheap": {
+      "models": [
+        {"model": "haiku", "source": "claude-subscription", "effort": null},
+        {"model": "opencode-go/mimo-v2.5", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "haiku",
+      "canonical_model": "anthropic/claude-haiku-4-5-20251001",
+      "fallbacks": ["claude-haiku-4-5-20251001"],
+      "description": "Cost-conscious Claude Code tasks with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.ux": {
+      "models": [
+        {"model": "opus", "source": "claude-subscription", "effort": "high"},
+        {"model": "sonnet", "source": "claude-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "opus",
+      "canonical_model": "anthropic/claude-opus-5",
+      "fallbacks": ["claude-opus-5"],
+      "description": "User-facing interaction and frontend work where quality matters most.",
+      "capabilities": ["code", "tools", "ux"]
+    },
+    "code.judgment": {
+      "models": [
+        {"model": "fable", "source": "claude-subscription", "effort": "high"},
+        {"model": "opus", "source": "claude-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "opus",
+      "canonical_model": "anthropic/claude-opus-5",
+      "fallbacks": ["claude-opus-5"],
+      "description": "High-level judgment, challenge, and strategic reasoning work.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.inspection": {
+      "models": [
+        {"model": "sonnet", "source": "claude-subscription", "effort": null},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "sonnet",
+      "canonical_model": "anthropic/claude-sonnet-5",
+      "fallbacks": ["claude-sonnet-5"],
+      "description": "Code inspection, reproduction, execution, and evidence gathering.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.longrun": {
+      "models": [
+        {"model": "fable", "source": "claude-subscription", "effort": "high"},
+        {"model": "opus", "source": "claude-subscription", "effort": "high"},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5",
+      "fallbacks": ["claude-fable-5"],
+      "description": "Long-horizon autonomous coding work with multi-source fallback chain.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "write.default": {
+      "models": [
+        {"model": "opus", "source": "claude-subscription", "effort": "high"},
+        {"model": "sonnet", "source": "claude-subscription", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "opus",
+      "canonical_model": "anthropic/claude-opus-5",
+      "fallbacks": ["claude-opus-5"],
+      "description": "Natural-prose writing and editorial work.",
+      "capabilities": ["writing", "tools"]
+    }
   }
 }

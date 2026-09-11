@@ -45,6 +45,7 @@ export interface CapabilityEvidence {
   coverage?: string[]; observed_at: string; verified: boolean; remediation?: string;
   credential_ref?: { logical_id: string; field: string; version: string };
   target_id?: string; environment?: string; account_identity?: string; operation?: string;
+  owner?: string; context_digest?: string; catalog_revision?: string; configuration_revision?: string; provider_adapter_version?: string;
   expires_at?: string; next_action?: string; effect_class?: string; effects_used?: number; cleanup_completed?: boolean;
 }
 export interface CapabilityStatus {
@@ -72,7 +73,14 @@ export interface CapabilityActionRequest { capability_id: string; idempotency_ke
 // source; this narrow cast only lets TypeScript consume the additive fields.
 type WireCapabilityInput = { declinable?: boolean; constraints?: { minLength?: number; maxLength?: number; minDuration?: string; maxDuration?: string } };
 type WireCapabilityEvidenceContract = { stages?: string[] };
-type WireCapabilityEvidence = ProtoCapabilityEvidence & { stage?: string };
+type WireCapabilityEvidence = ProtoCapabilityEvidence & {
+  stage?: string;
+  owner?: string;
+  contextDigest?: string;
+  catalogRevision?: string;
+  configurationRevision?: string;
+  providerAdapterVersion?: string;
+};
 type WireCapabilityDescriptor = NonNullable<ProtoCapabilityStatus["descriptor"]> & {
   scope?: string; purpose?: string; sensitivity?: string; disposition?: string; dispositionReason?: string; referenceUrl?: string;
   applicability?: { platforms: string[]; environments: string[]; targets: string[] };
@@ -175,6 +183,7 @@ function evidenceFromProto(evidence: ProtoCapabilityEvidence): CapabilityEvidenc
     verified: evidence.verified, remediation: evidence.remediation,
     credential_ref: evidence.credentialRef ? { logical_id: evidence.credentialRef.logicalId, field: evidence.credentialRef.field, version: evidence.credentialRef.version } : undefined,
     target_id: evidence.targetId, environment: evidence.environment, account_identity: evidence.accountIdentity, operation: evidence.operation,
+    owner: wireEvidence.owner, context_digest: wireEvidence.contextDigest, catalog_revision: wireEvidence.catalogRevision, configuration_revision: wireEvidence.configurationRevision, provider_adapter_version: wireEvidence.providerAdapterVersion,
     expires_at: evidence.expiresAt ? timestampDate(evidence.expiresAt).toISOString() : undefined, next_action: evidence.nextAction,
     effect_class: evidence.effectClass, effects_used: evidence.effectsUsed, cleanup_completed: evidence.cleanupCompleted,
   };

@@ -2,10 +2,13 @@ package execplan
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"testing"
 
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/identity"
 )
@@ -203,6 +206,15 @@ func TestActionsCarryTypedInputsOnly(t *testing.T) {
 	if act := plan.Action(OpReleaseStage); !strings.HasPrefix(act.Inputs["release_dir"], "/root/Vrooli/.vrooli/cloud/releases/") {
 		t.Fatalf("release.stage must stage under the releases tree, got %q", act.Inputs["release_dir"])
 	}
+	selection := plan.Action(OpConfigApply).Inputs["selection_json_b64"]
+	decoded, err := base64.RawURLEncoding.DecodeString(selection)
+	parsedSelection := &setupv1.Selection{}
+	if err == nil {
+		err = protojson.Unmarshal(decoded, parsedSelection)
+	}
+	if err != nil || parsedSelection.GetSchemaVersion() != "v1" {
+		t.Fatalf("config.apply must carry the encoded closure-derived setup/v1 selection: %q", selection)
+	}
 }
 
 // [REQ:STC-P0-016] P06-A03: satisfied desired state is a no-op; an
@@ -243,6 +255,9 @@ func TestNeedsInputReturnsOneHandoff(t *testing.T) {
 	}
 	if plan.Handoff.Owner != HandoffOwner || plan.Handoff.Kind != HandoffKind || plan.Handoff.Reference == "" {
 		t.Fatalf("handoff must name vrooli-onboarding resume_handoff with a reference: %+v", plan.Handoff)
+	}
+	if plan.Handoff.DeploymentID != in.Deployment.ID || plan.Handoff.Target != plan.Target || plan.Handoff.DesiredRevision != in.DesiredRevision || plan.Handoff.SelectionDigest != plan.ClosureDigest {
+		t.Fatalf("handoff must carry the reviewed deployment and target fences: %+v", plan.Handoff)
 	}
 	if len(plan.Handoff.Missing) != 2 || plan.Handoff.Missing[0] != "fixture/app:api-key" || plan.Handoff.Missing[1] != "fixture/app:session-secret" {
 		t.Fatalf("expected the two missing addresses sorted, got %v", plan.Handoff.Missing)

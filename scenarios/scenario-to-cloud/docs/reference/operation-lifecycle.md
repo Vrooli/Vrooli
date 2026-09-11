@@ -1,6 +1,6 @@
 # Operation Lifecycle
 
-> [CODE: api/operations] · [CODE: api/persistence/operations.go] · [CODE: api/deployment/operation_runner.go] · [PROTO: packages/proto/schemas/scenario-to-cloud/v1/operations/operations.proto]
+> [CODE: api/operations/service.go] · [CODE: api/persistence/operations.go] · [CODE: api/deployment/operation_runner.go] · [PROTO: ../../packages/proto/schemas/scenario-to-cloud/v1/operations/operations.proto]
 
 A **cloud operation** is one admitted executable plan against one deployment.
 The durable record (`cloud_operations`) owns execution. A worker only ever

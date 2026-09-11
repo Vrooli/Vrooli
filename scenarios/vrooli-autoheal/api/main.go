@@ -35,6 +35,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
+	"github.com/vrooli/vrooli/internal/recovery"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
@@ -53,6 +54,53 @@ func main() {
 	if err := run(); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+func newCodingAgentRecoveryBroker() (*recovery.CodingAgentBroker, error) {
+	path, err := recovery.DefaultCodingAgentRecordPath()
+	if err != nil {
+		return nil, err
+	}
+	return recovery.NewCodingAgentBroker(path, func(ctx context.Context, runner string, req recovery.CodingAgentRequest) error {
+		home, _ := os.UserHomeDir()
+		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		if err != nil {
+			return fmt.Errorf("resolve vrooli CLI: %w", err)
+		}
+		prompt := codingAgentRecoveryPrompt(req)
+		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+		result := cliinvoke.Run(ctx, cliinvoke.Invocation{
+			Binary: binary,
+			Args:   cliinvoke.AgentLaunch(runner, prompt, req.WorkingDir, []string{filepath.Join(req.WorkingDir, req.Claim)}),
+			Dir:    req.WorkingDir,
+			Env:    childEnv,
+		})
+		return result.Error()
+	})
+}
+
+func codingAgentRecoveryPrompt(req recovery.CodingAgentRequest) string {
+	return fmt.Sprintf(`You are the bounded recovery agent for Vrooli infrastructure.
+
+Investigate and repair the health failure for scenario %q. Autoheal exhausted its mechanical recovery actions and reported: %s
+
+Work from the repository root. Inspect the scenario status, autoheal evidence, recent logs, configuration, and relevant source before changing anything. Repair the underlying cause using supported Vrooli lifecycle and scenario commands. Validate the affected scenario and any directly related core infrastructure after the repair. Keep changes narrowly scoped to the failure; do not disable supervision, weaken health checks, expose credentials, or modify unrelated scenarios. If the issue cannot be safely repaired, leave a concise diagnosis in your final response and do not loop indefinitely.`, req.Scenario, req.Reason)
+}
+
+func recoveryRepositoryRoot() string {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return root
+	}
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	for current := workingDir; current != filepath.Dir(current); current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, ".vrooli", "operator-state.json")); err == nil {
+			return current
+		}
+	}
+	return workingDir
 }
 
 func run() error {
@@ -109,22 +157,22 @@ func run() error {
 		}
 	}
 	registry := checks.NewRegistry(plat)
+	codingAgentBroker, err := newCodingAgentRecoveryBroker()
+	if err != nil {
+		return fmt.Errorf("initialize coding-agent recovery broker: %w", err)
+	}
 	registry.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
-		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
-		home, _ := os.UserHomeDir()
-		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
-		if resolveErr != nil {
-			return "", fmt.Errorf("agent recovery: %w", resolveErr)
+		record, err := codingAgentBroker.Submit(recovery.CodingAgentRequest{
+			Scenario:   scenario,
+			Reason:     reason,
+			Requester:  "vrooli-autoheal",
+			WorkingDir: recoveryRepositoryRoot(),
+			Claim:      filepath.Join("scenarios", scenario),
+		})
+		if err != nil {
+			return "", err
 		}
-		res := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: cliinvoke.AgentRecover(scenario, reason, "vrooli-autoheal"), Env: childEnv})
-		if err := res.Error(); err != nil {
-			return "", fmt.Errorf("agent recovery: %w", err)
-		}
-		fields := strings.Fields(string(res.Combined()))
-		if len(fields) < 3 {
-			return "", fmt.Errorf("agent recovery returned no request id")
-		}
-		return fields[2], nil
+		return record.ID, nil
 	})
 	if home, err := os.UserHomeDir(); err != nil {
 		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
@@ -141,6 +189,7 @@ func run() error {
 	if err := applyAutoHealPolicyFromConfig(registry, configMgr.GetGlobal()); err != nil {
 		return fmt.Errorf("invalid auto-heal policy configuration: %w", err)
 	}
+	registry.SetRecoveryGracePeriod(time.Duration(configMgr.GetGlobal().GracePeriodSeconds) * time.Second)
 
 	// Historical SQLite state can be large and may be contended by the
 	// retention worker. It is not part of API readiness: restore it in the
@@ -211,9 +260,6 @@ func run() error {
 	// together on every cycle. Checks restored from persistence keep their
 	// existing schedule; only cold-start checks are jittered.
 	registry.SeedStartupJitter(time.Now(), nil)
-
-	// Schedule initial tick 5 seconds after startup to get fresh results
-	bootstrap.ScheduleInitialTick(registry, store, 5*time.Second)
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
@@ -421,6 +467,7 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	router.HandleFunc("/api/v1/config/export", ch.ExportConfig).Methods("GET")
 	router.HandleFunc("/api/v1/config/import", ch.ImportConfig).Methods("POST")
 	router.HandleFunc("/api/v1/config/defaults", ch.GetDefaults).Methods("GET")
+	router.HandleFunc("/api/v1/config/protected-checks", ch.GetProtectedChecks).Methods("GET")
 	router.HandleFunc("/api/v1/config/global", ch.GetGlobalConfig).Methods("GET")
 	router.HandleFunc("/api/v1/config/ui", ch.GetUIConfig).Methods("GET")
 	// Per-check config routes - must come after /config/bulk

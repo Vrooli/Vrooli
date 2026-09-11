@@ -30,7 +30,7 @@ func TestProbeReportsLocalEmulatorAndPhysicalDevice(t *testing.T) {
 		Devices: fakeDevices{items: []DeviceObservation{{
 			ID: "SM_A037U", Label: "Galaxy A03s", NodeID: "phone-node", Serial: "SM_A037U",
 			OS: "Android 14", Architecture: "arm64", Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge, ID: "usb", Available: true},
-			Capabilities: []string{deliveryramp.CapabilityAndroidWebView, deliveryramp.CapabilityScreenRecording, deliveryramp.CapabilityDeviceControl}, Available: true,
+			Capabilities: []string{deliveryramp.CapabilityAndroidWebView, deliveryramp.CapabilityScreenRecording, deliveryramp.CapabilityDeviceControl}, Available: true, ObservedAt: time.Unix(10, 0),
 		}}},
 		Now: func() time.Time { return time.Unix(10, 0) },
 	}
@@ -46,6 +46,14 @@ func TestProbeReportsLocalEmulatorAndPhysicalDevice(t *testing.T) {
 	}
 	if inventory.Targets[1].ID != "SM_A037U" || inventory.Targets[1].Transport.Kind != deliveryramp.TransportBridge {
 		t.Fatalf("physical target = %#v", inventory.Targets[1])
+	}
+	if inventory.Targets[1].DeviceKind != "attached" {
+		t.Fatalf("device kind = %q, want attached", inventory.Targets[1].DeviceKind)
+	}
+	for _, readiness := range inventory.Targets[1].OperationReadiness {
+		if readiness.Operation == "device_operation" && !readiness.Ready {
+			t.Fatalf("attached device operation readiness = %+v, want ready", readiness)
+		}
 	}
 }
 
