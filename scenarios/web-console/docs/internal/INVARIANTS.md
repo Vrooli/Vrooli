@@ -90,6 +90,14 @@ The Messages list (`ui/src/components/MessagesPane.tsx`) uses one scroll model: 
 | Refresh never refetches history it has not loaded | A refresh asks for "what is newer" only for a hydrated session, and a paged window's start is not a gap, so mount, focus, and reconnect refreshes cannot merge older history ahead of the viewport | `hooks/useConversationSession.ts`, `stores/useConversationStore.ts` |
 | No retries, timers, or settle loops position the list | Enforced by review and by `messages-scroll-follow.test.tsx` (one write per change). The scroll-end timer only moves an offset the rows already show into scrollTop; it never changes what is on screen | `ui/src/__tests__/messages-scroll-follow.test.tsx` |
 
+## Viewport and Bottom-Inset Invariants
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| One answer to whether the home-indicator inset applies | The library's `useViewportEnvironment` (1.1.0+) decides `reachesScreenBottom`: false while the keyboard is up, and in an installed iOS 26 app whose viewport stops short of the screen by exactly the status-bar inset. Every library overlay reads the matching `--rcl-safe-bottom` from its own root; `useAppViewport` projects the same answer into `--wc-safe-bottom` for the shell. Web Console never publishes `--rcl-safe-bottom` itself | library `useViewportEnvironment`, `hooks/useAppViewport.ts`, `hooks/useAppViewport.test.ts` |
+| The app is never stretched over the strip iOS does not paint | iOS 26 paints no `position: fixed` content below the viewport it reports, and stretching the page past it lets iOS scroll the page, which fights the scroll lock and pan correction (it flickered and swallowed gestures). The strip is left to the page canvas: the body's colour normally, and — through the library's `FullPageDrawer`/`BottomSheet` (1.4.2/1.3.2+) — the open sheet's surface while one is open on a phone, set on both `<html>` and `<body>` because WebKit blends the body's background over the html's to paint that strip | library `FullPageDrawer`, `BottomSheet`, `styles.css` (`body`) |
+| Exactly one surface reserves the bottom inset | The mobile toolbar in the shell; in an overlay, the drawer's own scroll region or footer. Content inside an overlay never adds the inset again | `components/MobileToolbar.tsx`, library `FullPageDrawer`/`BottomSheet` |
+
 ## TTS Playback Intent Invariants
 
 | Invariant | Enforcement | Location |

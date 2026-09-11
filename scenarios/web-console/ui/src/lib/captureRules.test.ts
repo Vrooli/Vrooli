@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchRules, matchesGlob, SCAN_EVENT_LIMIT, suggestionsForEvent } from "./captureRules";
+import { groupSuggestionsByRule, matchRules, matchesGlob, SCAN_EVENT_LIMIT, suggestionsForEvent } from "./captureRules";
 import type { HandoffRuleDTO } from "../api/handoffrules";
 import type { ConversationEvent } from "../api/conversation";
 
@@ -154,5 +154,15 @@ describe("suggestionsForEvent", () => {
       [event("e1", "at /home/me/.vrooli/plans/a.md"), event("e2", "at /home/me/.vrooli/plans/b.md")],
     );
     expect(suggestionsForEvent(all, "e2").map((s) => s.payload)).toEqual(["/home/me/.vrooli/plans/b.md"]);
+  });
+});
+
+describe("groupSuggestionsByRule", () => {
+  it("gathers one message's matches by the rule that fired, in first-match order", () => {
+    const a = { ruleId: "plan", ruleName: "Plan file", eventId: "e1", payload: "/p/a.md" };
+    const b = { ruleId: "url", ruleName: "Link", eventId: "e1", payload: "https://x" };
+    const c = { ruleId: "plan", ruleName: "Plan file", eventId: "e1", payload: "/p/c.md" };
+    expect(groupSuggestionsByRule([a, b, c])).toEqual([[a, c], [b]]);
+    expect(groupSuggestionsByRule([])).toEqual([]);
   });
 });

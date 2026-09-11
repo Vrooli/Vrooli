@@ -294,11 +294,10 @@ describe("Workspace playback pill", () => {
     delete mockConversationSessions[SESSION_ID];
   });
 
-  it("[REQ:P0-017h] shows no pill and offers no restore when nothing is queued", async () => {
+  it("[REQ:P0-017h] shows no pill when nothing is queued", async () => {
     setupPaneState();
     await renderWorkspace();
     expect(screen.queryByTestId("playback-pill")).toBeNull();
-    expect(captured.toolbar.ttsDismissed).toBe(false);
   });
 
   it("[REQ:P0-017h] shows the pill while a message is speaking, collapsed", async () => {
@@ -321,7 +320,7 @@ describe("Workspace playback pill", () => {
     expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-state", "collapsed");
   });
 
-  it("[REQ:P0-017h] closing the pill stops playback and hides it; the toolbar's restore brings it back", async () => {
+  it("[REQ:P0-017h] closing the pill stops playback and removes it entirely, leaving no minimized restore control", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
     await renderWorkspace();
@@ -330,10 +329,8 @@ describe("Workspace playback pill", () => {
     expect(mockStopActiveTts).toHaveBeenCalled();
     stopSpeaking();
     expect(screen.queryByTestId("playback-pill")).toBeNull();
-    expect(captured.toolbar.ttsDismissed).toBe(true);
-    act(() => { captured.toolbar.onTtsRestore?.(); });
-    expect(screen.getByTestId("playback-pill")).toBeInTheDocument();
-    expect(captured.toolbar.ttsDismissed).toBe(false);
+    expect(captured.toolbar.ttsDismissed).toBeUndefined();
+    expect(captured.toolbar.onTtsRestore).toBeUndefined();
   });
 
   it("a new message starting to speak brings a dismissed pill back", async () => {

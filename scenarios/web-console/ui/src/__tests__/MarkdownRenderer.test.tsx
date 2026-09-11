@@ -233,7 +233,7 @@ describe("MarkdownRenderer", () => {
     // Pinned to the block treatment: the inline-code chip already handled
     // `paths` in backticks, so a passing assertion must prove the fenced
     // block itself became clickable (block copy button + "path" label).
-    expect(document.querySelector("button[aria-label='Copy code']")).not.toBeNull();
+    expect(document.querySelector("[data-testid='code-block-copy']")).not.toBeNull();
     expect(screen.getByText("path")).toBeInTheDocument();
     const button = document.querySelector("button[title='Open /the/path/example.md']");
     expect(button).not.toBeNull();

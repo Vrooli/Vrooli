@@ -67,7 +67,7 @@ describe("message action layout", () => {
     });
   });
 
-  it("caps the row at three inline controls and gives each a 44px hit area", () => {
+  it("caps the row at three inline controls, each the library's icon button with its comfortable tap target", () => {
     render(<MessagesPane {...props} />);
 
     const card = screen.getByTestId("msg-card-assistant-1");
@@ -75,9 +75,11 @@ describe("message action layout", () => {
     fireEvent.mouseEnter(card);
     const inline = card.querySelectorAll<HTMLElement>("[data-message-action-inline]");
     expect(inline).toHaveLength(3);
+    // The library grows a comfortable target to the 44px tap floor on a
+    // coarse pointer, beyond the icon's visual box.
     for (const control of inline) {
-      expect(control.className).toContain("h-11");
-      expect(control.className).toContain("w-11");
+      expect(control).toHaveAttribute("data-rcl-icon-button");
+      expect(control).toHaveAttribute("data-rcl-tap-target", "comfortable");
     }
   });
 

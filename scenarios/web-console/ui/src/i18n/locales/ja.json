@@ -322,7 +322,11 @@
     "targets": "Send to",
     "unreadAria": "未読 {{total}} 件",
     "useSnippet": "スニペットを使う",
-    "waitingChip": "waiting"
+    "waitingChip": "waiting",
+    "suggestionTitleMany": "{{rule}} が {{count}} 件一致",
+    "suggestionShowEach": "一致を個別に表示",
+    "suggestionHideEach": "一致を隠す",
+    "suggestionDismissAll": "{{count}} 件すべてを閉じる"
   },
   "handoffRules": {
     "create": "New rule",
@@ -831,7 +835,12 @@
     "viewAsMarkdown": "Markdownで表示",
     "viewAsPlainText": "プレーンテキストで表示",
     "openInReader": "リーダーで開く",
-    "sheetTitle": "メッセージの操作"
+    "sheetTitle": "メッセージの操作",
+    "copied": "コピーしました",
+    "copyFailed": "コピーに失敗しました",
+    "copyCode": "コードをコピー",
+    "copyPath": "パスをコピー",
+    "copyInlineCode": "インラインコードをコピー"
   },
   "messagesPane": {
     "restoreFailed": "前回の位置を復元できませんでした",

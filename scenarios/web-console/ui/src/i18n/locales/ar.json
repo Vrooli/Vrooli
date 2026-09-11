@@ -325,7 +325,11 @@
     "targets": "Send to",
     "unreadAria": "{{total}} غير مقروء",
     "useSnippet": "استخدام مقتطف",
-    "waitingChip": "waiting"
+    "waitingChip": "waiting",
+    "suggestionTitleMany": "تطابقت {{rule}} {{count}} مرات",
+    "suggestionShowEach": "عرض كل تطابق",
+    "suggestionHideEach": "إخفاء التطابقات",
+    "suggestionDismissAll": "تجاهل الكل ({{count}})"
   },
   "handoffRules": {
     "create": "New rule",
@@ -840,7 +844,12 @@
     "viewAsMarkdown": "عرض بصيغة Markdown",
     "viewAsPlainText": "عرض كنص عادي",
     "openInReader": "افتح في القارئ",
-    "sheetTitle": "إجراءات الرسالة"
+    "sheetTitle": "إجراءات الرسالة",
+    "copied": "تم النسخ",
+    "copyFailed": "فشل النسخ",
+    "copyCode": "نسخ الشيفرة",
+    "copyPath": "نسخ المسار",
+    "copyInlineCode": "نسخ الشيفرة المضمّنة"
   },
   "messagesPane": {
     "restoreFailed": "تعذّر استعادة موضعك",

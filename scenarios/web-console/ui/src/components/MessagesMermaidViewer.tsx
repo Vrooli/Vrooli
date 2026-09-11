@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, Code, Copy, Eye, Loader2, Maximize, Minus, Plus, RotateCcw } from "lucide-react";
+import { AlertTriangle, Code, Eye, Loader2, Maximize, Minus, Plus, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
+import { copyText } from "../lib/clipboard";
+import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
-import { useCodeCopy } from "./markdown/hooks/useCodeCopy";
 import { useMermaidSvg } from "./markdown/hooks/useMermaidSvg";
 import { MermaidZoomSurface, type MermaidZoomSurfaceHandle } from "./mermaid-viewer/MermaidZoomSurface";
 import { formatScalePercent } from "./mermaid-viewer/zoomTransform";
@@ -29,7 +30,6 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
   const { svgHtml, error, loading } = useMermaidSvg(open ? code : "");
   const [showSource, setShowSource] = useState(false);
   const [scale, setScale] = useState(1);
-  const { copied, copyCode } = useCodeCopy(code);
   const surfaceRef = useRef<MermaidZoomSurfaceHandle | null>(null);
 
   // Each newly opened diagram starts on the diagram view.
@@ -97,15 +97,16 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
           {showSource ? <Eye /> : <Code />}
         </IconButton>
       )}
-      <IconButton
-        onClick={copyCode}
+      <CopyIconButton
         surface="soft"
         shape="rounded"
         size="sm"
-        aria-label={copied ? t(strings.mermaid.copied) : t(strings.mermaid.copySource)}
-      >
-        {copied ? <Check className="text-green-400" /> : <Copy />}
-      </IconButton>
+        value={code}
+        writeText={copyText}
+        aria-label={t(strings.mermaid.copySource)}
+        copiedLabel={t(strings.mermaid.copied)}
+        failedLabel={t(strings.messageActions.copyFailed)}
+      />
     </div>
   );
 
@@ -118,9 +119,9 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
 
   return (
     <FullPageDrawer
-      // No keyboard avoidance: a read-only viewer — no text entry, so there is
-      // nothing for a keyboard to cover.
-      avoidKeyboard={false}
+      // Sized to the app's viewport like every overlay. No text entry, so the
+      // keyboard never moves it.
+      avoidKeyboard
       open={open}
       onClose={onClose}
       closeLabel={t(strings.mermaid.closeViewer)}

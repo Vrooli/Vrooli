@@ -15,7 +15,10 @@ export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => 
     root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
     root.setProperty("--wc-safe-left", "env(safe-area-inset-left)");
     root.setProperty("--wc-safe-right", "env(safe-area-inset-right)");
-    root.setProperty("--wc-safe-bottom", viewport.keyboardVisible ? "0px" : "env(safe-area-inset-bottom)");
+    // The library decides whether the app's bottom edge is the screen's (it
+    // is not while the keyboard is up, or in an installed iOS app that stops
+    // short); its overlays read that answer themselves, the shell reads it here.
+    root.setProperty("--wc-safe-bottom", viewport.reachesScreenBottom ? "env(safe-area-inset-bottom)" : "0px");
 
     if (publishedKeyboardRef.current !== viewport.keyboardVisible) {
       publishedKeyboardRef.current = viewport.keyboardVisible;
@@ -27,7 +30,7 @@ export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => 
     if (window.scrollX !== 0 || window.scrollY !== 0 || viewport.offsetLeft !== 0 || viewport.offsetTop !== 0) {
       window.scrollTo(0, 0);
     }
-  }, [viewport.keyboardInset, viewport.keyboardVisible, viewport.offsetLeft, viewport.offsetTop, viewport.visibleHeight]);
+  }, [viewport.keyboardInset, viewport.keyboardVisible, viewport.offsetLeft, viewport.offsetTop, viewport.reachesScreenBottom, viewport.visibleHeight]);
 
   useEffect(() => () => {
     const root = document.documentElement.style;

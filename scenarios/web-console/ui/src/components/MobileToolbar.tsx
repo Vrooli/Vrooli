@@ -1,7 +1,7 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
-import { Loader2, Maximize2, SendHorizontal, Volume2 } from "lucide-react";
+import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { usePressGesture } from "../hooks/usePressGesture";
@@ -189,10 +189,6 @@ interface MobileToolbarProps {
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
   onTtsStop?: () => void;
-  /** Restore a dismissed compact TTS playback line. */
-  onTtsRestore?: () => void;
-  /** Whether the compact TTS line is currently dismissed. */
-  ttsDismissed?: boolean;
   /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
   viewMode?: "terminal" | "messages";
 }
@@ -217,8 +213,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onAiSuggestExecute,
   isTtsSpeaking,
   onTtsStop,
-  onTtsRestore,
-  ttsDismissed = false,
   viewMode = "terminal",
 }, ref) {
   const { t } = useTranslation();
@@ -678,23 +672,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   return (
     <div
       data-testid="mobile-toolbar"
-      // Do not add bottom safe-area padding here. The toolbar is part of the
-      // fixed app layout, and iOS/PWA safe-area handling already reserves the
-      // bottom edge; adding it here creates a visible extra gutter.
-      className="wc-chrome-surface-raised flex shrink-0 flex-col border-t border-wc-default touch-manipulation ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))]"
+      // The toolbar is the app's bottom edge, so it alone reserves the home
+      // indicator. --wc-safe-bottom is 0px whenever the app does not reach the
+      // screen's bottom (keyboard up, or a viewport that stops short), so this
+      // never stacks on a gap the platform already left.
+      className="wc-chrome-surface-raised flex shrink-0 flex-col border-t border-wc-default touch-manipulation ps-[max(0.25rem,var(--wc-safe-left,0px))] pe-[max(0.25rem,var(--wc-safe-right,0px))] pb-[var(--wc-safe-bottom,0px)]"
     >
-      {ttsDismissed && onTtsRestore && (
-        <button
-          type="button"
-          data-testid="tts-restore"
-          className="absolute bottom-2 end-2 z-10 rounded-full bg-wc-surface-input p-2 text-wc-text-secondary shadow ring-1 ring-wc-default"
-          aria-label="Show audio playback"
-          title="Show audio playback"
-          onClick={onTtsRestore}
-        >
-          <Volume2 className="h-4 w-4" />
-        </button>
-      )}
       {/* Pending-input pill — visible whenever the terminal's stdin queue is non-empty.
           Clicking it toggles a disclosure listing truncated payloads and oldest age. */}
       {pendingInputEntries.length > 0 && (

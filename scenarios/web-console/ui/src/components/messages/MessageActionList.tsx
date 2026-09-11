@@ -82,8 +82,9 @@ export function MessageActionList({ actions, ctx, coarsePointer, origin, anchorR
   if (coarsePointer) {
     return (
       <BottomSheet
-        // Action rows only: no text field, so there is no keyboard to avoid.
-        avoidKeyboard={false}
+        // Sized to the app's viewport like every overlay. Action rows only, so
+        // the keyboard never moves it.
+        avoidKeyboard
         open
         onOpenChange={(open) => { if (!open) onClose(); }}
         title={t(strings.messageActions.sheetTitle)}

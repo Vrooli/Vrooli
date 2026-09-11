@@ -2345,9 +2345,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 onStop={() => {
                   ttsPlaybackController.stopPlayback(sessionId);
                   setPillState("hidden");
-                  requestAnimationFrame(() => {
-                    document.querySelector<HTMLElement>('[data-testid="tts-restore"]')?.focus();
-                  });
                 }}
                 onJumpToMessage={() => { ttsPlaybackController.focusCurrentEvent(workspace.activePane); }}
                 onSetPlaybackRate={handleTtsSetPlaybackRate}
@@ -2405,12 +2402,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           }}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
-          ttsDismissed={pillState === "hidden" && ttsPlaybackController.buildPillContext(
-            workspace.activePane,
-            workspace.autoTtsEnabled,
-            { isSpeaking: isTtsSpeaking, isPaused: isTtsPaused },
-          ) !== null}
-          onTtsRestore={() => { setPillState("collapsed"); }}
           viewMode={activeViewMode}
         />
         <input

@@ -9,8 +9,11 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, MoreHorizontal } from "lucide-react";
+import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
+import { copyText } from "../../lib/clipboard";
 import { MarkdownRenderer } from "../markdown";
 import {
   actionIcon,
@@ -151,65 +154,80 @@ function MessageRowImpl({
       onPointerDown={press?.onPointerDown}
       onPointerCancel={press?.onPointerCancel}
     >
-      <div className="mb-1 flex flex-wrap items-baseline gap-2 pe-24 text-xs text-wc-text-muted">
-        <b data-testid={`msg-speaker-${event.id}`} className="text-[12.5px] font-semibold text-wc-text-secondary">
+      {/* The header line is a fixed height, so revealing the actions in it
+          never changes the row's height and never moves the list. The
+          buttons' boxes and tap targets overhang it into the row padding. */}
+      <div className="mb-1 flex h-6 min-w-0 items-center gap-2 text-xs text-wc-text-muted">
+        <b data-testid={`msg-speaker-${event.id}`} className="truncate text-[12.5px] font-semibold text-wc-text-secondary">
           {t(speakerKey(event) as never)}
         </b>
         <time
           data-testid={`msg-time-${event.id}`}
           dateTime={event.createdAt}
           title={`#${String(event.sequence)}`}
-          className="font-mono text-[11px] text-wc-text-faint"
+          className="shrink-0 font-mono text-[11px] text-wc-text-faint"
         >
           {timeLabel(event.createdAt, new Date(), i18n.language)}
         </time>
-      </div>
-
-      {showCluster && (
-        <div data-testid="msg-actions-inline" className="absolute end-1 top-1 z-wc-chrome flex items-center">
-          {inline.map((action) => {
-            const Icon = actionIcon(action, resolvedContext);
-            const label = t(actionLabelKey(action, resolvedContext) as never);
-            const loading = action.id === "read-from-here" && isAudioLoading;
-            return (
-              <button
-                key={action.id}
-                type="button"
-                data-message-action-inline
-                data-testid={action.testId(resolvedContext)}
-                onClick={() => { action.run(resolvedContext); }}
-                disabled={action.disabled?.(resolvedContext)}
-                aria-pressed={action.pressed?.(resolvedContext)}
-                aria-label={label}
-                title={label}
-                className="group/act inline-flex h-11 w-11 items-center justify-center disabled:cursor-wait"
-              >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-wc-default bg-wc-surface-raised text-wc-text-muted shadow-sm transition group-hover/act:text-wc-text-primary group-disabled/act:opacity-60">
+        {showCluster && (
+          <div data-testid="msg-actions-inline" className="flex shrink-0 items-center">
+            {inline.map((action) => {
+              const Icon = actionIcon(action, resolvedContext);
+              const label = t(actionLabelKey(action, resolvedContext) as never);
+              const loading = action.id === "read-from-here" && isAudioLoading;
+              if (action.id === "copy") {
+                // The library's copy button owns the write and its result; a
+                // copy from the action list shows here through `copied`.
+                return (
+                  <CopyIconButton
+                    key={action.id}
+                    data-message-action-inline
+                    data-testid={action.testId(resolvedContext)}
+                    size="xs"
+                    value={event.text}
+                    writeText={copyText}
+                    copied={actionContext.copied}
+                    aria-label={label}
+                    copiedLabel={t(strings.messageActions.copied)}
+                    failedLabel={t(strings.messageActions.copyFailed)}
+                  />
+                );
+              }
+              return (
+                <IconButton
+                  key={action.id}
+                  data-message-action-inline
+                  data-testid={action.testId(resolvedContext)}
+                  size="xs"
+                  surface="ghost"
+                  onClick={() => { action.run(resolvedContext); }}
+                  disabled={action.disabled?.(resolvedContext)}
+                  aria-pressed={action.pressed?.(resolvedContext)}
+                  aria-label={label}
+                >
                   {loading
-                    ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
-                    : <Icon className={cn("h-3.5 w-3.5", action.id === "copy" && actionContext.copied && "text-green-400")} />}
-                </span>
-              </button>
-            );
-          })}
-          {actions.length > inline.length && (
-            <button
-              ref={moreButtonRef}
-              type="button"
-              data-message-action-inline
-              data-testid={`msg-actions-more-${event.id}`}
-              aria-label={t(strings.messageActions.more)}
-              aria-haspopup="menu"
-              onClick={openFromMoreButton}
-              className="group/act inline-flex h-11 w-11 items-center justify-center"
-            >
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-wc-default bg-wc-surface-raised text-wc-text-muted shadow-sm transition group-hover/act:text-wc-text-primary">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </span>
-            </button>
-          )}
-        </div>
-      )}
+                    ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="animate-spin" />
+                    : <Icon />}
+                </IconButton>
+              );
+            })}
+            {actions.length > inline.length && (
+              <IconButton
+                ref={moreButtonRef}
+                data-message-action-inline
+                data-testid={`msg-actions-more-${event.id}`}
+                size="xs"
+                surface="ghost"
+                aria-label={t(strings.messageActions.more)}
+                aria-haspopup="menu"
+                onClick={openFromMoreButton}
+              >
+                <MoreHorizontal />
+              </IconButton>
+            )}
+          </div>
+        )}
+      </div>
 
       <div
         className={cn(

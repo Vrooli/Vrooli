@@ -167,6 +167,25 @@ export function matchRules(
   return suggestions;
 }
 
+/**
+ * Suggestions gathered by the rule that fired, in first-match order.
+ *
+ * One rule matching several times in one message is one offer: stacking a chip
+ * per match pushes the transcript down by a chip's height for every path the
+ * agent happened to mention.
+ */
+export function groupSuggestionsByRule(
+  suggestions: readonly HandoffSuggestion[],
+): HandoffSuggestion[][] {
+  const groups = new Map<string, HandoffSuggestion[]>();
+  for (const suggestion of suggestions) {
+    const group = groups.get(suggestion.ruleId);
+    if (group) group.push(suggestion);
+    else groups.set(suggestion.ruleId, [suggestion]);
+  }
+  return [...groups.values()];
+}
+
 /** The suggestions attached to one event, for rendering beneath it. */
 export function suggestionsForEvent(
   suggestions: readonly HandoffSuggestion[],

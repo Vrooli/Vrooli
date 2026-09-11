@@ -24,6 +24,7 @@ import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
 import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
+import { groupSuggestionsByRule } from "../lib/captureRules";
 import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
 import MessagesMermaidViewer from "./MessagesMermaidViewer";
 import MessagesPaneState from "./MessagesPaneState";
@@ -891,11 +892,11 @@ export default function MessagesPane({
                   {/* Suggestions render INSIDE the message's own block, so
                       offering one never moves the transcript the operator is
                       reading. */}
-                  {onHandoff && handoffSuggestions.forEvent(event.id).map((suggestion) => (
+                  {onHandoff && groupSuggestionsByRule(handoffSuggestions.forEvent(event.id)).map((group) => (
                     <HandoffSuggestionChip
-                      key={`${suggestion.ruleId}:${suggestion.payload}`}
-                      suggestion={suggestion}
-                      onOpen={(s) => { onHandoff(sessionId, s.payload); }}
+                      key={group[0]?.ruleId ?? ""}
+                      suggestions={group}
+                      onOpen={(payload) => { onHandoff(sessionId, payload); }}
                       onDismiss={handoffSuggestions.dismiss}
                     />
                   ))}

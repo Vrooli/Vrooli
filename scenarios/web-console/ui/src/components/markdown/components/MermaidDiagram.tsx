@@ -1,8 +1,9 @@
 import { memo, useState } from "react";
-import { Check, Code, Copy, Eye, Loader2, Maximize2 } from "lucide-react";
+import { Code, Eye, Loader2, Maximize2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { strings } from "../../../consts/strings";
-import { useCodeCopy } from "../hooks/useCodeCopy";
+import { copyText } from "../../../lib/clipboard";
 import { useMermaidSvg } from "../hooks/useMermaidSvg";
 
 interface MermaidDiagramProps {
@@ -16,7 +17,6 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code, onOpenFullscr
   const { t } = useTranslation();
   const { svgHtml, error } = useMermaidSvg(code);
   const [showSource, setShowSource] = useState(false);
-  const { copied, copyCode } = useCodeCopy(code);
 
   if (!code.trim()) {
     return (
@@ -59,18 +59,14 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code, onOpenFullscr
               <><Code className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.source)}</span></>
             )}
           </button>
-          <button
-            onClick={copyCode}
-            className="flex items-center gap-1.5 text-xs text-wc-text-muted hover:text-wc-text-primary transition-colors"
-            aria-label={copied ? t(strings.mermaid.copied) : t(strings.mermaid.copy)}
-            type="button"
-          >
-            {copied ? (
-              <><Check className="h-3.5 w-3.5 text-green-400" /><span className="hidden text-green-400 sm:inline">{t(strings.mermaid.copied)}</span></>
-            ) : (
-              <><Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">{t(strings.mermaid.copy)}</span></>
-            )}
-          </button>
+          <CopyIconButton
+            size="xs"
+            value={code}
+            writeText={copyText}
+            aria-label={t(strings.mermaid.copySource)}
+            copiedLabel={t(strings.mermaid.copied)}
+            failedLabel={t(strings.messageActions.copyFailed)}
+          />
         </div>
       </div>
       <div className="bg-wc-surface overflow-x-auto">

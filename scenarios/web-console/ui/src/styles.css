@@ -43,6 +43,8 @@
 
 /* The message navigator's sheet header is its search field: let the title
  * slot the sheet puts it in take the row beside the Export action. */
+/* At full height the reader's header is its find field: let it take the row. */
+.wc-reader[data-expanded="true"] .rcl-full-page-drawer__panel > header > :first-child { flex: 1 1 auto; }
 .wc-nav-sheet .rcl-bottom-sheet__header > :first-child {
   flex: 1 1 auto;
 }
@@ -161,6 +163,7 @@ body {
   position: fixed;
   inset: 0;
 }
+
 
 /* ── Adaptive app chrome ──
  * Surfaces that tint to the focused terminal background (status bar, top bar,

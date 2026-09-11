@@ -169,9 +169,9 @@ export default function AppearanceModal() {
 
   return (
     <ResponsiveDialog
-      // No keyboard avoidance: colour, theme and size controls only — no text entry, so there is
-      // nothing for a keyboard to cover.
-      avoidKeyboard={false}
+      // Sized to the app's viewport like every overlay. No text entry, so the
+      // keyboard never moves it.
+      avoidKeyboard
       open
       onClose={close}
       size="md"

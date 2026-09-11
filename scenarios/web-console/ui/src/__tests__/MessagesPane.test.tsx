@@ -704,18 +704,19 @@ describe("MessagesPane", () => {
     expect(writeTextMock).toHaveBeenCalledWith("Copy me");
   });
 
-  it("shows checkmark icon after copying", () => {
+  it("the row's copy control copies the message and shows the library's success state", async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
 
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Copy me" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(inlineAction("e1", "msg-copy-e1"));
+    const control = inlineAction("e1", "msg-copy-e1");
+    expect(control).toHaveAttribute("data-rcl-copy-state", "idle");
+    fireEvent.click(control);
 
-    const btn = screen.getByTestId("msg-copy-e1");
-    const svg = btn.querySelector("svg");
-    expect(svg?.classList.toString()).toContain("text-green-400");
+    await waitFor(() => { expect(screen.getByTestId("msg-copy-e1")).toHaveAttribute("data-rcl-copy-state", "copied"); });
+    expect(writeTextMock).toHaveBeenCalledWith("Copy me");
   });
 
   // --- Scroll restore + jump-to-bottom ---

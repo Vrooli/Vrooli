@@ -71,9 +71,9 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
 
   return (
     <FullPageDrawer
-      // No keyboard avoidance: format and range choices only — no text entry, so there is
-      // nothing for a keyboard to cover.
-      avoidKeyboard={false}
+      // Sized to the app's viewport like every overlay. No text entry, so the
+      // keyboard never moves it.
+      avoidKeyboard
       open={open}
       onClose={onClose}
       closeLabel={t(strings.messageExport.closeAriaLabel)}
@@ -155,7 +155,7 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
             </div>
           )}
 
-          <div className="mt-3 flex shrink-0 items-center justify-end gap-2 pb-[max(0px,var(--wc-safe-bottom,0px))]">
+          <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
             <button
               type="button"
               data-testid="msg-export-copy"

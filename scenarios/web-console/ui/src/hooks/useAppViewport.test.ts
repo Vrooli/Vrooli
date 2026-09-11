@@ -12,6 +12,7 @@ const viewportState = vi.hoisted(() => ({
     scale: 1,
     keyboardInset: 0,
     keyboardVisible: false,
+    reachesScreenBottom: true,
   },
 }));
 
@@ -35,6 +36,7 @@ describe("useAppViewport", () => {
       scale: 1,
       keyboardInset: 0,
       keyboardVisible: false,
+      reachesScreenBottom: true,
     };
   });
 
@@ -43,11 +45,13 @@ describe("useAppViewport", () => {
     vi.restoreAllMocks();
   });
 
-  it("projects the normalized snapshot into only Web Console variables", () => {
+  it("projects the snapshot into only the shell's variables; the library owns its own", () => {
     renderHook(() => useAppViewport());
     expect(cssVar("--wc-app-height")).toBe("760px");
     expect(cssVar("--wc-kb-height")).toBe("0px");
     expect(cssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
+    // The library owns the overlays' inset; the shell publishes only its own.
+    expect(cssVar("--rcl-safe-bottom")).toBeUndefined();
     expect(cssVar("--rcl-viewport-height")).toBeUndefined();
     expect(cssVar("--rcl-keyboard-inset")).toBeUndefined();
   });
@@ -57,7 +61,7 @@ describe("useAppViewport", () => {
     const { rerender } = renderHook(() => useAppViewport({ onKeyboardChange }));
     expect(onKeyboardChange).toHaveBeenLastCalledWith(false);
 
-    viewportState.current = { ...viewportState.current, visibleHeight: 520, keyboardInset: 324, keyboardVisible: true };
+    viewportState.current = { ...viewportState.current, visibleHeight: 520, keyboardInset: 324, keyboardVisible: true, reachesScreenBottom: false };
     rerender();
     expect(cssVar("--wc-app-height")).toBe("520px");
     expect(cssVar("--wc-kb-height")).toBe("324px");
@@ -67,6 +71,12 @@ describe("useAppViewport", () => {
 
     rerender();
     expect(onKeyboardChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("reserves no bottom inset in the shell when the library says the app stops short of the screen's bottom", () => {
+    viewportState.current = { ...viewportState.current, visibleHeight: 793, reachesScreenBottom: false };
+    renderHook(() => useAppViewport());
+    expect(cssVar("--wc-safe-bottom")).toBe("0px");
   });
 
   it("does not scroll for ordinary resize snapshots", () => {

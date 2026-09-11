@@ -19,8 +19,9 @@
   "draft": "",
   "entry": "markdown-renderer.tsx",
   "evictedVersions": [
-    "0.4.3"
+    "0.4.3",
+    "0.4.4"
   ],
-  "latest": "0.4.4",
+  "latest": "0.4.5",
   "libraryId": "react-component-library:markdown-renderer"
 }

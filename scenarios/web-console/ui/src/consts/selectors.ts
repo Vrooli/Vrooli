@@ -41,7 +41,6 @@ const literalSelectors = {
     queued: 'pill-queued',
     settings: 'pill-settings',
     settingsDialog: 'pill-settings-dialog',
-    restore: 'tts-restore',
   },
   terminal: {
     pane: 'terminal-pane',

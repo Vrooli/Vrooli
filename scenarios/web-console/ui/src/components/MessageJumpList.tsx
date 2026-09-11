@@ -931,7 +931,7 @@ export default function MessageJumpList({
       {exportActive && exportSelection && (
         <div
           data-testid="msg-export-footer"
-          className="shrink-0 border-t border-wc-default/60 bg-wc-surface-raised px-3 pt-2 pb-[max(0.75rem,var(--wc-safe-bottom,0px))]"
+          className="shrink-0 border-t border-wc-default/60 bg-wc-surface-raised px-3 pt-2 pb-3"
         >
           <div className="flex flex-wrap items-center gap-1 pb-2">
             <button

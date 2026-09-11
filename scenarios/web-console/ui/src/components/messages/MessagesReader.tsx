@@ -1,11 +1,13 @@
 import { useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AArrowDown, AArrowUp, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Copy, MoreHorizontal, Play, Search } from "lucide-react";
+import { AArrowDown, AArrowUp, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreHorizontal, Play, Search } from "lucide-react";
+import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Input } from "@vrooli/react-component-library/Input/1";
 import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { strings } from "../../consts/strings";
+import { copyText } from "../../lib/clipboard";
 import { MarkdownRenderer } from "../markdown";
 import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText";
 import { MessageActionList, useMessageActions } from "./MessageActionList";
@@ -79,7 +81,23 @@ export function MessagesReader({
   const [activeIndex, setActiveIndex] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [pinchSize, setPinchSize] = useState<number | null>(null);
+  // At full height the find field becomes the header, so the drawer's
+  // expanded state decides where the one field renders.
+  const [expanded, setExpanded] = useState(false);
+  const refocusFindRef = useRef(false);
   const { ctx, actions, composites } = useMessageActions(actionContext, moreRef, false);
+
+  // Moving the field between the header and the band below it remounts it;
+  // an operator typing in it keeps the caret.
+  const handleExpandedChange = (next: boolean) => {
+    refocusFindRef.current = document.activeElement === findRef.current;
+    setExpanded(next);
+  };
+  useLayoutEffect(() => {
+    if (!refocusFindRef.current) return;
+    refocusFindRef.current = false;
+    findRef.current?.focus();
+  }, [expanded]);
 
   // Count matches in the rendered text whenever the query changes.
   useEffect(() => {
@@ -149,33 +167,90 @@ export function MessagesReader({
     setActiveIndex((index) => (index + delta + matchCount) % matchCount);
   };
   const hasQuery = query.trim() !== "";
+  const speaker: string = t(speakerKey(event) as never);
+
+  const findField = (
+    <InputGroup size="md" shape="rounded" testId="reader-find-group">
+      <InputGroup.Adornment side="leading">
+        <Search aria-hidden />
+      </InputGroup.Adornment>
+      <InputGroup.Field>
+        <Input
+          ref={findRef}
+          data-testid="reader-find-input"
+          type="search"
+          value={query}
+          onChange={(changeEvent) => { setQuery(changeEvent.target.value); }}
+          onKeyDown={(keyEvent) => {
+            if (keyEvent.key !== "Enter") return;
+            keyEvent.preventDefault();
+            step(keyEvent.shiftKey ? -1 : 1);
+          }}
+          placeholder={t(strings.reader.find)}
+          aria-label={t(strings.reader.find)}
+        />
+      </InputGroup.Field>
+      {/* Stepping only exists once there is something to step through. */}
+      {hasQuery && (
+        <>
+          <InputGroup.Adornment side="trailing">
+            <span
+              data-testid="reader-match-count"
+              data-current={matchCount > 0 ? activeIndex + 1 : 0}
+              data-total={matchCount}
+              className="font-mono text-xs"
+              aria-live="polite"
+            >
+              {matchCount > 0 ? t(strings.reader.matchCount, { current: activeIndex + 1, total: matchCount }) : t(strings.reader.noMatches)}
+            </span>
+          </InputGroup.Adornment>
+          <InputGroup.Action>
+            <IconButton data-testid="reader-find-prev" aria-label={t(strings.reader.prev)} surface="ghost" size="sm" disabled={matchCount === 0} onClick={() => { step(-1); }}>
+              <ChevronUp />
+            </IconButton>
+          </InputGroup.Action>
+          <InputGroup.Action>
+            <IconButton data-testid="reader-find-next" aria-label={t(strings.reader.next)} surface="ghost" size="sm" disabled={matchCount === 0} onClick={() => { step(1); }}>
+              <ChevronDown />
+            </IconButton>
+          </InputGroup.Action>
+        </>
+      )}
+    </InputGroup>
+  );
 
   return (
     <FullPageDrawer
       avoidKeyboard
       open
       onOpenChange={(open) => { if (!open) onClose(); }}
-      title={t(speakerKey(event) as never)}
+      onExpandedChange={handleExpandedChange}
+      className="wc-reader"
+      // At full height the header is the find field; the dialog keeps the
+      // speaker as its name either way.
+      title={expanded ? findField : speaker}
+      ariaLabel={speaker}
       closeLabel={t(strings.reader.close)}
       testId="messages-reader"
       initialFocusRef={findRef}
       contentPadding="comfortable"
-      headerExtra={(
+      headerExtra={expanded ? undefined : (
         <span className="font-mono text-[11px] text-wc-text-faint">
           {timeLabel(event.createdAt, new Date(), i18n.language)} · #{event.sequence}
         </span>
       )}
       headerActions={(
         <>
-          <IconButton
+          <CopyIconButton
             data-testid="reader-copy"
+            value={event.text}
+            writeText={copyText}
+            copied={ctx.copied}
             aria-label={t(strings.messageActions.copy)}
-            surface="soft"
+            copiedLabel={t(strings.messageActions.copied)}
+            failedLabel={t(strings.messageActions.copyFailed)}
             size="xs"
-            onClick={() => { ctx.onCopy(event.id, event.text); }}
-          >
-            <Copy />
-          </IconButton>
+          />
           {onPlay && (
             <IconButton
               data-testid="reader-play"
@@ -201,55 +276,9 @@ export function MessagesReader({
           </span>
         </>
       )}
-      subheader={(
+      subheader={expanded ? undefined : (
         <div style={{ paddingInline: "var(--space-md)", paddingBlock: "var(--space-sm)" }}>
-          <InputGroup size="md" shape="rounded" testId="reader-find-group">
-            <InputGroup.Adornment side="leading">
-              <Search aria-hidden />
-            </InputGroup.Adornment>
-            <InputGroup.Field>
-              <Input
-                ref={findRef}
-                data-testid="reader-find-input"
-                type="search"
-                value={query}
-                onChange={(changeEvent) => { setQuery(changeEvent.target.value); }}
-                onKeyDown={(keyEvent) => {
-                  if (keyEvent.key !== "Enter") return;
-                  keyEvent.preventDefault();
-                  step(keyEvent.shiftKey ? -1 : 1);
-                }}
-                placeholder={t(strings.reader.find)}
-                aria-label={t(strings.reader.find)}
-              />
-            </InputGroup.Field>
-            {/* Stepping only exists once there is something to step through. */}
-            {hasQuery && (
-              <>
-                <InputGroup.Adornment side="trailing">
-                  <span
-                    data-testid="reader-match-count"
-                    data-current={matchCount > 0 ? activeIndex + 1 : 0}
-                    data-total={matchCount}
-                    className="font-mono text-xs"
-                    aria-live="polite"
-                  >
-                    {matchCount > 0 ? t(strings.reader.matchCount, { current: activeIndex + 1, total: matchCount }) : t(strings.reader.noMatches)}
-                  </span>
-                </InputGroup.Adornment>
-                <InputGroup.Action>
-                  <IconButton data-testid="reader-find-prev" aria-label={t(strings.reader.prev)} surface="ghost" size="sm" disabled={matchCount === 0} onClick={() => { step(-1); }}>
-                    <ChevronUp />
-                  </IconButton>
-                </InputGroup.Action>
-                <InputGroup.Action>
-                  <IconButton data-testid="reader-find-next" aria-label={t(strings.reader.next)} surface="ghost" size="sm" disabled={matchCount === 0} onClick={() => { step(1); }}>
-                    <ChevronDown />
-                  </IconButton>
-                </InputGroup.Action>
-              </>
-            )}
-          </InputGroup>
+          {findField}
         </div>
       )}
       footer={(

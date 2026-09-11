@@ -20,8 +20,5 @@
     "0.1.3"
   ],
   "latest": "0.1.6",
-  "libraryId": "react-component-library:RollingNumber",
-  "displayName": "RollingNumber",
-  "description": "A number drawn in an ink. The glyph box is identical in every ink so a metric going live never moves a pixel, and only the digits that changed roll.",
-  "tags": []
+  "libraryId": "react-component-library:RollingNumber"
 }

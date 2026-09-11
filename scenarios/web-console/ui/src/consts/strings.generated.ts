@@ -388,6 +388,10 @@ export const strings = {
     unreadAria: "handoff.unreadAria",
     useSnippet: "handoff.useSnippet",
     waitingChip: "handoff.waitingChip",
+    suggestionTitleMany: "handoff.suggestionTitleMany",
+    suggestionShowEach: "handoff.suggestionShowEach",
+    suggestionHideEach: "handoff.suggestionHideEach",
+    suggestionDismissAll: "handoff.suggestionDismissAll",
   },
   handoffRules: {
     create: "handoffRules.create",
@@ -732,6 +736,11 @@ export const strings = {
     viewAsPlainText: "messageActions.viewAsPlainText",
     openInReader: "messageActions.openInReader",
     sheetTitle: "messageActions.sheetTitle",
+    copied: "messageActions.copied",
+    copyFailed: "messageActions.copyFailed",
+    copyCode: "messageActions.copyCode",
+    copyPath: "messageActions.copyPath",
+    copyInlineCode: "messageActions.copyInlineCode",
   },
   messageExport: {
     approxTokens: "messageExport.approxTokens",

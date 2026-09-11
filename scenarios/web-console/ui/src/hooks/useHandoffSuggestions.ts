@@ -43,11 +43,13 @@ export function useHandoffSuggestions(sessionId: string) {
     [dismissed, suggestions],
   );
 
-  /** Dismiss one suggestion for this session's lifetime. */
-  const dismiss = useCallback((suggestion: HandoffSuggestion) => {
+  /** Dismiss suggestions for this session's lifetime. */
+  const dismiss = useCallback((suggestionsToDismiss: readonly HandoffSuggestion[]) => {
     setDismissed((prev) => {
       const next = new Set(prev);
-      next.add(`${suggestion.ruleId}:${suggestion.eventId}:${suggestion.payload}`);
+      for (const suggestion of suggestionsToDismiss) {
+        next.add(`${suggestion.ruleId}:${suggestion.eventId}:${suggestion.payload}`);
+      }
       return next;
     });
   }, []);

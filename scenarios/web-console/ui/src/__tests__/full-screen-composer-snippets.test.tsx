@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,6 +50,15 @@ describe("full-screen composer snippets", () => {
     expect(screen.getByTestId("snippet-variable-input-second")).toBeTruthy();
     expect(screen.getAllByTestId("snippet-variable-preview")).toHaveLength(1);
     expect(touch).not.toHaveBeenCalled();
+  });
+
+  it("the full-height header carries History beside the snippet actions, and the overlay shows no session-state chip", () => {
+    render(<Harness />);
+    const headerActions = screen.getByTestId("composer-open-snippets-expanded").parentElement as HTMLElement;
+    expect(within(headerActions).getByTestId("composer-save-snippet-expanded")).toBeInTheDocument();
+    fireEvent.click(within(headerActions).getByTestId("composer-open-history-expanded"));
+    expect(screen.getByTestId("sent-history-sheet")).toBeInTheDocument();
+    expect(within(screen.getByTestId("full-screen-composer")).queryByTestId("composer-state-chip")).toBeNull();
   });
 
   it("closes the nested snippet picker without closing the composer or inserting text", async () => {

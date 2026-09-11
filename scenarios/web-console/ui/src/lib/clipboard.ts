@@ -36,6 +36,11 @@ export async function writeText(text: string): Promise<ClipboardWriteResult> {
   }
 }
 
+/** A write reduced to whether it landed, the shape the library's copy button takes. */
+export async function copyText(text: string): Promise<boolean> {
+  return (await writeText(text)).ok;
+}
+
 export async function readText(): Promise<ClipboardReadResult> {
   if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
     try {

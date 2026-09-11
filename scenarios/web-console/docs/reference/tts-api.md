@@ -392,7 +392,7 @@ with auto-TTS on or off) and hides when playback ends or is dismissed.
   more down dismisses; on the collapsed pill a sideways drag of 64 px or more
   plays the next (left) or previous (right) message, and a drag along the
   progress hairline seeks. A drag keeps the axis it started on.
-- Close and swipe-down stop playback; there is no background playback. The
-  toolbar's restore button (`tts-restore`) shows while a queue exists and the
-  pill is hidden, and a message starting to speak brings the pill back.
+- Close and swipe-down stop playback and remove the pill entirely; there is no
+  background playback and no minimized restore control. A message starting to
+  speak brings the pill back.
 

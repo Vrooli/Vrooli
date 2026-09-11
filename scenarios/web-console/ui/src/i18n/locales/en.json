@@ -375,7 +375,11 @@
     "targets": "Send to",
     "unreadAria": "{{total}} unread",
     "useSnippet": "Use snippet",
-    "waitingChip": "waiting"
+    "waitingChip": "waiting",
+    "suggestionTitleMany": "{{rule}} matched {{count}} times",
+    "suggestionShowEach": "Show each match",
+    "suggestionHideEach": "Hide matches",
+    "suggestionDismissAll": "Dismiss all {{count}}"
   },
   "handoffRules": {
     "create": "New rule",
@@ -719,7 +723,12 @@
     "viewAsMarkdown": "View as markdown",
     "viewAsPlainText": "View as plain text",
     "openInReader": "Open in reader",
-    "sheetTitle": "Message actions"
+    "sheetTitle": "Message actions",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "copyCode": "Copy code",
+    "copyPath": "Copy path",
+    "copyInlineCode": "Copy inline code"
   },
   "messageExport": {
     "approxTokens": "≈{{count}} tokens",

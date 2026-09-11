@@ -125,8 +125,9 @@ export function PlaybackPillExpanded({ pill, transport, label, equalizer, playPa
           title={t(strings.playbackPill.settingsTitle)}
           closeLabel={t(strings.playbackPill.settingsClose)}
           testId="pill-settings-dialog"
-          // Volume, mute, and speed: no text field, so there is no keyboard to avoid.
-          avoidKeyboard={false}
+          // Sized to the app's viewport like every overlay. Volume, mute, and
+          // speed only, so the keyboard never moves it.
+          avoidKeyboard
         >
           <AudioSettingsContent
             testIdPrefix="pill"

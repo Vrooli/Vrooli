@@ -168,9 +168,9 @@ export default function MessagesFileViewer({
 
   return (
     <FullPageDrawer
-      // No keyboard avoidance: a read-only viewer — no text entry, so there is
-      // nothing for a keyboard to cover.
-      avoidKeyboard={false}
+      // Sized to the app's viewport like every overlay. No text entry, so the
+      // keyboard never moves it.
+      avoidKeyboard
       open={open}
       onClose={onClose}
       closeLabel={t(strings.messagesFileViewer.closeAriaLabel)}

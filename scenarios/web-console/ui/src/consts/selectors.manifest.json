@@ -117,10 +117,6 @@
       "testId": "pill-settings-dialog",
       "selector": "[data-testid=\"pill-settings-dialog\"]"
     },
-    "playback.restore": {
-      "testId": "tts-restore",
-      "selector": "[data-testid=\"tts-restore\"]"
-    },
     "terminal.pane": {
       "testId": "terminal-pane",
       "selector": "[data-testid=\"terminal-pane\"]"
@@ -1689,6 +1685,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
-    "ui/src/consts/selectors.ts": "3f55496b4765a3d840ee4a0950b545fd3b1bf2a960c9507e752413b6c549dfec"
+    "ui/src/consts/selectors.ts": "46060d5911b133104e7c8981c5246920f7a9e3933c9c80fb968f3005396106c2"
   }
 }

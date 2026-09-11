@@ -111,19 +111,22 @@ describe("message row", () => {
     expect(row.textContent).not.toContain("#2");
   });
 
-  it("[REQ:P0-017c] reveals at most three 44px inline controls on hover or keyboard focus (fine pointer)", () => {
+  it("[REQ:P0-017c] reveals at most three ghost icon buttons right after the timestamp on hover or keyboard focus (fine pointer)", () => {
     setPointer(false);
     render(<MessagesPane {...props} />);
 
     const row = screen.getByTestId("msg-card-a2");
     fireEvent.mouseEnter(row);
     const cluster = screen.getByTestId("msg-actions-inline");
+    // Beside the timestamp, in the header line, not floating over the text.
+    expect(within(row).getByTestId("msg-time-a2").nextElementSibling).toBe(cluster);
     const controls = cluster.querySelectorAll<HTMLElement>("[data-message-action-inline]");
     expect(controls.length).toBeGreaterThan(0);
     expect(controls.length).toBeLessThanOrEqual(3);
+    // The library's icon button with no standing surface: no border, no fill at rest.
     for (const control of controls) {
-      expect(control.className).toContain("h-11");
-      expect(control.className).toContain("w-11");
+      expect(control).toHaveAttribute("data-rcl-icon-button");
+      expect(control).toHaveAttribute("data-rcl-surface", "ghost");
     }
     fireEvent.mouseLeave(row);
     expect(screen.queryByTestId("msg-actions-inline")).toBeNull();

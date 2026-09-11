@@ -14,7 +14,6 @@ import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { SnippetPicker } from "./snippets/SnippetPicker";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
-import { ComposerStateChip } from "./toolbar/ComposerStateChip";
 import { SentHistorySheet } from "./composer/SentHistorySheet";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useCommandHistory } from "../hooks/useCommandHistory";
@@ -298,6 +297,17 @@ export default function FullScreenComposer({
       >
         <BookmarkPlus />
       </IconButton>
+      <IconButton
+        type="button"
+        data-testid="composer-open-history-expanded"
+        surface="soft"
+        size="sm"
+        aria-label={t(strings.sentHistory.control)}
+        title={t(strings.sentHistory.control)}
+        onClick={() => { setShowHistory(true); }}
+      >
+        <History />
+      </IconButton>
     </div>
   );
 
@@ -321,7 +331,6 @@ export default function FullScreenComposer({
           <button type="button" data-testid="composer-open-snippets" onClick={() => setShowSnippetPicker(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><Library className="h-4 w-4" />{t(strings.snippets.picker.title)}</button>
           <button type="button" data-testid="composer-save-snippet" onClick={() => setShowSnippetSave(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><BookmarkPlus className="h-4 w-4" />{t(strings.messageActions.saveAsSnippet)}</button>
           <button type="button" data-testid="composer-open-history" onClick={() => { setShowHistory(true); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><History className="h-4 w-4" />{t(strings.sentHistory.control)}</button>
-          <ComposerStateChip sessionId={draft.getSessionId()} className="ms-auto" />
         </div>
         {/* The overlay is absolutely positioned against this box, so its
             metrics must match the textarea's exactly — same padding, same
@@ -387,8 +396,9 @@ export default function FullScreenComposer({
 
         {/* items-stretch so the attach + mic buttons take the send button's
             height automatically (the send button is the tallest child) — no
-            hard-coded heights to drift out of sync. */}
-        <div className="flex items-stretch gap-2 border-t border-wc-default px-3 pt-2 pb-[max(0.5rem,var(--wc-safe-bottom,0px))]">
+            hard-coded heights to drift out of sync. The drawer's scroll
+            region already reserves the home indicator below this row. */}
+        <div className="flex items-stretch gap-2 border-t border-wc-default px-3 py-2">
           {onAttachFiles && (
             <>
               <button
