@@ -1,9 +1,46 @@
 package workflowruntime
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	"agent-manager/internal/domain"
 )
+
+func TestEvaluateBindingsJsonPrettyReturnsValidPromptJSON(t *testing.T) {
+	values, err := EvaluateBindings([]domain.WorkflowInputBinding{{
+		Name: "constraints", Source: domain.WorkflowBindingInput, Selector: "$.constraints",
+		Limit: 1, MaxBytes: 4096, RenderAs: "json_pretty", MissingPolicy: "error",
+	}}, BindingContext{Input: json.RawMessage(`{"constraints":{"executionStrategy":"adaptive-improvement","maxSlices":4,"writeScope":["scenarios/swarm-manager/**"]}}`)})
+	if err != nil {
+		t.Fatalf("EvaluateBindings() error = %v", err)
+	}
+	rendered, ok := values["constraints"].(string)
+	if !ok {
+		t.Fatalf("json_pretty binding type = %T, want string", values["constraints"])
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(rendered), &decoded); err != nil {
+		t.Fatalf("json_pretty output is not valid JSON: %v (%q)", err, rendered)
+	}
+	if decoded["executionStrategy"] != "adaptive-improvement" {
+		t.Fatalf("decoded constraints = %#v", decoded)
+	}
+}
+
+func TestEvaluateBindingsJsonKeepsStructuredValueForEndNodeAssembly(t *testing.T) {
+	values, err := EvaluateBindings([]domain.WorkflowInputBinding{{
+		Name: "result", Source: domain.WorkflowBindingInput, Selector: "$.result",
+		Limit: 1, MaxBytes: 4096, RenderAs: "json", MissingPolicy: "error",
+	}}, BindingContext{Input: json.RawMessage(`{"result":{"outcome":"complete"}}`)})
+	if err != nil {
+		t.Fatalf("EvaluateBindings() error = %v", err)
+	}
+	if _, ok := values["result"].(map[string]any); !ok {
+		t.Fatalf("json binding type = %T, want structured map", values["result"])
+	}
+}
 
 func TestRenderPromptRendersStructuredEvaluatorBindingInsideSkillEnvelope(t *testing.T) {
 	const source = `<skills count="1">

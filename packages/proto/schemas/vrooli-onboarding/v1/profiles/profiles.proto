@@ -19,6 +19,18 @@ message EvaluateProfileRequest {
   map<string, google.protobuf.Value> answers = 3;
   google.protobuf.Struct target_context = 4;
   map<string, bool> manual_decisions = 5;
+  ProfilePreset preset = 6;
+  // profile_id remains the backwards-compatible single-profile form. When
+  // profile_ids is present, the evaluator composes those profiles into one
+  // deterministic selection and preserves each source in the response.
+  repeated string profile_ids = 7;
+}
+
+message ProfilePreset {
+  string id = 1;
+  string version = 2;
+  string source = 3;
+  map<string, google.protobuf.Value> answers = 4;
 }
 
 message ProfileOption {
@@ -62,6 +74,20 @@ message ProfileValidationIssue {
   string message = 3;
 }
 
+message ProfileConflict {
+  string code = 1;
+  string capability_ref = 2;
+  repeated string recommendation_keys = 3;
+  string message = 4;
+}
+
+message ProfileOutstanding {
+  string field = 1;
+  string code = 2;
+  string capability_ref = 3;
+  string message = 4;
+}
+
 message Profile {
   string id = 1;
   string version = 2;
@@ -90,4 +116,9 @@ message EvaluateProfileResponse {
   bool valid = 7;
   repeated ProfileExplanation explanations = 8;
   string digest = 9;
+  string catalog_revision = 10;
+  repeated ProfileConflict conflicts = 11;
+  repeated ProfileOutstanding outstanding = 12;
+  ProfilePreset preset = 13;
+  repeated Profile profiles = 14;
 }

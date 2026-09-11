@@ -14,7 +14,7 @@ class ListProfilesRequest(_message.Message):
     def __init__(self, target: _Optional[str] = ...) -> None: ...
 
 class EvaluateProfileRequest(_message.Message):
-    __slots__ = ("target", "profile_id", "answers", "target_context", "manual_decisions")
+    __slots__ = ("target", "profile_id", "answers", "target_context", "manual_decisions", "preset", "profile_ids")
     class AnswersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -34,12 +34,35 @@ class EvaluateProfileRequest(_message.Message):
     ANSWERS_FIELD_NUMBER: _ClassVar[int]
     TARGET_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     MANUAL_DECISIONS_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_IDS_FIELD_NUMBER: _ClassVar[int]
     target: str
     profile_id: str
     answers: _containers.MessageMap[str, _struct_pb2.Value]
     target_context: _struct_pb2.Struct
     manual_decisions: _containers.ScalarMap[str, bool]
-    def __init__(self, target: _Optional[str] = ..., profile_id: _Optional[str] = ..., answers: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., target_context: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., manual_decisions: _Optional[_Mapping[str, bool]] = ...) -> None: ...
+    preset: ProfilePreset
+    profile_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[str] = ..., profile_id: _Optional[str] = ..., answers: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., target_context: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., manual_decisions: _Optional[_Mapping[str, bool]] = ..., preset: _Optional[_Union[ProfilePreset, _Mapping]] = ..., profile_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ProfilePreset(_message.Message):
+    __slots__ = ("id", "version", "source", "answers")
+    class AnswersEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ANSWERS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    version: str
+    source: str
+    answers: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, id: _Optional[str] = ..., version: _Optional[str] = ..., source: _Optional[str] = ..., answers: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class ProfileOption(_message.Message):
     __slots__ = ("id", "label_key")
@@ -113,6 +136,30 @@ class ProfileValidationIssue(_message.Message):
     message: str
     def __init__(self, field: _Optional[str] = ..., code: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
+class ProfileConflict(_message.Message):
+    __slots__ = ("code", "capability_ref", "recommendation_keys", "message")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_REF_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDATION_KEYS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    capability_ref: str
+    recommendation_keys: _containers.RepeatedScalarFieldContainer[str]
+    message: str
+    def __init__(self, code: _Optional[str] = ..., capability_ref: _Optional[str] = ..., recommendation_keys: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ProfileOutstanding(_message.Message):
+    __slots__ = ("field", "code", "capability_ref", "message")
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_REF_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    code: str
+    capability_ref: str
+    message: str
+    def __init__(self, field: _Optional[str] = ..., code: _Optional[str] = ..., capability_ref: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
 class Profile(_message.Message):
     __slots__ = ("id", "version", "title_key", "description_key", "owner", "provenance_source", "provenance_revision", "schema_version", "compatible_catalog_major", "default", "manual_selection_available")
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -146,7 +193,7 @@ class ListProfilesResponse(_message.Message):
     def __init__(self, profiles: _Optional[_Iterable[_Union[Profile, _Mapping]]] = ...) -> None: ...
 
 class EvaluateProfileResponse(_message.Message):
-    __slots__ = ("profile", "questions", "recommendations", "scenarios", "resources", "issues", "valid", "explanations", "digest")
+    __slots__ = ("profile", "questions", "recommendations", "scenarios", "resources", "issues", "valid", "explanations", "digest", "catalog_revision", "conflicts", "outstanding", "preset", "profiles")
     PROFILE_FIELD_NUMBER: _ClassVar[int]
     QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -156,6 +203,11 @@ class EvaluateProfileResponse(_message.Message):
     VALID_FIELD_NUMBER: _ClassVar[int]
     EXPLANATIONS_FIELD_NUMBER: _ClassVar[int]
     DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_REVISION_FIELD_NUMBER: _ClassVar[int]
+    CONFLICTS_FIELD_NUMBER: _ClassVar[int]
+    OUTSTANDING_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_FIELD_NUMBER: _ClassVar[int]
     profile: Profile
     questions: _containers.RepeatedCompositeFieldContainer[ProfileQuestion]
     recommendations: _containers.RepeatedCompositeFieldContainer[ProfileRecommendation]
@@ -165,4 +217,9 @@ class EvaluateProfileResponse(_message.Message):
     valid: bool
     explanations: _containers.RepeatedCompositeFieldContainer[ProfileExplanation]
     digest: str
-    def __init__(self, profile: _Optional[_Union[Profile, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ProfileQuestion, _Mapping]]] = ..., recommendations: _Optional[_Iterable[_Union[ProfileRecommendation, _Mapping]]] = ..., scenarios: _Optional[_Iterable[str]] = ..., resources: _Optional[_Iterable[str]] = ..., issues: _Optional[_Iterable[_Union[ProfileValidationIssue, _Mapping]]] = ..., valid: _Optional[bool] = ..., explanations: _Optional[_Iterable[_Union[ProfileExplanation, _Mapping]]] = ..., digest: _Optional[str] = ...) -> None: ...
+    catalog_revision: str
+    conflicts: _containers.RepeatedCompositeFieldContainer[ProfileConflict]
+    outstanding: _containers.RepeatedCompositeFieldContainer[ProfileOutstanding]
+    preset: ProfilePreset
+    profiles: _containers.RepeatedCompositeFieldContainer[Profile]
+    def __init__(self, profile: _Optional[_Union[Profile, _Mapping]] = ..., questions: _Optional[_Iterable[_Union[ProfileQuestion, _Mapping]]] = ..., recommendations: _Optional[_Iterable[_Union[ProfileRecommendation, _Mapping]]] = ..., scenarios: _Optional[_Iterable[str]] = ..., resources: _Optional[_Iterable[str]] = ..., issues: _Optional[_Iterable[_Union[ProfileValidationIssue, _Mapping]]] = ..., valid: _Optional[bool] = ..., explanations: _Optional[_Iterable[_Union[ProfileExplanation, _Mapping]]] = ..., digest: _Optional[str] = ..., catalog_revision: _Optional[str] = ..., conflicts: _Optional[_Iterable[_Union[ProfileConflict, _Mapping]]] = ..., outstanding: _Optional[_Iterable[_Union[ProfileOutstanding, _Mapping]]] = ..., preset: _Optional[_Union[ProfilePreset, _Mapping]] = ..., profiles: _Optional[_Iterable[_Union[Profile, _Mapping]]] = ...) -> None: ...

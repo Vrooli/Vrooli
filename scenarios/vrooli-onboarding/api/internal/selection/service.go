@@ -16,6 +16,7 @@ type Service struct {
 	GetClosure           func(context.Context) (*selectionv1.GetClosureResponse, error)
 	GetUnion             func(context.Context) (*selectionv1.GetUnionResponse, error)
 	CreateHandoff        func(context.Context, *selectionv1.CreateHandoffRequest) (*selectionv1.CreateHandoffResponse, error)
+	GetHandoff           func(context.Context, *selectionv1.GetHandoffRequest) (*selectionv1.GetHandoffResponse, error)
 }
 
 func (s Service) Scenarios(ctx context.Context) (*selectionv1.ListScenariosResponse, error) {
@@ -59,4 +60,11 @@ func (s Service) Handoff(ctx context.Context, req *selectionv1.CreateHandoffRequ
 		return nil, context.Canceled
 	}
 	return s.CreateHandoff(ctx, req)
+}
+
+func (s Service) ResolveHandoff(ctx context.Context, req *selectionv1.GetHandoffRequest) (*selectionv1.GetHandoffResponse, error) {
+	if s.GetHandoff == nil {
+		return nil, context.Canceled
+	}
+	return s.GetHandoff(ctx, req)
 }

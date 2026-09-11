@@ -20,6 +20,8 @@ type connectHandler struct {
 	service internaloperatorinputs.Service
 }
 
+const operatorInputsContractVersion = "1"
+
 func NewConnectHandler(service internaloperatorinputs.Service) *connectHandler {
 	return &connectHandler{service: service}
 }
@@ -34,9 +36,10 @@ func (h *connectHandler) ListOperatorInputs(ctx context.Context, _ *connect.Requ
 		requests = append(requests, requestToProto(request))
 	}
 	return connect.NewResponse(&operatorinputsv1.ListOperatorInputsResponse{
-		Version:   int32(queue.Version),
-		UpdatedAt: timestamppb.New(queue.UpdatedAt),
-		Requests:  requests,
+		Version:         int32(queue.Version),
+		UpdatedAt:       timestamppb.New(queue.UpdatedAt),
+		Requests:        requests,
+		ContractVersion: operatorInputsContractVersion,
 	}), nil
 }
 
@@ -92,7 +95,7 @@ func requestToProto(request operatorcapability.Request) *setupv1.OperatorInputRe
 		Remediation: request.Remediation, Unblocks: request.Unblocks, Validation: request.Validation,
 		Required: request.Required, Declinable: request.Declinable, Decision: request.Decision,
 		CredentialLogicalId: request.CredentialLogicalID, CredentialField: request.CredentialField, Provider: request.Provider, RequirementGroup: request.RequirementGroup,
-		ConsumerRefs: request.ConsumerRefs, CompanionSettings: request.CompanionSettings, AcquisitionRef: request.AcquisitionRef, VerificationRef: request.VerificationRef,
+		ConsumerRefs: request.ConsumerRefs, CompanionSettings: request.CompanionSettings, CompanionCredentials: request.CompanionCredentials, AcquisitionRef: request.AcquisitionRef, VerificationRef: request.VerificationRef,
 		RecoveryRef: request.RecoveryRef, HelpRef: request.HelpRef, EvidencePolicy: request.EvidencePolicy,
 	}
 }

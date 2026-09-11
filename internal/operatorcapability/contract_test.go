@@ -16,7 +16,7 @@ func (fixtureProvider) Descriptor() Descriptor {
 		Version: ContractVersion, ID: "fixture/export", Owner: "fixture-owner", Scope: "fixture host", Purpose: "exercise typed operator export", Sensitivity: SensitivitySecret, Disposition: DispositionConfigurable,
 		Provenance: PermissionProvenance{Requester: "fixture operator", Scope: "fixture host", GrantSource: "explicit fixture consent", RevocationLimit: "fixture owner can revoke the export"}, Lifecycle: Lifecycle{Preview: true, Apply: true, Verify: true, Revoke: true, Recover: true, Recovery: "retry the fixture export"}, Title: "Export fixture",
 		Inputs: []InputDescriptor{
-			{ID: "sink", Kind: KindPath, Label: "Destination", Required: true},
+			{ID: "sink", Kind: KindPath, Label: "Destination", Required: true, CompanionCredentials: []string{"fixture/access-key-id"}},
 			{ID: "passphrase", Kind: KindSecret, Label: "Passphrase", Required: true},
 			{ID: "interval", Kind: KindDuration, Label: "Refresh interval", Default: "15m"},
 			{ID: "confirm", Kind: KindConfirmation, Label: "Confirm", Required: true},
@@ -107,6 +107,15 @@ func TestDescriptorRejectsInvalidTypedInputsAndConfirmation(t *testing.T) {
 	}
 }
 
+func TestStableIdempotencyKeyIncludesTarget(t *testing.T) {
+	inputs := rawInputs(map[string]any{"sink": "/media/recovery"})
+	local := StableIdempotencyKey("fixture/export", inputs, "local")
+	remote := StableIdempotencyKey("fixture/export", inputs, "node-7")
+	if local == remote {
+		t.Fatal("different targets received the same idempotency key")
+	}
+}
+
 func TestRegistryDiscoversProvidersInStableOrder(t *testing.T) {
 	first := fixtureProvider{}
 	second := otherFixtureProvider{}
@@ -133,6 +142,9 @@ func TestOperatorInputsUseStableCapabilityScopedIDs(t *testing.T) {
 	}
 	if requests[1].Kind != "secret" || len(requests[0].Candidates) != 0 {
 		t.Fatalf("request metadata = %+v", requests)
+	}
+	if len(requests[0].CompanionCredentials) != 1 || requests[0].CompanionCredentials[0] != "fixture/access-key-id" {
+		t.Fatalf("companion credentials = %#v, want the declared credential dependency", requests[0].CompanionCredentials)
 	}
 }
 

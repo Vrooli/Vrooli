@@ -86,6 +86,40 @@ func (e controlPlaneExecutor) ApplyCapability(ctx context.Context, request opera
 	return e.applyCapability(ctx, request)
 }
 
+func (e controlPlaneExecutor) VerifyCapability(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("encode capability verification: %w", err)
+	}
+	output, runErr := e.runNamedWithInput(ctx, []byte(append(payload, '\n')), "vrooli", "capability", "verify", "--json")
+	var evidence []operatorcapability.EvidenceReference
+	if decodeErr := json.Unmarshal(output, &evidence); decodeErr != nil {
+		var report operatorcapability.VerificationReport
+		if reportErr := json.Unmarshal(output, &report); reportErr == nil && (report.ErrorCode != "" || report.Evidence != nil) {
+			if report.ErrorCode != "" {
+				return report.Evidence, &operatorcapability.VerificationError{
+					Code:       report.ErrorCode,
+					Retryable:  report.Retryable,
+					RetryAfter: time.Duration(report.RetryAfterSeconds) * time.Second,
+					NextAction: report.NextAction,
+				}
+			}
+			if runErr != nil {
+				return report.Evidence, runErr
+			}
+			return report.Evidence, nil
+		}
+		if runErr != nil {
+			return nil, runErr
+		}
+		return nil, fmt.Errorf("decode capability verification: %w", decodeErr)
+	}
+	if runErr != nil {
+		return evidence, runErr
+	}
+	return evidence, nil
+}
+
 func (e controlPlaneExecutor) run(ctx context.Context, args ...string) error {
 	return e.runNamed(ctx, "vrooli", args...)
 }
@@ -652,7 +686,7 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 	// apply. Every item succeeding says the host changes were made; it says
 	// nothing about whether a required credential is present or a required
 	// safeguard is in place, and the marker is the flow's claim that both are.
-	readiness, readinessErr := buildReadinessResponse(ctx)
+	readiness, readinessErr := buildApplyReadiness(ctx, run.Target)
 	if readinessErr != nil {
 		run.Status = "configuration_incomplete"
 		run.Error = readinessErr.Error()
@@ -693,6 +727,45 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 	}
 	run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 	updateApplyRun(run)
+}
+
+const applyReadinessInventoryWait = 10 * time.Second
+
+// buildApplyReadiness gives the asynchronous consumer-inventory refresh a
+// bounded chance to finish before an accepted apply is declared incomplete.
+// Readiness requests stay non-blocking so the wizard can render immediately,
+// but an apply already has explicit operator consent and must not fail solely
+// because it raced its own background inventory refresh.
+func buildApplyReadiness(ctx context.Context, target string) (readinessResponse, error) {
+	readiness, err := buildReadinessResponseWithOptions(ctx, target, true)
+	if err != nil || !readinessNeedsConsumerInventoryRetry(readiness) {
+		return readiness, err
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, applyReadinessInventoryWait)
+	defer cancel()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-waitCtx.Done():
+			return readiness, nil
+		case <-ticker.C:
+			readiness, err = buildReadinessResponseWithOptions(waitCtx, target, true)
+			if err != nil || !readinessNeedsConsumerInventoryRetry(readiness) {
+				return readiness, err
+			}
+		}
+	}
+}
+
+func readinessNeedsConsumerInventoryRetry(readiness readinessResponse) bool {
+	for _, blocker := range readiness.Blockers {
+		if blocker.Kind == "readiness" && blocker.Name == "credential-consumer-inventory" {
+			return true
+		}
+	}
+	return false
 }
 
 func markConfigurationComplete(selectionDigest string) error {

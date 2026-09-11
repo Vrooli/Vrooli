@@ -1,19 +1,15 @@
 /**
- * ExecutionSummaryCard — the compact execution row shared by the sidebar
+ * ExecutionSummaryCard — the compact execution summary shared by the sidebar
  * ExecutionsTab and the SessionContextPicker. This is the terse list row, NOT
  * the rich `ExecutionCard` used by ExecutionListView.
  *
- * - Sidebar mode (no `selection`): a button that opens the execution, with an
- *   optional bulk-selection checkbox. Behavior is identical to the previous
- *   inlined markup.
- * - Pick mode (`selection.selectionMode`): renders inside PickModeRow.
+ * It is row content only: the CollectionList row owns the chrome, selection,
+ * and the open interaction. Wrap it in CollectionRow.
  */
 import { memo } from "react";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../lib/format-utils";
 import type { ExecutionRecord } from "../../types";
-import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
-import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-slate-700/60 text-slate-300",
@@ -35,16 +31,9 @@ const MODE_LABELS: Record<string, string> = {
 
 export interface ExecutionSummaryCardProps {
   item: ExecutionRecord;
-  // Sidebar mode
-  onOpen?: () => void;
-  batchMode?: boolean;
-  batchSelected?: boolean;
-  onBatchToggle?: () => void;
-  // Picker pick mode
-  selection?: CardSelection;
 }
 
-function ExecutionCardBody({ item }: { item: ExecutionRecord }) {
+function ExecutionSummaryCardImpl({ item }: ExecutionSummaryCardProps) {
   return (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -60,51 +49,6 @@ function ExecutionCardBody({ item }: { item: ExecutionRecord }) {
         <span>{formatRelativeTime(item.createdAt)}</span>
       </div>
     </>
-  );
-}
-
-function ExecutionSummaryCardImpl({
-  item,
-  onOpen,
-  batchMode = false,
-  batchSelected = false,
-  onBatchToggle,
-  selection,
-}: ExecutionSummaryCardProps) {
-  if (selection?.selectionMode) {
-    return (
-      <CardShell selection={selection}>
-        <ExecutionCardBody item={item} />
-      </CardShell>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen?.()}
-      className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
-      data-testid="sidebar-execution-item"
-    >
-      <div className="flex items-start gap-2">
-        {batchMode && (
-          <input
-            type="checkbox"
-            aria-label={`${batchSelected ? "Deselect" : "Select"} execution ${item.backlogName}`}
-            checked={batchSelected}
-            onClick={(event) => event.stopPropagation()}
-            onChange={(event) => {
-              event.stopPropagation();
-              onBatchToggle?.();
-            }}
-            className="mt-0.5"
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <ExecutionCardBody item={item} />
-        </div>
-      </div>
-    </button>
   );
 }
 

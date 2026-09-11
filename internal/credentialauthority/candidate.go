@@ -46,11 +46,11 @@ func (a *Authority) PutCandidate(identity Identity, field, value string) (Candid
 	if strings.TrimSpace(value) == "" {
 		return CandidateRef{}, errors.New("candidate credential value is required")
 	}
-	versionBytes := make([]byte, 16)
-	if _, err := rand.Read(versionBytes); err != nil {
+	version, err := newCredentialVersion()
+	if err != nil {
 		return CandidateRef{}, fmt.Errorf("generate candidate version: %w", err)
 	}
-	ref := CandidateRef{Identity: identity, Field: field, Version: hex.EncodeToString(versionBytes)}
+	ref := CandidateRef{Identity: identity, Field: field, Version: version}
 	if err := ref.Validate(); err != nil {
 		return CandidateRef{}, err
 	}
@@ -81,8 +81,44 @@ func (a *Authority) ActivateCandidate(ref CandidateRef) error {
 	if err == nil && strings.TrimSpace(value) == "" {
 		err = securestore.ErrNotFound
 	}
+	previous, previousErr := a.store.Get(credentialService, storeKey(ref.Identity, ref.Field))
+	previousVersion, previousVersionErr := a.store.Get(credentialService, versionKey(ref.Identity, ref.Field))
+	if errors.Is(previousErr, securestore.ErrNotFound) {
+		previousErr = nil
+	}
+	if errors.Is(previousVersionErr, securestore.ErrNotFound) {
+		previousVersionErr = nil
+	}
+	// Do not write a candidate over an active value whose prior state could
+	// not be read. A provider that fails between these reads and the writes
+	// below must fail closed; otherwise a later version-write failure could
+	// leave the new value active while the old version remains advertised.
+	if err == nil && previousErr != nil {
+		err = previousErr
+	}
+	if err == nil && previousVersionErr != nil {
+		err = previousVersionErr
+	}
 	if err == nil {
 		err = a.store.Put(credentialService, storeKey(ref.Identity, ref.Field), value)
+	}
+	if err == nil {
+		err = a.store.Put(credentialService, versionKey(ref.Identity, ref.Field), ref.Version)
+	}
+	if err != nil && previousErr == nil && previousVersionErr == nil {
+		// A version write can fail after the active value write. Restore the
+		// prior pair so an unsuccessful candidate cannot replace the active
+		// credential or leave evidence pointing at an unknown version.
+		if previous == "" {
+			_ = a.store.Delete(credentialService, storeKey(ref.Identity, ref.Field))
+		} else {
+			_ = a.store.Put(credentialService, storeKey(ref.Identity, ref.Field), previous)
+		}
+		if previousVersion == "" {
+			_ = a.store.Delete(credentialService, versionKey(ref.Identity, ref.Field))
+		} else {
+			_ = a.store.Put(credentialService, versionKey(ref.Identity, ref.Field), previousVersion)
+		}
 	}
 	if err == nil {
 		err = a.store.Delete(credentialService, candidateKey(ref))
@@ -123,4 +159,12 @@ func normalizeCandidateAddress(identity Identity, field string) (Identity, strin
 
 func candidateKey(ref CandidateRef) string {
 	return candidateKeyPrefix + storeKey(ref.Identity, ref.Field) + ":" + ref.Version
+}
+
+func newCredentialVersion() (string, error) {
+	versionBytes := make([]byte, 16)
+	if _, err := rand.Read(versionBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(versionBytes), nil
 }

@@ -300,6 +300,20 @@
           "completion": "optional"
         },
         {
+          "path": "perf/2026-09-10-sidebar-virtualization.md",
+          "docType": "performance-audit",
+          "title": "2026-09-10 — Sidebar virtualization and idle re-renders",
+          "description": "Sidebar lists mounted every row because the virtual viewport never got a height; fixed in CollectionList 1.3.4 plus no-op poll updates (status: fixed)",
+          "audience": [
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "perf/2026-07-06-graph-large-topology-baseline.md",
           "docType": "performance-audit",
           "title": "2026-07-06 \u2014 Graph large-topology baseline",

@@ -232,6 +232,26 @@ func TestSaveDraftRejectsSecretLikeChoicesAndStaleClients(t *testing.T) {
 	}
 }
 
+func TestHandoffsPersistWithTargetAndRevisionFences(t *testing.T) {
+	service, _ := testService(t)
+	ctx := context.Background()
+	created, err := service.Apply(ctx, []byte(`{"handoffs":{"handoff-1":{"id":"handoff-1","request_key":"request-1","deployment_id":"deployment-1","target":"node-1","machine_id":"machine-1","node_id":"node-1","enrollment_generation":7,"desired_revision":12,"actor_scope":"scenario-auth:operator-1","selection_digest":"sha256:selection","selection":{"schema_version":"v1","scenarios":["alpha"],"operating_mode":{"alpha":"manual"}},"state":"pending","created_at":"2026-08-11T01:00:00Z","updated_at":"2026-08-11T01:00:00Z"}}}`))
+	if err != nil {
+		t.Fatalf("persist handoff: %v", err)
+	}
+	loaded, err := service.Load(ctx)
+	if err != nil {
+		t.Fatalf("load handoff: %v", err)
+	}
+	handoff, ok := loaded.Handoffs["handoff-1"]
+	if !ok || handoff.EnrollmentGeneration != 7 || handoff.DesiredRevision != 12 || handoff.Selection.OperatingMode["alpha"] != "manual" {
+		t.Fatalf("handoff = %#v", loaded.Handoffs)
+	}
+	if Revision(created) == "" {
+		t.Fatal("handoff write did not advance the operator-state revision")
+	}
+}
+
 func TestSaveProfileSessionIsBoundedNonSecretAndRevisionChecked(t *testing.T) {
 	service, _ := testService(t)
 	ctx := context.Background()
@@ -245,7 +265,7 @@ func TestSaveProfileSessionIsBoundedNonSecretAndRevisionChecked(t *testing.T) {
 	}
 	saved, err := service.SaveProfileSession(ctx, ProfileSession{
 		Target: "target-a", Actor: "actor-a", Mode: "guided", ProfileID: "develop-and-publish",
-		ProfileVersion: "1.0.0", CatalogRevision: "catalog-r1", BaseRevision: Revision(initial),
+		ProfileVersion: "1.0.0", CatalogRevision: "catalog-r1", ConsequenceDigest: "client-value-must-not-win", BaseRevision: Revision(initial),
 		Answers: answers, ManualDecisions: map[string]bool{"optional-tool": false},
 		TargetContext: map[string]string{"operation": "prepare-desktop-release"},
 	}, Revision(initial))
@@ -254,6 +274,9 @@ func TestSaveProfileSessionIsBoundedNonSecretAndRevisionChecked(t *testing.T) {
 	}
 	if saved.Session == nil || saved.Session.Profile == nil || saved.Session.Profile.ProfileID != "develop-and-publish" {
 		t.Fatalf("profile session was not persisted: %#v", saved.Session)
+	}
+	if saved.Session.Profile.ConsequenceDigest != "client-value-must-not-win" {
+		t.Fatalf("profile consequence digest was not persisted: %q", saved.Session.Profile.ConsequenceDigest)
 	}
 	loaded, err := service.ProfileSession(ctx)
 	if err != nil {

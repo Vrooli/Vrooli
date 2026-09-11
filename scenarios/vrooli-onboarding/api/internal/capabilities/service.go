@@ -17,6 +17,7 @@ type Executor interface {
 	DiscoverCapabilities(context.Context) ([]operatorcapability.Status, error)
 	PreviewCapability(context.Context, operatorcapability.ActionRequest) (operatorcapability.Preview, error)
 	ApplyCapability(context.Context, operatorcapability.ActionRequest) (operatorcapability.Result, error)
+	VerifyCapability(context.Context, operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error)
 	RemoveCapability(string) error
 }
 
@@ -72,6 +73,16 @@ func (s Service) Apply(ctx context.Context, request operatorcapability.ActionReq
 	return result, nil
 }
 
+func (s Service) Verify(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+	if s.Executor == nil {
+		return nil, errors.New("capability executor is unavailable")
+	}
+	return s.Executor.VerifyCapability(ctx, request)
+}
+
 func NormalizeActionRequest(request *operatorcapability.ActionRequest) error {
 	if request == nil {
 		return errors.New("capability action is required")
@@ -81,7 +92,7 @@ func NormalizeActionRequest(request *operatorcapability.ActionRequest) error {
 		return errors.New("capability_id is required")
 	}
 	if request.IdempotencyKey == "" {
-		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs)
+		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs, request.TargetID)
 	}
 	return request.Validate()
 }

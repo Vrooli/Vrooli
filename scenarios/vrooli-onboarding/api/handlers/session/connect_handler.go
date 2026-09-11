@@ -127,7 +127,8 @@ func (h *connectHandler) SaveProfileSession(ctx context.Context, req *connect.Re
 		Target: strings.TrimSpace(req.Msg.GetTarget()), Actor: actor,
 		Mode: strings.TrimSpace(wire.GetMode()), ProfileID: strings.TrimSpace(wire.GetProfileId()),
 		ProfileVersion: strings.TrimSpace(wire.GetProfileVersion()), CatalogRevision: strings.TrimSpace(wire.GetCatalogRevision()),
-		BaseRevision: strings.TrimSpace(wire.GetBaseRevision()), Answers: answers,
+		ConsequenceDigest: strings.TrimSpace(wire.GetConsequenceDigest()),
+		BaseRevision:      strings.TrimSpace(wire.GetBaseRevision()), Answers: answers,
 		ManualDecisions: wire.GetManualDecisions(), TargetContext: targetContext,
 	}, strings.TrimSpace(req.Msg.GetExpectedRevision()))
 	if err != nil {
@@ -170,10 +171,17 @@ func profileSessionToProto(value *session.ProfileSession) *sessionv1.ProfileSess
 	result := &sessionv1.ProfileSession{
 		Target: value.Target, Actor: value.Actor, Mode: value.Mode, ProfileId: value.ProfileID,
 		ProfileVersion: value.ProfileVersion, CatalogRevision: value.CatalogRevision,
+		ConsequenceDigest: value.ConsequenceDigest, NextQuestionId: value.NextQuestionID, NextAction: value.NextAction,
 		BaseRevision: value.BaseRevision, ManualDecisions: value.ManualDecisions,
 		Revision:            value.Revision,
 		ReconciliationState: value.ReconciliationState, CurrentProfileVersion: value.CurrentProfileVersion,
 		ReconciliationReasons: value.ReconciliationReasons,
+	}
+	for _, change := range value.ReconciliationChanges {
+		result.ReconciliationChanges = append(result.ReconciliationChanges, &sessionv1.ReconciliationChange{
+			Kind: change.Kind, Field: change.Field, Before: change.Before, After: change.After,
+			Impact: change.Impact, RequiresReview: change.RequiresReview,
+		})
 	}
 	if value.Answers != nil {
 		answers := make(map[string]any, len(value.Answers))

@@ -445,10 +445,19 @@ func (s *Store) Publish(ctx context.Context, candidate Candidate) (ArtifactMetad
 		// Content-addressed publication is idempotent. Validate the existing
 		// object before reusing it; never replace a known object with unverified
 		// bytes.
+		existingMetadata, err := readMetadata(filepath.Join(snapshotPath, "metadata.json"))
+		if err != nil {
+			return ArtifactMetadata{}, fmt.Errorf("existing snapshot %s: %w", metadata.ArtifactID, err)
+		}
 		if err := validateSnapshot(snapshotPath, metadata); err != nil {
 			_ = os.RemoveAll(snapshotTmp)
 			return ArtifactMetadata{}, fmt.Errorf("existing snapshot %s: %w", metadata.ArtifactID, err)
 		}
+		// The artifact ID intentionally excludes volatile metadata such as
+		// GeneratedAt. Reuse the immutable snapshot metadata for the selection
+		// record; otherwise a repeat publication would point at this snapshot
+		// with a digest for a different, never-published metadata value.
+		metadata = existingMetadata
 		_ = os.RemoveAll(snapshotTmp)
 	} else {
 		if s.Hooks.BeforeSnapshotRename != nil {

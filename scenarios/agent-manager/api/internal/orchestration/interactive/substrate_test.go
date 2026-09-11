@@ -32,7 +32,8 @@ type fakeSessions struct {
 	onSendPrompt  func(callN int)
 	sendPrompts   int
 
-	calls []string
+	calls   []string
+	screens []string
 }
 
 func newFakeSessions(id string) *fakeSessions {
@@ -83,7 +84,60 @@ func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
 }
 
 func (f *fakeSessions) Screen(_ context.Context, _ string, _ bool) (string, error) {
-	return "", nil
+	f.calls = append(f.calls, "screen")
+	if len(f.screens) == 0 {
+		return "", nil
+	}
+	screen := f.screens[0]
+	f.screens = f.screens[1:]
+	return screen, nil
+}
+
+func TestShellPromptReady(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		screen string
+		ready  bool
+	}{
+		{name: "bash prompt", screen: "user@host:/tmp$", ready: true},
+		{name: "root prompt", screen: "root@host:/#", ready: true},
+		{name: "booting", screen: "", ready: false},
+		{name: "agent screen", screen: "› Ask Codex to do anything", ready: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := shellPromptReady(tc.screen); got != tc.ready {
+				t.Fatalf("shellPromptReady(%q) = %v, want %v", tc.screen, got, tc.ready)
+			}
+		})
+	}
+}
+
+func TestSubstrateLaunch_WaitsForShellBeforeSubmitting(t *testing.T) {
+	runDir := t.TempDir()
+	rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13", "rollout-shell-ready.jsonl")
+	writeFile(t, rollout)
+	fs := newFakeSessions("sess-shell-ready")
+	fs.screens = []string{"", "user@host:/workspace$"}
+	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{
+		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
+	}), WithDiscoveryTimeout(2*time.Second), WithPollInterval(time.Millisecond), WithPromptBootDelay(time.Millisecond))
+
+	_, err := sub.Launch(context.Background(), LaunchParams{
+		RunnerType: domain.RunnerTypeCodex,
+		Tag:        "run-shell-ready",
+		WorkingDir: "/work/dir",
+		RunDir:     runDir,
+		Prompt:     "noop",
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	if len(fs.calls) < 3 || fs.calls[0] != "create" || fs.calls[1] != "screen" || fs.calls[2] != "screen" {
+		t.Fatalf("expected shell readiness screens before launch submission, got %v", fs.calls)
+	}
+	if fs.calls[3] != "sendtext" {
+		t.Fatalf("expected launch command after shell readiness, got %v", fs.calls)
+	}
 }
 
 // fakeLaunchInfo satisfies runner.AgentLaunchInfo without a full Runner.
@@ -127,8 +181,8 @@ func TestSubstrateLaunch_Codex_HappyPath(t *testing.T) {
 	if fs.sendPrompts != 1 {
 		t.Errorf("expected one initial prompt delivery, got %d", fs.sendPrompts)
 	}
-	if len(fs.calls) != 2 || fs.calls[0] != "create" || fs.calls[1] != "sendprompt" {
-		t.Errorf("expected create then prompt delivery, got %v", fs.calls)
+	if len(fs.calls) != 3 || fs.calls[0] != "create" || fs.calls[1] != "sendtext" || fs.calls[2] != "sendprompt" {
+		t.Errorf("expected create, launch submission, then prompt delivery, got %v", fs.calls)
 	}
 	if res.SessionID != "sess-1" {
 		t.Errorf("session id: got %q", res.SessionID)

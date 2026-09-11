@@ -29,7 +29,8 @@ type Invocation struct {
 	Activity       *WorkflowActivity
 	// EngagementGrant is an owner-issued ceiling. It is copied verbatim into
 	// Agent Manager's admission request and cannot be widened by this adapter.
-	EngagementGrant *domainpb.WorkflowEngagementGrant
+	EngagementGrant      *domainpb.WorkflowEngagementGrant
+	ExecutionPreferences *domainpb.ExecutionPreferences
 }
 
 // InvocationCompletion preserves the immutable input, terminal output, pinned
@@ -84,7 +85,8 @@ func (s *WorkflowService) StartWorkflow(ctx context.Context, invocation Invocati
 	response, err := s.client.StartWorkflowExecution(ctx, &apipb.StartWorkflowExecutionRequest{
 		Owner: invocation.Owner, WorkflowKey: invocation.WorkflowKey, DefinitionDigest: invocation.WorkflowDigest, Input: invocation.Input,
 		IdempotencyKey: strings.TrimSpace(invocation.IdempotencyKey), ApprovalDigest: invocation.ApprovalDigest, GrantDigest: invocation.GrantDigest,
-		EngagementGrant: invocation.EngagementGrant,
+		EngagementGrant:      invocation.EngagementGrant,
+		ExecutionPreferences: invocation.ExecutionPreferences,
 	})
 	if err != nil {
 		return WorkflowStart{}, err

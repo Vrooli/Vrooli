@@ -39,6 +39,8 @@ type ItemPatch struct {
 	ExecutionStrategy  *string
 	ExecutionLimits    *identity.ExecutionLimits
 	ExecutionLimitsSet bool
+	Continuation       *string
+	ScopePolicy        *string
 	Note               *string
 }
 
@@ -51,7 +53,7 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	contractChanged := patch.Title != nil || patch.Description != nil ||
 		patch.AcceptanceAllow != nil || patch.AcceptanceDeny != nil ||
 		patch.AcceptanceCriteria != nil || patch.ExecutionStrategy != nil ||
-		patch.Creates != nil || patch.PlanRefSet || patch.ExecutionLimitsSet
+		patch.Creates != nil || patch.PlanRefSet || patch.ExecutionLimitsSet || patch.Continuation != nil || patch.ScopePolicy != nil
 	if patch.Title != nil {
 		item.Title = strings.TrimSpace(*patch.Title)
 	}
@@ -103,6 +105,12 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.ExecutionLimitsSet {
 		item.ExecutionLimits = patch.ExecutionLimits.Clone()
+	}
+	if patch.Continuation != nil {
+		item.Continuation = strings.ToLower(strings.TrimSpace(*patch.Continuation))
+	}
+	if patch.ScopePolicy != nil {
+		item.ScopePolicy = strings.ToLower(strings.TrimSpace(*patch.ScopePolicy))
 	}
 	if patch.Note != nil {
 		item.Note = strings.TrimSpace(*patch.Note)

@@ -330,7 +330,7 @@ class GetWorkflowRevisionResponse(_message.Message):
     def __init__(self, revision: _Optional[_Union[_workflow_pb2.WorkflowRevision, _Mapping]] = ...) -> None: ...
 
 class StartWorkflowExecutionRequest(_message.Message):
-    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key", "engagement_grant", "approval_digest", "grant_digest")
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key", "engagement_grant", "approval_digest", "grant_digest", "execution_preferences")
     OWNER_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -339,6 +339,7 @@ class StartWorkflowExecutionRequest(_message.Message):
     ENGAGEMENT_GRANT_FIELD_NUMBER: _ClassVar[int]
     APPROVAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
     GRANT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
     owner: str
     workflow_key: str
     definition_digest: str
@@ -347,7 +348,50 @@ class StartWorkflowExecutionRequest(_message.Message):
     engagement_grant: _workflow_pb2.WorkflowEngagementGrant
     approval_digest: str
     grant_digest: str
-    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., engagement_grant: _Optional[_Union[_workflow_pb2.WorkflowEngagementGrant, _Mapping]] = ..., approval_digest: _Optional[str] = ..., grant_digest: _Optional[str] = ...) -> None: ...
+    execution_preferences: _profile_pb2.ExecutionPreferences
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., engagement_grant: _Optional[_Union[_workflow_pb2.WorkflowEngagementGrant, _Mapping]] = ..., approval_digest: _Optional[str] = ..., grant_digest: _Optional[str] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+
+class ListExecutionOptionsRequest(_message.Message):
+    __slots__ = ("role_ref",)
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    role_ref: str
+    def __init__(self, role_ref: _Optional[str] = ...) -> None: ...
+
+class ModelOption(_message.Message):
+    __slots__ = ("id", "canonical_model", "is_default")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    IS_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    canonical_model: str
+    is_default: bool
+    def __init__(self, id: _Optional[str] = ..., canonical_model: _Optional[str] = ..., is_default: _Optional[bool] = ...) -> None: ...
+
+class ExecutionOption(_message.Message):
+    __slots__ = ("runner_type", "available", "message", "native_objective", "sandbox_modes_with_native_objective", "default_model", "models", "effort_levels")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_MODES_WITH_NATIVE_OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_MODEL_FIELD_NUMBER: _ClassVar[int]
+    MODELS_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_LEVELS_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    available: bool
+    message: str
+    native_objective: bool
+    sandbox_modes_with_native_objective: _containers.RepeatedScalarFieldContainer[str]
+    default_model: str
+    models: _containers.RepeatedCompositeFieldContainer[ModelOption]
+    effort_levels: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., native_objective: _Optional[bool] = ..., sandbox_modes_with_native_objective: _Optional[_Iterable[str]] = ..., default_model: _Optional[str] = ..., models: _Optional[_Iterable[_Union[ModelOption, _Mapping]]] = ..., effort_levels: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ListExecutionOptionsResponse(_message.Message):
+    __slots__ = ("options",)
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    options: _containers.RepeatedCompositeFieldContainer[ExecutionOption]
+    def __init__(self, options: _Optional[_Iterable[_Union[ExecutionOption, _Mapping]]] = ...) -> None: ...
 
 class GetWorkflowExecutionRequest(_message.Message):
     __slots__ = ("execution_id",)

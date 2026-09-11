@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -259,12 +260,37 @@ func (app *Service) Workflow(ctx context.Context, root string, out io.Writer, op
 		}
 		return cliout.WriteSection(out, cliout.Section{Rows: rows})
 	}
+	if action == "verify" {
+		evidence, verifyErr := registry.VerifyWithRetry(ctx, opts.Verification)
+		if jsonOutput {
+			var output any = evidence
+			var typedErr *operatorcapability.VerificationError
+			if errors.As(verifyErr, &typedErr) {
+				output = operatorcapability.VerificationReport{
+					Evidence:          evidence,
+					ErrorCode:         typedErr.Code,
+					Retryable:         typedErr.Retryable,
+					RetryAfterSeconds: durationSeconds(typedErr.RetryAfter),
+					NextAction:        typedErr.NextAction,
+				}
+			}
+			if encodeErr := cliout.WriteJSONValue(out, output); encodeErr != nil {
+				return encodeErr
+			}
+		} else {
+			fmt.Fprintf(out, "verified_evidence=%d\n", len(evidence))
+			if typedErr := verificationError(verifyErr); typedErr != nil {
+				fmt.Fprintf(out, "verification_error=%s retryable=%t next_action=%s\n", typedErr.Code, typedErr.Retryable, typedErr.NextAction)
+			}
+		}
+		return verifyErr
+	}
 	request := opts.Request
 	if request.CapabilityID == "" {
 		return fmt.Errorf("capability action JSON requires capability_id")
 	}
 	if request.IdempotencyKey == "" {
-		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs)
+		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs, request.TargetID)
 	}
 	var output any
 	if action == "preview" {
@@ -280,6 +306,21 @@ func (app *Service) Workflow(ctx context.Context, root string, out io.Writer, op
 		fmt.Fprintf(out, "%s\n", workflowOutcome(output))
 	}
 	return err
+}
+
+func verificationError(err error) *operatorcapability.VerificationError {
+	var typedErr *operatorcapability.VerificationError
+	if errors.As(err, &typedErr) {
+		return typedErr
+	}
+	return nil
+}
+
+func durationSeconds(duration time.Duration) int64 {
+	if duration <= 0 {
+		return 0
+	}
+	return int64((duration + time.Second - 1) / time.Second)
 }
 
 func workflowOutcome(value any) string {

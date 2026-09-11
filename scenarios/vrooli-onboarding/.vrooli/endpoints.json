@@ -71,6 +71,11 @@
       "endpoint_id": "selection_union"
     },
     {
+      "name": "handoff get",
+      "description": "Resolve a target-bound onboarding handoff",
+      "endpoint_id": "selection_handoff_get"
+    },
+    {
       "name": "credentials list",
       "description": "Descriptors and configured status",
       "endpoint_id": "credentials_list"
@@ -109,6 +114,11 @@
       "name": "readiness",
       "description": "Composed readiness; non-zero exit when a required item is not ready",
       "endpoint_id": "readiness_get"
+    },
+    {
+      "name": "capabilities verify",
+      "description": "Run a bounded capability verification",
+      "endpoint_id": "capabilities_verify"
     },
     {
       "name": "operator show",
@@ -394,6 +404,14 @@
       "category": "selection"
     },
     {
+      "id": "selection_handoff_rest",
+      "path": "/api/v2/handoff",
+      "method": "POST",
+      "summary": "Create bridge onboarding handoff",
+      "description": "Authenticated bridge adapter for the onboarding-owned selection handoff.",
+      "category": "selection"
+    },
+    {
       "id": "capabilities_list",
       "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities",
       "method": "POST",
@@ -423,6 +441,14 @@
       "method": "POST",
       "summary": "Apply a confirmed capability action",
       "description": "Applies a confirmed provider capability and returns secret-free evidence.",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_verify",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/VerifyCapability",
+      "method": "POST",
+      "summary": "Verify a capability",
+      "description": "Runs the owner verification adapter for one target-bound credential context and returns secret-free evidence.",
       "category": "capabilities"
     },
     {
@@ -661,6 +687,14 @@
       "summary": "Search safe onboarding configuration metadata",
       "description": "",
       "category": "configuration"
+    },
+    {
+      "id": "selection_handoff_get",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff",
+      "method": "POST",
+      "summary": "Resolve onboarding handoff",
+      "description": "",
+      "category": "selection"
     },
     {
       "id": "profiles_evaluate",

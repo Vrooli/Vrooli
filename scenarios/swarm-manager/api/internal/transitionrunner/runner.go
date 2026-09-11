@@ -81,14 +81,15 @@ type Outcome struct {
 // their registered InputBuilder through Start; prepared starts preserve the
 // same lifecycle, journal, guards, and idempotency semantics.
 type PreparedInput struct {
-	Input               *structpb.Value
-	EntityVersion       string
-	FrontierDigest      string
-	FirstRunNodeID      string
-	Activity            *Activity
-	WorkflowKeyOverride string
-	ApprovalDigest      string
-	Grant               *workflowcontract.Grant
+	Input                *structpb.Value
+	EntityVersion        string
+	FrontierDigest       string
+	FirstRunNodeID       string
+	Activity             *Activity
+	WorkflowKeyOverride  string
+	ApprovalDigest       string
+	Grant                *workflowcontract.Grant
+	ExecutionPreferences *domainpb.ExecutionPreferences
 }
 
 // Activity is domain-neutral launch attribution. The runner converts it at
@@ -415,6 +416,7 @@ func (r *Runner) startPrepared(ctx context.Context, definition transitions.Defin
 		}
 		invocation.EngagementGrant, invocation.ApprovalDigest, invocation.GrantDigest = grant, prepared.ApprovalDigest, workflowcontract.GrantDigest(prepared.Grant)
 	}
+	invocation.ExecutionPreferences = prepared.ExecutionPreferences
 	var dispatch *transitionrun.DispatchIntent
 	if definition.Key == "plan.execute" && r.start[definition.Key] == nil {
 		lock := r.applyLock("dispatch/" + definition.Key + "/" + subjectRef)

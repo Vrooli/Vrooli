@@ -126,6 +126,7 @@ func (p *Provider) Descriptor() operatorcapability.Descriptor {
 		Policy:      operatorcapability.Policy{Idempotent: true, Retryable: true, Remediation: "Start data-backup-manager and resolve its reported destination, coverage, or drill remediation."},
 		Evidence: operatorcapability.EvidenceContract{
 			Kinds:          []string{"durable-backup-coverage", "recovery-drill"},
+			Stages:         []operatorcapability.VerificationStage{operatorcapability.VerificationStorage, operatorcapability.VerificationRecovery},
 			RequiredFields: []string{"artifact_identity", "coverage", "checksum", "observed_at", providerVerified},
 			SecretFree:     true,
 			Freshness:      "coverage and the latest verified drill must be current in data-backup-manager",
@@ -202,6 +203,7 @@ func (p *Provider) evidenceReferences(e Evidence, now time.Time, drillFresh bool
 	}
 	coverageChecksum := sha256.Sum256([]byte(strings.Join(coverage, "\n")))
 	refs := []operatorcapability.EvidenceReference{{
+		Stage:            operatorcapability.VerificationStorage,
 		Kind:             "durable-backup-coverage",
 		ArtifactIdentity: "data-backup-manager/coverage",
 		SourceGeneration: "coverage-" + hex.EncodeToString(coverageChecksum[:]),
@@ -212,6 +214,7 @@ func (p *Provider) evidenceReferences(e Evidence, now time.Time, drillFresh bool
 	}}
 	if e.Drill.ID != "" {
 		refs = append(refs, operatorcapability.EvidenceReference{
+			Stage:            operatorcapability.VerificationRecovery,
 			Kind:             "recovery-drill",
 			ArtifactIdentity: "data-backup-manager/drill/" + e.Drill.ID,
 			SourceGeneration: e.Drill.SnapshotID,
@@ -234,12 +237,26 @@ func (p *Provider) Verify(ctx context.Context, request operatorcapability.Verifi
 		return nil, err
 	}
 	if status.State != operatorcapability.StateReady {
-		return nil, fmt.Errorf("durable backup evidence is not ready: %s", status.Remediation)
+		code := "durable_backup_evidence_incomplete"
+		nextAction := "complete-durable-backup-evidence"
+		retryable := false
+		if strings.Contains(status.Remediation, "evidence is unavailable") {
+			code = "durable_backup_evidence_unavailable"
+			nextAction = "retry-durable-backup-verification"
+			retryable = true
+		}
+		return nil, &operatorcapability.VerificationError{
+			Code:       code,
+			Retryable:  retryable,
+			NextAction: nextAction,
+			Cause:      fmt.Errorf("durable backup evidence is not ready: %s", status.Remediation),
+		}
 	}
 	now := p.now().UTC()
 	receipts := append([]operatorcapability.EvidenceReference(nil), status.Evidence...)
 	for index := range receipts {
 		receipt := &receipts[index]
+		receipt.Stage = backupEvidenceStage(receipt.Kind)
 		receipt.SchemaVersion = operatorcapability.EvidenceSchemaVersion
 		receipt.CapabilityID = request.CapabilityID
 		receipt.TargetID = request.TargetID
@@ -258,6 +275,13 @@ func (p *Provider) Verify(ctx context.Context, request operatorcapability.Verifi
 		}
 	}
 	return receipts, nil
+}
+
+func backupEvidenceStage(kind string) operatorcapability.VerificationStage {
+	if kind == "recovery-drill" {
+		return operatorcapability.VerificationRecovery
+	}
+	return operatorcapability.VerificationStorage
 }
 
 func (p *Provider) sourceCoverageComplete(e Evidence, now time.Time) bool {

@@ -312,6 +312,16 @@
       "binding": "."
     },
     {
+      "path": "execution continuation-halt",
+      "group": "execution",
+      "command": "continuation-halt"
+    },
+    {
+      "path": "execution continuation-resume",
+      "group": "execution",
+      "command": "continuation-resume"
+    },
+    {
       "path": "execution create",
       "group": "execution",
       "command": "create",

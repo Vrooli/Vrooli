@@ -45,6 +45,9 @@ const (
 	// CapabilitiesServiceApplyCapabilityProcedure is the fully-qualified name of the
 	// CapabilitiesService's ApplyCapability RPC.
 	CapabilitiesServiceApplyCapabilityProcedure = "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability"
+	// CapabilitiesServiceVerifyCapabilityProcedure is the fully-qualified name of the
+	// CapabilitiesService's VerifyCapability RPC.
+	CapabilitiesServiceVerifyCapabilityProcedure = "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/VerifyCapability"
 )
 
 // CapabilitiesServiceClient is a client for the
@@ -54,6 +57,7 @@ type CapabilitiesServiceClient interface {
 	GetCapabilityStatus(context.Context, *connect.Request[capabilities.GetCapabilityStatusRequest]) (*connect.Response[capabilities.GetCapabilityStatusResponse], error)
 	PreviewCapability(context.Context, *connect.Request[capabilities.PreviewCapabilityRequest]) (*connect.Response[capabilities.PreviewCapabilityResponse], error)
 	ApplyCapability(context.Context, *connect.Request[capabilities.ApplyCapabilityRequest]) (*connect.Response[capabilities.ApplyCapabilityResponse], error)
+	VerifyCapability(context.Context, *connect.Request[capabilities.VerifyCapabilityRequest]) (*connect.Response[capabilities.VerifyCapabilityResponse], error)
 }
 
 // NewCapabilitiesServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewCapabilitiesServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(capabilitiesServiceMethods.ByName("ApplyCapability")),
 			connect.WithClientOptions(opts...),
 		),
+		verifyCapability: connect.NewClient[capabilities.VerifyCapabilityRequest, capabilities.VerifyCapabilityResponse](
+			httpClient,
+			baseURL+CapabilitiesServiceVerifyCapabilityProcedure,
+			connect.WithSchema(capabilitiesServiceMethods.ByName("VerifyCapability")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type capabilitiesServiceClient struct {
 	getCapabilityStatus *connect.Client[capabilities.GetCapabilityStatusRequest, capabilities.GetCapabilityStatusResponse]
 	previewCapability   *connect.Client[capabilities.PreviewCapabilityRequest, capabilities.PreviewCapabilityResponse]
 	applyCapability     *connect.Client[capabilities.ApplyCapabilityRequest, capabilities.ApplyCapabilityResponse]
+	verifyCapability    *connect.Client[capabilities.VerifyCapabilityRequest, capabilities.VerifyCapabilityResponse]
 }
 
 // ListCapabilities calls
@@ -127,6 +138,12 @@ func (c *capabilitiesServiceClient) ApplyCapability(ctx context.Context, req *co
 	return c.applyCapability.CallUnary(ctx, req)
 }
 
+// VerifyCapability calls
+// vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.VerifyCapability.
+func (c *capabilitiesServiceClient) VerifyCapability(ctx context.Context, req *connect.Request[capabilities.VerifyCapabilityRequest]) (*connect.Response[capabilities.VerifyCapabilityResponse], error) {
+	return c.verifyCapability.CallUnary(ctx, req)
+}
+
 // CapabilitiesServiceHandler is an implementation of the
 // vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService service.
 type CapabilitiesServiceHandler interface {
@@ -134,6 +151,7 @@ type CapabilitiesServiceHandler interface {
 	GetCapabilityStatus(context.Context, *connect.Request[capabilities.GetCapabilityStatusRequest]) (*connect.Response[capabilities.GetCapabilityStatusResponse], error)
 	PreviewCapability(context.Context, *connect.Request[capabilities.PreviewCapabilityRequest]) (*connect.Response[capabilities.PreviewCapabilityResponse], error)
 	ApplyCapability(context.Context, *connect.Request[capabilities.ApplyCapabilityRequest]) (*connect.Response[capabilities.ApplyCapabilityResponse], error)
+	VerifyCapability(context.Context, *connect.Request[capabilities.VerifyCapabilityRequest]) (*connect.Response[capabilities.VerifyCapabilityResponse], error)
 }
 
 // NewCapabilitiesServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -167,6 +185,12 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 		connect.WithSchema(capabilitiesServiceMethods.ByName("ApplyCapability")),
 		connect.WithHandlerOptions(opts...),
 	)
+	capabilitiesServiceVerifyCapabilityHandler := connect.NewUnaryHandler(
+		CapabilitiesServiceVerifyCapabilityProcedure,
+		svc.VerifyCapability,
+		connect.WithSchema(capabilitiesServiceMethods.ByName("VerifyCapability")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CapabilitiesServiceListCapabilitiesProcedure:
@@ -177,6 +201,8 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 			capabilitiesServicePreviewCapabilityHandler.ServeHTTP(w, r)
 		case CapabilitiesServiceApplyCapabilityProcedure:
 			capabilitiesServiceApplyCapabilityHandler.ServeHTTP(w, r)
+		case CapabilitiesServiceVerifyCapabilityProcedure:
+			capabilitiesServiceVerifyCapabilityHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -200,4 +226,8 @@ func (UnimplementedCapabilitiesServiceHandler) PreviewCapability(context.Context
 
 func (UnimplementedCapabilitiesServiceHandler) ApplyCapability(context.Context, *connect.Request[capabilities.ApplyCapabilityRequest]) (*connect.Response[capabilities.ApplyCapabilityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ApplyCapability is not implemented"))
+}
+
+func (UnimplementedCapabilitiesServiceHandler) VerifyCapability(context.Context, *connect.Request[capabilities.VerifyCapabilityRequest]) (*connect.Response[capabilities.VerifyCapabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.VerifyCapability is not implemented"))
 }

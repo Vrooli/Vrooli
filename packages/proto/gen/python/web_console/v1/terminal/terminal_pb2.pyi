@@ -143,3 +143,23 @@ class WaitIdleResponse(_message.Message):
     reason: WaitIdleResponse.Reason
     waited: _duration_pb2.Duration
     def __init__(self, reason: _Optional[_Union[WaitIdleResponse.Reason, str]] = ..., waited: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
+
+class AnswerPromptRequest(_message.Message):
+    __slots__ = ("session_id", "option_key", "prompt_hash", "cancel")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    OPTION_KEY_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_HASH_FIELD_NUMBER: _ClassVar[int]
+    CANCEL_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    option_key: str
+    prompt_hash: str
+    cancel: bool
+    def __init__(self, session_id: _Optional[str] = ..., option_key: _Optional[str] = ..., prompt_hash: _Optional[str] = ..., cancel: _Optional[bool] = ...) -> None: ...
+
+class AnswerPromptResponse(_message.Message):
+    __slots__ = ("delivery", "answer")
+    DELIVERY_FIELD_NUMBER: _ClassVar[int]
+    ANSWER_FIELD_NUMBER: _ClassVar[int]
+    delivery: str
+    answer: str
+    def __init__(self, delivery: _Optional[str] = ..., answer: _Optional[str] = ...) -> None: ...

@@ -27,6 +27,7 @@
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-003 | Descriptor-complete credential guidance | Each credential card should present the declared purpose and the obtain link carried by the credential descriptor.
+- [ ] OT-P1-008 | Explicit local credential reveal | When an operator explicitly requests recovery of a configured credential from the onboarding CLI, the system shall require a confirmation flag, refuse machine-readable output and redirected output, resolve the value only from the local credential authority, and leave the UI, API, browser, logs, and operator state write-only/metadata-only.
 - [ ] OT-P1-005 | Deployment union export | The wizard should export the union of scenarios, resources, tools, and safeguards implied by a selection, for bundle, VPS, and bridge targets to consume.
 - [ ] OT-P1-007 | Declared-surface honesty | The published endpoint, CLI, and requirement contracts should match the running code, and drift should fail a test rather than wait for review.
 

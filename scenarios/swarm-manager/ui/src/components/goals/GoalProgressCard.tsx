@@ -5,8 +5,12 @@ import { cn } from "../../lib/utils";
  * The compact goal summary used wherever a goal is surfaced as work context.
  * Keeping this treatment shared makes goals recognisable whether they appear
  * in the sidebar or in another entity's detail view.
+ *
+ * `GoalProgressSummary` is the content alone, for CollectionList rows (the
+ * row owns chrome and opening). `GoalProgressCard` adds standalone card chrome
+ * and an optional open interaction for surfaces that are not a list.
  */
-export interface GoalProgressCardProps {
+export interface GoalProgressSummaryProps {
   title: string;
   subtitle?: string;
   priority: number;
@@ -18,13 +22,16 @@ export interface GoalProgressCardProps {
   targets?: number;
   ready?: number;
   blocked?: number;
-  onOpen?: () => void;
   controls?: ReactNode;
+}
+
+export interface GoalProgressCardProps extends GoalProgressSummaryProps {
+  onOpen?: () => void;
   className?: string;
   "data-testid"?: string;
 }
 
-export function GoalProgressCard({
+export function GoalProgressSummary({
   title,
   subtitle,
   priority,
@@ -36,15 +43,12 @@ export function GoalProgressCard({
   targets,
   ready,
   blocked,
-  onOpen,
   controls,
-  className,
-  "data-testid": testId,
-}: GoalProgressCardProps) {
+}: GoalProgressSummaryProps) {
   const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((completed / total) * 100))) : 0;
   const summary = `${pct}% · ${completed}/${total}`;
 
-  const content = (
+  return (
     <>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -66,9 +70,17 @@ export function GoalProgressCard({
         {pending > 0 && <span>{pending} pending</span>}
         {blocked !== undefined && blocked > 0 && <span className="text-red-300">{blocked} blocked</span>}
       </div>
+      {controls && <div className="mt-2 flex items-center justify-end gap-1">{controls}</div>}
     </>
   );
+}
 
+export function GoalProgressCard({
+  onOpen,
+  className,
+  "data-testid": testId,
+  ...summary
+}: GoalProgressCardProps) {
   const openFromKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
     if (onOpen && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
@@ -88,8 +100,7 @@ export function GoalProgressCard({
       role={onOpen ? "button" : undefined}
       tabIndex={onOpen ? 0 : undefined}
     >
-      {content}
-      {controls && <div className="mt-2 flex items-center justify-end gap-1">{controls}</div>}
+      <GoalProgressSummary {...summary} />
     </div>
   );
 }

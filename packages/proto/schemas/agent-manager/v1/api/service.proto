@@ -56,6 +56,10 @@ service AgentManagerService {
     option (google.api.http) = {get: "/health"};
   }
 
+  rpc ListExecutionOptions(ListExecutionOptionsRequest) returns (ListExecutionOptionsResponse) {
+    option (google.api.http) = { get: "/api/v1/execution-options" };
+  }
+
   // Caller-neutral finite investigation lifecycle. Diagnosis is separate
   // from repair and is safe to reattach after a client disconnect.
   rpc StartInvestigation(StartInvestigationRequest) returns (StartInvestigationResponse) {
@@ -839,6 +843,32 @@ message StartWorkflowExecutionRequest {
   string approval_digest = 7;
   // Digest of the exact grant values sent with this invocation.
   string grant_digest = 8;
+  ExecutionPreferences execution_preferences = 9;
+}
+
+message ListExecutionOptionsRequest {
+  string role_ref = 1;
+}
+
+message ModelOption {
+  string id = 1;
+  string canonical_model = 2;
+  bool is_default = 3;
+}
+
+message ExecutionOption {
+  RunnerType runner_type = 1;
+  bool available = 2;
+  string message = 3;
+  bool native_objective = 4;
+  repeated string sandbox_modes_with_native_objective = 5;
+  string default_model = 6;
+  repeated ModelOption models = 7;
+  repeated string effort_levels = 8;
+}
+
+message ListExecutionOptionsResponse {
+  repeated ExecutionOption options = 1;
 }
 
 message GetWorkflowExecutionRequest {

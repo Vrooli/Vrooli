@@ -106,6 +106,66 @@ message Session {
   // Present for sessions hosted by a remote target. Safe node metadata only;
   // credentials and transport proofs never cross this boundary.
   vrooli.web_console.v1.shared.Target target = 15;
+  // What the session's agent is doing now, as far as Web Console can tell.
+  // Also pushed live on the event stream as the session_activity kind.
+  SessionActivity activity = 20;
+}
+
+// SessionActivityState is the projection of an agent session between messages.
+enum SessionActivityState {
+  SESSION_ACTIVITY_STATE_UNSPECIFIED = 0;
+  // Not enough evidence to say; the Messages view shows nothing for it.
+  SESSION_ACTIVITY_STATE_UNKNOWN = 1;
+  // The agent is producing output.
+  SESSION_ACTIVITY_STATE_WORKING = 2;
+  // The agent is at its input prompt.
+  SESSION_ACTIVITY_STATE_IDLE = 3;
+  // The agent is asking the user something (a question or a permission).
+  SESSION_ACTIVITY_STATE_WAITING = 4;
+}
+
+// SessionActivitySource names the evidence behind a SessionActivity.
+enum SessionActivitySource {
+  SESSION_ACTIVITY_SOURCE_UNSPECIFIED = 0;
+  // The server's terminal emulator screen, read by a per-harness prompt detector.
+  SESSION_ACTIVITY_SOURCE_SCREEN = 1;
+  // Only the time since the last output frame.
+  SESSION_ACTIVITY_SOURCE_OUTPUT_CLOCK = 2;
+  // A harness hook (Claude Code Notification or Stop).
+  SESSION_ACTIVITY_SOURCE_HOOK = 3;
+  // A harness event stream (OpenCode server events).
+  SESSION_ACTIVITY_SOURCE_HARNESS_EVENT = 4;
+}
+
+// PromptOption is one choice in a prompt the agent is showing.
+message PromptOption {
+  string key = 1;   // what to send to pick it, e.g. "1"
+  string label = 2;
+  bool selected = 3;
+}
+
+// PendingPrompt is what the agent is asking, when it can be read.
+message PendingPrompt {
+  string kind = 1;  // "question" | "permission" | "unknown"
+  string text = 2;  // empty when the prompt was detected but not parsed
+  repeated PromptOption options = 3;
+  bool answerable = 4;  // answering from Messages is enabled for this harness and version
+  string free_text_hint = 5;  // set when the prompt also accepts a typed answer
+  string hash = 6;  // identifies the prompt (kind, text, options; not the selection) for AnswerPrompt
+  bool cancellable = 7;  // the harness lets Escape dismiss it
+}
+
+// SessionActivity is the pushed activity state of one session.
+message SessionActivity {
+  string session_id = 1;
+  SessionActivityState state = 2;
+  SessionActivitySource source = 3;
+  float confidence = 4;  // 0..1; below 0.6 is reported as UNKNOWN
+  string since = 5;  // RFC 3339; when the current state began
+  string last_output_at = 6;  // RFC 3339; the last terminal output
+  PendingPrompt prompt = 7;  // set only when state is WAITING
+  string harness = 8;  // "claude" | "codex" | "grok" | "opencode" | ""
+  string harness_version = 9;
 }
 
 // RecoverableSession describes an awaiting_recovery row.

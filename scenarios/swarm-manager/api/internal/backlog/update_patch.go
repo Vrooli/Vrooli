@@ -34,6 +34,8 @@ const (
 	updateFieldPlanRef            = "plan_ref"
 	updateFieldExecutionStrategy  = "execution_strategy"
 	updateFieldExecutionLimits    = "execution_limits"
+	updateFieldContinuation       = "continuation"
+	updateFieldScopePolicy        = "scope_policy"
 	updateFieldNote               = "note"
 )
 
@@ -160,6 +162,14 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		normalized := strings.ToLower(strings.TrimSpace(*req.ExecutionStrategy))
 		req.ExecutionStrategy = &normalized
 	}
+	if fields.Has(updateFieldContinuation) && req.Continuation != nil {
+		value := strings.ToLower(strings.TrimSpace(*req.Continuation))
+		req.Continuation = &value
+	}
+	if fields.Has(updateFieldScopePolicy) && req.ScopePolicy != nil {
+		value := strings.ToLower(strings.TrimSpace(*req.ScopePolicy))
+		req.ScopePolicy = &value
+	}
 }
 
 func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet, kind BacklogKind, existingStatus BacklogStatus) string {
@@ -223,6 +233,16 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 	}
 	if fields.Has(updateFieldExecutionLimits) {
 		if err := executionLimitsFromProto(req.ExecutionLimits).Validate(); err != nil {
+			return err.Error()
+		}
+	}
+	if fields.Has(updateFieldContinuation) {
+		if _, err := normalizeContinuation(req.GetContinuation()); err != nil {
+			return err.Error()
+		}
+	}
+	if fields.Has(updateFieldScopePolicy) {
+		if _, err := normalizeScopePolicy(req.GetScopePolicy()); err != nil {
 			return err.Error()
 		}
 	}
@@ -348,6 +368,14 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	}
 	if fields.Has(updateFieldExecutionLimits) {
 		patch.ExecutionLimits, patch.ExecutionLimitsSet = executionLimitsFromProto(req.ExecutionLimits), true
+	}
+	if fields.Has(updateFieldContinuation) {
+		v := req.GetContinuation()
+		patch.Continuation = &v
+	}
+	if fields.Has(updateFieldScopePolicy) {
+		v := req.GetScopePolicy()
+		patch.ScopePolicy = &v
 	}
 	if fields.Has(updateFieldNote) {
 		v := req.GetNote()

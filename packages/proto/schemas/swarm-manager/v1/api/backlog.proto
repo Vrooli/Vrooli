@@ -108,6 +108,8 @@ message CreateBacklogItemRequest {
   // self-improvement campaign.
   optional string execution_strategy = 20;
   optional domain.ExecutionLimits execution_limits = 21;
+  optional string continuation = 22;
+  optional string scope_policy = 23;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -189,6 +191,8 @@ message UpdateBacklogItemRequest {
   // Plan execution strategy. Set to the empty string to clear it.
   optional string execution_strategy = 18;
   optional domain.ExecutionLimits execution_limits = 19;
+  optional string continuation = 20;
+  optional string scope_policy = 21;
 }
 
 // UpdateItemRequest identifies an item and preserves PATCH presence through
@@ -532,6 +536,7 @@ message QueueBacklogItemRequest {
     gte: 1
     lte: 512
   }];
+  optional domain.ExecutionPreferences execution_preferences = 9;
 }
 
 // QueueBacklogItemResponse returns queue results.

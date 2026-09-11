@@ -316,6 +316,13 @@ export interface DurableRunCost extends MeasureResponse {
   inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number;
   inputCostUsd: number; outputCostUsd: number; cacheReadCostUsd: number; cacheCreationCostUsd: number;
   totalChargeMicroUsd: number; unpricedTokenCount: number; chargeByBasis: ChargeByBasisView[];
+  p50Tokens: number; p90Tokens: number; p95Tokens: number; p99Tokens: number; maxTokens: number;
+  p50CostUsd: number; p90CostUsd: number; p95CostUsd: number; p99CostUsd: number; maxCostUsd: number;
+  tokenBuckets: CostTokenBucket[];
+  distributionSampleSize: number; distributionUnobservedRuns: number;
+}
+export interface CostTokenBucket {
+  label: string; minTokens: number; maxTokens: number; runCount: number;
 }
 export interface DurableRunDurationStatistics extends MeasureResponse {
   averageDurationMs: number; p50DurationMs: number; p95DurationMs: number; p99DurationMs: number;
@@ -359,7 +366,7 @@ export async function fetchDurableToolUsage(filter: StatsFilter): Promise<Durabl
 }
 export async function fetchDurableRunCost(filter: StatsFilter): Promise<DurableRunCost> {
   const r = await measuresClient.runCost(measureRequest(filter));
-  return { totalCostUsd: r.totalCostUsd, averageCostUsd: r.averageCostUsd, totalRuns: numberValue(r.totalRuns), totalTokens: numberValue(r.totalTokens), inputTokens: numberValue(r.inputTokens), outputTokens: numberValue(r.outputTokens), cacheReadTokens: numberValue(r.cacheReadTokens), cacheCreationTokens: numberValue(r.cacheCreationTokens), inputCostUsd: r.inputCostUsd, outputCostUsd: r.outputCostUsd, cacheReadCostUsd: r.cacheReadCostUsd, cacheCreationCostUsd: r.cacheCreationCostUsd, totalChargeMicroUsd: numberValue(r.totalChargeMicroUsd), unpricedTokenCount: numberValue(r.unpricedTokenCount), chargeByBasis: chargeRows(r.chargeByBasis), ...metadata(r) };
+  return { totalCostUsd: r.totalCostUsd, averageCostUsd: r.averageCostUsd, totalRuns: numberValue(r.totalRuns), totalTokens: numberValue(r.totalTokens), inputTokens: numberValue(r.inputTokens), outputTokens: numberValue(r.outputTokens), cacheReadTokens: numberValue(r.cacheReadTokens), cacheCreationTokens: numberValue(r.cacheCreationTokens), inputCostUsd: r.inputCostUsd, outputCostUsd: r.outputCostUsd, cacheReadCostUsd: r.cacheReadCostUsd, cacheCreationCostUsd: r.cacheCreationCostUsd, totalChargeMicroUsd: numberValue(r.totalChargeMicroUsd), unpricedTokenCount: numberValue(r.unpricedTokenCount), chargeByBasis: chargeRows(r.chargeByBasis), p50Tokens: numberValue(r.p50Tokens), p90Tokens: numberValue(r.p90Tokens), p95Tokens: numberValue(r.p95Tokens), p99Tokens: numberValue(r.p99Tokens), maxTokens: numberValue(r.maxTokens), p50CostUsd: r.p50CostUsd, p90CostUsd: r.p90CostUsd, p95CostUsd: r.p95CostUsd, p99CostUsd: r.p99CostUsd, maxCostUsd: r.maxCostUsd, tokenBuckets: (r.tokenBuckets ?? []).map((bucket) => ({ label: bucket.label, minTokens: numberValue(bucket.minTokens), maxTokens: numberValue(bucket.maxTokens), runCount: numberValue(bucket.runCount) })), distributionSampleSize: numberValue(r.distributionSampleSize), distributionUnobservedRuns: numberValue(r.distributionUnobservedRuns), ...metadata(r) };
 }
 export async function fetchDurableRunSuccess(filter: StatsFilter): Promise<RateMeasure> {
   const r = await measuresClient.runSuccessRate(measureRequest(filter)); return { rate: r.rate, ...metadata(r) };

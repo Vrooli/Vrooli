@@ -142,6 +142,7 @@ class RunEventType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_EVENT_TYPE_MESSAGE_DELETED: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_COMPACTION: _ClassVar[RunEventType]
     RUN_EVENT_TYPE_LIFECYCLE: _ClassVar[RunEventType]
+    RUN_EVENT_TYPE_GOAL_STATUS_CHANGED: _ClassVar[RunEventType]
 
 class RecoveryAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -269,6 +270,7 @@ RUN_EVENT_TYPE_ERROR: RunEventType
 RUN_EVENT_TYPE_MESSAGE_DELETED: RunEventType
 RUN_EVENT_TYPE_COMPACTION: RunEventType
 RUN_EVENT_TYPE_LIFECYCLE: RunEventType
+RUN_EVENT_TYPE_GOAL_STATUS_CHANGED: RunEventType
 RECOVERY_ACTION_UNSPECIFIED: RecoveryAction
 RECOVERY_ACTION_NONE: RecoveryAction
 RECOVERY_ACTION_RETRY: RecoveryAction

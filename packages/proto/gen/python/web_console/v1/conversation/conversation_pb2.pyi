@@ -7,6 +7,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ConversationSearchMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONVERSATION_SEARCH_MODE_TEXT: _ClassVar[ConversationSearchMode]
+    CONVERSATION_SEARCH_MODE_REGEX: _ClassVar[ConversationSearchMode]
+    CONVERSATION_SEARCH_MODE_FUZZY: _ClassVar[ConversationSearchMode]
+
 class MessageCaptureState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MESSAGE_CAPTURE_STATE_UNSPECIFIED: _ClassVar[MessageCaptureState]
@@ -14,85 +20,120 @@ class MessageCaptureState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MESSAGE_CAPTURE_STATE_NOT_APPLICABLE: _ClassVar[MessageCaptureState]
     MESSAGE_CAPTURE_STATE_PENDING: _ClassVar[MessageCaptureState]
     MESSAGE_CAPTURE_STATE_UNAVAILABLE: _ClassVar[MessageCaptureState]
+CONVERSATION_SEARCH_MODE_TEXT: ConversationSearchMode
+CONVERSATION_SEARCH_MODE_REGEX: ConversationSearchMode
+CONVERSATION_SEARCH_MODE_FUZZY: ConversationSearchMode
 MESSAGE_CAPTURE_STATE_UNSPECIFIED: MessageCaptureState
 MESSAGE_CAPTURE_STATE_CAPTURING: MessageCaptureState
 MESSAGE_CAPTURE_STATE_NOT_APPLICABLE: MessageCaptureState
 MESSAGE_CAPTURE_STATE_PENDING: MessageCaptureState
 MESSAGE_CAPTURE_STATE_UNAVAILABLE: MessageCaptureState
 
+class TextRange(_message.Message):
+    __slots__ = ("start", "end")
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    start: int
+    end: int
+    def __init__(self, start: _Optional[int] = ..., end: _Optional[int] = ...) -> None: ...
+
 class SearchRequest(_message.Message):
-    __slots__ = ("session_id", "query", "limit", "role_filter")
+    __slots__ = ("session_id", "query", "limit", "role_filter", "mode", "case_sensitive", "whole_word")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     ROLE_FILTER_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    CASE_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    WHOLE_WORD_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     query: str
     limit: int
     role_filter: str
-    def __init__(self, session_id: _Optional[str] = ..., query: _Optional[str] = ..., limit: _Optional[int] = ..., role_filter: _Optional[str] = ...) -> None: ...
+    mode: ConversationSearchMode
+    case_sensitive: bool
+    whole_word: bool
+    def __init__(self, session_id: _Optional[str] = ..., query: _Optional[str] = ..., limit: _Optional[int] = ..., role_filter: _Optional[str] = ..., mode: _Optional[_Union[ConversationSearchMode, str]] = ..., case_sensitive: _Optional[bool] = ..., whole_word: _Optional[bool] = ...) -> None: ...
 
 class SearchMatch(_message.Message):
-    __slots__ = ("event_id", "sequence", "excerpt")
+    __slots__ = ("event_id", "sequence", "excerpt", "ranges", "role", "created_at")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     EXCERPT_FIELD_NUMBER: _ClassVar[int]
+    RANGES_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     sequence: int
     excerpt: str
-    def __init__(self, event_id: _Optional[str] = ..., sequence: _Optional[int] = ..., excerpt: _Optional[str] = ...) -> None: ...
+    ranges: _containers.RepeatedCompositeFieldContainer[TextRange]
+    role: str
+    created_at: str
+    def __init__(self, event_id: _Optional[str] = ..., sequence: _Optional[int] = ..., excerpt: _Optional[str] = ..., ranges: _Optional[_Iterable[_Union[TextRange, _Mapping]]] = ..., role: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
-    __slots__ = ("matches", "truncated", "total_matches")
+    __slots__ = ("matches", "truncated", "total_matches", "error")
     MATCHES_FIELD_NUMBER: _ClassVar[int]
     TRUNCATED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_MATCHES_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
     matches: _containers.RepeatedCompositeFieldContainer[SearchMatch]
     truncated: bool
     total_matches: int
-    def __init__(self, matches: _Optional[_Iterable[_Union[SearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ...) -> None: ...
+    error: str
+    def __init__(self, matches: _Optional[_Iterable[_Union[SearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
 
 class SearchArchivedRequest(_message.Message):
-    __slots__ = ("query", "limit", "agent_type", "role", "created_after")
+    __slots__ = ("query", "limit", "agent_type", "role", "created_after", "mode", "case_sensitive", "whole_word")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CREATED_AFTER_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    CASE_SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    WHOLE_WORD_FIELD_NUMBER: _ClassVar[int]
     query: str
     limit: int
     agent_type: str
     role: str
     created_after: str
-    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., agent_type: _Optional[str] = ..., role: _Optional[str] = ..., created_after: _Optional[str] = ...) -> None: ...
+    mode: ConversationSearchMode
+    case_sensitive: bool
+    whole_word: bool
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., agent_type: _Optional[str] = ..., role: _Optional[str] = ..., created_after: _Optional[str] = ..., mode: _Optional[_Union[ConversationSearchMode, str]] = ..., case_sensitive: _Optional[bool] = ..., whole_word: _Optional[bool] = ...) -> None: ...
 
 class ArchivedSearchMatch(_message.Message):
-    __slots__ = ("event_id", "session_id", "sequence", "role", "created_at", "excerpt")
+    __slots__ = ("event_id", "session_id", "sequence", "role", "created_at", "excerpt", "ranges")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     EXCERPT_FIELD_NUMBER: _ClassVar[int]
+    RANGES_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     session_id: str
     sequence: int
     role: str
     created_at: str
     excerpt: str
-    def __init__(self, event_id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence: _Optional[int] = ..., role: _Optional[str] = ..., created_at: _Optional[str] = ..., excerpt: _Optional[str] = ...) -> None: ...
+    ranges: _containers.RepeatedCompositeFieldContainer[TextRange]
+    def __init__(self, event_id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence: _Optional[int] = ..., role: _Optional[str] = ..., created_at: _Optional[str] = ..., excerpt: _Optional[str] = ..., ranges: _Optional[_Iterable[_Union[TextRange, _Mapping]]] = ...) -> None: ...
 
 class SearchArchivedResponse(_message.Message):
-    __slots__ = ("matches", "truncated", "total_matches", "distinct_sessions")
+    __slots__ = ("matches", "truncated", "total_matches", "distinct_sessions", "error")
     MATCHES_FIELD_NUMBER: _ClassVar[int]
     TRUNCATED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_MATCHES_FIELD_NUMBER: _ClassVar[int]
     DISTINCT_SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
     matches: _containers.RepeatedCompositeFieldContainer[ArchivedSearchMatch]
     truncated: bool
     total_matches: int
     distinct_sessions: int
-    def __init__(self, matches: _Optional[_Iterable[_Union[ArchivedSearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ..., distinct_sessions: _Optional[int] = ...) -> None: ...
+    error: str
+    def __init__(self, matches: _Optional[_Iterable[_Union[ArchivedSearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ..., distinct_sessions: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
 
 class GetRangeRequest(_message.Message):
     __slots__ = ("session_id", "from_sequence", "to_sequence")

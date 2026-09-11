@@ -115,6 +115,7 @@ export function AppShell() {
   const closeSidebarOnMobile = useCallback(() => {
     if (isMobile) setSidebarCollapsed(true);
   }, [isMobile, setSidebarCollapsed]);
+  const openCapturePanel = useCallback(() => setShowCapturePanel(true), []);
 
   const navigateToNode = useCallback(
     (nodeId: string, fallbackLens: "plan" | "focus" = "focus") => {
@@ -175,7 +176,7 @@ export function AppShell() {
                 onGoHome={handleGoHome}
                 onOpenCommandPost={handleOpenCommandPost}
                 onOpenAgentSession={closeSidebarOnMobile}
-                onQuickCapture={() => setShowCapturePanel(true)}
+                onQuickCapture={openCapturePanel}
                 desktopStyle={isMobile ? undefined : sidebarPanelProps.style}
                 separatorProps={isMobile ? undefined : separatorProps}
                 asideRef={sidebarAsideRef}

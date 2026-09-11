@@ -112,12 +112,19 @@ func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request)
 	if r.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
 		initiator = domain.WorkflowInitiatorAgent
 	}
-	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken), EngagementGrant: engagementGrantFromProto(req.EngagementGrant), ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest})
+	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken), EngagementGrant: engagementGrantFromProto(req.EngagementGrant), ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest, ExecutionPreferences: executionPreferencesFromProto(req.ExecutionPreferences)})
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 	writeProtoJSON(w, http.StatusAccepted, &apipb.WorkflowExecutionResponse{Execution: workflowExecutionToProto(execution, false)})
+}
+
+func executionPreferencesFromProto(p *domainpb.ExecutionPreferences) *domain.ExecutionPreferences {
+	if p == nil {
+		return nil
+	}
+	return &domain.ExecutionPreferences{PreferredRunner: p.PreferredRunner, Model: p.Model, Effort: p.Effort}
 }
 
 func engagementGrantFromProto(grant *domainpb.WorkflowEngagementGrant) *domain.WorkflowEngagementGrant {
@@ -491,6 +498,9 @@ func workflowExecutionToProto(x *domain.WorkflowExecution, includePayloads bool)
 		edges[key] = int32(value)
 	}
 	out := &domainpb.WorkflowExecution{Id: x.ID.String(), Owner: x.Owner, WorkflowKey: x.WorkflowKey, DefinitionDigest: x.DefinitionDigest, ApprovalDigest: x.ApprovalDigest, GrantDigest: x.GrantDigest, Status: status, CurrentNodeId: x.CurrentNodeID, BudgetUsage: &domainpb.WorkflowBudgetUsage{AccountingComplete: x.BudgetUsage.AccountingComplete, Turns: int32(x.BudgetUsage.Turns), Tokens: int32(x.BudgetUsage.Tokens), CostUsd: x.BudgetUsage.CostUSD, NodeAttempts: int32(x.BudgetUsage.NodeAttempts), Children: int32(x.BudgetUsage.Children), Retries: int32(x.BudgetUsage.Retries)}, EdgeTraversals: edges, Version: x.Version, IdempotencyKey: x.IdempotencyKey, Depth: int32(x.Depth), CreatedAt: timestamppb.New(x.CreatedAt), UpdatedAt: timestamppb.New(x.UpdatedAt)}
+	if x.ExecutionPreferences != nil {
+		out.ExecutionPreferences = &domainpb.ExecutionPreferences{PreferredRunner: x.ExecutionPreferences.PreferredRunner, Model: x.ExecutionPreferences.Model, Effort: x.ExecutionPreferences.Effort}
+	}
 	if x.EngagementGrant != nil {
 		out.EngagementGrant = &domainpb.WorkflowEngagementGrant{
 			MaxTurns: int32(x.EngagementGrant.MaxTurns), MaxTokens: int32(x.EngagementGrant.MaxTokens),

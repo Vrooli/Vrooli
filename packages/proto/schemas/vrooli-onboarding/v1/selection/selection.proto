@@ -14,6 +14,7 @@ service SelectionService {
   rpc GetClosure(GetClosureRequest) returns (GetClosureResponse);
   rpc GetUnion(GetUnionRequest) returns (GetUnionResponse);
   rpc CreateHandoff(CreateHandoffRequest) returns (CreateHandoffResponse);
+  rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
 }
 
 message ListScenariosRequest { string target = 1; }
@@ -35,6 +36,20 @@ message CreateHandoffRequest {
   string node_id = 3;
   string node_kind = 4;
   setup.v1.Selection desired_selection = 5;
+  string deployment_id = 6;
+  uint64 enrollment_generation = 7;
+  uint64 desired_revision = 8;
+  string request_key = 9;
+  repeated string missing = 10;
+}
+
+message GetHandoffRequest {
+  string reference = 1;
+  string deployment_id = 2;
+  string target = 3;
+  uint64 enrollment_generation = 4;
+  uint64 desired_revision = 5;
+  string selection_digest = 6;
 }
 
 message Scenario {
@@ -121,4 +136,30 @@ message Resource {
   bool enabled = 5;
   bool installed = 6;
 }
-message CreateHandoffResponse { setup.v1.Selection selection = 1; }
+message Handoff {
+  string id = 1;
+  string reference = 2;
+  string deployment_id = 3;
+  string target = 4;
+  string machine_id = 5;
+  string node_id = 6;
+  string node_kind = 7;
+  uint64 enrollment_generation = 8;
+  uint64 desired_revision = 9;
+  string actor_scope = 10;
+  string selection_digest = 11;
+  repeated string missing = 12;
+  string state = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+message CreateHandoffResponse {
+  setup.v1.Selection selection = 1;
+  Handoff handoff = 2;
+}
+
+message GetHandoffResponse {
+  Handoff handoff = 1;
+  setup.v1.Selection selection = 2;
+}

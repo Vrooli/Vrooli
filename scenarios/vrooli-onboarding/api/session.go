@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/operatorstate"
@@ -155,7 +156,8 @@ func operatorProfileSessionToDomain(value *operatorstate.ProfileSession, revisio
 	return &sessiondomain.ProfileSession{
 		Target: value.Target, Actor: value.Actor, Mode: value.Mode,
 		ProfileID: value.ProfileID, ProfileVersion: value.ProfileVersion,
-		CatalogRevision: value.CatalogRevision, BaseRevision: value.BaseRevision,
+		CatalogRevision: value.CatalogRevision, ConsequenceDigest: value.ConsequenceDigest,
+		BaseRevision:    value.BaseRevision,
 		Answers:         cloneRawMessages(value.Answers),
 		ManualDecisions: cloneBools(value.ManualDecisions),
 		TargetContext:   cloneStrings(value.TargetContext), UpdatedAt: value.UpdatedAt, Revision: revision,
@@ -185,17 +187,60 @@ func (s *Server) saveProfileSession(ctx context.Context, value sessiondomain.Pro
 	if current != nil && (current.Target != strings.TrimSpace(value.Target) || current.Actor != strings.TrimSpace(value.Actor)) {
 		return nil, fmt.Errorf("profile session is already owned by another target or actor")
 	}
+	// The persisted session is authoritative for the previous consequence
+	// digest. A client may send it for convenience, but it cannot choose the
+	// digest used to decide whether an old apply receipt is still valid.
+	if current != nil {
+		value.ConsequenceDigest = current.ConsequenceDigest
+	} else {
+		value.ConsequenceDigest = ""
+	}
+	reconciled := s.reconcileProfileSession(ctx, &value)
+	if current != nil {
+		referenceChanges := diffProfileReferences(current, &value)
+		reconciled.ReconciliationChanges = append(reconciled.ReconciliationChanges, referenceChanges...)
+		for _, change := range referenceChanges {
+			if change.RequiresReview {
+				reconciled.ReconciliationState = "review_required"
+				reconciled.ReconciliationReasons = append(reconciled.ReconciliationReasons, change.Impact)
+				if reconciled.NextAction == "" {
+					reconciled.NextAction = "review-profile"
+				}
+			}
+		}
+		contextChanges := diffTargetContext(current.TargetContext, value.TargetContext)
+		reconciled.ReconciliationChanges = append(reconciled.ReconciliationChanges, contextChanges...)
+		for _, change := range contextChanges {
+			if change.RequiresReview {
+				reconciled.ReconciliationState = "review_required"
+				reconciled.ReconciliationReasons = append(reconciled.ReconciliationReasons, change.Impact)
+				if reconciled.NextAction == "" {
+					reconciled.NextAction = "review-profile"
+				}
+			}
+		}
+		sort.Strings(reconciled.ReconciliationReasons)
+		sortReconciliationChanges(reconciled.ReconciliationChanges)
+	}
 	document, err := operatorStateService().SaveProfileSession(ctx, operatorstate.ProfileSession{
 		Target: value.Target, Actor: value.Actor, Mode: value.Mode,
 		ProfileID: value.ProfileID, ProfileVersion: value.ProfileVersion,
-		CatalogRevision: value.CatalogRevision, BaseRevision: value.BaseRevision,
-		Answers: cloneRawMessages(value.Answers), ManualDecisions: cloneBools(value.ManualDecisions),
+		CatalogRevision: value.CatalogRevision, ConsequenceDigest: reconciled.ConsequenceDigest,
+		BaseRevision: value.BaseRevision,
+		Answers:      cloneRawMessages(value.Answers), ManualDecisions: cloneBools(value.ManualDecisions),
 		TargetContext: cloneStrings(value.TargetContext),
 	}, expectedRevision)
 	if err != nil {
 		return nil, err
 	}
-	return s.reconcileProfileSession(ctx, operatorProfileSessionToDomain(document.Session.Profile, operatorstate.Revision(document))), nil
+	reconciled.Revision = operatorstate.Revision(document)
+	if document.Session != nil && document.Session.Profile != nil {
+		// Return the durable timestamp assigned by operatorstate. The UI uses
+		// the response as its new resume point, so an empty timestamp here would
+		// make a successful save look like an uncommitted client draft.
+		reconciled.UpdatedAt = document.Session.Profile.UpdatedAt
+	}
+	return reconciled, nil
 }
 
 // reconcileProfileSession compares the persisted profile reference with the
@@ -205,32 +250,206 @@ func (s *Server) reconcileProfileSession(ctx context.Context, value *sessiondoma
 	if value == nil {
 		return nil
 	}
+	previousDigest := value.ConsequenceDigest
 	value.ReconciliationState = "manual"
+	value.CurrentProfileVersion = ""
+	value.ReconciliationReasons = nil
+	value.ReconciliationChanges = nil
+	value.NextQuestionID = ""
+	value.NextAction = ""
 	if strings.TrimSpace(value.ProfileID) == "" {
+		value.NextAction = "choose-profile"
 		return value
 	}
 	profiles, err := onboardingProfilesService().List(ctx)
 	if err != nil {
 		value.ReconciliationState = "unavailable"
 		value.ReconciliationReasons = []string{"The current profile catalog could not be checked."}
+		value.NextAction = "retry-profile-check"
 		return value
 	}
+	var currentProfileVersion string
 	for _, profile := range profiles {
 		if profile.ID != value.ProfileID {
 			continue
 		}
-		value.CurrentProfileVersion = profile.Version
-		if strings.TrimSpace(value.ProfileVersion) != "" && profile.Version != value.ProfileVersion {
-			value.ReconciliationState = "review_required"
-			value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q changed from version %s to %s.", value.ProfileID, value.ProfileVersion, profile.Version)}
-			return value
-		}
-		value.ReconciliationState = "current"
+		currentProfileVersion = profile.Version
+		break
+	}
+	if currentProfileVersion == "" {
+		value.ReconciliationState = "profile_revoked"
+		value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q is no longer available; existing answers were retained.", value.ProfileID)}
+		value.ReconciliationChanges = []sessiondomain.ReconciliationChange{{
+			Kind: "profile-revoked", Field: "profileId", Before: value.ProfileID, After: "unavailable",
+			Impact: "Existing answers remain retained, but a profile must be selected before applying changes.", RequiresReview: true,
+		}}
+		value.NextAction = "choose-profile"
 		return value
 	}
-	value.ReconciliationState = "profile_revoked"
-	value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q is no longer available; existing answers were retained.", value.ProfileID)}
+	value.CurrentProfileVersion = currentProfileVersion
+	if strings.TrimSpace(value.ProfileVersion) != "" && currentProfileVersion != value.ProfileVersion {
+		value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
+			Kind: "profile-version", Field: "profileVersion", Before: value.ProfileVersion, After: currentProfileVersion,
+			Impact: "Review profile changes before accepting new recommendations or privileges.", RequiresReview: true,
+		})
+	}
+
+	answers := rawAnswerValues(value.Answers)
+	targetContext := make(map[string]any, len(value.TargetContext)+1)
+	for key, item := range value.TargetContext {
+		targetContext[key] = item
+	}
+	if value.CatalogRevision != "" {
+		targetContext["catalogRevision"] = value.CatalogRevision
+	}
+	evaluation, err := onboardingProfilesService().EvaluateWithManualDecisions(ctx, value.ProfileID, answers, targetContext, value.ManualDecisions)
+	if err != nil {
+		value.ReconciliationState = "unavailable"
+		value.ReconciliationReasons = []string{fmt.Sprintf("The selected profile could not be evaluated: %v", err)}
+		value.NextAction = "retry-profile-check"
+		return value
+	}
+	value.ConsequenceDigest = evaluation.Digest
+	if previousDigest != "" && previousDigest != evaluation.Digest {
+		value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
+			Kind: "consequence-digest", Field: "consequenceDigest", Before: previousDigest, After: evaluation.Digest,
+			Impact: "Any previous apply review for this profile must be reviewed again.", RequiresReview: true,
+		})
+	}
+	knownQuestions := make(map[string]bool, len(evaluation.KnownQuestionIDs))
+	for _, questionID := range evaluation.KnownQuestionIDs {
+		knownQuestions[questionID] = true
+	}
+	for answerID := range value.Answers {
+		if knownQuestions[answerID] {
+			continue
+		}
+		value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
+			Kind: "question-removed", Field: answerID, Before: compactRaw(value.Answers[answerID]), After: "removed",
+			Impact: "The answer is retained for audit and cannot affect the current profile.", RequiresReview: true,
+		})
+	}
+	for _, outstanding := range evaluation.Outstanding {
+		if value.NextQuestionID == "" && knownQuestions[outstanding.Field] {
+			value.NextQuestionID = outstanding.Field
+		}
+		if outstanding.Code == "unsupported" {
+			value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
+				Kind: "unsupported-recommendation", Field: outstanding.Field, After: outstanding.CapabilityRef,
+				Impact: outstanding.Message, RequiresReview: true,
+			})
+		}
+	}
+	for _, issue := range evaluation.Issues {
+		if value.NextQuestionID == "" && knownQuestions[issue.Field] {
+			value.NextQuestionID = issue.Field
+		}
+	}
+	if value.NextQuestionID != "" {
+		value.NextAction = "answer-question"
+	} else if len(evaluation.Outstanding) > 0 || len(evaluation.Issues) > 0 {
+		value.NextAction = "review-recommendations"
+	}
+	for _, change := range value.ReconciliationChanges {
+		if change.RequiresReview {
+			value.ReconciliationReasons = append(value.ReconciliationReasons, change.Impact)
+		}
+	}
+	if len(value.ReconciliationReasons) > 0 {
+		value.ReconciliationState = "review_required"
+	} else {
+		value.ReconciliationState = "current"
+	}
+	if value.ReconciliationState == "review_required" && value.NextAction == "" {
+		value.NextAction = "review-profile"
+	}
+	sort.Strings(value.ReconciliationReasons)
+	sortReconciliationChanges(value.ReconciliationChanges)
 	return value
+}
+
+func rawAnswerValues(values map[string]json.RawMessage) map[string]any {
+	result := make(map[string]any, len(values))
+	for key, raw := range values {
+		var value any
+		if json.Unmarshal(raw, &value) == nil {
+			result[key] = value
+		}
+	}
+	return result
+}
+
+func compactRaw(value json.RawMessage) string {
+	var decoded any
+	if json.Unmarshal(value, &decoded) != nil {
+		return string(value)
+	}
+	encoded, err := json.Marshal(decoded)
+	if err != nil {
+		return string(value)
+	}
+	return string(encoded)
+}
+
+func diffTargetContext(before, after map[string]string) []sessiondomain.ReconciliationChange {
+	keys := make(map[string]bool, len(before)+len(after))
+	for key := range before {
+		keys[key] = true
+	}
+	for key := range after {
+		keys[key] = true
+	}
+	result := make([]sessiondomain.ReconciliationChange, 0)
+	for key := range keys {
+		if before[key] == after[key] {
+			continue
+		}
+		result = append(result, sessiondomain.ReconciliationChange{
+			Kind: "target-context", Field: key, Before: before[key], After: after[key],
+			Impact: "The target context changed; review the resulting recommendations before applying.", RequiresReview: true,
+		})
+	}
+	sortReconciliationChanges(result)
+	return result
+}
+
+func diffProfileReferences(before *operatorstate.ProfileSession, after *sessiondomain.ProfileSession) []sessiondomain.ReconciliationChange {
+	if before == nil || after == nil {
+		return nil
+	}
+	result := make([]sessiondomain.ReconciliationChange, 0, 3)
+	if before.ProfileID != after.ProfileID {
+		result = append(result, sessiondomain.ReconciliationChange{
+			Kind: "profile-selection", Field: "profileId", Before: before.ProfileID, After: after.ProfileID,
+			Impact: "The selected profile changed; review its recommendations before applying.", RequiresReview: true,
+		})
+	}
+	if before.CatalogRevision != after.CatalogRevision {
+		result = append(result, sessiondomain.ReconciliationChange{
+			Kind: "catalog-revision", Field: "catalogRevision", Before: before.CatalogRevision, After: after.CatalogRevision,
+			Impact: "The capability catalog changed; review the resulting closure before applying.", RequiresReview: true,
+		})
+	}
+	if before.Mode != after.Mode {
+		result = append(result, sessiondomain.ReconciliationChange{
+			Kind: "mode", Field: "mode", Before: before.Mode, After: after.Mode,
+			Impact: "The session changed between guided and manual selection; explicit manual decisions remain preserved.", RequiresReview: false,
+		})
+	}
+	sortReconciliationChanges(result)
+	return result
+}
+
+func sortReconciliationChanges(values []sessiondomain.ReconciliationChange) {
+	sort.SliceStable(values, func(i, j int) bool {
+		if values[i].Kind != values[j].Kind {
+			return values[i].Kind < values[j].Kind
+		}
+		if values[i].Field != values[j].Field {
+			return values[i].Field < values[j].Field
+		}
+		return values[i].After < values[j].After
+	})
 }
 
 func cloneRawMessages(values map[string]json.RawMessage) map[string]json.RawMessage {

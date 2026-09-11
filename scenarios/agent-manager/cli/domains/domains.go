@@ -30,7 +30,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		support.SubcommandGroup("permission-policy", "Manage portable permission policy", deps.PermissionPolicy,
 			[2]string{"status", "Show activation and reconcile state"}, [2]string{"catalog", "Inspect the active desired-permissions catalog"}, [2]string{"validate", "Validate declared state without activation"}, [2]string{"reload", "Validate and atomically activate declared state"}, [2]string{"plan", "Report projection drift without mutation"}, [2]string{"reconcile", "Apply declared permissions through every resource"}, [2]string{"doctor", "Summarize readiness and enforcement coverage"}),
 		support.SubcommandGroup("runner", "Manage agent runners", deps.Runner,
-			[2]string{"list", "List all runners and their status"}, [2]string{"probe", "Probe a runner"}, [2]string{"tools", "List canonical tool enforcement mappings"}),
+			[2]string{"list", "List all runners and their status"}, [2]string{"probe", "Probe a runner"}, [2]string{"tools", "List canonical tool enforcement mappings"}, [2]string{"execution-options", "List truthful runner, objective, model, and effort options"}),
 		support.SubcommandGroup("declarations", "Manage unified scenario declarations", deps.Declarations,
 			[2]string{"reconcile-scenario", "Reconcile a scenario's profiles and workflows"}, [2]string{"plan", "Validate declaration sources without writing"}),
 		support.SubcommandGroup("workflow", "Validate and execute declared workflows", deps.Workflow,

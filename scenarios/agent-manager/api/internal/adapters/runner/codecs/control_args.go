@@ -11,7 +11,17 @@ func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 	if cfg == nil {
 		return nil, nil
 	}
-	args := make([]string, 0, 8)
+	args := make([]string, 0, 10)
+	// Keep interactive Web Console launches identical to codec-pipe launches:
+	// the resolved network policy must also select Codex's non-interactive
+	// approval mode, otherwise an otherwise unattended goal run stops at a TUI
+	// command-approval prompt.
+	switch cfg.NetworkAccess.Effective() {
+	case domain.NetworkAccessNone:
+		args = append(args, "--sandbox", "workspace-write")
+	default:
+		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
+	}
 	model := strings.TrimSpace(cfg.Model)
 	{
 		bareModel, isOllama := splitOllamaModel(model)

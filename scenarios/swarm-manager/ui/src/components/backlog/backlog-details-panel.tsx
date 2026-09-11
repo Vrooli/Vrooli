@@ -117,7 +117,9 @@ export function BacklogDetailsPanel({
 
   return (
     <>
-      <DevelopmentContractPanel key={targetRef} workItem={targetRef} planRef={item.planRef} readOnly={isLocked} />
+      {item.executionStrategy === "adaptive-improvement" && (
+        <DevelopmentContractPanel key={targetRef} workItem={targetRef} planRef={item.planRef} readOnly={isLocked} />
+      )}
       <DetailSection
         title="Overview"
         icon={BACKLOG_KIND_ICONS[item.kind]}

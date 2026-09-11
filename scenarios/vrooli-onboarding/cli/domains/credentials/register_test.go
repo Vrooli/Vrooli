@@ -1,13 +1,16 @@
 package credentials
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
 	clitest "github.com/vrooli/cli-core/cliapptest"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func TestRegisterExposesSafeCredentialCommands(t *testing.T) {
@@ -24,6 +27,63 @@ func TestRegisterExposesSafeCredentialCommands(t *testing.T) {
 		}
 	}
 	t.Fatal("provision command was not registered")
+}
+
+type fakeResolver struct{}
+
+func (fakeResolver) Resolve(credentialauthority.Identity, string) (string, error) {
+	return "revealed-test-value", nil
+}
+
+func TestRevealRequiresExplicitConfirmationAndWritesOnlyToProvidedTerminal(t *testing.T) {
+	previous := revealAuthority
+	revealAuthority = func() (credentialResolver, error) { return fakeResolver{}, nil }
+	t.Cleanup(func() { revealAuthority = previous })
+
+	var output bytes.Buffer
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "logical-id"},
+			{Name: "field"},
+			{Name: "confirm-reveal", Bool: true},
+		}},
+		Flags:     map[string]string{"logical-id": "vrooli/demo", "field": "token"},
+		Stdout:    &output,
+		BoolFlags: map[string]bool{"confirm-reveal": true},
+	})
+	if err := reveal(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := output.String(); got != "revealed-test-value\n" {
+		t.Fatalf("reveal output = %q", got)
+	}
+}
+
+func TestRevealRejectsJSONAndMissingConfirmation(t *testing.T) {
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "logical-id"},
+			{Name: "field"},
+			{Name: "confirm-reveal", Bool: true},
+		}},
+		Flags: map[string]string{"logical-id": "vrooli/demo", "field": "token"},
+		JSON:  true,
+	})
+	if err := reveal(ctx); err == nil || !strings.Contains(err.Error(), "--json") {
+		t.Fatalf("JSON reveal error = %v", err)
+	}
+
+	ctx = cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "logical-id"},
+			{Name: "field"},
+			{Name: "confirm-reveal", Bool: true},
+		}},
+		Flags: map[string]string{"logical-id": "vrooli/demo", "field": "token"},
+	})
+	if err := reveal(ctx); err == nil || !strings.Contains(err.Error(), "--confirm-reveal") {
+		t.Fatalf("confirmation error = %v", err)
+	}
 }
 
 func TestListDoctorAndProvisionUseSafeTransport(t *testing.T) {

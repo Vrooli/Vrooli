@@ -25,6 +25,9 @@ type DiscoverParams struct {
 	// HomeDir overrides the user's home directory for claude projects discovery
 	// (tests point it at a fixture tree). Empty uses os.UserHomeDir.
 	HomeDir string
+	// SessionID pins Claude discovery once the first on-disk record has exposed
+	// the runner session id. Empty retains the launch-time discovery heuristic.
+	SessionID string
 }
 
 // findTranscript returns the discovered agent-owned transcript path, or "" when
@@ -60,6 +63,12 @@ func findTranscript(p DiscoverParams) (string, error) {
 			home = h
 		}
 		slug := SlugifyCwd(p.WorkingDir)
+		if strings.TrimSpace(p.SessionID) != "" {
+			pinned := filepath.Join(home, ".claude", "projects", slug, strings.TrimSpace(p.SessionID)+".jsonl")
+			if _, err := os.Stat(pinned); err == nil {
+				return pinned, nil
+			}
+		}
 		pattern := filepath.Join(home, ".claude", "projects", slug, "*.jsonl")
 		return newestGlobAfter(pattern, p.LaunchedAt)
 	default:

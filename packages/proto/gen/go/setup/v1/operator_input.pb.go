@@ -216,39 +216,40 @@ func (x *Candidate) GetMetadata() map[string]string {
 }
 
 type OperatorInputRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind                OperatorInputKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.setup.v1.OperatorInputKind" json:"kind,omitempty"`
-	ContractVersion     string                 `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
-	Owner               string                 `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
-	CapabilityId        string                 `protobuf:"bytes,5,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
-	ActionId            string                 `protobuf:"bytes,6,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
-	InputId             string                 `protobuf:"bytes,7,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
-	Title               string                 `protobuf:"bytes,8,opt,name=title,proto3" json:"title,omitempty"`
-	Description         string                 `protobuf:"bytes,9,opt,name=description,proto3" json:"description,omitempty"`
-	DefaultValue        string                 `protobuf:"bytes,10,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
-	Options             []string               `protobuf:"bytes,11,rep,name=options,proto3" json:"options,omitempty"`
-	Candidates          []*Candidate           `protobuf:"bytes,12,rep,name=candidates,proto3" json:"candidates,omitempty"`
-	Remediation         string                 `protobuf:"bytes,13,opt,name=remediation,proto3" json:"remediation,omitempty"`
-	Unblocks            []string               `protobuf:"bytes,14,rep,name=unblocks,proto3" json:"unblocks,omitempty"`
-	Validation          string                 `protobuf:"bytes,15,opt,name=validation,proto3" json:"validation,omitempty"`
-	Required            bool                   `protobuf:"varint,16,opt,name=required,proto3" json:"required,omitempty"`
-	Target              string                 `protobuf:"bytes,17,opt,name=target,proto3" json:"target,omitempty"`
-	Declinable          bool                   `protobuf:"varint,18,opt,name=declinable,proto3" json:"declinable,omitempty"`
-	Decision            string                 `protobuf:"bytes,19,opt,name=decision,proto3" json:"decision,omitempty"`
-	CredentialLogicalId string                 `protobuf:"bytes,20,opt,name=credential_logical_id,json=credentialLogicalId,proto3" json:"credential_logical_id,omitempty"`
-	CredentialField     string                 `protobuf:"bytes,21,opt,name=credential_field,json=credentialField,proto3" json:"credential_field,omitempty"`
-	Provider            string                 `protobuf:"bytes,22,opt,name=provider,proto3" json:"provider,omitempty"`
-	RequirementGroup    string                 `protobuf:"bytes,23,opt,name=requirement_group,json=requirementGroup,proto3" json:"requirement_group,omitempty"`
-	ConsumerRefs        []string               `protobuf:"bytes,24,rep,name=consumer_refs,json=consumerRefs,proto3" json:"consumer_refs,omitempty"`
-	CompanionSettings   []string               `protobuf:"bytes,25,rep,name=companion_settings,json=companionSettings,proto3" json:"companion_settings,omitempty"`
-	AcquisitionRef      string                 `protobuf:"bytes,26,opt,name=acquisition_ref,json=acquisitionRef,proto3" json:"acquisition_ref,omitempty"`
-	VerificationRef     string                 `protobuf:"bytes,27,opt,name=verification_ref,json=verificationRef,proto3" json:"verification_ref,omitempty"`
-	RecoveryRef         string                 `protobuf:"bytes,28,opt,name=recovery_ref,json=recoveryRef,proto3" json:"recovery_ref,omitempty"`
-	HelpRef             string                 `protobuf:"bytes,29,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
-	EvidencePolicy      string                 `protobuf:"bytes,30,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind                 OperatorInputKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.setup.v1.OperatorInputKind" json:"kind,omitempty"`
+	ContractVersion      string                 `protobuf:"bytes,3,opt,name=contract_version,json=contractVersion,proto3" json:"contract_version,omitempty"`
+	Owner                string                 `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
+	CapabilityId         string                 `protobuf:"bytes,5,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	ActionId             string                 `protobuf:"bytes,6,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
+	InputId              string                 `protobuf:"bytes,7,opt,name=input_id,json=inputId,proto3" json:"input_id,omitempty"`
+	Title                string                 `protobuf:"bytes,8,opt,name=title,proto3" json:"title,omitempty"`
+	Description          string                 `protobuf:"bytes,9,opt,name=description,proto3" json:"description,omitempty"`
+	DefaultValue         string                 `protobuf:"bytes,10,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
+	Options              []string               `protobuf:"bytes,11,rep,name=options,proto3" json:"options,omitempty"`
+	Candidates           []*Candidate           `protobuf:"bytes,12,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	Remediation          string                 `protobuf:"bytes,13,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	Unblocks             []string               `protobuf:"bytes,14,rep,name=unblocks,proto3" json:"unblocks,omitempty"`
+	Validation           string                 `protobuf:"bytes,15,opt,name=validation,proto3" json:"validation,omitempty"`
+	Required             bool                   `protobuf:"varint,16,opt,name=required,proto3" json:"required,omitempty"`
+	Target               string                 `protobuf:"bytes,17,opt,name=target,proto3" json:"target,omitempty"`
+	Declinable           bool                   `protobuf:"varint,18,opt,name=declinable,proto3" json:"declinable,omitempty"`
+	Decision             string                 `protobuf:"bytes,19,opt,name=decision,proto3" json:"decision,omitempty"`
+	CredentialLogicalId  string                 `protobuf:"bytes,20,opt,name=credential_logical_id,json=credentialLogicalId,proto3" json:"credential_logical_id,omitempty"`
+	CredentialField      string                 `protobuf:"bytes,21,opt,name=credential_field,json=credentialField,proto3" json:"credential_field,omitempty"`
+	Provider             string                 `protobuf:"bytes,22,opt,name=provider,proto3" json:"provider,omitempty"`
+	RequirementGroup     string                 `protobuf:"bytes,23,opt,name=requirement_group,json=requirementGroup,proto3" json:"requirement_group,omitempty"`
+	ConsumerRefs         []string               `protobuf:"bytes,24,rep,name=consumer_refs,json=consumerRefs,proto3" json:"consumer_refs,omitempty"`
+	CompanionSettings    []string               `protobuf:"bytes,25,rep,name=companion_settings,json=companionSettings,proto3" json:"companion_settings,omitempty"`
+	AcquisitionRef       string                 `protobuf:"bytes,26,opt,name=acquisition_ref,json=acquisitionRef,proto3" json:"acquisition_ref,omitempty"`
+	VerificationRef      string                 `protobuf:"bytes,27,opt,name=verification_ref,json=verificationRef,proto3" json:"verification_ref,omitempty"`
+	RecoveryRef          string                 `protobuf:"bytes,28,opt,name=recovery_ref,json=recoveryRef,proto3" json:"recovery_ref,omitempty"`
+	HelpRef              string                 `protobuf:"bytes,29,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
+	EvidencePolicy       string                 `protobuf:"bytes,30,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
+	CompanionCredentials []string               `protobuf:"bytes,31,rep,name=companion_credentials,json=companionCredentials,proto3" json:"companion_credentials,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *OperatorInputRequest) Reset() {
@@ -491,6 +492,13 @@ func (x *OperatorInputRequest) GetEvidencePolicy() string {
 	return ""
 }
 
+func (x *OperatorInputRequest) GetCompanionCredentials() []string {
+	if x != nil {
+		return x.CompanionCredentials
+	}
+	return nil
+}
+
 var File_setup_v1_operator_input_proto protoreflect.FileDescriptor
 
 const file_setup_v1_operator_input_proto_rawDesc = "" +
@@ -511,7 +519,7 @@ const file_setup_v1_operator_input_proto_rawDesc = "" +
 	"\bmetadata\x18\v \x03(\v2(.vrooli.setup.v1.Candidate.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb4\b\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe9\b\n" +
 	"\x14OperatorInputRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x126\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\".vrooli.setup.v1.OperatorInputKindR\x04kind\x12)\n" +
@@ -549,7 +557,8 @@ const file_setup_v1_operator_input_proto_rawDesc = "" +
 	"\x10verification_ref\x18\x1b \x01(\tR\x0fverificationRef\x12!\n" +
 	"\frecovery_ref\x18\x1c \x01(\tR\vrecoveryRef\x12\x19\n" +
 	"\bhelp_ref\x18\x1d \x01(\tR\ahelpRef\x12'\n" +
-	"\x0fevidence_policy\x18\x1e \x01(\tR\x0eevidencePolicy*\xbe\x02\n" +
+	"\x0fevidence_policy\x18\x1e \x01(\tR\x0eevidencePolicy\x123\n" +
+	"\x15companion_credentials\x18\x1f \x03(\tR\x14companionCredentials*\xbe\x02\n" +
 	"\x11OperatorInputKind\x12#\n" +
 	"\x1fOPERATOR_INPUT_KIND_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aOPERATOR_INPUT_KIND_SECRET\x10\x01\x12\x1e\n" +

@@ -18,7 +18,8 @@ type ConformanceOptions struct {
 // WorkflowOptions selects a capability catalog/status/preview/apply request.
 // Preview and apply consume Request; catalog and status do not.
 type WorkflowOptions struct {
-	Action  string
-	JSON    bool
-	Request operatorcapability.ActionRequest
+	Action       string
+	JSON         bool
+	Request      operatorcapability.ActionRequest
+	Verification operatorcapability.VerificationRequest
 }

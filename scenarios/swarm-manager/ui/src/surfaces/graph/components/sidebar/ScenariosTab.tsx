@@ -3,9 +3,8 @@ import { Package } from "lucide-react";
 import { useScenariosStore } from "../../../../stores";
 import type { Scenario } from "../../../../types";
 import { scenariosService } from "../../../../services";
-import { CollectionList as BaseCollectionList, type CollectionListProps } from "@vrooli/react-component-library/CollectionList/1.0.0";
-
-function CollectionList<T>(props: CollectionListProps<T>) { return <BaseCollectionList {...props} virtualize />; }
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1";
+import { CollectionRow } from "../../../../components/ui/collection-row";
 import { matchesSearch } from "./useSidebarSearch";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import type { ScenarioFilters, SortConfig } from "./types";
@@ -54,14 +53,18 @@ function ScenariosTabImpl({ searchQuery, filters, sort, onItemClick, onClearSear
     items={filtered}
     getKey={(scenario) => scenario.name}
     label="Scenarios"
+    virtualize
     onOpen={(scenario) => onItemClick(`scenario/${scenario.name}`)}
     selection={{ mode: "none", enterOn: ["shortcut"] }}
     actions={[
       { id: "open", label: "Open", onSelect: (selected) => { const scenario = selected[0]; if (scenario) onItemClick(`scenario/${scenario.name}`); } },
       { id: "restart", label: "Restart", bulk: true, disabled: (scenario) => scenario.status === "running" ? false : "Only running scenarios can be restarted", onSelect: async (selected) => { for (const scenario of selected) await scenariosService.restart(scenario.name); } },
     ]}
-    renderItem={(scenario) => <ScenarioSummaryCard scenario={scenario} />}
-    className="space-y-1.5"
+    renderItem={(scenario) => (
+      <CollectionRow>
+        <ScenarioSummaryCard scenario={scenario} />
+      </CollectionRow>
+    )}
   />;
 }
 

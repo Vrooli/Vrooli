@@ -50,6 +50,55 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	}
 }
 
+func TestPlanExecuteDeclaresGoalSessionStrategy(t *testing.T) {
+	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, ok := registry.Get("plan.execute")
+	if !ok || len(definition.Strategies) != 3 {
+		t.Fatalf("plan.execute strategies=%+v", definition.Strategies)
+	}
+	for _, strategy := range definition.Strategies {
+		if strategy.ID == "goal-session" {
+			if strategy.WorkflowKey != "swarm-manager/goal-session-drain" {
+				t.Fatalf("goal-session workflow=%q", strategy.WorkflowKey)
+			}
+			return
+		}
+	}
+	t.Fatal("goal-session strategy is not declared")
+}
+
+func TestGoalSessionLimitMapsToBudgetExhausted(t *testing.T) {
+	path := filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "goal-session-drain.json")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read goal-session workflow: %v", err)
+	}
+	var workflow struct {
+		Nodes []struct {
+			ID   string `json:"id"`
+			Kind string `json:"kind"`
+			End  *struct {
+				Status string `json:"status"`
+			} `json:"end"`
+		} `json:"nodes"`
+	}
+	if err := json.Unmarshal(contents, &workflow); err != nil {
+		t.Fatalf("decode goal-session workflow: %v", err)
+	}
+	for _, node := range workflow.Nodes {
+		if node.ID == "session_limit" {
+			if node.Kind != "end" || node.End == nil || node.End.Status != "budget_exhausted" {
+				t.Fatalf("session_limit end=%+v kind=%q, want budget_exhausted end", node.End, node.Kind)
+			}
+			return
+		}
+	}
+	t.Fatal("goal-session workflow is missing session_limit node")
+}
+
 func TestPhasedPlanSliceVerifiesTheCanonicalAuthoredProjection(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", "prompt-manager", "store", "skills", "packs", "core", "swarm-manager-workflow-phased-plan-slice", "SKILL.md")
 	contents, err := os.ReadFile(path)

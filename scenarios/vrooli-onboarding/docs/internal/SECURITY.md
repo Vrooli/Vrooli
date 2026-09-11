@@ -2,10 +2,12 @@
 
 ## Credential values
 
-A value crosses exactly one boundary: a request body or standard input, straight
-to the credential authority. It appears in no response, log line, request URL,
-command argument, operator-state field, browser store, or CLI output — at any
-point, in any form, on any tier.
+A value crosses exactly one provisioning boundary: a request body or standard
+input, straight to the credential authority. Provisioned values appear in no
+API response, log line, request URL, command argument, operator-state field, or
+browser store. The only display exception is the explicitly confirmed local
+`vrooli-onboarding credentials reveal` command, which refuses JSON and
+redirected output and writes directly to an interactive terminal.
 
 The wizard shows configured/unconfigured status and the descriptor's declared
 purpose and obtain link. It never reads a value back, because there is no read

@@ -85,6 +85,33 @@ func TestConsumeReplayFromCursor(t *testing.T) {
 	}
 }
 
+func TestConsumeTreatsCompletedNativeGoalAsTerminalSuccess(t *testing.T) {
+	dir := t.TempDir()
+	transcript := filepath.Join(dir, "transcript.ndjson")
+	if err := os.WriteFile(transcript, []byte("goal\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runID := uuid.New()
+	var terminal *TranscriptTerminal
+	_, got, err := Consume(context.Background(), ConsumeArgs{
+		RunID:      runID,
+		Transcript: transcript,
+		ParseFn: func(uuid.UUID, string) TranscriptParseResult {
+			return TranscriptParseResult{Goal: &GoalMarker{Objective: "finish", Status: GoalStatusComplete}}
+		},
+		OnTerminal: func(value *TranscriptTerminal) error {
+			terminal = value
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Consume: %v", err)
+	}
+	if got == nil || !got.Success || terminal == nil || !terminal.Success {
+		t.Fatalf("completed native goal did not produce terminal success: got=%+v callback=%+v", got, terminal)
+	}
+}
+
 // TestConsumeLiveReassemblesPartialLine guards the interactive-tail contract:
 // when an external writer flushes a line in two fragments across poll cycles
 // (a half-written JSON line at EOF), the live tailer must reassemble the whole

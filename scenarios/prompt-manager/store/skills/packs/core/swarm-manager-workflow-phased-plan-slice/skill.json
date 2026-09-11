@@ -22,7 +22,7 @@
       "swarm-manager"
     ]
   },
-  "revision": 12,
+  "revision": 14,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "workflow",
     "prompt-contract"
   ],
-  "updatedAt": "2026-08-29T00:00:00Z"
+  "updatedAt": "2026-09-11T00:00:00Z"
 }

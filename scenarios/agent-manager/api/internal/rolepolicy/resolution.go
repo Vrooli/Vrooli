@@ -33,9 +33,10 @@ type ResolvedCandidate struct {
 // separate from mutable State and can be persisted without rereading resource
 // policies during fallback or resume.
 type Resolution struct {
-	CatalogDigest string              `json:"catalogDigest"`
-	RoleRef       string              `json:"roleRef"`
-	Candidates    []ResolvedCandidate `json:"candidates"`
+	CatalogDigest   string              `json:"catalogDigest"`
+	RoleRef         string              `json:"roleRef"`
+	Candidates      []ResolvedCandidate `json:"candidates"`
+	SelectionReason string              `json:"selectionReason,omitempty"`
 }
 
 // Snapshot converts resource-owned resolution evidence into the domain's
@@ -65,7 +66,8 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 	}
 	return &domain.ExecutionPolicySnapshot{
 		CatalogDigest: r.CatalogDigest, RoleRef: r.RoleRef, Candidates: candidates,
-		Explanation: domain.PolicyResolutionExplanation{Source: "portable_role", Summary: fmt.Sprintf("portable role %q resolved through resource-owned policy catalogs", r.RoleRef), RequestedRoleRef: r.RoleRef},
+		Explanation:     domain.PolicyResolutionExplanation{Source: "portable_role", Summary: fmt.Sprintf("portable role %q resolved through resource-owned policy catalogs", r.RoleRef), RequestedRoleRef: r.RoleRef},
+		SelectionReason: r.SelectionReason,
 	}
 }
 
@@ -87,6 +89,10 @@ func challengerRate(value *domain.ChallengerConfig) float64 {
 // Unavailable/unknown resources remain represented as evidence so callers can
 // surface truthful diagnostics and choose a later available candidate.
 func (s *State) Resolve(ctx context.Context, resolver Resolver, roleRef string) (*Resolution, error) {
+	return s.ResolvePreferred(ctx, resolver, roleRef, "")
+}
+
+func (s *State) ResolvePreferred(ctx context.Context, resolver Resolver, roleRef, preferredRunner string) (*Resolution, error) {
 	roleRef = strings.TrimSpace(roleRef)
 	if roleRef == "" {
 		return nil, domain.NewValidationError("roleRef", "field is required")
@@ -103,8 +109,27 @@ func (s *State) Resolve(ctx context.Context, resolver Resolver, roleRef string) 
 		return nil, domain.NewValidationError("roleRef", fmt.Sprintf("role %q is not declared in active catalog %s", roleRef, revision.Digest()))
 	}
 
-	result := &Resolution{CatalogDigest: revision.Digest(), RoleRef: roleRef, Candidates: make([]ResolvedCandidate, 0, len(role.Candidates))}
-	for _, candidate := range role.Candidates {
+	ordered := append([]Candidate(nil), role.Candidates...)
+	preferredRunner = strings.TrimSpace(preferredRunner)
+	selectionReason := "catalog_order"
+	if preferredRunner != "" {
+		found := false
+		for i, candidate := range ordered {
+			if string(candidate.Runner) == preferredRunner {
+				found = true
+				if i > 0 {
+					ordered = append([]Candidate{candidate}, append(ordered[:i], ordered[i+1:]...)...)
+				}
+				selectionReason = "preferred"
+				break
+			}
+		}
+		if !found {
+			selectionReason = "preferred_unavailable:runner_not_declared"
+		}
+	}
+	result := &Resolution{CatalogDigest: revision.Digest(), RoleRef: roleRef, Candidates: make([]ResolvedCandidate, 0, len(ordered)), SelectionReason: selectionReason}
+	for _, candidate := range ordered {
 		resolved := ResolvedCandidate{Runner: candidate.Runner, ResourceRole: candidate.ResourceRole}
 		evidence, resolveErr := resolver.Resolve(ctx, candidate.Runner, candidate.ResourceRole)
 		if resolveErr != nil {

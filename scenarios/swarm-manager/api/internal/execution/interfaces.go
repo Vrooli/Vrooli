@@ -22,6 +22,13 @@ type AgentManagerAvailability interface {
 	IsEnabled() bool
 }
 
+// NativeGoalAvailability is an optional Agent Manager capability probe used
+// by the goal-session strategy. The optional seam preserves narrow domain
+// tests and degraded read-only operation when Agent Manager is absent.
+type NativeGoalAvailability interface {
+	NativeGoalRunnersAvailable(context.Context) (bool, error)
+}
+
 // RunStopper cancels a running agent session.
 type RunStopper interface {
 	StopRun(ctx context.Context, runID string) error

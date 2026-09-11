@@ -72,7 +72,7 @@ func NewServer() *Server {
 	srv := &Server{
 		router: mux.NewRouter(),
 		roots:  roots,
-		bridge: nodereach.New(nodereach.Config{}),
+		bridge: nodereach.New(bridgeClientConfig()),
 	}
 	// NewServer is also the deterministic in-process test harness. Production
 	// main replaces this with the environment-bound shared authentication config.
@@ -111,6 +111,8 @@ func (s *Server) setupRoutes() {
 	glossaryH.Module().Mount(s.router)
 	sessionH.Module(sessiondomain.Service{Get: s.getSession, Advance: s.advanceSession, Model: s.getStepModel, GetDraftFn: s.getDraft, SaveDraftFn: s.saveDraft, DiscardDraftFn: s.discardDraft, GetProfileSessionFn: s.getProfileSession, SaveProfileSessionFn: s.saveProfileSession}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	selectionH.Module(s.selectionService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
+	s.router.Handle("/api/v2/handoff", selectionH.RESTHandoffHandler(s.selectionService())).Methods(http.MethodPost)
+	mountOnboardingAuthHandler(s.router)
 }
 
 func resourceService() resourcesdomain.Service {
@@ -175,15 +177,10 @@ func onboardingAuthenticationConfig() authn.Config {
 	// provider is an explicit bundled-desktop opt-in, never an implicit fallback
 	// that turns an unconfigured API into a human-authorized endpoint.
 	if mode == "personal_local" {
-		local := authn.NewPersonalLocalProviderWithTokenFile(
-			os.Getenv("VROOLI_AUTH_LOCAL_TOKEN_FILE"),
-			"vrooli-onboarding:read",
-			"vrooli-onboarding:write",
-			"vrooli-onboarding:destructive",
-		)
+		local := newOnboardingPersonalLocalProvider()
 		return authn.Config{Providers: []authn.Provider{local}, RecoveryURL: shared.RecoveryURL}
 	}
-	return authn.Config{Providers: append([]authn.Provider(nil), shared.Providers...), RecoveryURL: shared.RecoveryURL}
+	return authn.Config{Providers: onboardingAuthProviders(shared.Providers), RecoveryURL: shared.RecoveryURL}
 }
 
 // onboardingScenarioName is this API's own scenario. The apply executor needs

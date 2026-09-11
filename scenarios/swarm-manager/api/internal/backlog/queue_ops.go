@@ -96,14 +96,15 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
-		BacklogKind: string(kind),
-		BacklogName: name,
-		Mode:        mode,
-		StartedBy:   startedBy,
-		Operation:   operation,
-		Force:       force,
-		Strategy:    params.strategy,
-		MaxSlices:   params.maxSlices,
+		BacklogKind:          string(kind),
+		BacklogName:          name,
+		Mode:                 mode,
+		StartedBy:            startedBy,
+		Operation:            operation,
+		Force:                force,
+		Strategy:             params.strategy,
+		MaxSlices:            params.maxSlices,
+		ExecutionPreferences: params.preferences,
 	})
 	if err != nil {
 		mapQueueBacklogError(w, err)
@@ -140,13 +141,14 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 
 // queueRequestParams holds the normalized inputs parsed from a queue request.
 type queueRequestParams struct {
-	operation string
-	confirm   bool
-	force     bool
-	mode      execution.Mode
-	startedBy string
-	strategy  string
-	maxSlices int
+	operation   string
+	confirm     bool
+	force       bool
+	mode        execution.Mode
+	startedBy   string
+	strategy    string
+	maxSlices   int
+	preferences *execution.ExecutionPreferences
 }
 
 // parseQueueRequest decodes and normalizes the queue request body, applying
@@ -175,6 +177,13 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 		startedBy: strings.TrimSpace(pbReq.GetStartedBy()),
 		strategy:  strings.TrimSpace(pbReq.GetStrategy()),
 		maxSlices: int(pbReq.GetMaxSlices()),
+	}
+	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
+		params.preferences = &execution.ExecutionPreferences{
+			PreferredRunner: preferences.GetPreferredRunner(),
+			Model:           preferences.GetModel(),
+			Effort:          preferences.GetEffort(),
+		}
 	}
 	if pbReq.GetOperation() != "" {
 		params.operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))

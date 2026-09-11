@@ -3,6 +3,7 @@ package codecs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -156,7 +157,7 @@ func TestCodex_BuildContinueArgs_IncludesSessionAndPrompt(t *testing.T) {
 		SessionID: "thread-abc",
 		Prompt:    "follow up message",
 	})
-	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "thread-abc", "follow up message"}
+	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", "thread-abc", "follow up message"}
 	if len(args) != len(want) {
 		t.Fatalf("len=%d want=%d args=%v", len(args), len(want), args)
 	}
@@ -648,6 +649,48 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountUsesCumulativeTotal(t *testi
 	usage, ok := second.Events[0].Data.(*domain.UsageEventData)
 	if !ok || usage.InputTokens != 50 || usage.OutputTokens != 40 || usage.CacheReadTokens != 100 {
 		t.Fatalf("usage=%+v, want cumulative delta split from cache", second.Events[0].Data)
+	}
+}
+
+func TestCodex_ParseTranscriptLine_RolloutTaskCompleteAuthorizesLatestUsage(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	usage := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30}}}}`)
+	if len(usage.Events) != 1 {
+		t.Fatalf("usage events=%d, want one", len(usage.Events))
+	}
+	if got := usage.Events[0].Data.(*domain.UsageEventData).ReconciliationAuthority; got {
+		t.Fatal("interim rollout usage was authoritative")
+	}
+	terminal := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"task_complete"}}`)
+	if terminal.Terminal == nil || !terminal.Terminal.Success {
+		t.Fatalf("terminal=%+v, want successful task_complete", terminal.Terminal)
+	}
+	if len(terminal.Events) != 1 {
+		t.Fatalf("terminal events=%d, want one authoritative usage event", len(terminal.Events))
+	}
+	if got := terminal.Events[0].Data.(*domain.UsageEventData).ReconciliationAuthority; !got {
+		t.Fatal("latest rollout usage was not emitted with terminal authority")
+	}
+}
+
+func TestCodex_ParseTranscriptLine_RolloutTurnsPreserveProviderTurnIDs(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	for _, turn := range []string{"turn-a", "turn-b"} {
+		started := parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":"event_msg","payload":{"type":"task_started","turn_id":%q}}`, turn))
+		if started.Terminal != nil {
+			t.Fatalf("task_started became terminal: %+v", started.Terminal)
+		}
+		message := parser.ParseTranscriptLine(runID, fmt.Sprintf(`{"type":"event_msg","payload":{"type":"agent_message","message":%q}}`, turn))
+		if len(message.Events) != 1 {
+			t.Fatalf("message events=%d, want one", len(message.Events))
+		}
+		got := message.Events[0].Data.(*domain.MessageEventData).TurnID
+		if got != turn {
+			t.Fatalf("turn id=%q, want %q", got, turn)
+		}
+		parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"task_complete"}}`)
 	}
 }
 

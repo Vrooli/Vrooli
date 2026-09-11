@@ -20,6 +20,8 @@ type PlanAcceptanceContract struct {
 	PlanRef           *PlanAcceptanceReference `json:"plan_ref,omitempty"`
 	ExecutionStrategy string                   `json:"execution_strategy,omitempty"`
 	ExecutionLimits   *ExecutionLimits         `json:"execution_limits,omitempty"`
+	Continuation      string                   `json:"continuation,omitempty"`
+	ScopePolicy       string                   `json:"scope_policy,omitempty"`
 }
 
 // Retain empty reference fields consistently. Backlog's approval projection

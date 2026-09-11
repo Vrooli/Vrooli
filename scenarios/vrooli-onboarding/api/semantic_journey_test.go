@@ -212,19 +212,36 @@ func TestPurposeProfileJourneyUsesGeneratedAPIAndCLI(t *testing.T) {
 	}
 
 	answers, err := structpb.NewStruct(map[string]any{
-		"purposes":         []any{"publish-apps"},
-		"desktopPlatforms": []any{"linux"},
-		"mobilePlatforms":  []any{"android", "ios"},
-		"hosting":          "managed-vps",
+		"purposes":           []any{"publish-apps"},
+		"desktopPlatforms":   []any{"linux"},
+		"mobilePlatforms":    []any{"android", "ios"},
+		"hosting":            "managed-vps",
+		"distributionMethod": "direct-download",
+		"accountOwnership":   "operator-owned",
+		"payments":           "stripe",
+		"mail":               "provider",
+		"downloadStorage":    "s3",
+		"remoteTargets":      "connected-host",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	evaluated, err := profilesClient.EvaluateProfile(context.Background(), connect.NewRequest(&profilesv1.EvaluateProfileRequest{Target: "local", ProfileId: "general-purpose", Answers: answers.Fields}))
+	presetAnswers, err := structpb.NewStruct(map[string]any{"purposes": []any{"develop-apps"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !evaluated.Msg.GetValid() || evaluated.Msg.GetDigest() == "" || len(evaluated.Msg.GetExplanations()) == 0 || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-ios") || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-cloud") {
+	targetContext, err := structpb.NewStruct(map[string]any{"catalogRevision": "catalog-r17"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	evaluated, err := profilesClient.EvaluateProfile(context.Background(), connect.NewRequest(&profilesv1.EvaluateProfileRequest{
+		Target: "local", ProfileId: "general-purpose", Answers: answers.Fields, TargetContext: targetContext,
+		Preset: &profilesv1.ProfilePreset{Id: "customer-fixture", Version: "1.0.0", Source: "installation", Answers: presetAnswers.Fields},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !evaluated.Msg.GetValid() || evaluated.Msg.GetDigest() == "" || evaluated.Msg.GetCatalogRevision() != "catalog-r17" || evaluated.Msg.GetPreset().GetSource() != "installation" || len(evaluated.Msg.GetExplanations()) == 0 || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-ios") || !containsString(evaluated.Msg.GetScenarios(), "scenario-to-cloud") {
 		t.Fatalf("generated API profile evaluation did not produce publishing closure: %+v", evaluated.Msg)
 	}
 	customerAnswers, err := structpb.NewStruct(map[string]any{
@@ -241,6 +258,19 @@ func TestPurposeProfileJourneyUsesGeneratedAPIAndCLI(t *testing.T) {
 	}
 	if !customer.Msg.GetValid() || customer.Msg.GetProfile().GetProvenanceSource() != "customer-preset" || !containsString(customer.Msg.GetScenarios(), "landing-page-business-suite") {
 		t.Fatalf("generated API customer profile evaluation lost provenance or closure: %+v", customer.Msg)
+	}
+	composedAnswers, err := structpb.NewStruct(map[string]any{"purposes": []any{"use-local-apps"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	composed, err := profilesClient.EvaluateProfile(context.Background(), connect.NewRequest(&profilesv1.EvaluateProfileRequest{
+		Target: "local", ProfileIds: []string{"local-use", "customer-preinstalled"}, Answers: composedAnswers.Fields,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !composed.Msg.GetValid() || composed.Msg.GetProfile().GetId() != "composed" || len(composed.Msg.GetProfiles()) != 2 || !containsProfileID(composed.Msg.GetProfiles(), "local-use") || !containsProfileID(composed.Msg.GetProfiles(), "customer-preinstalled") {
+		t.Fatalf("generated API did not preserve composed profile provenance: %+v", composed.Msg)
 	}
 
 	cliPath := buildOnboardingCLI(t)
@@ -264,7 +294,7 @@ func TestPurposeProfileJourneyUsesGeneratedAPIAndCLI(t *testing.T) {
 		t.Fatalf("CLI profile list omitted general-purpose: %s", listOutput)
 	}
 
-	evaluationOutput := runProfileCLI(t, cliPath, httpServer.URL, "profiles", "evaluate", "--profile-id", "general-purpose", "--answers", `{"purposes":["publish-apps"],"desktopPlatforms":["linux"],"mobilePlatforms":["android","ios"],"hosting":"managed-vps"}`, "--json")
+	evaluationOutput := runProfileCLI(t, cliPath, httpServer.URL, "profiles", "evaluate", "--profile-id", "general-purpose", "--answers", `{"purposes":["publish-apps"],"desktopPlatforms":["linux"],"mobilePlatforms":["android","ios"],"hosting":"managed-vps","distributionMethod":"direct-download","accountOwnership":"operator-owned","payments":"stripe","mail":"provider","downloadStorage":"s3","remoteTargets":"connected-host"}`, "--json")
 	var evaluationJSON struct {
 		Valid     bool     `json:"valid"`
 		Scenarios []string `json:"scenarios"`
@@ -289,6 +319,23 @@ func TestPurposeProfileJourneyUsesGeneratedAPIAndCLI(t *testing.T) {
 	}
 	if !customerJSON.Valid || customerJSON.Profile.ProvenanceSource != "customer-preset" || !containsString(customerJSON.Scenarios, "landing-page-business-suite") {
 		t.Fatalf("CLI customer profile evaluation lost provenance or closure: %s", customerOutput)
+	}
+
+	composedOutput := runProfileCLI(t, cliPath, httpServer.URL, "profiles", "evaluate", "--profile-ids", "local-use", "--profile-ids", "customer-preinstalled", "--answers", `{"purposes":["use-local-apps"]}`, "--json")
+	var composedJSON struct {
+		Profile struct {
+			ID string `json:"id"`
+		} `json:"profile"`
+		Profiles []struct {
+			ID string `json:"id"`
+		} `json:"profiles"`
+		Valid bool `json:"valid"`
+	}
+	if err := json.Unmarshal(composedOutput, &composedJSON); err != nil {
+		t.Fatalf("decode CLI composed profile evaluation: %v\n%s", err, composedOutput)
+	}
+	if !composedJSON.Valid || composedJSON.Profile.ID != "composed" || len(composedJSON.Profiles) != 2 {
+		t.Fatalf("CLI profile composition lost source provenance: %s", composedOutput)
 	}
 }
 

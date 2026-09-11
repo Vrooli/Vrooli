@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	profilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles"
@@ -55,11 +56,34 @@ func (h *connectHandler) EvaluateProfile(ctx context.Context, request *connect.R
 	for key, selected := range request.Msg.GetManualDecisions() {
 		manualDecisions[key] = selected
 	}
-	result, err := h.service.EvaluateWithManualDecisions(ctx, request.Msg.GetProfileId(), answers, targetContext, manualDecisions)
+	var preset *profilesdomain.Preset
+	if request.Msg.GetPreset() != nil {
+		preset = &profilesdomain.Preset{ID: request.Msg.GetPreset().GetId(), Version: request.Msg.GetPreset().GetVersion(), Source: request.Msg.GetPreset().GetSource(), Answers: map[string]any{}}
+		for key, value := range request.Msg.GetPreset().GetAnswers() {
+			preset.Answers[key] = value.AsInterface()
+		}
+	}
+	profileIDs := request.Msg.GetProfileIds()
+	if len(profileIDs) > 0 && strings.TrimSpace(request.Msg.GetProfileId()) != "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("use profile_id or profile_ids, not both"))
+	}
+	var result profilesdomain.Evaluation
+	var err error
+	if len(profileIDs) > 0 {
+		result, err = h.service.EvaluateProfiles(ctx, profileIDs, answers, targetContext, manualDecisions, preset)
+	} else {
+		if strings.TrimSpace(request.Msg.GetProfileId()) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("profile_id or profile_ids is required"))
+		}
+		result, err = h.service.EvaluateWithPreset(ctx, request.Msg.GetProfileId(), answers, targetContext, manualDecisions, preset)
+	}
 	if err != nil {
 		return nil, profilesError(err)
 	}
-	response := &profilesv1.EvaluateProfileResponse{Profile: toProtoProfile(result.Profile), Scenarios: result.Scenarios, Resources: result.Resources, Valid: result.Valid, Digest: result.Digest}
+	response := &profilesv1.EvaluateProfileResponse{Profile: toProtoProfile(result.Profile), Scenarios: result.Scenarios, Resources: result.Resources, Valid: result.Valid, Digest: result.Digest, CatalogRevision: result.CatalogRevision, Preset: toProtoPreset(result.Preset)}
+	for _, profile := range result.Profiles {
+		response.Profiles = append(response.Profiles, toProtoProfile(profile))
+	}
 	for _, question := range result.Questions {
 		response.Questions = append(response.Questions, toProtoQuestion(question))
 	}
@@ -72,12 +96,33 @@ func (h *connectHandler) EvaluateProfile(ctx context.Context, request *connect.R
 	for _, issue := range result.Issues {
 		response.Issues = append(response.Issues, &profilesv1.ProfileValidationIssue{Field: issue.Field, Code: issue.Code, Message: issue.Message})
 	}
+	for _, conflict := range result.Conflicts {
+		response.Conflicts = append(response.Conflicts, &profilesv1.ProfileConflict{Code: conflict.Code, CapabilityRef: conflict.CapabilityRef, RecommendationKeys: conflict.Recommendation, Message: conflict.Message})
+	}
+	for _, outstanding := range result.Outstanding {
+		response.Outstanding = append(response.Outstanding, &profilesv1.ProfileOutstanding{Field: outstanding.Field, Code: outstanding.Code, CapabilityRef: outstanding.CapabilityRef, Message: outstanding.Message})
+	}
 	return connect.NewResponse(response), nil
 }
 
 func toProtoProfile(item profilesdomain.ProfileSummary) *profilesv1.Profile {
 	return &profilesv1.Profile{Id: item.ID, Version: item.Version, Default: item.Default, TitleKey: item.TitleKey, DescriptionKey: item.DescriptionKey, Owner: item.Owner, ProvenanceSource: item.ProvenanceSource, ProvenanceRevision: item.ProvenanceRevision, SchemaVersion: item.SchemaVersion, CompatibleCatalogMajor: int32(item.CompatibleCatalogMajor), ManualSelectionAvailable: item.ManualSelectionAvailable}
 }
+
+func toProtoPreset(item *profilesdomain.Preset) *profilesv1.ProfilePreset {
+	if item == nil {
+		return nil
+	}
+	result := &profilesv1.ProfilePreset{Id: item.ID, Version: item.Version, Source: item.Source, Answers: map[string]*structpb.Value{}}
+	for key, value := range item.Answers {
+		converted, err := structpb.NewValue(value)
+		if err == nil {
+			result.Answers[key] = converted
+		}
+	}
+	return result
+}
+
 func toProtoQuestion(item profilesdomain.QuestionView) *profilesv1.ProfileQuestion {
 	result := &profilesv1.ProfileQuestion{Id: item.ID, Type: item.Type, PromptKey: item.PromptKey, Required: item.Required, MinSelections: int32(item.MinSelections), MaxSelections: int32(item.MaxSelections), Visible: item.Visible}
 	if len(item.Default) > 0 {

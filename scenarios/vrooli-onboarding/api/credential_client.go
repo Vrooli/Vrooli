@@ -21,6 +21,12 @@ import (
 // declared ceiling.
 var onboardingAuthority = credentialauthority.Default
 
+// credentialClientContextKey carries one request-scoped client through the
+// readiness status seam. Constructing a fresh client for every descriptor can
+// repeat authority/backend initialization dozens of times on a single page
+// load; the client is safe to share across the bounded status probes.
+type credentialClientContextKey struct{}
+
 // onboardingCredentialClientOptions builds the client the onboarding API uses.
 //
 // Three fields decide what the client can answer, and each one is load-bearing
@@ -138,19 +144,22 @@ func onboardingKeyringJSON(ctx context.Context, action string) ([]byte, error) {
 	return json.Marshal(report)
 }
 
-func onboardingProvision(ctx context.Context, logicalID, field, value string) error {
+func onboardingProvision(ctx context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
 	client, err := onboardingCredentialClient()
 	if err != nil {
-		return err
+		return credentialclient.ProvisionResponse{}, err
 	}
-	_, err = client.Provision(ctx, credentialclient.ProvisionRequest{Identity: logicalID, Field: field, Value: value})
-	return err
+	return client.Provision(ctx, credentialclient.ProvisionRequest{Identity: logicalID, Field: field, Value: value})
 }
 
 func onboardingStatusJSON(ctx context.Context, logicalID, field string) ([]byte, error) {
-	client, err := onboardingCredentialClient()
-	if err != nil {
-		return nil, err
+	client, ok := ctx.Value(credentialClientContextKey{}).(credentialclient.Client)
+	if !ok {
+		var err error
+		client, err = onboardingCredentialClient()
+		if err != nil {
+			return nil, err
+		}
 	}
 	status, err := client.Status(ctx, logicalID, field)
 	if err != nil {

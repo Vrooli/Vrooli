@@ -319,9 +319,14 @@ type opencodeState struct {
 	// Empty (e.g. transcript replay, no resolved dir) disables the guard.
 	workingDir string
 	retainUser bool
+	billing    domain.BillingSnapshot
 }
 
 func (s *opencodeState) SessionID() string { return s.sessionID }
+
+// SetStateBilling satisfies [runner.BillingStateSetter] for the live decode
+// path so a subscription run never emits a metered charge.
+func (s *opencodeState) SetStateBilling(billing domain.BillingSnapshot) { s.billing = billing }
 
 // NewState satisfies [Codec].
 func (c *OpenCode) NewState() State { return &opencodeState{retainUser: true} }
@@ -673,6 +678,10 @@ func (p *opencodeTranscriptParser) SetTranscriptModel(model string) {
 
 func (p *opencodeTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
 
+func (p *opencodeTranscriptParser) SetTranscriptBilling(billing domain.BillingSnapshot) {
+	p.state.billing = billing
+}
+
 type opencodeTranscriptParser struct {
 	codec *OpenCode
 	state *opencodeState
@@ -949,7 +958,7 @@ func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part 
 	if state.turn == 0 {
 		state.turn = 1
 	}
-	if costEvents := markUsageTurn(buildOpenCodeCostEvent(runID, part, state.model), state.turn); len(costEvents) > 0 {
+	if costEvents := markUsageTurn(buildOpenCodeCostEvent(runID, part, state.model, state.billing), state.turn); len(costEvents) > 0 {
 		events = append(events, costEvents...)
 	}
 	terminal := isTerminalStepFinish(part)
@@ -963,7 +972,7 @@ func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part 
 	return events
 }
 
-func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart, model string) []*domain.RunEvent {
+func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart, model string, billing domain.BillingSnapshot) []*domain.RunEvent {
 	var inputTokens, outputTokens, cacheRead, cacheWrite int
 	if part.Tokens != nil {
 		inputTokens = part.Tokens.Input
@@ -988,15 +997,7 @@ func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart, model string) [
 			Model:               model,
 		},
 	}
-	amount := int64(part.Cost*1_000_000 + 0.5)
-	charge := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: &domain.ChargeEventData{
-		PayloadKind:    domain.PayloadKindCharge,
-		Basis:          domain.ChargeBasisMetered,
-		AmountMicroUSD: &amount,
-		Currency:       "USD",
-		RunnerType:     string(domain.RunnerTypeOpenCode),
-		Model:          model,
-	}}
+	charge := nativeChargeEvent(runID, domain.RunnerTypeOpenCode, model, billing, part.Cost)
 	return []*domain.RunEvent{usage, charge}
 }
 

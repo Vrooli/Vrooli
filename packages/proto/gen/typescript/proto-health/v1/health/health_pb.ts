@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto-health/v1/health/health.proto.
  */
 export const file_proto_health_v1_health_health: GenFile = /*@__PURE__*/
-  fileDesc("CiNwcm90by1oZWFsdGgvdjEvaGVhbHRoL2hlYWx0aC5wcm90bxIddnJvb2xpLnByb3RvX2hlYWx0aC52MS5oZWFsdGgiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSKxAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEk8KDGRlcGVuZGVuY2llcxgHIAMoCzI5LnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5GmQKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI+CgV2YWx1ZRgCIAEoCzIvLnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLkRlcGVuZGVuY3lTdGF0dXM6AjgBQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL2hlYWx0aDtoZWFsdGhfdjFiBnByb3RvMw");
+  fileDesc("CiNwcm90by1oZWFsdGgvdjEvaGVhbHRoL2hlYWx0aC5wcm90bxIddnJvb2xpLnByb3RvX2hlYWx0aC52MS5oZWFsdGgiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSLJAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEk8KDGRlcGVuZGVuY2llcxgHIAMoCzI5LnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EhYKDmJ1aWxkX2lkZW50aXR5GAggASgJGmQKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI+CgV2YWx1ZRgCIAEoCzIvLnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLkRlcGVuZGVuY3lTdGF0dXM6AjgBQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL2hlYWx0aDtoZWFsdGhfdjFiBnByb3RvMw");
 
 /**
  * DependencyStatus is reported per dependency from the /health endpoint.
@@ -114,6 +114,17 @@ export type Response = Message<"vrooli.proto_health.v1.health.Response"> & {
    * @generated from field: map<string, vrooli.proto_health.v1.health.DependencyStatus> dependencies = 7;
    */
   dependencies: { [key: string]: DependencyStatus };
+
+  /**
+   * Build identity — the SHA-256 hash of the authored scenario source that
+   * the lifecycle injected as VROOLI_BUILD_IDENTITY. The control plane
+   * health probe compares this against the registry-computed value to
+   * reject a healthy HTTP responder that belongs to an older source
+   * revision. Empty when unset (pre-VROOLI_BUILD_IDENTITY processes).
+   *
+   * @generated from field: string build_identity = 8;
+   */
+  buildIdentity: string;
 };
 
 /**

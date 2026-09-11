@@ -521,6 +521,9 @@ enum RunEventType {
   // runner-acquired, runner-exited, finalize-started, finalize-completed).
   // Emitted only by internal/orchestration/obs/events.go helpers.
   RUN_EVENT_TYPE_LIFECYCLE = 11;
+
+  // Runner-owned objective status observation.
+  RUN_EVENT_TYPE_GOAL_STATUS_CHANGED = 12;
 }
 
 // =============================================================================

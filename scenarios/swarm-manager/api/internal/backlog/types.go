@@ -155,8 +155,13 @@ type BacklogItem struct {
 	PlanRef            *PlanRef    `json:"plan_ref,omitempty"`
 	// ExecutionStrategy selects the plan runner. It is deliberately part of
 	// the plan-backed item contract rather than a separate backlog kind.
-	ExecutionStrategy string                    `json:"execution_strategy,omitempty"`
-	ExecutionLimits   *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	ExecutionStrategy         string                    `json:"execution_strategy,omitempty"`
+	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	Continuation              string                    `json:"continuation,omitempty"`
+	ScopePolicy               string                    `json:"scope_policy,omitempty"`
+	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
+	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`
+	ContinuationStoppedReason string                    `json:"continuation_stopped_reason,omitempty"`
 	// PlanAcceptance is the operator's explicit acceptance of the exact
 	// canonical plan revision this item may execute. It is intentionally
 	// separate from workshop history: workshops inform planning, while this
@@ -236,6 +241,11 @@ const (
 	PlanRefRoleOperatingMode             = "operating_mode_plan"
 	ExecutionStrategyPhasedPlanDrain     = "phased-plan-drain"
 	ExecutionStrategyAdaptiveImprovement = "adaptive-improvement"
+	ExecutionStrategyGoalSession         = "goal-session"
+	ContinuationManual                   = "manual"
+	ContinuationUntilAllowance           = "until-allowance"
+	ScopePolicyFixed                     = "fixed"
+	ScopePolicyExtendWithRecord          = "extend-with-record"
 )
 
 func normalizeExecutionStrategy(raw string) (string, error) {
@@ -244,11 +254,33 @@ func normalizeExecutionStrategy(raw string) (string, error) {
 		return "", nil
 	}
 	switch value {
-	case ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement:
+	case ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement, ExecutionStrategyGoalSession:
 		return value, nil
 	default:
-		return "", fmt.Errorf("execution_strategy must be %q or %q", ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement)
+		return "", fmt.Errorf("execution_strategy must be %q, %q, or %q", ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement, ExecutionStrategyGoalSession)
 	}
+}
+
+func normalizeContinuation(raw string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return ContinuationManual, nil
+	}
+	if value == ContinuationManual || value == ContinuationUntilAllowance {
+		return value, nil
+	}
+	return "", fmt.Errorf("continuation must be %q or %q", ContinuationManual, ContinuationUntilAllowance)
+}
+
+func normalizeScopePolicy(raw string) (string, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return ScopePolicyFixed, nil
+	}
+	if value == ScopePolicyFixed || value == ScopePolicyExtendWithRecord {
+		return value, nil
+	}
+	return "", fmt.Errorf("scope_policy must be %q or %q", ScopePolicyFixed, ScopePolicyExtendWithRecord)
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -362,6 +394,21 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 		result.ExecutionStrategy = &item.ExecutionStrategy
 	}
 	result.ExecutionLimits = executionLimitsProto(item.ExecutionLimits)
+	if strings.TrimSpace(item.Continuation) != "" {
+		result.Continuation = &item.Continuation
+	}
+	if strings.TrimSpace(item.ScopePolicy) != "" {
+		result.ScopePolicy = &item.ScopePolicy
+	}
+	if strings.TrimSpace(item.ContinuationHaltedAt) != "" {
+		result.ContinuationHaltedAt = &item.ContinuationHaltedAt
+	}
+	if strings.TrimSpace(item.ContinuationHaltedBy) != "" {
+		result.ContinuationHaltedBy = &item.ContinuationHaltedBy
+	}
+	if strings.TrimSpace(item.ContinuationStoppedReason) != "" {
+		result.ContinuationStoppedReason = &item.ContinuationStoppedReason
+	}
 	if item.PlanAcceptance != nil {
 		result.PlanAcceptance = &domainpb.PlanAcceptance{
 			Actor:           item.PlanAcceptance.Actor,

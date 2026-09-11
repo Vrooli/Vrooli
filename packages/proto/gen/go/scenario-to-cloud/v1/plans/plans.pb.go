@@ -330,13 +330,17 @@ func (x *Action) GetDowntime() *Downtime {
 
 // Handoff is the single durable reference an operator resumes from.
 type Handoff struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	Reference     string                 `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`
-	Missing       []string               `protobuf:"bytes,4,rep,name=missing,proto3" json:"missing,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Owner           string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Kind            string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Reference       string                 `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`
+	Missing         []string               `protobuf:"bytes,4,rep,name=missing,proto3" json:"missing,omitempty"`
+	DeploymentId    string                 `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	Target          *Target                `protobuf:"bytes,6,opt,name=target,proto3" json:"target,omitempty"`
+	DesiredRevision uint64                 `protobuf:"varint,7,opt,name=desired_revision,json=desiredRevision,proto3" json:"desired_revision,omitempty"`
+	SelectionDigest string                 `protobuf:"bytes,8,opt,name=selection_digest,json=selectionDigest,proto3" json:"selection_digest,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Handoff) Reset() {
@@ -395,6 +399,34 @@ func (x *Handoff) GetMissing() []string {
 		return x.Missing
 	}
 	return nil
+}
+
+func (x *Handoff) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *Handoff) GetTarget() *Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *Handoff) GetDesiredRevision() uint64 {
+	if x != nil {
+		return x.DesiredRevision
+	}
+	return 0
+}
+
+func (x *Handoff) GetSelectionDigest() string {
+	if x != nil {
+		return x.SelectionDigest
+	}
+	return ""
 }
 
 // Presentation is human text, excluded from the semantic digest.
@@ -1283,12 +1315,16 @@ const file_scenario_to_cloud_v1_plans_plans_proto_rawDesc = "" +
 	"\bdowntime\x18\v \x01(\v2+.vrooli.scenario_to_cloud.v1.plans.DowntimeR\bdowntime\x1a9\n" +
 	"\vInputsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa9\x02\n" +
 	"\aHandoff\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1c\n" +
 	"\treference\x18\x03 \x01(\tR\treference\x12\x18\n" +
-	"\amissing\x18\x04 \x03(\tR\amissing\"\x88\x01\n" +
+	"\amissing\x18\x04 \x03(\tR\amissing\x12#\n" +
+	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12A\n" +
+	"\x06target\x18\x06 \x01(\v2).vrooli.scenario_to_cloud.v1.plans.TargetR\x06target\x12)\n" +
+	"\x10desired_revision\x18\a \x01(\x04R\x0fdesiredRevision\x12)\n" +
+	"\x10selection_digest\x18\b \x01(\tR\x0fselectionDigest\"\x88\x01\n" +
 	"\fPresentation\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12#\n" +
@@ -1405,27 +1441,28 @@ var file_scenario_to_cloud_v1_plans_plans_proto_goTypes = []any{
 var file_scenario_to_cloud_v1_plans_plans_proto_depIdxs = []int32{
 	15, // 0: vrooli.scenario_to_cloud.v1.plans.Action.inputs:type_name -> vrooli.scenario_to_cloud.v1.plans.Action.InputsEntry
 	2,  // 1: vrooli.scenario_to_cloud.v1.plans.Action.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
-	0,  // 2: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.target:type_name -> vrooli.scenario_to_cloud.v1.plans.Target
-	1,  // 3: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.preconditions:type_name -> vrooli.scenario_to_cloud.v1.plans.Precondition
-	3,  // 4: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.actions:type_name -> vrooli.scenario_to_cloud.v1.plans.Action
-	4,  // 5: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
-	5,  // 6: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.presentation:type_name -> vrooli.scenario_to_cloud.v1.plans.Presentation
-	7,  // 7: vrooli.scenario_to_cloud.v1.plans.Preview.changes:type_name -> vrooli.scenario_to_cloud.v1.plans.Change
-	8,  // 8: vrooli.scenario_to_cloud.v1.plans.Preview.data_effects:type_name -> vrooli.scenario_to_cloud.v1.plans.DataEffect
-	2,  // 9: vrooli.scenario_to_cloud.v1.plans.Preview.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
-	4,  // 10: vrooli.scenario_to_cloud.v1.plans.Preview.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
-	9,  // 11: vrooli.scenario_to_cloud.v1.plans.Preview.shell_preview:type_name -> vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
-	6,  // 12: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.plan:type_name -> vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
-	10, // 13: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.preview:type_name -> vrooli.scenario_to_cloud.v1.plans.Preview
-	11, // 14: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:input_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
-	13, // 15: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:input_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
-	12, // 16: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:output_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
-	14, // 17: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:output_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
-	16, // [16:18] is the sub-list for method output_type
-	14, // [14:16] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	0,  // 2: vrooli.scenario_to_cloud.v1.plans.Handoff.target:type_name -> vrooli.scenario_to_cloud.v1.plans.Target
+	0,  // 3: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.target:type_name -> vrooli.scenario_to_cloud.v1.plans.Target
+	1,  // 4: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.preconditions:type_name -> vrooli.scenario_to_cloud.v1.plans.Precondition
+	3,  // 5: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.actions:type_name -> vrooli.scenario_to_cloud.v1.plans.Action
+	4,  // 6: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
+	5,  // 7: vrooli.scenario_to_cloud.v1.plans.ExecutablePlan.presentation:type_name -> vrooli.scenario_to_cloud.v1.plans.Presentation
+	7,  // 8: vrooli.scenario_to_cloud.v1.plans.Preview.changes:type_name -> vrooli.scenario_to_cloud.v1.plans.Change
+	8,  // 9: vrooli.scenario_to_cloud.v1.plans.Preview.data_effects:type_name -> vrooli.scenario_to_cloud.v1.plans.DataEffect
+	2,  // 10: vrooli.scenario_to_cloud.v1.plans.Preview.downtime:type_name -> vrooli.scenario_to_cloud.v1.plans.Downtime
+	4,  // 11: vrooli.scenario_to_cloud.v1.plans.Preview.handoff:type_name -> vrooli.scenario_to_cloud.v1.plans.Handoff
+	9,  // 12: vrooli.scenario_to_cloud.v1.plans.Preview.shell_preview:type_name -> vrooli.scenario_to_cloud.v1.plans.ShellPreviewLine
+	6,  // 13: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.plan:type_name -> vrooli.scenario_to_cloud.v1.plans.ExecutablePlan
+	10, // 14: vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse.preview:type_name -> vrooli.scenario_to_cloud.v1.plans.Preview
+	11, // 15: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:input_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanRequest
+	13, // 16: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:input_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanRequest
+	12, // 17: vrooli.scenario_to_cloud.v1.plans.PlansService.CompilePlan:output_type -> vrooli.scenario_to_cloud.v1.plans.CompilePlanResponse
+	14, // 18: vrooli.scenario_to_cloud.v1.plans.PlansService.ApplyPlan:output_type -> vrooli.scenario_to_cloud.v1.plans.ApplyPlanResponse
+	17, // [17:19] is the sub-list for method output_type
+	15, // [15:17] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_cloud_v1_plans_plans_proto_init() }

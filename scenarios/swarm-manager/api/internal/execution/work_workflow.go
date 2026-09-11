@@ -215,7 +215,11 @@ func (s *Service) buildPlanExecuteTransitionInput(ctx context.Context, execution
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	snapshot, err := buildPhasedPlanSnapshot(item, record, planHandle, filepath.Dir(s.repoRoot), rendered)
+	extensions, err := s.readScopeExtensions(ctx, record, item)
+	if err != nil {
+		return transitionrunner.Snapshot{}, err
+	}
+	snapshot, err := buildPhasedPlanSnapshotWithScope(item, record, planHandle, filepath.Dir(s.repoRoot), rendered, extensions)
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}

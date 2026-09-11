@@ -13,8 +13,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboa
 service CapabilitiesService {
   rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
   rpc GetCapabilityStatus(GetCapabilityStatusRequest) returns (GetCapabilityStatusResponse);
-  rpc PreviewCapability(PreviewCapabilityRequest) returns (PreviewCapabilityResponse);
-  rpc ApplyCapability(ApplyCapabilityRequest) returns (ApplyCapabilityResponse);
+	rpc PreviewCapability(PreviewCapabilityRequest) returns (PreviewCapabilityResponse);
+	rpc ApplyCapability(ApplyCapabilityRequest) returns (ApplyCapabilityResponse);
+	rpc VerifyCapability(VerifyCapabilityRequest) returns (VerifyCapabilityResponse);
 }
 
 message ListCapabilitiesRequest { string target = 1; }
@@ -26,8 +27,31 @@ message PreviewCapabilityRequest {
 }
 
 message ApplyCapabilityRequest {
-  string target = 1;
-  ActionRequest action = 2;
+	string target = 1;
+	ActionRequest action = 2;
+}
+
+message VerifyCapabilityRequest {
+	string target = 1;
+	VerificationRequest verification = 2;
+}
+
+message VerificationRequest {
+	string capability_id = 1;
+	CredentialEvidenceRef credential_ref = 2;
+	string target_id = 3;
+	string environment = 4;
+	string account_identity = 5;
+	string operation = 6;
+	map<string, string> context = 7;
+	string effect_class = 8;
+	int32 max_operations = 9;
+	string cleanup_policy = 10;
+	int64 timeout_seconds = 11;
+	string context_digest = 12;
+	string catalog_revision = 13;
+	string configuration_revision = 14;
+	string provider_adapter_version = 15;
 }
 
 message ActionRequest {
@@ -37,6 +61,9 @@ message ActionRequest {
   // Free-form provider inputs are constrained by the capability descriptor.
   // A secret value exists only for the duration of the provider call.
   google.protobuf.Struct inputs = 4;
+  // Target whose state and permissions the operator reviewed. Providers must
+  // bind effects and evidence to this target rather than silently using local.
+  string target_id = 5;
 }
 
 enum CapabilityState {
@@ -84,12 +111,13 @@ message CapabilityInputDescriptor {
   string provider = 14;
   string requirement_group = 15;
   repeated string consumer_refs = 16;
-  repeated string companion_settings = 17;
-  string acquisition_ref = 18;
+	repeated string companion_settings = 17;
+	string acquisition_ref = 18;
   string verification_ref = 19;
   string recovery_ref = 20;
   string help_ref = 21;
-  string evidence_policy = 22;
+	string evidence_policy = 22;
+	repeated string companion_credentials = 23;
 }
 
 message CapabilityInputConstraints {
@@ -112,6 +140,7 @@ message CapabilityEvidenceContract {
   repeated string required_fields = 2;
   bool secret_free = 3;
   string freshness = 4;
+  repeated string stages = 5;
 }
 
 message CapabilityDescriptor {
@@ -182,7 +211,13 @@ message CapabilityEvidence {
   string next_action = 20;
   string effect_class = 21;
   int32 effects_used = 22;
-  bool cleanup_completed = 23;
+	bool cleanup_completed = 23;
+	string stage = 24;
+	string owner = 25;
+	string context_digest = 26;
+	string catalog_revision = 27;
+	string configuration_revision = 28;
+	string provider_adapter_version = 29;
 }
 
 message CredentialEvidenceRef {
@@ -237,4 +272,18 @@ message ApplyCapabilityResponse {
   repeated CapabilityEvidence evidence = 7;
   repeated CapabilityMutation mutations = 8;
   google.protobuf.Timestamp completed_at = 9;
+}
+
+message VerifyCapabilityResponse {
+	string capability_id = 1;
+	repeated CapabilityEvidence evidence = 2;
+	string remediation = 3;
+	// Verification failures remain a successful typed operation response so
+	// clients can render the provider-neutral remediation contract instead of
+	// reducing every provider outcome to a transport error.
+	string error_code = 4;
+	bool retryable = 5;
+	int64 retry_after_seconds = 6;
+	string next_action = 7;
+	string outcome = 8;
 }

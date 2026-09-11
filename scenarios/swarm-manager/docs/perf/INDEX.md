@@ -7,6 +7,7 @@ per-component aggregation table copied from performance-health analysis.
 
 | Date | Slug | Status | Subject |
 |---|---|---|---|
+| 2026-09-10 | [sidebar-virtualization](2026-09-10-sidebar-virtualization.md) | fixed | Sidebar lists mounted every row; idle poll re-renders |
 | 2026-07-24 | [perf-audit-ui](2026-07-24-perf-audit-ui.md) | in-progress | Plan board and decision drawer render path |
 | 2026-07-24 | [perf-audit-api](2026-07-24-perf-audit-api.md) | fixed | API read-path route sweep and CPU profile |
 | 2026-07-06 | [graph-large-topology-baseline](2026-07-06-graph-large-topology-baseline.md) | measured | Graph large-topology baseline and grouped-layout candidate |

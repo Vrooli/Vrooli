@@ -2267,6 +2267,77 @@ func (x *ChargeByBasis) GetChargeReason() string {
 	return ""
 }
 
+// RunTokenBucket is one run-count bucket in the per-run token distribution.
+// Token counts are inclusive on min and exclusive on max; a zero max is
+// unbounded. Buckets are ordered from smallest to largest.
+type RunTokenBucket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	MinTokens     int64                  `protobuf:"varint,2,opt,name=min_tokens,json=minTokens,proto3" json:"min_tokens,omitempty"`
+	MaxTokens     int64                  `protobuf:"varint,3,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	RunCount      int64                  `protobuf:"varint,4,opt,name=run_count,json=runCount,proto3" json:"run_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunTokenBucket) Reset() {
+	*x = RunTokenBucket{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunTokenBucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunTokenBucket) ProtoMessage() {}
+
+func (x *RunTokenBucket) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunTokenBucket.ProtoReflect.Descriptor instead.
+func (*RunTokenBucket) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RunTokenBucket) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *RunTokenBucket) GetMinTokens() int64 {
+	if x != nil {
+		return x.MinTokens
+	}
+	return 0
+}
+
+func (x *RunTokenBucket) GetMaxTokens() int64 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *RunTokenBucket) GetRunCount() int64 {
+	if x != nil {
+		return x.RunCount
+	}
+	return 0
+}
+
 type RunCostResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TotalCostUsd   float64                `protobuf:"fixed64,1,opt,name=total_cost_usd,json=totalCostUsd,proto3" json:"total_cost_usd,omitempty"`
@@ -2274,28 +2345,44 @@ type RunCostResponse struct {
 	TotalTokens    int64                  `protobuf:"varint,3,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	TotalRuns      int64                  `protobuf:"varint,4,opt,name=total_runs,json=totalRuns,proto3" json:"total_runs,omitempty"`
 	// Deprecated: Marked as deprecated in agent-manager/v1/measures/measures.proto.
-	ExecutedQuery        string             `protobuf:"bytes,5,opt,name=executed_query,json=executedQuery,proto3" json:"executed_query,omitempty"`
-	Validity             *MeasureValidity   `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
-	InputTokens          int64              `protobuf:"varint,6,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
-	OutputTokens         int64              `protobuf:"varint,7,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
-	CacheReadTokens      int64              `protobuf:"varint,8,opt,name=cache_read_tokens,json=cacheReadTokens,proto3" json:"cache_read_tokens,omitempty"`
-	CacheCreationTokens  int64              `protobuf:"varint,9,opt,name=cache_creation_tokens,json=cacheCreationTokens,proto3" json:"cache_creation_tokens,omitempty"`
-	InputCostUsd         float64            `protobuf:"fixed64,10,opt,name=input_cost_usd,json=inputCostUsd,proto3" json:"input_cost_usd,omitempty"`
-	OutputCostUsd        float64            `protobuf:"fixed64,11,opt,name=output_cost_usd,json=outputCostUsd,proto3" json:"output_cost_usd,omitempty"`
-	CacheReadCostUsd     float64            `protobuf:"fixed64,12,opt,name=cache_read_cost_usd,json=cacheReadCostUsd,proto3" json:"cache_read_cost_usd,omitempty"`
-	CacheCreationCostUsd float64            `protobuf:"fixed64,13,opt,name=cache_creation_cost_usd,json=cacheCreationCostUsd,proto3" json:"cache_creation_cost_usd,omitempty"`
-	ChargeByBasis        []*ChargeByBasis   `protobuf:"bytes,17,rep,name=charge_by_basis,json=chargeByBasis,proto3" json:"charge_by_basis,omitempty"`
-	TotalChargeMicroUsd  int64              `protobuf:"varint,18,opt,name=total_charge_micro_usd,json=totalChargeMicroUsd,proto3" json:"total_charge_micro_usd,omitempty"`
-	UnpricedTokenCount   int64              `protobuf:"varint,19,opt,name=unpriced_token_count,json=unpricedTokenCount,proto3" json:"unpriced_token_count,omitempty"`
-	Provenance           *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	DefinitionId         string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	ExecutedQuery        string           `protobuf:"bytes,5,opt,name=executed_query,json=executedQuery,proto3" json:"executed_query,omitempty"`
+	Validity             *MeasureValidity `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	InputTokens          int64            `protobuf:"varint,6,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens         int64            `protobuf:"varint,7,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	CacheReadTokens      int64            `protobuf:"varint,8,opt,name=cache_read_tokens,json=cacheReadTokens,proto3" json:"cache_read_tokens,omitempty"`
+	CacheCreationTokens  int64            `protobuf:"varint,9,opt,name=cache_creation_tokens,json=cacheCreationTokens,proto3" json:"cache_creation_tokens,omitempty"`
+	InputCostUsd         float64          `protobuf:"fixed64,10,opt,name=input_cost_usd,json=inputCostUsd,proto3" json:"input_cost_usd,omitempty"`
+	OutputCostUsd        float64          `protobuf:"fixed64,11,opt,name=output_cost_usd,json=outputCostUsd,proto3" json:"output_cost_usd,omitempty"`
+	CacheReadCostUsd     float64          `protobuf:"fixed64,12,opt,name=cache_read_cost_usd,json=cacheReadCostUsd,proto3" json:"cache_read_cost_usd,omitempty"`
+	CacheCreationCostUsd float64          `protobuf:"fixed64,13,opt,name=cache_creation_cost_usd,json=cacheCreationCostUsd,proto3" json:"cache_creation_cost_usd,omitempty"`
+	ChargeByBasis        []*ChargeByBasis `protobuf:"bytes,17,rep,name=charge_by_basis,json=chargeByBasis,proto3" json:"charge_by_basis,omitempty"`
+	TotalChargeMicroUsd  int64            `protobuf:"varint,18,opt,name=total_charge_micro_usd,json=totalChargeMicroUsd,proto3" json:"total_charge_micro_usd,omitempty"`
+	UnpricedTokenCount   int64            `protobuf:"varint,19,opt,name=unpriced_token_count,json=unpricedTokenCount,proto3" json:"unpriced_token_count,omitempty"`
+	// Per-run token and cost distribution over runs with observed token usage.
+	// Percentiles use nearest-rank over the filtered population. The sample
+	// size and unobserved count make the excluded denominator explicit.
+	P50Tokens                  int64              `protobuf:"varint,20,opt,name=p50_tokens,json=p50Tokens,proto3" json:"p50_tokens,omitempty"`
+	P90Tokens                  int64              `protobuf:"varint,21,opt,name=p90_tokens,json=p90Tokens,proto3" json:"p90_tokens,omitempty"`
+	P95Tokens                  int64              `protobuf:"varint,22,opt,name=p95_tokens,json=p95Tokens,proto3" json:"p95_tokens,omitempty"`
+	P99Tokens                  int64              `protobuf:"varint,23,opt,name=p99_tokens,json=p99Tokens,proto3" json:"p99_tokens,omitempty"`
+	MaxTokens                  int64              `protobuf:"varint,24,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	P50CostUsd                 float64            `protobuf:"fixed64,25,opt,name=p50_cost_usd,json=p50CostUsd,proto3" json:"p50_cost_usd,omitempty"`
+	P90CostUsd                 float64            `protobuf:"fixed64,26,opt,name=p90_cost_usd,json=p90CostUsd,proto3" json:"p90_cost_usd,omitempty"`
+	P95CostUsd                 float64            `protobuf:"fixed64,27,opt,name=p95_cost_usd,json=p95CostUsd,proto3" json:"p95_cost_usd,omitempty"`
+	P99CostUsd                 float64            `protobuf:"fixed64,28,opt,name=p99_cost_usd,json=p99CostUsd,proto3" json:"p99_cost_usd,omitempty"`
+	MaxCostUsd                 float64            `protobuf:"fixed64,29,opt,name=max_cost_usd,json=maxCostUsd,proto3" json:"max_cost_usd,omitempty"`
+	TokenBuckets               []*RunTokenBucket  `protobuf:"bytes,30,rep,name=token_buckets,json=tokenBuckets,proto3" json:"token_buckets,omitempty"`
+	DistributionSampleSize     int64              `protobuf:"varint,31,opt,name=distribution_sample_size,json=distributionSampleSize,proto3" json:"distribution_sample_size,omitempty"`
+	DistributionUnobservedRuns int64              `protobuf:"varint,32,opt,name=distribution_unobserved_runs,json=distributionUnobservedRuns,proto3" json:"distribution_unobserved_runs,omitempty"`
+	Provenance                 *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId               string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RunCostResponse) Reset() {
 	*x = RunCostResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +2394,7 @@ func (x *RunCostResponse) String() string {
 func (*RunCostResponse) ProtoMessage() {}
 
 func (x *RunCostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[27]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2320,7 +2407,7 @@ func (x *RunCostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunCostResponse.ProtoReflect.Descriptor instead.
 func (*RunCostResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{27}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RunCostResponse) GetTotalCostUsd() float64 {
@@ -2443,6 +2530,97 @@ func (x *RunCostResponse) GetUnpricedTokenCount() int64 {
 	return 0
 }
 
+func (x *RunCostResponse) GetP50Tokens() int64 {
+	if x != nil {
+		return x.P50Tokens
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP90Tokens() int64 {
+	if x != nil {
+		return x.P90Tokens
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP95Tokens() int64 {
+	if x != nil {
+		return x.P95Tokens
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP99Tokens() int64 {
+	if x != nil {
+		return x.P99Tokens
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetMaxTokens() int64 {
+	if x != nil {
+		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP50CostUsd() float64 {
+	if x != nil {
+		return x.P50CostUsd
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP90CostUsd() float64 {
+	if x != nil {
+		return x.P90CostUsd
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP95CostUsd() float64 {
+	if x != nil {
+		return x.P95CostUsd
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetP99CostUsd() float64 {
+	if x != nil {
+		return x.P99CostUsd
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetMaxCostUsd() float64 {
+	if x != nil {
+		return x.MaxCostUsd
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetTokenBuckets() []*RunTokenBucket {
+	if x != nil {
+		return x.TokenBuckets
+	}
+	return nil
+}
+
+func (x *RunCostResponse) GetDistributionSampleSize() int64 {
+	if x != nil {
+		return x.DistributionSampleSize
+	}
+	return 0
+}
+
+func (x *RunCostResponse) GetDistributionUnobservedRuns() int64 {
+	if x != nil {
+		return x.DistributionUnobservedRuns
+	}
+	return 0
+}
+
 func (x *RunCostResponse) GetProvenance() *MeasureProvenance {
 	if x != nil {
 		return x.Provenance
@@ -2467,7 +2645,7 @@ type RunVolumeRequest struct {
 
 func (x *RunVolumeRequest) Reset() {
 	*x = RunVolumeRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[28]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2479,7 +2657,7 @@ func (x *RunVolumeRequest) String() string {
 func (*RunVolumeRequest) ProtoMessage() {}
 
 func (x *RunVolumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[28]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2492,7 +2670,7 @@ func (x *RunVolumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunVolumeRequest.ProtoReflect.Descriptor instead.
 func (*RunVolumeRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{28}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RunVolumeRequest) GetWindow() *v1.TimeWindow {
@@ -2526,7 +2704,7 @@ type RunVolumeResponse struct {
 
 func (x *RunVolumeResponse) Reset() {
 	*x = RunVolumeResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[29]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2538,7 +2716,7 @@ func (x *RunVolumeResponse) String() string {
 func (*RunVolumeResponse) ProtoMessage() {}
 
 func (x *RunVolumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[29]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2551,7 +2729,7 @@ func (x *RunVolumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunVolumeResponse.ProtoReflect.Descriptor instead.
 func (*RunVolumeResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{29}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RunVolumeResponse) GetTotalRuns() int64 {
@@ -2624,7 +2802,7 @@ type RunStatusDistributionRequest struct {
 
 func (x *RunStatusDistributionRequest) Reset() {
 	*x = RunStatusDistributionRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[30]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2636,7 +2814,7 @@ func (x *RunStatusDistributionRequest) String() string {
 func (*RunStatusDistributionRequest) ProtoMessage() {}
 
 func (x *RunStatusDistributionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[30]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2649,7 +2827,7 @@ func (x *RunStatusDistributionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunStatusDistributionRequest.ProtoReflect.Descriptor instead.
 func (*RunStatusDistributionRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{30}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RunStatusDistributionRequest) GetWindow() *v1.TimeWindow {
@@ -2676,7 +2854,7 @@ type RunStatusCount struct {
 
 func (x *RunStatusCount) Reset() {
 	*x = RunStatusCount{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[31]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2688,7 +2866,7 @@ func (x *RunStatusCount) String() string {
 func (*RunStatusCount) ProtoMessage() {}
 
 func (x *RunStatusCount) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[31]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2701,7 +2879,7 @@ func (x *RunStatusCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunStatusCount.ProtoReflect.Descriptor instead.
 func (*RunStatusCount) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{31}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *RunStatusCount) GetStatus() string {
@@ -2732,7 +2910,7 @@ type RunStatusDistributionResponse struct {
 
 func (x *RunStatusDistributionResponse) Reset() {
 	*x = RunStatusDistributionResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[32]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2744,7 +2922,7 @@ func (x *RunStatusDistributionResponse) String() string {
 func (*RunStatusDistributionResponse) ProtoMessage() {}
 
 func (x *RunStatusDistributionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[32]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2757,7 +2935,7 @@ func (x *RunStatusDistributionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunStatusDistributionResponse.ProtoReflect.Descriptor instead.
 func (*RunStatusDistributionResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{32}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *RunStatusDistributionResponse) GetRows() []*RunStatusCount {
@@ -2819,7 +2997,7 @@ type RunBreakdownRow struct {
 
 func (x *RunBreakdownRow) Reset() {
 	*x = RunBreakdownRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2831,7 +3009,7 @@ func (x *RunBreakdownRow) String() string {
 func (*RunBreakdownRow) ProtoMessage() {}
 
 func (x *RunBreakdownRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[33]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2844,7 +3022,7 @@ func (x *RunBreakdownRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunBreakdownRow.ProtoReflect.Descriptor instead.
 func (*RunBreakdownRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{33}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *RunBreakdownRow) GetValue() string {
@@ -2934,7 +3112,7 @@ type RunnerBreakdownRequest struct {
 
 func (x *RunnerBreakdownRequest) Reset() {
 	*x = RunnerBreakdownRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[34]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2946,7 +3124,7 @@ func (x *RunnerBreakdownRequest) String() string {
 func (*RunnerBreakdownRequest) ProtoMessage() {}
 
 func (x *RunnerBreakdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[34]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2959,7 +3137,7 @@ func (x *RunnerBreakdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunnerBreakdownRequest.ProtoReflect.Descriptor instead.
 func (*RunnerBreakdownRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{34}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *RunnerBreakdownRequest) GetWindow() *v1.TimeWindow {
@@ -2990,7 +3168,7 @@ type RunnerBreakdownResponse struct {
 
 func (x *RunnerBreakdownResponse) Reset() {
 	*x = RunnerBreakdownResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[35]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3002,7 +3180,7 @@ func (x *RunnerBreakdownResponse) String() string {
 func (*RunnerBreakdownResponse) ProtoMessage() {}
 
 func (x *RunnerBreakdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[35]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3015,7 +3193,7 @@ func (x *RunnerBreakdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunnerBreakdownResponse.ProtoReflect.Descriptor instead.
 func (*RunnerBreakdownResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{35}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *RunnerBreakdownResponse) GetRows() []*RunBreakdownRow {
@@ -3064,7 +3242,7 @@ type ModelBreakdownRequest struct {
 
 func (x *ModelBreakdownRequest) Reset() {
 	*x = ModelBreakdownRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[36]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3076,7 +3254,7 @@ func (x *ModelBreakdownRequest) String() string {
 func (*ModelBreakdownRequest) ProtoMessage() {}
 
 func (x *ModelBreakdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[36]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3089,7 +3267,7 @@ func (x *ModelBreakdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelBreakdownRequest.ProtoReflect.Descriptor instead.
 func (*ModelBreakdownRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{36}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ModelBreakdownRequest) GetWindow() *v1.TimeWindow {
@@ -3120,7 +3298,7 @@ type ModelBreakdownResponse struct {
 
 func (x *ModelBreakdownResponse) Reset() {
 	*x = ModelBreakdownResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[37]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3132,7 +3310,7 @@ func (x *ModelBreakdownResponse) String() string {
 func (*ModelBreakdownResponse) ProtoMessage() {}
 
 func (x *ModelBreakdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[37]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3145,7 +3323,7 @@ func (x *ModelBreakdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelBreakdownResponse.ProtoReflect.Descriptor instead.
 func (*ModelBreakdownResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{37}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ModelBreakdownResponse) GetRows() []*RunBreakdownRow {
@@ -3194,7 +3372,7 @@ type ProfileBreakdownRequest struct {
 
 func (x *ProfileBreakdownRequest) Reset() {
 	*x = ProfileBreakdownRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[38]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3206,7 +3384,7 @@ func (x *ProfileBreakdownRequest) String() string {
 func (*ProfileBreakdownRequest) ProtoMessage() {}
 
 func (x *ProfileBreakdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[38]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3219,7 +3397,7 @@ func (x *ProfileBreakdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileBreakdownRequest.ProtoReflect.Descriptor instead.
 func (*ProfileBreakdownRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{38}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ProfileBreakdownRequest) GetWindow() *v1.TimeWindow {
@@ -3250,7 +3428,7 @@ type ProfileBreakdownResponse struct {
 
 func (x *ProfileBreakdownResponse) Reset() {
 	*x = ProfileBreakdownResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[39]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3262,7 +3440,7 @@ func (x *ProfileBreakdownResponse) String() string {
 func (*ProfileBreakdownResponse) ProtoMessage() {}
 
 func (x *ProfileBreakdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[39]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3275,7 +3453,7 @@ func (x *ProfileBreakdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileBreakdownResponse.ProtoReflect.Descriptor instead.
 func (*ProfileBreakdownResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{39}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ProfileBreakdownResponse) GetRows() []*RunBreakdownRow {
@@ -3326,7 +3504,7 @@ type WorkloadBreakdownRequest struct {
 
 func (x *WorkloadBreakdownRequest) Reset() {
 	*x = WorkloadBreakdownRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[40]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3338,7 +3516,7 @@ func (x *WorkloadBreakdownRequest) String() string {
 func (*WorkloadBreakdownRequest) ProtoMessage() {}
 
 func (x *WorkloadBreakdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[40]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3351,7 +3529,7 @@ func (x *WorkloadBreakdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkloadBreakdownRequest.ProtoReflect.Descriptor instead.
 func (*WorkloadBreakdownRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{40}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *WorkloadBreakdownRequest) GetWindow() *v1.TimeWindow {
@@ -3396,7 +3574,7 @@ type WorkloadBreakdownResponse struct {
 
 func (x *WorkloadBreakdownResponse) Reset() {
 	*x = WorkloadBreakdownResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[41]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3408,7 +3586,7 @@ func (x *WorkloadBreakdownResponse) String() string {
 func (*WorkloadBreakdownResponse) ProtoMessage() {}
 
 func (x *WorkloadBreakdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[41]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3421,7 +3599,7 @@ func (x *WorkloadBreakdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkloadBreakdownResponse.ProtoReflect.Descriptor instead.
 func (*WorkloadBreakdownResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{41}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *WorkloadBreakdownResponse) GetRows() []*RunBreakdownRow {
@@ -3472,7 +3650,7 @@ type WorkloadEfficiencyRequest struct {
 
 func (x *WorkloadEfficiencyRequest) Reset() {
 	*x = WorkloadEfficiencyRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[42]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3484,7 +3662,7 @@ func (x *WorkloadEfficiencyRequest) String() string {
 func (*WorkloadEfficiencyRequest) ProtoMessage() {}
 
 func (x *WorkloadEfficiencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[42]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3497,7 +3675,7 @@ func (x *WorkloadEfficiencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkloadEfficiencyRequest.ProtoReflect.Descriptor instead.
 func (*WorkloadEfficiencyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{42}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *WorkloadEfficiencyRequest) GetWindow() *v1.TimeWindow {
@@ -3547,7 +3725,7 @@ type WorkloadEfficiencyResponse struct {
 
 func (x *WorkloadEfficiencyResponse) Reset() {
 	*x = WorkloadEfficiencyResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[43]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3559,7 +3737,7 @@ func (x *WorkloadEfficiencyResponse) String() string {
 func (*WorkloadEfficiencyResponse) ProtoMessage() {}
 
 func (x *WorkloadEfficiencyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[43]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3572,7 +3750,7 @@ func (x *WorkloadEfficiencyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkloadEfficiencyResponse.ProtoReflect.Descriptor instead.
 func (*WorkloadEfficiencyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{43}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *WorkloadEfficiencyResponse) GetConsumptionPerSuccessfulCompletion() float64 {
@@ -3659,7 +3837,7 @@ type TerminalRunTrendRequest struct {
 
 func (x *TerminalRunTrendRequest) Reset() {
 	*x = TerminalRunTrendRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[44]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3671,7 +3849,7 @@ func (x *TerminalRunTrendRequest) String() string {
 func (*TerminalRunTrendRequest) ProtoMessage() {}
 
 func (x *TerminalRunTrendRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[44]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3684,7 +3862,7 @@ func (x *TerminalRunTrendRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TerminalRunTrendRequest.ProtoReflect.Descriptor instead.
 func (*TerminalRunTrendRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{44}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *TerminalRunTrendRequest) GetWindow() *v1.TimeWindow {
@@ -3716,7 +3894,7 @@ type TerminalRunTrendRow struct {
 
 func (x *TerminalRunTrendRow) Reset() {
 	*x = TerminalRunTrendRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[45]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3728,7 +3906,7 @@ func (x *TerminalRunTrendRow) String() string {
 func (*TerminalRunTrendRow) ProtoMessage() {}
 
 func (x *TerminalRunTrendRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[45]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3741,7 +3919,7 @@ func (x *TerminalRunTrendRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TerminalRunTrendRow.ProtoReflect.Descriptor instead.
 func (*TerminalRunTrendRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{45}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *TerminalRunTrendRow) GetBucket() string {
@@ -3807,7 +3985,7 @@ type TerminalRunTrendResponse struct {
 
 func (x *TerminalRunTrendResponse) Reset() {
 	*x = TerminalRunTrendResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[46]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3819,7 +3997,7 @@ func (x *TerminalRunTrendResponse) String() string {
 func (*TerminalRunTrendResponse) ProtoMessage() {}
 
 func (x *TerminalRunTrendResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[46]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3832,7 +4010,7 @@ func (x *TerminalRunTrendResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TerminalRunTrendResponse.ProtoReflect.Descriptor instead.
 func (*TerminalRunTrendResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{46}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *TerminalRunTrendResponse) GetRows() []*TerminalRunTrendRow {
@@ -3881,7 +4059,7 @@ type ToolUsageRequest struct {
 
 func (x *ToolUsageRequest) Reset() {
 	*x = ToolUsageRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[47]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3893,7 +4071,7 @@ func (x *ToolUsageRequest) String() string {
 func (*ToolUsageRequest) ProtoMessage() {}
 
 func (x *ToolUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[47]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3906,7 +4084,7 @@ func (x *ToolUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolUsageRequest.ProtoReflect.Descriptor instead.
 func (*ToolUsageRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{47}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ToolUsageRequest) GetWindow() *v1.TimeWindow {
@@ -3937,7 +4115,7 @@ type ToolUsageRow struct {
 
 func (x *ToolUsageRow) Reset() {
 	*x = ToolUsageRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[48]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3949,7 +4127,7 @@ func (x *ToolUsageRow) String() string {
 func (*ToolUsageRow) ProtoMessage() {}
 
 func (x *ToolUsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[48]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3962,7 +4140,7 @@ func (x *ToolUsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolUsageRow.ProtoReflect.Descriptor instead.
 func (*ToolUsageRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{48}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ToolUsageRow) GetToolName() string {
@@ -4021,7 +4199,7 @@ type ToolUsageResponse struct {
 
 func (x *ToolUsageResponse) Reset() {
 	*x = ToolUsageResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[49]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4033,7 +4211,7 @@ func (x *ToolUsageResponse) String() string {
 func (*ToolUsageResponse) ProtoMessage() {}
 
 func (x *ToolUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[49]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4046,7 +4224,7 @@ func (x *ToolUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolUsageResponse.ProtoReflect.Descriptor instead.
 func (*ToolUsageResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{49}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ToolUsageResponse) GetRows() []*ToolUsageRow {
@@ -4096,7 +4274,7 @@ type ToolCommandBreakdownRequest struct {
 
 func (x *ToolCommandBreakdownRequest) Reset() {
 	*x = ToolCommandBreakdownRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[50]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4108,7 +4286,7 @@ func (x *ToolCommandBreakdownRequest) String() string {
 func (*ToolCommandBreakdownRequest) ProtoMessage() {}
 
 func (x *ToolCommandBreakdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[50]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4121,7 +4299,7 @@ func (x *ToolCommandBreakdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCommandBreakdownRequest.ProtoReflect.Descriptor instead.
 func (*ToolCommandBreakdownRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{50}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ToolCommandBreakdownRequest) GetWindow() *v1.TimeWindow {
@@ -4165,7 +4343,7 @@ type ToolCommandBreakdownRow struct {
 
 func (x *ToolCommandBreakdownRow) Reset() {
 	*x = ToolCommandBreakdownRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4177,7 +4355,7 @@ func (x *ToolCommandBreakdownRow) String() string {
 func (*ToolCommandBreakdownRow) ProtoMessage() {}
 
 func (x *ToolCommandBreakdownRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4190,7 +4368,7 @@ func (x *ToolCommandBreakdownRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCommandBreakdownRow.ProtoReflect.Descriptor instead.
 func (*ToolCommandBreakdownRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{51}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ToolCommandBreakdownRow) GetExecutable() string {
@@ -4291,7 +4469,7 @@ type ToolCommandBreakdownResponse struct {
 
 func (x *ToolCommandBreakdownResponse) Reset() {
 	*x = ToolCommandBreakdownResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4303,7 +4481,7 @@ func (x *ToolCommandBreakdownResponse) String() string {
 func (*ToolCommandBreakdownResponse) ProtoMessage() {}
 
 func (x *ToolCommandBreakdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4316,7 +4494,7 @@ func (x *ToolCommandBreakdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCommandBreakdownResponse.ProtoReflect.Descriptor instead.
 func (*ToolCommandBreakdownResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{52}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ToolCommandBreakdownResponse) GetRows() []*ToolCommandBreakdownRow {
@@ -4371,7 +4549,7 @@ type TokenAttributionRequest struct {
 
 func (x *TokenAttributionRequest) Reset() {
 	*x = TokenAttributionRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4383,7 +4561,7 @@ func (x *TokenAttributionRequest) String() string {
 func (*TokenAttributionRequest) ProtoMessage() {}
 
 func (x *TokenAttributionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4396,7 +4574,7 @@ func (x *TokenAttributionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenAttributionRequest.ProtoReflect.Descriptor instead.
 func (*TokenAttributionRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{53}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *TokenAttributionRequest) GetWindow() *v1.TimeWindow {
@@ -4451,7 +4629,7 @@ type TokenAttributionRow struct {
 
 func (x *TokenAttributionRow) Reset() {
 	*x = TokenAttributionRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4463,7 +4641,7 @@ func (x *TokenAttributionRow) String() string {
 func (*TokenAttributionRow) ProtoMessage() {}
 
 func (x *TokenAttributionRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4476,7 +4654,7 @@ func (x *TokenAttributionRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenAttributionRow.ProtoReflect.Descriptor instead.
 func (*TokenAttributionRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{54}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *TokenAttributionRow) GetGroupBy() string {
@@ -4559,7 +4737,7 @@ type TokenAttributionResponse struct {
 
 func (x *TokenAttributionResponse) Reset() {
 	*x = TokenAttributionResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4571,7 +4749,7 @@ func (x *TokenAttributionResponse) String() string {
 func (*TokenAttributionResponse) ProtoMessage() {}
 
 func (x *TokenAttributionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4584,7 +4762,7 @@ func (x *TokenAttributionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenAttributionResponse.ProtoReflect.Descriptor instead.
 func (*TokenAttributionResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{55}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *TokenAttributionResponse) GetRows() []*TokenAttributionRow {
@@ -4654,7 +4832,7 @@ type CapabilityUsageRequest struct {
 
 func (x *CapabilityUsageRequest) Reset() {
 	*x = CapabilityUsageRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4666,7 +4844,7 @@ func (x *CapabilityUsageRequest) String() string {
 func (*CapabilityUsageRequest) ProtoMessage() {}
 
 func (x *CapabilityUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4679,7 +4857,7 @@ func (x *CapabilityUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageRequest.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{56}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *CapabilityUsageRequest) GetWindow() *v1.TimeWindow {
@@ -4712,7 +4890,7 @@ type CapabilityUsageRow struct {
 
 func (x *CapabilityUsageRow) Reset() {
 	*x = CapabilityUsageRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4724,7 +4902,7 @@ func (x *CapabilityUsageRow) String() string {
 func (*CapabilityUsageRow) ProtoMessage() {}
 
 func (x *CapabilityUsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4737,7 +4915,7 @@ func (x *CapabilityUsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageRow.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{57}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CapabilityUsageRow) GetTargetScenario() string {
@@ -4810,7 +4988,7 @@ type CapabilityUsageResponse struct {
 
 func (x *CapabilityUsageResponse) Reset() {
 	*x = CapabilityUsageResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4822,7 +5000,7 @@ func (x *CapabilityUsageResponse) String() string {
 func (*CapabilityUsageResponse) ProtoMessage() {}
 
 func (x *CapabilityUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4835,7 +5013,7 @@ func (x *CapabilityUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageResponse.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{58}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *CapabilityUsageResponse) GetRows() []*CapabilityUsageRow {
@@ -4884,7 +5062,7 @@ type CapabilityEfficacyRequest struct {
 
 func (x *CapabilityEfficacyRequest) Reset() {
 	*x = CapabilityEfficacyRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4896,7 +5074,7 @@ func (x *CapabilityEfficacyRequest) String() string {
 func (*CapabilityEfficacyRequest) ProtoMessage() {}
 
 func (x *CapabilityEfficacyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4909,7 +5087,7 @@ func (x *CapabilityEfficacyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyRequest.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{59}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *CapabilityEfficacyRequest) GetWindow() *v1.TimeWindow {
@@ -4940,7 +5118,7 @@ type CapabilityEfficacyRow struct {
 
 func (x *CapabilityEfficacyRow) Reset() {
 	*x = CapabilityEfficacyRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4952,7 +5130,7 @@ func (x *CapabilityEfficacyRow) String() string {
 func (*CapabilityEfficacyRow) ProtoMessage() {}
 
 func (x *CapabilityEfficacyRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4965,7 +5143,7 @@ func (x *CapabilityEfficacyRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyRow.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{60}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *CapabilityEfficacyRow) GetTargetScenario() string {
@@ -5024,7 +5202,7 @@ type CapabilityEfficacyResponse struct {
 
 func (x *CapabilityEfficacyResponse) Reset() {
 	*x = CapabilityEfficacyResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5036,7 +5214,7 @@ func (x *CapabilityEfficacyResponse) String() string {
 func (*CapabilityEfficacyResponse) ProtoMessage() {}
 
 func (x *CapabilityEfficacyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5049,7 +5227,7 @@ func (x *CapabilityEfficacyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyResponse.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{61}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *CapabilityEfficacyResponse) GetRows() []*CapabilityEfficacyRow {
@@ -5098,7 +5276,7 @@ type ErrorPatternsRequest struct {
 
 func (x *ErrorPatternsRequest) Reset() {
 	*x = ErrorPatternsRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5110,7 +5288,7 @@ func (x *ErrorPatternsRequest) String() string {
 func (*ErrorPatternsRequest) ProtoMessage() {}
 
 func (x *ErrorPatternsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5123,7 +5301,7 @@ func (x *ErrorPatternsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternsRequest.ProtoReflect.Descriptor instead.
 func (*ErrorPatternsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{62}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ErrorPatternsRequest) GetWindow() *v1.TimeWindow {
@@ -5152,7 +5330,7 @@ type ErrorPatternRow struct {
 
 func (x *ErrorPatternRow) Reset() {
 	*x = ErrorPatternRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5164,7 +5342,7 @@ func (x *ErrorPatternRow) String() string {
 func (*ErrorPatternRow) ProtoMessage() {}
 
 func (x *ErrorPatternRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5177,7 +5355,7 @@ func (x *ErrorPatternRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternRow.ProtoReflect.Descriptor instead.
 func (*ErrorPatternRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{63}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ErrorPatternRow) GetErrorCode() string {
@@ -5222,7 +5400,7 @@ type ErrorPatternsResponse struct {
 
 func (x *ErrorPatternsResponse) Reset() {
 	*x = ErrorPatternsResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5234,7 +5412,7 @@ func (x *ErrorPatternsResponse) String() string {
 func (*ErrorPatternsResponse) ProtoMessage() {}
 
 func (x *ErrorPatternsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5247,7 +5425,7 @@ func (x *ErrorPatternsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternsResponse.ProtoReflect.Descriptor instead.
 func (*ErrorPatternsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{64}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ErrorPatternsResponse) GetRows() []*ErrorPatternRow {
@@ -5296,7 +5474,7 @@ type FileRereadRateRequest struct {
 
 func (x *FileRereadRateRequest) Reset() {
 	*x = FileRereadRateRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5308,7 +5486,7 @@ func (x *FileRereadRateRequest) String() string {
 func (*FileRereadRateRequest) ProtoMessage() {}
 
 func (x *FileRereadRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5321,7 +5499,7 @@ func (x *FileRereadRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileRereadRateRequest.ProtoReflect.Descriptor instead.
 func (*FileRereadRateRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{65}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *FileRereadRateRequest) GetWindow() *v1.TimeWindow {
@@ -5354,7 +5532,7 @@ type FileRereadRateResponse struct {
 
 func (x *FileRereadRateResponse) Reset() {
 	*x = FileRereadRateResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5366,7 +5544,7 @@ func (x *FileRereadRateResponse) String() string {
 func (*FileRereadRateResponse) ProtoMessage() {}
 
 func (x *FileRereadRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5379,7 +5557,7 @@ func (x *FileRereadRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileRereadRateResponse.ProtoReflect.Descriptor instead.
 func (*FileRereadRateResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{66}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *FileRereadRateResponse) GetRate() float64 {
@@ -5442,7 +5620,7 @@ type FindingRecurrenceRateRequest struct {
 
 func (x *FindingRecurrenceRateRequest) Reset() {
 	*x = FindingRecurrenceRateRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5454,7 +5632,7 @@ func (x *FindingRecurrenceRateRequest) String() string {
 func (*FindingRecurrenceRateRequest) ProtoMessage() {}
 
 func (x *FindingRecurrenceRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5467,7 +5645,7 @@ func (x *FindingRecurrenceRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingRecurrenceRateRequest.ProtoReflect.Descriptor instead.
 func (*FindingRecurrenceRateRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{67}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *FindingRecurrenceRateRequest) GetWindow() *v1.TimeWindow {
@@ -5501,7 +5679,7 @@ type FindingRecurrenceRateResponse struct {
 
 func (x *FindingRecurrenceRateResponse) Reset() {
 	*x = FindingRecurrenceRateResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5513,7 +5691,7 @@ func (x *FindingRecurrenceRateResponse) String() string {
 func (*FindingRecurrenceRateResponse) ProtoMessage() {}
 
 func (x *FindingRecurrenceRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5526,7 +5704,7 @@ func (x *FindingRecurrenceRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingRecurrenceRateResponse.ProtoReflect.Descriptor instead.
 func (*FindingRecurrenceRateResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{68}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *FindingRecurrenceRateResponse) GetRate() float64 {
@@ -5597,7 +5775,7 @@ type SelectCohortRequest struct {
 
 func (x *SelectCohortRequest) Reset() {
 	*x = SelectCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5609,7 +5787,7 @@ func (x *SelectCohortRequest) String() string {
 func (*SelectCohortRequest) ProtoMessage() {}
 
 func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5622,7 +5800,7 @@ func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortRequest.ProtoReflect.Descriptor instead.
 func (*SelectCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{69}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SelectCohortRequest) GetWindow() *v1.TimeWindow {
@@ -5667,7 +5845,7 @@ type CohortRun struct {
 
 func (x *CohortRun) Reset() {
 	*x = CohortRun{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5679,7 +5857,7 @@ func (x *CohortRun) String() string {
 func (*CohortRun) ProtoMessage() {}
 
 func (x *CohortRun) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5692,7 +5870,7 @@ func (x *CohortRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CohortRun.ProtoReflect.Descriptor instead.
 func (*CohortRun) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{70}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *CohortRun) GetRunId() string {
@@ -5802,7 +5980,7 @@ type SelectCohortResponse struct {
 
 func (x *SelectCohortResponse) Reset() {
 	*x = SelectCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5814,7 +5992,7 @@ func (x *SelectCohortResponse) String() string {
 func (*SelectCohortResponse) ProtoMessage() {}
 
 func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5827,7 +6005,7 @@ func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortResponse.ProtoReflect.Descriptor instead.
 func (*SelectCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{71}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *SelectCohortResponse) GetRunIds() []string {
@@ -5894,7 +6072,7 @@ type EpisodeCohortRequest struct {
 
 func (x *EpisodeCohortRequest) Reset() {
 	*x = EpisodeCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5906,7 +6084,7 @@ func (x *EpisodeCohortRequest) String() string {
 func (*EpisodeCohortRequest) ProtoMessage() {}
 
 func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5919,7 +6097,7 @@ func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortRequest.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{72}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *EpisodeCohortRequest) GetWindow() *v1.TimeWindow {
@@ -5957,7 +6135,7 @@ type EpisodeCohortSignal struct {
 
 func (x *EpisodeCohortSignal) Reset() {
 	*x = EpisodeCohortSignal{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5969,7 +6147,7 @@ func (x *EpisodeCohortSignal) String() string {
 func (*EpisodeCohortSignal) ProtoMessage() {}
 
 func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[73]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5982,7 +6160,7 @@ func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortSignal.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortSignal) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{73}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *EpisodeCohortSignal) GetFingerprint() string {
@@ -6043,7 +6221,7 @@ type EpisodeCohortResponse struct {
 
 func (x *EpisodeCohortResponse) Reset() {
 	*x = EpisodeCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6055,7 +6233,7 @@ func (x *EpisodeCohortResponse) String() string {
 func (*EpisodeCohortResponse) ProtoMessage() {}
 
 func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[74]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6068,7 +6246,7 @@ func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortResponse.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{74}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *EpisodeCohortResponse) GetAvailabilityState() string {
@@ -6346,7 +6524,14 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x10charge_micro_usd\x18\x03 \x01(\x03R\x0echargeMicroUsd\x12\x1f\n" +
 	"\vtoken_count\x18\x04 \x01(\x03R\n" +
 	"tokenCount\x12#\n" +
-	"\rcharge_reason\x18\x05 \x01(\tR\fchargeReason\"\xa4\a\n" +
+	"\rcharge_reason\x18\x05 \x01(\tR\fchargeReason\"\x81\x01\n" +
+	"\x0eRunTokenBucket\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x1d\n" +
+	"\n" +
+	"min_tokens\x18\x02 \x01(\x03R\tminTokens\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\x03 \x01(\x03R\tmaxTokens\x12\x1b\n" +
+	"\trun_count\x18\x04 \x01(\x03R\brunCount\"\xb5\v\n" +
 	"\x0fRunCostResponse\x12$\n" +
 	"\x0etotal_cost_usd\x18\x01 \x01(\x01R\ftotalCostUsd\x12(\n" +
 	"\x10average_cost_usd\x18\x02 \x01(\x01R\x0eaverageCostUsd\x12!\n" +
@@ -6366,7 +6551,30 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x17cache_creation_cost_usd\x18\r \x01(\x01R\x14cacheCreationCostUsd\x12P\n" +
 	"\x0fcharge_by_basis\x18\x11 \x03(\v2(.agent_manager.v1.measures.ChargeByBasisR\rchargeByBasis\x123\n" +
 	"\x16total_charge_micro_usd\x18\x12 \x01(\x03R\x13totalChargeMicroUsd\x120\n" +
-	"\x14unpriced_token_count\x18\x13 \x01(\x03R\x12unpricedTokenCount\x12L\n" +
+	"\x14unpriced_token_count\x18\x13 \x01(\x03R\x12unpricedTokenCount\x12\x1d\n" +
+	"\n" +
+	"p50_tokens\x18\x14 \x01(\x03R\tp50Tokens\x12\x1d\n" +
+	"\n" +
+	"p90_tokens\x18\x15 \x01(\x03R\tp90Tokens\x12\x1d\n" +
+	"\n" +
+	"p95_tokens\x18\x16 \x01(\x03R\tp95Tokens\x12\x1d\n" +
+	"\n" +
+	"p99_tokens\x18\x17 \x01(\x03R\tp99Tokens\x12\x1d\n" +
+	"\n" +
+	"max_tokens\x18\x18 \x01(\x03R\tmaxTokens\x12 \n" +
+	"\fp50_cost_usd\x18\x19 \x01(\x01R\n" +
+	"p50CostUsd\x12 \n" +
+	"\fp90_cost_usd\x18\x1a \x01(\x01R\n" +
+	"p90CostUsd\x12 \n" +
+	"\fp95_cost_usd\x18\x1b \x01(\x01R\n" +
+	"p95CostUsd\x12 \n" +
+	"\fp99_cost_usd\x18\x1c \x01(\x01R\n" +
+	"p99CostUsd\x12 \n" +
+	"\fmax_cost_usd\x18\x1d \x01(\x01R\n" +
+	"maxCostUsd\x12N\n" +
+	"\rtoken_buckets\x18\x1e \x03(\v2).agent_manager.v1.measures.RunTokenBucketR\ftokenBuckets\x128\n" +
+	"\x18distribution_sample_size\x18\x1f \x01(\x03R\x16distributionSampleSize\x12@\n" +
+	"\x1cdistribution_unobserved_runs\x18  \x01(\x03R\x1adistributionUnobservedRuns\x12L\n" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
@@ -6760,7 +6968,7 @@ func file_agent_manager_v1_measures_measures_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_measures_measures_proto_rawDescData
 }
 
-var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
+var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 76)
 var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*InvocationFilter)(nil),                  // 0: agent_manager.v1.measures.InvocationFilter
 	(*MeasureValidity)(nil),                   // 1: agent_manager.v1.measures.MeasureValidity
@@ -6789,249 +6997,251 @@ var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*RunDurationStatisticsResponse)(nil),     // 24: agent_manager.v1.measures.RunDurationStatisticsResponse
 	(*RunCostRequest)(nil),                    // 25: agent_manager.v1.measures.RunCostRequest
 	(*ChargeByBasis)(nil),                     // 26: agent_manager.v1.measures.ChargeByBasis
-	(*RunCostResponse)(nil),                   // 27: agent_manager.v1.measures.RunCostResponse
-	(*RunVolumeRequest)(nil),                  // 28: agent_manager.v1.measures.RunVolumeRequest
-	(*RunVolumeResponse)(nil),                 // 29: agent_manager.v1.measures.RunVolumeResponse
-	(*RunStatusDistributionRequest)(nil),      // 30: agent_manager.v1.measures.RunStatusDistributionRequest
-	(*RunStatusCount)(nil),                    // 31: agent_manager.v1.measures.RunStatusCount
-	(*RunStatusDistributionResponse)(nil),     // 32: agent_manager.v1.measures.RunStatusDistributionResponse
-	(*RunBreakdownRow)(nil),                   // 33: agent_manager.v1.measures.RunBreakdownRow
-	(*RunnerBreakdownRequest)(nil),            // 34: agent_manager.v1.measures.RunnerBreakdownRequest
-	(*RunnerBreakdownResponse)(nil),           // 35: agent_manager.v1.measures.RunnerBreakdownResponse
-	(*ModelBreakdownRequest)(nil),             // 36: agent_manager.v1.measures.ModelBreakdownRequest
-	(*ModelBreakdownResponse)(nil),            // 37: agent_manager.v1.measures.ModelBreakdownResponse
-	(*ProfileBreakdownRequest)(nil),           // 38: agent_manager.v1.measures.ProfileBreakdownRequest
-	(*ProfileBreakdownResponse)(nil),          // 39: agent_manager.v1.measures.ProfileBreakdownResponse
-	(*WorkloadBreakdownRequest)(nil),          // 40: agent_manager.v1.measures.WorkloadBreakdownRequest
-	(*WorkloadBreakdownResponse)(nil),         // 41: agent_manager.v1.measures.WorkloadBreakdownResponse
-	(*WorkloadEfficiencyRequest)(nil),         // 42: agent_manager.v1.measures.WorkloadEfficiencyRequest
-	(*WorkloadEfficiencyResponse)(nil),        // 43: agent_manager.v1.measures.WorkloadEfficiencyResponse
-	(*TerminalRunTrendRequest)(nil),           // 44: agent_manager.v1.measures.TerminalRunTrendRequest
-	(*TerminalRunTrendRow)(nil),               // 45: agent_manager.v1.measures.TerminalRunTrendRow
-	(*TerminalRunTrendResponse)(nil),          // 46: agent_manager.v1.measures.TerminalRunTrendResponse
-	(*ToolUsageRequest)(nil),                  // 47: agent_manager.v1.measures.ToolUsageRequest
-	(*ToolUsageRow)(nil),                      // 48: agent_manager.v1.measures.ToolUsageRow
-	(*ToolUsageResponse)(nil),                 // 49: agent_manager.v1.measures.ToolUsageResponse
-	(*ToolCommandBreakdownRequest)(nil),       // 50: agent_manager.v1.measures.ToolCommandBreakdownRequest
-	(*ToolCommandBreakdownRow)(nil),           // 51: agent_manager.v1.measures.ToolCommandBreakdownRow
-	(*ToolCommandBreakdownResponse)(nil),      // 52: agent_manager.v1.measures.ToolCommandBreakdownResponse
-	(*TokenAttributionRequest)(nil),           // 53: agent_manager.v1.measures.TokenAttributionRequest
-	(*TokenAttributionRow)(nil),               // 54: agent_manager.v1.measures.TokenAttributionRow
-	(*TokenAttributionResponse)(nil),          // 55: agent_manager.v1.measures.TokenAttributionResponse
-	(*CapabilityUsageRequest)(nil),            // 56: agent_manager.v1.measures.CapabilityUsageRequest
-	(*CapabilityUsageRow)(nil),                // 57: agent_manager.v1.measures.CapabilityUsageRow
-	(*CapabilityUsageResponse)(nil),           // 58: agent_manager.v1.measures.CapabilityUsageResponse
-	(*CapabilityEfficacyRequest)(nil),         // 59: agent_manager.v1.measures.CapabilityEfficacyRequest
-	(*CapabilityEfficacyRow)(nil),             // 60: agent_manager.v1.measures.CapabilityEfficacyRow
-	(*CapabilityEfficacyResponse)(nil),        // 61: agent_manager.v1.measures.CapabilityEfficacyResponse
-	(*ErrorPatternsRequest)(nil),              // 62: agent_manager.v1.measures.ErrorPatternsRequest
-	(*ErrorPatternRow)(nil),                   // 63: agent_manager.v1.measures.ErrorPatternRow
-	(*ErrorPatternsResponse)(nil),             // 64: agent_manager.v1.measures.ErrorPatternsResponse
-	(*FileRereadRateRequest)(nil),             // 65: agent_manager.v1.measures.FileRereadRateRequest
-	(*FileRereadRateResponse)(nil),            // 66: agent_manager.v1.measures.FileRereadRateResponse
-	(*FindingRecurrenceRateRequest)(nil),      // 67: agent_manager.v1.measures.FindingRecurrenceRateRequest
-	(*FindingRecurrenceRateResponse)(nil),     // 68: agent_manager.v1.measures.FindingRecurrenceRateResponse
-	(*SelectCohortRequest)(nil),               // 69: agent_manager.v1.measures.SelectCohortRequest
-	(*CohortRun)(nil),                         // 70: agent_manager.v1.measures.CohortRun
-	(*SelectCohortResponse)(nil),              // 71: agent_manager.v1.measures.SelectCohortResponse
-	(*EpisodeCohortRequest)(nil),              // 72: agent_manager.v1.measures.EpisodeCohortRequest
-	(*EpisodeCohortSignal)(nil),               // 73: agent_manager.v1.measures.EpisodeCohortSignal
-	(*EpisodeCohortResponse)(nil),             // 74: agent_manager.v1.measures.EpisodeCohortResponse
-	(*v1.TimeWindow)(nil),                     // 75: vrooli.measures.v1.TimeWindow
+	(*RunTokenBucket)(nil),                    // 27: agent_manager.v1.measures.RunTokenBucket
+	(*RunCostResponse)(nil),                   // 28: agent_manager.v1.measures.RunCostResponse
+	(*RunVolumeRequest)(nil),                  // 29: agent_manager.v1.measures.RunVolumeRequest
+	(*RunVolumeResponse)(nil),                 // 30: agent_manager.v1.measures.RunVolumeResponse
+	(*RunStatusDistributionRequest)(nil),      // 31: agent_manager.v1.measures.RunStatusDistributionRequest
+	(*RunStatusCount)(nil),                    // 32: agent_manager.v1.measures.RunStatusCount
+	(*RunStatusDistributionResponse)(nil),     // 33: agent_manager.v1.measures.RunStatusDistributionResponse
+	(*RunBreakdownRow)(nil),                   // 34: agent_manager.v1.measures.RunBreakdownRow
+	(*RunnerBreakdownRequest)(nil),            // 35: agent_manager.v1.measures.RunnerBreakdownRequest
+	(*RunnerBreakdownResponse)(nil),           // 36: agent_manager.v1.measures.RunnerBreakdownResponse
+	(*ModelBreakdownRequest)(nil),             // 37: agent_manager.v1.measures.ModelBreakdownRequest
+	(*ModelBreakdownResponse)(nil),            // 38: agent_manager.v1.measures.ModelBreakdownResponse
+	(*ProfileBreakdownRequest)(nil),           // 39: agent_manager.v1.measures.ProfileBreakdownRequest
+	(*ProfileBreakdownResponse)(nil),          // 40: agent_manager.v1.measures.ProfileBreakdownResponse
+	(*WorkloadBreakdownRequest)(nil),          // 41: agent_manager.v1.measures.WorkloadBreakdownRequest
+	(*WorkloadBreakdownResponse)(nil),         // 42: agent_manager.v1.measures.WorkloadBreakdownResponse
+	(*WorkloadEfficiencyRequest)(nil),         // 43: agent_manager.v1.measures.WorkloadEfficiencyRequest
+	(*WorkloadEfficiencyResponse)(nil),        // 44: agent_manager.v1.measures.WorkloadEfficiencyResponse
+	(*TerminalRunTrendRequest)(nil),           // 45: agent_manager.v1.measures.TerminalRunTrendRequest
+	(*TerminalRunTrendRow)(nil),               // 46: agent_manager.v1.measures.TerminalRunTrendRow
+	(*TerminalRunTrendResponse)(nil),          // 47: agent_manager.v1.measures.TerminalRunTrendResponse
+	(*ToolUsageRequest)(nil),                  // 48: agent_manager.v1.measures.ToolUsageRequest
+	(*ToolUsageRow)(nil),                      // 49: agent_manager.v1.measures.ToolUsageRow
+	(*ToolUsageResponse)(nil),                 // 50: agent_manager.v1.measures.ToolUsageResponse
+	(*ToolCommandBreakdownRequest)(nil),       // 51: agent_manager.v1.measures.ToolCommandBreakdownRequest
+	(*ToolCommandBreakdownRow)(nil),           // 52: agent_manager.v1.measures.ToolCommandBreakdownRow
+	(*ToolCommandBreakdownResponse)(nil),      // 53: agent_manager.v1.measures.ToolCommandBreakdownResponse
+	(*TokenAttributionRequest)(nil),           // 54: agent_manager.v1.measures.TokenAttributionRequest
+	(*TokenAttributionRow)(nil),               // 55: agent_manager.v1.measures.TokenAttributionRow
+	(*TokenAttributionResponse)(nil),          // 56: agent_manager.v1.measures.TokenAttributionResponse
+	(*CapabilityUsageRequest)(nil),            // 57: agent_manager.v1.measures.CapabilityUsageRequest
+	(*CapabilityUsageRow)(nil),                // 58: agent_manager.v1.measures.CapabilityUsageRow
+	(*CapabilityUsageResponse)(nil),           // 59: agent_manager.v1.measures.CapabilityUsageResponse
+	(*CapabilityEfficacyRequest)(nil),         // 60: agent_manager.v1.measures.CapabilityEfficacyRequest
+	(*CapabilityEfficacyRow)(nil),             // 61: agent_manager.v1.measures.CapabilityEfficacyRow
+	(*CapabilityEfficacyResponse)(nil),        // 62: agent_manager.v1.measures.CapabilityEfficacyResponse
+	(*ErrorPatternsRequest)(nil),              // 63: agent_manager.v1.measures.ErrorPatternsRequest
+	(*ErrorPatternRow)(nil),                   // 64: agent_manager.v1.measures.ErrorPatternRow
+	(*ErrorPatternsResponse)(nil),             // 65: agent_manager.v1.measures.ErrorPatternsResponse
+	(*FileRereadRateRequest)(nil),             // 66: agent_manager.v1.measures.FileRereadRateRequest
+	(*FileRereadRateResponse)(nil),            // 67: agent_manager.v1.measures.FileRereadRateResponse
+	(*FindingRecurrenceRateRequest)(nil),      // 68: agent_manager.v1.measures.FindingRecurrenceRateRequest
+	(*FindingRecurrenceRateResponse)(nil),     // 69: agent_manager.v1.measures.FindingRecurrenceRateResponse
+	(*SelectCohortRequest)(nil),               // 70: agent_manager.v1.measures.SelectCohortRequest
+	(*CohortRun)(nil),                         // 71: agent_manager.v1.measures.CohortRun
+	(*SelectCohortResponse)(nil),              // 72: agent_manager.v1.measures.SelectCohortResponse
+	(*EpisodeCohortRequest)(nil),              // 73: agent_manager.v1.measures.EpisodeCohortRequest
+	(*EpisodeCohortSignal)(nil),               // 74: agent_manager.v1.measures.EpisodeCohortSignal
+	(*EpisodeCohortResponse)(nil),             // 75: agent_manager.v1.measures.EpisodeCohortResponse
+	(*v1.TimeWindow)(nil),                     // 76: vrooli.measures.v1.TimeWindow
 }
 var file_agent_manager_v1_measures_measures_proto_depIdxs = []int32{
-	75,  // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
 	2,   // 1: agent_manager.v1.measures.MeasureProvenance.applied_filters:type_name -> agent_manager.v1.measures.MeasureFilter
 	4,   // 2: agent_manager.v1.measures.AllMeasureDefinitionsResponse.definitions:type_name -> agent_manager.v1.measures.MeasureDefinition
-	75,  // 3: agent_manager.v1.measures.ConversationSearchQualityRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 3: agent_manager.v1.measures.ConversationSearchQualityRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	1,   // 4: agent_manager.v1.measures.ConversationSearchQualityResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 5: agent_manager.v1.measures.ConversationSearchQualityResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 6: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 6: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 7: agent_manager.v1.measures.ExternalToolShareRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 8: agent_manager.v1.measures.ExternalToolShareResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 9: agent_manager.v1.measures.ExternalToolShareResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 10: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 10: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 11: agent_manager.v1.measures.RetryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 12: agent_manager.v1.measures.RetryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 13: agent_manager.v1.measures.RetryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 14: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 14: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 15: agent_manager.v1.measures.HelpRecoveryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 16: agent_manager.v1.measures.HelpRecoveryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 17: agent_manager.v1.measures.HelpRecoveryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 18: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 18: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 19: agent_manager.v1.measures.RepeatedWorkRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 20: agent_manager.v1.measures.RepeatedWorkRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 21: agent_manager.v1.measures.RepeatedWorkRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 22: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 22: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 23: agent_manager.v1.measures.ToolFailureRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 24: agent_manager.v1.measures.ToolFailureRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 25: agent_manager.v1.measures.ToolFailureRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 26: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 26: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 27: agent_manager.v1.measures.RunSuccessRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 28: agent_manager.v1.measures.RunSuccessRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 29: agent_manager.v1.measures.RunSuccessRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 30: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 30: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 31: agent_manager.v1.measures.RunCycleTimeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 32: agent_manager.v1.measures.RunCycleTimeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 33: agent_manager.v1.measures.RunCycleTimeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 34: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 34: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 35: agent_manager.v1.measures.RunDurationStatisticsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 36: agent_manager.v1.measures.RunDurationStatisticsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 37: agent_manager.v1.measures.RunDurationStatisticsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 38: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	76,  // 38: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 39: agent_manager.v1.measures.RunCostRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 40: agent_manager.v1.measures.RunCostResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	26,  // 41: agent_manager.v1.measures.RunCostResponse.charge_by_basis:type_name -> agent_manager.v1.measures.ChargeByBasis
-	3,   // 42: agent_manager.v1.measures.RunCostResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 43: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 44: agent_manager.v1.measures.RunVolumeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 45: agent_manager.v1.measures.RunVolumeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 46: agent_manager.v1.measures.RunVolumeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 47: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 48: agent_manager.v1.measures.RunStatusDistributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	31,  // 49: agent_manager.v1.measures.RunStatusDistributionResponse.rows:type_name -> agent_manager.v1.measures.RunStatusCount
-	1,   // 50: agent_manager.v1.measures.RunStatusDistributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 51: agent_manager.v1.measures.RunStatusDistributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 52: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 53: agent_manager.v1.measures.RunnerBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	33,  // 54: agent_manager.v1.measures.RunnerBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
-	1,   // 55: agent_manager.v1.measures.RunnerBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 56: agent_manager.v1.measures.RunnerBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 57: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 58: agent_manager.v1.measures.ModelBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	33,  // 59: agent_manager.v1.measures.ModelBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
-	1,   // 60: agent_manager.v1.measures.ModelBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 61: agent_manager.v1.measures.ModelBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 62: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 63: agent_manager.v1.measures.ProfileBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	33,  // 64: agent_manager.v1.measures.ProfileBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
-	1,   // 65: agent_manager.v1.measures.ProfileBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 66: agent_manager.v1.measures.ProfileBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 67: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 68: agent_manager.v1.measures.WorkloadBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	33,  // 69: agent_manager.v1.measures.WorkloadBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
-	1,   // 70: agent_manager.v1.measures.WorkloadBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 71: agent_manager.v1.measures.WorkloadBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 72: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 73: agent_manager.v1.measures.WorkloadEfficiencyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 74: agent_manager.v1.measures.WorkloadEfficiencyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 75: agent_manager.v1.measures.WorkloadEfficiencyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 76: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 77: agent_manager.v1.measures.TerminalRunTrendRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	45,  // 78: agent_manager.v1.measures.TerminalRunTrendResponse.rows:type_name -> agent_manager.v1.measures.TerminalRunTrendRow
-	1,   // 79: agent_manager.v1.measures.TerminalRunTrendResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 80: agent_manager.v1.measures.TerminalRunTrendResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 81: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 82: agent_manager.v1.measures.ToolUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	48,  // 83: agent_manager.v1.measures.ToolUsageResponse.rows:type_name -> agent_manager.v1.measures.ToolUsageRow
-	1,   // 84: agent_manager.v1.measures.ToolUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 85: agent_manager.v1.measures.ToolUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 86: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 87: agent_manager.v1.measures.ToolCommandBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	51,  // 88: agent_manager.v1.measures.ToolCommandBreakdownResponse.rows:type_name -> agent_manager.v1.measures.ToolCommandBreakdownRow
-	1,   // 89: agent_manager.v1.measures.ToolCommandBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 90: agent_manager.v1.measures.ToolCommandBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 91: agent_manager.v1.measures.TokenAttributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 92: agent_manager.v1.measures.TokenAttributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	54,  // 93: agent_manager.v1.measures.TokenAttributionResponse.rows:type_name -> agent_manager.v1.measures.TokenAttributionRow
-	1,   // 94: agent_manager.v1.measures.TokenAttributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 95: agent_manager.v1.measures.TokenAttributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 96: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 97: agent_manager.v1.measures.CapabilityUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	57,  // 98: agent_manager.v1.measures.CapabilityUsageResponse.rows:type_name -> agent_manager.v1.measures.CapabilityUsageRow
-	1,   // 99: agent_manager.v1.measures.CapabilityUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 100: agent_manager.v1.measures.CapabilityUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 101: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 102: agent_manager.v1.measures.CapabilityEfficacyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	60,  // 103: agent_manager.v1.measures.CapabilityEfficacyResponse.rows:type_name -> agent_manager.v1.measures.CapabilityEfficacyRow
-	1,   // 104: agent_manager.v1.measures.CapabilityEfficacyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 105: agent_manager.v1.measures.CapabilityEfficacyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 106: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 107: agent_manager.v1.measures.ErrorPatternsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	63,  // 108: agent_manager.v1.measures.ErrorPatternsResponse.rows:type_name -> agent_manager.v1.measures.ErrorPatternRow
-	1,   // 109: agent_manager.v1.measures.ErrorPatternsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 110: agent_manager.v1.measures.ErrorPatternsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 111: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 112: agent_manager.v1.measures.FileRereadRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 113: agent_manager.v1.measures.FileRereadRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 114: agent_manager.v1.measures.FileRereadRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 115: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 116: agent_manager.v1.measures.FindingRecurrenceRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 117: agent_manager.v1.measures.FindingRecurrenceRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 118: agent_manager.v1.measures.FindingRecurrenceRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 119: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 120: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 121: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	70,  // 122: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
-	3,   // 123: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	75,  // 124: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 125: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	73,  // 126: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
-	1,   // 127: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 128: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	9,   // 129: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
-	11,  // 130: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
-	13,  // 131: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
-	15,  // 132: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
-	17,  // 133: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
-	19,  // 134: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
-	21,  // 135: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
-	23,  // 136: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
-	25,  // 137: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
-	28,  // 138: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
-	30,  // 139: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
-	34,  // 140: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
-	36,  // 141: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
-	38,  // 142: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
-	40,  // 143: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
-	42,  // 144: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
-	44,  // 145: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
-	47,  // 146: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
-	50,  // 147: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
-	53,  // 148: agent_manager.v1.measures.MeasuresService.TokenAttribution:input_type -> agent_manager.v1.measures.TokenAttributionRequest
-	62,  // 149: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
-	65,  // 150: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
-	67,  // 151: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
-	72,  // 152: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
-	56,  // 153: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
-	59,  // 154: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
-	7,   // 155: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:input_type -> agent_manager.v1.measures.ConversationSearchQualityRequest
-	5,   // 156: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
-	69,  // 157: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
-	10,  // 158: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
-	12,  // 159: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
-	14,  // 160: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
-	16,  // 161: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
-	18,  // 162: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
-	20,  // 163: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
-	22,  // 164: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
-	24,  // 165: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
-	27,  // 166: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
-	29,  // 167: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
-	32,  // 168: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
-	35,  // 169: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
-	37,  // 170: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
-	39,  // 171: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
-	41,  // 172: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
-	43,  // 173: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
-	46,  // 174: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
-	49,  // 175: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
-	52,  // 176: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
-	55,  // 177: agent_manager.v1.measures.MeasuresService.TokenAttribution:output_type -> agent_manager.v1.measures.TokenAttributionResponse
-	64,  // 178: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
-	66,  // 179: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
-	68,  // 180: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
-	74,  // 181: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
-	58,  // 182: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
-	61,  // 183: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
-	8,   // 184: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:output_type -> agent_manager.v1.measures.ConversationSearchQualityResponse
-	6,   // 185: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
-	71,  // 186: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
-	158, // [158:187] is the sub-list for method output_type
-	129, // [129:158] is the sub-list for method input_type
-	129, // [129:129] is the sub-list for extension type_name
-	129, // [129:129] is the sub-list for extension extendee
-	0,   // [0:129] is the sub-list for field type_name
+	27,  // 42: agent_manager.v1.measures.RunCostResponse.token_buckets:type_name -> agent_manager.v1.measures.RunTokenBucket
+	3,   // 43: agent_manager.v1.measures.RunCostResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 44: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 45: agent_manager.v1.measures.RunVolumeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 46: agent_manager.v1.measures.RunVolumeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 47: agent_manager.v1.measures.RunVolumeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 48: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 49: agent_manager.v1.measures.RunStatusDistributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	32,  // 50: agent_manager.v1.measures.RunStatusDistributionResponse.rows:type_name -> agent_manager.v1.measures.RunStatusCount
+	1,   // 51: agent_manager.v1.measures.RunStatusDistributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 52: agent_manager.v1.measures.RunStatusDistributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 53: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 54: agent_manager.v1.measures.RunnerBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	34,  // 55: agent_manager.v1.measures.RunnerBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
+	1,   // 56: agent_manager.v1.measures.RunnerBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 57: agent_manager.v1.measures.RunnerBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 58: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 59: agent_manager.v1.measures.ModelBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	34,  // 60: agent_manager.v1.measures.ModelBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
+	1,   // 61: agent_manager.v1.measures.ModelBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 62: agent_manager.v1.measures.ModelBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 63: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 64: agent_manager.v1.measures.ProfileBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	34,  // 65: agent_manager.v1.measures.ProfileBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
+	1,   // 66: agent_manager.v1.measures.ProfileBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 67: agent_manager.v1.measures.ProfileBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 68: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 69: agent_manager.v1.measures.WorkloadBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	34,  // 70: agent_manager.v1.measures.WorkloadBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
+	1,   // 71: agent_manager.v1.measures.WorkloadBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 72: agent_manager.v1.measures.WorkloadBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 73: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 74: agent_manager.v1.measures.WorkloadEfficiencyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 75: agent_manager.v1.measures.WorkloadEfficiencyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 76: agent_manager.v1.measures.WorkloadEfficiencyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 77: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 78: agent_manager.v1.measures.TerminalRunTrendRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	46,  // 79: agent_manager.v1.measures.TerminalRunTrendResponse.rows:type_name -> agent_manager.v1.measures.TerminalRunTrendRow
+	1,   // 80: agent_manager.v1.measures.TerminalRunTrendResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 81: agent_manager.v1.measures.TerminalRunTrendResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 82: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 83: agent_manager.v1.measures.ToolUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	49,  // 84: agent_manager.v1.measures.ToolUsageResponse.rows:type_name -> agent_manager.v1.measures.ToolUsageRow
+	1,   // 85: agent_manager.v1.measures.ToolUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 86: agent_manager.v1.measures.ToolUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 87: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 88: agent_manager.v1.measures.ToolCommandBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	52,  // 89: agent_manager.v1.measures.ToolCommandBreakdownResponse.rows:type_name -> agent_manager.v1.measures.ToolCommandBreakdownRow
+	1,   // 90: agent_manager.v1.measures.ToolCommandBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 91: agent_manager.v1.measures.ToolCommandBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 92: agent_manager.v1.measures.TokenAttributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 93: agent_manager.v1.measures.TokenAttributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	55,  // 94: agent_manager.v1.measures.TokenAttributionResponse.rows:type_name -> agent_manager.v1.measures.TokenAttributionRow
+	1,   // 95: agent_manager.v1.measures.TokenAttributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 96: agent_manager.v1.measures.TokenAttributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 97: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 98: agent_manager.v1.measures.CapabilityUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	58,  // 99: agent_manager.v1.measures.CapabilityUsageResponse.rows:type_name -> agent_manager.v1.measures.CapabilityUsageRow
+	1,   // 100: agent_manager.v1.measures.CapabilityUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 101: agent_manager.v1.measures.CapabilityUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 102: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 103: agent_manager.v1.measures.CapabilityEfficacyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	61,  // 104: agent_manager.v1.measures.CapabilityEfficacyResponse.rows:type_name -> agent_manager.v1.measures.CapabilityEfficacyRow
+	1,   // 105: agent_manager.v1.measures.CapabilityEfficacyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 106: agent_manager.v1.measures.CapabilityEfficacyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 107: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 108: agent_manager.v1.measures.ErrorPatternsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	64,  // 109: agent_manager.v1.measures.ErrorPatternsResponse.rows:type_name -> agent_manager.v1.measures.ErrorPatternRow
+	1,   // 110: agent_manager.v1.measures.ErrorPatternsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 111: agent_manager.v1.measures.ErrorPatternsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 112: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 113: agent_manager.v1.measures.FileRereadRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 114: agent_manager.v1.measures.FileRereadRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 115: agent_manager.v1.measures.FileRereadRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 116: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 117: agent_manager.v1.measures.FindingRecurrenceRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 118: agent_manager.v1.measures.FindingRecurrenceRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 119: agent_manager.v1.measures.FindingRecurrenceRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 120: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 121: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 122: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	71,  // 123: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
+	3,   // 124: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	76,  // 125: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 126: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	74,  // 127: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
+	1,   // 128: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 129: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	9,   // 130: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
+	11,  // 131: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
+	13,  // 132: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
+	15,  // 133: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
+	17,  // 134: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
+	19,  // 135: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
+	21,  // 136: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
+	23,  // 137: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
+	25,  // 138: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
+	29,  // 139: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
+	31,  // 140: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
+	35,  // 141: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
+	37,  // 142: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
+	39,  // 143: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
+	41,  // 144: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
+	43,  // 145: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
+	45,  // 146: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
+	48,  // 147: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
+	51,  // 148: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
+	54,  // 149: agent_manager.v1.measures.MeasuresService.TokenAttribution:input_type -> agent_manager.v1.measures.TokenAttributionRequest
+	63,  // 150: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
+	66,  // 151: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
+	68,  // 152: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
+	73,  // 153: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
+	57,  // 154: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
+	60,  // 155: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
+	7,   // 156: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:input_type -> agent_manager.v1.measures.ConversationSearchQualityRequest
+	5,   // 157: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
+	70,  // 158: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
+	10,  // 159: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
+	12,  // 160: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
+	14,  // 161: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
+	16,  // 162: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
+	18,  // 163: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
+	20,  // 164: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
+	22,  // 165: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
+	24,  // 166: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
+	28,  // 167: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
+	30,  // 168: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
+	33,  // 169: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
+	36,  // 170: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
+	38,  // 171: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
+	40,  // 172: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
+	42,  // 173: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
+	44,  // 174: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
+	47,  // 175: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
+	50,  // 176: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
+	53,  // 177: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
+	56,  // 178: agent_manager.v1.measures.MeasuresService.TokenAttribution:output_type -> agent_manager.v1.measures.TokenAttributionResponse
+	65,  // 179: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
+	67,  // 180: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
+	69,  // 181: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
+	75,  // 182: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
+	59,  // 183: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
+	62,  // 184: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
+	8,   // 185: agent_manager.v1.measures.MeasuresService.ConversationSearchQuality:output_type -> agent_manager.v1.measures.ConversationSearchQualityResponse
+	6,   // 186: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
+	72,  // 187: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
+	159, // [159:188] is the sub-list for method output_type
+	130, // [130:159] is the sub-list for method input_type
+	130, // [130:130] is the sub-list for extension type_name
+	130, // [130:130] is the sub-list for extension extendee
+	0,   // [0:130] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_measures_measures_proto_init() }
@@ -7039,14 +7249,14 @@ func file_agent_manager_v1_measures_measures_proto_init() {
 	if File_agent_manager_v1_measures_measures_proto != nil {
 		return
 	}
-	file_agent_manager_v1_measures_measures_proto_msgTypes[70].OneofWrappers = []any{}
+	file_agent_manager_v1_measures_measures_proto_msgTypes[71].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_measures_measures_proto_rawDesc), len(file_agent_manager_v1_measures_measures_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   75,
+			NumMessages:   76,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

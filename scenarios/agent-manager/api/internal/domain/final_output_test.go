@@ -38,6 +38,15 @@ func TestResolveRunResultEvidenceRules(t *testing.T) {
 			status: FinalOutputSelectionAmbiguous,
 		},
 		{
+			name: "distinct interactive provider turns select latest handoff",
+			events: []*RunEvent{
+				event("first turn", MessageEventData{Terminal: true, ProviderOrigin: "claude", ConversationID: "session-1", TurnID: "message-1"}, 1),
+				event("final turn", MessageEventData{Terminal: true, ProviderOrigin: "claude", ConversationID: "session-1", TurnID: "message-2"}, 2),
+			},
+			status: FinalOutputSelectionSelected,
+			output: "final turn",
+		},
+		{
 			name:   "single generic main message is conservative fallback",
 			events: []*RunEvent{event("only", MessageEventData{}, 1)},
 			status: FinalOutputSelectionSelected,

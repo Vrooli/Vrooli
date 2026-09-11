@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/backlog.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -32,6 +33,7 @@ message ExecutionRecord {
       "needs_fixup",
       "completed",
       "failed",
+      "budget_exhausted",
       "cancelling",
       "canceled"
     ]
@@ -64,6 +66,30 @@ message ExecutionRecord {
 
   // Unified post-run finalization state for restart + health + review.
   optional Finalization finalization = 23;
+
+  // Requested runner/model preferences and the actual selected provider.
+  optional ExecutionPreferences execution_preferences = 24;
+  optional string actual_runner = 25;
+  optional string actual_model = 26;
+  optional string selection_reason = 27;
+
+  // Parent execution for an unattended continuation child.
+  optional string continuation_of = 28;
+
+  // Child execution IDs created from this execution by the sweeper.
+  repeated string continuation_child_ids = 29;
+
+  // Recorded Plan Manager boundary widenings projected into execution scope.
+  repeated ScopeExtension scope_extensions = 30;
+}
+
+// ScopeExtension is an execution-local projection of one Plan Manager
+// boundary extension. The Plan Manager execution remains the audit authority.
+message ScopeExtension {
+  repeated string paths = 1;
+  string reason = 2;
+  string recorded_at = 3;
+  string author = 4;
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.

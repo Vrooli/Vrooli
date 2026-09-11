@@ -93,6 +93,7 @@ type SystemEntry struct {
 	Owner     string
 	LogicalID string
 	Field     string
+	Consumers []credentialspec.Consumer
 }
 
 // ManagedSystemEntries returns metadata-only system credentials. Dynamic
@@ -104,15 +105,18 @@ func ManagedSystemEntries(root string) []SystemEntry {
 		return nil
 	}
 	seen := map[string]SystemEntry{}
-	add := func(owner, logicalID, field string) {
+	add := func(owner, logicalID, field string, consumers ...credentialspec.Consumer) {
 		identity, err := credentialauthority.ParseIdentity(logicalID)
 		if err != nil || strings.TrimSpace(field) == "" {
 			return
 		}
 		key := string(identity) + ":" + strings.TrimSpace(field)
-		seen[key] = SystemEntry{Owner: owner, LogicalID: string(identity), Field: strings.TrimSpace(field)}
+		seen[key] = SystemEntry{Owner: owner, LogicalID: string(identity), Field: strings.TrimSpace(field), Consumers: append([]credentialspec.Consumer(nil), consumers...)}
 	}
-	add("release-authority", "vrooli/release-authority", "rsa-pkcs8-v1")
+	add("release-authority", "vrooli/release-authority", "rsa-pkcs8-v1", credentialspec.Consumer{
+		LogicalID: "vrooli/release-authority", Field: "rsa-pkcs8-v1", Kind: credentialspec.KindDelegated,
+		Consumer: "release metadata signer", SourceRef: filepath.Join(root, "internal", "releaseauthority", "authority.go"), Required: true,
+	})
 	if refs, err := securestore.ListEntryRefs(); err == nil {
 		for _, ref := range refs {
 			if ref.Service != "vrooli.credentials.v1" || !strings.HasPrefix(ref.Key, "device-control/") {
@@ -122,7 +126,10 @@ func ManagedSystemEntries(root string) []SystemEntry {
 			if separator <= 0 || separator == len(ref.Key)-1 {
 				continue
 			}
-			add("device-control", ref.Key[:separator], ref.Key[separator+1:])
+			add("device-control", ref.Key[:separator], ref.Key[separator+1:], credentialspec.Consumer{
+				AddressPattern: "device-control/{name}", Kind: "dynamic",
+				Consumer: "device-control credential resolver", SourceRef: filepath.Join(root, "scenarios", "device-control", "api", "internal", "auth", "auth.go"), Required: true,
+			})
 		}
 	}
 	entries := make([]SystemEntry, 0, len(seen))

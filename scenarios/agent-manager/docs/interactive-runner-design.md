@@ -351,15 +351,16 @@ stdout `result`/`turn.completed`/`end` events.
   branch. codex/grok extract **zero** today; claude misses terminal + session-id
   and emits noise. Mitigation: the parse seam is unchanged; add golden fixtures
   from the real files captured here.
-- **R2 (Phase 4):** claude has no on-disk `result` line — completion must be
-  synthesized from `stop_reason=end_turn` plus an idle-debounce (interactive
-  sessions stay open awaiting input). Define the debounce so a tool_use pause is
-  not mistaken for completion.
-- **R3 (Phase 2/4):** claude transcript file discovery on the **shared**
-  `~/.claude/projects` tree is a newest-ctime-after-launch heuristic; concurrent
-  claude sessions in the same cwd could race. Mitigation: bound the search to
-  files created after the recorded launch timestamp; prefer the session whose
-  first line's cwd matches; capture the path once and pin it.
+- **R2 (Phase 4/5):** claude has no on-disk `result` line — ordinary completion
+  is synthesized from `stop_reason=end_turn` plus an idle-debounce. A goal-driven
+  run continues past the first end-turn and ends on native goal completion,
+  structured-result success, timeout/turn cap, or session exit; the selected
+  rule is persisted as `terminalReason`.
+- **R3 (Phase 2/4/5):** claude transcript file discovery on the **shared**
+  `~/.claude/projects` tree starts with a newest-ctime-after-launch heuristic;
+  concurrent sessions in one cwd could race. Mitigation: capture the runner
+  `sessionId` from the first JSONL line and pin the discovered path for tailing
+  and continuation.
 - **R4 (Phase 4):** codex rollout files are date-pathed
   (`YYYY/MM/DD`); a run that crosses midnight or a long idle could confuse a
   naive glob. Mitigation: the run-scoped `CODEX_HOME` isolates to one run, so
@@ -397,6 +398,22 @@ terminal it waits a debounce window (default **5 s**) for the transcript file to
 grow beyond the consumed cursor. Growth ⇒ a new turn began (keep tailing from the
 cursor); no growth ⇒ the run is complete. A *failure* terminal (`turn_aborted`)
 finalizes the run Failed immediately, no debounce.
+
+For a goal-driven run, a provider success marker that is not a native `goal_*`
+marker remains a turn boundary unless the persisted deterministic structured
+result already satisfies the run's `ResultSpec`. In that case the coordinator
+ends the run with `terminal_reason=structured_result`. This lets a goal-session
+worker finish with its required workflow JSON when the provider does not emit a
+second native goal marker. Constrained extraction never ends the tail because it
+can require an unavailable or asynchronous extractor.
+
+For a non-empty engine-owned `until`, native goal markers take precedence over
+the ordinary turn-boundary rule. Each changed marker is emitted as a typed
+`goal_status_changed` run event with objective, status, iteration, and reason.
+`complete`, `blocked`, `usage_limited`, and `budget_limited` are terminal goal
+states; `active` and `paused` remain observable. A final Claude assistant usage
+block is marked as the terminal token receipt when available; absent usage
+remains unknown rather than becoming zero.
 
 claude is the load-bearing case (its `end_turn` is the *only* signal). File-byte
 growth is a faithful new-turn proxy because claude writes its interactive-only

@@ -31,6 +31,50 @@ func NewService(client BASClient) *Service {
 	}
 }
 
+// TargetLocalSessionTokenFileEnv names the explicit validation-only binding
+// used when an observer workflow targets a personal_local API. The file is
+// owned by the runtime that launched the target and is never sent to BAS as a
+// control-plane credential.
+const TargetLocalSessionTokenFileEnv = "WORKFLOW_HEALTH_TARGET_LOCAL_SESSION_TOKEN_FILE"
+
+func targetLocalSessionHeader(getenv func(string) string, readFile func(string) ([]byte, error)) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	path := strings.TrimSpace(getenv(TargetLocalSessionTokenFileEnv))
+	if path == "" {
+		return "", nil
+	}
+	token, err := readFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read target local session token file %q: %w", path, err)
+	}
+	value := strings.TrimSpace(string(token))
+	if value == "" {
+		return "", fmt.Errorf("target local session token file %q is empty", path)
+	}
+	return "LocalSession " + value, nil
+}
+
+func addTargetAuthHeader(headers map[string]string, authorization string) (map[string]string, error) {
+	if strings.TrimSpace(authorization) == "" {
+		return headers, nil
+	}
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	for key, value := range headers {
+		if strings.EqualFold(strings.TrimSpace(key), "Authorization") && strings.TrimSpace(value) != "" {
+			return nil, fmt.Errorf("target Authorization header is already supplied; use %s as the sole target credential source", TargetLocalSessionTokenFileEnv)
+		}
+	}
+	headers["Authorization"] = authorization
+	return headers, nil
+}
+
 func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts Options) (report Report, err error) {
 	if s == nil {
 		return Report{}, fmt.Errorf("execution service is nil")
@@ -56,8 +100,27 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 		report.Summary.Skipped = len(selected)
 		return report, nil
 	}
+	// Observer workflows are explicitly read-only against the currently
+	// running target. Do not divert them into an empty routed test pool: that
+	// would make an existing target record appear missing and would violate the
+	// execution mode declared by the workflow registry. Mutating, explicitly
+	// routed, and Electron-bound executions still require provider-owned
+	// isolation below.
+	if !assetsRequireIsolation(selected, opts.ElectronTarget != nil) {
+		opts.Isolation = nil
+	}
 	if s.Client == nil && !opts.DryRun {
 		return report, fmt.Errorf("BAS client is required when execution is enabled")
+	}
+	if opts.IncludeExecution && !opts.DryRun {
+		authorization, err := targetLocalSessionHeader(nil, nil)
+		if err != nil {
+			return report, fmt.Errorf("target authentication configuration: %w", err)
+		}
+		opts.ExtraHeaders, err = addTargetAuthHeader(opts.ExtraHeaders, authorization)
+		if err != nil {
+			return report, err
+		}
 	}
 	isolationInstalled := false
 	executionCtx := ctx
@@ -140,6 +203,18 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	validation.SortFindings(report.Findings)
 	return report, nil
+}
+
+func assetsRequireIsolation(assets []workflows.WorkflowAsset, electronBound bool) bool {
+	if electronBound {
+		return true
+	}
+	for _, asset := range assets {
+		if asset.Safety.Mutating || asset.Safety.RequiresIsolation {
+			return true
+		}
+	}
+	return false
 }
 
 func isolationFinding(description string) validation.Finding {

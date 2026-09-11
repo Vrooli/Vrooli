@@ -15,6 +15,7 @@ export interface CredentialListItem {
   field: string;
   label: string;
   description?: string;
+  tiers?: string[];
   obtain_url?: string;
   required: boolean;
   provisioning?: string;
@@ -30,19 +31,23 @@ export interface CredentialListResponse {
 
 export function fetchCredentials(target = "local"): Promise<CredentialListResponse> {
   return (client.listCredentials({ target }) as unknown as Promise<ListCredentialsResponse>).then((response) => ({
-    credentials: response.credentials.map((item) => ({
-      resource: item.resource,
-      logical_id: item.logicalId,
-      field: item.field,
-      label: item.label,
-      description: item.description,
-      obtain_url: item.obtainUrl,
-      required: item.required,
-      provisioning: item.provisioning,
-      derived_from: item.derivedFrom,
-      status: item.status,
-      detail: item.detail,
-    })),
+    credentials: response.credentials.map((item) => {
+      const metadata = item as typeof item & { tiers?: string[] };
+      return {
+        resource: item.resource,
+        logical_id: item.logicalId,
+        field: item.field,
+        label: item.label,
+        description: item.description,
+        tiers: metadata.tiers,
+        obtain_url: item.obtainUrl,
+        required: item.required,
+        provisioning: item.provisioning,
+        derived_from: item.derivedFrom,
+        status: item.status,
+        detail: item.detail,
+      };
+    }),
     count: response.count,
   }));
 }

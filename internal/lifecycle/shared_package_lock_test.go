@@ -1,6 +1,8 @@
 package lifecycle
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,27 @@ import (
 type synchronizedBuffer struct {
 	mu sync.Mutex
 	b  strings.Builder
+}
+
+func TestAcquireSharedPackageLockUsesGeneratorLockForProto(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+
+	release, err := acquireSharedPackageLock(home, "proto", root, nil)
+	if err != nil {
+		t.Fatalf("acquire Proto lock: %v", err)
+	}
+	defer release()
+
+	lockPath := filepath.Join(home, ".vrooli", "locks", "proto-generation.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		t.Fatalf("stat unified Proto lock %s: %v", lockPath, err)
+	}
+
+	legacyPath := sharedPackageLockPath(filepath.Join(home, scenarioLockDirName), root)
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Fatalf("legacy per-root lock %s unexpectedly exists, stat error=%v", legacyPath, err)
+	}
 }
 
 func (w *synchronizedBuffer) Write(p []byte) (int, error) {

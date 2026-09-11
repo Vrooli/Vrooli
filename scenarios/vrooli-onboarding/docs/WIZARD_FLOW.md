@@ -27,6 +27,13 @@ Nothing an operator needs is reached by a command outside it. In particular:
 - Host changes are consented to on the host step, and the list shown there is
   the list apply performs.
 
+The normal wizard credentials step remains write-only. For a local operator who
+must recover an already-configured value, the separate CLI command
+`vrooli-onboarding credentials reveal --logical-id <id> --field <field>
+--confirm-reveal` is intentionally narrower: it requires a real terminal,
+refuses `--json` and redirected output, and never exposes a value through the
+API, UI, browser, logs, or onboarding state.
+
 Two commands prove the resulting state, and they must agree:
 
 ```bash
@@ -193,6 +200,9 @@ Contract:
   surface; dropping them leaves the operator with an unexplained password box.
 - Save relays the value to the credential authority. The value never appears in
   a response, a log, a URL, an argument, operator state, or browser storage.
+- Reveal is not part of the wizard card. It is a local, explicitly confirmed
+  recovery action exposed only by the CLI; the card continues to show status
+  and metadata, never a stored value.
 - Descriptors with `provisioning: derived` are read-only status rows. The
   owning resource or scenario completes them through its own lifecycle after
   the declared source credential is present; onboarding contains no
@@ -485,7 +495,11 @@ develop-and-publish, and customer-preinstalled profiles. `ProfileService/ListPro
 returns profile metadata including provenance. `ProfileService/EvaluateProfile`
 accepts typed answers, applies only the bounded condition operators, and returns
 visible questions, validation issues, recommendations, and the deduplicated
-scenario/resource result. Customer presets remain recommendations: explicit
+scenario/resource result. For publishing purposes the generic profile asks
+about desktop and mobile platforms, distribution method, account ownership,
+hosting, payments, mail, download storage, and connected targets only when
+those branches apply. These answers are applicability context, not secret or
+consent inputs. Customer presets remain recommendations: explicit
 operator choices can replace optional defaults, while the selected preset source
 and revision remain visible.
 

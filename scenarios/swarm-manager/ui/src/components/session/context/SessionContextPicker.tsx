@@ -17,12 +17,13 @@ import {
 import type { AgentSessionContextType, AgentSessionKind, AgentSession, BacklogItem, Capture, ExecutionRecord, Scenario } from "../../../types";
 import { ContextChipTray } from "../../composer/ContextChipTray";
 import { BacklogCard } from "../../backlog/backlog-card";
-import { GoalProgressCard } from "../../goals/GoalProgressCard";
+import { GoalProgressSummary } from "../../goals/GoalProgressCard";
+import { CollectionRow } from "../../ui/collection-row";
 import { ExecutionSummaryCard } from "../../execution/execution-summary-card";
 import { ScenarioSummaryCard } from "../../scenario/scenario-summary-card";
 import { SessionSummaryCard } from "../session-summary-card";
 import { CaptureCard } from "../../capture/capture-card";
-import { CollectionList } from "@vrooli/react-component-library/CollectionList/1.0.0";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1";
 import { allowedContextTypesForKind, CONTEXT_TYPE_CAPS, CONTEXT_TYPE_LABELS, totalContextCapForKind } from "./session-context-config";
 import { buildContextOptionsByType } from "./session-context-options";
 import { backlogItemIsStale, executionIsFailedOrStale, STARTER_FILTER_TARGET_TYPE, type StarterContextFilterKey } from "./starter-context-filters";
@@ -245,13 +246,15 @@ function SessionContextPickerContent({
     },
   }), [capMessage, capReached, pickerRows, selectedKeys, selectedKeysForList]);
 
-  const renderPickerRow = (row: PickerRow, _state: { selection: { selectionMode: boolean; selected: boolean; disabled?: boolean; disabledReason?: string; onToggleSelect?: () => void } }) => {
+  const renderPickerRow = (row: PickerRow) => <CollectionRow>{pickerRowContent(row)}</CollectionRow>;
+
+  const pickerRowContent = (row: PickerRow) => {
     if (row.option.type === "backlog_item" && row.entity) {
       return <BacklogCard item={row.entity as BacklogItem} />;
     }
     if (row.option.type === "goal" && row.entity) {
       const goal = row.entity as GoalWithScope;
-      return <GoalProgressCard title={goal.goal.title || goal.goal.name} subtitle={row.option.subtitle} priority={goal.goal.priority} completed={goal.scope.completedCount} total={goal.scope.total} targets={goal.scope.targets.length} ready={goal.scope.ready.length} blocked={goal.scope.blockedCount} />;
+      return <GoalProgressSummary title={goal.goal.title || goal.goal.name} subtitle={row.option.subtitle} priority={goal.goal.priority} completed={goal.scope.completedCount} total={goal.scope.total} targets={goal.scope.targets.length} ready={goal.scope.ready.length} blocked={goal.scope.blockedCount} />;
     }
     if (row.option.type === "capture" && row.entity) {
       return <CaptureCard capture={row.entity as Capture} />;
@@ -265,7 +268,12 @@ function SessionContextPickerContent({
     if (row.option.type === "scenario" && row.entity) {
       return <ScenarioSummaryCard scenario={row.entity as Scenario} />;
     }
-    return <div className="min-w-0 px-2.5 py-2"><span className="block truncate text-sm font-medium leading-5">{row.option.title}</span><span className="block truncate text-xs leading-5 text-slate-400">{row.option.subtitle || row.option.ref}</span></div>;
+    return (
+      <>
+        <span className="block truncate text-sm font-medium leading-5">{row.option.title}</span>
+        <span className="block truncate text-xs leading-5 text-slate-400">{row.option.subtitle || row.option.ref}</span>
+      </>
+    );
   };
 
   return (
@@ -341,7 +349,6 @@ function SessionContextPickerContent({
               selection={selection}
               bulkBar="none"
               renderItem={renderPickerRow}
-              className="space-y-1.5"
             />
           ) : (
             <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-500">

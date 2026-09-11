@@ -34,6 +34,8 @@ export interface ReadinessResponse {
     field: string;
     label: string;
     description?: string;
+    consumer_scope?: string;
+    tiers?: string[];
     obtain_url?: string;
     required: boolean;
     provisioning?: string;
@@ -42,6 +44,10 @@ export interface ReadinessResponse {
     detail?: string;
     evidence_status?: string;
     evidence_detail?: string;
+    evidence_next_action?: string;
+    evidence_credential_version?: string;
+    provider_state?: string;
+    provider_detail?: string;
   }>;
   hosts: ReadinessItem[];
   integrations: ReadinessItem[];
@@ -79,13 +85,16 @@ function toReadinessResponse(response: GetReadinessResponse): ReadinessResponse 
       // Keep compatibility with an already-installed generated proto package
       // while the workspace package is refreshed. New builds expose these
       // fields directly; an absent field is safely treated as unverified.
-      const evidence = item as typeof item & { evidenceStatus?: string; evidenceDetail?: string };
+      const evidence = item as typeof item & { evidenceStatus?: string; evidenceDetail?: string; evidenceNextAction?: string; evidenceCredentialVersion?: string; providerState?: string; providerDetail?: string; tiers?: string[] };
       return {
       resource: item.resource, logical_id: item.logicalId, field: item.field, label: item.label,
       description: item.description, obtain_url: item.obtainUrl, required: item.required,
+      consumer_scope: item.consumerRefs?.join(", "),
+      tiers: evidence.tiers,
       provisioning: item.provisioning, derived_from: item.derivedFrom,
       status: item.legacyStatus || stateName(item.status), detail: item.detail,
-      evidence_status: evidence.evidenceStatus, evidence_detail: evidence.evidenceDetail,
+      evidence_status: evidence.evidenceStatus, evidence_detail: evidence.evidenceDetail, evidence_next_action: evidence.evidenceNextAction, evidence_credential_version: evidence.evidenceCredentialVersion,
+      provider_state: evidence.providerState, provider_detail: evidence.providerDetail,
       };
     }),
     hosts: response.hosts.map((host) => itemFromProto(host.item, host.kind, host.required)),

@@ -12,6 +12,7 @@
     "backlog": "simple",
     "backlogFile": "simple",
     "capture": "none",
+    "goal": "strong",
     "initiative": "strong",
     "scenario": "strong",
     "session": "simple"
@@ -43,5 +44,6 @@
     "min_velocity_transitions": 1,
     "interval_minutes": 30,
     "goal_name": "automated-maintenance"
-  }
+  },
+  "autonomy_gate_modes": {}
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	internalglossary "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/glossary"
 )
@@ -126,6 +127,23 @@ func TestControlPlaneExecutorUsesDeclaredCommands(t *testing.T) {
 	}
 }
 
+func TestControlPlaneExecutorPreservesTypedVerificationFailureEnvelope(t *testing.T) {
+	previous := controlPlaneCommand
+	controlPlaneCommand = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' '{"evidence":[{"kind":"coverage","verified":false}],"error_code":"durable_backup_evidence_incomplete","retryable":false,"next_action":"complete-durable-backup-evidence"}'; exit 1`)
+	}
+	t.Cleanup(func() { controlPlaneCommand = previous })
+
+	evidence, err := (controlPlaneExecutor{}).VerifyCapability(context.Background(), operatorcapability.VerificationRequest{CapabilityID: "durable-backup-evidence", TargetID: "local", Operation: "readiness-check", Effect: operatorcapability.EffectBudget{Class: operatorcapability.EffectReadOnly}})
+	var verificationErr *operatorcapability.VerificationError
+	if !errors.As(err, &verificationErr) || verificationErr.Code != "durable_backup_evidence_incomplete" || verificationErr.Retryable || verificationErr.NextAction != "complete-durable-backup-evidence" {
+		t.Fatalf("error = %v, want typed incomplete-evidence failure", err)
+	}
+	if len(evidence) != 1 || evidence[0].Kind != "coverage" {
+		t.Fatalf("evidence = %#v, want preserved partial evidence", evidence)
+	}
+}
+
 func TestPrivilegedApplyUsesProvisionedGrantAndAuditsInvocation(t *testing.T) {
 	var got []string
 	previousCommand := controlPlaneCommand
@@ -210,7 +228,7 @@ func TestCredentialClientReportsAuthorityConstructionFailures(t *testing.T) {
 	if _, err := onboardingKeyringJSON(ctx, "inspect"); err == nil {
 		t.Fatal("keyring inspect should report authority construction failure")
 	}
-	if err := onboardingProvision(ctx, "vrooli/demo", "value", "secret"); err == nil {
+	if _, err := onboardingProvision(ctx, "vrooli/demo", "value", "secret"); err == nil {
 		t.Fatal("provision should report authority construction failure")
 	}
 	if _, err := onboardingStatusJSON(ctx, "vrooli/demo", "value"); err == nil {

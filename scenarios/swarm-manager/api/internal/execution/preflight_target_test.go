@@ -33,3 +33,23 @@ func TestUnplannedPreflightPreservesScenarioGenerationHint(t *testing.T) {
 		t.Fatalf("unplanned scenario guidance changed: %+v", got)
 	}
 }
+
+type nativeGoalUnavailableAgent struct{ stubAgentService }
+
+func (nativeGoalUnavailableAgent) NativeGoalRunnersAvailable(context.Context) (bool, error) {
+	return false, nil
+}
+
+func TestGoalSessionPreflightBlocksWithoutNativeRunnerButAllowsForce(t *testing.T) {
+	service := &Service{
+		repoRoot:     filepath.Join(t.TempDir(), "swarm-manager"),
+		agentService: &nativeGoalUnavailableAgent{},
+	}
+	got := service.processPreflightForItem(context.Background(), backlogItem{
+		Kind: "execute", Name: "goal-item", Status: backlogStatusBacklog,
+		ExecutionStrategy: "goal-session",
+	}, false)
+	if got.Ready || len(got.ForceableBlockingDetails) != 1 || got.ForceableBlockingDetails[0].Code != "goal_session_runner_unavailable" {
+		t.Fatalf("goal-session preflight=%+v", got)
+	}
+}

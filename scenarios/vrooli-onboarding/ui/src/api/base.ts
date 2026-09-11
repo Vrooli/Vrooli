@@ -18,11 +18,12 @@ async function onboardingFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   const token = typeof window !== "undefined"
     ? await window.desktop?.auth?.getLocalSessionToken?.()
     : null;
-  if (!token) return fetch(input, init);
+  const requestInit: RequestInit = { ...init, credentials: init?.credentials ?? "include" };
+  if (!token) return fetch(input, requestInit);
 
-  const headers = new Headers(init?.headers);
+  const headers = new Headers(requestInit.headers);
   if (!headers.has("Authorization")) headers.set("Authorization", `LocalSession ${token}`);
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...requestInit, headers });
 }
 
 export function onboardingTransport() {

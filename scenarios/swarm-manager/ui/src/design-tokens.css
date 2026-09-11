@@ -133,6 +133,8 @@
   --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --color-border-strong: color-mix(in srgb, var(--color-border) 72%, var(--color-foreground));
   --color-danger-foreground: color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground));
+  --color-danger-foreground-inverse: var(--color-primary-foreground);
+  --color-primary-strong: var(--color-primary);
   --color-scrim: color-mix(in srgb, var(--color-shell) 52%, transparent);
   --color-surface-sunken: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background));
   --control-height: 2.75rem;
@@ -149,6 +151,9 @@
   --dur-enter: var(--dur-quick);
   --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
   --glow-primary: rgba(51,214,255,.5);
+  --overlay-dialog-lg: 48rem;
+  --overlay-dialog-md: 36rem;
+  --overlay-dialog-sm: 24rem;
   --overlay-drawer-top-gap: 32px;
   --overlay-grabber-block: 4px;
   --overlay-grabber-inline: 36px;

@@ -459,6 +459,7 @@ func (a *App) runCreate(args []string) error {
 	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
 	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 	model := fs.String("model", "", "Per-run model override")
+	until := fs.String("until", "", "Engine-owned completion test for this run")
 	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 
@@ -523,6 +524,12 @@ func (a *App) runCreate(args []string) error {
 			req.InlineConfig = &domainpb.RunConfigOverrides{}
 		}
 		req.InlineConfig.Model = protoString(*model)
+	}
+	if *until != "" {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.Until = protoString(*until)
 	}
 	if *workloadKey != "" || *workloadKind != "" {
 		if req.Environment == nil {

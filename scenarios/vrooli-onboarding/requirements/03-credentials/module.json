@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Credential provisioning and readiness: descriptor-complete guidance, a disclosure-free relay boundary, backend diagnosis, and recovery coverage.",
-    "last_validated_at": "2026-09-10T03:45:48-04:00",
+    "last_validated_at": "2026-09-10T14:51:27-04:00",
     "module": "onboarding.credentials",
     "schema_version": "1.0.0"
   },
@@ -182,6 +182,23 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Proves the client is built with a root, a state directory, and a scope-aware descriptor source, and that the recovery block is populated only when the state directory is present."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CRED-LOCAL-REVEAL",
+      "title": "The onboarding CLI shall reveal a configured credential only after explicit local confirmation",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "category": "credentials",
+      "description": "Recovery of a configured value is an explicit local operator action, not a browser or API read path. The command requires --confirm-reveal, refuses --json and redirected output, and resolves only from the local credential authority.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/credentials/register_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts explicit confirmation, no JSON mode, local authority resolution, and terminal-only output."
         }
       ]
     }

@@ -10,11 +10,14 @@ describe("mapProtoBacklogItem", () => {
       execution_strategy: "adaptive-improvement",
       plan_acceptance: { actor: "operator", accepted_at: "2026-09-10T12:00:00Z", plan_content_hash: "a".repeat(64), subject_version: "b".repeat(64) },
       execution_limits: { max_slices: 128, max_tokens: "2000000", max_wall_seconds: "604800", max_turns: 2400, max_charge_micro_usd: "250000000", max_children: 512, max_node_attempts: 512, max_retries: 128 },
+      continuation: "until-allowance", scope_policy: "extend-with-record",
     } });
     const item = mapProtoBacklogItem(parsed.item!);
     expect(item.executionStrategy).toBe("adaptive-improvement");
     expect(item.planAcceptance).toEqual({ actor: "operator", acceptedAt: "2026-09-10T12:00:00Z", planContentHash: "a".repeat(64), subjectVersion: "b".repeat(64) });
     expect(item.executionLimits).toEqual({ maxSlices: 128, maxTokens: 2000000, maxWallSeconds: 604800, maxTurns: 2400, maxChargeMicroUsd: 250000000, maxChildren: 512, maxNodeAttempts: 512, maxRetries: 128 });
+    expect(item.continuation).toBe("until-allowance");
+    expect(item.scopePolicy).toBe("extend-with-record");
   });
 
   it("maps created_by attribution into the UI domain shape", () => {

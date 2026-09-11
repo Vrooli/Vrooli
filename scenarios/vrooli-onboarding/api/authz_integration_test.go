@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/vrooli/api-core/authn"
@@ -31,38 +30,30 @@ func TestRemoteMutationCannotUseLoopbackPersonalLocalShortcut(t *testing.T) {
 	}
 }
 
-func TestPersonalLocalAuthenticationRequiresRuntimeSessionAndPreservesAgentProvenance(t *testing.T) {
-	tokenPath := t.TempDir() + "/runtime-token"
-	if err := os.WriteFile(tokenPath, []byte("runtime-session-token\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+func TestPersonalLocalAuthenticationMatchesGitControlTowerAndPreservesAgentProvenance(t *testing.T) {
 	t.Setenv("VROOLI_AUTH_MODE", "personal_local")
-	t.Setenv("VROOLI_AUTH_LOCAL_TOKEN_FILE", tokenPath)
 	config := onboardingAuthenticationConfig()
 
 	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api", nil)
 	request.RemoteAddr = "127.0.0.1:44000"
-	if _, err := config.Authenticate(context.Background(), request); err == nil {
-		t.Fatal("loopback request without runtime session unexpectedly authenticated")
-	}
-	request.Header.Set("Authorization", "Bearer wrong-token")
-	if _, err := config.Authenticate(context.Background(), request); err == nil {
-		t.Fatal("wrong runtime session unexpectedly authenticated")
-	}
-	request.Header.Set("Authorization", "LocalSession runtime-session-token")
 	principal, err := config.Authenticate(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if principal.Kind != identity.ActorHuman || principal.Subject == "" || principal.Subject == "osuser:1001" {
+	if principal.Kind != identity.ActorHuman || principal.Subject == "" {
 		t.Fatalf("personal-local principal = %#v", principal)
+	}
+	request.RemoteAddr = "198.51.100.20:44000"
+	if _, err := config.Authenticate(context.Background(), request); err == nil {
+		t.Fatal("remote request unexpectedly authenticated by personal-local provider")
 	}
 
 	agentContext := provenance.NewContext(context.Background(), provenance.Provenance{
 		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1",
 	})
+	request.RemoteAddr = "127.0.0.1:44000"
 	if _, err := config.Authenticate(agentContext, request); err == nil {
-		t.Fatal("verified agent provenance was promoted to a human local session")
+		t.Fatal("verified agent provenance was promoted to a human local operator")
 	}
 }
 

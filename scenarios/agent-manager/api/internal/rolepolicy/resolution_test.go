@@ -62,3 +62,28 @@ func TestResolveRejectsUnknownRole(t *testing.T) {
 		t.Fatalf("Resolve error = %v, want catalog validation error", err)
 	}
 }
+
+func TestResolvePreferredReordersDeclaredRunnerAndExplainsUnknownPreference(t *testing.T) {
+	state, err := NewState(writeCatalog(t, validCatalogJSON), Requirement{Required: true})
+	if err != nil {
+		t.Fatalf("NewState: %v", err)
+	}
+	resolver := fakeResolver{responses: map[domain.RunnerType]ResolvedRole{
+		domain.RunnerTypeClaudeCode: {Model: "claude-sonnet"},
+		domain.RunnerTypeCodex:      {Model: "gpt-5.4"},
+	}}
+	preferred, err := state.ResolvePreferred(context.Background(), resolver, "code.default", string(domain.RunnerTypeCodex))
+	if err != nil {
+		t.Fatalf("ResolvePreferred: %v", err)
+	}
+	if preferred.SelectionReason != "preferred" || preferred.Candidates[0].Runner != domain.RunnerTypeCodex {
+		t.Fatalf("preferred resolution = %#v", preferred)
+	}
+	unknown, err := state.ResolvePreferred(context.Background(), resolver, "code.default", "not-a-runner")
+	if err != nil {
+		t.Fatalf("ResolvePreferred unknown: %v", err)
+	}
+	if unknown.SelectionReason != "preferred_unavailable:runner_not_declared" || unknown.Candidates[0].Runner != domain.RunnerTypeCodex {
+		t.Fatalf("unknown preference resolution = %#v", unknown)
+	}
+}

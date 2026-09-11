@@ -9,12 +9,52 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	clitest "github.com/vrooli/cli-core/cliapptest"
+	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities/capabilitiesv1connect"
 )
 
 func TestRegisterExposesCapabilityCommands(t *testing.T) {
 	group := Register(&cliapp.ScenarioApp{})
-	if group.Name != "capabilities" || len(group.Subcommands) != 3 {
+	if group.Name != "capabilities" || len(group.Subcommands) != 4 {
 		t.Fatalf("group = %+v", group)
+	}
+	for _, command := range group.Subcommands {
+		if command.Name == "verify" {
+			return
+		}
+	}
+	t.Fatal("capabilities group does not expose verify")
+}
+
+func TestVerifyBuildsBoundedContextRequest(t *testing.T) {
+	var body string
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == capabilitiesconnect.CapabilitiesServiceVerifyCapabilityProcedure {
+			data, _ := io.ReadAll(r.Body)
+			body = string(data)
+			_, _ = w.Write([]byte(`{"capabilityId":"demo","evidence":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"state":"ready"}`))
+	}))
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Core: core,
+		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "capability-id"},
+			{Name: "target"},
+			{Name: "operation"},
+			{Name: "environment"},
+			{Name: "account-identity"},
+		}},
+		Flags: map[string]string{"capability-id": "demo", "target": "remote", "operation": "read"},
+		JSON:  true,
+	})
+	if err := verify(core, ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"capabilityId":"demo"`, `"targetId":"remote"`, `"operation":"read"`, `"effectClass":"read_only"`, `"timeoutSeconds":"30"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("verify request = %q, want %q", body, want)
+		}
 	}
 }
 

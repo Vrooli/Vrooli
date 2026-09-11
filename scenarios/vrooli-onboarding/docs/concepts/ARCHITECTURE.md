@@ -132,9 +132,11 @@ versioned library source.
 
 ## Security posture
 
-- A credential value crosses exactly one boundary: request body or standard
-  input → credential authority. It appears in no response, log, URL, argument,
-  operator-state field, or browser store.
+- A credential value crosses exactly one provisioning boundary: request body or
+  standard input → credential authority. It appears in no API response, log,
+  URL, argument, operator-state field, or browser store. The only display
+  exception is the explicitly confirmed local CLI reveal, which refuses JSON
+  and redirected output.
 - Apply escalates privilege only where a manifest declares it, and only after
   the operator consents to that specific safeguard with its privilege visible.
 - Trust posture and the core-set authority live in operator state and are owned

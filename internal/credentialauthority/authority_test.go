@@ -81,6 +81,83 @@ func TestAuthorityStoresAndInjectsOnlyScopedValue(t *testing.T) {
 	}
 }
 
+func TestAuthorityInjectExpectedBindsValueAndVersionAtomically(t *testing.T) {
+	authority, err := NewAuthority(&authorityStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := ParseIdentity("vrooli/openrouter")
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidate, err := authority.PutCandidate(identity, "api-key", "bound-value")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authority.ActivateCandidate(candidate); err != nil {
+		t.Fatal(err)
+	}
+
+	target := map[string]string{}
+	version, err := authority.InjectExpected(identity, "api-key", "OPENROUTER_API_KEY", target, candidate.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != candidate.Version || target["OPENROUTER_API_KEY"] != "bound-value" {
+		t.Fatalf("version = %q target = %#v, want %q and bound value", version, target, candidate.Version)
+	}
+
+	delete(target, "OPENROUTER_API_KEY")
+	if _, err := authority.InjectExpected(identity, "api-key", "OPENROUTER_API_KEY", target, "stale-version"); err == nil {
+		t.Fatal("stale expected version was accepted")
+	}
+	if len(target) != 0 {
+		t.Fatalf("stale version mutated target: %#v", target)
+	}
+}
+
+func TestAuthorityRejectsMalformedEnvironmentNamesWithoutMutatingTarget(t *testing.T) {
+	authority, err := NewAuthority(&authorityStore{values: map[string]string{
+		credentialService + "/vrooli/test/api-key": "test-value",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := ParseIdentity("vrooli/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, envName := range []string{"A=B", "A-B", "9INVALID"} {
+		target := map[string]string{"existing": "preserved"}
+		if err := authority.Inject(identity, "api-key", envName, target); err == nil {
+			t.Fatalf("Inject(%q) unexpectedly succeeded", envName)
+		}
+		if len(target) != 1 || target["existing"] != "preserved" {
+			t.Fatalf("Inject(%q) mutated target: %#v", envName, target)
+		}
+	}
+}
+
+func TestAuthorityDoesNotOverwriteCallerOwnedEnvironment(t *testing.T) {
+	authority, err := NewAuthority(&authorityStore{values: map[string]string{
+		credentialService + "/vrooli/test/api-key": "secret-value",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := ParseIdentity("vrooli/test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := map[string]string{"TEST_API_KEY": "caller-owned"}
+	if err := authority.Inject(identity, "api-key", "TEST_API_KEY", target); err == nil {
+		t.Fatal("Inject unexpectedly overwrote caller-owned environment")
+	}
+	if target["TEST_API_KEY"] != "caller-owned" {
+		t.Fatalf("target = %#v, caller-owned value was changed", target)
+	}
+}
+
 func TestAuthorityRejectsInvalidIdentityAndNeverFallsBack(t *testing.T) {
 	if _, err := ParseIdentity("openrouter"); err == nil {
 		t.Fatal("unnamespaced identity accepted")

@@ -49,7 +49,7 @@ AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL: AgentManagerWsClientMessag
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING: AgentManagerWsClientMessageType
 
 class RunEvent(_message.Message):
-    __slots__ = ("id", "run_id", "sequence", "event_type", "timestamp", "log", "message", "message_deleted", "tool_call", "tool_result", "status", "metric", "artifact", "error", "progress", "cost", "rate_limit", "compaction")
+    __slots__ = ("id", "run_id", "sequence", "event_type", "timestamp", "log", "message", "message_deleted", "tool_call", "tool_result", "status", "metric", "artifact", "error", "progress", "cost", "rate_limit", "compaction", "goal_status_changed")
     ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
@@ -68,6 +68,7 @@ class RunEvent(_message.Message):
     COST_FIELD_NUMBER: _ClassVar[int]
     RATE_LIMIT_FIELD_NUMBER: _ClassVar[int]
     COMPACTION_FIELD_NUMBER: _ClassVar[int]
+    GOAL_STATUS_CHANGED_FIELD_NUMBER: _ClassVar[int]
     id: str
     run_id: str
     sequence: int
@@ -86,7 +87,20 @@ class RunEvent(_message.Message):
     cost: CostEventData
     rate_limit: RateLimitEventData
     compaction: CompactionEventData
-    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ..., compaction: _Optional[_Union[CompactionEventData, _Mapping]] = ...) -> None: ...
+    goal_status_changed: GoalStatusChangedEventData
+    def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ..., compaction: _Optional[_Union[CompactionEventData, _Mapping]] = ..., goal_status_changed: _Optional[_Union[GoalStatusChangedEventData, _Mapping]] = ...) -> None: ...
+
+class GoalStatusChangedEventData(_message.Message):
+    __slots__ = ("objective", "status", "iteration", "last_reason")
+    OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ITERATION_FIELD_NUMBER: _ClassVar[int]
+    LAST_REASON_FIELD_NUMBER: _ClassVar[int]
+    objective: str
+    status: str
+    iteration: int
+    last_reason: str
+    def __init__(self, objective: _Optional[str] = ..., status: _Optional[str] = ..., iteration: _Optional[int] = ..., last_reason: _Optional[str] = ...) -> None: ...
 
 class AgentManagerWsMessage(_message.Message):
     __slots__ = ("type", "run_id", "run_event", "run_status", "task_status", "run_progress", "connected", "pong", "workflow_lifecycle")

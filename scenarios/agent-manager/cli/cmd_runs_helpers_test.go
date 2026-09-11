@@ -61,6 +61,30 @@ func TestRunCreateModelOverrideIsOptional(t *testing.T) {
 	}
 }
 
+func TestRunCreateUntilOverrideIsForwarded(t *testing.T) {
+	var received apipb.CreateRunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(readAll(t, r), &received); err != nil {
+			t.Error(err)
+		}
+		body, err := protojson.Marshal(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "run-until"}})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"create", "--task-id=task-1", "--profile-id=profile-1", "--until=file GOAL_DONE.txt exists", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if received.InlineConfig == nil || received.InlineConfig.GetUntil() != "file GOAL_DONE.txt exists" {
+		t.Fatalf("until override = %+v", received.InlineConfig)
+	}
+}
+
 func TestRunAttachAndDetachUseTypedIdentityEndpoints(t *testing.T) {
 	var attachRequest apipb.AttachRunRequest
 	var detachRequest apipb.DetachRunRequest

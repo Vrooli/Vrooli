@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +11,53 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/packagegov"
+	packagegovtest "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
+
+func TestUIFileDependencyFreshnessUsesGeneratedClosureDuringPackageStaging(t *testing.T) {
+	root := t.TempDir()
+	dependencyRoot := filepath.Join(root, "packages", "react-component-library")
+	sourceDir := filepath.Join(root, "scenarios", "consumer", "ui", "src")
+	packagegovtest.WritePackageManifest(t, root, "react-component-library", packagegovtest.PackageManifest(
+		"react-component-library",
+		packagegovtest.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{
+			Name:        "react-component-library-runtime",
+			Identifiers: []string{"@vrooli/react-component-library"},
+			Consumers:   []packagegov.ConsumerClass{packagegov.ConsumerScenarioUI},
+		}),
+	))
+	writeFreshnessBuildInputFile(t, filepath.Join(sourceDir, "App.tsx"), `import { Button } from "@vrooli/react-component-library/Button/2";
+export const App = () => <Button />;
+`)
+	writeFreshnessBuildInputFile(t, filepath.Join(dependencyRoot, "dist", "exports", "Button", "2.js"), "export const Button = () => null;\n")
+	writeFreshnessBuildInputFile(t, filepath.Join(dependencyRoot, "package.json"), `{"exports":{"./Button/2":{"import":"./dist/exports/Button/2.js"}}}
+`)
+	// RCL stages candidates inside its package root and removes them after
+	// publication. A freshness input contract must never capture that transient
+	// tree as a whole-package dependency.
+	writeFreshnessBuildInputFile(t, filepath.Join(dependencyRoot, ".rcl-candidate-test", "package.json"), "{}\n")
+
+	inputs, err := uiFileDependencyFreshnessInputsContext(context.Background(), root, sourceDir, "@vrooli/react-component-library", dependencyRoot, defaultHostProbeDeps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"packages/react-component-library/dist/exports/Button/2.js"}
+	if !reflect.DeepEqual(inputs, want) {
+		t.Fatalf("generated dependency inputs = %v, want %v", inputs, want)
+	}
+}
+
+func writeFreshnessBuildInputFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestFreshnessInputsUsesOwnerEnumerationWithoutStamping(t *testing.T) {
 	root, appPath, binary, source := freshnessTestScene(t)

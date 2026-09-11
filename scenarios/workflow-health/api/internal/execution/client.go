@@ -211,7 +211,10 @@ func controlPlaneHeaders(headers map[string]string) map[string]string {
 	}
 	out := make(map[string]string, len(headers))
 	for key, value := range headers {
-		if strings.EqualFold(strings.TrimSpace(key), "X-Vrooli-Test-Mode") {
+		// These headers belong to the browser target, not BAS's control plane.
+		// In particular, never let a target's LocalSession overwrite or leak
+		// into the BAS client's own authentication transport.
+		if strings.EqualFold(strings.TrimSpace(key), "X-Vrooli-Test-Mode") || strings.EqualFold(strings.TrimSpace(key), "Authorization") {
 			continue
 		}
 		out[key] = value

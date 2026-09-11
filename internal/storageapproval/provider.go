@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +27,8 @@ var providerIDs = []string{
 }
 
 type approval struct {
-	HostID string `json:"host_id"`
+	HostID     string    `json:"host_id"`
+	ApprovedAt time.Time `json:"approved_at"`
 }
 
 type API struct {
@@ -75,7 +77,13 @@ func (a *API) Descriptor() operatorcapability.Descriptor {
 		Risk:        "Approved providers may delete regenerable system data under the recovery policy.",
 		Inputs:      inputs,
 		Policy:      operatorcapability.Policy{Idempotent: true, Retryable: true, RequiresConfirmation: true, Remediation: "Start storage-manager and retry setup; approvals can be revoked through storage-manager cleanup approvals."},
-		Evidence:    operatorcapability.EvidenceContract{Kinds: []string{"storage-standing-approval"}, RequiredFields: []string{"provider_id", "host_id", "approved_at"}, SecretFree: true},
+		Evidence: operatorcapability.EvidenceContract{
+			Kinds:          []string{"storage-standing-approval"},
+			Stages:         []operatorcapability.VerificationStage{operatorcapability.VerificationAuthorization},
+			RequiredFields: []string{"artifact_identity", "target_id", "operation", "status", "coverage", "observed_at", "expires_at", "verified"},
+			SecretFree:     true,
+			Freshness:      "approval observation and target binding must remain current",
+		},
 		Remediation: "Review each provider carefully. Approvals are stored per host and may be revoked with storage-manager cleanup approvals revoke.",
 	}
 }
@@ -148,7 +156,66 @@ func (a *API) Apply(ctx context.Context, inputs operatorcapability.InputSet) (re
 		}
 		approvedCount++
 	}
-	return operatorcapability.Result{CapabilityID: CapabilityID, State: operatorcapability.StateReady, Outcome: fmt.Sprintf("recorded %d standing approval(s) for host %s", approvedCount, hostID), Retryable: true, Evidence: []operatorcapability.EvidenceReference{{Kind: "storage-standing-approval", ArtifactIdentity: CapabilityID, ObservedAt: a.now().UTC(), Verified: true}}}, nil
+	return operatorcapability.Result{CapabilityID: CapabilityID, State: operatorcapability.StateReady, Outcome: fmt.Sprintf("recorded %d standing approval(s) for host %s", approvedCount, hostID), Retryable: true, Evidence: []operatorcapability.EvidenceReference{{Stage: operatorcapability.VerificationAuthorization, Kind: "storage-standing-approval", ArtifactIdentity: CapabilityID, ObservedAt: a.now().UTC(), Verified: true}}}, nil
+}
+
+// Verify is the owner boundary for standing-approval evidence. The adapter
+// re-reads storage-manager's approvals instead of treating a successful POST
+// or a configured value as proof. Each receipt retains the approval's own
+// observation time and is bound to the exact onboarding verification context.
+func (a *API) Verify(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	if a == nil || a.baseURL == nil {
+		return nil, &operatorcapability.VerificationError{Code: "storage_approval_unconfigured", Retryable: false, NextAction: "configure-storage-manager-verification", Cause: fmt.Errorf("storage approval API is not configured")}
+	}
+	hostID := strings.TrimSpace(a.hostID())
+	targetID := strings.TrimSpace(request.TargetID)
+	if hostID == "" || targetID == "" {
+		return nil, &operatorcapability.VerificationError{Code: "storage_approval_context_missing", Retryable: false, NextAction: "select-storage-manager-target", Cause: fmt.Errorf("storage approval verification requires a host and target")}
+	}
+	if targetID != "local" && targetID != hostID {
+		return nil, &operatorcapability.VerificationError{Code: "storage_approval_target_mismatch", Retryable: false, NextAction: "select-local-storage-target", Cause: fmt.Errorf("storage-manager approvals are local to host %q, not target %q", hostID, targetID)}
+	}
+	base := strings.TrimRight(strings.TrimSpace(a.baseURL()), "/")
+	if base == "" {
+		return nil, &operatorcapability.VerificationError{Code: "storage_manager_unavailable", Retryable: true, NextAction: "retry-storage-manager-verification", Cause: fmt.Errorf("storage-manager is not running")}
+	}
+	var approvals map[string]approval
+	if err := a.get(ctx, base+"/api/v1/cleanup/approvals", &approvals); err != nil {
+		return nil, err
+	}
+	now := a.now().UTC()
+	receipts := make([]operatorcapability.EvidenceReference, 0, len(providerIDs))
+	for _, providerID := range providerIDs {
+		current, ok := approvals[providerID]
+		if !ok || strings.TrimSpace(current.HostID) != hostID {
+			return nil, &operatorcapability.VerificationError{Code: "storage_approval_missing", Retryable: false, NextAction: "apply-storage-manager-approval", Cause: fmt.Errorf("storage-manager approval for %q is missing or bound to another host", providerID)}
+		}
+		if current.ApprovedAt.IsZero() || current.ApprovedAt.After(now) {
+			return nil, &operatorcapability.VerificationError{Code: "storage_approval_invalid", Retryable: false, NextAction: "repair-storage-manager-approval", Cause: fmt.Errorf("storage-manager approval for %q has no valid approval timestamp", providerID)}
+		}
+		receipts = append(receipts, operatorcapability.EvidenceReference{
+			SchemaVersion:    operatorcapability.EvidenceSchemaVersion,
+			CapabilityID:     request.CapabilityID,
+			Kind:             "storage-standing-approval",
+			Stage:            operatorcapability.VerificationAuthorization,
+			ArtifactIdentity: "storage-manager/approval/" + providerID,
+			TargetID:         targetID,
+			Environment:      request.Environment,
+			AccountIdentity:  request.AccountIdentity,
+			Operation:        request.Operation,
+			Status:           "approved",
+			Coverage: []string{
+				"provider_id:" + providerID,
+				"host_id:" + hostID,
+				"approved_at:" + current.ApprovedAt.UTC().Format(time.RFC3339Nano),
+			},
+			ObservedAt:  current.ApprovedAt.UTC(),
+			ExpiresAt:   now.Add(24 * time.Hour),
+			EffectClass: string(operatorcapability.EffectReadOnly),
+			Verified:    true,
+		})
+	}
+	return receipts, nil
 }
 
 func (a *API) get(ctx context.Context, url string, output any) error {
@@ -162,10 +229,26 @@ func (a *API) get(ctx context.Context, url string, output any) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("storage-manager approvals returned HTTP %s", resp.Status)
+		code := "provider_rejected"
+		retryable := false
+		nextAction := "review-storage-manager-approval"
+		retryAfter := time.Duration(0)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			code = "provider_rate_limited"
+			retryable = true
+			nextAction = "retry-after-provider-backoff"
+			if seconds, parseErr := strconv.Atoi(strings.TrimSpace(resp.Header.Get("Retry-After"))); parseErr == nil && seconds > 0 {
+				retryAfter = time.Duration(seconds) * time.Second
+			}
+		} else if resp.StatusCode >= 500 {
+			code = "provider_unavailable"
+			retryable = true
+			nextAction = "retry-storage-manager-verification"
+		}
+		return &operatorcapability.VerificationError{Code: code, Retryable: retryable, RetryAfter: retryAfter, NextAction: nextAction, Cause: fmt.Errorf("storage-manager approvals returned HTTP %s", resp.Status)}
 	}
 	if err := json.NewDecoder(resp.Body).Decode(output); err != nil {
-		return fmt.Errorf("decode storage-manager approvals: %w", err)
+		return &operatorcapability.VerificationError{Code: "provider_malformed_response", Retryable: false, NextAction: "diagnose-storage-manager-provider", Cause: fmt.Errorf("decode storage-manager approvals: %w", err)}
 	}
 	return nil
 }

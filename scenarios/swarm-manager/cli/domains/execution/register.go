@@ -21,6 +21,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("cancel", "Cancel an execution (--id ID)", deps.ExecutionCancel),
 			support.APICommand("retry", "Retry a failed execution (--id ID)", deps.ExecutionRetry),
 			support.APICommand("circuit-breaker-reset", "Reset circuit breaker for an item (--item KIND/NAME)", deps.CircuitBreakerReset),
+			support.APICommand("continuation-halt", "Halt unattended continuation for an item (--item KIND/NAME)", deps.ExecutionContinuationHalt),
+			support.APICommand("continuation-resume", "Resume unattended continuation for an item (--item KIND/NAME)", deps.ExecutionContinuationResume),
 		},
 	}
 }

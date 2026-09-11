@@ -427,8 +427,20 @@ class ChargeByBasis(_message.Message):
     charge_reason: str
     def __init__(self, basis: _Optional[str] = ..., run_count: _Optional[int] = ..., charge_micro_usd: _Optional[int] = ..., token_count: _Optional[int] = ..., charge_reason: _Optional[str] = ...) -> None: ...
 
+class RunTokenBucket(_message.Message):
+    __slots__ = ("label", "min_tokens", "max_tokens", "run_count")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    MIN_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    min_tokens: int
+    max_tokens: int
+    run_count: int
+    def __init__(self, label: _Optional[str] = ..., min_tokens: _Optional[int] = ..., max_tokens: _Optional[int] = ..., run_count: _Optional[int] = ...) -> None: ...
+
 class RunCostResponse(_message.Message):
-    __slots__ = ("total_cost_usd", "average_cost_usd", "total_tokens", "total_runs", "executed_query", "validity", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "charge_by_basis", "total_charge_micro_usd", "unpriced_token_count", "provenance", "definition_id")
+    __slots__ = ("total_cost_usd", "average_cost_usd", "total_tokens", "total_runs", "executed_query", "validity", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "charge_by_basis", "total_charge_micro_usd", "unpriced_token_count", "p50_tokens", "p90_tokens", "p95_tokens", "p99_tokens", "max_tokens", "p50_cost_usd", "p90_cost_usd", "p95_cost_usd", "p99_cost_usd", "max_cost_usd", "token_buckets", "distribution_sample_size", "distribution_unobserved_runs", "provenance", "definition_id")
     TOTAL_COST_USD_FIELD_NUMBER: _ClassVar[int]
     AVERAGE_COST_USD_FIELD_NUMBER: _ClassVar[int]
     TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -446,6 +458,19 @@ class RunCostResponse(_message.Message):
     CHARGE_BY_BASIS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
     UNPRICED_TOKEN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    P50_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P90_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P95_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P99_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P50_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    P90_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    P95_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    P99_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    MAX_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_BUCKETS_FIELD_NUMBER: _ClassVar[int]
+    DISTRIBUTION_SAMPLE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    DISTRIBUTION_UNOBSERVED_RUNS_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
     total_cost_usd: float
@@ -465,9 +490,22 @@ class RunCostResponse(_message.Message):
     charge_by_basis: _containers.RepeatedCompositeFieldContainer[ChargeByBasis]
     total_charge_micro_usd: int
     unpriced_token_count: int
+    p50_tokens: int
+    p90_tokens: int
+    p95_tokens: int
+    p99_tokens: int
+    max_tokens: int
+    p50_cost_usd: float
+    p90_cost_usd: float
+    p95_cost_usd: float
+    p99_cost_usd: float
+    max_cost_usd: float
+    token_buckets: _containers.RepeatedCompositeFieldContainer[RunTokenBucket]
+    distribution_sample_size: int
+    distribution_unobserved_runs: int
     provenance: MeasureProvenance
     definition_id: str
-    def __init__(self, total_cost_usd: _Optional[float] = ..., average_cost_usd: _Optional[float] = ..., total_tokens: _Optional[int] = ..., total_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., input_cost_usd: _Optional[float] = ..., output_cost_usd: _Optional[float] = ..., cache_read_cost_usd: _Optional[float] = ..., cache_creation_cost_usd: _Optional[float] = ..., charge_by_basis: _Optional[_Iterable[_Union[ChargeByBasis, _Mapping]]] = ..., total_charge_micro_usd: _Optional[int] = ..., unpriced_token_count: _Optional[int] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, total_cost_usd: _Optional[float] = ..., average_cost_usd: _Optional[float] = ..., total_tokens: _Optional[int] = ..., total_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., input_cost_usd: _Optional[float] = ..., output_cost_usd: _Optional[float] = ..., cache_read_cost_usd: _Optional[float] = ..., cache_creation_cost_usd: _Optional[float] = ..., charge_by_basis: _Optional[_Iterable[_Union[ChargeByBasis, _Mapping]]] = ..., total_charge_micro_usd: _Optional[int] = ..., unpriced_token_count: _Optional[int] = ..., p50_tokens: _Optional[int] = ..., p90_tokens: _Optional[int] = ..., p95_tokens: _Optional[int] = ..., p99_tokens: _Optional[int] = ..., max_tokens: _Optional[int] = ..., p50_cost_usd: _Optional[float] = ..., p90_cost_usd: _Optional[float] = ..., p95_cost_usd: _Optional[float] = ..., p99_cost_usd: _Optional[float] = ..., max_cost_usd: _Optional[float] = ..., token_buckets: _Optional[_Iterable[_Union[RunTokenBucket, _Mapping]]] = ..., distribution_sample_size: _Optional[int] = ..., distribution_unobserved_runs: _Optional[int] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
 class RunVolumeRequest(_message.Message):
     __slots__ = ("window", "filter")

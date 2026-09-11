@@ -465,6 +465,13 @@ Every agent-executing node declares an `AgentExecutionBinding`:
   preserves that conversation ancestry, and permits only continuation-safe
   overrides.
 
+Workflow execution preferences are caller hints, never pins. A start may carry
+`preferred_runner`, `model`, and `effort`; Agent Manager persists the request,
+applies it to each fresh run node, and records the actual runner/model plus a
+`selection_reason` (`preferred`, `preferred_unavailable`, or `catalog_order`)
+in the immutable policy snapshot. Declarations remain portable and never carry
+these per-execution preferences.
+
 ### Responsibility decision table
 
 | Concern | Authoritative owner | Boundary rule |

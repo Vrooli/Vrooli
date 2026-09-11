@@ -13,26 +13,31 @@ import (
 
 // backlogItem represents a backlog entry loaded from spec.json.
 type backlogItem struct {
-	Name               string                    `json:"name"`
-	Title              string                    `json:"title"`
-	Description        string                    `json:"description"`
-	Status             string                    `json:"status"`
-	Priority           int                       `json:"priority"`
-	Tags               []string                  `json:"tags"`
-	Created            string                    `json:"created"`
-	Updated            string                    `json:"updated"`
-	Kind               string                    `json:"kind"`
-	SourceScenarioName string                    `json:"sourceScenarioName,omitempty"`
-	AcceptanceAllow    []string                  `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string                  `json:"acceptance_deny,omitempty"`
-	AcceptanceCriteria []backlogCriterion        `json:"acceptance_criteria,omitempty"`
-	Creates            []string                  `json:"creates,omitempty"`
-	ArchivedAt         *string                   `json:"archived_at,omitempty"`
-	SuggestedSkills    []string                  `json:"suggested_skills,omitempty"`
-	PlanRef            *planRef                  `json:"plan_ref,omitempty"`
-	ExecutionStrategy  string                    `json:"execution_strategy,omitempty"`
-	ExecutionLimits    *identity.ExecutionLimits `json:"execution_limits,omitempty"`
-	PlanAcceptance     *planAcceptance           `json:"plan_acceptance,omitempty"`
+	Name                      string                    `json:"name"`
+	Title                     string                    `json:"title"`
+	Description               string                    `json:"description"`
+	Status                    string                    `json:"status"`
+	Priority                  int                       `json:"priority"`
+	Tags                      []string                  `json:"tags"`
+	Created                   string                    `json:"created"`
+	Updated                   string                    `json:"updated"`
+	Kind                      string                    `json:"kind"`
+	SourceScenarioName        string                    `json:"sourceScenarioName,omitempty"`
+	AcceptanceAllow           []string                  `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny            []string                  `json:"acceptance_deny,omitempty"`
+	AcceptanceCriteria        []backlogCriterion        `json:"acceptance_criteria,omitempty"`
+	Creates                   []string                  `json:"creates,omitempty"`
+	ArchivedAt                *string                   `json:"archived_at,omitempty"`
+	SuggestedSkills           []string                  `json:"suggested_skills,omitempty"`
+	PlanRef                   *planRef                  `json:"plan_ref,omitempty"`
+	ExecutionStrategy         string                    `json:"execution_strategy,omitempty"`
+	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	Continuation              string                    `json:"continuation,omitempty"`
+	ScopePolicy               string                    `json:"scope_policy,omitempty"`
+	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
+	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`
+	ContinuationStoppedReason string                    `json:"continuation_stopped_reason,omitempty"`
+	PlanAcceptance            *planAcceptance           `json:"plan_acceptance,omitempty"`
 }
 
 // backlogCriterion mirrors the persisted, typed definition of done without
@@ -112,6 +117,31 @@ func (s *Service) updateBacklogStatus(item backlogItem, status string) error {
 	merged["kind"] = item.Kind
 	delete(merged, "research_target")
 	return storage.WriteJSONAtomic(specPath, merged)
+}
+
+// updateContinuationState changes only sweeper control metadata. These fields
+// are operational state, not part of the reviewed item digest.
+func (s *Service) updateContinuationState(kind, name, haltedAt, haltedBy, stoppedReason string) error {
+	path := filepath.Join(s.itemDir(kind, name), "spec.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	merged := map[string]any{}
+	if err := json.Unmarshal(data, &merged); err != nil {
+		return err
+	}
+	setOrDelete := func(key, value string) {
+		if strings.TrimSpace(value) == "" {
+			delete(merged, key)
+			return
+		}
+		merged[key] = value
+	}
+	setOrDelete("continuation_halted_at", haltedAt)
+	setOrDelete("continuation_halted_by", haltedBy)
+	setOrDelete("continuation_stopped_reason", stoppedReason)
+	return storage.WriteJSONAtomic(path, merged)
 }
 
 func (s *Service) restoreBacklogStatusForRecord(record Record) error {

@@ -24,7 +24,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			name:  "claude",
 			codec: NewClaudeForTest(),
 			want: runner.Capabilities{
-				SupportsMessages: true, SupportsToolEvents: true, SupportsCostTracking: true,
+				SpawnCapabilities: []runner.SpawnCapability{{ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true}},
+				SupportsMessages:  true, SupportsToolEvents: true, SupportsCostTracking: true,
 				SupportsStreaming: true, SupportsCancellation: true, SupportsContinuation: true,
 				SupportsWarmIteration: true, SupportsImageAttachments: true,
 				SupportsToolRestriction: true,

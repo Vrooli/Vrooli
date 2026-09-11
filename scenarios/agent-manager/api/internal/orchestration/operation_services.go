@@ -100,6 +100,27 @@ type StatusService interface {
 	SpawnStats() spawn.Stats
 }
 
+type ExecutionOption struct {
+	RunnerType                      string                 `json:"runnerType"`
+	Available                       bool                   `json:"available"`
+	Message                         string                 `json:"message,omitempty"`
+	NativeObjective                 bool                   `json:"nativeObjective"`
+	SandboxModesWithNativeObjective []string               `json:"sandboxModesWithNativeObjective,omitempty"`
+	DefaultModel                    string                 `json:"defaultModel,omitempty"`
+	Models                          []ExecutionModelOption `json:"models,omitempty"`
+	EffortLevels                    []string               `json:"effortLevels,omitempty"`
+}
+
+type ExecutionModelOption struct {
+	ID             string `json:"id"`
+	CanonicalModel string `json:"canonicalModel,omitempty"`
+	IsDefault      bool   `json:"isDefault"`
+}
+
+type ExecutionOptionsService interface {
+	ListExecutionOptions(context.Context, string) ([]ExecutionOption, error)
+}
+
 type MaintenanceService interface {
 	PurgeData(context.Context, PurgeRequest) (*PurgeResult, error)
 }
@@ -172,6 +193,7 @@ type HandlerServices struct {
 	EventService
 	PolicyService
 	StatusService
+	ExecutionOptionsService
 	MaintenanceService
 	InvestigationSettingsService
 	OrchestrationSettingsService
@@ -198,6 +220,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		EventService:                 orchestrator,
 		PolicyService:                orchestrator,
 		StatusService:                orchestrator,
+		ExecutionOptionsService:      orchestrator,
 		MaintenanceService:           orchestrator,
 		InvestigationSettingsService: orchestrator,
 		OrchestrationSettingsService: orchestrator,
@@ -222,6 +245,7 @@ var (
 	_ EventService                 = (*Orchestrator)(nil)
 	_ PolicyService                = (*Orchestrator)(nil)
 	_ StatusService                = (*Orchestrator)(nil)
+	_ ExecutionOptionsService      = (*Orchestrator)(nil)
 	_ MaintenanceService           = (*Orchestrator)(nil)
 	_ InvestigationSettingsService = (*Orchestrator)(nil)
 	_ OrchestrationSettingsService = (*Orchestrator)(nil)

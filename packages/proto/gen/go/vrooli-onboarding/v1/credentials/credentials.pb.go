@@ -635,6 +635,7 @@ type CredentialProvenance struct {
 	HelpRef              string                          `protobuf:"bytes,22,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
 	EvidencePolicy       string                          `protobuf:"bytes,23,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
 	ProviderVersion      string                          `protobuf:"bytes,24,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
+	Tiers                []string                        `protobuf:"bytes,25,rep,name=tiers,proto3" json:"tiers,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -837,6 +838,13 @@ func (x *CredentialProvenance) GetProviderVersion() string {
 	return ""
 }
 
+func (x *CredentialProvenance) GetTiers() []string {
+	if x != nil {
+		return x.Tiers
+	}
+	return nil
+}
+
 type Credential struct {
 	state                protoimpl.MessageState           `protogen:"open.v1"`
 	Resource             string                           `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
@@ -868,6 +876,7 @@ type Credential struct {
 	EvidencePolicy       string                           `protobuf:"bytes,28,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
 	ProviderVersion      string                           `protobuf:"bytes,29,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
 	MigrationDiagnostics []*CredentialMigrationDiagnostic `protobuf:"bytes,30,rep,name=migration_diagnostics,json=migrationDiagnostics,proto3" json:"migration_diagnostics,omitempty"`
+	Tiers                []string                         `protobuf:"bytes,31,rep,name=tiers,proto3" json:"tiers,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1105,6 +1114,13 @@ func (x *Credential) GetMigrationDiagnostics() []*CredentialMigrationDiagnostic 
 	return nil
 }
 
+func (x *Credential) GetTiers() []string {
+	if x != nil {
+		return x.Tiers
+	}
+	return nil
+}
+
 type ListCredentialsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Credentials   []*Credential          `protobuf:"bytes,1,rep,name=credentials,proto3" json:"credentials,omitempty"`
@@ -1158,10 +1174,12 @@ func (x *ListCredentialsResponse) GetCount() int32 {
 }
 
 type ProvisionCredentialResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	LogicalId     string                 `protobuf:"bytes,2,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
-	Field         string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Status    string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	LogicalId string                 `protobuf:"bytes,2,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field     string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	// Opaque active authority version after activation; never a secret value.
+	Version       string `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1213,6 +1231,13 @@ func (x *ProvisionCredentialResponse) GetLogicalId() string {
 func (x *ProvisionCredentialResponse) GetField() string {
 	if x != nil {
 		return x.Field
+	}
+	return ""
+}
+
+func (x *ProvisionCredentialResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
 	}
 	return ""
 }
@@ -1617,7 +1642,7 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x03 \x01(\tR\bseverity\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\xc7\a\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xdd\a\n" +
 	"\x14CredentialProvenance\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x1d\n" +
 	"\n" +
@@ -1645,7 +1670,8 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\frecovery_ref\x18\x15 \x01(\tR\vrecoveryRef\x12\x19\n" +
 	"\bhelp_ref\x18\x16 \x01(\tR\ahelpRef\x12'\n" +
 	"\x0fevidence_policy\x18\x17 \x01(\tR\x0eevidencePolicy\x12)\n" +
-	"\x10provider_version\x18\x18 \x01(\tR\x0fproviderVersion\"\xa3\t\n" +
+	"\x10provider_version\x18\x18 \x01(\tR\x0fproviderVersion\x12\x14\n" +
+	"\x05tiers\x18\x19 \x03(\tR\x05tiers\"\xb9\t\n" +
 	"\n" +
 	"Credential\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x1d\n" +
@@ -1682,15 +1708,17 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\bhelp_ref\x18\x1b \x01(\tR\ahelpRef\x12'\n" +
 	"\x0fevidence_policy\x18\x1c \x01(\tR\x0eevidencePolicy\x12)\n" +
 	"\x10provider_version\x18\x1d \x01(\tR\x0fproviderVersion\x12{\n" +
-	"\x15migration_diagnostics\x18\x1e \x03(\v2F.vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnosticR\x14migrationDiagnostics\"\x86\x01\n" +
+	"\x15migration_diagnostics\x18\x1e \x03(\v2F.vrooli.vrooli_onboarding.v1.credentials.CredentialMigrationDiagnosticR\x14migrationDiagnostics\x12\x14\n" +
+	"\x05tiers\x18\x1f \x03(\tR\x05tiers\"\x86\x01\n" +
 	"\x17ListCredentialsResponse\x12U\n" +
 	"\vcredentials\x18\x01 \x03(\v23.vrooli.vrooli_onboarding.v1.credentials.CredentialR\vcredentials\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x05R\x05count\"j\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\x84\x01\n" +
 	"\x1bProvisionCredentialResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x02 \x01(\tR\tlogicalId\x12\x14\n" +
-	"\x05field\x18\x03 \x01(\tR\x05field\"\xbd\x03\n" +
+	"\x05field\x18\x03 \x01(\tR\x05field\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\"\xbd\x03\n" +
 	"\x11ProviderDiagnosis\x12\x1a\n" +
 	"\bplatform\x18\x01 \x01(\tR\bplatform\x12\x18\n" +
 	"\aadapter\x18\x02 \x01(\tR\aadapter\x12\x18\n" +

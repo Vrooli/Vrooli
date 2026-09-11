@@ -40,7 +40,7 @@ export function BacklogFormDialog({
   const setNameDirty = useBacklogFormStore((state) => state.setNameDirty);
   const setError = useBacklogFormStore((state) => state.setError);
   const initialize = useBacklogFormStore((state) => state.initialize);
-  const { name, title, description, status, priority, kind, tags, milestone, dependsOn, effort, acceptanceAllow, acceptanceDeny } = values;
+  const { name, title, description, status, priority, kind, tags, milestone, dependsOn, effort, acceptanceAllow, acceptanceDeny, executionStrategy, executionLimits, continuation, scopePolicy } = values;
 
   const isEditMode = mode === "edit";
 
@@ -82,6 +82,10 @@ export function BacklogFormDialog({
       effort: effort?.trim() || undefined,
       acceptanceAllow: acceptanceAllow && acceptanceAllow.length > 0 ? acceptanceAllow : undefined,
       acceptanceDeny: acceptanceDeny && acceptanceDeny.length > 0 ? acceptanceDeny : undefined,
+      executionStrategy,
+      executionLimits,
+      continuation,
+      scopePolicy,
     });
   };
 
@@ -126,6 +130,10 @@ export function BacklogFormDialog({
           effort={effort}
           acceptanceAllow={acceptanceAllow}
           acceptanceDeny={acceptanceDeny}
+          executionStrategy={executionStrategy}
+          executionLimits={executionLimits}
+          continuation={continuation}
+          scopePolicy={scopePolicy}
           isEditMode={isEditMode}
           isSubmitting={isSubmitting}
           onFieldChange={(field, value) => setField(field as keyof BacklogFormValues, value as never)}

@@ -31,6 +31,7 @@ for the full policy.
 |---|---|---|
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `WORKFLOW_HEALTH_TARGET_LOCAL_SESSION_TOKEN_FILE` | unset | Optional explicit observer-validation binding. Reads an owner-provisioned local-session token and sends `Authorization: LocalSession …` only to the browser target; it is never sent to BAS control-plane RPCs. Leave unset unless the target was started with the same runtime-owned token file. A configured missing or empty file fails execution closed. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through

@@ -224,12 +224,15 @@ func (a *App) cmdExecutionCreate(args []string) error {
 	kind := fs.String("kind", "", "Backlog kind")
 	name := fs.String("name", "", "Backlog name")
 	mode, delay, operation, startedBy := addExecutionOptionsFlags(fs)
+	preferredRunner := fs.String("preferred-runner", "", "Optional preferred agent runner")
+	model := fs.String("model", "", "Optional preferred model")
+	effort := fs.String("effort", "", "Optional model effort hint")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlags("kind", *kind, "name", *name); err != nil {
-		return fmt.Errorf("usage: execution create --kind KIND --name NAME [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: execution create --kind KIND --name NAME [--preferred-runner NAME] [--model MODEL] [--effort EFFORT] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 
 	opts, err := parseExecutionOptions(mode, delay, operation, startedBy, false)
@@ -248,6 +251,9 @@ func (a *App) cmdExecutionCreate(args []string) error {
 		"delay_seconds": opts.delaySeconds,
 		"operation":     opts.operation,
 		"started_by":    opts.startedBy,
+	}
+	if strings.TrimSpace(*preferredRunner) != "" || strings.TrimSpace(*model) != "" || strings.TrimSpace(*effort) != "" {
+		payload["execution_preferences"] = map[string]string{"preferred_runner": strings.TrimSpace(*preferredRunner), "model": strings.TrimSpace(*model), "effort": strings.TrimSpace(*effort)}
 	}
 
 	body, err := a.core.Request("POST", "/execution", nil, payload)
@@ -483,6 +489,40 @@ func (a *App) cmdCircuitBreakerReset(args []string) error {
 
 	fmt.Printf("Circuit breaker reset for %s\n", *item)
 	return nil
+}
+
+func (a *App) continuationControl(args []string, action string) error {
+	fs := flag.NewFlagSet("execution continuation-"+action, flag.ContinueOnError)
+	item := fs.String("item", "", "Item key (kind/name)")
+	reason := fs.String("reason", "operator", "Reason for halting continuation")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("item", *item); err != nil {
+		return fmt.Errorf("usage: execution continuation-%s --item KIND/NAME [--reason TEXT] [--json]\n\n%s", action, err)
+	}
+	payload := map[string]string{"item": strings.TrimSpace(*item)}
+	if action == "halt" {
+		payload["reason"] = strings.TrimSpace(*reason)
+	}
+	body, err := a.core.Request("POST", "/execution/continuation/"+action, nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	fmt.Printf("Continuation %sed for %s\n", action, *item)
+	return nil
+}
+
+func (a *App) cmdContinuationHalt(args []string) error {
+	return a.continuationControl(args, "halt")
+}
+
+func (a *App) cmdContinuationResume(args []string) error {
+	return a.continuationControl(args, "resume")
 }
 
 func (a *App) runExecutionMutation(args []string, action string) error {

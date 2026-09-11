@@ -1106,14 +1106,16 @@ export enum CertificateSource {
   STORE = 2,
 
   /**
-   * Certificate stored in Azure Key Vault.
+   * Reserved for a future qualified Azure Key Vault signer adapter. Current
+   * Windows generation rejects this source as unsupported.
    *
    * @generated from enum value: CERTIFICATE_SOURCE_AZURE_KEY_VAULT = 3;
    */
   AZURE_KEY_VAULT = 3,
 
   /**
-   * Certificate stored in AWS KMS.
+   * Reserved for a future qualified AWS KMS signer adapter. Current Windows
+   * generation rejects this source as unsupported.
    *
    * @generated from enum value: CERTIFICATE_SOURCE_AWS_KMS = 4;
    */

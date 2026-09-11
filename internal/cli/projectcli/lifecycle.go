@@ -416,6 +416,9 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 		}
 		opts.Onboarding = mode
 	}
+	if value := strings.TrimSpace(parsed.FlagValue("--selection-b64")); value != "" {
+		opts.SelectionB64 = value
+	}
 	if parsed.HasFlag("--include-optional") {
 		opts.IncludeOptional = true
 	}
@@ -470,6 +473,7 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 			{Name: "--yes", Aliases: []string{"-y"}, ValueName: "value", Description: "Confirmation policy forwarded to setup steps"},
 			{Name: "--result-file", ValueName: "path", Description: "Write the versioned terminal setup result JSON to path"},
 			{Name: "--onboarding", ValueName: "mode", Description: "Configuration handoff (auto|browser|cli|url|none)"},
+			{Name: "--selection-b64", ValueName: "payload", Description: "argv-safe setup/v1 Selection payload from the owner"},
 			{Name: "--include-optional", Description: "Apply optional safeguards too (default: skip optional items)"},
 		},
 	}

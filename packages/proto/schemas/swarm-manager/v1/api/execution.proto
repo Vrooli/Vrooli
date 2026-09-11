@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/backlog.proto";
 import "swarm-manager/v1/domain/execution.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
@@ -36,6 +37,7 @@ message CreateExecutionRequest {
     gte: 1
     lte: 512
   }];
+  optional domain.ExecutionPreferences execution_preferences = 9;
 }
 
 // FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.

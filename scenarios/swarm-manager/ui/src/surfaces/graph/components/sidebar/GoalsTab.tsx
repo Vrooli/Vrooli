@@ -9,10 +9,9 @@ import { useGoals, useGoalMutations } from "../../../plan/hooks/useGoals";
 import { matchesSearch } from "./useSidebarSearch";
 import { SidebarEmptyState } from "./SidebarEmptyState";
 import type { SortConfig } from "./types";
-import { GoalProgressCard } from "../../../../components/goals/GoalProgressCard";
-import { CollectionList as BaseCollectionList, type CollectionListProps } from "@vrooli/react-component-library/CollectionList/1.0.0";
-
-function CollectionList<T>(props: CollectionListProps<T>) { return <BaseCollectionList {...props} virtualize />; }
+import { GoalProgressSummary } from "../../../../components/goals/GoalProgressCard";
+import { CollectionRow } from "../../../../components/ui/collection-row";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
@@ -131,13 +130,16 @@ function GoalsTabImpl({
       items={sorted}
       getKey={(goal) => goal.goal.name}
       label="Goals"
+      virtualize
+      onOpen={(goal) => onItemClick(`goal/${goal.goal.name}`)}
       selection={{ mode: "none", enterOn: ["shortcut"] }}
       actions={[
         { id: "open", label: "Open", onSelect: (selected) => { const goal = selected[0]; if (goal) onItemClick(`goal/${goal.goal.name}`); } },
         { id: "archive", label: "Archive", tone: "destructive", bulk: true, onSelect: async (selected) => { for (const goal of selected) await archive.mutateAsync(goal.goal.name); } },
       ]}
       renderItem={(goal) => (
-          <GoalProgressCard
+        <CollectionRow data-testid={`goal-row-${goal.goal.name}`}>
+          <GoalProgressSummary
             title={goal.goal.title}
             subtitle={`${Math.round(goal.scope.progressPct)}% · ${goal.scope.completedCount}/${goal.scope.total}${goal.eta ? ` · ETA ${goal.eta.p50Label}-${goal.eta.p80Label}` : ""}`}
             priority={goal.goal.priority}
@@ -146,8 +148,6 @@ function GoalsTabImpl({
             targets={goal.scope.targets.length}
             ready={goal.scope.ready.length}
             blocked={goal.scope.blockedCount}
-            data-testid={`goal-row-${goal.goal.name}`}
-            onOpen={() => onItemClick(`goal/${goal.goal.name}`)}
             controls={(
               <>
               <button
@@ -185,8 +185,8 @@ function GoalsTabImpl({
               </>
             )}
           />
+        </CollectionRow>
       )}
-      className="space-y-1.5"
     />
   );
 }

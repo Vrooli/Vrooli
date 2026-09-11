@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -593,6 +594,95 @@ func (r *invocationReadModelRepository) RunDurationStatistics(ctx context.Contex
 	// The old SQLite endpoint used AVG for every percentile; preserve that
 	// documented behavior exactly while reading from the durable projection.
 	return invocationreadmodel.RunDurationStatistics{AverageDurationMS: average.Float64, P50DurationMS: average.Float64, P95DurationMS: average.Float64, P99DurationMS: average.Float64, MinDurationMS: min.Int64, MaxDurationMS: max.Int64, Count: count.Int64}, nil
+}
+
+// runTokenBucketBounds defines the fixed per-run token histogram. Ranges are
+// inclusive on min and exclusive on max; a zero max is unbounded. They are
+// product judgment, not per-query tuning, so the same buckets answer the same
+// question across time windows.
+var runTokenBucketBounds = []struct {
+	label string
+	min   int64
+	max   int64
+}{
+	{"<100K", 0, 100000},
+	{"100K-500K", 100000, 500000},
+	{"500K-1M", 500000, 1000000},
+	{"1M-5M", 1000000, 5000000},
+	{"5M-25M", 5000000, 25000000},
+	{"25M+", 25000000, 0},
+}
+
+// RunCostDistribution computes per-run token and cost percentiles plus a fixed
+// token histogram over runs with observed token usage. It uses nearest-rank on
+// the durable projection, so every percentile is a real observed run rather
+// than an interpolated estimate. Runs without token usage are excluded and
+// reported through SampleSize/UnobservedRuns by the owning measure.
+func (r *invocationReadModelRepository) RunCostDistribution(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error) {
+	where, args := invocationReadModelRunWhere(filter)
+	if where == "" {
+		where = " WHERE total_tokens > 0"
+	} else {
+		where += " AND total_tokens > 0"
+	}
+	rows, err := r.db.QueryxContext(ctx, `SELECT total_tokens, CAST(ROUND(total_cost_usd * 1000000) AS INTEGER) FROM invocation_read_model_runs`+where, args...)
+	if err != nil {
+		return invocationreadmodel.RunCostDistribution{}, err
+	}
+	defer rows.Close()
+	tokens := []int64{}
+	costs := []int64{}
+	for rows.Next() {
+		var tok, costMicro int64
+		if err := rows.Scan(&tok, &costMicro); err != nil {
+			return invocationreadmodel.RunCostDistribution{}, err
+		}
+		tokens = append(tokens, tok)
+		costs = append(costs, costMicro)
+	}
+	if err := rows.Err(); err != nil {
+		return invocationreadmodel.RunCostDistribution{}, err
+	}
+	dist := invocationreadmodel.RunCostDistribution{SampleSize: int64(len(tokens))}
+	if len(tokens) == 0 {
+		dist.TokenBuckets = emptyRunTokenBuckets()
+		return dist, nil
+	}
+	sort.Slice(tokens, func(i, j int) bool { return tokens[i] < tokens[j] })
+	sort.Slice(costs, func(i, j int) bool { return costs[i] < costs[j] })
+	dist.P50Tokens = nearestRank(tokens, 0.50)
+	dist.P90Tokens = nearestRank(tokens, 0.90)
+	dist.P95Tokens = nearestRank(tokens, 0.95)
+	dist.P99Tokens = nearestRank(tokens, 0.99)
+	dist.MaxTokens = tokens[len(tokens)-1]
+	dist.P50CostUSD = float64(nearestRank(costs, 0.50)) / 1e6
+	dist.P90CostUSD = float64(nearestRank(costs, 0.90)) / 1e6
+	dist.P95CostUSD = float64(nearestRank(costs, 0.95)) / 1e6
+	dist.P99CostUSD = float64(nearestRank(costs, 0.99)) / 1e6
+	dist.MaxCostUSD = float64(costs[len(costs)-1]) / 1e6
+	dist.TokenBuckets = tokenBuckets(tokens)
+	return dist, nil
+}
+
+func emptyRunTokenBuckets() []invocationreadmodel.RunTokenBucket {
+	buckets := make([]invocationreadmodel.RunTokenBucket, len(runTokenBucketBounds))
+	for i, bound := range runTokenBucketBounds {
+		buckets[i] = invocationreadmodel.RunTokenBucket{Label: bound.label, MinTokens: bound.min, MaxTokens: bound.max}
+	}
+	return buckets
+}
+
+func tokenBuckets(tokens []int64) []invocationreadmodel.RunTokenBucket {
+	buckets := emptyRunTokenBuckets()
+	for _, token := range tokens {
+		for i := range buckets {
+			if token >= buckets[i].MinTokens && (buckets[i].MaxTokens == 0 || token < buckets[i].MaxTokens) {
+				buckets[i].RunCount++
+				break
+			}
+		}
+	}
+	return buckets
 }
 
 func (r *invocationReadModelRepository) RunStatusCounts(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.RunStatusCount, error) {

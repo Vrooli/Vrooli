@@ -30,7 +30,7 @@ const (
 
 var capabilityCommandNames = []string{capabilityLedgerCommand, capabilityFleetCommand}
 
-const capabilityHelpText = "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability auth-conformance [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply [--json] < action JSON\n"
+const capabilityHelpText = "Usage: vrooli capability ledger|fleet [query] [--json]\n  vrooli capability conformance [--json|--declarations-only]\n  vrooli capability auth-conformance [--json]\n  vrooli capability catalog|status [--json]\n  vrooli capability preview|apply|verify [--json] < action JSON\n"
 
 // RegisteredCommandPaths returns the child paths bound by the capability handler.
 func RegisteredCommandPaths() []string {
@@ -130,7 +130,7 @@ func runLegacyCapability(operationCtx context.Context, app *capabilityapp.Servic
 			return err
 		}
 		return app.AuthConformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{JSON: ctx.Globals.JSON || jsonOutput})
-	case "catalog", "status", "preview", "apply":
+	case "catalog", "status", "preview", "apply", "verify":
 		return runLegacyWorkflow(operationCtx, app, ctx, args[0], args[1:])
 	default:
 		return fmt.Errorf("unknown capability command %q", args[0])
@@ -168,7 +168,16 @@ func runLegacyWorkflow(operationCtx context.Context, app *capabilityapp.Service,
 		}
 	}
 	var request operatorcapability.ActionRequest
-	if action == "preview" || action == "apply" {
+	var verification operatorcapability.VerificationRequest
+	if action == "verify" {
+		input := ctx.Stdin
+		if input == nil {
+			input = os.Stdin
+		}
+		if err := json.NewDecoder(input).Decode(&verification); err != nil {
+			return fmt.Errorf("capability verification JSON is required on standard input: %w", err)
+		}
+	} else if action == "preview" || action == "apply" {
 		input := ctx.Stdin
 		if input == nil {
 			input = os.Stdin
@@ -177,7 +186,7 @@ func runLegacyWorkflow(operationCtx context.Context, app *capabilityapp.Service,
 			return fmt.Errorf("capability action JSON is required on standard input: %w", err)
 		}
 	}
-	return app.Workflow(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.WorkflowOptions{Action: action, JSON: jsonOutput, Request: request})
+	return app.Workflow(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.WorkflowOptions{Action: action, JSON: jsonOutput, Request: request, Verification: verification})
 }
 
 func validFleetQuery(query string) bool {

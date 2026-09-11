@@ -5,10 +5,22 @@
  * Effort / Acceptance fields extracted from BacklogFormDialog.
  */
 
+import { useEffect, useState } from "react";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";
 import { selectors } from "../../consts/selectors";
 import type { BacklogStatus } from "../../types";
+import type { ExecutionLimits } from "../../types";
+import { defaultApiClient } from "../../lib/api-client";
+import { API_ENDPOINTS } from "../../lib/api-endpoints";
+
+const DEFAULT_LIMITS: ExecutionLimits = { maxSlices: 128, maxTokens: 2000000, maxWallSeconds: 604800, maxTurns: 2400, maxChargeMicroUsd: 250000000, maxChildren: 512, maxNodeAttempts: 512, maxRetries: 128 };
+const LIMIT_FIELDS: Array<{ key: keyof ExecutionLimits; label: string }> = [
+  { key: "maxSlices", label: "Maximum slices" }, { key: "maxTokens", label: "Maximum tokens" },
+  { key: "maxWallSeconds", label: "Maximum wall seconds" }, { key: "maxTurns", label: "Maximum turns" },
+  { key: "maxChargeMicroUsd", label: "Maximum charge (micro-USD)" }, { key: "maxChildren", label: "Maximum child runs" },
+  { key: "maxNodeAttempts", label: "Maximum node attempts" }, { key: "maxRetries", label: "Maximum retries" },
+];
 
 const STATUS_OPTIONS: BacklogStatus[] = [
   "backlog",
@@ -30,6 +42,10 @@ export interface BacklogFormDetailsSectionProps {
   effort: string | undefined;
   acceptanceAllow: string[] | undefined;
   acceptanceDeny: string[] | undefined;
+  executionStrategy: string | undefined;
+  executionLimits: ExecutionLimits | undefined;
+  continuation: string | undefined;
+  scopePolicy: string | undefined;
   isEditMode: boolean;
   isSubmitting: boolean;
   onFieldChange: (field: string, value: unknown) => void;
@@ -47,12 +63,25 @@ export function BacklogFormDetailsSection({
   effort,
   acceptanceAllow,
   acceptanceDeny,
+  executionStrategy,
+  executionLimits,
+  continuation,
+  scopePolicy,
   isEditMode,
   isSubmitting,
   onFieldChange,
   onTagsInputChange,
   onClearError,
 }: BacklogFormDetailsSectionProps) {
+  const [strategies, setStrategies] = useState<Array<{ id: string; display_name: string }>>([]);
+  useEffect(() => {
+    let active = true;
+    void defaultApiClient.get<{ items?: Array<{ id: string; display_name: string }> }>(API_ENDPOINTS.executionStrategies)
+      .then((response) => { if (active) setStrategies(response.items ?? []); })
+      .catch(() => { if (active) setStrategies([]); });
+    return () => { active = false; };
+  }, []);
+
   return (
     <>
       <div>
@@ -252,6 +281,38 @@ export function BacklogFormDetailsSection({
         />
         <p className="mt-1 text-xs text-slate-500">Glob patterns for file paths that must NOT be modified.</p>
       </div>
+
+      <section className="space-y-4 rounded-lg border border-cyan-300/15 bg-cyan-300/[0.03] p-4" aria-label="Execution">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-100">Execution</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-400">These reviewed fields control the unattended route. Editing them invalidates plan acceptance and requires review again.</p>
+        </div>
+        <div>
+          <label htmlFor="backlog-form-execution-strategy" className="text-sm font-medium text-slate-300">Execution strategy</label>
+          <Select id="backlog-form-execution-strategy" value={executionStrategy ?? "phased-plan-drain"} onChange={(e) => { onFieldChange("executionStrategy", e.target.value); onClearError(); }} disabled={isSubmitting}>
+            {strategies.length === 0 && <option value={executionStrategy ?? "phased-plan-drain"}>{executionStrategy ?? "phased-plan-drain"}</option>}
+            {strategies.map((option) => <option key={option.id} value={option.id}>{option.display_name || option.id}</option>)}
+          </Select>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-300">Reviewed execution limits</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {LIMIT_FIELDS.map(({ key, label }) => <label key={key} className="text-xs text-slate-400">{label}
+              <Input type="number" min={0} value={executionLimits?.[key] ?? ""} placeholder={String(DEFAULT_LIMITS[key])} onChange={(e) => { onFieldChange("executionLimits", { ...DEFAULT_LIMITS, ...(executionLimits ?? {}), [key]: Number(e.target.value) || 0 }); onClearError(); }} disabled={isSubmitting} />
+            </label>)}
+          </div>
+        </div>
+        <fieldset>
+          <legend className="text-sm font-medium text-slate-300">Continuation</legend>
+          <label className="mt-2 flex gap-2 text-xs text-slate-300"><input type="radio" checked={(continuation ?? "manual") === "manual"} onChange={() => onFieldChange("continuation", "manual")} disabled={isSubmitting} />Manual — stop after this run.</label>
+          <label className="mt-2 flex gap-2 text-xs text-slate-300"><input type="radio" checked={continuation === "until-allowance"} onChange={() => onFieldChange("continuation", "until-allowance")} disabled={isSubmitting} />Until allowance is spent — continue automatically while safe.</label>
+        </fieldset>
+        <fieldset>
+          <legend className="text-sm font-medium text-slate-300">Scope policy</legend>
+          <label className="mt-2 flex gap-2 text-xs text-slate-300"><input type="radio" checked={(scopePolicy ?? "fixed") === "fixed"} onChange={() => onFieldChange("scopePolicy", "fixed")} disabled={isSubmitting} />Fixed — out-of-scope edits require an operator decision.</label>
+          <label className="mt-2 flex gap-2 text-xs text-slate-300"><input type="radio" checked={scopePolicy === "extend-with-record"} onChange={() => onFieldChange("scopePolicy", "extend-with-record")} disabled={isSubmitting} />Extend with record — record a reason in Plan Manager before widening.</label>
+        </fieldset>
+      </section>
     </>
   );
 }

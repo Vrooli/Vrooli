@@ -285,6 +285,214 @@ func (x *ApplyCapabilityRequest) GetAction() *ActionRequest {
 	return nil
 }
 
+type VerifyCapabilityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Verification  *VerificationRequest   `protobuf:"bytes,2,opt,name=verification,proto3" json:"verification,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyCapabilityRequest) Reset() {
+	*x = VerifyCapabilityRequest{}
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCapabilityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCapabilityRequest) ProtoMessage() {}
+
+func (x *VerifyCapabilityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCapabilityRequest.ProtoReflect.Descriptor instead.
+func (*VerifyCapabilityRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *VerifyCapabilityRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *VerifyCapabilityRequest) GetVerification() *VerificationRequest {
+	if x != nil {
+		return x.Verification
+	}
+	return nil
+}
+
+type VerificationRequest struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	CapabilityId           string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	CredentialRef          *CredentialEvidenceRef `protobuf:"bytes,2,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
+	TargetId               string                 `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Environment            string                 `protobuf:"bytes,4,opt,name=environment,proto3" json:"environment,omitempty"`
+	AccountIdentity        string                 `protobuf:"bytes,5,opt,name=account_identity,json=accountIdentity,proto3" json:"account_identity,omitempty"`
+	Operation              string                 `protobuf:"bytes,6,opt,name=operation,proto3" json:"operation,omitempty"`
+	Context                map[string]string      `protobuf:"bytes,7,rep,name=context,proto3" json:"context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EffectClass            string                 `protobuf:"bytes,8,opt,name=effect_class,json=effectClass,proto3" json:"effect_class,omitempty"`
+	MaxOperations          int32                  `protobuf:"varint,9,opt,name=max_operations,json=maxOperations,proto3" json:"max_operations,omitempty"`
+	CleanupPolicy          string                 `protobuf:"bytes,10,opt,name=cleanup_policy,json=cleanupPolicy,proto3" json:"cleanup_policy,omitempty"`
+	TimeoutSeconds         int64                  `protobuf:"varint,11,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	ContextDigest          string                 `protobuf:"bytes,12,opt,name=context_digest,json=contextDigest,proto3" json:"context_digest,omitempty"`
+	CatalogRevision        string                 `protobuf:"bytes,13,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	ConfigurationRevision  string                 `protobuf:"bytes,14,opt,name=configuration_revision,json=configurationRevision,proto3" json:"configuration_revision,omitempty"`
+	ProviderAdapterVersion string                 `protobuf:"bytes,15,opt,name=provider_adapter_version,json=providerAdapterVersion,proto3" json:"provider_adapter_version,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *VerificationRequest) Reset() {
+	*x = VerificationRequest{}
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerificationRequest) ProtoMessage() {}
+
+func (x *VerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerificationRequest.ProtoReflect.Descriptor instead.
+func (*VerificationRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *VerificationRequest) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetCredentialRef() *CredentialEvidenceRef {
+	if x != nil {
+		return x.CredentialRef
+	}
+	return nil
+}
+
+func (x *VerificationRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetEnvironment() string {
+	if x != nil {
+		return x.Environment
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetAccountIdentity() string {
+	if x != nil {
+		return x.AccountIdentity
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetContext() map[string]string {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *VerificationRequest) GetEffectClass() string {
+	if x != nil {
+		return x.EffectClass
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetMaxOperations() int32 {
+	if x != nil {
+		return x.MaxOperations
+	}
+	return 0
+}
+
+func (x *VerificationRequest) GetCleanupPolicy() string {
+	if x != nil {
+		return x.CleanupPolicy
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetTimeoutSeconds() int64 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *VerificationRequest) GetContextDigest() string {
+	if x != nil {
+		return x.ContextDigest
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetCatalogRevision() string {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetConfigurationRevision() string {
+	if x != nil {
+		return x.ConfigurationRevision
+	}
+	return ""
+}
+
+func (x *VerificationRequest) GetProviderAdapterVersion() string {
+	if x != nil {
+		return x.ProviderAdapterVersion
+	}
+	return ""
+}
+
 type ActionRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	CapabilityId   string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
@@ -292,14 +500,17 @@ type ActionRequest struct {
 	Confirm        bool                   `protobuf:"varint,3,opt,name=confirm,proto3" json:"confirm,omitempty"`
 	// Free-form provider inputs are constrained by the capability descriptor.
 	// A secret value exists only for the duration of the provider call.
-	Inputs        *structpb.Struct `protobuf:"bytes,4,opt,name=inputs,proto3" json:"inputs,omitempty"`
+	Inputs *structpb.Struct `protobuf:"bytes,4,opt,name=inputs,proto3" json:"inputs,omitempty"`
+	// Target whose state and permissions the operator reviewed. Providers must
+	// bind effects and evidence to this target rather than silently using local.
+	TargetId      string `protobuf:"bytes,5,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ActionRequest) Reset() {
 	*x = ActionRequest{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +522,7 @@ func (x *ActionRequest) String() string {
 func (*ActionRequest) ProtoMessage() {}
 
 func (x *ActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +535,7 @@ func (x *ActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionRequest.ProtoReflect.Descriptor instead.
 func (*ActionRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ActionRequest) GetCapabilityId() string {
@@ -355,6 +566,13 @@ func (x *ActionRequest) GetInputs() *structpb.Struct {
 	return nil
 }
 
+func (x *ActionRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
 type CapabilityCandidate struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -375,7 +593,7 @@ type CapabilityCandidate struct {
 
 func (x *CapabilityCandidate) Reset() {
 	*x = CapabilityCandidate{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -387,7 +605,7 @@ func (x *CapabilityCandidate) String() string {
 func (*CapabilityCandidate) ProtoMessage() {}
 
 func (x *CapabilityCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -400,7 +618,7 @@ func (x *CapabilityCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityCandidate.ProtoReflect.Descriptor instead.
 func (*CapabilityCandidate) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CapabilityCandidate) GetId() string {
@@ -488,36 +706,37 @@ func (x *CapabilityCandidate) GetMetadata() map[string]string {
 }
 
 type CapabilityInputDescriptor struct {
-	state               protoimpl.MessageState      `protogen:"open.v1"`
-	Id                  string                      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind                string                      `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
-	Label               string                      `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
-	Description         string                      `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Required            bool                        `protobuf:"varint,5,opt,name=required,proto3" json:"required,omitempty"`
-	Options             []string                    `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
-	DefaultValue        string                      `protobuf:"bytes,7,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
-	Candidates          []*CapabilityCandidate      `protobuf:"bytes,8,rep,name=candidates,proto3" json:"candidates,omitempty"`
-	Validation          string                      `protobuf:"bytes,9,opt,name=validation,proto3" json:"validation,omitempty"`
-	Declinable          bool                        `protobuf:"varint,10,opt,name=declinable,proto3" json:"declinable,omitempty"`
-	Constraints         *CapabilityInputConstraints `protobuf:"bytes,11,opt,name=constraints,proto3" json:"constraints,omitempty"`
-	CredentialLogicalId string                      `protobuf:"bytes,12,opt,name=credential_logical_id,json=credentialLogicalId,proto3" json:"credential_logical_id,omitempty"`
-	CredentialField     string                      `protobuf:"bytes,13,opt,name=credential_field,json=credentialField,proto3" json:"credential_field,omitempty"`
-	Provider            string                      `protobuf:"bytes,14,opt,name=provider,proto3" json:"provider,omitempty"`
-	RequirementGroup    string                      `protobuf:"bytes,15,opt,name=requirement_group,json=requirementGroup,proto3" json:"requirement_group,omitempty"`
-	ConsumerRefs        []string                    `protobuf:"bytes,16,rep,name=consumer_refs,json=consumerRefs,proto3" json:"consumer_refs,omitempty"`
-	CompanionSettings   []string                    `protobuf:"bytes,17,rep,name=companion_settings,json=companionSettings,proto3" json:"companion_settings,omitempty"`
-	AcquisitionRef      string                      `protobuf:"bytes,18,opt,name=acquisition_ref,json=acquisitionRef,proto3" json:"acquisition_ref,omitempty"`
-	VerificationRef     string                      `protobuf:"bytes,19,opt,name=verification_ref,json=verificationRef,proto3" json:"verification_ref,omitempty"`
-	RecoveryRef         string                      `protobuf:"bytes,20,opt,name=recovery_ref,json=recoveryRef,proto3" json:"recovery_ref,omitempty"`
-	HelpRef             string                      `protobuf:"bytes,21,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
-	EvidencePolicy      string                      `protobuf:"bytes,22,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                protoimpl.MessageState      `protogen:"open.v1"`
+	Id                   string                      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind                 string                      `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Label                string                      `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Description          string                      `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Required             bool                        `protobuf:"varint,5,opt,name=required,proto3" json:"required,omitempty"`
+	Options              []string                    `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
+	DefaultValue         string                      `protobuf:"bytes,7,opt,name=default_value,json=defaultValue,proto3" json:"default_value,omitempty"`
+	Candidates           []*CapabilityCandidate      `protobuf:"bytes,8,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	Validation           string                      `protobuf:"bytes,9,opt,name=validation,proto3" json:"validation,omitempty"`
+	Declinable           bool                        `protobuf:"varint,10,opt,name=declinable,proto3" json:"declinable,omitempty"`
+	Constraints          *CapabilityInputConstraints `protobuf:"bytes,11,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	CredentialLogicalId  string                      `protobuf:"bytes,12,opt,name=credential_logical_id,json=credentialLogicalId,proto3" json:"credential_logical_id,omitempty"`
+	CredentialField      string                      `protobuf:"bytes,13,opt,name=credential_field,json=credentialField,proto3" json:"credential_field,omitempty"`
+	Provider             string                      `protobuf:"bytes,14,opt,name=provider,proto3" json:"provider,omitempty"`
+	RequirementGroup     string                      `protobuf:"bytes,15,opt,name=requirement_group,json=requirementGroup,proto3" json:"requirement_group,omitempty"`
+	ConsumerRefs         []string                    `protobuf:"bytes,16,rep,name=consumer_refs,json=consumerRefs,proto3" json:"consumer_refs,omitempty"`
+	CompanionSettings    []string                    `protobuf:"bytes,17,rep,name=companion_settings,json=companionSettings,proto3" json:"companion_settings,omitempty"`
+	AcquisitionRef       string                      `protobuf:"bytes,18,opt,name=acquisition_ref,json=acquisitionRef,proto3" json:"acquisition_ref,omitempty"`
+	VerificationRef      string                      `protobuf:"bytes,19,opt,name=verification_ref,json=verificationRef,proto3" json:"verification_ref,omitempty"`
+	RecoveryRef          string                      `protobuf:"bytes,20,opt,name=recovery_ref,json=recoveryRef,proto3" json:"recovery_ref,omitempty"`
+	HelpRef              string                      `protobuf:"bytes,21,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
+	EvidencePolicy       string                      `protobuf:"bytes,22,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
+	CompanionCredentials []string                    `protobuf:"bytes,23,rep,name=companion_credentials,json=companionCredentials,proto3" json:"companion_credentials,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CapabilityInputDescriptor) Reset() {
 	*x = CapabilityInputDescriptor{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -529,7 +748,7 @@ func (x *CapabilityInputDescriptor) String() string {
 func (*CapabilityInputDescriptor) ProtoMessage() {}
 
 func (x *CapabilityInputDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -542,7 +761,7 @@ func (x *CapabilityInputDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityInputDescriptor.ProtoReflect.Descriptor instead.
 func (*CapabilityInputDescriptor) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CapabilityInputDescriptor) GetId() string {
@@ -699,6 +918,13 @@ func (x *CapabilityInputDescriptor) GetEvidencePolicy() string {
 	return ""
 }
 
+func (x *CapabilityInputDescriptor) GetCompanionCredentials() []string {
+	if x != nil {
+		return x.CompanionCredentials
+	}
+	return nil
+}
+
 type CapabilityInputConstraints struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MinLength     int32                  `protobuf:"varint,1,opt,name=min_length,json=minLength,proto3" json:"min_length,omitempty"`
@@ -711,7 +937,7 @@ type CapabilityInputConstraints struct {
 
 func (x *CapabilityInputConstraints) Reset() {
 	*x = CapabilityInputConstraints{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +949,7 @@ func (x *CapabilityInputConstraints) String() string {
 func (*CapabilityInputConstraints) ProtoMessage() {}
 
 func (x *CapabilityInputConstraints) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +962,7 @@ func (x *CapabilityInputConstraints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityInputConstraints.ProtoReflect.Descriptor instead.
 func (*CapabilityInputConstraints) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CapabilityInputConstraints) GetMinLength() int32 {
@@ -780,7 +1006,7 @@ type CapabilityPolicy struct {
 
 func (x *CapabilityPolicy) Reset() {
 	*x = CapabilityPolicy{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -792,7 +1018,7 @@ func (x *CapabilityPolicy) String() string {
 func (*CapabilityPolicy) ProtoMessage() {}
 
 func (x *CapabilityPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -805,7 +1031,7 @@ func (x *CapabilityPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityPolicy.ProtoReflect.Descriptor instead.
 func (*CapabilityPolicy) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CapabilityPolicy) GetRequiresConfirmation() bool {
@@ -849,13 +1075,14 @@ type CapabilityEvidenceContract struct {
 	RequiredFields []string               `protobuf:"bytes,2,rep,name=required_fields,json=requiredFields,proto3" json:"required_fields,omitempty"`
 	SecretFree     bool                   `protobuf:"varint,3,opt,name=secret_free,json=secretFree,proto3" json:"secret_free,omitempty"`
 	Freshness      string                 `protobuf:"bytes,4,opt,name=freshness,proto3" json:"freshness,omitempty"`
+	Stages         []string               `protobuf:"bytes,5,rep,name=stages,proto3" json:"stages,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CapabilityEvidenceContract) Reset() {
 	*x = CapabilityEvidenceContract{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +1094,7 @@ func (x *CapabilityEvidenceContract) String() string {
 func (*CapabilityEvidenceContract) ProtoMessage() {}
 
 func (x *CapabilityEvidenceContract) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -880,7 +1107,7 @@ func (x *CapabilityEvidenceContract) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEvidenceContract.ProtoReflect.Descriptor instead.
 func (*CapabilityEvidenceContract) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CapabilityEvidenceContract) GetKinds() []string {
@@ -911,6 +1138,13 @@ func (x *CapabilityEvidenceContract) GetFreshness() string {
 	return ""
 }
 
+func (x *CapabilityEvidenceContract) GetStages() []string {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
 type CapabilityDescriptor struct {
 	state             protoimpl.MessageState          `protogen:"open.v1"`
 	Version           string                          `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -939,7 +1173,7 @@ type CapabilityDescriptor struct {
 
 func (x *CapabilityDescriptor) Reset() {
 	*x = CapabilityDescriptor{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1185,7 @@ func (x *CapabilityDescriptor) String() string {
 func (*CapabilityDescriptor) ProtoMessage() {}
 
 func (x *CapabilityDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1198,7 @@ func (x *CapabilityDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityDescriptor.ProtoReflect.Descriptor instead.
 func (*CapabilityDescriptor) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CapabilityDescriptor) GetVersion() string {
@@ -1118,7 +1352,7 @@ type CapabilityApplicability struct {
 
 func (x *CapabilityApplicability) Reset() {
 	*x = CapabilityApplicability{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1364,7 @@ func (x *CapabilityApplicability) String() string {
 func (*CapabilityApplicability) ProtoMessage() {}
 
 func (x *CapabilityApplicability) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1377,7 @@ func (x *CapabilityApplicability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityApplicability.ProtoReflect.Descriptor instead.
 func (*CapabilityApplicability) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CapabilityApplicability) GetPlatforms() []string {
@@ -1179,7 +1413,7 @@ type CapabilityPermissionProvenance struct {
 
 func (x *CapabilityPermissionProvenance) Reset() {
 	*x = CapabilityPermissionProvenance{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1425,7 @@ func (x *CapabilityPermissionProvenance) String() string {
 func (*CapabilityPermissionProvenance) ProtoMessage() {}
 
 func (x *CapabilityPermissionProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1438,7 @@ func (x *CapabilityPermissionProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityPermissionProvenance.ProtoReflect.Descriptor instead.
 func (*CapabilityPermissionProvenance) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CapabilityPermissionProvenance) GetRequester() string {
@@ -1249,7 +1483,7 @@ type CapabilityLifecycle struct {
 
 func (x *CapabilityLifecycle) Reset() {
 	*x = CapabilityLifecycle{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1261,7 +1495,7 @@ func (x *CapabilityLifecycle) String() string {
 func (*CapabilityLifecycle) ProtoMessage() {}
 
 func (x *CapabilityLifecycle) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1508,7 @@ func (x *CapabilityLifecycle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityLifecycle.ProtoReflect.Descriptor instead.
 func (*CapabilityLifecycle) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CapabilityLifecycle) GetPreview() bool {
@@ -1320,37 +1554,43 @@ func (x *CapabilityLifecycle) GetRecovery() string {
 }
 
 type CapabilityEvidence struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Kind             string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	ArtifactIdentity string                 `protobuf:"bytes,2,opt,name=artifact_identity,json=artifactIdentity,proto3" json:"artifact_identity,omitempty"`
-	SourceGeneration string                 `protobuf:"bytes,3,opt,name=source_generation,json=sourceGeneration,proto3" json:"source_generation,omitempty"`
-	Checksum         string                 `protobuf:"bytes,4,opt,name=checksum,proto3" json:"checksum,omitempty"`
-	Coverage         []string               `protobuf:"bytes,5,rep,name=coverage,proto3" json:"coverage,omitempty"`
-	ObservedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	Verified         bool                   `protobuf:"varint,7,opt,name=verified,proto3" json:"verified,omitempty"`
-	Remediation      string                 `protobuf:"bytes,8,opt,name=remediation,proto3" json:"remediation,omitempty"`
-	SchemaVersion    string                 `protobuf:"bytes,9,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	CapabilityId     string                 `protobuf:"bytes,10,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
-	CredentialRef    *CredentialEvidenceRef `protobuf:"bytes,11,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
-	TargetId         string                 `protobuf:"bytes,12,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
-	Environment      string                 `protobuf:"bytes,13,opt,name=environment,proto3" json:"environment,omitempty"`
-	AccountIdentity  string                 `protobuf:"bytes,14,opt,name=account_identity,json=accountIdentity,proto3" json:"account_identity,omitempty"`
-	Operation        string                 `protobuf:"bytes,15,opt,name=operation,proto3" json:"operation,omitempty"`
-	Status           string                 `protobuf:"bytes,16,opt,name=status,proto3" json:"status,omitempty"`
-	ExpiresAt        *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	ArtifactRefs     []string               `protobuf:"bytes,18,rep,name=artifact_refs,json=artifactRefs,proto3" json:"artifact_refs,omitempty"`
-	Limitations      []string               `protobuf:"bytes,19,rep,name=limitations,proto3" json:"limitations,omitempty"`
-	NextAction       string                 `protobuf:"bytes,20,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
-	EffectClass      string                 `protobuf:"bytes,21,opt,name=effect_class,json=effectClass,proto3" json:"effect_class,omitempty"`
-	EffectsUsed      int32                  `protobuf:"varint,22,opt,name=effects_used,json=effectsUsed,proto3" json:"effects_used,omitempty"`
-	CleanupCompleted bool                   `protobuf:"varint,23,opt,name=cleanup_completed,json=cleanupCompleted,proto3" json:"cleanup_completed,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Kind                   string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	ArtifactIdentity       string                 `protobuf:"bytes,2,opt,name=artifact_identity,json=artifactIdentity,proto3" json:"artifact_identity,omitempty"`
+	SourceGeneration       string                 `protobuf:"bytes,3,opt,name=source_generation,json=sourceGeneration,proto3" json:"source_generation,omitempty"`
+	Checksum               string                 `protobuf:"bytes,4,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	Coverage               []string               `protobuf:"bytes,5,rep,name=coverage,proto3" json:"coverage,omitempty"`
+	ObservedAt             *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Verified               bool                   `protobuf:"varint,7,opt,name=verified,proto3" json:"verified,omitempty"`
+	Remediation            string                 `protobuf:"bytes,8,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	SchemaVersion          string                 `protobuf:"bytes,9,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	CapabilityId           string                 `protobuf:"bytes,10,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	CredentialRef          *CredentialEvidenceRef `protobuf:"bytes,11,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
+	TargetId               string                 `protobuf:"bytes,12,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	Environment            string                 `protobuf:"bytes,13,opt,name=environment,proto3" json:"environment,omitempty"`
+	AccountIdentity        string                 `protobuf:"bytes,14,opt,name=account_identity,json=accountIdentity,proto3" json:"account_identity,omitempty"`
+	Operation              string                 `protobuf:"bytes,15,opt,name=operation,proto3" json:"operation,omitempty"`
+	Status                 string                 `protobuf:"bytes,16,opt,name=status,proto3" json:"status,omitempty"`
+	ExpiresAt              *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ArtifactRefs           []string               `protobuf:"bytes,18,rep,name=artifact_refs,json=artifactRefs,proto3" json:"artifact_refs,omitempty"`
+	Limitations            []string               `protobuf:"bytes,19,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	NextAction             string                 `protobuf:"bytes,20,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	EffectClass            string                 `protobuf:"bytes,21,opt,name=effect_class,json=effectClass,proto3" json:"effect_class,omitempty"`
+	EffectsUsed            int32                  `protobuf:"varint,22,opt,name=effects_used,json=effectsUsed,proto3" json:"effects_used,omitempty"`
+	CleanupCompleted       bool                   `protobuf:"varint,23,opt,name=cleanup_completed,json=cleanupCompleted,proto3" json:"cleanup_completed,omitempty"`
+	Stage                  string                 `protobuf:"bytes,24,opt,name=stage,proto3" json:"stage,omitempty"`
+	Owner                  string                 `protobuf:"bytes,25,opt,name=owner,proto3" json:"owner,omitempty"`
+	ContextDigest          string                 `protobuf:"bytes,26,opt,name=context_digest,json=contextDigest,proto3" json:"context_digest,omitempty"`
+	CatalogRevision        string                 `protobuf:"bytes,27,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	ConfigurationRevision  string                 `protobuf:"bytes,28,opt,name=configuration_revision,json=configurationRevision,proto3" json:"configuration_revision,omitempty"`
+	ProviderAdapterVersion string                 `protobuf:"bytes,29,opt,name=provider_adapter_version,json=providerAdapterVersion,proto3" json:"provider_adapter_version,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *CapabilityEvidence) Reset() {
 	*x = CapabilityEvidence{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1362,7 +1602,7 @@ func (x *CapabilityEvidence) String() string {
 func (*CapabilityEvidence) ProtoMessage() {}
 
 func (x *CapabilityEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1375,7 +1615,7 @@ func (x *CapabilityEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEvidence.ProtoReflect.Descriptor instead.
 func (*CapabilityEvidence) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CapabilityEvidence) GetKind() string {
@@ -1539,6 +1779,48 @@ func (x *CapabilityEvidence) GetCleanupCompleted() bool {
 	return false
 }
 
+func (x *CapabilityEvidence) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+func (x *CapabilityEvidence) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *CapabilityEvidence) GetContextDigest() string {
+	if x != nil {
+		return x.ContextDigest
+	}
+	return ""
+}
+
+func (x *CapabilityEvidence) GetCatalogRevision() string {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return ""
+}
+
+func (x *CapabilityEvidence) GetConfigurationRevision() string {
+	if x != nil {
+		return x.ConfigurationRevision
+	}
+	return ""
+}
+
+func (x *CapabilityEvidence) GetProviderAdapterVersion() string {
+	if x != nil {
+		return x.ProviderAdapterVersion
+	}
+	return ""
+}
+
 type CredentialEvidenceRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LogicalId     string                 `protobuf:"bytes,1,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
@@ -1550,7 +1832,7 @@ type CredentialEvidenceRef struct {
 
 func (x *CredentialEvidenceRef) Reset() {
 	*x = CredentialEvidenceRef{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[15]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1562,7 +1844,7 @@ func (x *CredentialEvidenceRef) String() string {
 func (*CredentialEvidenceRef) ProtoMessage() {}
 
 func (x *CredentialEvidenceRef) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[15]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1575,7 +1857,7 @@ func (x *CredentialEvidenceRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialEvidenceRef.ProtoReflect.Descriptor instead.
 func (*CredentialEvidenceRef) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{15}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CredentialEvidenceRef) GetLogicalId() string {
@@ -1614,7 +1896,7 @@ type CapabilityStatus struct {
 
 func (x *CapabilityStatus) Reset() {
 	*x = CapabilityStatus{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[16]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1626,7 +1908,7 @@ func (x *CapabilityStatus) String() string {
 func (*CapabilityStatus) ProtoMessage() {}
 
 func (x *CapabilityStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[16]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1639,7 +1921,7 @@ func (x *CapabilityStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityStatus.ProtoReflect.Descriptor instead.
 func (*CapabilityStatus) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{16}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CapabilityStatus) GetDescriptor_() *CapabilityDescriptor {
@@ -1701,7 +1983,7 @@ type ListCapabilitiesResponse struct {
 
 func (x *ListCapabilitiesResponse) Reset() {
 	*x = ListCapabilitiesResponse{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[17]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1713,7 +1995,7 @@ func (x *ListCapabilitiesResponse) String() string {
 func (*ListCapabilitiesResponse) ProtoMessage() {}
 
 func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[17]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1726,7 +2008,7 @@ func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{17}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListCapabilitiesResponse) GetCapabilities() []*CapabilityStatus {
@@ -1753,7 +2035,7 @@ type GetCapabilityStatusResponse struct {
 
 func (x *GetCapabilityStatusResponse) Reset() {
 	*x = GetCapabilityStatusResponse{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[18]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1765,7 +2047,7 @@ func (x *GetCapabilityStatusResponse) String() string {
 func (*GetCapabilityStatusResponse) ProtoMessage() {}
 
 func (x *GetCapabilityStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[18]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1778,7 +2060,7 @@ func (x *GetCapabilityStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapabilityStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetCapabilityStatusResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{18}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetCapabilityStatusResponse) GetStatuses() []*CapabilityStatus {
@@ -1806,7 +2088,7 @@ type CapabilityMutation struct {
 
 func (x *CapabilityMutation) Reset() {
 	*x = CapabilityMutation{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[19]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1818,7 +2100,7 @@ func (x *CapabilityMutation) String() string {
 func (*CapabilityMutation) ProtoMessage() {}
 
 func (x *CapabilityMutation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[19]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1831,7 +2113,7 @@ func (x *CapabilityMutation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityMutation.ProtoReflect.Descriptor instead.
 func (*CapabilityMutation) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{19}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CapabilityMutation) GetId() string {
@@ -1870,7 +2152,7 @@ type PreviewCapabilityResponse struct {
 
 func (x *PreviewCapabilityResponse) Reset() {
 	*x = PreviewCapabilityResponse{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[20]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1882,7 +2164,7 @@ func (x *PreviewCapabilityResponse) String() string {
 func (*PreviewCapabilityResponse) ProtoMessage() {}
 
 func (x *PreviewCapabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[20]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1895,7 +2177,7 @@ func (x *PreviewCapabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewCapabilityResponse.ProtoReflect.Descriptor instead.
 func (*PreviewCapabilityResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{20}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PreviewCapabilityResponse) GetCapabilityId() string {
@@ -1964,7 +2246,7 @@ type ApplyCapabilityResponse struct {
 
 func (x *ApplyCapabilityResponse) Reset() {
 	*x = ApplyCapabilityResponse{}
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[21]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1976,7 +2258,7 @@ func (x *ApplyCapabilityResponse) String() string {
 func (*ApplyCapabilityResponse) ProtoMessage() {}
 
 func (x *ApplyCapabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[21]
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1989,7 +2271,7 @@ func (x *ApplyCapabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyCapabilityResponse.ProtoReflect.Descriptor instead.
 func (*ApplyCapabilityResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{21}
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ApplyCapabilityResponse) GetCapabilityId() string {
@@ -2055,6 +2337,109 @@ func (x *ApplyCapabilityResponse) GetCompletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type VerifyCapabilityResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	CapabilityId string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	Evidence     []*CapabilityEvidence  `protobuf:"bytes,2,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Remediation  string                 `protobuf:"bytes,3,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	// Verification failures remain a successful typed operation response so
+	// clients can render the provider-neutral remediation contract instead of
+	// reducing every provider outcome to a transport error.
+	ErrorCode         string `protobuf:"bytes,4,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	Retryable         bool   `protobuf:"varint,5,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	RetryAfterSeconds int64  `protobuf:"varint,6,opt,name=retry_after_seconds,json=retryAfterSeconds,proto3" json:"retry_after_seconds,omitempty"`
+	NextAction        string `protobuf:"bytes,7,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	Outcome           string `protobuf:"bytes,8,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *VerifyCapabilityResponse) Reset() {
+	*x = VerifyCapabilityResponse{}
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCapabilityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCapabilityResponse) ProtoMessage() {}
+
+func (x *VerifyCapabilityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCapabilityResponse.ProtoReflect.Descriptor instead.
+func (*VerifyCapabilityResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *VerifyCapabilityResponse) GetCapabilityId() string {
+	if x != nil {
+		return x.CapabilityId
+	}
+	return ""
+}
+
+func (x *VerifyCapabilityResponse) GetEvidence() []*CapabilityEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *VerifyCapabilityResponse) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *VerifyCapabilityResponse) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *VerifyCapabilityResponse) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *VerifyCapabilityResponse) GetRetryAfterSeconds() int64 {
+	if x != nil {
+		return x.RetryAfterSeconds
+	}
+	return 0
+}
+
+func (x *VerifyCapabilityResponse) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *VerifyCapabilityResponse) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
 var File_vrooli_onboarding_v1_capabilities_capabilities_proto protoreflect.FileDescriptor
 
 const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
@@ -2069,12 +2454,36 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x06action\x18\x02 \x01(\v27.vrooli.vrooli_onboarding.v1.capabilities.ActionRequestR\x06action\"\x81\x01\n" +
 	"\x16ApplyCapabilityRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12O\n" +
-	"\x06action\x18\x02 \x01(\v27.vrooli.vrooli_onboarding.v1.capabilities.ActionRequestR\x06action\"\xa8\x01\n" +
+	"\x06action\x18\x02 \x01(\v27.vrooli.vrooli_onboarding.v1.capabilities.ActionRequestR\x06action\"\x94\x01\n" +
+	"\x17VerifyCapabilityRequest\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12a\n" +
+	"\fverification\x18\x02 \x01(\v2=.vrooli.vrooli_onboarding.v1.capabilities.VerificationRequestR\fverification\"\xa9\x06\n" +
+	"\x13VerificationRequest\x12#\n" +
+	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12f\n" +
+	"\x0ecredential_ref\x18\x02 \x01(\v2?.vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRefR\rcredentialRef\x12\x1b\n" +
+	"\ttarget_id\x18\x03 \x01(\tR\btargetId\x12 \n" +
+	"\venvironment\x18\x04 \x01(\tR\venvironment\x12)\n" +
+	"\x10account_identity\x18\x05 \x01(\tR\x0faccountIdentity\x12\x1c\n" +
+	"\toperation\x18\x06 \x01(\tR\toperation\x12d\n" +
+	"\acontext\x18\a \x03(\v2J.vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.ContextEntryR\acontext\x12!\n" +
+	"\feffect_class\x18\b \x01(\tR\veffectClass\x12%\n" +
+	"\x0emax_operations\x18\t \x01(\x05R\rmaxOperations\x12%\n" +
+	"\x0ecleanup_policy\x18\n" +
+	" \x01(\tR\rcleanupPolicy\x12'\n" +
+	"\x0ftimeout_seconds\x18\v \x01(\x03R\x0etimeoutSeconds\x12%\n" +
+	"\x0econtext_digest\x18\f \x01(\tR\rcontextDigest\x12)\n" +
+	"\x10catalog_revision\x18\r \x01(\tR\x0fcatalogRevision\x125\n" +
+	"\x16configuration_revision\x18\x0e \x01(\tR\x15configurationRevision\x128\n" +
+	"\x18provider_adapter_version\x18\x0f \x01(\tR\x16providerAdapterVersion\x1a:\n" +
+	"\fContextEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc5\x01\n" +
 	"\rActionRequest\x12#\n" +
 	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12\x18\n" +
 	"\aconfirm\x18\x03 \x01(\bR\aconfirm\x12/\n" +
-	"\x06inputs\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06inputs\"\x82\x04\n" +
+	"\x06inputs\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06inputs\x12\x1b\n" +
+	"\ttarget_id\x18\x05 \x01(\tR\btargetId\"\x82\x04\n" +
 	"\x13CapabilityCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
@@ -2091,7 +2500,7 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\bmetadata\x18\f \x03(\v2K.vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x90\a\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc5\a\n" +
 	"\x19CapabilityInputDescriptor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +
@@ -2121,7 +2530,8 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x10verification_ref\x18\x13 \x01(\tR\x0fverificationRef\x12!\n" +
 	"\frecovery_ref\x18\x14 \x01(\tR\vrecoveryRef\x12\x19\n" +
 	"\bhelp_ref\x18\x15 \x01(\tR\ahelpRef\x12'\n" +
-	"\x0fevidence_policy\x18\x16 \x01(\tR\x0eevidencePolicy\"\xa0\x01\n" +
+	"\x0fevidence_policy\x18\x16 \x01(\tR\x0eevidencePolicy\x123\n" +
+	"\x15companion_credentials\x18\x17 \x03(\tR\x14companionCredentials\"\xa0\x01\n" +
 	"\x1aCapabilityInputConstraints\x12\x1d\n" +
 	"\n" +
 	"min_length\x18\x01 \x01(\x05R\tminLength\x12\x1d\n" +
@@ -2136,13 +2546,14 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"idempotent\x12\x1c\n" +
 	"\tretryable\x18\x03 \x01(\bR\tretryable\x12'\n" +
 	"\x0fprotected_roots\x18\x04 \x03(\tR\x0eprotectedRoots\x12 \n" +
-	"\vremediation\x18\x05 \x01(\tR\vremediation\"\x9a\x01\n" +
+	"\vremediation\x18\x05 \x01(\tR\vremediation\"\xb2\x01\n" +
 	"\x1aCapabilityEvidenceContract\x12\x14\n" +
 	"\x05kinds\x18\x01 \x03(\tR\x05kinds\x12'\n" +
 	"\x0frequired_fields\x18\x02 \x03(\tR\x0erequiredFields\x12\x1f\n" +
 	"\vsecret_free\x18\x03 \x01(\bR\n" +
 	"secretFree\x12\x1c\n" +
-	"\tfreshness\x18\x04 \x01(\tR\tfreshness\"\xf5\a\n" +
+	"\tfreshness\x18\x04 \x01(\tR\tfreshness\x12\x16\n" +
+	"\x06stages\x18\x05 \x03(\tR\x06stages\"\xf5\a\n" +
 	"\x14CapabilityDescriptor\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
@@ -2182,7 +2593,7 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x06verify\x18\x03 \x01(\bR\x06verify\x12\x16\n" +
 	"\x06revoke\x18\x04 \x01(\bR\x06revoke\x12\x18\n" +
 	"\arecover\x18\x05 \x01(\bR\arecover\x12\x1a\n" +
-	"\brecovery\x18\x06 \x01(\tR\brecovery\"\x9f\a\n" +
+	"\brecovery\x18\x06 \x01(\tR\brecovery\"\x8e\t\n" +
 	"\x12CapabilityEvidence\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12+\n" +
 	"\x11artifact_identity\x18\x02 \x01(\tR\x10artifactIdentity\x12+\n" +
@@ -2210,7 +2621,13 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"nextAction\x12!\n" +
 	"\feffect_class\x18\x15 \x01(\tR\veffectClass\x12!\n" +
 	"\feffects_used\x18\x16 \x01(\x05R\veffectsUsed\x12+\n" +
-	"\x11cleanup_completed\x18\x17 \x01(\bR\x10cleanupCompleted\"f\n" +
+	"\x11cleanup_completed\x18\x17 \x01(\bR\x10cleanupCompleted\x12\x14\n" +
+	"\x05stage\x18\x18 \x01(\tR\x05stage\x12\x14\n" +
+	"\x05owner\x18\x19 \x01(\tR\x05owner\x12%\n" +
+	"\x0econtext_digest\x18\x1a \x01(\tR\rcontextDigest\x12)\n" +
+	"\x10catalog_revision\x18\x1b \x01(\tR\x0fcatalogRevision\x125\n" +
+	"\x16configuration_revision\x18\x1c \x01(\tR\x15configurationRevision\x128\n" +
+	"\x18provider_adapter_version\x18\x1d \x01(\tR\x16providerAdapterVersion\"f\n" +
 	"\x15CredentialEvidenceRef\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
@@ -2262,7 +2679,18 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\vremediation\x18\x06 \x01(\tR\vremediation\x12X\n" +
 	"\bevidence\x18\a \x03(\v2<.vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceR\bevidence\x12Z\n" +
 	"\tmutations\x18\b \x03(\v2<.vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutationR\tmutations\x12=\n" +
-	"\fcompleted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt*\xea\x02\n" +
+	"\fcompleted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\xe3\x02\n" +
+	"\x18VerifyCapabilityResponse\x12#\n" +
+	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12X\n" +
+	"\bevidence\x18\x02 \x03(\v2<.vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceR\bevidence\x12 \n" +
+	"\vremediation\x18\x03 \x01(\tR\vremediation\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\x04 \x01(\tR\terrorCode\x12\x1c\n" +
+	"\tretryable\x18\x05 \x01(\bR\tretryable\x12.\n" +
+	"\x13retry_after_seconds\x18\x06 \x01(\x03R\x11retryAfterSeconds\x12\x1f\n" +
+	"\vnext_action\x18\a \x01(\tR\n" +
+	"nextAction\x12\x18\n" +
+	"\aoutcome\x18\b \x01(\tR\aoutcome*\xea\x02\n" +
 	"\x0fCapabilityState\x12 \n" +
 	"\x1cCAPABILITY_STATE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bCAPABILITY_STATE_DISCOVERED\x10\x01\x12)\n" +
@@ -2273,12 +2701,13 @@ const file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x16CAPABILITY_STATE_READY\x10\x06\x12&\n" +
 	"\"CAPABILITY_STATE_RETRYABLE_FAILURE\x10\a\x12\x1d\n" +
 	"\x19CAPABILITY_STATE_DEGRADED\x10\b\x12 \n" +
-	"\x1cCAPABILITY_STATE_UNSUPPORTED\x10\t2\x8e\x05\n" +
+	"\x1cCAPABILITY_STATE_UNSUPPORTED\x10\t2\xaa\x06\n" +
 	"\x13CapabilitiesService\x12\x99\x01\n" +
 	"\x10ListCapabilities\x12A.vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesRequest\x1aB.vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse\x12\xa2\x01\n" +
 	"\x13GetCapabilityStatus\x12D.vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusRequest\x1aE.vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse\x12\x9c\x01\n" +
 	"\x11PreviewCapability\x12B.vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest\x1aC.vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse\x12\x96\x01\n" +
-	"\x0fApplyCapability\x12@.vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest\x1aA.vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponseBaZ_github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities;capabilitiesv1b\x06proto3"
+	"\x0fApplyCapability\x12@.vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest\x1aA.vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse\x12\x99\x01\n" +
+	"\x10VerifyCapability\x12A.vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest\x1aB.vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponseBaZ_github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities;capabilitiesv1b\x06proto3"
 
 var (
 	file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescOnce sync.Once
@@ -2293,79 +2722,89 @@ func file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDescGZIP() []b
 }
 
 var file_vrooli_onboarding_v1_capabilities_capabilities_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_vrooli_onboarding_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_vrooli_onboarding_v1_capabilities_capabilities_proto_goTypes = []any{
 	(CapabilityState)(0),                   // 0: vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
 	(*ListCapabilitiesRequest)(nil),        // 1: vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesRequest
 	(*GetCapabilityStatusRequest)(nil),     // 2: vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusRequest
 	(*PreviewCapabilityRequest)(nil),       // 3: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest
 	(*ApplyCapabilityRequest)(nil),         // 4: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest
-	(*ActionRequest)(nil),                  // 5: vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
-	(*CapabilityCandidate)(nil),            // 6: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
-	(*CapabilityInputDescriptor)(nil),      // 7: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor
-	(*CapabilityInputConstraints)(nil),     // 8: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputConstraints
-	(*CapabilityPolicy)(nil),               // 9: vrooli.vrooli_onboarding.v1.capabilities.CapabilityPolicy
-	(*CapabilityEvidenceContract)(nil),     // 10: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceContract
-	(*CapabilityDescriptor)(nil),           // 11: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor
-	(*CapabilityApplicability)(nil),        // 12: vrooli.vrooli_onboarding.v1.capabilities.CapabilityApplicability
-	(*CapabilityPermissionProvenance)(nil), // 13: vrooli.vrooli_onboarding.v1.capabilities.CapabilityPermissionProvenance
-	(*CapabilityLifecycle)(nil),            // 14: vrooli.vrooli_onboarding.v1.capabilities.CapabilityLifecycle
-	(*CapabilityEvidence)(nil),             // 15: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
-	(*CredentialEvidenceRef)(nil),          // 16: vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
-	(*CapabilityStatus)(nil),               // 17: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
-	(*ListCapabilitiesResponse)(nil),       // 18: vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse
-	(*GetCapabilityStatusResponse)(nil),    // 19: vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse
-	(*CapabilityMutation)(nil),             // 20: vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
-	(*PreviewCapabilityResponse)(nil),      // 21: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse
-	(*ApplyCapabilityResponse)(nil),        // 22: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse
-	nil,                                    // 23: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.MetadataEntry
-	(*structpb.Struct)(nil),                // 24: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),          // 25: google.protobuf.Timestamp
+	(*VerifyCapabilityRequest)(nil),        // 5: vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest
+	(*VerificationRequest)(nil),            // 6: vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest
+	(*ActionRequest)(nil),                  // 7: vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
+	(*CapabilityCandidate)(nil),            // 8: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
+	(*CapabilityInputDescriptor)(nil),      // 9: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor
+	(*CapabilityInputConstraints)(nil),     // 10: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputConstraints
+	(*CapabilityPolicy)(nil),               // 11: vrooli.vrooli_onboarding.v1.capabilities.CapabilityPolicy
+	(*CapabilityEvidenceContract)(nil),     // 12: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceContract
+	(*CapabilityDescriptor)(nil),           // 13: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor
+	(*CapabilityApplicability)(nil),        // 14: vrooli.vrooli_onboarding.v1.capabilities.CapabilityApplicability
+	(*CapabilityPermissionProvenance)(nil), // 15: vrooli.vrooli_onboarding.v1.capabilities.CapabilityPermissionProvenance
+	(*CapabilityLifecycle)(nil),            // 16: vrooli.vrooli_onboarding.v1.capabilities.CapabilityLifecycle
+	(*CapabilityEvidence)(nil),             // 17: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
+	(*CredentialEvidenceRef)(nil),          // 18: vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
+	(*CapabilityStatus)(nil),               // 19: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
+	(*ListCapabilitiesResponse)(nil),       // 20: vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse
+	(*GetCapabilityStatusResponse)(nil),    // 21: vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse
+	(*CapabilityMutation)(nil),             // 22: vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
+	(*PreviewCapabilityResponse)(nil),      // 23: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse
+	(*ApplyCapabilityResponse)(nil),        // 24: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse
+	(*VerifyCapabilityResponse)(nil),       // 25: vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse
+	nil,                                    // 26: vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.ContextEntry
+	nil,                                    // 27: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.MetadataEntry
+	(*structpb.Struct)(nil),                // 28: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),          // 29: google.protobuf.Timestamp
 }
 var file_vrooli_onboarding_v1_capabilities_capabilities_proto_depIdxs = []int32{
-	5,  // 0: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest.action:type_name -> vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
-	5,  // 1: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest.action:type_name -> vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
-	24, // 2: vrooli.vrooli_onboarding.v1.capabilities.ActionRequest.inputs:type_name -> google.protobuf.Struct
-	23, // 3: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.metadata:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.MetadataEntry
-	6,  // 4: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
-	8,  // 5: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor.constraints:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputConstraints
-	7,  // 6: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.inputs:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor
-	9,  // 7: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.policy:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityPolicy
-	10, // 8: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceContract
-	12, // 9: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.applicability:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityApplicability
-	13, // 10: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.provenance:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityPermissionProvenance
-	14, // 11: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.lifecycle:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityLifecycle
-	25, // 12: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.observed_at:type_name -> google.protobuf.Timestamp
-	16, // 13: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.credential_ref:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
-	25, // 14: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 15: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.descriptor:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor
-	0,  // 16: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
-	6,  // 17: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
-	15, // 18: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
-	25, // 19: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.updated_at:type_name -> google.protobuf.Timestamp
-	17, // 20: vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse.capabilities:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
-	17, // 21: vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse.statuses:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
-	0,  // 22: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
-	20, // 23: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.mutations:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
-	6,  // 24: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
-	25, // 25: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 26: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
-	15, // 27: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
-	20, // 28: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.mutations:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
-	25, // 29: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.completed_at:type_name -> google.protobuf.Timestamp
-	1,  // 30: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ListCapabilities:input_type -> vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesRequest
-	2,  // 31: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.GetCapabilityStatus:input_type -> vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusRequest
-	3,  // 32: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.PreviewCapability:input_type -> vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest
-	4,  // 33: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ApplyCapability:input_type -> vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest
-	18, // 34: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ListCapabilities:output_type -> vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse
-	19, // 35: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.GetCapabilityStatus:output_type -> vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse
-	21, // 36: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.PreviewCapability:output_type -> vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse
-	22, // 37: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ApplyCapability:output_type -> vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse
-	34, // [34:38] is the sub-list for method output_type
-	30, // [30:34] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	7,  // 0: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest.action:type_name -> vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
+	7,  // 1: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest.action:type_name -> vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
+	6,  // 2: vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest.verification:type_name -> vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest
+	18, // 3: vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.credential_ref:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
+	26, // 4: vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.context:type_name -> vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.ContextEntry
+	28, // 5: vrooli.vrooli_onboarding.v1.capabilities.ActionRequest.inputs:type_name -> google.protobuf.Struct
+	27, // 6: vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.metadata:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate.MetadataEntry
+	8,  // 7: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
+	10, // 8: vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor.constraints:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputConstraints
+	9,  // 9: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.inputs:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor
+	11, // 10: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.policy:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityPolicy
+	12, // 11: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceContract
+	14, // 12: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.applicability:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityApplicability
+	15, // 13: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.provenance:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityPermissionProvenance
+	16, // 14: vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor.lifecycle:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityLifecycle
+	29, // 15: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.observed_at:type_name -> google.protobuf.Timestamp
+	18, // 16: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.credential_ref:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
+	29, // 17: vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 18: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.descriptor:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor
+	0,  // 19: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
+	8,  // 20: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
+	17, // 21: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
+	29, // 22: vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 23: vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse.capabilities:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
+	19, // 24: vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse.statuses:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
+	0,  // 25: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
+	22, // 26: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.mutations:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
+	8,  // 27: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.candidates:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
+	29, // 28: vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 29: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.state:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
+	17, // 30: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
+	22, // 31: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.mutations:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
+	29, // 32: vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse.completed_at:type_name -> google.protobuf.Timestamp
+	17, // 33: vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse.evidence:type_name -> vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
+	1,  // 34: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ListCapabilities:input_type -> vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesRequest
+	2,  // 35: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.GetCapabilityStatus:input_type -> vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusRequest
+	3,  // 36: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.PreviewCapability:input_type -> vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityRequest
+	4,  // 37: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ApplyCapability:input_type -> vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityRequest
+	5,  // 38: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.VerifyCapability:input_type -> vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest
+	20, // 39: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ListCapabilities:output_type -> vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse
+	21, // 40: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.GetCapabilityStatus:output_type -> vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse
+	23, // 41: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.PreviewCapability:output_type -> vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse
+	24, // 42: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.ApplyCapability:output_type -> vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse
+	25, // 43: vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.VerifyCapability:output_type -> vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse
+	39, // [39:44] is the sub-list for method output_type
+	34, // [34:39] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_onboarding_v1_capabilities_capabilities_proto_init() }
@@ -2379,7 +2818,7 @@ func file_vrooli_onboarding_v1_capabilities_capabilities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc), len(file_vrooli_onboarding_v1_capabilities_capabilities_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

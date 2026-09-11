@@ -30,6 +30,7 @@ type ConsumeArgs struct {
 	OnAdvance    func(cursor, lastSeq int64) error
 	OnEvents     func(events []*domain.RunEvent)
 	OnSessionID  func(sessionID string) error
+	OnGoalStatus func(marker GoalMarker) error
 	OnLabel      func(label string, source domain.RunLabelSource) error
 	OnTerminal   func(terminal *TranscriptTerminal) error
 	PollInterval time.Duration
@@ -130,6 +131,24 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 			terminal = result.Terminal
 			if args.OnTerminal != nil {
 				if err := args.OnTerminal(result.Terminal); err != nil {
+					return cursor, terminal, err
+				}
+			}
+		}
+		if result.Goal != nil {
+			if args.OnGoalStatus != nil {
+				if err := args.OnGoalStatus(*result.Goal); err != nil {
+					return cursor, terminal, err
+				}
+			}
+		}
+		if result.Goal != nil && result.Goal.Status != GoalStatusActive && result.Goal.Status != GoalStatusPaused {
+			// A non-active goal status is a deliberate harness terminal, not a
+			// process failure. Workflow policy maps blocked/limited states after
+			// it has received this evidence.
+			terminal = &TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "goal_" + string(result.Goal.Status)}
+			if args.OnTerminal != nil {
+				if err := args.OnTerminal(terminal); err != nil {
 					return cursor, terminal, err
 				}
 			}

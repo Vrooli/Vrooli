@@ -99,6 +99,19 @@ message ProfileSession {
   string reconciliation_state = 13;
   string current_profile_version = 14;
   repeated string reconciliation_reasons = 15;
+  string consequence_digest = 16;
+  string next_question_id = 17;
+  string next_action = 18;
+  repeated ReconciliationChange reconciliation_changes = 19;
+}
+
+message ReconciliationChange {
+  string kind = 1;
+  string field = 2;
+  string before = 3;
+  string after = 4;
+  string impact = 5;
+  bool requires_review = 6;
 }
 
 message GetProfileSessionRequest {

@@ -45,4 +45,27 @@ describe("StepCoreSet", () => {
     fireEvent.click(screen.getByTestId("core-set-confirm"));
     expect(onChange).toHaveBeenCalledWith(["optional"]);
   });
+
+
+  it("always selects and protects the operational recovery plane", async () => {
+    const required = ["agent-manager", "prompt-manager", "web-console", "vrooli-autoheal"];
+    const expectedSeed = [...required].sort();
+    vi.mocked(fetchScenarios).mockResolvedValueOnce({
+      scenarios: required.map((name) => ({ name, systemRequired: false })),
+    } as unknown as ListScenariosResponse);
+    vi.mocked(fetchCoreSet).mockResolvedValue({
+      available: true,
+      seed: expectedSeed,
+      members: required.map((name) => ({ kind: "scenario", name, supervisionIntent: "must_start" })),
+      memberCounts: { scenario: required.length, resource: 0 },
+    } as unknown as GetCoreSetResponse);
+
+    renderWithProviders(<StepCoreSet seed={new Set()} trustedBase={new Set()} onChange={vi.fn()} />);
+
+    for (const name of required) {
+      expect(await screen.findByRole("checkbox", { name: `Supervise ${name}` })).toBeDisabled();
+    }
+    expect(fetchCoreSet).toHaveBeenCalledWith(expectedSeed, "local");
+    expect(screen.getAllByText("Trusted-base member; cannot be removed")).toHaveLength(required.length * 2);
+  });
 });

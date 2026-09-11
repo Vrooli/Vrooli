@@ -100,16 +100,22 @@ type Record struct {
 	// creation). Kept distinct from StartedAt so wait-in-queue
 	// (StartedAt - QueuedAt) is measurable separately from execution time
 	// (FinishedAt - StartedAt). Preserved verbatim through drain/start.
-	QueuedAt          string          `json:"queued_at,omitempty"`
-	StartedAt         string          `json:"started_at,omitempty"`
-	FinishedAt        string          `json:"finished_at,omitempty"`
-	FailureReason     string          `json:"failure_reason,omitempty"`
-	StartedBy         string          `json:"started_by,omitempty"`
-	Operation         string          `json:"operation,omitempty"`
-	Force             bool            `json:"force,omitempty"`
-	PromptTrace       *PromptTrace    `json:"prompt_trace,omitempty"`
-	ArchiveContext    *ArchiveContext `json:"archive_context,omitempty"`
-	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
+	QueuedAt             string          `json:"queued_at,omitempty"`
+	StartedAt            string          `json:"started_at,omitempty"`
+	FinishedAt           string          `json:"finished_at,omitempty"`
+	FailureReason        string          `json:"failure_reason,omitempty"`
+	StartedBy            string          `json:"started_by,omitempty"`
+	Operation            string          `json:"operation,omitempty"`
+	Force                bool            `json:"force,omitempty"`
+	PromptTrace          *PromptTrace    `json:"prompt_trace,omitempty"`
+	ArchiveContext       *ArchiveContext `json:"archive_context,omitempty"`
+	ParentExecutionID    string          `json:"parent_execution_id,omitempty"`
+	ContinuationOf       string          `json:"continuation_of,omitempty"`
+	ContinuationChildIDs []string        `json:"continuation_child_ids,omitempty"`
+	// ScopeExtensions is the Swarm-side projection of recorded Plan Manager
+	// boundary widenings used for the execution's next projection and
+	// finalization. The authored acceptance boundary remains unchanged.
+	ScopeExtensions []ScopeExtension `json:"scope_extensions,omitempty"`
 	// OperatorNote is the free-text steering an operator supplied when this
 	// follow-up or correction was created. It is persisted rather than passed
 	// through the start call because the transition runner rebuilds the input
@@ -139,6 +145,10 @@ type Record struct {
 	ExecutionStrategy       string                    `json:"execution_strategy,omitempty"`
 	MaxSlices               int                       `json:"max_slices,omitempty"`
 	ExecutionLimits         *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	ExecutionPreferences    *ExecutionPreferences     `json:"execution_preferences,omitempty"`
+	ActualRunner            string                    `json:"actual_runner,omitempty"`
+	ActualModel             string                    `json:"actual_model,omitempty"`
+	SelectionReason         string                    `json:"selection_reason,omitempty"`
 	ApprovalDigest          string                    `json:"approval_digest,omitempty"`
 	WorkflowGrant           *workflowcontract.Grant   `json:"workflow_grant,omitempty"`
 	SettledUsage            *workflowcontract.Usage   `json:"settled_usage,omitempty"`
@@ -168,6 +178,24 @@ type Record struct {
 	AcceptedPreviousStatus Status `json:"accepted_previous_status,omitempty"`
 	CreatedAt              string `json:"created_at"`
 	UpdatedAt              string `json:"updated_at"`
+}
+
+// ScopeExtension records one Plan Manager boundary widening as observed by
+// Swarm Manager. Paths are already deny-checked before they enter this
+// projection; the source execution remains the audit authority.
+type ScopeExtension struct {
+	Paths      []string `json:"paths,omitempty"`
+	Reason     string   `json:"reason,omitempty"`
+	RecordedAt string   `json:"recorded_at,omitempty"`
+	Author     string   `json:"author,omitempty"`
+}
+
+// ExecutionPreferences contains optional provider-selection hints for one run.
+// Agent Manager owns availability and resolves the actual provider.
+type ExecutionPreferences struct {
+	PreferredRunner string `json:"preferred_runner,omitempty"`
+	Model           string `json:"model,omitempty"`
+	Effort          string `json:"effort,omitempty"`
 }
 
 // CancellationStanding separates local authority withdrawal, transport
@@ -275,14 +303,15 @@ type ProcessBlockingQuestion struct {
 
 // CreateRequest creates an execution record.
 type CreateRequest struct {
-	BacklogKind string `json:"backlog_kind"`
-	BacklogName string `json:"backlog_name"`
-	Mode        Mode   `json:"mode"`
-	StartedBy   string `json:"started_by,omitempty"`
-	Operation   string `json:"operation,omitempty"`
-	Force       bool   `json:"force,omitempty"`
-	Strategy    string `json:"strategy,omitempty"`
-	MaxSlices   int    `json:"max_slices,omitempty"`
+	BacklogKind          string                `json:"backlog_kind"`
+	BacklogName          string                `json:"backlog_name"`
+	Mode                 Mode                  `json:"mode"`
+	StartedBy            string                `json:"started_by,omitempty"`
+	Operation            string                `json:"operation,omitempty"`
+	Force                bool                  `json:"force,omitempty"`
+	Strategy             string                `json:"strategy,omitempty"`
+	MaxSlices            int                   `json:"max_slices,omitempty"`
+	ExecutionPreferences *ExecutionPreferences `json:"execution_preferences,omitempty"`
 }
 
 // Policy controls default execution behavior when callers do not provide mode/delay.

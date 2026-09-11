@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"net/http"
 	"strings"
 	"testing"
@@ -11,9 +12,9 @@ import (
 func TestCredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
 	prior := credentialProvisionCommand
 	var received string
-	credentialProvisionCommand = func(_ context.Context, logicalID, field, value string) error {
+	credentialProvisionCommand = func(_ context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
 		received = logicalID + "/" + field + "/" + value
-		return nil
+		return credentialclient.ProvisionResponse{Version: "opaque-version"}, nil
 	}
 	t.Cleanup(func() { credentialProvisionCommand = prior })
 
@@ -26,6 +27,9 @@ func TestCredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
 	}
 	if strings.Contains(w.Body.String(), "test-value") {
 		t.Fatalf("credential value leaked in response: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "opaque-version") {
+		t.Fatalf("active credential version missing from response: %s", w.Body.String())
 	}
 }
 

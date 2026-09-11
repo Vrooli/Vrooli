@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/terminal/terminal.proto.
  */
 export const file_web_console_v1_terminal_terminal: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3ZWItY29uc29sZS92MS90ZXJtaW5hbC90ZXJtaW5hbC5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnRlcm1pbmFsIkIKEEdldFNjcmVlblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIaChJpbmNsdWRlX3Njcm9sbGJhY2sYAiABKAgibgoDU0dSEgoKAmZnGAEgASgNEgoKAmJnGAIgASgNEgwKBGJvbGQYAyABKAgSDgoGaXRhbGljGAQgASgIEhEKCXVuZGVybGluZRgFIAEoCBIPCgdpbnZlcnNlGAYgASgIEg0KBWZhaW50GAcgASgIIkYKBENlbGwSDAoEcnVuZRgBIAEoBRIwCgNzZ3IYAiABKAsyIy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuU0dSIjsKBExpbmUSMwoFY2VsbHMYASADKAsyJC52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuQ2VsbCIeCgZDdXJzb3ISCQoBeBgBIAEoBRIJCgF5GAIgASgFIuEBChFHZXRTY3JlZW5SZXNwb25zZRIzCgVsaW5lcxgBIAMoCzIkLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5MaW5lEjYKBmN1cnNvchgCIAEoCzImLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5DdXJzb3ISDAoEY29scxgDIAEoBRIMCgRyb3dzGAQgASgFEhUKDWluX2FsdF9idWZmZXIYBSABKAgSGAoQc2Nyb2xsYmFja19saW5lcxgGIAEoBRISCgpwbGFpbl90ZXh0GAcgASgJIj0KA0tleRIMCgRuYW1lGAEgASgJEgwKBGN0cmwYAiABKAgSCwoDYWx0GAMgASgIEg0KBXNoaWZ0GAQgASgIIkAKC0tleVNlcXVlbmNlEjEKBGtleXMYASADKAsyIy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuS2V5IqwBChBTZW5kSW5wdXRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoEdGV4dBgCIAEoCUgAEjsKBGtleXMYAyABKAsyKy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuS2V5U2VxdWVuY2VIABINCgNyYXcYBCABKAxIABIOCgZzb3VyY2UYBSABKAkSEAoIaXNfcGFzdGUYBiABKAhCBgoEYm9keSIqChFTZW5kSW5wdXRSZXNwb25zZRIVCg1ieXRlc193cml0dGVuGAEgASgFIoIBCg9XYWl0SWRsZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIvCgxxdWlldF93aW5kb3cYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoHdGltZW91dBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiLgAQoQV2FpdElkbGVSZXNwb25zZRJHCgZyZWFzb24YASABKA4yNy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuV2FpdElkbGVSZXNwb25zZS5SZWFzb24SKQoGd2FpdGVkGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIlgKBlJlYXNvbhIWChJSRUFTT05fVU5TUEVDSUZJRUQQABIPCgtSRUFTT05fSURMRRABEhIKDlJFQVNPTl9USU1FT1VUEAISEQoNUkVBU09OX0VYSVRFRBADMuQCCg9UZXJtaW5hbFNlcnZpY2UScAoJR2V0U2NyZWVuEjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnRlcm1pbmFsLkdldFNjcmVlblJlcXVlc3QaMS52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuR2V0U2NyZWVuUmVzcG9uc2UScAoJU2VuZElucHV0EjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnRlcm1pbmFsLlNlbmRJbnB1dFJlcXVlc3QaMS52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuU2VuZElucHV0UmVzcG9uc2USbQoIV2FpdElkbGUSLy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuV2FpdElkbGVSZXF1ZXN0GjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnRlcm1pbmFsLldhaXRJZGxlUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS90ZXJtaW5hbDt0ZXJtaW5hbF92MWIGcHJvdG8z", [file_google_protobuf_duration]);
+  fileDesc("CiZ3ZWItY29uc29sZS92MS90ZXJtaW5hbC90ZXJtaW5hbC5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnRlcm1pbmFsIkIKEEdldFNjcmVlblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIaChJpbmNsdWRlX3Njcm9sbGJhY2sYAiABKAgibgoDU0dSEgoKAmZnGAEgASgNEgoKAmJnGAIgASgNEgwKBGJvbGQYAyABKAgSDgoGaXRhbGljGAQgASgIEhEKCXVuZGVybGluZRgFIAEoCBIPCgdpbnZlcnNlGAYgASgIEg0KBWZhaW50GAcgASgIIkYKBENlbGwSDAoEcnVuZRgBIAEoBRIwCgNzZ3IYAiABKAsyIy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuU0dSIjsKBExpbmUSMwoFY2VsbHMYASADKAsyJC52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuQ2VsbCIeCgZDdXJzb3ISCQoBeBgBIAEoBRIJCgF5GAIgASgFIuEBChFHZXRTY3JlZW5SZXNwb25zZRIzCgVsaW5lcxgBIAMoCzIkLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5MaW5lEjYKBmN1cnNvchgCIAEoCzImLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5DdXJzb3ISDAoEY29scxgDIAEoBRIMCgRyb3dzGAQgASgFEhUKDWluX2FsdF9idWZmZXIYBSABKAgSGAoQc2Nyb2xsYmFja19saW5lcxgGIAEoBRISCgpwbGFpbl90ZXh0GAcgASgJIj0KA0tleRIMCgRuYW1lGAEgASgJEgwKBGN0cmwYAiABKAgSCwoDYWx0GAMgASgIEg0KBXNoaWZ0GAQgASgIIkAKC0tleVNlcXVlbmNlEjEKBGtleXMYASADKAsyIy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuS2V5IqwBChBTZW5kSW5wdXRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoEdGV4dBgCIAEoCUgAEjsKBGtleXMYAyABKAsyKy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuS2V5U2VxdWVuY2VIABINCgNyYXcYBCABKAxIABIOCgZzb3VyY2UYBSABKAkSEAoIaXNfcGFzdGUYBiABKAhCBgoEYm9keSIqChFTZW5kSW5wdXRSZXNwb25zZRIVCg1ieXRlc193cml0dGVuGAEgASgFIoIBCg9XYWl0SWRsZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIvCgxxdWlldF93aW5kb3cYAiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SKgoHdGltZW91dBgDIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiLgAQoQV2FpdElkbGVSZXNwb25zZRJHCgZyZWFzb24YASABKA4yNy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuV2FpdElkbGVSZXNwb25zZS5SZWFzb24SKQoGd2FpdGVkGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIlgKBlJlYXNvbhIWChJSRUFTT05fVU5TUEVDSUZJRUQQABIPCgtSRUFTT05fSURMRRABEhIKDlJFQVNPTl9USU1FT1VUEAISEQoNUkVBU09OX0VYSVRFRBADImIKE0Fuc3dlclByb21wdFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRISCgpvcHRpb25fa2V5GAIgASgJEhMKC3Byb21wdF9oYXNoGAMgASgJEg4KBmNhbmNlbBgEIAEoCCI4ChRBbnN3ZXJQcm9tcHRSZXNwb25zZRIQCghkZWxpdmVyeRgBIAEoCRIOCgZhbnN3ZXIYAiABKAky3wMKD1Rlcm1pbmFsU2VydmljZRJwCglHZXRTY3JlZW4SMC52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuR2V0U2NyZWVuUmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5HZXRTY3JlZW5SZXNwb25zZRJwCglTZW5kSW5wdXQSMC52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuU2VuZElucHV0UmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5TZW5kSW5wdXRSZXNwb25zZRJtCghXYWl0SWRsZRIvLnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5XYWl0SWRsZVJlcXVlc3QaMC52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuV2FpdElkbGVSZXNwb25zZRJ5CgxBbnN3ZXJQcm9tcHQSMy52cm9vbGkud2ViX2NvbnNvbGUudjEudGVybWluYWwuQW5zd2VyUHJvbXB0UmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS50ZXJtaW5hbC5BbnN3ZXJQcm9tcHRSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL3Rlcm1pbmFsO3Rlcm1pbmFsX3YxYgZwcm90bzM", [file_google_protobuf_duration]);
 
 /**
  * @generated from message vrooli.web_console.v1.terminal.GetScreenRequest
@@ -444,6 +444,76 @@ export const WaitIdleResponse_ReasonSchema: GenEnum<WaitIdleResponse_Reason> = /
   enumDesc(file_web_console_v1_terminal_terminal, 11, 0);
 
 /**
+ * AnswerPromptRequest answers the prompt a session's agent is showing, as the
+ * caller saw it in the session's activity (SessionActivity.prompt).
+ *
+ * @generated from message vrooli.web_console.v1.terminal.AnswerPromptRequest
+ */
+export type AnswerPromptRequest = Message<"vrooli.web_console.v1.terminal.AnswerPromptRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * The option to choose: PromptOption.key.
+   *
+   * @generated from field: string option_key = 2;
+   */
+  optionKey: string;
+
+  /**
+   * PendingPrompt.hash of the prompt the caller answered. A prompt that has
+   * changed since is refused (FAILED_PRECONDITION) and nothing is sent.
+   *
+   * @generated from field: string prompt_hash = 3;
+   */
+  promptHash: string;
+
+  /**
+   * Dismiss the prompt instead of choosing (Escape); only when
+   * PendingPrompt.cancellable.
+   *
+   * @generated from field: bool cancel = 4;
+   */
+  cancel: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.terminal.AnswerPromptRequest.
+ * Use `create(AnswerPromptRequestSchema)` to create a new message.
+ */
+export const AnswerPromptRequestSchema: GenMessage<AnswerPromptRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_terminal_terminal, 12);
+
+/**
+ * @generated from message vrooli.web_console.v1.terminal.AnswerPromptResponse
+ */
+export type AnswerPromptResponse = Message<"vrooli.web_console.v1.terminal.AnswerPromptResponse"> & {
+  /**
+   * How the answer reached the agent: "keystrokes" (typed into the terminal)
+   * or "harness_api" (the harness's own reply API).
+   *
+   * @generated from field: string delivery = 1;
+   */
+  delivery: string;
+
+  /**
+   * The chosen option's label; empty for a cancel.
+   *
+   * @generated from field: string answer = 2;
+   */
+  answer: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.terminal.AnswerPromptResponse.
+ * Use `create(AnswerPromptResponseSchema)` to create a new message.
+ */
+export const AnswerPromptResponseSchema: GenMessage<AnswerPromptResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_terminal_terminal, 13);
+
+/**
  * @generated from service vrooli.web_console.v1.terminal.TerminalService
  */
 export const TerminalService: GenService<{
@@ -470,6 +540,14 @@ export const TerminalService: GenService<{
     methodKind: "unary";
     input: typeof WaitIdleRequestSchema;
     output: typeof WaitIdleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.terminal.TerminalService.AnswerPrompt
+   */
+  answerPrompt: {
+    methodKind: "unary";
+    input: typeof AnswerPromptRequestSchema;
+    output: typeof AnswerPromptResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_terminal_terminal, 0);

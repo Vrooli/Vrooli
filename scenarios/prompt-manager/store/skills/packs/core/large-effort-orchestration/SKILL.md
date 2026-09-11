@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
   icon: network
   status: active
-  revision: 3
+  revision: 4
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-10T16:37:12Z"
+  updatedAt: "2026-09-11T06:40:00Z"
   requires:
     scenarios: [prompt-manager, plan-manager, agent-manager, program-runtime]
     commands: [prompt-manager skill read, plan-manager, agent-manager, program-runtime]
@@ -27,7 +27,7 @@ This skill owns cross-round judgment, source preservation, and recovery policy. 
 
 Use two agent responsibilities: planners own outcomes and decomposition; workers deliver bounded assignments. A planner may delegate a narrower planning branch. Keep process monitoring, dispatch admission, timers and retry accounting in deterministic owner code. A planning tree does not replace that runtime supervision tree.
 
-Read `prompt-manager skill read implementation-plan-authoring plan-family-orchestration` when creating plans or a family. Read `prompt-manager skill read agent-manager-plan-family-supervision program-runtime` before managed dispatch. For an approved scenario improvement mandate, use `scenario-improvement-campaign` and the scenario's improve skill inside that mandate.
+Choose each assignment's shape with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" and write the assignment with `prompt-manager skill read harness-goal-authoring`. Read `prompt-manager skill read implementation-plan-authoring plan-family-orchestration` when creating plans or a family. Read `prompt-manager skill read agent-manager-plan-family-supervision program-runtime` before managed dispatch. For an approved scenario improvement mandate, use `scenario-improvement-campaign` and the scenario's improve skill inside that mandate.
 
 Supporting files below use repository paths because native skill projection does not install supporting assets:
 - For workspace creation or resumption, read `path:scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/references/workspace.md`.
@@ -58,7 +58,9 @@ Before relying on subagents, qualify the selected dispatch and monitoring route.
 
 Classify each dependency as observed usable, insufficient, unavailable, or unverified, with scope and evidence. Check a real output when the distinction matters. Apply the recovery policy before repairing a dependency.
 
-Delegate bounded investigation and plan authoring in parallel where their source claims do not conflict. Reuse existing plans after reading their current execution state; a draft label or old blocked phase alone does not establish missing work. Author plans through Plan Manager, with the full change boundary and source requirement references. Candidate files are permitted only in the authoring skill's explicit candidate mode; label them unfinalized.
+Before dispatching implementation, confirm the target documentation describes the intended design. When it does not, the first assignment is a bounded docs-first authoring task, so later goals point at the docs instead of restating them.
+
+Delegate bounded investigation and plan authoring in parallel where their source claims do not conflict. Reuse existing plans after reading their current execution state; a draft label or old blocked phase alone does not establish missing work. A plan is one work shape; author one only where the Work shapes rule selects it. Author plans through Plan Manager, with the full change boundary and source requirement references. Candidate files are permitted only in the authoring skill's explicit candidate mode; label them unfinalized.
 
 Add a subplanner only when it owns a distinct outcome that would otherwise overload its parent. Workers do not coordinate with siblings or edit a shared scheduling file. They return one durable result to their assigning parent; the owner transport deduplicates retries of that handoff. Research, authoring, implementation and independent review are assignments, not permanent departments. Keep the tree shallow, with one effort-wide active-agent ceiling and usage allowance across every level. A child cannot create fresh budget by spawning descendants.
 
@@ -72,7 +74,7 @@ Entry: execution is authorized and the selected route is qualified.
 
 Use Swarm's declared workflow when it represents the effort's authority and autonomous continuation correctly. Otherwise select the authorized Agent Manager family/workflow route. Do not change a global autonomy setting to automate one effort. Preserve any owner-required human disposition separately from automatic evidence assessment.
 
-Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one coherent plan or investigation, its allowed paths, required evidence, recovery allowance and return contract. Use existing plan-execution guidance. Request native goal mode only when that exact runner supports it; otherwise use the durable workflow's continuation and completion contract. A prompt saying "keep going" is not a persisted goal.
+Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
 
 Choose the least expensive qualified profile for the assignment. Respect the user's worker-model and effort preferences; do not silently inherit a premium planner model. Reserve stronger profiles for ambiguous decomposition, consequential design decisions or an evidenced failed lower-cost attempt. Record the escalation reason and remaining allowance. Check the installed runner's exact model identifier, supported settings, account availability and current tariff before relying on a route; a public model listing does not prove local access or sufficient credits. Compare cost per accepted outcome, including the root planner, review, retries and rework, rather than token price alone. Unknown root usage is reserved, not omitted from the aggregate allowance.
 
@@ -143,6 +145,7 @@ The coordinator may edit this effort's evolving strategy, findings and handoffs 
 | Quota exhaustion is treated as a coding defect | Workers restart without a chance of succeeding | Persist the reset condition and pause that allowance pool. |
 | Every worker inherits the planner's expensive model | Routine work consumes scarce quota | Bind an explicit economical worker profile and justified escalation. |
 | Infinite scrutiny after the destination is met | Completion becomes unreachable | Close on the recorded acceptance policy. |
+| Every assignment becomes a plan | Plan authoring consumes the deliverable budget | Choose the shape with the Work shapes rule; author a plan only where it is selected. |
 
 ### Troubleshooting & Edge Cases
 

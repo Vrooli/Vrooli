@@ -115,6 +115,14 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	if err != nil {
 		return BacklogItem{}, badCreate(err.Error())
 	}
+	continuation, err := normalizeContinuation(req.GetContinuation())
+	if err != nil {
+		return BacklogItem{}, badCreate(err.Error())
+	}
+	scopePolicy, err := normalizeScopePolicy(req.GetScopePolicy())
+	if err != nil {
+		return BacklogItem{}, badCreate(err.Error())
+	}
 	executionLimits := executionLimitsFromProto(req.ExecutionLimits)
 	if err := executionLimits.Validate(); err != nil {
 		return BacklogItem{}, badCreate(err.Error())
@@ -145,6 +153,8 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 		PlanRef:            planRef,
 		ExecutionStrategy:  executionStrategy,
 		ExecutionLimits:    executionLimits,
+		Continuation:       continuation,
+		ScopePolicy:        scopePolicy,
 		Note:               note,
 		CreatedBy:          &prov,
 	}

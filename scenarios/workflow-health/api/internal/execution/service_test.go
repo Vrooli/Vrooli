@@ -65,6 +65,57 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.FileExists(t, run.Artifact.Timeline)
 }
 
+func TestRunScenarioDoesNotInstallIsolationForObserverCase(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "exec-observer", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+	isolation := &fakeIsolation{}
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        isolation,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Passed)
+	require.False(t, isolation.acquired, "observer workflows must execute against the current target")
+	require.False(t, isolation.closed)
+	require.NotContains(t, client.lastRequest.Parameters.ExtraHeaders, "X-Vrooli-Test-Mode")
+}
+
+func TestRunScenarioBindsConfiguredTargetLocalSessionOnlyToBrowserProfile(t *testing.T) {
+	t.Setenv(TargetLocalSessionTokenFileEnv, filepath.Join(t.TempDir(), "session.token"))
+	tokenPath := os.Getenv(TargetLocalSessionTokenFileEnv)
+	require.NoError(t, os.WriteFile(tokenPath, []byte("observer-session"), 0o600))
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "exec-auth", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+
+	_, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, RunID: "run-auth"})
+	require.NoError(t, err)
+	require.Equal(t, "LocalSession observer-session", client.lastRequest.Parameters.ExtraHeaders["Authorization"])
+}
+
+func TestRunScenarioFailsClosedForConfiguredTargetLocalSessionFile(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{}
+	service := NewService(client)
+
+	t.Run("missing", func(t *testing.T) {
+		t.Setenv(TargetLocalSessionTokenFileEnv, filepath.Join(t.TempDir(), "missing.token"))
+		_, err := service.RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "read target local session token file")
+		require.Zero(t, client.executeCalls)
+	})
+	t.Run("empty", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "empty.token")
+		t.Setenv(TargetLocalSessionTokenFileEnv, path)
+		require.NoError(t, os.WriteFile(path, []byte("\n"), 0o600))
+		_, err := service.RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is empty")
+		require.Zero(t, client.executeCalls)
+	})
+}
+
 func TestRunScenarioInstallsIsolationForEveryCaseAndClosesLease(t *testing.T) {
 	root := makeExecutionFixture(t, true)
 	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "exec-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
@@ -255,7 +306,7 @@ func TestRunScenarioBindsElectronValidationToSelectedAsset(t *testing.T) {
 }
 
 func TestRunScenarioStopsWhenIsolationHeartbeatFails(t *testing.T) {
-	root := makeExecutionFixture(t, false)
+	root := makeExecutionFixture(t, true)
 	client := &fakeBASClient{waitForContext: true, started: make(chan struct{})}
 	isolation := &fakeIsolation{
 		evidence:   IsolationEvidence{LeaseID: "lease-1"},
@@ -283,7 +334,7 @@ func TestRunScenarioStopsWhenIsolationHeartbeatFails(t *testing.T) {
 }
 
 func TestRunScenarioCancelsBASWhenIsolationHeartbeatFailsDuringExecution(t *testing.T) {
-	root := makeExecutionFixture(t, false)
+	root := makeExecutionFixture(t, true)
 	isolation := &fakeIsolation{evidence: IsolationEvidence{LeaseID: "lease-1"}, healthDone: make(chan struct{})}
 	client := &fakeBASClient{
 		waitForContext: true,

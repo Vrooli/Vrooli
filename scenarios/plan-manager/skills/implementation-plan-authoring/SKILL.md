@@ -9,9 +9,9 @@ metadata:
   tags: ["planning","handoff","implementation","documentation","execution"]
   icon: "file-text"
   status: "active"
-  revision: 11
+  revision: 12
   createdAt: "2026-02-09T00:00:00Z"
-  updatedAt: "2026-09-08T00:00:00Z"
+  updatedAt: "2026-09-11T06:40:00Z"
   requires:
     scenarios: ["plan-manager", "prompt-manager", "vrooli"]
     commands: ["plan-manager", "prompt-manager discover", "prompt-manager skill read", "vrooli scenario"]
@@ -198,6 +198,8 @@ There are two valid authoring modes:
 | Context window is tight and work must continue later | Yes | Captures executable state in Plan Manager |
 | User asked for an implementation plan | Yes | Produces a structured plan and rendered review artifact |
 | Quick one-step fix with no follow-up risk | No | Plan overhead is unnecessary |
+| Work fits one session and its route is recoverable from the docs and code | No | Write a harness goal instead (`harness-goal-authoring`); a plan is one work shape, chosen with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" |
+| A Swarm development grant needs its reviewed boundary | Yes | The grant binds one canonical plan; sub-assignments inside it do not need their own |
 | Pure brainstorming with no execution intent | No | Use discussion or idea-workshop flow first |
 
 ---

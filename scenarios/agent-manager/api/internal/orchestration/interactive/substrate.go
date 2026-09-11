@@ -3,10 +3,12 @@ package interactive
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -28,6 +30,12 @@ const (
 	defaultDiscoveryTimeout = 3 * time.Minute
 	defaultPollInterval     = 250 * time.Millisecond
 	defaultStopGrace        = 750 * time.Millisecond
+	// defaultShellReadyTimeout bounds the wait for the shell created by
+	// web-console before the launch command is submitted. Codex sessions can
+	// spend several seconds creating a fresh persistent pane; sending the
+	// command before Bash has a prompt drops it, and the later task prompt then
+	// lands in Bash instead of the agent TUI.
+	defaultShellReadyTimeout = 15 * time.Second
 	// defaultPromptBootDelay is the beat we wait after the session is created
 	// (which launches the CLI) before pasting the run's initial prompt. A paste
 	// into a not-yet-rendered TUI can be silently dropped, so we let claude/codex
@@ -208,7 +216,7 @@ type LaunchResult struct {
 }
 
 // Launch creates a web-console session running the real interactive agent CLI,
-// delivers the run's initial task prompt into it, and resolves the agent-owned
+// submits the launch command after the shell boot window, delivers the run's initial task prompt into it, and resolves the agent-owned
 // transcript path. The flow (design §1 + §4 addendum) is: resolve launch info →
 // build env-scoped launch command → create session with execute_launch_command
 // → paste the initial prompt (after a boot beat) → discover the transcript the
@@ -249,6 +257,14 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 			return LaunchResult{}, err
 		}
 	}
+	if p.RunnerType == domain.RunnerTypeClaudeCode {
+		// Claude keeps its authenticated shared home, but workspace trust is
+		// keyed by the exact cwd. Protected runs use a generated merged path,
+		// so the canonical repository's existing trust entry is insufficient.
+		if err := ensureClaudeProjectTrusted(s.homeDir, p.WorkingDir); err != nil {
+			return LaunchResult{}, fmt.Errorf("pre-authorize Claude workspace %s: %w", p.WorkingDir, err)
+		}
+	}
 
 	launchCmd, err := BuildLaunchCommand(LaunchCommandParams{
 		RunnerType:  p.RunnerType,
@@ -274,9 +290,12 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	launchedAt := s.now()
 	sessionID, err := s.sessions.CreateSession(ctx, webconsole.CreateSessionParams{
 		LaunchCommand: launchCmd,
-		Execute:       true,
-		DisplayLabel:  label,
-		Backend:       "persistent",
+		// Submit explicitly below after the shell boot window. Web Console's
+		// create-time execute path only bracket-pastes this command, which
+		// leaves it pending at a POSIX shell prompt.
+		Execute:      false,
+		DisplayLabel: label,
+		Backend:      "persistent",
 	})
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("create interactive session for %s: %w", p.RunnerType, err)
@@ -287,6 +306,30 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		LaunchCommand: launchCmd,
 		ExecutionMode: domain.ExecutionModeInteractive,
 	}
+	// Web Console's launch-command create option bracket-pastes the command but
+	// does not submit it. Stage the command at create time so it remains durable
+	// session metadata, then submit it after the shell boot window through the
+	// literal-input seam. Sending the command before the shell is ready can lose
+	// it; sending the later prompt first would feed task text to Bash.
+	if err := s.awaitBoot(ctx); err != nil {
+		return result, err
+	}
+	if s.promptBootDelay > 0 && (p.Prompt != "" || p.NativeObjective != "") {
+		if err := s.awaitShellReady(ctx, sessionID); err != nil {
+			return result, err
+		}
+	}
+	if err := s.sessions.SendText(ctx, sessionID, launchCmd+"\n", interactivePromptSource(p.RunID)); err != nil {
+		return result, fmt.Errorf("deliver launch command to %s: %w", p.RunnerType, err)
+	}
+	// The launch command is submitted to a shell, so the shell must finish
+	// replacing itself with the selected TUI before either the native objective
+	// or task prompt is typed. Codex can take longer than the shell hand-off on
+	// a cold session; without this second beat those inputs are consumed by
+	// Bash, producing a misleading "no viable assistant" run.
+	if err := s.awaitBoot(ctx); err != nil {
+		return result, err
+	}
 	// Give the just-created interactive process its normal boot window before
 	// typing the first task into its TUI. Interactive agents must receive the
 	// task through Web Console's paste-plus-Enter path: a positional CLI prompt
@@ -294,9 +337,6 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	// transcript (observed with codex-cli 0.144.6).
 	var resend func() error
 	if p.Prompt != "" || p.NativeObjective != "" {
-		if err := s.awaitBoot(ctx); err != nil {
-			return result, err
-		}
 		if p.NativeObjective != "" {
 			if err := s.sessions.SendText(ctx, sessionID, "/goal "+p.NativeObjective+"\n", interactivePromptSource(p.RunID)); err != nil {
 				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
@@ -330,6 +370,42 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	}
 	result.TranscriptPath = transcriptPath
 	return result, nil
+}
+
+// awaitShellReady waits until web-console has attached the PTY shell. A
+// CreateSession response only means the session record exists; the shell can
+// still be booting. This distinction matters for slow Codex launches because
+// SendText is literal PTY input and is otherwise silently lost before Bash is
+// reading.
+func (s *Substrate) awaitShellReady(ctx context.Context, sessionID string) error {
+	deadline := s.now().Add(defaultShellReadyTimeout)
+	for {
+		screen, err := s.sessions.Screen(ctx, sessionID, false)
+		if err == nil && shellPromptReady(screen) {
+			return nil
+		}
+		if !s.now().Before(deadline) {
+			if err != nil {
+				return fmt.Errorf("wait for web-console shell for %s: %w", sessionID, err)
+			}
+			return fmt.Errorf("web-console shell for %s did not become ready within %s", sessionID, defaultShellReadyTimeout)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(s.pollInterval):
+		}
+	}
+}
+
+func shellPromptReady(screen string) bool {
+	for _, line := range strings.Split(screen, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, "$") || strings.HasSuffix(trimmed, "#") {
+			return true
+		}
+	}
+	return false
 }
 
 func interactivePromptSource(runID uuid.UUID) string {
@@ -433,6 +509,94 @@ func (s *Substrate) Stop(ctx context.Context, sessionID, source string) error {
 
 	if delErr := s.sessions.DeleteSession(ctx, sessionID); delErr != nil {
 		return errors.Join(interruptErr, delErr)
+	}
+	return nil
+}
+
+// ensureClaudeProjectTrusted records Claude's directory-trust bit for exactly
+// workingDir in the user's shared config. Claude deliberately does not use a
+// relocated config home: moving it would discard authenticated state and cause
+// an OAuth gate. The update is idempotent and atomic so a restart cannot leave
+// a partially written config file.
+func ensureClaudeProjectTrusted(homeDir, workingDir string) error {
+	workingDir = strings.TrimSpace(workingDir)
+	if workingDir == "" {
+		return fmt.Errorf("working directory is required")
+	}
+	if homeDir == "" {
+		var err error
+		homeDir, err = os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolve home directory: %w", err)
+		}
+	}
+	if err := os.MkdirAll(homeDir, 0o700); err != nil {
+		return fmt.Errorf("create home directory: %w", err)
+	}
+
+	configPath := filepath.Join(homeDir, ".claude.json")
+	root := map[string]any{}
+	mode := os.FileMode(0o600)
+	if info, err := os.Stat(configPath); err == nil {
+		mode = info.Mode().Perm()
+		data, readErr := os.ReadFile(configPath)
+		if readErr != nil {
+			return fmt.Errorf("read config: %w", readErr)
+		}
+		if len(strings.TrimSpace(string(data))) > 0 {
+			if err := json.Unmarshal(data, &root); err != nil {
+				return fmt.Errorf("parse config: %w", err)
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat config: %w", err)
+	}
+	if root == nil {
+		root = map[string]any{}
+	}
+	projects, ok := root["projects"].(map[string]any)
+	if !ok || projects == nil {
+		projects = map[string]any{}
+		root["projects"] = projects
+	}
+	project, ok := projects[workingDir].(map[string]any)
+	if !ok || project == nil {
+		project = map[string]any{}
+		projects[workingDir] = project
+	}
+	if accepted, ok := project["hasTrustDialogAccepted"].(bool); ok && accepted {
+		return nil
+	}
+	project["hasTrustDialogAccepted"] = true
+
+	data, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	data = append(data, '\n')
+	tmp, err := os.CreateTemp(homeDir, ".claude.json.agent-manager-*")
+	if err != nil {
+		return fmt.Errorf("create temporary config: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("set config permissions: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write config: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close config: %w", err)
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		return fmt.Errorf("replace config: %w", err)
 	}
 	return nil
 }

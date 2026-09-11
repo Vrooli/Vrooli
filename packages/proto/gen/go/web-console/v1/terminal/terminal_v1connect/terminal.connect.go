@@ -42,6 +42,9 @@ const (
 	// TerminalServiceWaitIdleProcedure is the fully-qualified name of the TerminalService's WaitIdle
 	// RPC.
 	TerminalServiceWaitIdleProcedure = "/vrooli.web_console.v1.terminal.TerminalService/WaitIdle"
+	// TerminalServiceAnswerPromptProcedure is the fully-qualified name of the TerminalService's
+	// AnswerPrompt RPC.
+	TerminalServiceAnswerPromptProcedure = "/vrooli.web_console.v1.terminal.TerminalService/AnswerPrompt"
 )
 
 // TerminalServiceClient is a client for the vrooli.web_console.v1.terminal.TerminalService service.
@@ -49,6 +52,7 @@ type TerminalServiceClient interface {
 	GetScreen(context.Context, *connect.Request[terminal.GetScreenRequest]) (*connect.Response[terminal.GetScreenResponse], error)
 	SendInput(context.Context, *connect.Request[terminal.SendInputRequest]) (*connect.Response[terminal.SendInputResponse], error)
 	WaitIdle(context.Context, *connect.Request[terminal.WaitIdleRequest]) (*connect.Response[terminal.WaitIdleResponse], error)
+	AnswerPrompt(context.Context, *connect.Request[terminal.AnswerPromptRequest]) (*connect.Response[terminal.AnswerPromptResponse], error)
 }
 
 // NewTerminalServiceClient constructs a client for the
@@ -81,14 +85,21 @@ func NewTerminalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(terminalServiceMethods.ByName("WaitIdle")),
 			connect.WithClientOptions(opts...),
 		),
+		answerPrompt: connect.NewClient[terminal.AnswerPromptRequest, terminal.AnswerPromptResponse](
+			httpClient,
+			baseURL+TerminalServiceAnswerPromptProcedure,
+			connect.WithSchema(terminalServiceMethods.ByName("AnswerPrompt")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // terminalServiceClient implements TerminalServiceClient.
 type terminalServiceClient struct {
-	getScreen *connect.Client[terminal.GetScreenRequest, terminal.GetScreenResponse]
-	sendInput *connect.Client[terminal.SendInputRequest, terminal.SendInputResponse]
-	waitIdle  *connect.Client[terminal.WaitIdleRequest, terminal.WaitIdleResponse]
+	getScreen    *connect.Client[terminal.GetScreenRequest, terminal.GetScreenResponse]
+	sendInput    *connect.Client[terminal.SendInputRequest, terminal.SendInputResponse]
+	waitIdle     *connect.Client[terminal.WaitIdleRequest, terminal.WaitIdleResponse]
+	answerPrompt *connect.Client[terminal.AnswerPromptRequest, terminal.AnswerPromptResponse]
 }
 
 // GetScreen calls vrooli.web_console.v1.terminal.TerminalService.GetScreen.
@@ -106,12 +117,18 @@ func (c *terminalServiceClient) WaitIdle(ctx context.Context, req *connect.Reque
 	return c.waitIdle.CallUnary(ctx, req)
 }
 
+// AnswerPrompt calls vrooli.web_console.v1.terminal.TerminalService.AnswerPrompt.
+func (c *terminalServiceClient) AnswerPrompt(ctx context.Context, req *connect.Request[terminal.AnswerPromptRequest]) (*connect.Response[terminal.AnswerPromptResponse], error) {
+	return c.answerPrompt.CallUnary(ctx, req)
+}
+
 // TerminalServiceHandler is an implementation of the vrooli.web_console.v1.terminal.TerminalService
 // service.
 type TerminalServiceHandler interface {
 	GetScreen(context.Context, *connect.Request[terminal.GetScreenRequest]) (*connect.Response[terminal.GetScreenResponse], error)
 	SendInput(context.Context, *connect.Request[terminal.SendInputRequest]) (*connect.Response[terminal.SendInputResponse], error)
 	WaitIdle(context.Context, *connect.Request[terminal.WaitIdleRequest]) (*connect.Response[terminal.WaitIdleResponse], error)
+	AnswerPrompt(context.Context, *connect.Request[terminal.AnswerPromptRequest]) (*connect.Response[terminal.AnswerPromptResponse], error)
 }
 
 // NewTerminalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -139,6 +156,12 @@ func NewTerminalServiceHandler(svc TerminalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(terminalServiceMethods.ByName("WaitIdle")),
 		connect.WithHandlerOptions(opts...),
 	)
+	terminalServiceAnswerPromptHandler := connect.NewUnaryHandler(
+		TerminalServiceAnswerPromptProcedure,
+		svc.AnswerPrompt,
+		connect.WithSchema(terminalServiceMethods.ByName("AnswerPrompt")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.terminal.TerminalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TerminalServiceGetScreenProcedure:
@@ -147,6 +170,8 @@ func NewTerminalServiceHandler(svc TerminalServiceHandler, opts ...connect.Handl
 			terminalServiceSendInputHandler.ServeHTTP(w, r)
 		case TerminalServiceWaitIdleProcedure:
 			terminalServiceWaitIdleHandler.ServeHTTP(w, r)
+		case TerminalServiceAnswerPromptProcedure:
+			terminalServiceAnswerPromptHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +191,8 @@ func (UnimplementedTerminalServiceHandler) SendInput(context.Context, *connect.R
 
 func (UnimplementedTerminalServiceHandler) WaitIdle(context.Context, *connect.Request[terminal.WaitIdleRequest]) (*connect.Response[terminal.WaitIdleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.terminal.TerminalService.WaitIdle is not implemented"))
+}
+
+func (UnimplementedTerminalServiceHandler) AnswerPrompt(context.Context, *connect.Request[terminal.AnswerPromptRequest]) (*connect.Response[terminal.AnswerPromptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.terminal.TerminalService.AnswerPrompt is not implemented"))
 }

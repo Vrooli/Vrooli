@@ -287,6 +287,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
+	r.HandleFunc("/api/v1/execution-options", h.ListExecutionOptions).Methods("GET")
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
 	r.HandleFunc("/api/v1/role-policy/status", h.GetRolePolicyStatus).Methods("GET")
 	r.HandleFunc("/api/v1/role-policy/catalog", h.GetRolePolicyCatalog).Methods("GET")
@@ -563,6 +564,7 @@ func parseEventTypes(values []string) ([]domain.RunEventType, []string) {
 				domain.EventTypeToolCall,
 				domain.EventTypeToolResult,
 				domain.EventTypeStatus,
+				domain.EventTypeGoalStatusChanged,
 				domain.EventTypeMetric,
 				domain.EventTypeArtifact,
 				domain.EventTypeError:

@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/phased-plan-drain",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Drain a stable plan in bounded fresh-run slices with compact ordered handoffs and explicit correction/approval paths.",
   "inputSchema": {
     "type": "object",
@@ -81,7 +81,8 @@
             "type": "string",
             "enum": [
               "phased-plan-drain",
-              "adaptive-improvement"
+              "adaptive-improvement",
+              "goal-session"
             ]
           },
           "writeScope": {
@@ -98,6 +99,13 @@
               "manual",
               "suggest",
               "auto"
+            ]
+          },
+          "scopePolicy": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "extend-with-record"
             ]
           }
         },
@@ -293,7 +301,7 @@
             "selector": "$.constraints",
             "limit": 1,
             "maxBytes": 8192,
-            "renderAs": "json",
+            "renderAs": "json_pretty",
             "missingPolicy": "error"
           },
           {
@@ -303,12 +311,12 @@
             "order": "desc",
             "limit": 6,
             "maxBytes": 49152,
-            "renderAs": "json",
+            "renderAs": "json_pretty",
             "missingPolicy": "null"
           }
         ],
-        "maxTurns": 20,
-        "timeoutSeconds": 1800,
+        "maxTurns": 60,
+        "timeoutSeconds": 5400,
         "promptRef": {
           "skillId": "swarm-manager-workflow-phased-plan-slice"
         }
@@ -584,7 +592,8 @@
   "metadata": {
     "pilot": "phased-plan-drain",
     "consumerMutationOwner": "swarm-manager",
-    "freshRunPerSlice": "true"
+    "freshRunPerSlice": "true",
+    "revisionReason": "Prompt-facing constraints and previous handoffs use json_pretty so text templates receive valid JSON; the adaptive slice allows one real validation wait."
   },
   "grantCapacity": {
     "wallTimeSeconds": 604800,

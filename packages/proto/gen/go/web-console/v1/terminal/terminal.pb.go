@@ -889,6 +889,136 @@ func (x *WaitIdleResponse) GetWaited() *durationpb.Duration {
 	return nil
 }
 
+// AnswerPromptRequest answers the prompt a session's agent is showing, as the
+// caller saw it in the session's activity (SessionActivity.prompt).
+type AnswerPromptRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// The option to choose: PromptOption.key.
+	OptionKey string `protobuf:"bytes,2,opt,name=option_key,json=optionKey,proto3" json:"option_key,omitempty"`
+	// PendingPrompt.hash of the prompt the caller answered. A prompt that has
+	// changed since is refused (FAILED_PRECONDITION) and nothing is sent.
+	PromptHash string `protobuf:"bytes,3,opt,name=prompt_hash,json=promptHash,proto3" json:"prompt_hash,omitempty"`
+	// Dismiss the prompt instead of choosing (Escape); only when
+	// PendingPrompt.cancellable.
+	Cancel        bool `protobuf:"varint,4,opt,name=cancel,proto3" json:"cancel,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerPromptRequest) Reset() {
+	*x = AnswerPromptRequest{}
+	mi := &file_web_console_v1_terminal_terminal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerPromptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerPromptRequest) ProtoMessage() {}
+
+func (x *AnswerPromptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_terminal_terminal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerPromptRequest.ProtoReflect.Descriptor instead.
+func (*AnswerPromptRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_terminal_terminal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AnswerPromptRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *AnswerPromptRequest) GetOptionKey() string {
+	if x != nil {
+		return x.OptionKey
+	}
+	return ""
+}
+
+func (x *AnswerPromptRequest) GetPromptHash() string {
+	if x != nil {
+		return x.PromptHash
+	}
+	return ""
+}
+
+func (x *AnswerPromptRequest) GetCancel() bool {
+	if x != nil {
+		return x.Cancel
+	}
+	return false
+}
+
+type AnswerPromptResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How the answer reached the agent: "keystrokes" (typed into the terminal)
+	// or "harness_api" (the harness's own reply API).
+	Delivery string `protobuf:"bytes,1,opt,name=delivery,proto3" json:"delivery,omitempty"`
+	// The chosen option's label; empty for a cancel.
+	Answer        string `protobuf:"bytes,2,opt,name=answer,proto3" json:"answer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerPromptResponse) Reset() {
+	*x = AnswerPromptResponse{}
+	mi := &file_web_console_v1_terminal_terminal_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerPromptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerPromptResponse) ProtoMessage() {}
+
+func (x *AnswerPromptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_terminal_terminal_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerPromptResponse.ProtoReflect.Descriptor instead.
+func (*AnswerPromptResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_terminal_terminal_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AnswerPromptResponse) GetDelivery() string {
+	if x != nil {
+		return x.Delivery
+	}
+	return ""
+}
+
+func (x *AnswerPromptResponse) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
 var File_web_console_v1_terminal_terminal_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_terminal_terminal_proto_rawDesc = "" +
@@ -953,11 +1083,23 @@ const file_web_console_v1_terminal_terminal_proto_rawDesc = "" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vREASON_IDLE\x10\x01\x12\x12\n" +
 	"\x0eREASON_TIMEOUT\x10\x02\x12\x11\n" +
-	"\rREASON_EXITED\x10\x032\xe4\x02\n" +
+	"\rREASON_EXITED\x10\x03\"\x8c\x01\n" +
+	"\x13AnswerPromptRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
+	"\n" +
+	"option_key\x18\x02 \x01(\tR\toptionKey\x12\x1f\n" +
+	"\vprompt_hash\x18\x03 \x01(\tR\n" +
+	"promptHash\x12\x16\n" +
+	"\x06cancel\x18\x04 \x01(\bR\x06cancel\"J\n" +
+	"\x14AnswerPromptResponse\x12\x1a\n" +
+	"\bdelivery\x18\x01 \x01(\tR\bdelivery\x12\x16\n" +
+	"\x06answer\x18\x02 \x01(\tR\x06answer2\xdf\x03\n" +
 	"\x0fTerminalService\x12p\n" +
 	"\tGetScreen\x120.vrooli.web_console.v1.terminal.GetScreenRequest\x1a1.vrooli.web_console.v1.terminal.GetScreenResponse\x12p\n" +
 	"\tSendInput\x120.vrooli.web_console.v1.terminal.SendInputRequest\x1a1.vrooli.web_console.v1.terminal.SendInputResponse\x12m\n" +
-	"\bWaitIdle\x12/.vrooli.web_console.v1.terminal.WaitIdleRequest\x1a0.vrooli.web_console.v1.terminal.WaitIdleResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/terminal;terminal_v1b\x06proto3"
+	"\bWaitIdle\x12/.vrooli.web_console.v1.terminal.WaitIdleRequest\x1a0.vrooli.web_console.v1.terminal.WaitIdleResponse\x12y\n" +
+	"\fAnswerPrompt\x123.vrooli.web_console.v1.terminal.AnswerPromptRequest\x1a4.vrooli.web_console.v1.terminal.AnswerPromptResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/terminal;terminal_v1b\x06proto3"
 
 var (
 	file_web_console_v1_terminal_terminal_proto_rawDescOnce sync.Once
@@ -972,7 +1114,7 @@ func file_web_console_v1_terminal_terminal_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_terminal_terminal_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_web_console_v1_terminal_terminal_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_web_console_v1_terminal_terminal_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_web_console_v1_terminal_terminal_proto_goTypes = []any{
 	(WaitIdleResponse_Reason)(0), // 0: vrooli.web_console.v1.terminal.WaitIdleResponse.Reason
 	(*GetScreenRequest)(nil),     // 1: vrooli.web_console.v1.terminal.GetScreenRequest
@@ -987,7 +1129,9 @@ var file_web_console_v1_terminal_terminal_proto_goTypes = []any{
 	(*SendInputResponse)(nil),    // 10: vrooli.web_console.v1.terminal.SendInputResponse
 	(*WaitIdleRequest)(nil),      // 11: vrooli.web_console.v1.terminal.WaitIdleRequest
 	(*WaitIdleResponse)(nil),     // 12: vrooli.web_console.v1.terminal.WaitIdleResponse
-	(*durationpb.Duration)(nil),  // 13: google.protobuf.Duration
+	(*AnswerPromptRequest)(nil),  // 13: vrooli.web_console.v1.terminal.AnswerPromptRequest
+	(*AnswerPromptResponse)(nil), // 14: vrooli.web_console.v1.terminal.AnswerPromptResponse
+	(*durationpb.Duration)(nil),  // 15: google.protobuf.Duration
 }
 var file_web_console_v1_terminal_terminal_proto_depIdxs = []int32{
 	2,  // 0: vrooli.web_console.v1.terminal.Cell.sgr:type_name -> vrooli.web_console.v1.terminal.SGR
@@ -996,18 +1140,20 @@ var file_web_console_v1_terminal_terminal_proto_depIdxs = []int32{
 	5,  // 3: vrooli.web_console.v1.terminal.GetScreenResponse.cursor:type_name -> vrooli.web_console.v1.terminal.Cursor
 	7,  // 4: vrooli.web_console.v1.terminal.KeySequence.keys:type_name -> vrooli.web_console.v1.terminal.Key
 	8,  // 5: vrooli.web_console.v1.terminal.SendInputRequest.keys:type_name -> vrooli.web_console.v1.terminal.KeySequence
-	13, // 6: vrooli.web_console.v1.terminal.WaitIdleRequest.quiet_window:type_name -> google.protobuf.Duration
-	13, // 7: vrooli.web_console.v1.terminal.WaitIdleRequest.timeout:type_name -> google.protobuf.Duration
+	15, // 6: vrooli.web_console.v1.terminal.WaitIdleRequest.quiet_window:type_name -> google.protobuf.Duration
+	15, // 7: vrooli.web_console.v1.terminal.WaitIdleRequest.timeout:type_name -> google.protobuf.Duration
 	0,  // 8: vrooli.web_console.v1.terminal.WaitIdleResponse.reason:type_name -> vrooli.web_console.v1.terminal.WaitIdleResponse.Reason
-	13, // 9: vrooli.web_console.v1.terminal.WaitIdleResponse.waited:type_name -> google.protobuf.Duration
+	15, // 9: vrooli.web_console.v1.terminal.WaitIdleResponse.waited:type_name -> google.protobuf.Duration
 	1,  // 10: vrooli.web_console.v1.terminal.TerminalService.GetScreen:input_type -> vrooli.web_console.v1.terminal.GetScreenRequest
 	9,  // 11: vrooli.web_console.v1.terminal.TerminalService.SendInput:input_type -> vrooli.web_console.v1.terminal.SendInputRequest
 	11, // 12: vrooli.web_console.v1.terminal.TerminalService.WaitIdle:input_type -> vrooli.web_console.v1.terminal.WaitIdleRequest
-	6,  // 13: vrooli.web_console.v1.terminal.TerminalService.GetScreen:output_type -> vrooli.web_console.v1.terminal.GetScreenResponse
-	10, // 14: vrooli.web_console.v1.terminal.TerminalService.SendInput:output_type -> vrooli.web_console.v1.terminal.SendInputResponse
-	12, // 15: vrooli.web_console.v1.terminal.TerminalService.WaitIdle:output_type -> vrooli.web_console.v1.terminal.WaitIdleResponse
-	13, // [13:16] is the sub-list for method output_type
-	10, // [10:13] is the sub-list for method input_type
+	13, // 13: vrooli.web_console.v1.terminal.TerminalService.AnswerPrompt:input_type -> vrooli.web_console.v1.terminal.AnswerPromptRequest
+	6,  // 14: vrooli.web_console.v1.terminal.TerminalService.GetScreen:output_type -> vrooli.web_console.v1.terminal.GetScreenResponse
+	10, // 15: vrooli.web_console.v1.terminal.TerminalService.SendInput:output_type -> vrooli.web_console.v1.terminal.SendInputResponse
+	12, // 16: vrooli.web_console.v1.terminal.TerminalService.WaitIdle:output_type -> vrooli.web_console.v1.terminal.WaitIdleResponse
+	14, // 17: vrooli.web_console.v1.terminal.TerminalService.AnswerPrompt:output_type -> vrooli.web_console.v1.terminal.AnswerPromptResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -1029,7 +1175,7 @@ func file_web_console_v1_terminal_terminal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_terminal_terminal_proto_rawDesc), len(file_web_console_v1_terminal_terminal_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

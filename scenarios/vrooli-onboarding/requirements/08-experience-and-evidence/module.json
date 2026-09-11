@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The operator experience contract and the evidence that proves it: accessibility, theming, the shared design system, recorded journeys, and contract-drift gates.",
-    "last_validated_at": "2026-09-10T03:45:48-04:00",
+    "last_validated_at": "2026-09-10T15:13:21-04:00",
     "module": "onboarding.experience",
     "schema_version": "1.0.0"
   },
@@ -24,7 +24,7 @@
           "type": "test",
           "ref": "ui/src/App.a11y.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Covers the initial flow only; per-step coverage is covered by companion evidence."
         }
       ]
@@ -32,7 +32,7 @@
     {
       "id": "ONB-UX-WCAG-AA",
       "title": "The wizard shall pass an automated accessibility audit with zero violations on every step and every declared state.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "experience",
       "description": "The unit audit covers the initial operator flow and the recorded all-steps browser run covers every declared wizard step; states that only appear after an error remain governed by the experience contract.",
@@ -41,7 +41,7 @@
           "type": "test",
           "ref": "ui/src/App.a11y.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Initial flow asserted clean."
         },
         {
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "ui/src/App.accessibility.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Asserts roving tabindex, arrow and Home/End navigation, and tabpanel wiring."
         }
       ]
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "ui/src/design-tokens.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Evidence target: `ui/src/design-tokens.test.ts`; this requirement remains planned until that evidence is added. every declared token resolves in both themes and no component holds a literal colour."
         }
       ]
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "ui/src/library_adoption.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "The test asserts no scenario-local re-implementation of a library primitive remains."
         }
       ]
@@ -135,7 +135,7 @@
           "type": "test",
           "ref": "api/endpoints_contract_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Evidence: compares the declared endpoint set against the router's registered set in both directions."
         }
       ]
@@ -152,14 +152,14 @@
           "type": "test",
           "ref": "api/internal/testutil/no_prod_import_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Evidence: the policy-required projection for the API role."
         },
         {
           "type": "test",
           "ref": "cli/internal/testutil/no_prod_import_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Evidence: the policy-required projection for the CLI role."
         }
       ]
@@ -176,7 +176,7 @@
           "type": "test",
           "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Asserts the deferral notice renders and links to the owning contract."
         }
       ]
@@ -193,14 +193,14 @@
           "type": "test",
           "ref": "api/internal/profiles/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "The bounded evaluator rejects unsafe profiles, applies conditional visibility, validates required answers, and deduplicates recommendations."
         },
         {
           "type": "test",
           "ref": "ui/src/components/wizard/StepWelcome.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "The welcome surface retains its static provider-free contract; the profile surface is mounted only in the live wizard callback path."
         },
         {
@@ -223,7 +223,7 @@
           "type": "manual",
           "ref": "docs/reference/configuration.md",
           "phase": "docs",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "The configuration reference documents the declared operator surface; live provider registration and the reviewed Search Hub corpus are attested in coverage/manual-validations/log.jsonl."
         }
       ]
@@ -240,14 +240,14 @@
           "type": "test",
           "ref": "ui/src/components/wizard/WizardShell.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Asserts completed-step indicators navigate backwards."
         },
         {
           "type": "test",
           "ref": "ui/src/components/wizard/WizardShell.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "not_implemented",
           "notes": "Evidence: every step, including the last, offers a route back to any earlier decision."
         }
       ]

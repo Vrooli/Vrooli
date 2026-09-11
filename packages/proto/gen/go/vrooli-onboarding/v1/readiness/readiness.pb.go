@@ -634,6 +634,7 @@ type CredentialProvenance struct {
 	HelpRef              string                          `protobuf:"bytes,22,opt,name=help_ref,json=helpRef,proto3" json:"help_ref,omitempty"`
 	EvidencePolicy       string                          `protobuf:"bytes,23,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
 	ProviderVersion      string                          `protobuf:"bytes,24,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
+	Tiers                []string                        `protobuf:"bytes,25,rep,name=tiers,proto3" json:"tiers,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -836,6 +837,13 @@ func (x *CredentialProvenance) GetProviderVersion() string {
 	return ""
 }
 
+func (x *CredentialProvenance) GetTiers() []string {
+	if x != nil {
+		return x.Tiers
+	}
+	return nil
+}
+
 type Credential struct {
 	state                protoimpl.MessageState           `protogen:"open.v1"`
 	Resource             string                           `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
@@ -869,10 +877,15 @@ type Credential struct {
 	ProviderVersion      string                           `protobuf:"bytes,29,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
 	MigrationDiagnostics []*CredentialMigrationDiagnostic `protobuf:"bytes,30,rep,name=migration_diagnostics,json=migrationDiagnostics,proto3" json:"migration_diagnostics,omitempty"`
 	// Storage presence and exercised provider evidence are separate facts.
-	EvidenceStatus string `protobuf:"bytes,31,opt,name=evidence_status,json=evidenceStatus,proto3" json:"evidence_status,omitempty"`
-	EvidenceDetail string `protobuf:"bytes,32,opt,name=evidence_detail,json=evidenceDetail,proto3" json:"evidence_detail,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	EvidenceStatus            string   `protobuf:"bytes,31,opt,name=evidence_status,json=evidenceStatus,proto3" json:"evidence_status,omitempty"`
+	EvidenceDetail            string   `protobuf:"bytes,32,opt,name=evidence_detail,json=evidenceDetail,proto3" json:"evidence_detail,omitempty"`
+	EvidenceNextAction        string   `protobuf:"bytes,33,opt,name=evidence_next_action,json=evidenceNextAction,proto3" json:"evidence_next_action,omitempty"`
+	EvidenceCredentialVersion string   `protobuf:"bytes,34,opt,name=evidence_credential_version,json=evidenceCredentialVersion,proto3" json:"evidence_credential_version,omitempty"`
+	ProviderState             string   `protobuf:"bytes,35,opt,name=provider_state,json=providerState,proto3" json:"provider_state,omitempty"`
+	ProviderDetail            string   `protobuf:"bytes,36,opt,name=provider_detail,json=providerDetail,proto3" json:"provider_detail,omitempty"`
+	Tiers                     []string `protobuf:"bytes,37,rep,name=tiers,proto3" json:"tiers,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Credential) Reset() {
@@ -1127,6 +1140,41 @@ func (x *Credential) GetEvidenceDetail() string {
 		return x.EvidenceDetail
 	}
 	return ""
+}
+
+func (x *Credential) GetEvidenceNextAction() string {
+	if x != nil {
+		return x.EvidenceNextAction
+	}
+	return ""
+}
+
+func (x *Credential) GetEvidenceCredentialVersion() string {
+	if x != nil {
+		return x.EvidenceCredentialVersion
+	}
+	return ""
+}
+
+func (x *Credential) GetProviderState() string {
+	if x != nil {
+		return x.ProviderState
+	}
+	return ""
+}
+
+func (x *Credential) GetProviderDetail() string {
+	if x != nil {
+		return x.ProviderDetail
+	}
+	return ""
+}
+
+func (x *Credential) GetTiers() []string {
+	if x != nil {
+		return x.Tiers
+	}
+	return nil
 }
 
 type ReadinessItem struct {
@@ -1744,7 +1792,7 @@ const file_vrooli_onboarding_v1_readiness_readiness_proto_rawDesc = "" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x03 \x01(\tR\bseverity\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\xc3\a\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xd9\a\n" +
 	"\x14CredentialProvenance\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x1d\n" +
 	"\n" +
@@ -1772,8 +1820,8 @@ const file_vrooli_onboarding_v1_readiness_readiness_proto_rawDesc = "" +
 	"\frecovery_ref\x18\x15 \x01(\tR\vrecoveryRef\x12\x19\n" +
 	"\bhelp_ref\x18\x16 \x01(\tR\ahelpRef\x12'\n" +
 	"\x0fevidence_policy\x18\x17 \x01(\tR\x0eevidencePolicy\x12)\n" +
-	"\x10provider_version\x18\x18 \x01(\tR\x0fproviderVersion\"\xcb\n" +
-	"\n" +
+	"\x10provider_version\x18\x18 \x01(\tR\x0fproviderVersion\x12\x14\n" +
+	"\x05tiers\x18\x19 \x03(\tR\x05tiers\"\xa3\f\n" +
 	"\n" +
 	"Credential\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x1d\n" +
@@ -1813,7 +1861,12 @@ const file_vrooli_onboarding_v1_readiness_readiness_proto_rawDesc = "" +
 	"\x10provider_version\x18\x1d \x01(\tR\x0fproviderVersion\x12y\n" +
 	"\x15migration_diagnostics\x18\x1e \x03(\v2D.vrooli.vrooli_onboarding.v1.readiness.CredentialMigrationDiagnosticR\x14migrationDiagnostics\x12'\n" +
 	"\x0fevidence_status\x18\x1f \x01(\tR\x0eevidenceStatus\x12'\n" +
-	"\x0fevidence_detail\x18  \x01(\tR\x0eevidenceDetail\"\x89\x02\n" +
+	"\x0fevidence_detail\x18  \x01(\tR\x0eevidenceDetail\x120\n" +
+	"\x14evidence_next_action\x18! \x01(\tR\x12evidenceNextAction\x12>\n" +
+	"\x1bevidence_credential_version\x18\" \x01(\tR\x19evidenceCredentialVersion\x12%\n" +
+	"\x0eprovider_state\x18# \x01(\tR\rproviderState\x12'\n" +
+	"\x0fprovider_detail\x18$ \x01(\tR\x0eproviderDetail\x12\x14\n" +
+	"\x05tiers\x18% \x03(\tR\x05tiers\"\x89\x02\n" +
 	"\rReadinessItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12M\n" +

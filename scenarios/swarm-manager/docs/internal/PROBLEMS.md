@@ -283,6 +283,41 @@ migration evidence is kept under
 
 ## Work ladder
 
+### 2026-09-10 run-sheet clarity
+
+- Rung: W3 (implementation)
+- Evidence: The supplied mobile screenshot showed the backlog run sheet presenting
+  strategy descriptions, a slice slider, and raw execution limits without enough
+  plain-language hierarchy to explain what the operator was choosing or what the
+  primary action would do. The contract and requirements were not changed.
+- Outcome: The run sheet now makes readiness, execution approach, run scope, and
+  approved guardrails distinct; grouped limits explain budget versus safety rails;
+  the primary action says `Start run`; focused UI tests, type-check, and lint pass.
+  The run scope now defines a slice in place, and Budget/Safety rails each have
+  an accessible RCL Popover with plain-language details. Budget guidance
+  distinguishes the approved spend ceiling (`max charge ÷ 1,000,000`) from the
+  strategy estimate (`cost per turn × configured maximum turns`) and explains
+  that actual spend comes from measured provider receipts.
+  A first live mobile check then exposed a separate overlay defect: the new
+  Popover content opened and had the correct geometry in the DOM, but its
+  `Presence` wrapper formed an unpromoted stacking context, so the drawer
+  painted over it. The governed RCL `Popover@1.2.9` successor now promotes
+  that portalled presence layer to the menu layer; both info buttons are
+  visible above the drawer and remain dismissible through the shared outside
+  interaction behavior.
+  The custom drawer implementation was reduced to a compatibility adapter over
+  the governed RCL `ResponsiveDialog` adoption, so all existing drawer call sites
+  now receive the shared desktop dialog/mobile sheet, safe-area footer padding,
+  and grabber swipe dismissal. The three native range inputs were replaced with
+  the governed RCL `Slider` adoption. Adoption obligations pass; preflight still
+  reports the library's host/runtime viewport tokens and Slider's computed
+  percentage token as unsatisfied static tokens, although `BaseStyles` and the
+  components provide those values at runtime. The Popover draft validator was
+  initially held by stale catalog projections and was later published as
+  `Popover@1.2.9`; the consumer test and live mobile capture pass after the
+  package rebuild and managed scenario restart.
+- Measured: 2026-09-10
+
 ### 2026-09-09 contract-development pilot execution
 
 - Rung: W3 (implementation)

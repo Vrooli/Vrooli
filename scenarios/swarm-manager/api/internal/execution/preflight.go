@@ -29,6 +29,8 @@ type PreflightSpec struct {
 	PlanRef            *PlanRefSpec
 	ExecutionStrategy  string
 	ExecutionLimits    *identity.ExecutionLimits
+	Continuation       string
+	ScopePolicy        string
 	PlanAcceptance     *PlanAcceptanceSpec
 }
 
@@ -78,6 +80,8 @@ func (spec PreflightSpec) toBacklogItem() backlogItem {
 		Tags:               []string{},
 		ExecutionStrategy:  strings.ToLower(strings.TrimSpace(spec.ExecutionStrategy)),
 		ExecutionLimits:    spec.ExecutionLimits.Clone(),
+		Continuation:       strings.ToLower(strings.TrimSpace(spec.Continuation)),
+		ScopePolicy:        strings.ToLower(strings.TrimSpace(spec.ScopePolicy)),
 	}
 	if spec.PlanRef != nil {
 		item.PlanRef = &planRef{Provider: spec.PlanRef.Provider, PlanID: spec.PlanRef.PlanID, Slug: spec.PlanRef.Slug, Role: spec.PlanRef.Role}
@@ -118,9 +122,25 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 		SuggestedSteerProfileID:  "rapid-mvp",
 	}
 	if strategy := strings.TrimSpace(item.ExecutionStrategy); strategy != "" {
-		if strategy != defaultExecutionStrategy && strategy != adaptiveImprovementStrategy {
+		if strategy != defaultExecutionStrategy && strategy != adaptiveImprovementStrategy && strategy != "goal-session" {
 			appendPreflightBlocker(&preflight, "execution_strategy_invalid", fmt.Sprintf("execution strategy is not declared: %s", strategy), false)
 		}
+		if strategy == "goal-session" {
+			if capability, ok := s.agentService.(NativeGoalAvailability); ok {
+				nativeAvailable, capabilityErr := capability.NativeGoalRunnersAvailable(ctx)
+				if capabilityErr != nil {
+					appendPreflightBlocker(&preflight, "goal_session_runner_catalog_unavailable", fmt.Sprintf("native goal runner catalog is unavailable: %s", capabilityErr), false)
+				} else if !nativeAvailable {
+					appendPreflightBlocker(&preflight, "goal_session_runner_unavailable", "goal-session requires at least one available native-capable runner; force may bypass this capability preflight", true)
+				}
+			}
+		}
+	}
+	if value := strings.TrimSpace(item.Continuation); value != "" && value != "manual" && value != "until-allowance" {
+		appendPreflightBlocker(&preflight, "continuation_invalid", fmt.Sprintf("continuation is not declared: %s (accepted: manual, until-allowance)", value), false)
+	}
+	if value := strings.TrimSpace(item.ScopePolicy); value != "" && value != "fixed" && value != "extend-with-record" {
+		appendPreflightBlocker(&preflight, "scope_policy_invalid", fmt.Sprintf("scope policy is not declared: %s (accepted: fixed, extend-with-record)", value), false)
 	}
 	if err := item.ExecutionLimits.Validate(); err != nil {
 		appendPreflightBlocker(&preflight, "execution_limits_invalid", err.Error(), false)
@@ -213,6 +233,12 @@ func executionPlanAcceptanceSubjectVersion(item backlogItem) string {
 		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
 		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
+	}
+	if item.Continuation != "manual" {
+		contract.Continuation = item.Continuation
+	}
+	if item.ScopePolicy != "fixed" {
+		contract.ScopePolicy = item.ScopePolicy
 	}
 	if item.PlanRef != nil {
 		contract.PlanRef = &identity.PlanAcceptanceReference{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}

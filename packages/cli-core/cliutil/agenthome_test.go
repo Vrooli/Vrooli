@@ -66,6 +66,28 @@ func TestPrepareWebConsoleAgentHomeLeavesPlainEnvironmentUntouched(t *testing.T)
 	}
 }
 
+func TestPrepareWebConsoleAgentHomePreservesExplicitRunnerHome(t *testing.T) {
+	stateRoot := t.TempDir()
+	explicitHome := filepath.Join(t.TempDir(), "agent-manager-run", "codex")
+	environment := []string{
+		"WC_WEB_CONSOLE_SESSION_ID=session-explicit",
+		"WC_SESSION_STATE_ROOT=" + stateRoot,
+		"CODEX_HOME=" + explicitHome,
+	}
+
+	got := PrepareWebConsoleAgentHome("codex", environment)
+	if value := environmentValue(got, webConsoleCodexHomeEnv); value != explicitHome {
+		t.Fatalf("CODEX_HOME = %q, want explicit %q", value, explicitHome)
+	}
+	wantSessions := filepath.Join(explicitHome, "sessions")
+	if value := environmentValue(got, webConsoleCodexSessionsEnv); value != wantSessions {
+		t.Fatalf("WC_CODEX_SESSIONS_DIR = %q, want %q", value, wantSessions)
+	}
+	if _, err := os.Stat(filepath.Join(stateRoot, "codex", "session-explicit")); !os.IsNotExist(err) {
+		t.Fatalf("explicit home caused a synthesized Web Console home: %v", err)
+	}
+}
+
 func mustMkdir(t *testing.T, path string) string {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {

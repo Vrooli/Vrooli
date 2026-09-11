@@ -102,7 +102,13 @@ func Compute(scenariosDir string, authority apicoreset.Authority) apicoreset.Rep
 				continue
 			}
 			key := memberKey(edge.kind, name)
-			if _, seen := members[key]; seen {
+			if existing, seen := members[key]; seen {
+				// A shared dependency can be reached through multiple selected
+				// workloads. Preserve the strongest lifecycle obligation instead
+				// of letting queue order turn a later must_start edge into a
+				// weaker try_start check.
+				existing.SupervisionIntent = strongerIntent(existing.SupervisionIntent, intent)
+				members[key] = existing
 				continue
 			}
 			chain := append([]apicoreset.AttributionStep{{
@@ -238,6 +244,13 @@ func stringSet(values []string) map[string]struct{} {
 
 func normalize(value string) string      { return strings.ToLower(strings.TrimSpace(value)) }
 func memberKey(kind, name string) string { return kind + ":" + name }
+
+func strongerIntent(current, candidate string) string {
+	if current == apicoreset.IntentMustStart || candidate == apicoreset.IntentMustStart {
+		return apicoreset.IntentMustStart
+	}
+	return candidate
+}
 
 func sortedKeys(set map[string]struct{}) []string {
 	values := make([]string, 0, len(set))

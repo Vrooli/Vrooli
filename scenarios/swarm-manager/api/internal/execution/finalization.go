@@ -74,7 +74,7 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 		return err
 	}
 	for _, scenarioName := range scope.affectedScenarios {
-		if err := s.runScenarioReview(ctx, executionID, scenarioName, scope.sandboxID, item.AcceptanceAllow); err != nil {
+		if err := s.runScenarioReview(ctx, executionID, scenarioName, scope.sandboxID, effectiveWriteScope(item, record.ScopeExtensions)); err != nil {
 			return err
 		}
 	}

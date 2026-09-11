@@ -69,6 +69,8 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.note !== undefined) payload.note = patch.note;
   if (patch.executionStrategy !== undefined) payload.execution_strategy = patch.executionStrategy;
   if (patch.executionLimits !== undefined) payload.execution_limits = toProtoJson(ExecutionLimitsSchema, buildExecutionLimits(patch.executionLimits));
+  if (patch.continuation !== undefined) payload.continuation = patch.continuation;
+  if (patch.scopePolicy !== undefined) payload.scope_policy = patch.scopePolicy;
   return payload;
 }
 
@@ -142,6 +144,8 @@ export function createCrudMethods(apiClient: IApiClient) {
         ...(item.acceptanceCriteria?.length ? { acceptanceCriteria: item.acceptanceCriteria } : {}),
         ...(item.executionStrategy ? { executionStrategy: item.executionStrategy } : {}),
         ...(item.executionLimits ? { executionLimits: buildExecutionLimits(item.executionLimits) } : {}),
+        ...(item.continuation ? { continuation: item.continuation } : {}),
+        ...(item.scopePolicy ? { scopePolicy: item.scopePolicy } : {}),
       });
       const payload = toProtoJson(CreateBacklogItemRequestSchema, message) as Record<string, unknown>;
       if (!item.acceptanceCriteria?.length) delete payload.acceptance_criteria;

@@ -24,6 +24,24 @@
   component-library source rather than an adopter test. The static validator has
   no blocking shell, API-base, manifest, or component-adoption findings.
 
+## Credential readiness surface and perceived latency (2026-09-10)
+
+- Status: Partially resolved
+- The Credentials step keeps actual credential inputs on the page and places
+  secure-store diagnosis, provider actions, and deferred target questions
+  behind the shared responsive dialog. Desktop uses a sidebar layout; mobile
+  uses the shared compact tabs primitive. Loading skeletons reserve the list
+  area instead of inserting late content above it.
+- Readiness and credential-inventory requests now use bounded caching and
+  explicit retry behavior. If readiness arrives before the richer inventory,
+  real credential rows render immediately from the readiness projection rather
+  than waiting on a second slow request. Explicit refresh remains available for
+  authoritative rechecks.
+- Remaining evidence: visual review at desktop/mobile widths, native-store
+  latency profiling, and the final credentials-page interaction receipt. The
+  known Popover `ref` warning and jsdom `scrollTo` warning remain shared-test
+  cleanup items, not reasons to hide readiness failures.
+
 ## Work ladder
 
 - 2026-09-08 implementation review: rung W3 is the highest broken layer under the
@@ -213,6 +231,12 @@ Purpose-profile intake is implemented; its remaining gap is cross-interface
 semantic certification rather than profile data or evaluator availability.
 
 ## Resolved in this implementation
+
+- The typed `wizard core-set` workflow now includes `system-monitor` and
+  `storage-manager` in the persisted core seed, routes add/remove through the
+  computed-closure preview before writing operator state, and exposes one
+  canonical framework `--json` output switch. The live closure currently
+  contains 43 scenarios and 17 resources.
 
 - Operator-state writes now use one schema-validated, locked merge-patch
   authority that preserves unknown fields and records apply completion.

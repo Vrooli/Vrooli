@@ -13,6 +13,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/transitionrunner"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
 )
 
@@ -128,6 +129,11 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 			record.PlanManagerExecutionID = resumed.GetExecution().GetId()
 		}
 	}
+	if extensions, scopeErr := s.readScopeExtensions(ctx, record, item); scopeErr != nil {
+		return Record{}, scopeErr
+	} else {
+		record.ScopeExtensions = extensions
+	}
 	_, err = s.resolveWorkflow("plan.execute")
 	if err != nil {
 		return Record{}, wrapAgentError(err)
@@ -144,7 +150,15 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
 	}
 	workflowKey, _ := s.workflowForStrategy(record.ExecutionStrategy)
-	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", WorkflowKeyOverride: workflowKey, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
+	firstRunNodeID := "slice"
+	if record.ExecutionStrategy == "goal-session" {
+		firstRunNodeID = "goal"
+	}
+	var executionPreferences *domainpb.ExecutionPreferences
+	if preferences := record.ExecutionPreferences; preferences != nil {
+		executionPreferences = &domainpb.ExecutionPreferences{PreferredRunner: preferences.PreferredRunner, Model: preferences.Model, Effort: preferences.Effort}
+	}
+	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: firstRunNodeID, WorkflowKeyOverride: workflowKey, ExecutionPreferences: executionPreferences, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}

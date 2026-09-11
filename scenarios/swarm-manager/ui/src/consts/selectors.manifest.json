@@ -1740,6 +1740,14 @@
     "library.hooks.use-long-press.root": {
       "testId": "hooks.use-long-press",
       "selector": "[data-testid=\"hooks.use-long-press\"]"
+    },
+    "library.controls.slider.root": {
+      "testId": "controls.slider",
+      "selector": "[data-testid=\"controls.slider\"]"
+    },
+    "library.overlays.popover.root": {
+      "testId": "overlays.popover",
+      "selector": "[data-testid=\"overlays.popover\"]"
     }
   },
   "dynamicSelectors": {
@@ -1880,7 +1888,7 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "dac89161126657d157b25e8d0a66f2e95b4ec565c41d4ddf0626696a6377bd8d",
+    "ui/src/consts/selectors.library.ts": "108e8d630b44d7ce2971266caf54ab5a797ad98a43e90dbc872a509279485899",
     "ui/src/consts/selectors.ts": "23389b13c3347ad3c77814f95292dc10b343f48dfd6cd873fb1bcf55609a06df"
   }
 }

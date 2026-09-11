@@ -116,7 +116,13 @@ type Response struct {
 	// Per-dependency status reports, keyed by dependency name (e.g.,
 	// "database"). Critical dependencies flip readiness to false when
 	// they're not connected.
-	Dependencies  map[string]*DependencyStatus `protobuf:"bytes,7,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Dependencies map[string]*DependencyStatus `protobuf:"bytes,7,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Build identity — the SHA-256 hash of the authored scenario source that
+	// the lifecycle injected as VROOLI_BUILD_IDENTITY. The control plane
+	// health probe compares this against the registry-computed value to
+	// reject a healthy HTTP responder that belongs to an older source
+	// revision. Empty when unset (pre-VROOLI_BUILD_IDENTITY processes).
+	BuildIdentity string `protobuf:"bytes,8,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -200,6 +206,13 @@ func (x *Response) GetDependencies() map[string]*DependencyStatus {
 	return nil
 }
 
+func (x *Response) GetBuildIdentity() string {
+	if x != nil {
+		return x.BuildIdentity
+	}
+	return ""
+}
+
 var File_proto_health_v1_health_health_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_health_health_proto_rawDesc = "" +
@@ -210,7 +223,7 @@ const file_proto_health_v1_health_health_proto_rawDesc = "" +
 	"\n" +
 	"latency_ms\x18\x02 \x01(\x01R\tlatencyMs\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\x8a\x03\n" +
+	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\xb1\x03\n" +
 	"\bResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -218,7 +231,8 @@ const file_proto_health_v1_health_health_proto_rawDesc = "" +
 	"\treadiness\x18\x04 \x01(\bR\treadiness\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12%\n" +
 	"\x0euptime_seconds\x18\x06 \x01(\x01R\ruptimeSeconds\x12]\n" +
-	"\fdependencies\x18\a \x03(\v29.vrooli.proto_health.v1.health.Response.DependenciesEntryR\fdependencies\x1ap\n" +
+	"\fdependencies\x18\a \x03(\v29.vrooli.proto_health.v1.health.Response.DependenciesEntryR\fdependencies\x12%\n" +
+	"\x0ebuild_identity\x18\b \x01(\tR\rbuildIdentity\x1ap\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12E\n" +
 	"\x05value\x18\x02 \x01(\v2/.vrooli.proto_health.v1.health.DependencyStatusR\x05value:\x028\x01BQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health;health_v1b\x06proto3"

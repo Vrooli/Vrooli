@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
@@ -44,6 +45,7 @@ var operationEffects = map[string]OperationEffect{
 	capabilitiesconnect.CapabilitiesServiceGetCapabilityStatusProcedure:       OperationEffectRead,
 	capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure:         OperationEffectMutation,
 	capabilitiesconnect.CapabilitiesServiceApplyCapabilityProcedure:           OperationEffectMutation,
+	capabilitiesconnect.CapabilitiesServiceVerifyCapabilityProcedure:          OperationEffectMutation,
 	credentialconnect.CredentialsServiceListCredentialsProcedure:              OperationEffectRead,
 	credentialconnect.CredentialsServiceProvisionCredentialProcedure:          OperationEffectMutation,
 	credentialconnect.CredentialsServiceDiagnoseCredentialsProcedure:          OperationEffectRead,
@@ -71,6 +73,7 @@ var operationEffects = map[string]OperationEffect{
 	selectionconnect.SelectionServiceGetClosureProcedure:                      OperationEffectRead,
 	selectionconnect.SelectionServiceGetUnionProcedure:                        OperationEffectRead,
 	selectionconnect.SelectionServiceCreateHandoffProcedure:                   OperationEffectMutation,
+	selectionconnect.SelectionServiceGetHandoffProcedure:                      OperationEffectRead,
 	sessionconnect.SessionServiceGetSessionProcedure:                          OperationEffectRead,
 	sessionconnect.SessionServiceAdvanceSessionStepProcedure:                  OperationEffectMutation,
 	sessionconnect.SessionServiceGetStepModelProcedure:                        OperationEffectRead,
@@ -114,7 +117,7 @@ func MutationInterceptor() connect.Interceptor {
 func RequireMutation(ctx context.Context) error {
 	principal, ok := identity.PrincipalFromContext(ctx)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, errors.New("verified onboarding operator required"))
+		return unauthenticatedOperatorError(ctx)
 	}
 	if _, err := authn.RequireHuman(ctx); err != nil {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("human operator authorization required"))
@@ -123,9 +126,33 @@ func RequireMutation(ctx context.Context) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("onboarding write capability required"))
 	}
 	if principal.Subject == "" {
-		return connect.NewError(connect.CodeUnauthenticated, errors.New("verified onboarding operator required"))
+		return unauthenticatedOperatorError(ctx)
 	}
 	return nil
+}
+
+func unauthenticatedOperatorError(ctx context.Context) *connect.Error {
+	err := connect.NewError(connect.CodeUnauthenticated, errors.New("verified onboarding operator required"))
+	status, ok := identity.StatusFromContext(ctx)
+	if !ok {
+		return err
+	}
+	if recoveryURL := strings.TrimSpace(status.RecoveryURL); recoveryURL != "" {
+		err.Meta().Set("Vrooli-Auth-Recovery-Url", recoveryURL)
+	}
+	if source := strings.TrimSpace(string(status.Source)); source != "" {
+		err.Meta().Set("Vrooli-Auth-Source", source)
+	}
+	providers := make([]string, 0, len(status.ProviderSources))
+	for _, provider := range status.ProviderSources {
+		if source := strings.TrimSpace(string(provider)); source != "" {
+			providers = append(providers, source)
+		}
+	}
+	if len(providers) > 0 {
+		err.Meta().Set("Vrooli-Auth-Providers", strings.Join(providers, ","))
+	}
+	return err
 }
 
 func IsMutationProcedure(procedure string) bool {

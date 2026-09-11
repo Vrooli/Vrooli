@@ -112,7 +112,7 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/workflow-executions":
 			body, _ := io.ReadAll(r.Body)
-			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/plan-workshop-review"`) || !strings.Contains(string(body), `"definitionDigest":"sha256:def"`) || !strings.Contains(string(body), `"approvalDigest":"sha256:approval"`) || !strings.Contains(string(body), `"grantDigest":"sha256:grant"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) || !strings.Contains(string(body), `"maxTokens":200`) {
+			if !strings.Contains(string(body), `"workflowKey":"swarm-manager/plan-workshop-review"`) || !strings.Contains(string(body), `"definitionDigest":"sha256:def"`) || !strings.Contains(string(body), `"approvalDigest":"sha256:approval"`) || !strings.Contains(string(body), `"grantDigest":"sha256:grant"`) || !strings.Contains(string(body), `"idempotencyKey":"stable-key"`) || !strings.Contains(string(body), `"maxTokens":200`) || !strings.Contains(string(body), `"preferredRunner":"claude-code"`) || !strings.Contains(string(body), `"model":"claude-sonnet"`) || !strings.Contains(string(body), `"effort":"high"`) {
 				t.Fatalf("unexpected start body: %s", body)
 			}
 			// Agent Manager starts workflow execution asynchronously and therefore
@@ -135,7 +135,7 @@ func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	defer server.Close()
 	client := NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client())
 	service := NewWorkflowServiceWithClient(client)
-	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-workshop-review", WorkflowDigest: "sha256:def", ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "review", EngagementGrant: &domainpb.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}})
+	start, err := service.StartWorkflow(context.Background(), Invocation{Owner: "swarm-manager", WorkflowKey: "swarm-manager/plan-workshop-review", WorkflowDigest: "sha256:def", ApprovalDigest: "sha256:approval", GrantDigest: "sha256:grant", Input: input, IdempotencyKey: "stable-key", FirstRunNodeID: "review", EngagementGrant: &domainpb.WorkflowEngagementGrant{MaxTokens: 200, MaxWallTimeSeconds: 30}, ExecutionPreferences: &domainpb.ExecutionPreferences{PreferredRunner: "claude-code", Model: "claude-sonnet", Effort: "high"}})
 	if err != nil {
 		t.Fatal(err)
 	}

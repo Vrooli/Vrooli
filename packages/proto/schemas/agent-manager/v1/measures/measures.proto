@@ -277,6 +277,16 @@ message ChargeByBasis {
   int64 token_count = 4;
   string charge_reason = 5;
 }
+
+// RunTokenBucket is one run-count bucket in the per-run token distribution.
+// Token counts are inclusive on min and exclusive on max; a zero max is
+// unbounded. Buckets are ordered from smallest to largest.
+message RunTokenBucket {
+  string label = 1;
+  int64 min_tokens = 2;
+  int64 max_tokens = 3;
+  int64 run_count = 4;
+}
 message RunCostResponse {
   double total_cost_usd = 1;
   double average_cost_usd = 2;
@@ -295,6 +305,22 @@ message RunCostResponse {
   repeated ChargeByBasis charge_by_basis = 17;
   int64 total_charge_micro_usd = 18;
   int64 unpriced_token_count = 19;
+  // Per-run token and cost distribution over runs with observed token usage.
+  // Percentiles use nearest-rank over the filtered population. The sample
+  // size and unobserved count make the excluded denominator explicit.
+  int64 p50_tokens = 20;
+  int64 p90_tokens = 21;
+  int64 p95_tokens = 22;
+  int64 p99_tokens = 23;
+  int64 max_tokens = 24;
+  double p50_cost_usd = 25;
+  double p90_cost_usd = 26;
+  double p95_cost_usd = 27;
+  double p99_cost_usd = 28;
+  double max_cost_usd = 29;
+  repeated RunTokenBucket token_buckets = 30;
+  int64 distribution_sample_size = 31;
+  int64 distribution_unobserved_runs = 32;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
   reserved 14 to 16;

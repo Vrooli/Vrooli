@@ -85,6 +85,10 @@ A scenario declares its sources under
 A scenario that requests only portable roles at runtime declares the
 agent-manager dependency with **no `config`** and omits the block entirely.
 
+Declarations never carry execution preferences. `preferred_runner`, `model`,
+and `effort` are caller-supplied hints on a workflow start and are persisted
+on that execution; they do not become profile or workflow pins.
+
 ## Reconcile entry points
 
 One entry point reconciles both kinds in a single call, fanning out per source
@@ -245,6 +249,13 @@ environment; hard isolation needs sandbox network controls.
 A `run` node can set `scopePathTemplate`. It renders from that node's declared
 bindings before Agent Manager creates the task workspace. Use it when workflow
 input identifies the scenario that an agent may change.
+
+Bindings that are inserted into a prompt must use `renderAs: "json_pretty"`
+when the value is structured. This produces a JSON string for text/template.
+Use `renderAs: "json"` for structured-result bindings that an end node uses to
+assemble output data. For example, a prompt binding can use
+`{"name":"constraints","renderAs":"json_pretty"}`, while an end binding
+can use `{"name":"result","renderAs":"json"}`.
 
 ```json
 {

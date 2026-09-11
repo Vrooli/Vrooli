@@ -907,6 +907,34 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "continuation-halt",
+          "description": "Halt unattended continuation for an item (--item KIND/NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "continuation-resume",
+          "description": "Resume unattended continuation for an item (--item KIND/NAME)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },

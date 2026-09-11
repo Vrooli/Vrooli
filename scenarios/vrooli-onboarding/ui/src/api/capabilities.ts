@@ -37,12 +37,15 @@ export interface CapabilityDescriptor {
   lifecycle?: { preview: boolean; apply: boolean; verify: boolean; revoke: boolean; recover: boolean; recovery?: string };
   inputs?: CapabilityInput[]; prerequisites?: string[];
   policy: { requires_confirmation: boolean; idempotent: boolean; retryable: boolean; protected_roots?: string[]; remediation?: string };
-  evidence: { kinds?: string[]; required_fields?: string[]; secret_free: boolean; freshness?: string };
+  evidence: { kinds?: string[]; stages?: string[]; required_fields?: string[]; secret_free: boolean; freshness?: string };
   remediation?: string;
 }
 export interface CapabilityEvidence {
-  kind: string; artifact_identity: string; source_generation?: string; checksum?: string;
+  kind: string; stage?: string; artifact_identity: string; source_generation?: string; checksum?: string;
   coverage?: string[]; observed_at: string; verified: boolean; remediation?: string;
+  credential_ref?: { logical_id: string; field: string; version: string };
+  target_id?: string; environment?: string; account_identity?: string; operation?: string;
+  expires_at?: string; next_action?: string; effect_class?: string; effects_used?: number; cleanup_completed?: boolean;
 }
 export interface CapabilityStatus {
   descriptor: CapabilityDescriptor; state: CapabilityStateName; candidates?: CapabilityCandidate[];
@@ -55,8 +58,12 @@ export interface CapabilityPreview {
 }
 export interface CapabilityResult {
   capability_id: string; state: CapabilityStateName; outcome: string; retryable: boolean; error_code?: string;
-  remediation?: string; evidence?: CapabilityEvidence[]; mutations?: Array<{ id: string; summary: string; reversible: boolean }>;
+  retry_after_seconds?: number; next_action?: string; remediation?: string; evidence?: CapabilityEvidence[]; mutations?: Array<{ id: string; summary: string; reversible: boolean }>;
   completed_at?: string;
+}
+export interface CapabilityVerificationResult {
+  capability_id: string; outcome: string; retryable: boolean; error_code?: string;
+  retry_after_seconds?: number; next_action?: string; remediation?: string; evidence: CapabilityEvidence[];
 }
 export interface CapabilityActionRequest { capability_id: string; idempotency_key?: string; confirm: boolean; inputs: Record<string, unknown> }
 
@@ -64,6 +71,8 @@ export interface CapabilityActionRequest { capability_id: string; idempotency_ke
 // during a rolling proto refresh. The governed generated package is the runtime
 // source; this narrow cast only lets TypeScript consume the additive fields.
 type WireCapabilityInput = { declinable?: boolean; constraints?: { minLength?: number; maxLength?: number; minDuration?: string; maxDuration?: string } };
+type WireCapabilityEvidenceContract = { stages?: string[] };
+type WireCapabilityEvidence = ProtoCapabilityEvidence & { stage?: string };
 type WireCapabilityDescriptor = NonNullable<ProtoCapabilityStatus["descriptor"]> & {
   scope?: string; purpose?: string; sensitivity?: string; disposition?: string; dispositionReason?: string; referenceUrl?: string;
   applicability?: { platforms: string[]; environments: string[]; targets: string[] };
@@ -91,6 +100,38 @@ export async function applyCapability(request: CapabilityActionRequest, target =
   return resultFromProto(response);
 }
 
+export async function verifyCapability(capabilityId: string, target = "local"): Promise<CapabilityVerificationResult> {
+  // The generated workspace package can lag one governed projection during
+  // a rolling proto refresh. Keep the additive RPC typed at this boundary so
+  // the UI remains source-compatible while the canonical package updates.
+  const verificationClient = client as unknown as { verifyCapability(request: unknown): Promise<{ capabilityId?: string; evidence: ProtoCapabilityEvidence[]; outcome?: string; errorCode?: string; retryable?: boolean; retryAfterSeconds?: bigint | number; nextAction?: string; remediation?: string }> };
+  const response = await verificationClient.verifyCapability({
+    target,
+    verification: {
+      capabilityId,
+      targetId: target,
+      environment: "",
+      accountIdentity: "",
+      operation: "readiness-check",
+      context: {},
+      effectClass: "read_only",
+      maxOperations: 0,
+      cleanupPolicy: "",
+      timeoutSeconds: 30n,
+    },
+  });
+  return {
+    capability_id: response.capabilityId ?? capabilityId,
+    outcome: response.outcome ?? (response.errorCode ? "verification_failed" : "verified"),
+    retryable: response.retryable ?? !response.errorCode,
+    error_code: response.errorCode || undefined,
+    retry_after_seconds: response.retryAfterSeconds === undefined ? undefined : Number(response.retryAfterSeconds),
+    next_action: response.nextAction || undefined,
+    remediation: response.remediation || undefined,
+    evidence: (response.evidence ?? []).map(evidenceFromProto),
+  };
+}
+
 function action(request: CapabilityActionRequest) {
   return {
     capabilityId: request.capability_id,
@@ -114,7 +155,7 @@ function statusFromProto(status: ProtoCapabilityStatus): CapabilityStatus {
       lifecycle: extendedDescriptor?.lifecycle ? { preview: extendedDescriptor.lifecycle.preview, apply: extendedDescriptor.lifecycle.apply, verify: extendedDescriptor.lifecycle.verify, revoke: extendedDescriptor.lifecycle.revoke, recover: extendedDescriptor.lifecycle.recover, recovery: extendedDescriptor.lifecycle.recovery } : undefined,
       prerequisites: descriptor?.prerequisites,
       policy: { requires_confirmation: descriptor?.policy?.requiresConfirmation ?? false, idempotent: descriptor?.policy?.idempotent ?? false, retryable: descriptor?.policy?.retryable ?? false, protected_roots: descriptor?.policy?.protectedRoots, remediation: descriptor?.policy?.remediation },
-      evidence: { kinds: descriptor?.evidence?.kinds, required_fields: descriptor?.evidence?.requiredFields, secret_free: descriptor?.evidence?.secretFree ?? false, freshness: descriptor?.evidence?.freshness },
+      evidence: { kinds: descriptor?.evidence?.kinds, stages: (descriptor?.evidence as WireCapabilityEvidenceContract | undefined)?.stages, required_fields: descriptor?.evidence?.requiredFields, secret_free: descriptor?.evidence?.secretFree ?? false, freshness: descriptor?.evidence?.freshness },
       remediation: descriptor?.remediation,
     },
     state: stateName(status.state), candidates: status.candidates.map(candidateFromProto), missing_inputs: status.missingInputs,
@@ -127,7 +168,16 @@ function candidateFromProto(candidate: ProtoCapabilityCandidate): CapabilityCand
 }
 
 function evidenceFromProto(evidence: ProtoCapabilityEvidence): CapabilityEvidence {
-  return { kind: evidence.kind, artifact_identity: evidence.artifactIdentity, source_generation: evidence.sourceGeneration, checksum: evidence.checksum, coverage: evidence.coverage, observed_at: evidence.observedAt ? timestampDate(evidence.observedAt).toISOString() : "", verified: evidence.verified, remediation: evidence.remediation };
+  const wireEvidence = evidence as WireCapabilityEvidence;
+  return {
+    kind: evidence.kind, stage: wireEvidence.stage, artifact_identity: evidence.artifactIdentity, source_generation: evidence.sourceGeneration,
+    checksum: evidence.checksum, coverage: evidence.coverage, observed_at: evidence.observedAt ? timestampDate(evidence.observedAt).toISOString() : "",
+    verified: evidence.verified, remediation: evidence.remediation,
+    credential_ref: evidence.credentialRef ? { logical_id: evidence.credentialRef.logicalId, field: evidence.credentialRef.field, version: evidence.credentialRef.version } : undefined,
+    target_id: evidence.targetId, environment: evidence.environment, account_identity: evidence.accountIdentity, operation: evidence.operation,
+    expires_at: evidence.expiresAt ? timestampDate(evidence.expiresAt).toISOString() : undefined, next_action: evidence.nextAction,
+    effect_class: evidence.effectClass, effects_used: evidence.effectsUsed, cleanup_completed: evidence.cleanupCompleted,
+  };
 }
 
 function previewFromProto(response: PreviewCapabilityResponse): CapabilityPreview {
@@ -135,7 +185,8 @@ function previewFromProto(response: PreviewCapabilityResponse): CapabilityPrevie
 }
 
 function resultFromProto(response: ApplyCapabilityResponse): CapabilityResult {
-  return { capability_id: response.capabilityId, state: stateName(response.state), outcome: response.outcome, retryable: response.retryable, error_code: response.errorCode, remediation: response.remediation, evidence: response.evidence.map(evidenceFromProto), mutations: response.mutations.map((mutation) => ({ id: mutation.id, summary: mutation.summary, reversible: mutation.reversible })), completed_at: response.completedAt ? timestampDate(response.completedAt).toISOString() : undefined };
+  const extended = response as ApplyCapabilityResponse & { retryAfterSeconds?: bigint | number; nextAction?: string };
+  return { capability_id: response.capabilityId, state: stateName(response.state), outcome: response.outcome, retryable: response.retryable, error_code: response.errorCode, retry_after_seconds: extended.retryAfterSeconds === undefined ? undefined : Number(extended.retryAfterSeconds), next_action: extended.nextAction || undefined, remediation: response.remediation, evidence: response.evidence.map(evidenceFromProto), mutations: response.mutations.map((mutation) => ({ id: mutation.id, summary: mutation.summary, reversible: mutation.reversible })), completed_at: response.completedAt ? timestampDate(response.completedAt).toISOString() : undefined };
 }
 
 function stateName(state: CapabilityState): CapabilityStateName {

@@ -1,11 +1,13 @@
 package setup
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestValidateSelectionContractRejectsUnknownVersion(t *testing.T) {
@@ -21,6 +23,32 @@ func TestValidateSelectionContractAcceptsLegacyAndCurrentVersions(t *testing.T) 
 		if err := ValidateSelectionContract(&setupv1.Selection{SchemaVersion: version}); err != nil {
 			t.Fatalf("version %q rejected: %v", version, err)
 		}
+	}
+}
+
+func TestDecodeSelectionB64RoundTripsTypedSelection(t *testing.T) {
+	want := &setupv1.Selection{SchemaVersion: "v1", Target: "node-1", Scenarios: []string{"web", "worker"}, OptionalResources: []string{"redis"}, Apply: true}
+	raw, err := protojson.Marshal(want)
+	if err != nil {
+		t.Fatalf("marshal selection: %v", err)
+	}
+	got, err := DecodeSelectionB64(base64.RawURLEncoding.EncodeToString(raw))
+	if err != nil {
+		t.Fatalf("DecodeSelectionB64: %v", err)
+	}
+	if got.GetSchemaVersion() != want.GetSchemaVersion() || got.GetTarget() != want.GetTarget() || !strings.EqualFold(strings.Join(got.GetScenarios(), ","), "web,worker") || got.GetOptionalResources()[0] != "redis" || !got.GetApply() {
+		t.Fatalf("decoded selection = %+v", got)
+	}
+}
+
+func TestDecodeSelectionB64RejectsUnsupportedVersion(t *testing.T) {
+	raw, err := protojson.Marshal(&setupv1.Selection{SchemaVersion: "v99"})
+	if err != nil {
+		t.Fatalf("marshal selection: %v", err)
+	}
+	_, err = DecodeSelectionB64(base64.RawURLEncoding.EncodeToString(raw))
+	if err == nil || !strings.Contains(err.Error(), "unsupported setup selection schema version") {
+		t.Fatalf("DecodeSelectionB64 error = %v", err)
 	}
 }
 

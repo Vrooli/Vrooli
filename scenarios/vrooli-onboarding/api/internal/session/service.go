@@ -45,6 +45,7 @@ type ProfileSession struct {
 	ProfileID             string
 	ProfileVersion        string
 	CatalogRevision       string
+	ConsequenceDigest     string
 	BaseRevision          string
 	Answers               map[string]json.RawMessage
 	ManualDecisions       map[string]bool
@@ -54,6 +55,18 @@ type ProfileSession struct {
 	ReconciliationState   string
 	CurrentProfileVersion string
 	ReconciliationReasons []string
+	ReconciliationChanges []ReconciliationChange
+	NextQuestionID        string
+	NextAction            string
+}
+
+type ReconciliationChange struct {
+	Kind           string
+	Field          string
+	Before         string
+	After          string
+	Impact         string
+	RequiresReview bool
 }
 
 type Service struct {

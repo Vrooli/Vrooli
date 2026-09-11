@@ -162,17 +162,18 @@ type InputDescriptor struct {
 	Constraints Constraints `json:"constraints,omitempty"`
 	// Credential and owner metadata let a generic setup surface render an
 	// input without hard-coding a provider or secret field in the UI.
-	CredentialLogicalID string   `json:"credential_logical_id,omitempty"`
-	CredentialField     string   `json:"credential_field,omitempty"`
-	Provider            string   `json:"provider,omitempty"`
-	RequirementGroup    string   `json:"requirement_group,omitempty"`
-	ConsumerRefs        []string `json:"consumer_refs,omitempty"`
-	CompanionSettings   []string `json:"companion_settings,omitempty"`
-	AcquisitionRef      string   `json:"acquisition_ref,omitempty"`
-	VerificationRef     string   `json:"verification_ref,omitempty"`
-	RecoveryRef         string   `json:"recovery_ref,omitempty"`
-	HelpRef             string   `json:"help_ref,omitempty"`
-	EvidencePolicy      string   `json:"evidence_policy,omitempty"`
+	CredentialLogicalID  string   `json:"credential_logical_id,omitempty"`
+	CredentialField      string   `json:"credential_field,omitempty"`
+	Provider             string   `json:"provider,omitempty"`
+	RequirementGroup     string   `json:"requirement_group,omitempty"`
+	ConsumerRefs         []string `json:"consumer_refs,omitempty"`
+	CompanionSettings    []string `json:"companion_settings,omitempty"`
+	CompanionCredentials []string `json:"companion_credentials,omitempty"`
+	AcquisitionRef       string   `json:"acquisition_ref,omitempty"`
+	VerificationRef      string   `json:"verification_ref,omitempty"`
+	RecoveryRef          string   `json:"recovery_ref,omitempty"`
+	HelpRef              string   `json:"help_ref,omitempty"`
+	EvidencePolicy       string   `json:"evidence_policy,omitempty"`
 }
 
 func (i InputDescriptor) Secret() bool { return i.Kind == KindSecret }
@@ -193,10 +194,11 @@ type Policy struct {
 }
 
 type EvidenceContract struct {
-	Kinds          []string `json:"kinds,omitempty"`
-	RequiredFields []string `json:"required_fields,omitempty"`
-	SecretFree     bool     `json:"secret_free"`
-	Freshness      string   `json:"freshness,omitempty"`
+	Kinds          []string            `json:"kinds,omitempty"`
+	Stages         []VerificationStage `json:"stages,omitempty"`
+	RequiredFields []string            `json:"required_fields,omitempty"`
+	SecretFree     bool                `json:"secret_free"`
+	Freshness      string              `json:"freshness,omitempty"`
 }
 
 type Descriptor struct {
@@ -283,7 +285,7 @@ func (d Descriptor) Validate() error {
 	if len(d.Policy.ProtectedRoots) > maxOptions {
 		return fmt.Errorf("capability %q declares too many protected roots", d.ID)
 	}
-	if len(d.Evidence.Kinds) > maxOptions || len(d.Evidence.RequiredFields) > maxOptions {
+	if len(d.Evidence.Kinds) > maxOptions || len(d.Evidence.Stages) > maxOptions || len(d.Evidence.RequiredFields) > maxOptions {
 		return fmt.Errorf("capability %q declares too many evidence fields", d.ID)
 	}
 	for field, values := range map[string][]string{
@@ -299,6 +301,11 @@ func (d Descriptor) Validate() error {
 			if err := validateDescriptorText(d.ID, field, value); err != nil {
 				return err
 			}
+		}
+	}
+	for _, stage := range d.Evidence.Stages {
+		if !validVerificationStage(stage) {
+			return fmt.Errorf("capability %q declares unsupported verification stage %q", d.ID, stage)
 		}
 	}
 	if !d.Policy.Idempotent {
@@ -344,10 +351,10 @@ func (d Descriptor) Validate() error {
 		if strings.ContainsAny(input.CredentialField, "/\\") {
 			return fmt.Errorf("capability %q input %q credential_field cannot contain a path separator", d.ID, input.ID)
 		}
-		if len(input.ConsumerRefs) > maxOptions || len(input.CompanionSettings) > maxOptions {
+		if len(input.ConsumerRefs) > maxOptions || len(input.CompanionSettings) > maxOptions || len(input.CompanionCredentials) > maxOptions {
 			return fmt.Errorf("capability %q input %q declares too many metadata references", d.ID, input.ID)
 		}
-		for name, values := range map[string][]string{"consumer reference": input.ConsumerRefs, "companion setting": input.CompanionSettings} {
+		for name, values := range map[string][]string{"consumer reference": input.ConsumerRefs, "companion setting": input.CompanionSettings, "companion credential": input.CompanionCredentials} {
 			seenReferences := map[string]struct{}{}
 			for _, value := range values {
 				value = strings.TrimSpace(value)
@@ -521,7 +528,11 @@ func (c Constraints) Validate(capabilityID, inputID string, kind InputKind) erro
 }
 
 type ActionRequest struct {
-	CapabilityID   string                     `json:"capability_id"`
+	CapabilityID string `json:"capability_id"`
+	// TargetID binds the action to the target whose state the operator reviewed.
+	// It is optional at the provider boundary for backwards-compatible local
+	// CLI callers, but onboarding always supplies it from the RPC target.
+	TargetID       string                     `json:"target_id,omitempty"`
 	IdempotencyKey string                     `json:"idempotency_key"`
 	Confirm        bool                       `json:"confirm"`
 	Inputs         map[string]json.RawMessage `json:"inputs,omitempty"`
@@ -533,6 +544,9 @@ func (r ActionRequest) Validate() error {
 	}
 	if len(r.CapabilityID) > maxActionTextBytes {
 		return fmt.Errorf("capability_id exceeds %d bytes", maxActionTextBytes)
+	}
+	if strings.IndexByte(r.TargetID, 0) >= 0 || len(r.TargetID) > maxActionTextBytes {
+		return fmt.Errorf("target_id is invalid")
 	}
 	if strings.TrimSpace(r.IdempotencyKey) == "" {
 		return errors.New("idempotency_key is required")
@@ -689,29 +703,35 @@ func strconvQuote(value string) string {
 }
 
 type EvidenceReference struct {
-	SchemaVersion    string                 `json:"schema_version,omitempty"`
-	CapabilityID     string                 `json:"capability_id,omitempty"`
-	Kind             string                 `json:"kind"`
-	ArtifactIdentity string                 `json:"artifact_identity"`
-	CredentialRef    *CredentialEvidenceRef `json:"credential_ref,omitempty"`
-	TargetID         string                 `json:"target_id,omitempty"`
-	Environment      string                 `json:"environment,omitempty"`
-	AccountIdentity  string                 `json:"account_identity,omitempty"`
-	Operation        string                 `json:"operation,omitempty"`
-	Status           string                 `json:"status,omitempty"`
-	SourceGeneration string                 `json:"source_generation,omitempty"`
-	Checksum         string                 `json:"checksum,omitempty"`
-	Coverage         []string               `json:"coverage,omitempty"`
-	ObservedAt       time.Time              `json:"observed_at"`
-	ExpiresAt        time.Time              `json:"expires_at,omitempty"`
-	ArtifactRefs     []string               `json:"artifact_refs,omitempty"`
-	Limitations      []string               `json:"limitations,omitempty"`
-	NextAction       string                 `json:"next_action,omitempty"`
-	EffectClass      string                 `json:"effect_class,omitempty"`
-	EffectsUsed      int                    `json:"effects_used,omitempty"`
-	CleanupCompleted bool                   `json:"cleanup_completed,omitempty"`
-	Verified         bool                   `json:"verified"`
-	Remediation      string                 `json:"remediation,omitempty"`
+	SchemaVersion          string                 `json:"schema_version,omitempty"`
+	CapabilityID           string                 `json:"capability_id,omitempty"`
+	Stage                  VerificationStage      `json:"stage,omitempty"`
+	Kind                   string                 `json:"kind"`
+	ArtifactIdentity       string                 `json:"artifact_identity"`
+	CredentialRef          *CredentialEvidenceRef `json:"credential_ref,omitempty"`
+	TargetID               string                 `json:"target_id,omitempty"`
+	Environment            string                 `json:"environment,omitempty"`
+	AccountIdentity        string                 `json:"account_identity,omitempty"`
+	Operation              string                 `json:"operation,omitempty"`
+	Status                 string                 `json:"status,omitempty"`
+	SourceGeneration       string                 `json:"source_generation,omitempty"`
+	Checksum               string                 `json:"checksum,omitempty"`
+	Coverage               []string               `json:"coverage,omitempty"`
+	ObservedAt             time.Time              `json:"observed_at"`
+	ExpiresAt              time.Time              `json:"expires_at,omitempty"`
+	ArtifactRefs           []string               `json:"artifact_refs,omitempty"`
+	Limitations            []string               `json:"limitations,omitempty"`
+	NextAction             string                 `json:"next_action,omitempty"`
+	EffectClass            string                 `json:"effect_class,omitempty"`
+	EffectsUsed            int                    `json:"effects_used,omitempty"`
+	CleanupCompleted       bool                   `json:"cleanup_completed,omitempty"`
+	Verified               bool                   `json:"verified"`
+	Remediation            string                 `json:"remediation,omitempty"`
+	Owner                  string                 `json:"owner,omitempty"`
+	ContextDigest          string                 `json:"context_digest,omitempty"`
+	CatalogRevision        string                 `json:"catalog_revision,omitempty"`
+	ConfigurationRevision  string                 `json:"configuration_revision,omitempty"`
+	ProviderAdapterVersion string                 `json:"provider_adapter_version,omitempty"`
 }
 
 // CredentialEvidenceRef identifies an authority version without carrying a
@@ -731,6 +751,20 @@ func (e EvidenceReference) Validate() error {
 	}
 	if e.SchemaVersion != "" && e.SchemaVersion != EvidenceSchemaVersion {
 		return fmt.Errorf("unsupported evidence schema version %q", e.SchemaVersion)
+	}
+	if e.ContextDigest != "" && !validDigest(e.ContextDigest) {
+		return errors.New("evidence context_digest must be a lowercase SHA-256 digest")
+	}
+	for field, value := range map[string]string{
+		"owner": e.Owner, "catalog_revision": e.CatalogRevision,
+		"configuration_revision": e.ConfigurationRevision, "provider_adapter_version": e.ProviderAdapterVersion,
+	} {
+		if strings.ContainsAny(value, "\r\n\x00") {
+			return fmt.Errorf("evidence %s is invalid", field)
+		}
+	}
+	if e.Stage != "" && !validVerificationStage(e.Stage) {
+		return fmt.Errorf("unsupported verification stage %q", e.Stage)
 	}
 	if e.CredentialRef != nil {
 		if strings.TrimSpace(e.CredentialRef.LogicalID) == "" || strings.TrimSpace(e.CredentialRef.Field) == "" || strings.TrimSpace(e.CredentialRef.Version) == "" {
@@ -800,12 +834,13 @@ type Provider interface {
 }
 
 type Registry struct {
-	mu        sync.RWMutex
-	providers map[string]Provider
+	mu                sync.RWMutex
+	providers         map[string]Provider
+	verificationSlots chan struct{}
 }
 
 func NewRegistry(providers ...Provider) (*Registry, error) {
-	r := &Registry{providers: make(map[string]Provider, len(providers))}
+	r := &Registry{providers: make(map[string]Provider, len(providers)), verificationSlots: make(chan struct{}, maxConcurrentVerifications)}
 	for _, provider := range providers {
 		if err := r.Register(provider); err != nil {
 			return nil, err
@@ -902,9 +937,13 @@ func (r *Registry) Apply(ctx context.Context, request ActionRequest) (Result, er
 	return result, nil
 }
 
-func StableIdempotencyKey(capabilityID string, inputs map[string]json.RawMessage) string {
+func StableIdempotencyKey(capabilityID string, inputs map[string]json.RawMessage, targetID ...string) string {
 	h := sha256.New()
 	_, _ = h.Write([]byte(capabilityID))
+	if len(targetID) > 0 && strings.TrimSpace(targetID[0]) != "" {
+		_, _ = h.Write([]byte("\ntarget_id="))
+		_, _ = h.Write([]byte(strings.TrimSpace(targetID[0])))
+	}
 	keys := make([]string, 0, len(inputs))
 	for key := range inputs {
 		keys = append(keys, key)

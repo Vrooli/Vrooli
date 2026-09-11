@@ -939,6 +939,7 @@ func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return ""
 	}
+	objective := strings.TrimSpace(run.ResolvedConfig.Until)
 	sandbox := string(run.InteractiveSandboxMode())
 	for _, capability := range caps.SpawnCapabilities {
 		if capability.ExecutionMode != string(domain.ExecutionModeInteractive) || !capability.NativeObjective {
@@ -946,11 +947,26 @@ func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
 		}
 		for _, mode := range capability.SandboxModes {
 			if mode == sandbox {
-				return strings.TrimSpace(run.ResolvedConfig.Until)
+				return boundedNativeObjective(objective)
 			}
 		}
 	}
 	return ""
+}
+
+const (
+	// Claude Code rejects native /goal conditions longer than 4000 characters.
+	// Keep the full engine-owned contract in the task prompt and use this short
+	// delegation when that contract is too large for the harness field.
+	maxNativeObjectiveCharacters = 4000
+	boundedNativeObjectiveText   = "Follow the complete engine-owned completion contract included in the task prompt exactly. Do not stop until it is satisfied; return blocked, abstained, or an operator-decision approval request when required."
+)
+
+func boundedNativeObjective(objective string) string {
+	if len([]rune(objective)) <= maxNativeObjectiveCharacters {
+		return objective
+	}
+	return boundedNativeObjectiveText
 }
 
 // executeInteractiveRun drives an interactive run to completion via the
@@ -1042,6 +1058,11 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	if selectedRunner != nil {
 		nativeObjective = nativeObjectiveFor(run, selectedRunner.Capabilities())
 	}
+	// Keep the launch seam defensive: profiles, adapters, or a future resolver
+	// may provide the objective through another path. The complete engine-owned
+	// contract remains in the task prompt; the harness field must stay within
+	// Claude Code's native limit regardless of where the value came from.
+	nativeObjective = boundedNativeObjective(strings.TrimSpace(nativeObjective))
 	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
 		RunID:           run.ID,
 		RunnerType:      run.ResolvedConfig.RunnerType,

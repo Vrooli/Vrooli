@@ -293,3 +293,82 @@ func TestTailerCodexRotation(t *testing.T) {
 		t.Errorf("expected the agent_message from the rotated rollout")
 	}
 }
+
+// TestTailerStructuredResultCompletesGoalRun proves that a deterministic
+// structured result is a valid engine-owned completion signal even when the
+// interactive provider emits only its ordinary success marker. Goal-session
+// workers return the workflow result contract; they are not required to emit a
+// second runner-specific goal marker.
+func TestTailerStructuredResultCompletesGoalRun(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	content := strings.Join(readCodecFixture(t, "codex_rollout_trace.jsonl"), "\n") + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
+	called := 0
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	term, err := tailer.Tail(ctx, TailParams{
+		RunID:          uuid.New(),
+		RunnerType:     domain.RunnerTypeCodex,
+		TranscriptPath: path,
+		Until:          "complete the engine-owned contract",
+		StructuredResultSatisfied: func() bool {
+			called++
+			return true
+		},
+	})
+	if err != nil {
+		t.Fatalf("Tail returned error: %v", err)
+	}
+	if term == nil || !term.Success {
+		t.Fatalf("terminal = %+v, want successful structured-result completion", term)
+	}
+	if term.TerminalReason != "structured_result" {
+		t.Fatalf("terminal reason = %q, want structured_result", term.TerminalReason)
+	}
+	if called != 1 {
+		t.Fatalf("structured result callback calls = %d, want 1", called)
+	}
+}
+
+func TestTailerCarriesBillingIntoCodexTranscript(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	content := strings.Join([]string{
+		`{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"output_tokens":5}}}}`,
+		`{"type":"event_msg","payload":{"type":"task_complete"}}`,
+	}, "\n") + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+
+	sink := &collectSink{}
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	term, err := tailer.Tail(ctx, TailParams{
+		RunID:          uuid.New(),
+		RunnerType:     domain.RunnerTypeCodex,
+		TranscriptPath: path,
+		Billing:        domain.BillingSnapshot{Mode: domain.BillingModeSubscription},
+		Sink:           sink,
+	})
+	if err != nil {
+		t.Fatalf("Tail returned error: %v", err)
+	}
+	if term == nil || !term.Success {
+		t.Fatalf("terminal = %+v, want success", term)
+	}
+
+	sink.mu.Lock()
+	defer sink.mu.Unlock()
+	for _, event := range sink.events {
+		charge, ok := event.Data.(*domain.ChargeEventData)
+		if ok && charge.Basis == domain.ChargeBasisSubscription && charge.AmountMicroUSD != nil && *charge.AmountMicroUSD == 0 {
+			return
+		}
+	}
+	t.Fatal("interactive Codex transcript did not emit an explicit zero subscription charge")
+}

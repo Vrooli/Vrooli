@@ -706,6 +706,7 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.RoleRef != nil {
 		cfg.RoleRef = strings.TrimSpace(*req.RoleRef)
 	}
+	cfg.PreferredRunner = strings.TrimSpace(req.PreferredRunner)
 	if req.MaxTurns != nil {
 		cfg.MaxTurns = *req.MaxTurns
 	}
@@ -917,7 +918,7 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 		if o.rolePolicy == nil || o.roleResolver == nil {
 			return domain.NewValidationError("rolePolicyCatalog", "role policy state or resource resolver is not configured")
 		}
-		resolution, err := o.rolePolicy.Resolve(ctx, o.roleResolver, cfg.RoleRef)
+		resolution, err := o.rolePolicy.ResolvePreferred(ctx, o.roleResolver, cfg.RoleRef, cfg.PreferredRunner)
 		if err != nil {
 			return err
 		}
@@ -931,6 +932,20 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 		}
 		snapshot.SelectedIndex = selectedIndex
 		snapshot.SelectedCandidate = snapshot.Candidates[selectedIndex]
+		if preferred := strings.TrimSpace(cfg.PreferredRunner); preferred != "" && string(snapshot.SelectedCandidate.RunnerType) != preferred {
+			reason := "runner_not_selected"
+			for index, candidate := range snapshot.Candidates {
+				if string(candidate.RunnerType) != preferred {
+					continue
+				}
+				reason = "runner preflight failed"
+				if index < len(preflight) && strings.TrimSpace(preflight[index].Reason) != "" {
+					reason = preflight[index].Reason
+				}
+				break
+			}
+			snapshot.SelectionReason = "preferred_unavailable:" + reason
+		}
 		snapshot.Explanation.Preflight = preflight
 		snapshot.Explanation.Summary = fmt.Sprintf(
 			"%s; selected candidate %d (%s/%s)",

@@ -693,10 +693,14 @@ type ProfileSession struct {
 	TargetContext   *structpb.Struct       `protobuf:"bytes,10,opt,name=target_context,json=targetContext,proto3" json:"target_context,omitempty"`
 	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Current operator-state revision used for the next optimistic save.
-	Revision              string   `protobuf:"bytes,12,opt,name=revision,proto3" json:"revision,omitempty"`
-	ReconciliationState   string   `protobuf:"bytes,13,opt,name=reconciliation_state,json=reconciliationState,proto3" json:"reconciliation_state,omitempty"`
-	CurrentProfileVersion string   `protobuf:"bytes,14,opt,name=current_profile_version,json=currentProfileVersion,proto3" json:"current_profile_version,omitempty"`
-	ReconciliationReasons []string `protobuf:"bytes,15,rep,name=reconciliation_reasons,json=reconciliationReasons,proto3" json:"reconciliation_reasons,omitempty"`
+	Revision              string                  `protobuf:"bytes,12,opt,name=revision,proto3" json:"revision,omitempty"`
+	ReconciliationState   string                  `protobuf:"bytes,13,opt,name=reconciliation_state,json=reconciliationState,proto3" json:"reconciliation_state,omitempty"`
+	CurrentProfileVersion string                  `protobuf:"bytes,14,opt,name=current_profile_version,json=currentProfileVersion,proto3" json:"current_profile_version,omitempty"`
+	ReconciliationReasons []string                `protobuf:"bytes,15,rep,name=reconciliation_reasons,json=reconciliationReasons,proto3" json:"reconciliation_reasons,omitempty"`
+	ConsequenceDigest     string                  `protobuf:"bytes,16,opt,name=consequence_digest,json=consequenceDigest,proto3" json:"consequence_digest,omitempty"`
+	NextQuestionId        string                  `protobuf:"bytes,17,opt,name=next_question_id,json=nextQuestionId,proto3" json:"next_question_id,omitempty"`
+	NextAction            string                  `protobuf:"bytes,18,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	ReconciliationChanges []*ReconciliationChange `protobuf:"bytes,19,rep,name=reconciliation_changes,json=reconciliationChanges,proto3" json:"reconciliation_changes,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -836,6 +840,118 @@ func (x *ProfileSession) GetReconciliationReasons() []string {
 	return nil
 }
 
+func (x *ProfileSession) GetConsequenceDigest() string {
+	if x != nil {
+		return x.ConsequenceDigest
+	}
+	return ""
+}
+
+func (x *ProfileSession) GetNextQuestionId() string {
+	if x != nil {
+		return x.NextQuestionId
+	}
+	return ""
+}
+
+func (x *ProfileSession) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *ProfileSession) GetReconciliationChanges() []*ReconciliationChange {
+	if x != nil {
+		return x.ReconciliationChanges
+	}
+	return nil
+}
+
+type ReconciliationChange struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Kind           string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Field          string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+	Before         string                 `protobuf:"bytes,3,opt,name=before,proto3" json:"before,omitempty"`
+	After          string                 `protobuf:"bytes,4,opt,name=after,proto3" json:"after,omitempty"`
+	Impact         string                 `protobuf:"bytes,5,opt,name=impact,proto3" json:"impact,omitempty"`
+	RequiresReview bool                   `protobuf:"varint,6,opt,name=requires_review,json=requiresReview,proto3" json:"requires_review,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReconciliationChange) Reset() {
+	*x = ReconciliationChange{}
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReconciliationChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReconciliationChange) ProtoMessage() {}
+
+func (x *ReconciliationChange) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReconciliationChange.ProtoReflect.Descriptor instead.
+func (*ReconciliationChange) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ReconciliationChange) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ReconciliationChange) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *ReconciliationChange) GetBefore() string {
+	if x != nil {
+		return x.Before
+	}
+	return ""
+}
+
+func (x *ReconciliationChange) GetAfter() string {
+	if x != nil {
+		return x.After
+	}
+	return ""
+}
+
+func (x *ReconciliationChange) GetImpact() string {
+	if x != nil {
+		return x.Impact
+	}
+	return ""
+}
+
+func (x *ReconciliationChange) GetRequiresReview() bool {
+	if x != nil {
+		return x.RequiresReview
+	}
+	return false
+}
+
 type GetProfileSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
@@ -846,7 +962,7 @@ type GetProfileSessionRequest struct {
 
 func (x *GetProfileSessionRequest) Reset() {
 	*x = GetProfileSessionRequest{}
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +974,7 @@ func (x *GetProfileSessionRequest) String() string {
 func (*GetProfileSessionRequest) ProtoMessage() {}
 
 func (x *GetProfileSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +987,7 @@ func (x *GetProfileSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileSessionRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileSessionRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetProfileSessionRequest) GetTarget() string {
@@ -900,7 +1016,7 @@ type SaveProfileSessionRequest struct {
 
 func (x *SaveProfileSessionRequest) Reset() {
 	*x = SaveProfileSessionRequest{}
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -912,7 +1028,7 @@ func (x *SaveProfileSessionRequest) String() string {
 func (*SaveProfileSessionRequest) ProtoMessage() {}
 
 func (x *SaveProfileSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -925,7 +1041,7 @@ func (x *SaveProfileSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProfileSessionRequest.ProtoReflect.Descriptor instead.
 func (*SaveProfileSessionRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SaveProfileSessionRequest) GetTarget() string {
@@ -965,7 +1081,7 @@ type GetProfileSessionResponse struct {
 
 func (x *GetProfileSessionResponse) Reset() {
 	*x = GetProfileSessionResponse{}
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -977,7 +1093,7 @@ func (x *GetProfileSessionResponse) String() string {
 func (*GetProfileSessionResponse) ProtoMessage() {}
 
 func (x *GetProfileSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_session_session_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -990,7 +1106,7 @@ func (x *GetProfileSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileSessionResponse.ProtoReflect.Descriptor instead.
 func (*GetProfileSessionResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetProfileSessionResponse) GetSession() *ProfileSession {
@@ -1056,7 +1172,7 @@ const file_vrooli_onboarding_v1_session_session_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06target\x12\x1d\n" +
 	"\x05actor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\"T\n" +
 	"\x10GetDraftResponse\x12@\n" +
-	"\x05draft\x18\x01 \x01(\v2*.vrooli.vrooli_onboarding.v1.session.DraftR\x05draft\"\x8f\x06\n" +
+	"\x05draft\x18\x01 \x01(\v2*.vrooli.vrooli_onboarding.v1.session.DraftR\x05draft\"\xfb\a\n" +
 	"\x0eProfileSession\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
@@ -1075,10 +1191,22 @@ const file_vrooli_onboarding_v1_session_session_proto_rawDesc = "" +
 	"\brevision\x18\f \x01(\tR\brevision\x121\n" +
 	"\x14reconciliation_state\x18\r \x01(\tR\x13reconciliationState\x126\n" +
 	"\x17current_profile_version\x18\x0e \x01(\tR\x15currentProfileVersion\x125\n" +
-	"\x16reconciliation_reasons\x18\x0f \x03(\tR\x15reconciliationReasons\x1aB\n" +
+	"\x16reconciliation_reasons\x18\x0f \x03(\tR\x15reconciliationReasons\x12-\n" +
+	"\x12consequence_digest\x18\x10 \x01(\tR\x11consequenceDigest\x12(\n" +
+	"\x10next_question_id\x18\x11 \x01(\tR\x0enextQuestionId\x12\x1f\n" +
+	"\vnext_action\x18\x12 \x01(\tR\n" +
+	"nextAction\x12p\n" +
+	"\x16reconciliation_changes\x18\x13 \x03(\v29.vrooli.vrooli_onboarding.v1.session.ReconciliationChangeR\x15reconciliationChanges\x1aB\n" +
 	"\x14ManualDecisionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"Q\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\xaf\x01\n" +
+	"\x14ReconciliationChange\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field\x12\x16\n" +
+	"\x06before\x18\x03 \x01(\tR\x06before\x12\x14\n" +
+	"\x05after\x18\x04 \x01(\tR\x05after\x12\x16\n" +
+	"\x06impact\x18\x05 \x01(\tR\x06impact\x12'\n" +
+	"\x0frequires_review\x18\x06 \x01(\bR\x0erequiresReview\"Q\n" +
 	"\x18GetProfileSessionRequest\x12\x1f\n" +
 	"\x06target\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06target\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\"\xd6\x01\n" +
@@ -1112,7 +1240,7 @@ func file_vrooli_onboarding_v1_session_session_proto_rawDescGZIP() []byte {
 	return file_vrooli_onboarding_v1_session_session_proto_rawDescData
 }
 
-var file_vrooli_onboarding_v1_session_session_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_vrooli_onboarding_v1_session_session_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_vrooli_onboarding_v1_session_session_proto_goTypes = []any{
 	(*GetSessionRequest)(nil),         // 0: vrooli.vrooli_onboarding.v1.session.GetSessionRequest
 	(*AdvanceSessionStepRequest)(nil), // 1: vrooli.vrooli_onboarding.v1.session.AdvanceSessionStepRequest
@@ -1126,48 +1254,50 @@ var file_vrooli_onboarding_v1_session_session_proto_goTypes = []any{
 	(*DiscardDraftRequest)(nil),       // 9: vrooli.vrooli_onboarding.v1.session.DiscardDraftRequest
 	(*GetDraftResponse)(nil),          // 10: vrooli.vrooli_onboarding.v1.session.GetDraftResponse
 	(*ProfileSession)(nil),            // 11: vrooli.vrooli_onboarding.v1.session.ProfileSession
-	(*GetProfileSessionRequest)(nil),  // 12: vrooli.vrooli_onboarding.v1.session.GetProfileSessionRequest
-	(*SaveProfileSessionRequest)(nil), // 13: vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest
-	(*GetProfileSessionResponse)(nil), // 14: vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
-	nil,                               // 15: vrooli.vrooli_onboarding.v1.session.Draft.ChoicesEntry
-	nil,                               // 16: vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.ChoicesEntry
-	nil,                               // 17: vrooli.vrooli_onboarding.v1.session.ProfileSession.ManualDecisionsEntry
-	(*timestamppb.Timestamp)(nil),     // 18: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),           // 19: google.protobuf.Struct
+	(*ReconciliationChange)(nil),      // 12: vrooli.vrooli_onboarding.v1.session.ReconciliationChange
+	(*GetProfileSessionRequest)(nil),  // 13: vrooli.vrooli_onboarding.v1.session.GetProfileSessionRequest
+	(*SaveProfileSessionRequest)(nil), // 14: vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest
+	(*GetProfileSessionResponse)(nil), // 15: vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
+	nil,                               // 16: vrooli.vrooli_onboarding.v1.session.Draft.ChoicesEntry
+	nil,                               // 17: vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.ChoicesEntry
+	nil,                               // 18: vrooli.vrooli_onboarding.v1.session.ProfileSession.ManualDecisionsEntry
+	(*timestamppb.Timestamp)(nil),     // 19: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),           // 20: google.protobuf.Struct
 }
 var file_vrooli_onboarding_v1_session_session_proto_depIdxs = []int32{
 	4,  // 0: vrooli.vrooli_onboarding.v1.session.GetStepModelResponse.steps:type_name -> vrooli.vrooli_onboarding.v1.session.Step
-	15, // 1: vrooli.vrooli_onboarding.v1.session.Draft.choices:type_name -> vrooli.vrooli_onboarding.v1.session.Draft.ChoicesEntry
-	18, // 2: vrooli.vrooli_onboarding.v1.session.Draft.updated_at:type_name -> google.protobuf.Timestamp
-	16, // 3: vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.choices:type_name -> vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.ChoicesEntry
+	16, // 1: vrooli.vrooli_onboarding.v1.session.Draft.choices:type_name -> vrooli.vrooli_onboarding.v1.session.Draft.ChoicesEntry
+	19, // 2: vrooli.vrooli_onboarding.v1.session.Draft.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 3: vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.choices:type_name -> vrooli.vrooli_onboarding.v1.session.SaveDraftRequest.ChoicesEntry
 	6,  // 4: vrooli.vrooli_onboarding.v1.session.GetDraftResponse.draft:type_name -> vrooli.vrooli_onboarding.v1.session.Draft
-	19, // 5: vrooli.vrooli_onboarding.v1.session.ProfileSession.answers:type_name -> google.protobuf.Struct
-	17, // 6: vrooli.vrooli_onboarding.v1.session.ProfileSession.manual_decisions:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession.ManualDecisionsEntry
-	19, // 7: vrooli.vrooli_onboarding.v1.session.ProfileSession.target_context:type_name -> google.protobuf.Struct
-	18, // 8: vrooli.vrooli_onboarding.v1.session.ProfileSession.updated_at:type_name -> google.protobuf.Timestamp
-	11, // 9: vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest.session:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession
-	11, // 10: vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse.session:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession
-	0,  // 11: vrooli.vrooli_onboarding.v1.session.SessionService.GetSession:input_type -> vrooli.vrooli_onboarding.v1.session.GetSessionRequest
-	1,  // 12: vrooli.vrooli_onboarding.v1.session.SessionService.AdvanceSessionStep:input_type -> vrooli.vrooli_onboarding.v1.session.AdvanceSessionStepRequest
-	2,  // 13: vrooli.vrooli_onboarding.v1.session.SessionService.GetStepModel:input_type -> vrooli.vrooli_onboarding.v1.session.GetStepModelRequest
-	7,  // 14: vrooli.vrooli_onboarding.v1.session.SessionService.GetDraft:input_type -> vrooli.vrooli_onboarding.v1.session.GetDraftRequest
-	8,  // 15: vrooli.vrooli_onboarding.v1.session.SessionService.SaveDraft:input_type -> vrooli.vrooli_onboarding.v1.session.SaveDraftRequest
-	9,  // 16: vrooli.vrooli_onboarding.v1.session.SessionService.DiscardDraft:input_type -> vrooli.vrooli_onboarding.v1.session.DiscardDraftRequest
-	12, // 17: vrooli.vrooli_onboarding.v1.session.SessionService.GetProfileSession:input_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionRequest
-	13, // 18: vrooli.vrooli_onboarding.v1.session.SessionService.SaveProfileSession:input_type -> vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest
-	3,  // 19: vrooli.vrooli_onboarding.v1.session.SessionService.GetSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetSessionResponse
-	3,  // 20: vrooli.vrooli_onboarding.v1.session.SessionService.AdvanceSessionStep:output_type -> vrooli.vrooli_onboarding.v1.session.GetSessionResponse
-	5,  // 21: vrooli.vrooli_onboarding.v1.session.SessionService.GetStepModel:output_type -> vrooli.vrooli_onboarding.v1.session.GetStepModelResponse
-	10, // 22: vrooli.vrooli_onboarding.v1.session.SessionService.GetDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
-	10, // 23: vrooli.vrooli_onboarding.v1.session.SessionService.SaveDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
-	10, // 24: vrooli.vrooli_onboarding.v1.session.SessionService.DiscardDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
-	14, // 25: vrooli.vrooli_onboarding.v1.session.SessionService.GetProfileSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
-	14, // 26: vrooli.vrooli_onboarding.v1.session.SessionService.SaveProfileSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
-	19, // [19:27] is the sub-list for method output_type
-	11, // [11:19] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	20, // 5: vrooli.vrooli_onboarding.v1.session.ProfileSession.answers:type_name -> google.protobuf.Struct
+	18, // 6: vrooli.vrooli_onboarding.v1.session.ProfileSession.manual_decisions:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession.ManualDecisionsEntry
+	20, // 7: vrooli.vrooli_onboarding.v1.session.ProfileSession.target_context:type_name -> google.protobuf.Struct
+	19, // 8: vrooli.vrooli_onboarding.v1.session.ProfileSession.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 9: vrooli.vrooli_onboarding.v1.session.ProfileSession.reconciliation_changes:type_name -> vrooli.vrooli_onboarding.v1.session.ReconciliationChange
+	11, // 10: vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest.session:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession
+	11, // 11: vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse.session:type_name -> vrooli.vrooli_onboarding.v1.session.ProfileSession
+	0,  // 12: vrooli.vrooli_onboarding.v1.session.SessionService.GetSession:input_type -> vrooli.vrooli_onboarding.v1.session.GetSessionRequest
+	1,  // 13: vrooli.vrooli_onboarding.v1.session.SessionService.AdvanceSessionStep:input_type -> vrooli.vrooli_onboarding.v1.session.AdvanceSessionStepRequest
+	2,  // 14: vrooli.vrooli_onboarding.v1.session.SessionService.GetStepModel:input_type -> vrooli.vrooli_onboarding.v1.session.GetStepModelRequest
+	7,  // 15: vrooli.vrooli_onboarding.v1.session.SessionService.GetDraft:input_type -> vrooli.vrooli_onboarding.v1.session.GetDraftRequest
+	8,  // 16: vrooli.vrooli_onboarding.v1.session.SessionService.SaveDraft:input_type -> vrooli.vrooli_onboarding.v1.session.SaveDraftRequest
+	9,  // 17: vrooli.vrooli_onboarding.v1.session.SessionService.DiscardDraft:input_type -> vrooli.vrooli_onboarding.v1.session.DiscardDraftRequest
+	13, // 18: vrooli.vrooli_onboarding.v1.session.SessionService.GetProfileSession:input_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionRequest
+	14, // 19: vrooli.vrooli_onboarding.v1.session.SessionService.SaveProfileSession:input_type -> vrooli.vrooli_onboarding.v1.session.SaveProfileSessionRequest
+	3,  // 20: vrooli.vrooli_onboarding.v1.session.SessionService.GetSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetSessionResponse
+	3,  // 21: vrooli.vrooli_onboarding.v1.session.SessionService.AdvanceSessionStep:output_type -> vrooli.vrooli_onboarding.v1.session.GetSessionResponse
+	5,  // 22: vrooli.vrooli_onboarding.v1.session.SessionService.GetStepModel:output_type -> vrooli.vrooli_onboarding.v1.session.GetStepModelResponse
+	10, // 23: vrooli.vrooli_onboarding.v1.session.SessionService.GetDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
+	10, // 24: vrooli.vrooli_onboarding.v1.session.SessionService.SaveDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
+	10, // 25: vrooli.vrooli_onboarding.v1.session.SessionService.DiscardDraft:output_type -> vrooli.vrooli_onboarding.v1.session.GetDraftResponse
+	15, // 26: vrooli.vrooli_onboarding.v1.session.SessionService.GetProfileSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
+	15, // 27: vrooli.vrooli_onboarding.v1.session.SessionService.SaveProfileSession:output_type -> vrooli.vrooli_onboarding.v1.session.GetProfileSessionResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_onboarding_v1_session_session_proto_init() }
@@ -1181,7 +1311,7 @@ func file_vrooli_onboarding_v1_session_session_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_onboarding_v1_session_session_proto_rawDesc), len(file_vrooli_onboarding_v1_session_session_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

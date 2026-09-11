@@ -1,38 +1,32 @@
 /**
- * Drawer - Responsive side-drawer (desktop) / bottom-sheet (mobile).
+ * Compatibility adapter for existing Swarm Manager drawer call sites.
  *
- * Desktop: slides in from the right as a 420px-wide panel.
- * Mobile: slides up from the bottom as a rounded sheet (max 85vh).
- *
- * Renders via createPortal to document.body. Supports Esc/click-outside to
- * close, scroll lock, and optional footer.
+ * Overlay behavior belongs to the React Component Library. ResponsiveDialog
+ * supplies the centered desktop dialog, mobile sheet, safe-area insets, and
+ * swipe-to-dismiss gesture. Keeping this small adapter lets the existing
+ * feature components migrate without each one reimplementing overlay chrome.
  */
 
-import { useRef, useId, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
-import { cn } from '../../lib/utils'
-import { useModalBehavior } from '../../hooks/useModalBehavior'
-import { useIsMobile } from '../../hooks/useMediaQuery'
-import { useSpatialScope, useGamepad } from "@vrooli/iframe-bridge/react";
+import type { ReactNode } from "react";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1.3.1";
 
 export interface DrawerProps {
   /** Whether the drawer is visible */
-  isOpen: boolean
+  isOpen: boolean;
   /** Callback to close the drawer */
-  onClose: () => void
-  /** Drawer title (rendered as h2) */
-  title: string
+  onClose: () => void;
+  /** Drawer title */
+  title: string;
   /** Optional subtitle below the title */
-  description?: string
+  description?: string;
   /** Drawer content */
-  children: ReactNode
+  children: ReactNode;
   /** Optional footer (sticky at the bottom) */
-  footer?: ReactNode
-  /** Additional CSS classes for the drawer panel */
-  className?: string
+  footer?: ReactNode;
+  /** Additional CSS classes for the shared overlay panel */
+  className?: string;
   /** data-testid value */
-  testId?: string
+  testId?: string;
 }
 
 export function Drawer({
@@ -45,101 +39,21 @@ export function Drawer({
   className,
   testId,
 }: DrawerProps) {
-  const drawerRef = useRef<HTMLDivElement>(null)
-  const titleId = useId()
-  const isMobile = useIsMobile()
-
-  useModalBehavior({
-    isOpen,
-    onClose,
-    ref: drawerRef,
-    preventBodyScroll: true,
-    disableCloseOnOutsideClick: true,
-  })
-
-  // Push a spatial nav modal scope so D-pad navigation is trapped inside the drawer.
-  const scopeRef = useRef<HTMLDivElement>(null);
-  useSpatialScope(scopeRef, isOpen);
-  useGamepad(scopeRef, action => {
-    if (action !== 'back') return false;
-    onClose();
-    return true;
-  }, isOpen);
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      onClose()
-    }
-  }
-
-  if (!isOpen) return null
-
-  return createPortal(
-    <div
-      ref={scopeRef}
-      className="fixed inset-0 z-50 flex"
-      onMouseDown={handleBackdropClick}
+  return (
+    <ResponsiveDialog
+      open={isOpen}
+      onClose={onClose}
+      title={title}
+      subheader={description ? <p className="px-4 py-3 text-xs text-slate-400">{description}</p> : undefined}
+      footer={footer}
+      closeLabel="Close drawer"
+      grabberLabel="Close drawer"
+      size="md"
+      contentPadding="none"
+      panelClassName={className}
+      testId={testId}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-
-      {/* Drawer panel */}
-      <div
-        ref={drawerRef}
-        className={cn(
-          'relative flex flex-col bg-slate-900 border-white/10 shadow-2xl',
-          isMobile
-            ? 'mt-auto w-full max-h-[85vh] rounded-t-2xl border-t animate-in slide-in-from-bottom duration-200'
-            : 'ml-auto h-full w-[420px] max-w-[90vw] border-l animate-in slide-in-from-right duration-200',
-          className,
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        data-testid={testId}
-      >
-        {/* Header */}
-        <div className={cn(
-          'flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3',
-          isMobile && 'pt-4',
-        )}>
-          {/* Drag indicator on mobile */}
-          {isMobile && (
-            <div className="absolute left-1/2 top-1.5 -translate-x-1/2">
-              <div className="h-1 w-8 rounded-full bg-slate-600" />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-base font-semibold text-white">
-              {title}
-            </h2>
-            {description && (
-              <p className="mt-0.5 text-xs text-slate-400">{description}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="Close drawer"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto">
-          {children}
-        </div>
-
-        {/* Optional footer */}
-        {footer && (
-          <div className="border-t border-white/10 px-4 py-3">
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>,
-    document.body,
-  )
+      {children}
+    </ResponsiveDialog>
+  );
 }

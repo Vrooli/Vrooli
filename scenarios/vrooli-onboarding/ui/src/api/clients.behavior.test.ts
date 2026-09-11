@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => {
   const methods = [
     "reviewApply", "startApply", "getApplyRun", "cancelApply", "getApplyPlan",
-    "listCapabilities", "getCapabilityStatus", "previewCapability", "applyCapability",
+    "listCapabilities", "getCapabilityStatus", "previewCapability", "applyCapability", "verifyCapability",
     "searchConfiguration", "listCredentials", "provisionCredential", "diagnoseCredentials",
     "searchGlossary", "getHostFacts", "listHostRequirements", "listTargets",
     "patchHostSafeguardConfig", "setNotificationRecipient", "listOperatorInputs",
@@ -13,6 +13,7 @@ const rpc = vi.hoisted(() => {
     "acceptRecommendation", "getClosure", "getUnion", "getSession", "advanceSessionStep",
     "listProfiles", "evaluateProfile",
     "getStepModel", "getDraft", "saveDraft", "discardDraft",
+    "getProfileSession", "saveProfileSession",
   ] as const;
   return Object.fromEntries(methods.map((method) => [method, vi.fn()])) as { [K in typeof methods[number]]: ReturnType<typeof vi.fn> };
 });
@@ -37,7 +38,7 @@ import type { Answer } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorin
 import { ReadinessState } from "@vrooli/proto-types/vrooli-onboarding/v1/readiness/readiness_pb";
 import { API_BASE, REST_API_BASE, onboardingTransport } from "./base";
 import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply } from "./apply";
-import { applyCapability, fetchCapabilities, fetchCapabilityStatus, previewCapability } from "./capabilities";
+import { applyCapability, fetchCapabilities, fetchCapabilityStatus, previewCapability, verifyCapability } from "./capabilities";
 import { searchConfiguration } from "./configuration";
 import { diagnoseCredentials, fetchCredentials, provisionCredential } from "./credentials";
 import { fetchGlossary } from "./glossary";
@@ -49,7 +50,7 @@ import { acknowledgeDegraded, fetchReadiness } from "./readiness";
 import { fetchDerivedResources, fetchResource, fetchResourceHealth, fetchResources } from "./resources";
 import { evaluateProfile, fetchProfiles } from "./profiles";
 import { acceptRecommendation, fetchClosure, fetchCoreSet, fetchRecommendation, fetchScenarios, fetchUnion } from "./selection";
-import { advanceSessionStep, discardDraft, fetchDraft, fetchSession, fetchStepModel, saveDraft } from "./session";
+import { advanceSessionStep, discardDraft, fetchDraft, fetchProfileSession, fetchSession, fetchStepModel, saveDraft, saveProfileSession } from "./session";
 
 const stamp = { seconds: 1_700_000_000n, nanos: 0 };
 
@@ -107,11 +108,14 @@ describe("typed onboarding API adapters", () => {
     rpc.getCapabilityStatus.mockResolvedValue({ statuses: [status], count: 1 });
     rpc.previewCapability.mockResolvedValue({ capabilityId: "cap", planId: "plan", state: CapabilityState.READY_TO_PREVIEW, mutations: [{ id: "m", summary: "change", reversible: true }], candidates: [candidate], remediation: "none", expiresAt: stamp });
     rpc.applyCapability.mockResolvedValue({ capabilityId: "cap", state: CapabilityState.READY, outcome: "applied", retryable: false, errorCode: "", remediation: "none", evidence: [evidence], mutations: [{ id: "m", summary: "change", reversible: true }], completedAt: stamp });
+    rpc.verifyCapability.mockResolvedValue({ capabilityId: "cap", outcome: "verified", retryable: false, evidence: [evidence] });
     await expect(fetchCapabilities("remote")).resolves.toMatchObject({ count: 1, capabilities: [{ state: "ready", descriptor: { id: "cap", policy: { requires_confirmation: true }, inputs: [{ constraints: { min_length: 1 } }] }, evidence: [{ observed_at: new Date(1_700_000_000_000).toISOString() }] }] });
     await expect(fetchCapabilityStatus()).resolves.toMatchObject({ capabilities: [{ state: "ready" }] });
     await expect(previewCapability({ capability_id: "cap", idempotency_key: "k", confirm: true, inputs: { choice: "one" } })).resolves.toMatchObject({ capability_id: "cap", state: "ready_to_preview" });
     await expect(applyCapability({ capability_id: "cap", confirm: true, inputs: {} }, "remote")).resolves.toMatchObject({ capability_id: "cap", state: "ready", outcome: "applied", completed_at: new Date(1_700_000_000_000).toISOString() });
+    await expect(verifyCapability("cap", "remote")).resolves.toMatchObject({ capability_id: "cap", outcome: "verified", evidence: [{ artifact_identity: "artifact", verified: true }] });
     expect(rpc.previewCapability).toHaveBeenCalledWith({ target: "local", action: { capabilityId: "cap", idempotencyKey: "k", confirm: true, inputs: { choice: "one" } } });
+    expect(rpc.verifyCapability).toHaveBeenCalledWith({ target: "remote", verification: { capabilityId: "cap", targetId: "remote", environment: "", accountIdentity: "", operation: "readiness-check", context: {}, effectClass: "read_only", maxOperations: 0, cleanupPolicy: "", timeoutSeconds: 30n } });
   });
 
   it("keeps sparse provider responses safe and preserves every capability state", async () => {
@@ -204,6 +208,78 @@ describe("typed onboarding API adapters", () => {
     await fetchDraft("remote", "operator");
     await saveDraft({ target: "remote", actor: "operator", baseRevision: "1", expectedRevision: "1", stepId: "welcome", choices: { mode: "shared" } });
     await discardDraft("remote", "operator");
+    rpc.getProfileSession.mockResolvedValueOnce({ session: undefined });
+    await expect(fetchProfileSession("remote")).resolves.toBeNull();
+    rpc.getProfileSession.mockResolvedValueOnce({
+      session: {
+        target: "remote",
+        actor: "operator",
+        mode: "manual",
+        profileId: "local-use",
+        profileVersion: "1",
+        catalogRevision: "catalog-1",
+        baseRevision: "base-1",
+        answers: { hosting: "local" },
+        manualDecisions: { "scenario-a": true },
+        targetContext: { region: "us-east", ignored: 4 },
+      },
+    });
+    await expect(fetchProfileSession("remote")).resolves.toMatchObject({
+      target: "remote",
+      mode: "manual",
+      answers: { hosting: "local" },
+      manualDecisions: { "scenario-a": true },
+      targetContext: { region: "us-east" },
+    });
+    rpc.getProfileSession.mockResolvedValueOnce({
+      session: { target: "remote", actor: "operator", mode: "guided", baseRevision: "base-2" },
+    });
+    await expect(fetchProfileSession("remote")).resolves.toMatchObject({
+      target: "remote",
+      mode: "guided",
+      baseRevision: "base-2",
+      answers: {},
+      targetContext: {},
+      reconciliationReasons: [],
+    });
+    rpc.saveProfileSession.mockResolvedValueOnce({
+      session: {
+        target: "remote",
+        actor: "operator",
+        mode: "guided",
+        profileId: "local-use",
+        profileVersion: "1",
+        catalogRevision: "catalog-1",
+        baseRevision: "base-1",
+        answers: {},
+        manualDecisions: {},
+        targetContext: {},
+      },
+    });
+    await expect(saveProfileSession({
+      target: "remote",
+      mode: "guided",
+      profileId: "local-use",
+      profileVersion: "1",
+      catalogRevision: "catalog-1",
+      baseRevision: "base-1",
+      answers: {},
+      manualDecisions: {},
+      targetContext: {},
+      expectedRevision: "r1",
+    })).resolves.toMatchObject({ target: "remote", mode: "guided" });
+    rpc.saveProfileSession.mockResolvedValueOnce({
+      session: { target: "remote", actor: "operator", mode: "guided", baseRevision: "base-2" },
+    });
+    await expect(saveProfileSession({
+      target: "remote",
+      mode: "guided",
+      baseRevision: "base-2",
+      answers: {},
+      manualDecisions: {},
+      targetContext: {},
+      expectedRevision: "r2",
+    })).resolves.toMatchObject({ target: "remote", mode: "guided", answers: {}, targetContext: {} });
 
     expect(rpc.searchConfiguration).toHaveBeenCalledWith({ query: "query", target: "remote" });
     expect(rpc.patchHostSafeguardConfig).toHaveBeenCalledWith({ target: "remote", safeguardName: "firewall", configKey: "enabled", value: { jsonValue: true } });
@@ -219,7 +295,14 @@ describe("typed onboarding API adapters", () => {
       target: "remote",
       profileId: "local-use",
       answers: { hosting: { jsonValue: "local" } },
+      manualDecisions: {},
     });
+    expect(rpc.getProfileSession).toHaveBeenCalledWith({ target: "remote" });
+    expect(rpc.saveProfileSession).toHaveBeenCalledWith(expect.objectContaining({
+      target: "remote",
+      expectedRevision: "r1",
+      session: expect.objectContaining({ target: "remote", mode: "guided", manualDecisions: {} }),
+    }));
   });
 
   it("maps readiness states and keeps health failures explicit", async () => {

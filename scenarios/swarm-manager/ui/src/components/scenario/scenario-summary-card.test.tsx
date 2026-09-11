@@ -1,8 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { ScenarioSummaryCard } from "./scenario-summary-card";
-import { selectors } from "../../consts/selectors";
 import type { Scenario } from "../../types";
 
 function makeScenario(overrides: Partial<Scenario> = {}): Scenario {
@@ -20,37 +18,17 @@ function makeScenario(overrides: Partial<Scenario> = {}): Scenario {
 }
 
 describe("ScenarioSummaryCard", () => {
-  it("non-selectable mode: renders a plain summary, no context row", () => {
+  it("renders the scenario summary as row content without its own button", () => {
     render(<ScenarioSummaryCard scenario={makeScenario()} />);
     expect(screen.getByText("API Server")).toBeInTheDocument();
-    expect(screen.queryByTestId(selectors.agentSessions.contextRow)).not.toBeInTheDocument();
+    expect(screen.getByText("Backend REST API")).toBeInTheDocument();
+    expect(screen.getByText("api-server")).toBeInTheDocument();
+    // The CollectionList row owns opening and selection.
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("pick mode: renders the context row and toggles on click", async () => {
-    const onToggleSelect = vi.fn();
-    render(
-      <ScenarioSummaryCard
-        scenario={makeScenario()}
-        selection={{ selectionMode: true, selected: false, onToggleSelect }}
-      />,
-    );
-    const row = screen.getByTestId(selectors.agentSessions.contextRow);
-    await userEvent.click(row);
-    expect(onToggleSelect).toHaveBeenCalledTimes(1);
-  });
-
-  it("pick mode disabled: does not toggle, exposes the reason", async () => {
-    const onToggleSelect = vi.fn();
-    render(
-      <ScenarioSummaryCard
-        scenario={makeScenario()}
-        selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
-      />,
-    );
-    const row = screen.getByTestId(selectors.agentSessions.contextRow);
-    expect(row).toBeDisabled();
-    expect(row).toHaveAttribute("title", "Cap reached");
-    await userEvent.click(row);
-    expect(onToggleSelect).not.toHaveBeenCalled();
+  it("falls back to the scenario name when there is no display name", () => {
+    render(<ScenarioSummaryCard scenario={makeScenario({ displayName: "" })} />);
+    expect(screen.getAllByText("api-server")).toHaveLength(2);
   });
 });

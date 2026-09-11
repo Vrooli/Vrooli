@@ -7,6 +7,8 @@ import {
   ClipboardCheck,
   ExternalLink,
   Loader2,
+  PauseCircle,
+  PlayCircle,
   RefreshCw,
   RotateCcw,
   XCircle,
@@ -34,6 +36,8 @@ export interface ExecutionOverviewTabProps {
   onCancel: () => void;
   onRetry: () => void;
   onRunPostRunChecks: () => void;
+  onHaltContinuation?: () => void;
+  onResumeContinuation?: () => void;
 }
 
 export function ExecutionOverviewTab({
@@ -47,6 +51,8 @@ export function ExecutionOverviewTab({
   onCancel,
   onRetry,
   onRunPostRunChecks,
+  onHaltContinuation = () => undefined,
+  onResumeContinuation = () => undefined,
 }: ExecutionOverviewTabProps) {
   const showRunChecks = canRunPostRunChecks(execution);
   const runChecksLabel = execution.finalization ? "Rerun Post-Run Checks" : "Run Post-Run Checks";
@@ -106,6 +112,28 @@ export function ExecutionOverviewTab({
               </div>
             )}
           </div>
+
+          {(execution.executionPreferences || execution.actualRunner || execution.actualModel || execution.selectionReason) && (
+            <div className="rounded-lg border border-cyan-300/15 bg-cyan-300/[0.04] p-3" data-testid="execution-run-selection">
+              <p className="text-xs font-medium uppercase tracking-wider text-cyan-200">Runner selection</p>
+              <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                <div><p className="text-xs text-slate-500">Requested runner</p><p className="text-slate-200">{execution.executionPreferences?.preferredRunner || "default"}</p></div>
+                <div><p className="text-xs text-slate-500">Requested model</p><p className="text-slate-200">{execution.executionPreferences?.model || "default"}</p></div>
+                <div><p className="text-xs text-slate-500">Actual runner</p><p className="text-slate-200">{execution.actualRunner || "not selected"}</p></div>
+                <div><p className="text-xs text-slate-500">Actual model</p><p className="text-slate-200">{execution.actualModel || "not selected"}</p></div>
+              </div>
+              {execution.selectionReason && <p className="mt-2 text-xs leading-5 text-slate-400">Selection reason: {execution.selectionReason}</p>}
+            </div>
+          )}
+
+          {(execution.continuationOf || execution.continuationChildIds?.length || execution.scopeExtensions?.length) && (
+            <div className="rounded-lg border border-violet-300/15 bg-violet-300/[0.04] p-3" data-testid="execution-continuation-chain">
+              <p className="text-xs font-medium uppercase tracking-wider text-violet-200">Continuation and scope</p>
+              {execution.continuationOf && <p className="mt-2 text-sm text-slate-300">Continues <EntityLink entityType="execution" executionId={execution.continuationOf} label={execution.continuationOf} /></p>}
+              {!!execution.continuationChildIds?.length && <p className="mt-2 text-sm text-slate-300">Child runs: {execution.continuationChildIds.join(", ")}</p>}
+              {!!execution.scopeExtensions?.length && <div className="mt-2 text-xs text-slate-400"><p>Recorded scope extensions:</p><ul className="mt-1 list-disc pl-5">{execution.scopeExtensions.map((extension, index) => <li key={`${extension.recordedAt}-${index}`}>{extension.paths.join(", ")} — {extension.reason} ({extension.author})</li>)}</ul></div>}
+            </div>
+          )}
 
           {/* Agent Manager run link */}
           {execution.runId && agentManagerUiUrl && (
@@ -185,6 +213,16 @@ export function ExecutionOverviewTab({
               {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
               Follow-up
             </Button>
+          )}
+          {(execution.continuationOf || execution.continuationChildIds?.length) && (
+            <>
+              <Button variant="outline" size="sm" disabled={actionBusy} onClick={onHaltContinuation} data-testid="halt-continuation-button">
+                {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <PauseCircle className="mr-1 h-3.5 w-3.5" />}Halt continuation
+              </Button>
+              <Button variant="outline" size="sm" disabled={actionBusy} onClick={onResumeContinuation} data-testid="resume-continuation-button">
+                {actionBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="mr-1 h-3.5 w-3.5" />}Resume continuation
+              </Button>
+            </>
           )}
           {showRunChecks && (
             <Button

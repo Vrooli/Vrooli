@@ -23,4 +23,6 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "selection_closure", Path: selectionconnect.SelectionServiceGetClosureProcedure, Method: "POST", Summary: "Read selection closure", Category: "selection"},
 	{ID: "selection_union", Path: selectionconnect.SelectionServiceGetUnionProcedure, Method: "POST", Summary: "Read deployment union", Category: "selection"},
 	{ID: "selection_handoff", Path: selectionconnect.SelectionServiceCreateHandoffProcedure, Method: "POST", Summary: "Create onboarding handoff", Category: "selection"},
+	{ID: "selection_handoff_get", Path: selectionconnect.SelectionServiceGetHandoffProcedure, Method: "POST", Summary: "Resolve onboarding handoff", Category: "selection"},
+	{ID: "selection_handoff_rest", Path: "/api/v2/handoff", Method: "POST", Summary: "Create bridge onboarding handoff", Category: "selection"},
 }

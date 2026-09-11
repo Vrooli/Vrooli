@@ -162,9 +162,39 @@ describe("SidebarTabs", () => {
     renderTabs();
 
     expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("2")).toBeInTheDocument();
-    expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("2")).toBeInTheDocument();
+    // The classifying capture is machine work; only the one with proposals waits on the operator.
+    expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-executions")).getByText("1")).toBeInTheDocument();
     expect(within(screen.getByTestId("sidebar-tab-sessions")).getByText("2")).toBeInTheDocument();
+  });
+
+  it("explains what each badge counts", () => {
+    useCaptureStore.setState({
+      captures: [
+        makeCapture({
+          status: "classified",
+          classification: {
+            classifiedAt: "2026-05-01T12:05:00Z",
+            items: [{ kind: "fix", title: "Fix it", description: "", priority: 3, tags: [], confidence: 0.9 }],
+          },
+        }),
+      ],
+    });
+    useAgentSessionStore.setState({ sessions: [makeSession(), makeSession({ id: "sess-2" })] });
+
+    renderTabs();
+
+    expect(within(screen.getByTestId("sidebar-tab-backlog")).getByText("2 backlog items have a next step for you")).toBeInTheDocument();
+    expect(within(screen.getByTestId("sidebar-tab-captures")).getByText("1 capture has proposals to review")).toBeInTheDocument();
+    expect(within(screen.getByTestId("sidebar-tab-sessions")).getByText("2 sessions are waiting on you")).toBeInTheDocument();
+  });
+
+  it("does not badge captures that are still being classified", () => {
+    useCaptureStore.setState({ captures: [makeCapture({ status: "classifying" })] });
+
+    renderTabs();
+
+    expect(screen.queryByTestId("sidebar-tab-captures-badge")).toBeNull();
   });
 
   it("does not badge non-actionable tabs or raw active sessions", () => {

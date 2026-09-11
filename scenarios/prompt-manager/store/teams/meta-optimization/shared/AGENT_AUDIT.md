@@ -8,10 +8,12 @@ Rolling audit of agent files (AGENTS.md, SOUL.md, TOOLS.md, agent.json) maintain
 - `Disposition` is the heartbeat's conclusion: `no-action`, `improve`, `prune`, or `restructure-implication`.
 
 ## Rotation state
-- Last visited: `opportunity-scout` (monetization, 2026-09-09)
-- Coverage: 10/22 unique graph/registry targets visited since audit start.
+- Last visited: `financial-tracker` (monetization, 2026-09-10)
+- Coverage: 11/22 unique graph/registry targets visited since audit start.
 
 ## Recent entries
+
+| 2026-09-10 | financial-tracker (monetization) | 0.72 | 3 | improve (intake/output contract) | Offer Desk setpoint-read is available and remains the sole instrument; it reports ledger-account coverage 0/68, default-alive posture unavailable (`unreliable:no_posture_text`), two deliverable meter gaps, and denominator confidence `sketch`. Identity, ownership, PoR, and instrument alignment are clear. Capability architecture scores: Identity 3, Ownership 3, Plan of Record 3, Skill Surface 2, Intake 1, Collection 2, Analysis Method 2, Promotion/Routing 1, Feedback Loop 2; instrument 3. `topics.json` contains only `external_producers: [operator]`, while FINANCIAL_MODEL.md:149 requires a `financial-model-assumption-update` knowledge output and the generated contract reports `loop_kind_missing`. Primary smells: Promotion fog and Dead-end gap. Filed `chore/align-financial-tracker-capability-contract`; no skill, scenario, or PoR rewrite proposed. Expected delta: target-specific loop warning 1→0, declared outputs resolve to destinations, and unavailable posture/material assumption changes have an explicit qualified route without duplicating ledger state. |
 
 | 2026-09-08 | catalog-strategist (monetization) | 0.72 | 3 | improve (loop contract) | The `offer-desk` instrument is available and the member has clear identity, ownership, PoR, and board-driven judgment. Capability architecture scores: Identity 3, Ownership 3, Plan of Record 3, Skill Surface 2, Intake 1, Collection 2, Analysis Method 2, Promotion/Routing 2, Feedback Loop 2; instrument 3. `topics.json` declares evidence consumption and a `monetization-canon/*` output, but no `loop_kind`; `prompt-manager graph topics --team monetization --json` reports the target-specific `loop_kind_missing` warning. The heartbeat's repeatable board-read and continuity loop therefore lacks machine-readable memory semantics. Filed `fix/declare-catalog-strategist-loop-kind`; no skill, scenario, or PoR rewrite proposed. Expected delta: target warning 1→0 while preserving the single offer-desk instrument and existing output destination. |
 

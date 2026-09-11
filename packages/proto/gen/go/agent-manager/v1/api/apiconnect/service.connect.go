@@ -37,6 +37,9 @@ const (
 	// AgentManagerServiceHealthProcedure is the fully-qualified name of the AgentManagerService's
 	// Health RPC.
 	AgentManagerServiceHealthProcedure = "/agent_manager.v1.AgentManagerService/Health"
+	// AgentManagerServiceListExecutionOptionsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListExecutionOptions RPC.
+	AgentManagerServiceListExecutionOptionsProcedure = "/agent_manager.v1.AgentManagerService/ListExecutionOptions"
 	// AgentManagerServiceStartInvestigationProcedure is the fully-qualified name of the
 	// AgentManagerService's StartInvestigation RPC.
 	AgentManagerServiceStartInvestigationProcedure = "/agent_manager.v1.AgentManagerService/StartInvestigation"
@@ -310,6 +313,7 @@ const (
 type AgentManagerServiceClient interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
 	// Caller-neutral finite investigation lifecycle. Diagnosis is separate
 	// from repair and is safe to reattach after a client disconnect.
 	StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error)
@@ -486,6 +490,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceHealthProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+			connect.WithClientOptions(opts...),
+		),
+		listExecutionOptions: connect.NewClient[api.ListExecutionOptionsRequest, api.ListExecutionOptionsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListExecutionOptionsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListExecutionOptions")),
 			connect.WithClientOptions(opts...),
 		),
 		startInvestigation: connect.NewClient[api.StartInvestigationRequest, api.StartInvestigationResponse](
@@ -1028,6 +1038,7 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 // agentManagerServiceClient implements AgentManagerServiceClient.
 type agentManagerServiceClient struct {
 	health                           *connect.Client[api.HealthRequest, api.HealthResponse]
+	listExecutionOptions             *connect.Client[api.ListExecutionOptionsRequest, api.ListExecutionOptionsResponse]
 	startInvestigation               *connect.Client[api.StartInvestigationRequest, api.StartInvestigationResponse]
 	getInvestigation                 *connect.Client[api.GetInvestigationRequest, api.InvestigationRecord]
 	listInvestigations               *connect.Client[api.ListInvestigationsRequest, api.ListInvestigationsResponse]
@@ -1122,6 +1133,11 @@ type agentManagerServiceClient struct {
 // Health calls agent_manager.v1.AgentManagerService.Health.
 func (c *agentManagerServiceClient) Health(ctx context.Context, req *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return c.health.CallUnary(ctx, req)
+}
+
+// ListExecutionOptions calls agent_manager.v1.AgentManagerService.ListExecutionOptions.
+func (c *agentManagerServiceClient) ListExecutionOptions(ctx context.Context, req *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error) {
+	return c.listExecutionOptions.CallUnary(ctx, req)
 }
 
 // StartInvestigation calls agent_manager.v1.AgentManagerService.StartInvestigation.
@@ -1579,6 +1595,7 @@ func (c *agentManagerServiceClient) PurgeData(ctx context.Context, req *connect.
 type AgentManagerServiceHandler interface {
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
+	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
 	// Caller-neutral finite investigation lifecycle. Diagnosis is separate
 	// from repair and is safe to reattach after a client disconnect.
 	StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error)
@@ -1751,6 +1768,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceHealthProcedure,
 		svc.Health,
 		connect.WithSchema(agentManagerServiceMethods.ByName("Health")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListExecutionOptionsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListExecutionOptionsProcedure,
+		svc.ListExecutionOptions,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListExecutionOptions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceStartInvestigationHandler := connect.NewUnaryHandler(
@@ -2291,6 +2314,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case AgentManagerServiceHealthProcedure:
 			agentManagerServiceHealthHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListExecutionOptionsProcedure:
+			agentManagerServiceListExecutionOptionsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStartInvestigationProcedure:
 			agentManagerServiceStartInvestigationHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetInvestigationProcedure:
@@ -2480,6 +2505,10 @@ type UnimplementedAgentManagerServiceHandler struct{}
 
 func (UnimplementedAgentManagerServiceHandler) Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.Health is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListExecutionOptions is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) StartInvestigation(context.Context, *connect.Request[api.StartInvestigationRequest]) (*connect.Response[api.StartInvestigationResponse], error) {

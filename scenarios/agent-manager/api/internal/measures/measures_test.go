@@ -22,6 +22,7 @@ import (
 type fakeStore struct {
 	metrics          invocationreadmodel.Metrics
 	runMetrics       invocationreadmodel.RunMetrics
+	costDistribution invocationreadmodel.RunCostDistribution
 	durationStats    invocationreadmodel.RunDurationStatistics
 	statusCounts     []invocationreadmodel.RunStatusCount
 	breakdowns       map[string][]invocationreadmodel.RunBreakdownRow
@@ -53,6 +54,11 @@ func (s *fakeStore) RunMetrics(_ context.Context, filter invocationreadmodel.Fil
 func (s *fakeStore) RunDurationStatistics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
 	s.filter = filter
 	return s.durationStats, nil
+}
+
+func (s *fakeStore) RunCostDistribution(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error) {
+	s.filter = filter
+	return s.costDistribution, nil
 }
 
 func (s *fakeStore) RunStatusCounts(_ context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.RunStatusCount, error) {
@@ -259,6 +265,41 @@ func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
 	response, err := handler.RunDurationStatistics(context.Background(), connect.NewRequest(&measurepb.RunDurationStatisticsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
 	if err != nil || response.Msg.GetAverageDurationMs() != 100 || response.Msg.GetMinDurationMs() != 25 || response.Msg.GetMaxDurationMs() != 200 || response.Msg.GetCount() != 3 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("duration response=%+v err=%v", response.Msg, err)
+	}
+}
+
+func TestRunCostPopulatesDistributionAndUnobservedRuns(t *testing.T) {
+	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
+	store := &fakeStore{
+		runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TotalCostUSD: 4.5, AverageCostUSD: 0.5625, TotalTokens: 99},
+		costDistribution: invocationreadmodel.RunCostDistribution{
+			P50Tokens: 1000, P90Tokens: 9000, P95Tokens: 9500, P99Tokens: 9900, MaxTokens: 10000,
+			P50CostUSD: 0.01, P90CostUSD: 0.09, P95CostUSD: 0.095, P99CostUSD: 0.099, MaxCostUSD: 0.10,
+			SampleSize: 5,
+			TokenBuckets: []invocationreadmodel.RunTokenBucket{
+				{Label: "<100K", MinTokens: 0, MaxTokens: 100000, RunCount: 5},
+			},
+		},
+	}
+	handler := NewHandler(store, func() time.Time { return now })
+	response, err := handler.RunCost(context.Background(), connect.NewRequest(&measurepb.RunCostRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetP50Tokens(); got != 1000 {
+		t.Fatalf("p50 tokens = %d, want 1000", got)
+	}
+	if got := response.Msg.GetP90Tokens(); got != 9000 {
+		t.Fatalf("p90 tokens = %d, want 9000", got)
+	}
+	if got := response.Msg.GetDistributionSampleSize(); got != 5 {
+		t.Fatalf("sample size = %d, want 5", got)
+	}
+	if got := response.Msg.GetDistributionUnobservedRuns(); got != 3 {
+		t.Fatalf("unobserved runs = %d, want 3", got)
+	}
+	if len(response.Msg.GetTokenBuckets()) != 1 || response.Msg.GetTokenBuckets()[0].GetRunCount() != 5 {
+		t.Fatalf("token buckets = %+v", response.Msg.GetTokenBuckets())
 	}
 }
 

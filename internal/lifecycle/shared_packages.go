@@ -36,7 +36,6 @@ const sharedPackageProvisioningDisabledEnv = "VROOLI_DISABLE_SHARED_PACKAGE_PROV
 const (
 	protoArtifactSelection = "@vrooli/proto-types"
 	protoArtifactRootEnv   = "VROOLI_PROTO_ARTIFACT_ROOT"
-	protoSelectedIDEnv     = "VROOLI_PROTO_SELECTED_ARTIFACT"
 	protoLockHeldEnv       = "VROOLI_PROTO_LOCK_HELD"
 )
 

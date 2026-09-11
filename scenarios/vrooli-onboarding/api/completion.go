@@ -48,13 +48,35 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 		Blockers: append([]completionBlocker(nil), readiness.Blockers...),
 		Degraded: []completionBlocker{},
 	}
+	contextualCredentialAddresses := contextualCredentialAddressSet(readiness.Credentials)
 	credentialStatusPending := false
 	for _, credential := range readiness.Credentials {
 		// A derived or generated value is written by its declaring component.
 		// The operator cannot supply it, so its absence is never a reason to
 		// withhold completion from them.
+		if credential.Status == "deferred" {
+			// Optional credentials remain visible in the inventory, but their
+			// provider is deliberately not contacted during the required-first
+			// readiness pass. They must not become degraded work merely because
+			// they were intentionally deferred.
+			continue
+		}
 		if credential.Status == "pending" {
 			credentialStatusPending = true
+			continue
+		}
+		if credential.Status == "configured" && credentialEvidenceRequiresExercise(credential) && credential.EvidenceStatus != "verified" {
+			blocker := completionBlocker{
+				Kind:        "credential",
+				Name:        credential.LogicalID + ":" + credential.Field + ":verification",
+				Reason:      "the credential is stored but its owning provider has not supplied the evidence required for readiness",
+				Remediation: "verify this credential through its owning provider, then retry readiness",
+			}
+			if credential.Required {
+				assessment.Blockers = append(assessment.Blockers, blocker)
+			} else {
+				assessment.Degraded = append(assessment.Degraded, blocker)
+			}
 			continue
 		}
 		if credential.Status == "configured" || !operatorSuppliedCredential(credential) {
@@ -64,7 +86,7 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 			Kind:        "credential",
 			Name:        credential.LogicalID + ":" + credential.Field,
 			Reason:      credentialGapReason(credential),
-			Remediation: provisionInWizardRemediation,
+			Remediation: credentialGapRemediation(credential),
 		}
 		if credential.Required {
 			assessment.Blockers = append(assessment.Blockers, blocker)
@@ -81,6 +103,15 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 		})
 	}
 	for _, host := range readiness.Hosts {
+		if host.Status == "pending" {
+			assessment.Blockers = append(assessment.Blockers, completionBlocker{
+				Kind:        "readiness",
+				Name:        host.Name,
+				Reason:      host.Kind + " status is still being checked",
+				Remediation: firstNonEmptyString(host.Remediation, "retry readiness before applying the selection"),
+			})
+			continue
+		}
 		if host.Status != "missing" && host.Status != "unsupported" {
 			continue
 		}
@@ -101,6 +132,13 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 	// answers have different owners: the credential step can fix the first, and
 	// only a fresh recovery export closes the second.
 	for _, address := range readiness.Recovery.RequiredAbsent {
+		// Recovery diagnosis intentionally includes the global managed
+		// population. Only an address in this contextual closure can block the
+		// current onboarding decision; unrelated managed identities remain
+		// visible in the doctor/recovery surface without becoming setup work.
+		if _, contextual := contextualCredentialAddresses[address]; !contextual {
+			continue
+		}
 		assessment.Blockers = append(assessment.Blockers, completionBlocker{
 			Kind:        "recovery",
 			Name:        address,
@@ -127,6 +165,19 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 	return assessment
 }
 
+// credentialEvidenceRequiresExercise interprets the small, provider-neutral
+// policy vocabulary. A descriptor may still expose unverified storage state
+// for advisory policies, but release-required policies cannot satisfy
+// onboarding completion from storage presence alone.
+func credentialEvidenceRequiresExercise(credential credentialReadiness) bool {
+	switch strings.ToLower(strings.TrimSpace(credential.EvidencePolicy)) {
+	case "required", "verify-required", "operation-required", "release-required", "always":
+		return true
+	default:
+		return false
+	}
+}
+
 // operatorSuppliedCredential reports whether a person has to provide this
 // value. It mirrors credentialspec.Descriptor.OperatorSupplied for the
 // readiness projection, which carries the provisioning kind as a plain string.
@@ -144,6 +195,17 @@ func credentialGapReason(credential credentialReadiness) string {
 		return "the credential backend could not answer for this address"
 	}
 	return "the credential is declared and not configured"
+}
+
+func credentialGapRemediation(credential credentialReadiness) string {
+	switch credential.Status {
+	case "unsupported":
+		return "Retry credential verification; if the condition persists, run `vrooli credentials doctor` and resolve the reported provider condition."
+	case credentialStatusPending:
+		return "Retry readiness after the credential authority finishes checking this address."
+	default:
+		return provisionInWizardRemediation
+	}
 }
 
 func firstNonEmptyString(values ...string) string {
@@ -206,7 +268,12 @@ type degradedAcknowledgementRequest struct {
 }
 
 func acknowledgeDegradedReadiness(ctx context.Context, digest string) (readinessdomain.AcknowledgeResult, error) {
-	readiness, err := buildReadinessResponse(ctx)
+	// Acknowledgement is part of the completion contract, so it must evaluate
+	// the same optional credential set that apply uses. The normal readiness
+	// view may defer optional provider probes for fast rendering; accepting a
+	// digest cannot use that cheaper view or it could reject a digest emitted by
+	// the apply run as stale.
+	readiness, err := buildReadinessResponseForApply(ctx)
 	if err != nil {
 		return readinessdomain.AcknowledgeResult{}, err
 	}
@@ -231,7 +298,7 @@ func (s *Server) handleV2DegradedAcknowledgement(w http.ResponseWriter, r *http.
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	readiness, err := buildReadinessResponse(ctx)
+	readiness, err := buildReadinessResponseForApply(ctx)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return

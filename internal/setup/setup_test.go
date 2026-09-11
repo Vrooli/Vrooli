@@ -32,6 +32,7 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	"github.com/vrooli/vrooli/internal/testenv"
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 func TestRunSetupReportsFailureInsteadOfCompletion(t *testing.T) {
@@ -716,6 +717,37 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 	}
 	if captured.Scenarios != "alpha,beta" {
 		t.Fatalf("captured.Scenarios = %q", captured.Scenarios)
+	}
+}
+
+func TestRunSetupSelectionHandoffSuppliesResolverSelectors(t *testing.T) {
+	svc := stubSetupDeps(t)
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	var captured hostreq.ResolveOptions
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		captured = opts
+		return hostreq.Resolution{}, nil
+	}
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+	svc.deps.markComplete = func(string, string) error { return nil }
+
+	selection := &setupv1.Selection{SchemaVersion: "v1", Scenarios: []string{"alpha", "beta"}, OptionalResources: []string{"redis"}}
+	if err := svc.RunSetupWithOptions(root, home, Options{Selection: selection, DryRun: true}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	if captured.Scenarios != "alpha,beta" || captured.Resources != "redis" {
+		t.Fatalf("captured resolver selectors = scenarios %q resources %q", captured.Scenarios, captured.Resources)
 	}
 }
 

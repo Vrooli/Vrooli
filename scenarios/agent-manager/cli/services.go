@@ -1301,6 +1301,16 @@ func (s *RunnerService) GetStatus() ([]byte, []*domainpb.RunnerStatus, error) {
 	return body, resp.Runners, nil
 }
 
+func (s *RunnerService) ExecutionOptions(role string) ([]byte, *apipb.ListExecutionOptionsResponse, error) {
+	path := "/api/v1/execution-options"
+	if role != "" { path += "?role=" + url.QueryEscape(role) }
+	body, err := s.api.Get(path, nil)
+	if err != nil { return body, nil, err }
+	response := &apipb.ListExecutionOptionsResponse{}
+	if err := unmarshalProtoResponse(body, response); err != nil { return body, nil, err }
+	return body, response, nil
+}
+
 // Probe sends a test request to verify a runner can respond.
 func (s *RunnerService) Probe(runnerType string) ([]byte, *domainpb.ProbeResult, error) {
 	body, err := s.api.Request("POST", "/api/v1/runners/"+runnerType+"/probe", nil, nil)

@@ -1,17 +1,13 @@
 /**
- * ScenarioSummaryCard — compact scenario card for the SessionContextPicker.
+ * ScenarioSummaryCard — compact scenario summary for the sidebar ScenariosTab
+ * and the SessionContextPicker.
  *
- * There is no scenario sidebar tab, so this card is additive: it primarily
- * exists to give the picker a rich, type-appropriate row. It still implements
- * the shared `CardSelection` contract so it behaves like every other pick-mode
- * card, and renders a plain (non-interactive) summary when no selection is
- * supplied.
+ * It is row content only: the CollectionList row owns the chrome, selection,
+ * and the open interaction. Wrap it in CollectionRow.
  */
 import { memo } from "react";
 import { cn } from "../../lib/utils";
 import type { Scenario } from "../../types";
-import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
-import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
 
 const STATUS_COLORS: Record<Scenario["status"], string> = {
   running: "bg-green-500/20 text-green-300",
@@ -22,10 +18,9 @@ const STATUS_COLORS: Record<Scenario["status"], string> = {
 
 export interface ScenarioSummaryCardProps {
   scenario: Scenario;
-  selection?: CardSelection;
 }
 
-function ScenarioCardBody({ scenario }: { scenario: Scenario }) {
+function ScenarioSummaryCardImpl({ scenario }: ScenarioSummaryCardProps) {
   return (
     <>
       <div className="flex items-start justify-between gap-2">
@@ -44,22 +39,6 @@ function ScenarioCardBody({ scenario }: { scenario: Scenario }) {
         {scenario.isGreenfield && <span className="text-emerald-400">greenfield</span>}
       </div>
     </>
-  );
-}
-
-function ScenarioSummaryCardImpl({ scenario, selection }: ScenarioSummaryCardProps) {
-  if (selection?.selectionMode) {
-    return (
-      <CardShell selection={selection}>
-        <ScenarioCardBody scenario={scenario} />
-      </CardShell>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5">
-      <ScenarioCardBody scenario={scenario} />
-    </div>
   );
 }
 

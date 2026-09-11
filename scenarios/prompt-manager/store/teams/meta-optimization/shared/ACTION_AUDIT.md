@@ -41,3 +41,9 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 | Operation | Status | Validation | Discoverability | Disposition | Notes |
 |-----------|--------|------------|-----------------|-------------|-------|
 | observability / telemetry wiring guidance | no exact Action | blocked | `prompt-manager discover "observability telemetry wiring instrumentation" --type all` returned `signal-and-feedback-surface-design` and readiness skills, but no Action | capability-work-item | Existing `signal-and-feedback-surface-design` is judgment-only and has no stable single-command owner, input/output contract, or permission surface for an Action. Do not invent a wrapper. Guide G32 is tracked by backlog `chore/add-observability-telemetry-guide-capability`; reassess for an Action only after an owning CLI/program exists. |
+
+## 2026-09-10 Rotation Addendum
+
+| Operation | Status | Validation | Discoverability | Disposition | Notes |
+|-----------|--------|------------|-----------------|-------------|-------|
+| canonical in-place file edit outside a sandbox (Act A25) | no exact Action | blocked | `prompt-manager discover "edit a file in place outside a sandbox" --type all` found only `sandbox` and unrelated commit/provenance skills; no executable Action | capability-work-item | Coverage `act/A25` is missing with no runtime owner/provider. Existing `workspace-sandbox` exposes create/diff/promote, not canonical edits. Filed `fix/capability-act-a25-canonical-file-edit-owner-20260910`; runEligible=false until an owner, contract, permissions, and refusal tests exist. No Action candidate proposed. |

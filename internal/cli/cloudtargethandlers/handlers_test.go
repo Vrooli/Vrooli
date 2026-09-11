@@ -39,7 +39,7 @@ func runVerb(t *testing.T, store *cloudtarget.Store, args ...string) (map[string
 
 func TestRegisteredCommandPathsMatchManifestGroups(t *testing.T) {
 	paths := RegisteredCommandPaths()
-	want := []string{"cloud-target receipt get", "cloud-target release verify", "cloud-target release stage", "cloud-target release activate", "cloud-target release rollback", "cloud-target release list", "cloud-target release prune", "cloud-target data inventory", "cloud-target data backup", "cloud-target data restore", "cloud-target data verify", "cloud-target host repair", "cloud-target credential ingest", "cloud-target credential acknowledge", "cloud-target credential revoke", "cloud-target edge route-apply", "cloud-target edge route-rollback", "cloud-target edge route-status"}
+	want := []string{"cloud-target receipt get", "cloud-target release verify", "cloud-target release stage", "cloud-target release activate", "cloud-target release rollback", "cloud-target release list", "cloud-target release prune", "cloud-target data inventory", "cloud-target data backup", "cloud-target data restore", "cloud-target data verify", "cloud-target host observe", "cloud-target host repair", "cloud-target credential ingest", "cloud-target credential acknowledge", "cloud-target credential revoke", "cloud-target edge route-apply", "cloud-target edge route-rollback", "cloud-target edge route-status"}
 	if strings.Join(paths, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("paths = %q", paths)
 	}
@@ -72,6 +72,21 @@ func TestVerbsPrintTypedErrorsWithExitCodes(t *testing.T) {
 	value, exit = runVerb(t, store, "release", "list", "--deployment", "dep")
 	if exit != 0 || value["deployment_id"] != "dep" {
 		t.Fatalf("list exit=%d value=%v", exit, value)
+	}
+}
+
+func TestHostObserveUsesTargetOwnerContract(t *testing.T) {
+	runner := &recordingRunner{}
+	value, exit := runVerbWith(t, Deps{Runner: runner}, "host", "observe", "--kind", "file", "--arg", "--", "--arg", "/etc/os-release")
+	if exit != 0 {
+		t.Fatalf("observe exit=%d value=%v", exit, value)
+	}
+	result, ok := value["result"].(map[string]any)
+	if !ok || result["kind"] != "file" {
+		t.Fatalf("observe result=%v", value)
+	}
+	if len(runner.calls) != 1 || strings.Join(runner.calls[0], " ") != "cat -- /etc/os-release" {
+		t.Fatalf("owner argv=%v", runner.calls)
 	}
 }
 

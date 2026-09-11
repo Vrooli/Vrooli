@@ -117,8 +117,10 @@ func (s GoalStatus) Valid() bool {
 }
 
 type GoalMarker struct {
-	Objective string     `json:"objective"`
-	Status    GoalStatus `json:"status"`
+	Objective  string     `json:"objective"`
+	Status     GoalStatus `json:"status"`
+	Iteration  int        `json:"iteration,omitempty"`
+	LastReason string     `json:"lastReason,omitempty"`
 }
 
 // CommandExtraction is the runner-owned interpretation of a tool-call input.
@@ -474,7 +476,11 @@ type TranscriptParseResult struct {
 	// Timestamp is the source timestamp for this transcript line.
 	Timestamp time.Time
 	Terminal  *TranscriptTerminal
-	Err       error
+	// Goal is an optional runner-native objective update observed in the
+	// transcript. A complete marker is terminal success for objective-driven
+	// interactive runs even when the TUI remains open at its input prompt.
+	Goal *GoalMarker
+	Err  error
 }
 
 // TranscriptTerminal captures runner-native terminal state discovered from the
@@ -485,6 +491,9 @@ type TranscriptTerminal struct {
 	ExitCode     int
 	ErrorMessage string
 	Summary      *domain.RunSummary
+	// TerminalReason is the explicit rule that ended an interactive transcript.
+	// Empty preserves the legacy codec-pipe terminal contract.
+	TerminalReason string
 }
 
 // TranscriptParser is an optional runner seam used by transcript recovery.
@@ -513,6 +522,15 @@ type TranscriptModelSetter interface {
 // the run. Replay must never infer billing from current resource policy.
 type TranscriptBillingSetter interface {
 	SetTranscriptBilling(domain.BillingSnapshot)
+}
+
+// BillingStateSetter supplies the immutable billing context stamped for the
+// run to a per-run codec state used by the live decode path. A codec that
+// emits a runner-reported charge must honor this basis: a subscription or
+// local run records an explicit zero charge, never a metered estimate.
+// The durable-transcript replay path uses TranscriptBillingSetter instead.
+type BillingStateSetter interface {
+	SetStateBilling(domain.BillingSnapshot)
 }
 
 // TranscriptRetentionSetter selects whether echoed user/operator turns are

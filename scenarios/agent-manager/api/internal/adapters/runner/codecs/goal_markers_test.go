@@ -36,3 +36,23 @@ func TestGoalStatusRecognizesEveryCodexTerminalVocabulary(t *testing.T) {
 		}
 	}
 }
+
+func TestClaudeGoalStatusParsesInteractiveAttachment(t *testing.T) {
+	line := `{"type":"attachment","attachment":{"type":"goal_status","condition":"file exists","met":true,"iterations":3,"reason":"verified"}}`
+	marker, ok := claudeGoalStatus(line)
+	if !ok {
+		t.Fatal("Claude goal marker was not recognized")
+	}
+	if marker.Objective != "file exists" || marker.Status != runner.GoalStatusComplete {
+		t.Fatalf("marker = %+v, want completed file-exists goal", marker)
+	}
+	if marker.Iteration != 3 || marker.LastReason != "verified" {
+		t.Fatalf("marker metadata = %+v, want iteration/reason", marker)
+	}
+}
+
+func TestClaudeGoalStatusDoesNotTreatProseAsMarker(t *testing.T) {
+	if _, ok := claudeGoalStatus(`{"type":"assistant","message":{"content":[{"type":"text","text":"goal_status met true"}]}}`); ok {
+		t.Fatal("assistant prose must not become a goal marker")
+	}
+}

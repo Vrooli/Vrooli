@@ -103,28 +103,29 @@ func (g WorkflowEngagementGrant) Validate() error {
 }
 
 type WorkflowExecution struct {
-	ID                uuid.UUID                `json:"id"`
-	Owner             string                   `json:"owner"`
-	WorkflowKey       string                   `json:"workflowKey"`
-	DefinitionDigest  string                   `json:"definitionDigest"`
-	Status            WorkflowExecutionStatus  `json:"status"`
-	CurrentNodeID     string                   `json:"currentNodeId"`
-	Input             json.RawMessage          `json:"input"`
-	Output            json.RawMessage          `json:"output,omitempty"`
-	TerminalReason    *WorkflowTerminalReason  `json:"terminalReason,omitempty"`
-	BudgetUsage       WorkflowBudgetUsage      `json:"budgetUsage"`
-	EngagementGrant   *WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
-	EdgeTraversals    map[string]int           `json:"edgeTraversals"`
-	Version           int64                    `json:"version"`
-	IdempotencyKey    string                   `json:"idempotencyKey"`
-	ParentExecutionID *uuid.UUID               `json:"parentExecutionId,omitempty"`
-	ParentAttemptID   *uuid.UUID               `json:"parentAttemptId,omitempty"`
-	Depth             int                      `json:"depth"`
-	ApprovalDigest    string                   `json:"approvalDigest,omitempty"`
-	GrantDigest       string                   `json:"grantDigest,omitempty"`
-	CreatedAt         time.Time                `json:"createdAt"`
-	UpdatedAt         time.Time                `json:"updatedAt"`
-	EndedAt           *time.Time               `json:"endedAt,omitempty"`
+	ID                   uuid.UUID                `json:"id"`
+	Owner                string                   `json:"owner"`
+	WorkflowKey          string                   `json:"workflowKey"`
+	DefinitionDigest     string                   `json:"definitionDigest"`
+	Status               WorkflowExecutionStatus  `json:"status"`
+	CurrentNodeID        string                   `json:"currentNodeId"`
+	Input                json.RawMessage          `json:"input"`
+	Output               json.RawMessage          `json:"output,omitempty"`
+	TerminalReason       *WorkflowTerminalReason  `json:"terminalReason,omitempty"`
+	BudgetUsage          WorkflowBudgetUsage      `json:"budgetUsage"`
+	EngagementGrant      *WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
+	EdgeTraversals       map[string]int           `json:"edgeTraversals"`
+	Version              int64                    `json:"version"`
+	IdempotencyKey       string                   `json:"idempotencyKey"`
+	ParentExecutionID    *uuid.UUID               `json:"parentExecutionId,omitempty"`
+	ParentAttemptID      *uuid.UUID               `json:"parentAttemptId,omitempty"`
+	Depth                int                      `json:"depth"`
+	ApprovalDigest       string                   `json:"approvalDigest,omitempty"`
+	GrantDigest          string                   `json:"grantDigest,omitempty"`
+	ExecutionPreferences *ExecutionPreferences    `json:"executionPreferences,omitempty"`
+	CreatedAt            time.Time                `json:"createdAt"`
+	UpdatedAt            time.Time                `json:"updatedAt"`
+	EndedAt              *time.Time               `json:"endedAt,omitempty"`
 }
 
 type WorkflowAttemptStrategy string

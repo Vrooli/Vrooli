@@ -76,10 +76,10 @@ func TestCapabilitiesManifestUsesTypedServiceBindings(t *testing.T) {
 		if group.Name != "capabilities" {
 			continue
 		}
-		if len(group.Commands) != 3 {
+		if len(group.Commands) != 4 {
 			t.Fatalf("capabilities commands = %+v", group.Commands)
 		}
-		want := map[string]string{"list": "ListCapabilities", "preview": "PreviewCapability", "apply": "ApplyCapability"}
+		want := map[string]string{"list": "ListCapabilities", "preview": "PreviewCapability", "apply": "ApplyCapability", "verify": "VerifyCapability"}
 		for _, command := range group.Commands {
 			var binding struct{ Kind, Service, Method string }
 			if err := json.Unmarshal(command.Binding, &binding); err != nil {
@@ -107,6 +107,19 @@ func TestCredentialsManifestUsesTypedServiceBindings(t *testing.T) {
 		}
 		want := map[string]string{"list": "ListCredentials", "provision": "ProvisionCredential", "doctor": "DiagnoseCredentials"}
 		for _, command := range group.Commands {
+			if command.Name == "reveal" {
+				var binding struct {
+					Kind    string `json:"kind"`
+					Handler string `json:"handler"`
+				}
+				if err := json.Unmarshal(command.Binding, &binding); err != nil {
+					t.Fatal(err)
+				}
+				if binding.Kind != "local" || binding.Handler != "credentials.reveal" {
+					t.Fatalf("reveal binding = %+v", binding)
+				}
+				continue
+			}
 			var binding struct{ Kind, Service, Method string }
 			if err := json.Unmarshal(command.Binding, &binding); err != nil {
 				t.Fatal(err)

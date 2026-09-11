@@ -21,6 +21,7 @@ type Credential struct {
 	Kind                 string                               `json:"kind,omitempty"`
 	Provider             string                               `json:"provider,omitempty"`
 	AppliesWhen          *credentialspec.Applicability        `json:"applies_when,omitempty"`
+	Tiers                []string                             `json:"tiers,omitempty"`
 	RequirementGroup     string                               `json:"requirement_group,omitempty"`
 	ConsumerRefs         []string                             `json:"consumer_refs,omitempty"`
 	CompanionSettings    []string                             `json:"companion_settings,omitempty"`
@@ -47,6 +48,19 @@ type Credential struct {
 	// A stored value must never be presented as exercised readiness.
 	EvidenceStatus string `json:"evidence_status,omitempty"`
 	EvidenceDetail string `json:"evidence_detail,omitempty"`
+	// EvidenceNextAction is a stable, renderer-neutral action identifier. It
+	// lets UI, CLI, and release consumers agree on what closes an evidence
+	// gap without guessing from prose.
+	EvidenceNextAction string `json:"evidence_next_action,omitempty"`
+	// EvidenceCredentialVersion is the opaque active authority version used to
+	// bind owner evidence. It is never a credential value or a reversible hash.
+	EvidenceCredentialVersion string `json:"evidence_credential_version,omitempty"`
+	// ProviderState and ProviderDetail describe the credential backend itself,
+	// independently from whether this address is configured. This distinction
+	// prevents an unavailable store from being presented as an ordinary missing
+	// input and gives every surface the same safe remediation context.
+	ProviderState  string `json:"provider_state,omitempty"`
+	ProviderDetail string `json:"provider_detail,omitempty"`
 }
 
 type CredentialProvenance struct {
@@ -56,6 +70,7 @@ type CredentialProvenance struct {
 	Kind                 string                         `json:"kind,omitempty"`
 	Provider             string                         `json:"provider,omitempty"`
 	AppliesWhen          *credentialspec.Applicability  `json:"applies_when,omitempty"`
+	Tiers                []string                       `json:"tiers,omitempty"`
 	RequirementGroup     string                         `json:"requirement_group,omitempty"`
 	ConsumerRefs         []string                       `json:"consumer_refs,omitempty"`
 	CompanionSettings    []string                       `json:"companion_settings,omitempty"`

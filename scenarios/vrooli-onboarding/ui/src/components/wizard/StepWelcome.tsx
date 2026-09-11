@@ -126,13 +126,14 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
       profileId,
       profileVersion: selectedProfile.version,
       catalogRevision: profileSession?.catalogRevision,
+      consequenceDigest: evaluation?.digest || profileSession?.consequenceDigest,
       baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
       answers,
 	      manualDecisions,
       targetContext: profileSession?.targetContext ?? {},
     }), 250);
     return () => window.clearTimeout(timer);
-	}, [answers, manualDecisions, profileId, profileSession?.baseRevision, profileSession?.catalogRevision, JSON.stringify(profileSession?.targetContext ?? {}), profileSessionBaseRevision, onProfileSessionChange, profilesInitialized, selectedProfile, target]);
+  }, [answers, manualDecisions, profileId, evaluation?.digest, profileSession?.baseRevision, profileSession?.catalogRevision, profileSession?.consequenceDigest, JSON.stringify(profileSession?.targetContext ?? {}), profileSessionBaseRevision, onProfileSessionChange, profilesInitialized, selectedProfile, target]);
 
   const updateAnswer = (question: ProfileQuestion, value: unknown) => {
     setError(null);
@@ -153,6 +154,7 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
       profileId,
       profileVersion: selectedProfile?.version,
       catalogRevision: profileSession?.catalogRevision,
+      consequenceDigest: evaluation?.digest || profileSession?.consequenceDigest,
       baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
       answers,
 	      manualDecisions,
@@ -186,6 +188,11 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
     {profileNeedsReview && <div className="profile-session-reconciliation" role="status" data-testid="profile-session-reconciliation">
       <strong>{i18n.t("onboarding.profile.reviewRequired")}</strong>
       <p>{profileSession?.reconciliationReasons?.join(" ") || i18n.t("onboarding.profile.reviewDescription")}</p>
+      {profileSession?.reconciliationChanges && profileSession.reconciliationChanges.length > 0 && <ul data-testid="profile-session-reconciliation-changes">
+        {profileSession.reconciliationChanges.map((change) => <li key={`${change.kind}-${change.field}-${change.after}`}>
+          <strong>{change.field}</strong>: {change.impact}
+        </li>)}
+      </ul>}
     </div>}
     {questions.map((question) => <ProfileQuestionInput key={question.id} question={question} value={answers[question.id]} onChange={(value) => updateAnswer(question, value)} />)}
     {evaluating && <p role="status">{i18n.t("onboarding.profile.evaluating")}</p>}

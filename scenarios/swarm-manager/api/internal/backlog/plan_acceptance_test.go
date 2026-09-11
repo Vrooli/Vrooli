@@ -180,3 +180,18 @@ func TestPlanAcceptanceIsClearedWhenWorkContractChanges(t *testing.T) {
 		t.Fatalf("scope edit retained acceptance: %#v", item.PlanAcceptance)
 	}
 }
+
+func TestPlanAcceptanceSubjectVersionOmitsDefaultContinuationAndScopePolicy(t *testing.T) {
+	item := BacklogItem{Kind: KindExecute, Name: "audio-tools-portable-voice-development", Title: "Audio", Status: StatusBacklog, Priority: 5}
+	before := PlanAcceptanceSubjectVersion(item)
+	item.Continuation = ContinuationManual
+	item.ScopePolicy = ScopePolicyFixed
+	after := PlanAcceptanceSubjectVersion(item)
+	if before != after {
+		t.Fatalf("default continuation/scope policy changed accepted subject version: before=%s after=%s", before, after)
+	}
+	item.Continuation = ContinuationUntilAllowance
+	if PlanAcceptanceSubjectVersion(item) == after {
+		t.Fatal("non-default continuation did not participate in accepted subject version")
+	}
+}

@@ -26,6 +26,7 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/shell"
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 const (
@@ -91,6 +92,11 @@ type Options struct {
 	// ExplainName is the requirement name to look up when Subcommand is
 	// "explain". Ignored otherwise.
 	ExplainName string
+	// SelectionB64 is an argv-safe setup/v1 Selection payload supplied by a
+	// target owner. It is decoded and validated before requirement resolution.
+	SelectionB64 string
+	// Selection is the validated structured handoff retained by the setup flow.
+	Selection *setupv1.Selection
 }
 
 type apiLaunchSpec struct {
@@ -227,6 +233,32 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 }
 
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
+	if opts.Selection == nil && strings.TrimSpace(opts.SelectionB64) != "" {
+		selection, decodeErr := DecodeSelectionB64(opts.SelectionB64)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		opts.Selection = selection
+	}
+	if opts.Selection != nil {
+		if selectionErr := ValidateSelectionContract(opts.Selection); selectionErr != nil {
+			return selectionErr
+		}
+		// Explicit argv selectors remain available for the target's complete
+		// closure projection and are not silently overwritten.
+		if strings.TrimSpace(opts.Scenarios) == "" {
+			opts.Scenarios = strings.Join(opts.Selection.GetScenarios(), ",")
+			if opts.Scenarios == "" {
+				opts.Scenarios = setupNone
+			}
+		}
+		if strings.TrimSpace(opts.Resources) == "" {
+			opts.Resources = strings.Join(opts.Selection.GetOptionalResources(), ",")
+			if opts.Resources == "" {
+				opts.Resources = setupNone
+			}
+		}
+	}
 	var terminalReport vrooliruntime.Report
 	var terminalReportErr error
 	var degradedResources []string

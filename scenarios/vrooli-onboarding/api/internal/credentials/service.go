@@ -14,7 +14,7 @@ import (
 
 type Service struct {
 	ListFn      func(context.Context) ([]readiness.Credential, error)
-	ProvisionFn func(context.Context, string, string, string) error
+	ProvisionFn func(context.Context, string, string, string) (credentialclient.ProvisionResponse, error)
 	DiagnoseFn  func(context.Context) (credentialclient.DoctorResponse, error)
 }
 
@@ -27,17 +27,17 @@ func (s Service) List(ctx context.Context) ([]readiness.Credential, error) {
 	return s.ListFn(ctx)
 }
 
-func (s Service) Provision(ctx context.Context, logicalID, field, value string) error {
+func (s Service) Provision(ctx context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
 	logicalID = strings.TrimSpace(logicalID)
 	field = strings.TrimSpace(field)
 	if field == "" {
 		field = "value"
 	}
 	if logicalID == "" || strings.TrimSpace(value) == "" {
-		return errors.New("logical_id and a non-empty credential value are required")
+		return credentialclient.ProvisionResponse{}, errors.New("logical_id and a non-empty credential value are required")
 	}
 	if s.ProvisionFn == nil {
-		return errors.New("credential provisioning is unavailable")
+		return credentialclient.ProvisionResponse{}, errors.New("credential provisioning is unavailable")
 	}
 	return s.ProvisionFn(ctx, logicalID, field, value)
 }

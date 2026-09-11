@@ -202,6 +202,26 @@ func TestDescriptorMetadataSupportsOwnerActionsAndApplicability(t *testing.T) {
 	}
 }
 
+func TestEnvironmentNamesAreValidatedBeforeRuntimeInjection(t *testing.T) {
+	for _, name := range []string{"OPENROUTER_API_KEY", "_VROOLI", "ApiKey2"} {
+		if err := ValidateEnvironmentName(name); err != nil {
+			t.Fatalf("ValidateEnvironmentName(%q) = %v", name, err)
+		}
+	}
+	for _, name := range []string{"", "9INVALID", "A=B", "A-B", "A B", "A/ B"} {
+		if err := ValidateEnvironmentName(name); err == nil {
+			t.Fatalf("ValidateEnvironmentName(%q) unexpectedly succeeded", name)
+		}
+	}
+
+	for _, env := range []string{"A=B", "A-B"} {
+		err := (Declaration{Descriptors: []Descriptor{{LogicalID: "vrooli/test", Env: env}}}).Validate("test")
+		if err == nil || !strings.Contains(err.Error(), "environment name") {
+			t.Fatalf("descriptor env %q validation = %v, want environment-name error", env, err)
+		}
+	}
+}
+
 func TestMigrationDiagnosticsAreNonFatalAndValueFree(t *testing.T) {
 	diagnostics := (Declaration{Descriptors: []Descriptor{{LogicalID: "vrooli/test", Field: "token", Required: true}}}).MigrationDiagnostics()
 	if len(diagnostics) < 6 {

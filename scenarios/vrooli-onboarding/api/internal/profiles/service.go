@@ -116,14 +116,60 @@ type QuestionView struct {
 }
 type Evaluation struct {
 	Profile         ProfileSummary   `json:"profile"`
+	Profiles        []ProfileSummary `json:"profiles,omitempty"`
+	Preset          *Preset          `json:"preset,omitempty"`
+	CatalogRevision string           `json:"catalogRevision,omitempty"`
 	Questions       []QuestionView   `json:"questions"`
 	Recommendations []Recommendation `json:"recommendations"`
 	Explanations    []Explanation    `json:"explanations"`
 	Scenarios       []string         `json:"scenarios"`
 	Resources       []string         `json:"resources"`
+	Conflicts       []Conflict       `json:"conflicts,omitempty"`
+	Outstanding     []Outstanding    `json:"outstanding,omitempty"`
 	Issues          []Issue          `json:"issues"`
 	Digest          string           `json:"digest"`
 	Valid           bool             `json:"valid"`
+	// KnownQuestionIDs is internal reconciliation metadata. It is intentionally
+	// not projected to clients because the UI should only render visible
+	// questions, while session migration must distinguish hidden answers from
+	// answers for removed questions.
+	KnownQuestionIDs []string `json:"-"`
+}
+
+// Preset is a public, non-secret starting point supplied by an installation or
+// customer. It can provide initial answers, but never overrides operator
+// answers or grants permissions.
+type Preset struct {
+	ID      string         `json:"id"`
+	Version string         `json:"version"`
+	Source  string         `json:"source"`
+	Answers map[string]any `json:"answers,omitempty"`
+}
+
+// EvaluationInput is the immutable input to the pure composition engine. The
+// service methods below are responsible only for loading these values from
+// owner-controlled storage and catalogs.
+type EvaluationInput struct {
+	Profiles        []Profile
+	Answers         map[string]any
+	TargetContext   map[string]any
+	ManualDecisions map[string]bool
+	Preset          *Preset
+	CatalogRevision string
+}
+
+type Conflict struct {
+	Code           string   `json:"code"`
+	CapabilityRef  string   `json:"capabilityRef,omitempty"`
+	Recommendation []string `json:"recommendations,omitempty"`
+	Message        string   `json:"message"`
+}
+
+type Outstanding struct {
+	Field         string `json:"field"`
+	Code          string `json:"code"`
+	CapabilityRef string `json:"capabilityRef,omitempty"`
+	Message       string `json:"message"`
 }
 
 type Explanation struct {
@@ -165,6 +211,10 @@ func (s Service) Evaluate(ctx context.Context, id string, answers map[string]any
 }
 
 func (s Service) EvaluateWithManualDecisions(ctx context.Context, id string, answers map[string]any, targetContext map[string]any, manualDecisions map[string]bool) (Evaluation, error) {
+	return s.EvaluateWithPreset(ctx, id, answers, targetContext, manualDecisions, nil)
+}
+
+func (s Service) EvaluateWithPreset(ctx context.Context, id string, answers map[string]any, targetContext map[string]any, manualDecisions map[string]bool, preset *Preset) (Evaluation, error) {
 	dir, err := s.ProfileDir(ctx)
 	if err != nil {
 		return Evaluation{}, err
@@ -187,7 +237,168 @@ func (s Service) EvaluateWithManualDecisions(ctx context.Context, id string, ans
 	if err != nil {
 		return Evaluation{}, err
 	}
-	return evaluate(*selected, answers, targetContext, manualDecisions, catalog)
+	return evaluateWithPreset(*selected, answers, targetContext, manualDecisions, preset, catalog)
+}
+
+// EvaluateProfiles loads and composes the requested profile data for every
+// transport. The profile IDs are authoritative references into the validated
+// catalog; answers, presets and manual decisions are shared across the
+// composed result.
+func (s Service) EvaluateProfiles(ctx context.Context, ids []string, answers map[string]any, targetContext map[string]any, manualDecisions map[string]bool, preset *Preset) (Evaluation, error) {
+	requested := make([]string, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return Evaluation{}, errors.New("profile ids must not be empty")
+		}
+		if seen[id] {
+			return Evaluation{}, fmt.Errorf("profile %q was requested more than once", id)
+		}
+		seen[id] = true
+		requested = append(requested, id)
+	}
+	if len(requested) == 0 {
+		return Evaluation{}, errors.New("at least one profile id is required")
+	}
+	dir, err := s.ProfileDir(ctx)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	profiles, err := load(dir)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	byID := make(map[string]Profile, len(profiles))
+	for _, profile := range profiles {
+		byID[profile.ID] = profile
+	}
+	selected := make([]Profile, 0, len(requested))
+	for _, id := range requested {
+		profile, ok := byID[id]
+		if !ok {
+			return Evaluation{}, fmt.Errorf("profile %q was not found", id)
+		}
+		selected = append(selected, profile)
+	}
+	catalog, err := s.Catalog(ctx)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	return EvaluateProfiles(EvaluationInput{
+		Profiles:        selected,
+		Answers:         answers,
+		TargetContext:   targetContext,
+		ManualDecisions: manualDecisions,
+		Preset:          preset,
+		CatalogRevision: contextString(targetContext, "catalogRevision", "catalog_revision"),
+	}, catalog)
+}
+
+// EvaluateProfiles composes a stable set of already validated profiles. It is
+// intentionally independent of HTTP, Connect, CLI, and browser concerns so
+// every projection can use the same precedence and digest rules.
+func EvaluateProfiles(input EvaluationInput, catalog []Scenario) (Evaluation, error) {
+	if len(input.Profiles) == 0 {
+		return Evaluation{}, errors.New("at least one profile is required")
+	}
+	profiles := append([]Profile(nil), input.Profiles...)
+	sort.SliceStable(profiles, func(i, j int) bool {
+		if profiles[i].ID != profiles[j].ID {
+			return profiles[i].ID < profiles[j].ID
+		}
+		return profiles[i].Version < profiles[j].Version
+	})
+	for index := 1; index < len(profiles); index++ {
+		if profiles[index-1].ID == profiles[index].ID {
+			return Evaluation{}, fmt.Errorf("profile %q was requested more than once", profiles[index].ID)
+		}
+		if profiles[index].SchemaVersion != profiles[0].SchemaVersion || profiles[index].CompatibleCatalogMajor != profiles[0].CompatibleCatalogMajor {
+			return Evaluation{}, fmt.Errorf("profile %q is incompatible with composed catalog contract", profiles[index].ID)
+		}
+	}
+	if len(profiles) == 1 {
+		result, err := evaluateWithPreset(profiles[0], input.Answers, input.TargetContext, input.ManualDecisions, input.Preset, catalog)
+		if err != nil {
+			return Evaluation{}, err
+		}
+		if strings.TrimSpace(input.CatalogRevision) != "" {
+			result.CatalogRevision = strings.TrimSpace(input.CatalogRevision)
+			effectiveAnswers, err := answersWithDefaults(profiles[0], input.Preset, input.Answers)
+			if err != nil {
+				return Evaluation{}, err
+			}
+			result.Digest = evaluationDigest(profiles[0], effectiveAnswers, input.TargetContext, result)
+		}
+		return result, nil
+	}
+
+	composed := Profile{
+		SchemaVersion:          profiles[0].SchemaVersion,
+		ID:                     "composed",
+		Version:                composedProfileVersion(profiles),
+		TitleKey:               "profiles.composed.title",
+		DescriptionKey:         "profiles.composed.description",
+		Owner:                  "vrooli-onboarding",
+		CompatibleCatalogMajor: profiles[0].CompatibleCatalogMajor,
+		ManualSelection:        Manual{Available: true},
+		Provenance:             Provenance{Source: "composition", Revision: composedProfileVersion(profiles)},
+	}
+	questionSources := make(map[string]string)
+	for _, profile := range profiles {
+		for _, question := range profile.Questions {
+			if existingSource, exists := questionSources[question.ID]; exists {
+				for _, existing := range composed.Questions {
+					if existing.ID != question.ID {
+						continue
+					}
+					if !questionsEquivalent(existing, question) {
+						return Evaluation{}, fmt.Errorf("question %q differs between profiles %q and %q", question.ID, existingSource, profile.ID)
+					}
+					break
+				}
+				continue
+			}
+			questionSources[question.ID] = profile.ID
+			composed.Questions = append(composed.Questions, question)
+		}
+		for _, rule := range profile.Rules {
+			rule.ID = profile.ID + "__" + rule.ID
+			composed.Rules = append(composed.Rules, rule)
+		}
+	}
+	result, err := evaluateWithPreset(composed, input.Answers, input.TargetContext, input.ManualDecisions, input.Preset, catalog)
+	if err != nil {
+		return Evaluation{}, err
+	}
+	result.Profiles = make([]ProfileSummary, 0, len(profiles))
+	for _, profile := range profiles {
+		result.Profiles = append(result.Profiles, summary(profile))
+	}
+	if strings.TrimSpace(input.CatalogRevision) != "" {
+		result.CatalogRevision = strings.TrimSpace(input.CatalogRevision)
+		effectiveAnswers, err := answersWithDefaults(composed, input.Preset, input.Answers)
+		if err != nil {
+			return Evaluation{}, err
+		}
+		result.Digest = evaluationDigest(composed, effectiveAnswers, input.TargetContext, result)
+	}
+	return result, nil
+}
+
+func questionsEquivalent(left, right Question) bool {
+	leftJSON, leftErr := json.Marshal(left)
+	rightJSON, rightErr := json.Marshal(right)
+	return leftErr == nil && rightErr == nil && bytes.Equal(leftJSON, rightJSON)
+}
+
+func composedProfileVersion(profiles []Profile) string {
+	parts := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		parts = append(parts, profile.ID+"@"+profile.Version)
+	}
+	digest := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return "1.0." + hex.EncodeToString(digest[:])[:8]
 }
 
 func LoadDirectory(dir string) ([]Profile, error) { return load(dir) }
@@ -385,13 +596,18 @@ func Validate(profile Profile) error {
 }
 
 func evaluate(profile Profile, answers, targetContext map[string]any, manualDecisions map[string]bool, catalog []Scenario) (Evaluation, error) {
-	effectiveAnswers, err := answersWithDefaults(profile, answers)
+	return evaluateWithPreset(profile, answers, targetContext, manualDecisions, nil, catalog)
+}
+
+func evaluateWithPreset(profile Profile, answers, targetContext map[string]any, manualDecisions map[string]bool, preset *Preset, catalog []Scenario) (Evaluation, error) {
+	effectiveAnswers, err := answersWithDefaults(profile, preset, answers)
 	if err != nil {
 		return Evaluation{}, err
 	}
-	result := Evaluation{Profile: summary(profile), Valid: true}
+	result := Evaluation{Profile: summary(profile), Profiles: []ProfileSummary{summary(profile)}, Preset: clonePreset(preset), CatalogRevision: contextString(targetContext, "catalogRevision", "catalog_revision"), Valid: true}
 	seenRecommendation := map[string]bool{}
 	for _, question := range profile.Questions {
+		result.KnownQuestionIDs = append(result.KnownQuestionIDs, question.ID)
 		visible := true
 		if len(question.VisibleWhen) > 0 {
 			visible, err = matches(question.VisibleWhen, effectiveAnswers, targetContext, 0, new(int))
@@ -402,6 +618,9 @@ func evaluate(profile Profile, answers, targetContext map[string]any, manualDeci
 		if visible {
 			result.Questions = append(result.Questions, QuestionView{Question: question, Visible: true})
 			validateAnswer(&result, question, effectiveAnswers[question.ID])
+			if effectiveAnswers[question.ID] == nil && question.Required {
+				result.Outstanding = append(result.Outstanding, Outstanding{Field: question.ID, Code: "required", Message: "answer is required"})
+			}
 		}
 	}
 	for _, rule := range profile.Rules {
@@ -415,6 +634,8 @@ func evaluate(profile Profile, answers, targetContext map[string]any, manualDeci
 		if matched {
 			for _, recommendation := range rule.Recommend {
 				recommendation.RuleID = rule.ID
+				recommendation.ScenarioRefs = append([]string(nil), recommendation.ScenarioRefs...)
+				sort.Strings(recommendation.ScenarioRefs)
 				recommendation.Key = recommendationKey(recommendation)
 				recommendation.Selected = true
 				if decision, exists := manualDecisions[recommendation.Key]; exists {
@@ -426,6 +647,18 @@ func evaluate(profile Profile, answers, targetContext map[string]any, manualDeci
 				if !seenRecommendation[recommendation.Key] {
 					seenRecommendation[recommendation.Key] = true
 					result.Recommendations = append(result.Recommendations, recommendation)
+				} else {
+					for index := range result.Recommendations {
+						if result.Recommendations[index].Key != recommendation.Key {
+							continue
+						}
+						result.Recommendations[index].Required = result.Recommendations[index].Required || recommendation.Required
+						if recommendation.RuleID < result.Recommendations[index].RuleID || (recommendation.RuleID == result.Recommendations[index].RuleID && recommendation.ReasonKey < result.Recommendations[index].ReasonKey) {
+							result.Recommendations[index].RuleID = recommendation.RuleID
+							result.Recommendations[index].ReasonKey = recommendation.ReasonKey
+						}
+						break
+					}
 				}
 				result.Explanations = append(result.Explanations, Explanation{
 					RuleID: rule.ID, CapabilityRef: recommendation.CapabilityRef,
@@ -457,13 +690,64 @@ func evaluate(profile Profile, answers, targetContext map[string]any, manualDeci
 					}
 				}
 			} else {
-				result.Issues = append(result.Issues, Issue{Field: "recommendation", Code: "unknown_scenario", Message: fmt.Sprintf("profile recommends unavailable scenario %q", name)})
+				message := fmt.Sprintf("profile recommends unavailable scenario %q", name)
+				result.Issues = append(result.Issues, Issue{Field: "recommendation", Code: "unknown_scenario", Message: message})
+				result.Outstanding = append(result.Outstanding, Outstanding{Field: "recommendation", Code: "unsupported", CapabilityRef: recommendation.CapabilityRef, Message: message})
 			}
 		}
 	}
+	result.Conflicts = recommendationConflicts(result.Recommendations)
+	// Rules are authored for readability, but their order must not change the
+	// composed selection. Keep the presentation and digest stable when profile
+	// authors reorder equivalent rules or recommendations.
+	sort.SliceStable(result.Recommendations, func(i, j int) bool {
+		if result.Recommendations[i].Key != result.Recommendations[j].Key {
+			return result.Recommendations[i].Key < result.Recommendations[j].Key
+		}
+		if result.Recommendations[i].RuleID != result.Recommendations[j].RuleID {
+			return result.Recommendations[i].RuleID < result.Recommendations[j].RuleID
+		}
+		return result.Recommendations[i].ReasonKey < result.Recommendations[j].ReasonKey
+	})
+	sort.SliceStable(result.Explanations, func(i, j int) bool {
+		if result.Explanations[i].CapabilityRef != result.Explanations[j].CapabilityRef {
+			return result.Explanations[i].CapabilityRef < result.Explanations[j].CapabilityRef
+		}
+		if result.Explanations[i].RuleID != result.Explanations[j].RuleID {
+			return result.Explanations[i].RuleID < result.Explanations[j].RuleID
+		}
+		if result.Explanations[i].ReasonKey != result.Explanations[j].ReasonKey {
+			return result.Explanations[i].ReasonKey < result.Explanations[j].ReasonKey
+		}
+		return strings.Join(result.Explanations[i].ScenarioRefs, "\x00") < strings.Join(result.Explanations[j].ScenarioRefs, "\x00")
+	})
+	sort.SliceStable(result.Issues, func(i, j int) bool {
+		if result.Issues[i].Field != result.Issues[j].Field {
+			return result.Issues[i].Field < result.Issues[j].Field
+		}
+		if result.Issues[i].Code != result.Issues[j].Code {
+			return result.Issues[i].Code < result.Issues[j].Code
+		}
+		return result.Issues[i].Message < result.Issues[j].Message
+	})
+	sort.SliceStable(result.Outstanding, func(i, j int) bool {
+		if result.Outstanding[i].Field != result.Outstanding[j].Field {
+			return result.Outstanding[i].Field < result.Outstanding[j].Field
+		}
+		if result.Outstanding[i].Code != result.Outstanding[j].Code {
+			return result.Outstanding[i].Code < result.Outstanding[j].Code
+		}
+		return result.Outstanding[i].Message < result.Outstanding[j].Message
+	})
+	sort.SliceStable(result.Conflicts, func(i, j int) bool {
+		if result.Conflicts[i].CapabilityRef != result.Conflicts[j].CapabilityRef {
+			return result.Conflicts[i].CapabilityRef < result.Conflicts[j].CapabilityRef
+		}
+		return result.Conflicts[i].Code < result.Conflicts[j].Code
+	})
 	sort.Strings(result.Scenarios)
 	sort.Strings(result.Resources)
-	if len(result.Issues) > 0 {
+	if len(result.Issues) > 0 || len(result.Conflicts) > 0 || len(result.Outstanding) > 0 {
 		result.Valid = false
 	}
 	result.Digest = evaluationDigest(profile, effectiveAnswers, targetContext, result)
@@ -473,7 +757,7 @@ func evaluate(profile Profile, answers, targetContext map[string]any, manualDeci
 func recommendationKey(recommendation Recommendation) string {
 	scenarios := append([]string(nil), recommendation.ScenarioRefs...)
 	sort.Strings(scenarios)
-	return strings.Join([]string{recommendation.CapabilityRef, recommendation.ReasonKey, strings.Join(scenarios, "\x00")}, "\x00")
+	return strings.Join([]string{recommendation.CapabilityRef, strings.Join(scenarios, "\x00")}, "\x00")
 }
 
 func validateAnswer(result *Evaluation, question Question, raw any) {
@@ -525,8 +809,13 @@ func validateAnswer(result *Evaluation, question Question, raw any) {
 	}
 }
 
-func answersWithDefaults(profile Profile, answers map[string]any) (map[string]any, error) {
+func answersWithDefaults(profile Profile, preset *Preset, answers map[string]any) (map[string]any, error) {
 	result := make(map[string]any, len(profile.Questions)+len(answers))
+	if preset != nil {
+		for key, value := range preset.Answers {
+			result[key] = value
+		}
+	}
 	for key, value := range answers {
 		result[key] = value
 	}
@@ -543,22 +832,74 @@ func answersWithDefaults(profile Profile, answers map[string]any) (map[string]an
 	return result, nil
 }
 
+func clonePreset(preset *Preset) *Preset {
+	if preset == nil {
+		return nil
+	}
+	result := &Preset{ID: preset.ID, Version: preset.Version, Source: preset.Source, Answers: make(map[string]any, len(preset.Answers))}
+	for key, value := range preset.Answers {
+		result.Answers[key] = value
+	}
+	return result
+}
+
+func contextString(context map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := context[key].(string); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func recommendationConflicts(recommendations []Recommendation) []Conflict {
+	selected := make(map[string][]string)
+	removed := make(map[string][]string)
+	for _, recommendation := range recommendations {
+		if recommendation.CapabilityRef == "" {
+			continue
+		}
+		if recommendation.Selected {
+			selected[recommendation.CapabilityRef] = append(selected[recommendation.CapabilityRef], recommendation.Key)
+		} else {
+			removed[recommendation.CapabilityRef] = append(removed[recommendation.CapabilityRef], recommendation.Key)
+		}
+	}
+	var result []Conflict
+	for capability, keys := range selected {
+		if removedKeys := removed[capability]; len(removedKeys) > 0 {
+			all := append(append([]string(nil), keys...), removedKeys...)
+			sort.Strings(all)
+			result = append(result, Conflict{Code: "conflicting_manual_decisions", CapabilityRef: capability, Recommendation: all, Message: fmt.Sprintf("capability %q has both selected and removed recommendations", capability)})
+		}
+	}
+	return result
+}
+
 func evaluationDigest(profile Profile, answers, targetContext map[string]any, result Evaluation) string {
 	if targetContext == nil {
 		targetContext = map[string]any{}
 	}
+	answers = canonicalAnswers(profile, answers)
 	payload := struct {
 		ProfileID       string           `json:"profileId"`
 		ProfileVersion  string           `json:"profileVersion"`
+		Profiles        []ProfileSummary `json:"profiles,omitempty"`
+		Preset          *Preset          `json:"preset,omitempty"`
+		CatalogRevision string           `json:"catalogRevision,omitempty"`
 		Answers         map[string]any   `json:"answers"`
 		TargetContext   map[string]any   `json:"targetContext"`
 		Recommendations []Recommendation `json:"recommendations"`
 		Scenarios       []string         `json:"scenarios"`
 		Resources       []string         `json:"resources"`
+		Conflicts       []Conflict       `json:"conflicts,omitempty"`
+		Outstanding     []Outstanding    `json:"outstanding,omitempty"`
 		Issues          []Issue          `json:"issues"`
 	}{
-		ProfileID: profile.ID, ProfileVersion: profile.Version, Answers: answers, TargetContext: targetContext,
-		Recommendations: result.Recommendations, Scenarios: result.Scenarios, Resources: result.Resources, Issues: result.Issues,
+		ProfileID: profile.ID, ProfileVersion: profile.Version, Profiles: result.Profiles, Preset: result.Preset,
+		CatalogRevision: result.CatalogRevision, Answers: answers, TargetContext: targetContext,
+		Recommendations: result.Recommendations, Scenarios: result.Scenarios, Resources: result.Resources,
+		Conflicts: result.Conflicts, Outstanding: result.Outstanding, Issues: result.Issues,
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
@@ -566,6 +907,33 @@ func evaluationDigest(profile Profile, answers, targetContext map[string]any, re
 	}
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
+}
+
+func canonicalAnswers(profile Profile, answers map[string]any) map[string]any {
+	result := make(map[string]any, len(answers))
+	questionTypes := make(map[string]string, len(profile.Questions))
+	for _, question := range profile.Questions {
+		questionTypes[question.ID] = question.Type
+	}
+	for key, value := range answers {
+		if questionTypes[key] != "multi-select" {
+			result[key] = value
+			continue
+		}
+		values, ok := value.([]any)
+		if !ok {
+			result[key] = value
+			continue
+		}
+		canonical := append([]any(nil), values...)
+		sort.SliceStable(canonical, func(i, j int) bool {
+			left, _ := json.Marshal(canonical[i])
+			right, _ := json.Marshal(canonical[j])
+			return string(left) < string(right)
+		})
+		result[key] = canonical
+	}
+	return result
 }
 
 func validateQuestionGraph(profile Profile) error {

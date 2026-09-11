@@ -112,5 +112,13 @@ export const librarySelectors = {
     "root": "hooks.use-long-press",
   },
 
+  "overlays.responsive-dialog": {
+  },
+  "controls.slider": {
+    "root": "controls.slider",
+  },
+  "overlays.popover": {
+    "root": "overlays.popover",
+  },
 } as const;
 // vrooli:library-selectors end

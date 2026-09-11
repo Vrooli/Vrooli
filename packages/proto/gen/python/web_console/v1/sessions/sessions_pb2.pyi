@@ -15,6 +15,22 @@ class SessionOrigin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SESSION_ORIGIN_PROGRAMMATIC: _ClassVar[SessionOrigin]
     SESSION_ORIGIN_REMOTE: _ClassVar[SessionOrigin]
 
+class SessionActivityState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SESSION_ACTIVITY_STATE_UNSPECIFIED: _ClassVar[SessionActivityState]
+    SESSION_ACTIVITY_STATE_UNKNOWN: _ClassVar[SessionActivityState]
+    SESSION_ACTIVITY_STATE_WORKING: _ClassVar[SessionActivityState]
+    SESSION_ACTIVITY_STATE_IDLE: _ClassVar[SessionActivityState]
+    SESSION_ACTIVITY_STATE_WAITING: _ClassVar[SessionActivityState]
+
+class SessionActivitySource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SESSION_ACTIVITY_SOURCE_UNSPECIFIED: _ClassVar[SessionActivitySource]
+    SESSION_ACTIVITY_SOURCE_SCREEN: _ClassVar[SessionActivitySource]
+    SESSION_ACTIVITY_SOURCE_OUTPUT_CLOCK: _ClassVar[SessionActivitySource]
+    SESSION_ACTIVITY_SOURCE_HOOK: _ClassVar[SessionActivitySource]
+    SESSION_ACTIVITY_SOURCE_HARNESS_EVENT: _ClassVar[SessionActivitySource]
+
 class ArchiveRestoreState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ARCHIVE_RESTORE_STATE_UNSPECIFIED: _ClassVar[ArchiveRestoreState]
@@ -25,6 +41,16 @@ SESSION_ORIGIN_UNSPECIFIED: SessionOrigin
 SESSION_ORIGIN_UI: SessionOrigin
 SESSION_ORIGIN_PROGRAMMATIC: SessionOrigin
 SESSION_ORIGIN_REMOTE: SessionOrigin
+SESSION_ACTIVITY_STATE_UNSPECIFIED: SessionActivityState
+SESSION_ACTIVITY_STATE_UNKNOWN: SessionActivityState
+SESSION_ACTIVITY_STATE_WORKING: SessionActivityState
+SESSION_ACTIVITY_STATE_IDLE: SessionActivityState
+SESSION_ACTIVITY_STATE_WAITING: SessionActivityState
+SESSION_ACTIVITY_SOURCE_UNSPECIFIED: SessionActivitySource
+SESSION_ACTIVITY_SOURCE_SCREEN: SessionActivitySource
+SESSION_ACTIVITY_SOURCE_OUTPUT_CLOCK: SessionActivitySource
+SESSION_ACTIVITY_SOURCE_HOOK: SessionActivitySource
+SESSION_ACTIVITY_SOURCE_HARNESS_EVENT: SessionActivitySource
 ARCHIVE_RESTORE_STATE_UNSPECIFIED: ArchiveRestoreState
 ARCHIVE_RESTORE_STATE_REOPENABLE: ArchiveRestoreState
 ARCHIVE_RESTORE_STATE_READ_ONLY: ArchiveRestoreState
@@ -39,7 +65,7 @@ class ExpirationPolicy(_message.Message):
     def __init__(self, mode: _Optional[str] = ..., duration: _Optional[str] = ...) -> None: ...
 
 class Session(_message.Message):
-    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target")
+    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target", "activity")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHELL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +80,7 @@ class Session(_message.Message):
     DISPLAY_LABEL_FIELD_NUMBER: _ClassVar[int]
     TRACKING_DEGRADED_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
+    ACTIVITY_FIELD_NUMBER: _ClassVar[int]
     id: str
     shell: str
     created_at: str
@@ -68,7 +95,58 @@ class Session(_message.Message):
     display_label: str
     tracking_degraded: bool
     target: _target_pb2.Target
-    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ...) -> None: ...
+    activity: SessionActivity
+    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ..., activity: _Optional[_Union[SessionActivity, _Mapping]] = ...) -> None: ...
+
+class PromptOption(_message.Message):
+    __slots__ = ("key", "label", "selected")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    label: str
+    selected: bool
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., selected: _Optional[bool] = ...) -> None: ...
+
+class PendingPrompt(_message.Message):
+    __slots__ = ("kind", "text", "options", "answerable", "free_text_hint", "hash", "cancellable")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    ANSWERABLE_FIELD_NUMBER: _ClassVar[int]
+    FREE_TEXT_HINT_FIELD_NUMBER: _ClassVar[int]
+    HASH_FIELD_NUMBER: _ClassVar[int]
+    CANCELLABLE_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    text: str
+    options: _containers.RepeatedCompositeFieldContainer[PromptOption]
+    answerable: bool
+    free_text_hint: str
+    hash: str
+    cancellable: bool
+    def __init__(self, kind: _Optional[str] = ..., text: _Optional[str] = ..., options: _Optional[_Iterable[_Union[PromptOption, _Mapping]]] = ..., answerable: _Optional[bool] = ..., free_text_hint: _Optional[str] = ..., hash: _Optional[str] = ..., cancellable: _Optional[bool] = ...) -> None: ...
+
+class SessionActivity(_message.Message):
+    __slots__ = ("session_id", "state", "source", "confidence", "since", "last_output_at", "prompt", "harness", "harness_version")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    LAST_OUTPUT_AT_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_VERSION_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    state: SessionActivityState
+    source: SessionActivitySource
+    confidence: float
+    since: str
+    last_output_at: str
+    prompt: PendingPrompt
+    harness: str
+    harness_version: str
+    def __init__(self, session_id: _Optional[str] = ..., state: _Optional[_Union[SessionActivityState, str]] = ..., source: _Optional[_Union[SessionActivitySource, str]] = ..., confidence: _Optional[float] = ..., since: _Optional[str] = ..., last_output_at: _Optional[str] = ..., prompt: _Optional[_Union[PendingPrompt, _Mapping]] = ..., harness: _Optional[str] = ..., harness_version: _Optional[str] = ...) -> None: ...
 
 class RecoverableSession(_message.Message):
     __slots__ = ("id", "backend", "shell", "cols", "rows", "created_at", "orphaned_at", "last_activity_at", "agent_type", "agent_session_id", "launch_command", "cwd", "last_rollout_path", "recoverable", "not_recoverable_reason", "pane_name", "header_color", "group_name")

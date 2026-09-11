@@ -73,6 +73,8 @@ export function ExecutionDetailsPage() {
     cancel,
     retry,
     triggerReview,
+    haltContinuation,
+    resumeContinuation,
     refetch,
     actionBusy,
   } = data;
@@ -224,6 +226,8 @@ export function ExecutionDetailsPage() {
             onCancel={() => void cancel()}
             onRetry={() => void retry()}
             onRunPostRunChecks={() => void triggerReview()}
+            onHaltContinuation={() => void haltContinuation("operator halted continuation")}
+            onResumeContinuation={() => void resumeContinuation()}
           />
         )}
         {activeTab === "changes" && (

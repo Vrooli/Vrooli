@@ -688,6 +688,7 @@ func ExecutionPolicySnapshotToProto(snapshot *domain.ExecutionPolicySnapshot) *p
 		SelectedIndex:     int32(snapshot.SelectedIndex),
 		SelectedCandidate: ExecutionCandidateToProto(snapshot.SelectedCandidate),
 		Explanation:       PolicyResolutionExplanationToProto(snapshot.Explanation),
+		SelectionReason:   snapshot.SelectionReason,
 	}
 }
 
@@ -710,6 +711,7 @@ func ExecutionPolicySnapshotFromProto(snapshot *pb.ExecutionPolicySnapshot) *dom
 		SelectedIndex:     int(snapshot.SelectedIndex),
 		SelectedCandidate: ExecutionCandidateFromProto(snapshot.SelectedCandidate),
 		Explanation:       PolicyResolutionExplanationFromProto(snapshot.Explanation),
+		SelectionReason:   snapshot.SelectionReason,
 	}
 }
 
@@ -936,6 +938,8 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				Reason:    data.Reason,
 			},
 		}
+	case *domain.GoalStatusChangedEventData:
+		event.Data = &pb.RunEvent_GoalStatusChanged{GoalStatusChanged: &pb.GoalStatusChangedEventData{Objective: data.Objective, Status: data.Status, Iteration: int32(data.Iteration), LastReason: data.LastReason}}
 	case *domain.MetricEventData:
 		event.Data = &pb.RunEvent_Metric{
 			Metric: &pb.MetricEventData{

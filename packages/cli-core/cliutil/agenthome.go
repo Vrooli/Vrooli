@@ -30,12 +30,23 @@ func PrepareWebConsoleAgentHome(agent string, environment []string) []string {
 	var home, shared string
 	switch strings.ToLower(strings.TrimSpace(agent)) {
 	case "codex":
+		// An orchestrator may provide a durable run-scoped CODEX_HOME so it
+		// can discover and retain the runner's rollout. Preserve that explicit
+		// contract; only synthesize the Web Console pane home when the caller
+		// did not choose one. Ordinary shell launches still take the isolated
+		// per-pane path below.
+		if explicit := strings.TrimSpace(values[webConsoleCodexHomeEnv]); explicit != "" {
+			return withEnvironmentValue(environment, webConsoleCodexSessionsEnv, filepath.Join(explicit, "sessions"))
+		}
 		home = filepath.Join(stateRoot, "codex", sessionID)
 		shared = userHomeDir(".codex")
 		prepareCodexHome(home, shared)
 		environment = withEnvironmentValue(environment, webConsoleCodexHomeEnv, home)
 		environment = withEnvironmentValue(environment, webConsoleCodexSessionsEnv, filepath.Join(home, "sessions"))
 	case "grok":
+		if explicit := strings.TrimSpace(values[webConsoleGrokHomeEnv]); explicit != "" {
+			return environment
+		}
 		home = filepath.Join(stateRoot, "grok", sessionID)
 		shared = userHomeDir(".grok")
 		prepareGrokHome(home, shared)

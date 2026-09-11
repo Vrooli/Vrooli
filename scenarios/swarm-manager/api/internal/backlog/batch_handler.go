@@ -109,6 +109,8 @@ type batchCreateItem struct {
 	SpawnedFrom       string   `json:"spawned_from,omitempty"`
 	PlanRef           *PlanRef `json:"plan_ref,omitempty"`
 	ExecutionStrategy string   `json:"execution_strategy,omitempty"`
+	Continuation      string   `json:"continuation,omitempty"`
+	ScopePolicy       string   `json:"scope_policy,omitempty"`
 }
 
 // batchCreateMilestone describes milestone metadata supplied with a batch import.
@@ -478,6 +480,14 @@ func (h *Handler) validateSingleBatchItem(
 	if err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
 	}
+	continuation, err := normalizeContinuation(raw.Continuation)
+	if err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+	}
+	scopePolicy, err := normalizeScopePolicy(raw.ScopePolicy)
+	if err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
+	}
 
 	item := BacklogItem{
 		Name:              name,
@@ -498,6 +508,8 @@ func (h *Handler) validateSingleBatchItem(
 		SpawnedFrom:       strings.TrimSpace(raw.SpawnedFrom),
 		PlanRef:           planRef,
 		ExecutionStrategy: executionStrategy,
+		Continuation:      continuation,
+		ScopePolicy:       scopePolicy,
 	}
 
 	return validatedItem{item: item, kind: kind}, nil

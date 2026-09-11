@@ -113,4 +113,6 @@ Onboarding does **not**:
 - own connector, OAuth, or integration lifecycles (integration-hub does);
 - carry a private host-repair implementation — detection and remediation belong to the control plane, and onboarding orders and reports them;
 - replace `secrets-manager` for credential lifecycle, backup, or keyring repair;
-- store a credential value anywhere, at any point, in any form.
+- persist a credential value anywhere in onboarding-owned state. The normal UI,
+  API, readiness, and wizard paths remain metadata-only/write-only; the only
+  display exception is the explicitly confirmed local CLI reveal action.

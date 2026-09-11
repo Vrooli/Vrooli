@@ -167,6 +167,17 @@ message BacklogItem {
 
   // Reviewed aggregate coding allowance. Product-provider spend is separate.
   optional ExecutionLimits execution_limits = 32;
+
+  // Continuation policy: manual (default) or until-allowance.
+  optional string continuation = 33;
+
+  // Scope policy: fixed (default) or extend-with-record.
+  optional string scope_policy = 34;
+
+  // Operational continuation state; excluded from the authored acceptance digest.
+  optional string continuation_halted_at = 35;
+  optional string continuation_halted_by = 36;
+  optional string continuation_stopped_reason = 37;
 }
 
 message ExecutionLimits {
@@ -178,6 +189,14 @@ message ExecutionLimits {
   int32 max_children = 6 [(buf.validate.field).int32 = {gte: 1, lte: 4096}];
   int32 max_node_attempts = 7 [(buf.validate.field).int32 = {gte: 1, lte: 8192}];
   int32 max_retries = 8 [(buf.validate.field).int32 = {gte: 1, lte: 4096}];
+}
+
+// ExecutionPreferences carries optional runner/model hints for one execution.
+// Agent Manager owns availability and selection validation.
+message ExecutionPreferences {
+  string preferred_runner = 1;
+  string model = 2;
+  string effort = 3;
 }
 
 message PlanAcceptance {

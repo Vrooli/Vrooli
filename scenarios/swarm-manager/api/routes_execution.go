@@ -112,6 +112,7 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 	}
 	s.executionHandler = execution.NewHandlerFromService(s.executionSvc)
 	s.executionHandler.RegisterRoutes(s.router)
+	s.router.HandleFunc("/api/v1/execution-options", s.executionOptions).Methods("GET")
 
 	// Wire execution queuer back into scenarios handler for spec-sync-archive
 	if s.scenariosHandler != nil {

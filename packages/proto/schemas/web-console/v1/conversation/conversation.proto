@@ -37,23 +37,57 @@ service ConversationService {
   rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
 }
 
+// ConversationSearchMode chooses how a search query is read. All modes run
+// over the full-text mirror of the whole history.
+enum ConversationSearchMode {
+  // Literal text: the query's words narrow the index, then the exact text
+  // (punctuation included) is matched. Words match as prefixes unless
+  // whole_word is set.
+  CONVERSATION_SEARCH_MODE_TEXT = 0;
+  // RE2 regular expression. Literal runs narrow the index when they can;
+  // otherwise only the newest rows are scanned and the response is truncated.
+  CONVERSATION_SEARCH_MODE_REGEX = 1;
+  // Word prefixes near each other.
+  CONVERSATION_SEARCH_MODE_FUZZY = 2;
+}
+
+// TextRange is a highlighted span of an excerpt, in UTF-16 code units (what a
+// browser string indexes by), end exclusive.
+message TextRange {
+  int32 start = 1;
+  int32 end = 2;
+}
+
 message SearchRequest {
   string session_id = 1;
   string query = 2;
   int32 limit = 3;
+  // "user" | "assistant" | "" (both).
   string role_filter = 4;
+  ConversationSearchMode mode = 5;
+  bool case_sensitive = 6;
+  bool whole_word = 7;
 }
 
 message SearchMatch {
   string event_id = 1;
   int64 sequence = 2;
   string excerpt = 3;
+  // Where the query matched inside excerpt.
+  repeated TextRange ranges = 4;
+  // Who wrote it and when (RFC 3339), so a hit outside the loaded window can
+  // still be listed honestly.
+  string role = 5;
+  string created_at = 6;
 }
 
 message SearchResponse {
   repeated SearchMatch matches = 1;
   bool truncated = 2;
   int64 total_matches = 3;
+  // Set instead of a transport error when the query cannot be run as asked
+  // (an invalid or oversized regular expression).
+  string error = 4;
 }
 
 message SearchArchivedRequest {
@@ -62,6 +96,9 @@ message SearchArchivedRequest {
   string agent_type = 3;
   string role = 4;
   string created_after = 5;
+  ConversationSearchMode mode = 6;
+  bool case_sensitive = 7;
+  bool whole_word = 8;
 }
 
 message ArchivedSearchMatch {
@@ -71,6 +108,7 @@ message ArchivedSearchMatch {
   string role = 4;
   string created_at = 5;
   string excerpt = 6;
+  repeated TextRange ranges = 7;
 }
 
 message SearchArchivedResponse {
@@ -78,6 +116,7 @@ message SearchArchivedResponse {
   bool truncated = 2;
   int64 total_matches = 3;
   int64 distinct_sessions = 4;
+  string error = 5;
 }
 
 message GetRangeRequest {

@@ -1,12 +1,11 @@
 /**
- * SessionSummaryCard — the compact agent-session card shared by the sidebar
- * SessionsTab and the SessionContextPicker.
+ * SessionSummaryCard — the compact agent-session summary shared by the
+ * sidebar SessionsTab, the SessionContextPicker, and the attach sheet.
  *
- * - Sidebar mode (no `selection`): a button that opens the session, with an
- *   optional bulk-selection checkbox. Behavior is identical to the previous
- *   inlined markup.
- * - Pick mode (`selection.selectionMode`): renders inside PickModeRow — a
- *   single toggle with checkbox + selected ring, no navigation.
+ * - List content (no `selection`): the summary alone. Inside a CollectionList
+ *   the row owns the chrome and the open interaction; wrap it in CollectionRow.
+ * - Pick mode (`selection.selectionMode`): a standalone CardShell toggle for
+ *   surfaces that are not a CollectionList.
  */
 import { memo } from "react";
 import { Archive, Gauge, GitPullRequestArrow, Layers3, MessageSquareMore, Workflow } from "lucide-react";
@@ -33,24 +32,19 @@ const KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
   operating_mode_authoring: "Archived mode authoring",
   swarm_operations: "Swarm operations",
-	workflow_authoring: "Workflow authoring",
+  workflow_authoring: "Workflow authoring",
 };
 
 const KIND_ICONS = {
   meta_orchestration: Workflow,
   operating_mode_authoring: Archive,
   swarm_operations: Gauge,
-	workflow_authoring: Workflow,
+  workflow_authoring: Workflow,
 };
 
 export interface SessionSummaryCardProps {
   session: AgentSession;
-  // Sidebar mode
-  onOpen?: (id: string) => void;
-  batchMode?: boolean;
-  batchSelected?: boolean;
-  onBatchToggle?: () => void;
-  // Picker pick mode
+  /** Pick-mode selection contract for standalone (non-list) surfaces. */
   selection?: CardSelection;
 }
 
@@ -100,14 +94,7 @@ function SessionCardBody({ session }: { session: AgentSession }) {
   );
 }
 
-function SessionSummaryCardImpl({
-  session,
-  onOpen,
-  batchMode = false,
-  batchSelected = false,
-  onBatchToggle,
-  selection,
-}: SessionSummaryCardProps) {
+function SessionSummaryCardImpl({ session, selection }: SessionSummaryCardProps) {
   if (selection?.selectionMode) {
     return (
       <CardShell selection={selection}>
@@ -115,34 +102,7 @@ function SessionSummaryCardImpl({
       </CardShell>
     );
   }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen?.(session.id)}
-      className="w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
-      data-testid="sidebar-session-item"
-    >
-      <div className="flex items-start gap-2">
-        {batchMode && (
-          <input
-            type="checkbox"
-            aria-label={`${batchSelected ? "Deselect" : "Select"} ${session.title}`}
-            checked={batchSelected}
-            onClick={(event) => event.stopPropagation()}
-            onChange={(event) => {
-              event.stopPropagation();
-              onBatchToggle?.();
-            }}
-            className="mt-0.5"
-          />
-        )}
-        <div className="min-w-0 flex-1">
-          <SessionCardBody session={session} />
-        </div>
-      </div>
-    </button>
-  );
+  return <SessionCardBody session={session} />;
 }
 
 export const SessionSummaryCard = memo(SessionSummaryCardImpl);

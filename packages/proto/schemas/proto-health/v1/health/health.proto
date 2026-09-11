@@ -76,4 +76,11 @@ message Response {
   // "database"). Critical dependencies flip readiness to false when
   // they're not connected.
   map<string, DependencyStatus> dependencies = 7;
+
+  // Build identity — the SHA-256 hash of the authored scenario source that
+  // the lifecycle injected as VROOLI_BUILD_IDENTITY. The control plane
+  // health probe compares this against the registry-computed value to
+  // reject a healthy HTTP responder that belongs to an older source
+  // revision. Empty when unset (pre-VROOLI_BUILD_IDENTITY processes).
+  string build_identity = 8;
 }

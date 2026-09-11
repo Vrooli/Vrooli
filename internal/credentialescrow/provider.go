@@ -106,6 +106,7 @@ func (p *Provider) Descriptor() operatorcapability.Descriptor {
 		},
 		Evidence: operatorcapability.EvidenceContract{
 			Kinds:          []string{"encrypted-root-copy", "recovery-bundle", "schedule"},
+			Stages:         []operatorcapability.VerificationStage{operatorcapability.VerificationStorage, operatorcapability.VerificationOperation, operatorcapability.VerificationRecovery},
 			RequiredFields: []string{"artifact_identity", "source_generation", "checksum", "coverage", "observed_at", "verified"},
 			SecretFree:     true,
 			Freshness:      "receipt age and source generation must be current",
@@ -134,7 +135,7 @@ func (p *storeProvider) Descriptor() operatorcapability.Descriptor {
 			{ID: "confirm", Kind: operatorcapability.KindConfirmation, Label: "Confirm credential-store access", Description: "Confirm the initialization or unlock operation.", Required: true},
 		},
 		Policy:      operatorcapability.Policy{RequiresConfirmation: true, Idempotent: true, Retryable: true, Remediation: "Correct the passphrase or backend session and retry."},
-		Evidence:    operatorcapability.EvidenceContract{Kinds: []string{"credential-store-access"}, RequiredFields: []string{"artifact_identity", "observed_at", "verified"}, SecretFree: true},
+		Evidence:    operatorcapability.EvidenceContract{Kinds: []string{"credential-store-access"}, Stages: []operatorcapability.VerificationStage{operatorcapability.VerificationStorage}, RequiredFields: []string{"artifact_identity", "target_id", "operation", "status", "stage", "observed_at", "expires_at", "verified"}, SecretFree: true, Freshness: "credential-store availability must be current"},
 		Remediation: "Provide the passphrase through onboarding; it is not saved in setup state.",
 	}
 }
@@ -216,8 +217,44 @@ func (p *storeProvider) Apply(ctx context.Context, inputs operatorcapability.Inp
 	return operatorcapability.Result{
 		CapabilityID: StoreCapabilityID, State: operatorcapability.StateReady, Outcome: outcome, Retryable: true,
 		Remediation: remediation,
-		Evidence:    []operatorcapability.EvidenceReference{{Kind: "credential-store-access", ArtifactIdentity: "encrypted-credential-store", ObservedAt: time.Now().UTC(), Verified: true}},
+		Evidence:    []operatorcapability.EvidenceReference{{Stage: operatorcapability.VerificationStorage, Kind: "credential-store-access", ArtifactIdentity: "encrypted-credential-store", ObservedAt: time.Now().UTC(), Verified: true}},
 	}, nil
+}
+
+// Verify performs a fresh owner-side availability check. A configured store
+// is not treated as exercised until the authority reports that it is both
+// initialized and unlocked for the requested target context.
+func (p *storeProvider) Verify(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	_ = ctx
+	description, err := p.parent.describeStore()
+	if err != nil {
+		return nil, &operatorcapability.VerificationError{Code: "credential_store_unavailable", Retryable: true, NextAction: "retry-credential-store-verification", Cause: err}
+	}
+	if !description.Initialized || !description.Unlocked {
+		return nil, &operatorcapability.VerificationError{Code: "credential_store_locked", Retryable: false, NextAction: "unlock-credential-store", Cause: errors.New("credential store is not initialized and unlocked")}
+	}
+	now := p.parent.now().UTC()
+	receipt := operatorcapability.EvidenceReference{
+		SchemaVersion:    operatorcapability.EvidenceSchemaVersion,
+		CapabilityID:     request.CapabilityID,
+		Stage:            operatorcapability.VerificationStorage,
+		Kind:             "credential-store-access",
+		ArtifactIdentity: "encrypted-credential-store",
+		TargetID:         request.TargetID,
+		Environment:      request.Environment,
+		AccountIdentity:  request.AccountIdentity,
+		Operation:        request.Operation,
+		Status:           "available",
+		ObservedAt:       now,
+		ExpiresAt:        now.Add(5 * time.Minute),
+		EffectClass:      string(operatorcapability.EffectReadOnly),
+		Verified:         true,
+	}
+	if request.CredentialRef != nil {
+		ref := *request.CredentialRef
+		receipt.CredentialRef = &ref
+	}
+	return []operatorcapability.EvidenceReference{receipt}, nil
 }
 
 //nolint:gocyclo // escrow discovery reports provider, schedule, storage, and evidence capability states.
@@ -366,9 +403,9 @@ func (p *Provider) verifyEvidence(store securestore.StoreStatus, receipt credent
 func escrowEvidence(copyStatus securestore.CopyStatus, receipt credentialauthority.RecoveryReceipt, scheduleVerified bool, scheduleRemediation string) []operatorcapability.EvidenceReference {
 	coverage := recoveryCoverage(receipt.Entries)
 	return []operatorcapability.EvidenceReference{
-		{Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-root-copy"}, ObservedAt: copyStatus.VerifiedAt, Verified: true},
-		{Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: coverage, ObservedAt: receipt.VerifiedAt, Verified: true},
-		{Kind: "schedule", ArtifactIdentity: "native-schedule", SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-refresh-schedule"}, ObservedAt: receipt.VerifiedAt, Verified: scheduleVerified, Remediation: scheduleRemediation},
+		{Stage: operatorcapability.VerificationStorage, Kind: "encrypted-root-copy", ArtifactIdentity: artifactIdentity(copyStatus.Path), SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-root-copy"}, ObservedAt: copyStatus.VerifiedAt, Verified: true},
+		{Stage: operatorcapability.VerificationRecovery, Kind: "recovery-bundle", ArtifactIdentity: receipt.ArtifactIdentity, SourceGeneration: receipt.SourceGeneration, Checksum: receipt.Checksum, Coverage: coverage, ObservedAt: receipt.VerifiedAt, Verified: true},
+		{Stage: operatorcapability.VerificationOperation, Kind: "schedule", ArtifactIdentity: "native-schedule", SourceGeneration: copyStatus.Generation, Checksum: copyStatus.Checksum, Coverage: []string{"credential-store-refresh-schedule"}, ObservedAt: receipt.VerifiedAt, Verified: scheduleVerified, Remediation: scheduleRemediation},
 	}
 }
 
@@ -377,15 +414,24 @@ func escrowEvidence(copyStatus securestore.CopyStatus, receipt credentialauthori
 func (p *Provider) Verify(ctx context.Context, request operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
 	status, err := p.Discover(ctx)
 	if err != nil {
-		return nil, err
+		return nil, &operatorcapability.VerificationError{Code: "credential_escrow_unavailable", Retryable: true, NextAction: "retry-credential-escrow-verification", Cause: err}
 	}
 	if status.State != operatorcapability.StateReady {
-		return nil, fmt.Errorf("credential escrow evidence is not ready: %s", status.Remediation)
+		code := "credential_escrow_evidence_incomplete"
+		nextAction := "complete-credential-escrow-evidence"
+		retryable := false
+		if strings.Contains(status.Remediation, "unavailable") || strings.Contains(status.Remediation, "could not be revalidated") {
+			code = "credential_escrow_unavailable"
+			nextAction = "retry-credential-escrow-verification"
+			retryable = true
+		}
+		return nil, &operatorcapability.VerificationError{Code: code, Retryable: retryable, NextAction: nextAction, Cause: fmt.Errorf("credential escrow evidence is not ready: %s", status.Remediation)}
 	}
 	now := p.now().UTC()
 	receipts := append([]operatorcapability.EvidenceReference(nil), status.Evidence...)
 	for index := range receipts {
 		receipt := &receipts[index]
+		receipt.Stage = escrowEvidenceStage(receipt.Kind)
 		receipt.SchemaVersion = operatorcapability.EvidenceSchemaVersion
 		receipt.CapabilityID = request.CapabilityID
 		receipt.TargetID = request.TargetID
@@ -400,10 +446,21 @@ func (p *Provider) Verify(ctx context.Context, request operatorcapability.Verifi
 			receipt.CredentialRef = &ref
 		}
 		if !receipt.FreshAt(now) {
-			return nil, fmt.Errorf("credential escrow evidence receipt %q is not fresh", receipt.Kind)
+			return nil, &operatorcapability.VerificationError{Code: "credential_escrow_evidence_stale", Retryable: false, NextAction: "refresh-credential-escrow-evidence", Cause: fmt.Errorf("credential escrow evidence receipt %q is not fresh", receipt.Kind)}
 		}
 	}
 	return receipts, nil
+}
+
+func escrowEvidenceStage(kind string) operatorcapability.VerificationStage {
+	switch kind {
+	case "recovery-bundle":
+		return operatorcapability.VerificationRecovery
+	case "schedule":
+		return operatorcapability.VerificationOperation
+	default:
+		return operatorcapability.VerificationStorage
+	}
 }
 
 func freshEvidence(observedAt, now time.Time) bool {

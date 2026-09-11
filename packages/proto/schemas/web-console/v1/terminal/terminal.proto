@@ -33,6 +33,7 @@ service TerminalService {
   rpc GetScreen(GetScreenRequest) returns (GetScreenResponse);
   rpc SendInput(SendInputRequest) returns (SendInputResponse);
   rpc WaitIdle(WaitIdleRequest) returns (WaitIdleResponse);
+  rpc AnswerPrompt(AnswerPromptRequest) returns (AnswerPromptResponse);
 }
 
 // -----------------------------------------------------------------------------
@@ -166,4 +167,30 @@ message WaitIdleResponse {
   }
   Reason reason = 1;
   google.protobuf.Duration waited = 2;
+}
+
+// -----------------------------------------------------------------------------
+// AnswerPrompt
+// -----------------------------------------------------------------------------
+
+// AnswerPromptRequest answers the prompt a session's agent is showing, as the
+// caller saw it in the session's activity (SessionActivity.prompt).
+message AnswerPromptRequest {
+  string session_id = 1;
+  // The option to choose: PromptOption.key.
+  string option_key = 2;
+  // PendingPrompt.hash of the prompt the caller answered. A prompt that has
+  // changed since is refused (FAILED_PRECONDITION) and nothing is sent.
+  string prompt_hash = 3;
+  // Dismiss the prompt instead of choosing (Escape); only when
+  // PendingPrompt.cancellable.
+  bool cancel = 4;
+}
+
+message AnswerPromptResponse {
+  // How the answer reached the agent: "keystrokes" (typed into the terminal)
+  // or "harness_api" (the harness's own reply API).
+  string delivery = 1;
+  // The chosen option's label; empty for a cancel.
+  string answer = 2;
 }

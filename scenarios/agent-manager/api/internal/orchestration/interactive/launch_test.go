@@ -200,6 +200,28 @@ func TestBuildLaunchCommand_Codex_RelocatesHome(t *testing.T) {
 	}
 }
 
+func TestBuildLaunchCommand_CodexCarriesUnattendedApprovalPolicy(t *testing.T) {
+	cmd, err := BuildLaunchCommand(LaunchCommandParams{
+		RunnerType: domain.RunnerTypeCodex,
+		BinaryPath: "/usr/bin/codex",
+		TagEnvKey:  "CODEX_AGENT_TAG",
+		Tag:        "run-unattended",
+		WorkingDir: "/work/dir",
+		RunDir:     "/data/runs/run-unattended",
+		Config: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeCodex,
+			NetworkAccess: domain.NetworkAccessLocalhost,
+		},
+		ControlArgs: testControlArgs(domain.RunnerTypeCodex),
+	})
+	if err != nil {
+		t.Fatalf("BuildLaunchCommand: %v", err)
+	}
+	if !strings.Contains(cmd, "--dangerously-bypass-approvals-and-sandbox") {
+		t.Fatalf("Codex interactive launch must carry unattended approval policy: %s", cmd)
+	}
+}
+
 func TestBuildLaunchCommand_Grok_RelocatesHome(t *testing.T) {
 	cmd, err := BuildLaunchCommand(LaunchCommandParams{
 		RunnerType: domain.RunnerTypeGrok,

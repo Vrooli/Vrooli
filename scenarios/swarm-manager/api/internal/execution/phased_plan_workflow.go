@@ -45,6 +45,7 @@ type phasedPlanSnapshot struct {
 	MaxSlices         int
 	ExecutionStrategy string
 	WriteScope        []string
+	ScopePolicy       string
 	SliceApprovalMode string
 }
 
@@ -128,6 +129,10 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 }
 
 func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle, projectRoot string, rendered renderedPlanContent) (phasedPlanSnapshot, error) {
+	return buildPhasedPlanSnapshotWithScope(item, record, planHandle, projectRoot, rendered, nil)
+}
+
+func buildPhasedPlanSnapshotWithScope(item backlogItem, record Record, planHandle, projectRoot string, rendered renderedPlanContent, extensions []ScopeExtension) (phasedPlanSnapshot, error) {
 	itemBytes, err := marshalAuthoredBacklogItem(item)
 	if err != nil {
 		return phasedPlanSnapshot{}, fmt.Errorf("encode backlog snapshot: %w", err)
@@ -144,7 +149,7 @@ func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle, projec
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		ProjectRoot: filepath.Clean(projectRoot),
 		EntityKind:  item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
-		MaxSlices: firstPositive(record.MaxSlices, 6), ExecutionStrategy: firstNonEmpty(record.ExecutionStrategy, defaultExecutionStrategy), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
+		MaxSlices: firstPositive(record.MaxSlices, 6), ExecutionStrategy: firstNonEmpty(record.ExecutionStrategy, defaultExecutionStrategy), WriteScope: effectiveWriteScope(item, extensions), ScopePolicy: strings.TrimSpace(item.ScopePolicy), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
 }
 
@@ -157,6 +162,10 @@ func marshalAuthoredBacklogItem(item backlogItem) ([]byte, error) {
 	item.Status = ""
 	item.Updated = ""
 	item.PlanAcceptance = nil
+	if item.Continuation == "manual" && item.ScopePolicy == "fixed" {
+		item.Continuation = ""
+		item.ScopePolicy = ""
+	}
 	return json.Marshal(item)
 }
 
@@ -238,7 +247,7 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
 			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
 		},
-		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "executionStrategy": firstNonEmpty(snapshot.ExecutionStrategy, defaultExecutionStrategy), "writeScope": writeScope, "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
+		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "executionStrategy": firstNonEmpty(snapshot.ExecutionStrategy, defaultExecutionStrategy), "writeScope": writeScope, "scopePolicy": firstNonEmpty(snapshot.ScopePolicy, "fixed"), "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
 	})
 }
 
@@ -403,6 +412,15 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 	record := records[idx]
 	if record.Cancellation != nil {
 		return fmt.Errorf("execution cancellation withdrew authority; terminal usage must reconcile without applying a late result")
+	}
+	item, err := s.loadBacklogItemByRecord(&record)
+	if err != nil {
+		return err
+	}
+	if extensions, scopeErr := s.readScopeExtensions(ctx, record, item); scopeErr != nil {
+		return scopeErr
+	} else {
+		record.ScopeExtensions = extensions
 	}
 	if outcome.TransitionKey != "plan.execute" {
 		return fmt.Errorf("execution %q is not a plan execution transition", executionID)

@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from swarm_manager.v1.domain import backlog_pb2 as _backlog_pb2
 from swarm_manager.v1.domain import execution_pb2 as _execution_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -27,7 +28,7 @@ class ExecutionPolicyResponse(_message.Message):
     def __init__(self, policy: _Optional[_Union[_execution_pb2.ExecutionPolicy, _Mapping]] = ...) -> None: ...
 
 class CreateExecutionRequest(_message.Message):
-    __slots__ = ("backlog_kind", "backlog_name", "mode", "started_by", "operation", "strategy", "max_slices")
+    __slots__ = ("backlog_kind", "backlog_name", "mode", "started_by", "operation", "strategy", "max_slices", "execution_preferences")
     BACKLOG_KIND_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_NAME_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -35,6 +36,7 @@ class CreateExecutionRequest(_message.Message):
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     STRATEGY_FIELD_NUMBER: _ClassVar[int]
     MAX_SLICES_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
     backlog_kind: str
     backlog_name: str
     mode: str
@@ -42,7 +44,8 @@ class CreateExecutionRequest(_message.Message):
     operation: str
     strategy: str
     max_slices: int
-    def __init__(self, backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., strategy: _Optional[str] = ..., max_slices: _Optional[int] = ...) -> None: ...
+    execution_preferences: _backlog_pb2.ExecutionPreferences
+    def __init__(self, backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., mode: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., strategy: _Optional[str] = ..., max_slices: _Optional[int] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
 
 class FollowUpExecutionRequest(_message.Message):
     __slots__ = ("execution_id", "follow_up_type", "context", "run_mode")

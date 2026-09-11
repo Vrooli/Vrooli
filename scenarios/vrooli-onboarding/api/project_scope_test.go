@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -104,6 +105,60 @@ func TestV2CredentialsIncludeProjectScope(t *testing.T) {
 		}
 		if credential.Required {
 			t.Fatalf("required = true, want the declared false for %s", field)
+		}
+	}
+}
+
+func TestContextualCredentialProjectionExcludesUnrelatedManagedEntries(t *testing.T) {
+	root, _ := writeProjectScopeFixture(t)
+	refs, err := credentialInventoryProjection(root, closureResult{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ref := range refs {
+		if ref.Kind == "managed" {
+			t.Fatalf("contextual projection included unrelated managed credential: %+v", ref)
+		}
+	}
+}
+
+func TestCredentialMetadataAndReadinessShareTheSameContextualProjection(t *testing.T) {
+	root, _ := writeProjectScopeFixture(t)
+	models, err := loadScenarioReadModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	closure, err := resolveClosure(root, models)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousStatus := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) {
+		return []byte(`{"configured":true}`), nil
+	}
+	t.Cleanup(func() { credentialStatusCommand = previousStatus })
+	metadata, err := credentialMetadataInventory(closure)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readiness, err := credentialReadinessInventoryContext(context.Background(), closure)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadataAddresses := make(map[string]struct{}, len(metadata))
+	for _, item := range metadata {
+		metadataAddresses[item.LogicalID+":"+item.Field] = struct{}{}
+	}
+	readinessAddresses := make(map[string]struct{}, len(readiness))
+	for _, item := range readiness {
+		readinessAddresses[item.LogicalID+":"+item.Field] = struct{}{}
+	}
+	if len(metadataAddresses) != len(readinessAddresses) {
+		t.Fatalf("contextual projection counts differ: metadata=%v readiness=%v", metadataAddresses, readinessAddresses)
+	}
+	for address := range metadataAddresses {
+		if _, ok := readinessAddresses[address]; !ok {
+			t.Fatalf("readiness projection omitted %s", address)
 		}
 	}
 }

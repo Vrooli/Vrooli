@@ -57,6 +57,8 @@ type Dependencies struct {
 	ExecutionCancel             CommandFunc
 	ExecutionRetry              CommandFunc
 	CircuitBreakerReset         CommandFunc
+	ExecutionContinuationHalt   CommandFunc
+	ExecutionContinuationResume CommandFunc
 	ReviewList                  CommandFunc
 	ReviewVerify                CommandFunc
 	ReviewRequest               CommandFunc

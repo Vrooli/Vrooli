@@ -77,6 +77,28 @@
     },
     "system_required": true
   },
+  "authentication": {
+    "version": 1,
+    "profile": "hybrid",
+    "default_mode": "personal_local",
+    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"],
+    "human_sign_in": "optional",
+    "provider": "cloudflare-access",
+    "resource": "vrooli-onboarding",
+    "offline": true,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "vrooli-onboarding:read", "effect": "read", "agent_eligible": true},
+      {"id": "vrooli-onboarding:write", "effect": "write", "agent_eligible": false},
+      {"id": "vrooli-onboarding:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "team_domain": "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+    "audience": "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+    "scenario_audience": "scenario-authenticator:vrooli-onboarding",
+    "policy_mode": "operator_managed",
+    "public_asset_path": "/public",
+    "owner": "tunnel-manager"
+  },
   "runtime": {
     "kind": "long_running",
     "auto_restart_default": true
@@ -170,10 +192,7 @@
           "{{bin.api}}"
         ],
         "port": "api",
-        "cwd": "api",
-        "env": {
-          "VROOLI_AUTH_MODE": "personal_local"
-        }
+        "cwd": "api"
       }
     },
     "ui": {

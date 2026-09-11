@@ -3,6 +3,7 @@ syntax = "proto3";
 package agent_manager.v1;
 
 import "agent-manager/v1/domain/run.proto";
+import "agent-manager/v1/domain/profile.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -131,6 +132,7 @@ message WorkflowExecution {
   string approval_digest = 23;
   // Exact grant identity, kept separate from the workflow definition digest.
   string grant_digest = 24;
+  ExecutionPreferences execution_preferences = 25;
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt

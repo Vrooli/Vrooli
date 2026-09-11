@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
@@ -38,7 +39,7 @@ func (l workflowChildLauncher) InspectMetered(ctx context.Context, id uuid.UUID)
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
-	events, err := l.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus}})
+	events, err := l.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMetric, domain.EventTypeStatus, domain.EventTypeGoalStatusChanged}})
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}
@@ -93,6 +94,12 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 				priorInvocationsComplete = false
 			}
 			terminalAuthority, latestUsage, latestCharge = false, false, false
+		}
+		if goal, ok := evt.Data.(*domain.GoalStatusChangedEventData); ok {
+			status := runner.GoalStatus(goal.Status)
+			if status.Valid() {
+				state.GoalStatus, state.GoalObjective = status, goal.Objective
+			}
 		}
 		if usage, ok := evt.Data.(*domain.UsageEventData); ok {
 			if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.CacheReadTokens < 0 || usage.CacheCreationTokens < 0 || usage.Turns < 0 {

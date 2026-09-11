@@ -173,6 +173,12 @@ func PlanAcceptanceSubjectVersion(item BacklogItem) string {
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
 		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
 	}
+	if item.Continuation != ContinuationManual {
+		contract.Continuation = item.Continuation
+	}
+	if item.ScopePolicy != ScopePolicyFixed {
+		contract.ScopePolicy = item.ScopePolicy
+	}
 	if item.PlanRef != nil {
 		contract.PlanRef = &identity.PlanAcceptanceReference{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}
 	}

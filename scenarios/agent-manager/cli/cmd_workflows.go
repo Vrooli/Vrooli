@@ -234,6 +234,9 @@ func (a *App) workflowStart(args []string) error {
 	digest := fs.String("digest", "", "Pinned revision digest")
 	inputFile := fs.String("input-file", "", "Workflow input JSON")
 	idem := fs.String("idempotency-key", "", "Replay-safe caller key")
+	preferredRunner := fs.String("preferred-runner", "", "Preferred runner type from the execution-options catalog")
+	model := fs.String("model", "", "Requested model identifier")
+	effort := fs.String("effort", "", "Requested effort level")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -244,7 +247,11 @@ func (a *App) workflowStart(args []string) error {
 	if err != nil {
 		return err
 	}
-	body, resp, err := a.services.Workflows.StartExecution(&apipb.StartWorkflowExecutionRequest{Owner: *owner, WorkflowKey: *key, DefinitionDigest: *digest, Input: input, IdempotencyKey: *idem})
+	req := &apipb.StartWorkflowExecutionRequest{Owner: *owner, WorkflowKey: *key, DefinitionDigest: *digest, Input: input, IdempotencyKey: *idem}
+	if *preferredRunner != "" || *model != "" || *effort != "" {
+		req.ExecutionPreferences = &domainpb.ExecutionPreferences{PreferredRunner: *preferredRunner, Model: *model, Effort: *effort}
+	}
+	body, resp, err := a.services.Workflows.StartExecution(req)
 	if err != nil {
 		return apiError(body, err)
 	}

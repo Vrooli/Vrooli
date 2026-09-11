@@ -74,7 +74,8 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	}
 	create := CreateRunRequest{
 		TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, Until: req.Until, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
-		WorkloadKind: domain.WorkloadKindWorkflowNode, WorkloadKey: req.NodeID, WorkloadInstance: req.ExecutionID.String(),
+		PreferredRunner: req.PreferredRunner,
+		WorkloadKind:    domain.WorkloadKindWorkflowNode, WorkloadKey: req.NodeID, WorkloadInstance: req.ExecutionID.String(),
 		AllowedEffects: append([]string(nil), req.AllowedEffects...),
 		Environment: map[string]string{
 			workflowExecutionEnv:  req.ExecutionID.String(),
@@ -84,6 +85,14 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 			workflowVariantEnv:    req.VariantID,
 			workflowPromptHashEnv: req.PromptHash,
 		},
+	}
+	if req.Effort != "" {
+		effort := domain.Effort(req.Effort)
+		create.Effort = &effort
+	}
+	if req.Model != "" {
+		model := req.Model
+		create.Model = &model
 	}
 	if req.MaxTurns > 0 {
 		create.MaxTurns = &req.MaxTurns
@@ -115,12 +124,23 @@ func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime
 	if req.SourceRunID == nil {
 		return workflowruntime.ChildState{}, domain.NewValidationError("sourceRunId", "explicit source Run is required")
 	}
-	continueRequest := ContinueRunRequest{RunID: *req.SourceRunID, Message: req.Prompt, IdempotencyKey: req.IdempotencyKey, ResultSpec: req.ResultSpec}
-	if req.MaxTurns > 0 {
-		continueRequest.MaxTurns = &req.MaxTurns
+	source, err := l.o.GetRun(ctx, *req.SourceRunID)
+	if err != nil {
+		return workflowruntime.ChildState{}, err
 	}
-	if req.Timeout > 0 {
-		continueRequest.Timeout = &req.Timeout
+	continueRequest := ContinueRunRequest{RunID: *req.SourceRunID, Message: req.Prompt, IdempotencyKey: req.IdempotencyKey}
+	// Interactive continuation is a new turn in the already-running Web
+	// Console session. Its immutable run configuration owns the result
+	// contract and process lifetime, so per-turn workflow overrides are not
+	// valid. Codec-pipe continuation may still apply the workflow overrides.
+	if source.ExecutionMode.Normalized() != domain.ExecutionModeInteractive {
+		continueRequest.ResultSpec = req.ResultSpec
+		if req.MaxTurns > 0 {
+			continueRequest.MaxTurns = &req.MaxTurns
+		}
+		if req.Timeout > 0 {
+			continueRequest.Timeout = &req.Timeout
+		}
 	}
 	run, err := l.o.ContinueRun(ctx, continueRequest)
 	if err != nil {
@@ -252,6 +272,9 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if o.workflowEngine == nil {
 		return nil, domain.NewConfigInvalidError("workflowEngine", "workflow interpreter is not configured", nil)
 	}
+	if err := o.validateExecutionPreferences(req.ExecutionPreferences); err != nil {
+		return nil, err
+	}
 	owner, key := strings.TrimSpace(req.Owner), strings.TrimSpace(req.WorkflowKey)
 	var revision *domain.WorkflowRevision
 	var err error
@@ -289,11 +312,34 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if err := o.enforceWorkflowTrigger(ctx, revision, req); err != nil {
 		return nil, err
 	}
-	execution, err := o.workflowEngine.StartWithGrant(ctx, revision, req.Input, strings.TrimSpace(req.IdempotencyKey), req.EngagementGrant, workflowruntime.ExecutionBinding{ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest})
+	execution, err := o.workflowEngine.StartWithGrant(ctx, revision, req.Input, strings.TrimSpace(req.IdempotencyKey), req.EngagementGrant, workflowruntime.ExecutionBinding{ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest, ExecutionPreferences: req.ExecutionPreferences})
 	if err != nil {
 		return nil, err
 	}
 	return o.driveWorkflowExecution(ctx, execution.ID)
+}
+
+func (o *Orchestrator) validateExecutionPreferences(preferences *domain.ExecutionPreferences) error {
+	if preferences == nil {
+		return nil
+	}
+	if effort := domain.Effort(strings.TrimSpace(preferences.Effort)); !effort.IsValid() {
+		return domain.NewValidationErrorWithHint("executionPreferences.effort", "invalid effort", "valid values: low, medium, high, xhigh, max")
+	}
+	preferred := strings.TrimSpace(preferences.PreferredRunner)
+	if preferred == "" || o.runners == nil {
+		return nil
+	}
+	if _, err := o.runners.Get(domain.RunnerType(preferred)); err == nil {
+		return nil
+	}
+	registered := make([]string, 0)
+	for _, candidate := range o.runners.List() {
+		if candidate != nil {
+			registered = append(registered, string(candidate.Type()))
+		}
+	}
+	return domain.NewValidationErrorWithHint("executionPreferences.preferredRunner", fmt.Sprintf("unknown runner %q", preferred), "registered runners: "+strings.Join(registered, ", "))
 }
 
 // TriggerPolicyError is a typed denial that explains the classified initiator,

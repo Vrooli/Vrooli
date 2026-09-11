@@ -718,6 +718,8 @@ func RunEventTypeToProto(t domain.RunEventType) pb.RunEventType {
 		return pb.RunEventType_RUN_EVENT_TYPE_COMPACTION
 	case domain.EventTypeLifecycle:
 		return pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE
+	case domain.EventTypeGoalStatusChanged:
+		return pb.RunEventType_RUN_EVENT_TYPE_GOAL_STATUS_CHANGED
 	default:
 		return pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED
 	}
@@ -748,6 +750,8 @@ func RunEventTypeFromProto(t pb.RunEventType) domain.RunEventType {
 		return domain.EventTypeCompaction
 	case pb.RunEventType_RUN_EVENT_TYPE_LIFECYCLE:
 		return domain.EventTypeLifecycle
+	case pb.RunEventType_RUN_EVENT_TYPE_GOAL_STATUS_CHANGED:
+		return domain.EventTypeGoalStatusChanged
 	default:
 		return domain.EventTypeLog
 	}

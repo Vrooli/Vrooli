@@ -34,6 +34,9 @@ export function createQueueMethods(apiClient: IApiClient) {
         force?: boolean;
         strategy?: string;
         maxSlices?: number;
+        preferredRunner?: string;
+        model?: string;
+        effort?: string;
       }
     ): Promise<QueueResponse> {
       const msg = buildMessage(QueueBacklogItemRequestSchema, {
@@ -44,6 +47,11 @@ export function createQueueMethods(apiClient: IApiClient) {
         ...(options?.force !== undefined ? { force: options.force } : {}),
         ...(options?.strategy ? { strategy: options.strategy } : {}),
         ...(options?.maxSlices ? { maxSlices: options.maxSlices } : {}),
+        ...((options?.preferredRunner || options?.model || options?.effort) ? { executionPreferences: {
+          preferredRunner: options.preferredRunner ?? "",
+          model: options.model ?? "",
+          effort: options.effort ?? "",
+        } } : {}),
       });
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.backlogQueue(kind, name),
@@ -60,6 +68,7 @@ export function createQueueMethods(apiClient: IApiClient) {
         queued: parsed.queued ?? false,
         message: parsed.message ?? "",
         blockingReasons: (parsed.blockingReasons ?? []).map((r) => ({
+          code: typeof r === "string" ? undefined : ((r as { code?: string }).code ?? undefined),
           message: typeof r === "string" ? r : (r.message ?? ""),
           forceable: typeof r === "string" ? false : (r.forceable ?? false),
         })),

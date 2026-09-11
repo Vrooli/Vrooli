@@ -33,7 +33,7 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note" | "executionStrategy" | "executionLimits"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note" | "executionStrategy" | "executionLimits" | "continuation" | "scopePolicy"
 >>;
 
 export interface ImportBacklogResponse {
@@ -118,6 +118,9 @@ export interface IBacklogService {
       force?: boolean;
       strategy?: string;
       maxSlices?: number;
+      preferredRunner?: string;
+      model?: string;
+      effort?: string;
     }
   ): Promise<QueueResponse>;
   retry(

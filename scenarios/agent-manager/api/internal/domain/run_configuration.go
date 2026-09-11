@@ -297,6 +297,24 @@ type StatusEventData struct {
 	Reason    string `json:"reason,omitempty"` // Why the transition happened
 }
 
+// GoalStatusChangedEventData is the provider-neutral, append-only observation
+// of a runner-owned objective. It is deliberately separate from Run.Status:
+// the harness marker is evidence consumed by workflow policy, not authority to
+// bypass the workflow's structured-result and review contracts.
+type GoalStatusChangedEventData struct {
+	Objective  string `json:"objective"`
+	Status     string `json:"status"`
+	Iteration  int    `json:"iteration,omitempty"`
+	LastReason string `json:"lastReason,omitempty"`
+}
+
+func (d *GoalStatusChangedEventData) EventType() RunEventType { return EventTypeGoalStatusChanged }
+func (d *GoalStatusChangedEventData) isEventPayload()         {}
+
+func NewGoalStatusChangedEvent(runID uuid.UUID, objective, status string, iteration int, reason string) *RunEvent {
+	return &RunEvent{ID: uuid.New(), RunID: runID, EventType: EventTypeGoalStatusChanged, Timestamp: time.Now(), Data: &GoalStatusChangedEventData{Objective: objective, Status: status, Iteration: iteration, LastReason: reason}}
+}
+
 func (d *StatusEventData) EventType() RunEventType { return EventTypeStatus }
 func (d *StatusEventData) isEventPayload()         {}
 

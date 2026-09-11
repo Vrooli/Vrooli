@@ -5,13 +5,15 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { ExecutionPreferences } from "./backlog_pb";
+import { file_swarm_manager_v1_domain_backlog } from "./backlog_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/domain/execution.proto.
  */
 export const file_swarm_manager_v1_domain_execution: GenFile = /*@__PURE__*/
-  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SHnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbiKoBwoPRXhlY3V0aW9uUmVjb3JkEh0KDGV4ZWN1dGlvbl9pZBgBIAEoCUIHukgEcgIQARJLCgxiYWNrbG9nX2tpbmQYAiABKAlCNbpIMnIwUgRpZGVhUgNmaXhSB2V4ZWN1dGVSCHJlc2VhcmNoUgVjaG9yZVIJc3BlYy1zeW5jEh0KDGJhY2tsb2dfbmFtZRgDIAEoCUIHukgEcgIQARIUCgd0YXNrX2lkGAQgASgJSACIAQESEwoGcnVuX2lkGAUgASgJSAGIAQESgQEKBnN0YXR1cxgGIAEoCUJxukhucmxSB3BlbmRpbmdSCHN0YXJ0aW5nUgdydW5uaW5nUgxuZWVkc19yZXZpZXdSCnZhbGlkYXRpbmdSC25lZWRzX2ZpeHVwUgljb21wbGV0ZWRSBmZhaWxlZFIKY2FuY2VsbGluZ1IIY2FuY2VsZWQSIQoEbW9kZRgHIAEoCUITukgQcg5SBm1hbnVhbFIEeW9sbxIXCgpzdGFydGVkX2F0GAkgASgJSAKIAQESGAoLZmluaXNoZWRfYXQYCiABKAlIA4gBARIbCg5mYWlsdXJlX3JlYXNvbhgLIAEoCUgEiAEBEhcKCnN0YXJ0ZWRfYnkYDCABKAlIBYgBARIWCglvcGVyYXRpb24YDSABKAlIBogBARIbCgpjcmVhdGVkX2F0GA4gASgJQge6SARyAhABEhsKCnVwZGF0ZWRfYXQYDyABKAlCB7pIBHICEAESTAoPYXJjaGl2ZV9jb250ZXh0GBAgASgLMi4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkFyY2hpdmVDb250ZXh0SAeIAQESIAoTcGFyZW50X2V4ZWN1dGlvbl9pZBgRIAEoCUgIiAEBEhUKDWZpeHVwX2F0dGVtcHQYEiABKAUSRwoMZmluYWxpemF0aW9uGBcgASgLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkZpbmFsaXphdGlvbkgJiAEBQgoKCF90YXNrX2lkQgkKB19ydW5faWRCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0QhEKD19mYWlsdXJlX3JlYXNvbkINCgtfc3RhcnRlZF9ieUIMCgpfb3BlcmF0aW9uQhIKEF9hcmNoaXZlX2NvbnRleHRCFgoUX3BhcmVudF9leGVjdXRpb25faWRCDwoNX2ZpbmFsaXphdGlvbkoECAgQCUoECBMQFyLOAQoOQXJjaGl2ZUNvbnRleHQSHgoNc2NlbmFyaW9fbmFtZRgBIAEoCUIHukgEcgIQARIeCg1zY2VuYXJpb19wYXRoGAIgASgJQge6SARyAhABEh0KEHByZXNldF9vcl9jdXN0b20YAyABKAlIAIgBARIWCg5wcmVzZXJ2ZV9wYXRocxgEIAMoCRIcCg9wcmVzZXJ2ZV9wcmVzZXQYBSABKAlIAYgBAUITChFfcHJlc2V0X29yX2N1c3RvbUISChBfcHJlc2VydmVfcHJlc2V0ItEBCgxSZXZpZXdSZXN1bHQSDgoGam9iX2lkGAEgASgJEhYKDmNsYXNzaWZpY2F0aW9uGAIgASgJEkMKCmRpbWVuc2lvbnMYAyADKAsyLy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uUmV2aWV3RGltZW5zaW9uEg8KB3N1bW1hcnkYBCABKAkSEwoLcmV2aWV3ZWRfYXQYBSABKAkSGwoOcmF3X2RpbWVuc2lvbnMYBiABKAlIAIgBAUIRCg9fcmF3X2RpbWVuc2lvbnMiUQoPUmV2aWV3RGltZW5zaW9uEgwKBG5hbWUYASABKAkSDgoGc3RhdHVzGAIgASgJEhQKB2RldGFpbHMYAyABKAlIAIgBAUIKCghfZGV0YWlscyLXAwoMRmluYWxpemF0aW9uEhAKCGVsaWdpYmxlGAEgASgIEg4KBnN0YXR1cxgCIAEoCRINCgVwaGFzZRgDIAEoCRIUCgxzY29wZV9zb3VyY2UYBCABKAkSGAoLc2tpcF9yZWFzb24YBSABKAlIAIgBARIXCgpzdGFydGVkX2F0GAYgASgJSAGIAQESGQoMY29tcGxldGVkX2F0GAcgASgJSAKIAQESRQoId2FybmluZ3MYCCADKAsyMy52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRmluYWxpemF0aW9uV2FybmluZxIaChJhZmZlY3RlZF9zY2VuYXJpb3MYCSADKAkSIAoYYWdncmVnYXRlX2NsYXNzaWZpY2F0aW9uGAogASgJEh4KEWFnZ3JlZ2F0ZV9zdW1tYXJ5GAsgASgJSAOIAQESRwoJc2NlbmFyaW9zGAwgAygLMjQudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvRmluYWxpemF0aW9uQg4KDF9za2lwX3JlYXNvbkINCgtfc3RhcnRlZF9hdEIPCg1fY29tcGxldGVkX2F0QhQKEl9hZ2dyZWdhdGVfc3VtbWFyeSKJAQoTRmluYWxpemF0aW9uV2FybmluZxIMCgRjb2RlGAEgASgJEhoKDXNjZW5hcmlvX25hbWUYAiABKAlIAIgBARIPCgdtZXNzYWdlGAMgASgJEhEKCXJldHJ5YWJsZRgEIAEoCBISCgpjcmVhdGVkX2F0GAUgASgJQhAKDl9zY2VuYXJpb19uYW1lIocCChRTY2VuYXJpb0ZpbmFsaXphdGlvbhIVCg1zY2VuYXJpb19uYW1lGAEgASgJEhUKDWNoYW5nZWRfcGF0aHMYAiADKAkSPgoHcmVzdGFydBgDIAEoCzItLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5SZXN0YXJ0UmVzdWx0EkEKBmhlYWx0aBgEIAEoCzIxLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5IZWFsdGhDaGVja1Jlc3VsdBI+CgZyZXZpZXcYBSABKAsyLi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NlbmFyaW9SZXZpZXciqwEKDVJlc3RhcnRSZXN1bHQSDgoGc3RhdHVzGAEgASgJEhAKCGF0dGVtcHRzGAIgASgFEhcKCmxhc3RfZXJyb3IYAyABKAlIAIgBARIXCgpzdGFydGVkX2F0GAQgASgJSAGIAQESGAoLZmluaXNoZWRfYXQYBSABKAlIAogBAUINCgtfbGFzdF9lcnJvckINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXQi4wEKEUhlYWx0aENoZWNrUmVzdWx0Eg4KBnN0YXR1cxgBIAEoCRIcCg9zY2VuYXJpb19zdGF0dXMYAiABKAlIAIgBARIaCg1oZWFsdGhfc3RhdHVzGAMgASgJSAGIAQESFAoMc2NoZW1hX3ZhbGlkGAQgASgIEhQKB2RldGFpbHMYBSABKAlIAogBARIXCgpjaGVja2VkX2F0GAYgASgJSAOIAQFCEgoQX3NjZW5hcmlvX3N0YXR1c0IQCg5faGVhbHRoX3N0YXR1c0IKCghfZGV0YWlsc0INCgtfY2hlY2tlZF9hdCK4AQoOU2NlbmFyaW9SZXZpZXcSDgoGc3RhdHVzGAEgASgJEhMKBmpvYl9pZBgCIAEoCUgAiAEBEhgKC3NraXBfcmVhc29uGAMgASgJSAGIAQESQQoGcmVzdWx0GAQgASgLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlJldmlld1Jlc3VsdEgCiAEBQgkKB19qb2JfaWRCDgoMX3NraXBfcmVhc29uQgkKB19yZXN1bHQiuAIKDEV2aWRlbmNlSXRlbRIKCgJpZBgBIAEoCRIMCgR0eXBlGAIgASgJEg0KBXRpdGxlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhkKDGNhcHR1cmVfcGF0aBgFIAEoCUgAiAEBEhAKCHZlcmlmaWVkGAYgASgIEhgKC3ZlcmlmaWVkX2F0GAcgASgJSAGIAQESIAoTYmVmb3JlX2NhcHR1cmVfcGF0aBgIIAEoCUgCiAEBEkgKDHRlc3RfcmVzdWx0cxgJIAMoCzIyLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5FdmlkZW5jZVRlc3RSZXN1bHRCDwoNX2NhcHR1cmVfcGF0aEIOCgxfdmVyaWZpZWRfYXRCFgoUX2JlZm9yZV9jYXB0dXJlX3BhdGgiYgoSRXZpZGVuY2VUZXN0UmVzdWx0EgwKBG5hbWUYASABKAkSDgoGcGFzc2VkGAIgASgIEhsKDm91dHB1dF9zdW1tYXJ5GAMgASgJSACIAQFCEQoPX291dHB1dF9zdW1tYXJ5ItsBChVFdmlkZW5jZVJlcXVlc3RUaHJlYWQSCgoCaWQYASABKAkSGAoLZXZpZGVuY2VfaWQYAiABKAlIAIgBARIOCgZzdGF0dXMYAyABKAkSSAoIbWVzc2FnZXMYBCADKAsyNi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXZpZGVuY2VSZXF1ZXN0TWVzc2FnZRISCgpjcmVhdGVkX2F0GAUgASgJEhMKBnJ1bl9pZBgGIAEoCUgBiAEBQg4KDF9ldmlkZW5jZV9pZEIJCgdfcnVuX2lkImYKFkV2aWRlbmNlUmVxdWVzdE1lc3NhZ2USDAoEcm9sZRgBIAEoCRIPCgdjb250ZW50GAIgASgJEhEKCXRpbWVzdGFtcBgDIAEoCRIaChJhZGRlZF9ldmlkZW5jZV9pZHMYBCADKAkigwMKE1Jldmlld0V2aWRlbmNlUm91bmQSDQoFcm91bmQYASABKAUSFAoMZ2VuZXJhdGVkX2F0GAIgASgJEhQKDGV4ZWN1dGlvbl9pZBgDIAEoCRIOCgZzdGF0dXMYBCABKAkSHQoQYWdlbnRfYXNzZXNzbWVudBgFIAEoCUgAiAEBEhsKDmNsYXNzaWZpY2F0aW9uGAYgASgJSAGIAQESDQoFbm90ZXMYByADKAkSPgoIZXZpZGVuY2UYCCADKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXZpZGVuY2VJdGVtEk4KD3JlcXVlc3RfdGhyZWFkcxgJIAMoCzI1LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5FdmlkZW5jZVJlcXVlc3RUaHJlYWQSEwoGcnVuX2lkGAogASgJSAKIAQFCEwoRX2FnZW50X2Fzc2Vzc21lbnRCEQoPX2NsYXNzaWZpY2F0aW9uQgkKB19ydW5faWQimwEKD0V4ZWN1dGlvblBvbGljeRIpCgxkZWZhdWx0X21vZGUYASABKAlCE7pIEHIOUgZtYW51YWxSBHlvbG8SEgoKYXV0b19maXh1cBgDIAEoCBIlChJtYXhfZml4dXBfYXR0ZW1wdHMYBCABKAVCCbpIBhoEGAUoABIcChRyZXZpZXdfYWdlbnRfZW5hYmxlZBgFIAEoCEoECAIQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Cidzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9leGVjdXRpb24ucHJvdG8SHnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbiLaCgoPRXhlY3V0aW9uUmVjb3JkEh0KDGV4ZWN1dGlvbl9pZBgBIAEoCUIHukgEcgIQARJLCgxiYWNrbG9nX2tpbmQYAiABKAlCNbpIMnIwUgRpZGVhUgNmaXhSB2V4ZWN1dGVSCHJlc2VhcmNoUgVjaG9yZVIJc3BlYy1zeW5jEh0KDGJhY2tsb2dfbmFtZRgDIAEoCUIHukgEcgIQARIUCgd0YXNrX2lkGAQgASgJSACIAQESEwoGcnVuX2lkGAUgASgJSAGIAQESlQEKBnN0YXR1cxgGIAEoCUKEAbpIgAFyflIHcGVuZGluZ1IIc3RhcnRpbmdSB3J1bm5pbmdSDG5lZWRzX3Jldmlld1IKdmFsaWRhdGluZ1ILbmVlZHNfZml4dXBSCWNvbXBsZXRlZFIGZmFpbGVkUhBidWRnZXRfZXhoYXVzdGVkUgpjYW5jZWxsaW5nUghjYW5jZWxlZBIhCgRtb2RlGAcgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvEhcKCnN0YXJ0ZWRfYXQYCSABKAlIAogBARIYCgtmaW5pc2hlZF9hdBgKIAEoCUgDiAEBEhsKDmZhaWx1cmVfcmVhc29uGAsgASgJSASIAQESFwoKc3RhcnRlZF9ieRgMIAEoCUgFiAEBEhYKCW9wZXJhdGlvbhgNIAEoCUgGiAEBEhsKCmNyZWF0ZWRfYXQYDiABKAlCB7pIBHICEAESGwoKdXBkYXRlZF9hdBgPIAEoCUIHukgEcgIQARJMCg9hcmNoaXZlX2NvbnRleHQYECABKAsyLi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uQXJjaGl2ZUNvbnRleHRIB4gBARIgChNwYXJlbnRfZXhlY3V0aW9uX2lkGBEgASgJSAiIAQESFQoNZml4dXBfYXR0ZW1wdBgSIAEoBRJHCgxmaW5hbGl6YXRpb24YFyABKAsyLC52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRmluYWxpemF0aW9uSAmIAQESWAoVZXhlY3V0aW9uX3ByZWZlcmVuY2VzGBggASgLMjQudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkV4ZWN1dGlvblByZWZlcmVuY2VzSAqIAQESGgoNYWN0dWFsX3J1bm5lchgZIAEoCUgLiAEBEhkKDGFjdHVhbF9tb2RlbBgaIAEoCUgMiAEBEh0KEHNlbGVjdGlvbl9yZWFzb24YGyABKAlIDYgBARIcCg9jb250aW51YXRpb25fb2YYHCABKAlIDogBARIeChZjb250aW51YXRpb25fY2hpbGRfaWRzGB0gAygJEkgKEHNjb3BlX2V4dGVuc2lvbnMYHiADKAsyLi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NvcGVFeHRlbnNpb25CCgoIX3Rhc2tfaWRCCQoHX3J1bl9pZEINCgtfc3RhcnRlZF9hdEIOCgxfZmluaXNoZWRfYXRCEQoPX2ZhaWx1cmVfcmVhc29uQg0KC19zdGFydGVkX2J5QgwKCl9vcGVyYXRpb25CEgoQX2FyY2hpdmVfY29udGV4dEIWChRfcGFyZW50X2V4ZWN1dGlvbl9pZEIPCg1fZmluYWxpemF0aW9uQhgKFl9leGVjdXRpb25fcHJlZmVyZW5jZXNCEAoOX2FjdHVhbF9ydW5uZXJCDwoNX2FjdHVhbF9tb2RlbEITChFfc2VsZWN0aW9uX3JlYXNvbkISChBfY29udGludWF0aW9uX29mSgQICBAJSgQIExAXIlQKDlNjb3BlRXh0ZW5zaW9uEg0KBXBhdGhzGAEgAygJEg4KBnJlYXNvbhgCIAEoCRITCgtyZWNvcmRlZF9hdBgDIAEoCRIOCgZhdXRob3IYBCABKAkizgEKDkFyY2hpdmVDb250ZXh0Eh4KDXNjZW5hcmlvX25hbWUYASABKAlCB7pIBHICEAESHgoNc2NlbmFyaW9fcGF0aBgCIAEoCUIHukgEcgIQARIdChBwcmVzZXRfb3JfY3VzdG9tGAMgASgJSACIAQESFgoOcHJlc2VydmVfcGF0aHMYBCADKAkSHAoPcHJlc2VydmVfcHJlc2V0GAUgASgJSAGIAQFCEwoRX3ByZXNldF9vcl9jdXN0b21CEgoQX3ByZXNlcnZlX3ByZXNldCLRAQoMUmV2aWV3UmVzdWx0Eg4KBmpvYl9pZBgBIAEoCRIWCg5jbGFzc2lmaWNhdGlvbhgCIAEoCRJDCgpkaW1lbnNpb25zGAMgAygLMi8udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlJldmlld0RpbWVuc2lvbhIPCgdzdW1tYXJ5GAQgASgJEhMKC3Jldmlld2VkX2F0GAUgASgJEhsKDnJhd19kaW1lbnNpb25zGAYgASgJSACIAQFCEQoPX3Jhd19kaW1lbnNpb25zIlEKD1Jldmlld0RpbWVuc2lvbhIMCgRuYW1lGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIUCgdkZXRhaWxzGAMgASgJSACIAQFCCgoIX2RldGFpbHMi1wMKDEZpbmFsaXphdGlvbhIQCghlbGlnaWJsZRgBIAEoCBIOCgZzdGF0dXMYAiABKAkSDQoFcGhhc2UYAyABKAkSFAoMc2NvcGVfc291cmNlGAQgASgJEhgKC3NraXBfcmVhc29uGAUgASgJSACIAQESFwoKc3RhcnRlZF9hdBgGIAEoCUgBiAEBEhkKDGNvbXBsZXRlZF9hdBgHIAEoCUgCiAEBEkUKCHdhcm5pbmdzGAggAygLMjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkZpbmFsaXphdGlvbldhcm5pbmcSGgoSYWZmZWN0ZWRfc2NlbmFyaW9zGAkgAygJEiAKGGFnZ3JlZ2F0ZV9jbGFzc2lmaWNhdGlvbhgKIAEoCRIeChFhZ2dyZWdhdGVfc3VtbWFyeRgLIAEoCUgDiAEBEkcKCXNjZW5hcmlvcxgMIAMoCzI0LnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5TY2VuYXJpb0ZpbmFsaXphdGlvbkIOCgxfc2tpcF9yZWFzb25CDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdEIUChJfYWdncmVnYXRlX3N1bW1hcnkiiQEKE0ZpbmFsaXphdGlvbldhcm5pbmcSDAoEY29kZRgBIAEoCRIaCg1zY2VuYXJpb19uYW1lGAIgASgJSACIAQESDwoHbWVzc2FnZRgDIAEoCRIRCglyZXRyeWFibGUYBCABKAgSEgoKY3JlYXRlZF9hdBgFIAEoCUIQCg5fc2NlbmFyaW9fbmFtZSKHAgoUU2NlbmFyaW9GaW5hbGl6YXRpb24SFQoNc2NlbmFyaW9fbmFtZRgBIAEoCRIVCg1jaGFuZ2VkX3BhdGhzGAIgAygJEj4KB3Jlc3RhcnQYAyABKAsyLS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uUmVzdGFydFJlc3VsdBJBCgZoZWFsdGgYBCABKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uSGVhbHRoQ2hlY2tSZXN1bHQSPgoGcmV2aWV3GAUgASgLMi4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvUmV2aWV3IqsBCg1SZXN0YXJ0UmVzdWx0Eg4KBnN0YXR1cxgBIAEoCRIQCghhdHRlbXB0cxgCIAEoBRIXCgpsYXN0X2Vycm9yGAMgASgJSACIAQESFwoKc3RhcnRlZF9hdBgEIAEoCUgBiAEBEhgKC2ZpbmlzaGVkX2F0GAUgASgJSAKIAQFCDQoLX2xhc3RfZXJyb3JCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0IuMBChFIZWFsdGhDaGVja1Jlc3VsdBIOCgZzdGF0dXMYASABKAkSHAoPc2NlbmFyaW9fc3RhdHVzGAIgASgJSACIAQESGgoNaGVhbHRoX3N0YXR1cxgDIAEoCUgBiAEBEhQKDHNjaGVtYV92YWxpZBgEIAEoCBIUCgdkZXRhaWxzGAUgASgJSAKIAQESFwoKY2hlY2tlZF9hdBgGIAEoCUgDiAEBQhIKEF9zY2VuYXJpb19zdGF0dXNCEAoOX2hlYWx0aF9zdGF0dXNCCgoIX2RldGFpbHNCDQoLX2NoZWNrZWRfYXQiuAEKDlNjZW5hcmlvUmV2aWV3Eg4KBnN0YXR1cxgBIAEoCRITCgZqb2JfaWQYAiABKAlIAIgBARIYCgtza2lwX3JlYXNvbhgDIAEoCUgBiAEBEkEKBnJlc3VsdBgEIAEoCzIsLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5SZXZpZXdSZXN1bHRIAogBAUIJCgdfam9iX2lkQg4KDF9za2lwX3JlYXNvbkIJCgdfcmVzdWx0IrgCCgxFdmlkZW5jZUl0ZW0SCgoCaWQYASABKAkSDAoEdHlwZRgCIAEoCRINCgV0aXRsZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIZCgxjYXB0dXJlX3BhdGgYBSABKAlIAIgBARIQCgh2ZXJpZmllZBgGIAEoCBIYCgt2ZXJpZmllZF9hdBgHIAEoCUgBiAEBEiAKE2JlZm9yZV9jYXB0dXJlX3BhdGgYCCABKAlIAogBARJICgx0ZXN0X3Jlc3VsdHMYCSADKAsyMi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXZpZGVuY2VUZXN0UmVzdWx0Qg8KDV9jYXB0dXJlX3BhdGhCDgoMX3ZlcmlmaWVkX2F0QhYKFF9iZWZvcmVfY2FwdHVyZV9wYXRoImIKEkV2aWRlbmNlVGVzdFJlc3VsdBIMCgRuYW1lGAEgASgJEg4KBnBhc3NlZBgCIAEoCBIbCg5vdXRwdXRfc3VtbWFyeRgDIAEoCUgAiAEBQhEKD19vdXRwdXRfc3VtbWFyeSLbAQoVRXZpZGVuY2VSZXF1ZXN0VGhyZWFkEgoKAmlkGAEgASgJEhgKC2V2aWRlbmNlX2lkGAIgASgJSACIAQESDgoGc3RhdHVzGAMgASgJEkgKCG1lc3NhZ2VzGAQgAygLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkV2aWRlbmNlUmVxdWVzdE1lc3NhZ2USEgoKY3JlYXRlZF9hdBgFIAEoCRITCgZydW5faWQYBiABKAlIAYgBAUIOCgxfZXZpZGVuY2VfaWRCCQoHX3J1bl9pZCJmChZFdmlkZW5jZVJlcXVlc3RNZXNzYWdlEgwKBHJvbGUYASABKAkSDwoHY29udGVudBgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSGgoSYWRkZWRfZXZpZGVuY2VfaWRzGAQgAygJIoMDChNSZXZpZXdFdmlkZW5jZVJvdW5kEg0KBXJvdW5kGAEgASgFEhQKDGdlbmVyYXRlZF9hdBgCIAEoCRIUCgxleGVjdXRpb25faWQYAyABKAkSDgoGc3RhdHVzGAQgASgJEh0KEGFnZW50X2Fzc2Vzc21lbnQYBSABKAlIAIgBARIbCg5jbGFzc2lmaWNhdGlvbhgGIAEoCUgBiAEBEg0KBW5vdGVzGAcgAygJEj4KCGV2aWRlbmNlGAggAygLMiwudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLkV2aWRlbmNlSXRlbRJOCg9yZXF1ZXN0X3RocmVhZHMYCSADKAsyNS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXZpZGVuY2VSZXF1ZXN0VGhyZWFkEhMKBnJ1bl9pZBgKIAEoCUgCiAEBQhMKEV9hZ2VudF9hc3Nlc3NtZW50QhEKD19jbGFzc2lmaWNhdGlvbkIJCgdfcnVuX2lkIpsBCg9FeGVjdXRpb25Qb2xpY3kSKQoMZGVmYXVsdF9tb2RlGAEgASgJQhO6SBByDlIGbWFudWFsUgR5b2xvEhIKCmF1dG9fZml4dXAYAyABKAgSJQoSbWF4X2ZpeHVwX2F0dGVtcHRzGAQgASgFQgm6SAYaBBgFKAASHAoUcmV2aWV3X2FnZW50X2VuYWJsZWQYBSABKAhKBAgCEANCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zd2FybS1tYW5hZ2VyL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate, file_swarm_manager_v1_domain_backlog]);
 
 /**
  * ExecutionRecord captures one backlog execution lifecycle entry.
@@ -116,6 +118,49 @@ export type ExecutionRecord = Message<"vrooli.swarm_manager.v1.domain.ExecutionR
    * @generated from field: optional vrooli.swarm_manager.v1.domain.Finalization finalization = 23;
    */
   finalization?: Finalization | undefined;
+
+  /**
+   * Requested runner/model preferences and the actual selected provider.
+   *
+   * @generated from field: optional vrooli.swarm_manager.v1.domain.ExecutionPreferences execution_preferences = 24;
+   */
+  executionPreferences?: ExecutionPreferences | undefined;
+
+  /**
+   * @generated from field: optional string actual_runner = 25;
+   */
+  actualRunner?: string | undefined;
+
+  /**
+   * @generated from field: optional string actual_model = 26;
+   */
+  actualModel?: string | undefined;
+
+  /**
+   * @generated from field: optional string selection_reason = 27;
+   */
+  selectionReason?: string | undefined;
+
+  /**
+   * Parent execution for an unattended continuation child.
+   *
+   * @generated from field: optional string continuation_of = 28;
+   */
+  continuationOf?: string | undefined;
+
+  /**
+   * Child execution IDs created from this execution by the sweeper.
+   *
+   * @generated from field: repeated string continuation_child_ids = 29;
+   */
+  continuationChildIds: string[];
+
+  /**
+   * Recorded Plan Manager boundary widenings projected into execution scope.
+   *
+   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ScopeExtension scope_extensions = 30;
+   */
+  scopeExtensions: ScopeExtension[];
 };
 
 /**
@@ -124,6 +169,41 @@ export type ExecutionRecord = Message<"vrooli.swarm_manager.v1.domain.ExecutionR
  */
 export const ExecutionRecordSchema: GenMessage<ExecutionRecord> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_domain_execution, 0);
+
+/**
+ * ScopeExtension is an execution-local projection of one Plan Manager
+ * boundary extension. The Plan Manager execution remains the audit authority.
+ *
+ * @generated from message vrooli.swarm_manager.v1.domain.ScopeExtension
+ */
+export type ScopeExtension = Message<"vrooli.swarm_manager.v1.domain.ScopeExtension"> & {
+  /**
+   * @generated from field: repeated string paths = 1;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string recorded_at = 3;
+   */
+  recordedAt: string;
+
+  /**
+   * @generated from field: string author = 4;
+   */
+  author: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.domain.ScopeExtension.
+ * Use `create(ScopeExtensionSchema)` to create a new message.
+ */
+export const ScopeExtensionSchema: GenMessage<ScopeExtension> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_execution, 1);
 
 /**
  * ArchiveContext captures archive parameters for spec-sync-archive executions.
@@ -162,7 +242,7 @@ export type ArchiveContext = Message<"vrooli.swarm_manager.v1.domain.ArchiveCont
  * Use `create(ArchiveContextSchema)` to create a new message.
  */
 export const ArchiveContextSchema: GenMessage<ArchiveContext> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 1);
+  messageDesc(file_swarm_manager_v1_domain_execution, 2);
 
 /**
  * ReviewResult captures the outcome of a post-execution readiness review.
@@ -210,7 +290,7 @@ export type ReviewResult = Message<"vrooli.swarm_manager.v1.domain.ReviewResult"
  * Use `create(ReviewResultSchema)` to create a new message.
  */
 export const ReviewResultSchema: GenMessage<ReviewResult> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 2);
+  messageDesc(file_swarm_manager_v1_domain_execution, 3);
 
 /**
  * ReviewDimension captures a single review dimension result.
@@ -241,7 +321,7 @@ export type ReviewDimension = Message<"vrooli.swarm_manager.v1.domain.ReviewDime
  * Use `create(ReviewDimensionSchema)` to create a new message.
  */
 export const ReviewDimensionSchema: GenMessage<ReviewDimension> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 3);
+  messageDesc(file_swarm_manager_v1_domain_execution, 4);
 
 /**
  * Finalization captures the full post-run orchestration state for an execution.
@@ -315,7 +395,7 @@ export type Finalization = Message<"vrooli.swarm_manager.v1.domain.Finalization"
  * Use `create(FinalizationSchema)` to create a new message.
  */
 export const FinalizationSchema: GenMessage<Finalization> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 4);
+  messageDesc(file_swarm_manager_v1_domain_execution, 5);
 
 /**
  * FinalizationWarning captures a non-fatal issue encountered during post-run
@@ -355,7 +435,7 @@ export type FinalizationWarning = Message<"vrooli.swarm_manager.v1.domain.Finali
  * Use `create(FinalizationWarningSchema)` to create a new message.
  */
 export const FinalizationWarningSchema: GenMessage<FinalizationWarning> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 5);
+  messageDesc(file_swarm_manager_v1_domain_execution, 6);
 
 /**
  * ScenarioFinalization captures restart, health, and review state for one
@@ -395,7 +475,7 @@ export type ScenarioFinalization = Message<"vrooli.swarm_manager.v1.domain.Scena
  * Use `create(ScenarioFinalizationSchema)` to create a new message.
  */
 export const ScenarioFinalizationSchema: GenMessage<ScenarioFinalization> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 6);
+  messageDesc(file_swarm_manager_v1_domain_execution, 7);
 
 /**
  * RestartResult captures restart attempts for one scenario.
@@ -434,7 +514,7 @@ export type RestartResult = Message<"vrooli.swarm_manager.v1.domain.RestartResul
  * Use `create(RestartResultSchema)` to create a new message.
  */
 export const RestartResultSchema: GenMessage<RestartResult> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 7);
+  messageDesc(file_swarm_manager_v1_domain_execution, 8);
 
 /**
  * HealthCheckResult captures the standard health contract outcome for one
@@ -479,7 +559,7 @@ export type HealthCheckResult = Message<"vrooli.swarm_manager.v1.domain.HealthCh
  * Use `create(HealthCheckResultSchema)` to create a new message.
  */
 export const HealthCheckResultSchema: GenMessage<HealthCheckResult> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 8);
+  messageDesc(file_swarm_manager_v1_domain_execution, 9);
 
 /**
  * ScenarioReview captures one scenario review job and result.
@@ -513,7 +593,7 @@ export type ScenarioReview = Message<"vrooli.swarm_manager.v1.domain.ScenarioRev
  * Use `create(ScenarioReviewSchema)` to create a new message.
  */
 export const ScenarioReviewSchema: GenMessage<ScenarioReview> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 9);
+  messageDesc(file_swarm_manager_v1_domain_execution, 10);
 
 /**
  * EvidenceItem represents a single piece of verification evidence gathered
@@ -581,7 +661,7 @@ export type EvidenceItem = Message<"vrooli.swarm_manager.v1.domain.EvidenceItem"
  * Use `create(EvidenceItemSchema)` to create a new message.
  */
 export const EvidenceItemSchema: GenMessage<EvidenceItem> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 10);
+  messageDesc(file_swarm_manager_v1_domain_execution, 11);
 
 /**
  * EvidenceTestResult captures a structured test outcome within an evidence item.
@@ -610,7 +690,7 @@ export type EvidenceTestResult = Message<"vrooli.swarm_manager.v1.domain.Evidenc
  * Use `create(EvidenceTestResultSchema)` to create a new message.
  */
 export const EvidenceTestResultSchema: GenMessage<EvidenceTestResult> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 11);
+  messageDesc(file_swarm_manager_v1_domain_execution, 12);
 
 /**
  * EvidenceRequestThread captures a multi-turn conversation about needing
@@ -661,7 +741,7 @@ export type EvidenceRequestThread = Message<"vrooli.swarm_manager.v1.domain.Evid
  * Use `create(EvidenceRequestThreadSchema)` to create a new message.
  */
 export const EvidenceRequestThreadSchema: GenMessage<EvidenceRequestThread> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 12);
+  messageDesc(file_swarm_manager_v1_domain_execution, 13);
 
 /**
  * EvidenceRequestMessage is a single turn in an evidence request thread.
@@ -699,7 +779,7 @@ export type EvidenceRequestMessage = Message<"vrooli.swarm_manager.v1.domain.Evi
  * Use `create(EvidenceRequestMessageSchema)` to create a new message.
  */
 export const EvidenceRequestMessageSchema: GenMessage<EvidenceRequestMessage> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 13);
+  messageDesc(file_swarm_manager_v1_domain_execution, 14);
 
 /**
  * ReviewEvidenceRound captures one pass of evidence gathering by the
@@ -770,7 +850,7 @@ export type ReviewEvidenceRound = Message<"vrooli.swarm_manager.v1.domain.Review
  * Use `create(ReviewEvidenceRoundSchema)` to create a new message.
  */
 export const ReviewEvidenceRoundSchema: GenMessage<ReviewEvidenceRound> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 14);
+  messageDesc(file_swarm_manager_v1_domain_execution, 15);
 
 /**
  * ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
@@ -810,5 +890,5 @@ export type ExecutionPolicy = Message<"vrooli.swarm_manager.v1.domain.ExecutionP
  * Use `create(ExecutionPolicySchema)` to create a new message.
  */
 export const ExecutionPolicySchema: GenMessage<ExecutionPolicy> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_execution, 15);
+  messageDesc(file_swarm_manager_v1_domain_execution, 16);
 

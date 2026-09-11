@@ -33,6 +33,19 @@ Backlog acceptance and execution use the same subject-version contract. Editing
 that contract invalidates acceptance. The UI preserves these values through its
 API mapping, displays aggregate limits before acceptance and launch, and allows
 a run to narrow its slice allowance. Bulk launch retains each item's own settings.
+
+### Scope policy
+
+The item's authored `acceptance_allow` and `acceptance_deny` remain the
+acceptance and plan-acceptance contract. With `scope_policy: fixed`, an
+out-of-scope edit is an operator decision. With `scope_policy:
+extend-with-record`, the worker records `plan-manager exec boundary-extend`
+before editing; the next slice or goal-session projection reads Plan Manager's
+append-only `boundary_extensions`, unions their `added_allow` paths into its
+effective `writeScope`, and carries the policy in `constraints.scopePolicy`.
+The same effective scope drives finalization scenario selection and review
+expectations. A recorded extension that overlaps `acceptance_deny` is refused,
+and neither the authored allow list nor `plan_acceptance` is rewritten.
 Opening review or a Run dialog does not start work.
 
 An item without explicit limits retains the bounded ordinary defaults. A larger
@@ -41,6 +54,27 @@ an admission ceiling, not a larger allowance granted to every item. Agent Manage
 pins the supplied grant to an execution. Retry must account for earlier measured
 usage; missing authoritative terminal usage cannot become a fresh budget.
 Money for coding agents and money for product inference are separate authorities.
+
+### Continuation
+
+An item with `continuation: until-allowance` may continue only after a parent
+execution reaches `budget_exhausted`. The sweeper creates one pending child at a
+time, copying the parent's strategy and execution preferences while deriving
+the child allowance from settled usage under the same approval digest. Pending,
+running, validating, or approval-gated records, a halt flag, unknown usage,
+and exhausted aggregate dimensions prevent a child. `continuation: manual`
+retains the prior operator-start behavior. Operators can halt or resume the
+chain without cancelling a running execution; the circuit breaker halts after
+three consecutive continuation children with no observed Plan Manager progress.
+
+Only `budget_exhausted` continues. A child that reaches `complete` closes the
+item through the normal completion path; `blocked`, `abstained`, `failed`, and
+`needs_review` stop the chain for review or operator action. Allowance
+exhaustion records the dimension (`tokens`, `charge`, `wall`, `slices`, or
+another aggregate limit) as `continuation_stopped_reason`; no-progress stops
+record `no_progress`. Parent/child IDs and the halt/stop state are projected in
+execution and backlog responses, while operational continuation fields never
+change the accepted item digest.
 
 This route is for trusted coding agents with ordinary workspace and owner scope
 controls. It does not claim a hard in-flight token ceiling or qualified containment

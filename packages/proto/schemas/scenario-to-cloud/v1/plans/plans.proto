@@ -85,6 +85,10 @@ message Handoff {
   string kind = 2;
   string reference = 3;
   repeated string missing = 4;
+  string deployment_id = 5;
+  Target target = 6;
+  uint64 desired_revision = 7;
+  string selection_digest = 8;
 }
 
 // Presentation is human text, excluded from the semantic digest.

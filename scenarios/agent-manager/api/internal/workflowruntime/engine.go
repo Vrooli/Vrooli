@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/structuredresult"
@@ -24,8 +25,9 @@ var (
 // workflow revision. They are persisted together so idempotent replay cannot
 // silently attach one engagement to another.
 type ExecutionBinding struct {
-	ApprovalDigest string
-	GrantDigest    string
+	ApprovalDigest       string
+	GrantDigest          string
+	ExecutionPreferences *domain.ExecutionPreferences
 }
 
 type (
@@ -33,25 +35,28 @@ type (
 		GetByDigest(context.Context, string) (*domain.WorkflowRevision, error)
 	}
 	ChildRequest struct {
-		ExecutionID    uuid.UUID
-		AttemptID      uuid.UUID
-		NodeID         string
-		IdempotencyKey string
-		ProfileKey     string
-		RoleRef        string
-		ScopePath      string
-		Tag            string
-		Force          bool
-		Prompt         string
-		Until          string
-		ResultSpec     *domain.ResultSpec
-		SourceRunID    *uuid.UUID
-		MaxTurns       int
-		Timeout        time.Duration
-		ExperimentID   string
-		VariantID      string
-		PromptHash     string
-		AllowedEffects []string
+		ExecutionID     uuid.UUID
+		AttemptID       uuid.UUID
+		NodeID          string
+		IdempotencyKey  string
+		ProfileKey      string
+		RoleRef         string
+		ScopePath       string
+		Tag             string
+		Force           bool
+		Prompt          string
+		Until           string
+		ResultSpec      *domain.ResultSpec
+		SourceRunID     *uuid.UUID
+		MaxTurns        int
+		Timeout         time.Duration
+		ExperimentID    string
+		VariantID       string
+		PromptHash      string
+		AllowedEffects  []string
+		PreferredRunner string
+		Model           string
+		Effort          string
 	}
 	ChildState struct {
 		RunID          uuid.UUID
@@ -68,6 +73,8 @@ type (
 		CostUSD             float64
 		ChargeMicroUSD      int64
 		ChargeMeasured      bool
+		GoalStatus          runner.GoalStatus
+		GoalObjective       string
 		// MeterCadence describes the durable provider observations used to
 		// decide whether a metered stop should be requested. It is evidence,
 		// not a hard-ceiling guarantee.
@@ -260,6 +267,10 @@ func (e *Engine) start(ctx context.Context, revision *domain.WorkflowRevision, i
 	if len(binding) > 0 {
 		execution.ApprovalDigest = strings.TrimSpace(binding[0].ApprovalDigest)
 		execution.GrantDigest = strings.TrimSpace(binding[0].GrantDigest)
+		if binding[0].ExecutionPreferences != nil {
+			preferences := *binding[0].ExecutionPreferences
+			execution.ExecutionPreferences = &preferences
+		}
 	}
 	entry := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: append(json.RawMessage(nil), input...), CreatedAt: now}
 	if err := e.Store.Create(ctx, execution, entry); err != nil {
@@ -934,6 +945,10 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		x.BudgetUsage.AccountingComplete = x.BudgetUsage.AccountingComplete && state.TokensKnown && state.ChargeMeasured
 	}
 	entries := []*domain.WorkflowJournalEntry{}
+	if state.GoalStatus != "" {
+		payload, _ := json.Marshal(map[string]any{"goal": map[string]any{"objective": state.GoalObjective, "status": state.GoalStatus}})
+		entries = append(entries, nextJournal(x.ID, append(journal, entries...), domain.WorkflowJournalDiagnostic, node.ID, &active.ID, payload, now))
+	}
 	if state.Result != nil {
 		active.RawOutput = state.Result.FinalOutput
 		payload, _ := json.Marshal(state.Result)
@@ -955,6 +970,13 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	}
 	if state.Failed {
 		return e.commitFailure(ctx, x, active, entries, "child_failed", "child Run failed")
+	}
+	if state.GoalStatus != "" && (state.Result == nil || state.Result.Structured == nil) {
+		mapped, mapErr := MapGoalStatus(state.GoalStatus)
+		if mapErr != nil {
+			return e.commitFailure(ctx, x, active, entries, "goal_status_invalid", mapErr.Error())
+		}
+		return e.commitChildTerminal(ctx, x, active, entries, mapped, nil, &domain.WorkflowTerminalReason{Code: "goal_" + string(state.GoalStatus)})
 	}
 	if validationError := structuredValidationError(node, state.Result); validationError != "" {
 		active.Status = domain.WorkflowAttemptFailed
@@ -1302,6 +1324,11 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		spec = node.Continue.ResultSpec
 	}
 	request := ChildRequest{ExecutionID: x.ID, AttemptID: a.ID, NodeID: node.ID, IdempotencyKey: a.IdempotencyKey, Prompt: prompt, ResultSpec: spec, ExperimentID: a.ExperimentID, VariantID: a.VariantID, PromptHash: a.PromptHash}
+	if x.ExecutionPreferences != nil {
+		request.PreferredRunner = x.ExecutionPreferences.PreferredRunner
+		request.Model = x.ExecutionPreferences.Model
+		request.Effort = x.ExecutionPreferences.Effort
+	}
 	if x.EngagementGrant != nil {
 		request.AllowedEffects = append([]string(nil), x.EngagementGrant.AllowedEffects...)
 	}

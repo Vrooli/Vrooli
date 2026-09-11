@@ -1,8 +1,32 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Trash2 } from "lucide-react";
 import { ActionMenu, ActionMenuSheetContent } from "./action-menu";
+
+/**
+ * The anchored menu, and its outside-press dismissal, is the desktop (≥ md)
+ * presentation; phone widths get a bottom sheet whose backdrop dismisses it.
+ */
+function mockDesktopViewport() {
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (query: string) =>
+      ({
+        matches: query.includes("min-width"),
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+      }) as MediaQueryList,
+  );
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("ActionMenu", () => {
   it("opens a standardized menu and runs item actions", async () => {
@@ -37,6 +61,37 @@ describe("ActionMenu", () => {
 
     await user.click(screen.getByTestId("delete-action"));
     expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("actions-menu")).not.toBeInTheDocument();
+  });
+
+  it("closes when the operator clicks outside the menu", async () => {
+    mockDesktopViewport();
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <p>Elsewhere</p>
+        <ActionMenu label="Test actions" triggerTestId="actions-trigger" menuTestId="actions-menu" items={[{ label: "Archive", onSelect: vi.fn() }]} />
+      </>,
+    );
+
+    await user.click(screen.getByTestId("actions-trigger"));
+    expect(screen.getByTestId("actions-menu")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Elsewhere"));
+    expect(screen.queryByTestId("actions-menu")).not.toBeInTheDocument();
+  });
+
+  it("closes, rather than reopens, when the trigger is pressed again", async () => {
+    mockDesktopViewport();
+    const user = userEvent.setup();
+
+    render(<ActionMenu label="Test actions" triggerTestId="actions-trigger" menuTestId="actions-menu" items={[{ label: "Archive", onSelect: vi.fn() }]} />);
+
+    await user.click(screen.getByTestId("actions-trigger"));
+    expect(screen.getByTestId("actions-menu")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("actions-trigger"));
     expect(screen.queryByTestId("actions-menu")).not.toBeInTheDocument();
   });
 

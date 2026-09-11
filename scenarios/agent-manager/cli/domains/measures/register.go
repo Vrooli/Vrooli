@@ -112,7 +112,12 @@ func Register() cliapp.SubcommandGroup {
 			}
 			return response.Msg, nil
 		}, func(r *measurepb.RunCostResponse) string {
-			return fmt.Sprintf("Run cost: $%.4f across %d runs (%d tokens)", r.GetTotalCostUsd(), r.GetTotalRuns(), r.GetTotalTokens())
+			base := fmt.Sprintf("Run cost: $%.4f across %d runs (%d tokens)", r.GetTotalCostUsd(), r.GetTotalRuns(), r.GetTotalTokens())
+			if r.GetDistributionSampleSize() == 0 {
+				return base
+			}
+			return base + fmt.Sprintf("\nPer-run tokens: p50 %d, p90 %d, p95 %d, p99 %d, max %d", r.GetP50Tokens(), r.GetP90Tokens(), r.GetP95Tokens(), r.GetP99Tokens(), r.GetMaxTokens()) +
+				fmt.Sprintf("\nPer-run cost: p50 $%.4f, p90 $%.4f, p95 $%.4f, p99 $%.4f, max $%.4f (sample %d, unobserved %d)", r.GetP50CostUsd(), r.GetP90CostUsd(), r.GetP95CostUsd(), r.GetP99CostUsd(), r.GetMaxCostUsd(), r.GetDistributionSampleSize(), r.GetDistributionUnobservedRuns())
 		}),
 		windowMeasure("run-volume", "Show durable terminal run volume", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.RunVolumeResponse, error) {
 			response, err := c.RunVolume(ctx, connect.NewRequest(&measurepb.RunVolumeRequest{Window: window}))

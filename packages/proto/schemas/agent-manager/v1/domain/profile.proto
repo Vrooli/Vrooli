@@ -337,8 +337,15 @@ message ExecutionPolicySnapshot {
   ExecutionCandidate selected_candidate = 5;
   PolicyResolutionExplanation explanation = 6;
   string role_ref = 7;
+  string selection_reason = 8;
   reserved 2;
   reserved "policy_ref";
+}
+
+message ExecutionPreferences {
+  string preferred_runner = 1;
+  string model = 2;
+  string effort = 3;
 }
 
 // RunConfigOverrides contains optional overrides for run configuration.
@@ -389,6 +396,9 @@ message RunConfigOverrides {
   // Explicit per-run model override. Role resolution still supplies the
   // default; this field only overrides the selected model for this run.
   optional string model = 29;
+
+  // Engine-owned completion test for this run.
+  optional string until = 30;
 
   // Reserved to prevent accidental reuse of wire IDs/names from earlier
   // schema iterations. SandboxConfig.mode is the single source of truth

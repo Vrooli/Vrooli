@@ -73,8 +73,13 @@ type EvaluateProfileRequest struct {
 	Answers         map[string]*structpb.Value `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	TargetContext   *structpb.Struct           `protobuf:"bytes,4,opt,name=target_context,json=targetContext,proto3" json:"target_context,omitempty"`
 	ManualDecisions map[string]bool            `protobuf:"bytes,5,rep,name=manual_decisions,json=manualDecisions,proto3" json:"manual_decisions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	Preset          *ProfilePreset             `protobuf:"bytes,6,opt,name=preset,proto3" json:"preset,omitempty"`
+	// profile_id remains the backwards-compatible single-profile form. When
+	// profile_ids is present, the evaluator composes those profiles into one
+	// deterministic selection and preserves each source in the response.
+	ProfileIds    []string `protobuf:"bytes,7,rep,name=profile_ids,json=profileIds,proto3" json:"profile_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EvaluateProfileRequest) Reset() {
@@ -142,6 +147,88 @@ func (x *EvaluateProfileRequest) GetManualDecisions() map[string]bool {
 	return nil
 }
 
+func (x *EvaluateProfileRequest) GetPreset() *ProfilePreset {
+	if x != nil {
+		return x.Preset
+	}
+	return nil
+}
+
+func (x *EvaluateProfileRequest) GetProfileIds() []string {
+	if x != nil {
+		return x.ProfileIds
+	}
+	return nil
+}
+
+type ProfilePreset struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Id            string                     `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       string                     `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Source        string                     `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Answers       map[string]*structpb.Value `protobuf:"bytes,4,rep,name=answers,proto3" json:"answers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfilePreset) Reset() {
+	*x = ProfilePreset{}
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfilePreset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfilePreset) ProtoMessage() {}
+
+func (x *ProfilePreset) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfilePreset.ProtoReflect.Descriptor instead.
+func (*ProfilePreset) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ProfilePreset) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProfilePreset) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ProfilePreset) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ProfilePreset) GetAnswers() map[string]*structpb.Value {
+	if x != nil {
+		return x.Answers
+	}
+	return nil
+}
+
 type ProfileOption struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -152,7 +239,7 @@ type ProfileOption struct {
 
 func (x *ProfileOption) Reset() {
 	*x = ProfileOption{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[2]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -164,7 +251,7 @@ func (x *ProfileOption) String() string {
 func (*ProfileOption) ProtoMessage() {}
 
 func (x *ProfileOption) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[2]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -177,7 +264,7 @@ func (x *ProfileOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileOption.ProtoReflect.Descriptor instead.
 func (*ProfileOption) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{2}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProfileOption) GetId() string {
@@ -211,7 +298,7 @@ type ProfileQuestion struct {
 
 func (x *ProfileQuestion) Reset() {
 	*x = ProfileQuestion{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[3]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +310,7 @@ func (x *ProfileQuestion) String() string {
 func (*ProfileQuestion) ProtoMessage() {}
 
 func (x *ProfileQuestion) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[3]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +323,7 @@ func (x *ProfileQuestion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileQuestion.ProtoReflect.Descriptor instead.
 func (*ProfileQuestion) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ProfileQuestion) GetId() string {
@@ -317,7 +404,7 @@ type ProfileRecommendation struct {
 
 func (x *ProfileRecommendation) Reset() {
 	*x = ProfileRecommendation{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +416,7 @@ func (x *ProfileRecommendation) String() string {
 func (*ProfileRecommendation) ProtoMessage() {}
 
 func (x *ProfileRecommendation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[4]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +429,7 @@ func (x *ProfileRecommendation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileRecommendation.ProtoReflect.Descriptor instead.
 func (*ProfileRecommendation) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProfileRecommendation) GetCapabilityRef() string {
@@ -407,7 +494,7 @@ type ProfileExplanation struct {
 
 func (x *ProfileExplanation) Reset() {
 	*x = ProfileExplanation{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +506,7 @@ func (x *ProfileExplanation) String() string {
 func (*ProfileExplanation) ProtoMessage() {}
 
 func (x *ProfileExplanation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[5]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +519,7 @@ func (x *ProfileExplanation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileExplanation.ProtoReflect.Descriptor instead.
 func (*ProfileExplanation) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProfileExplanation) GetRuleId() string {
@@ -481,7 +568,7 @@ type ProfileValidationIssue struct {
 
 func (x *ProfileValidationIssue) Reset() {
 	*x = ProfileValidationIssue{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +580,7 @@ func (x *ProfileValidationIssue) String() string {
 func (*ProfileValidationIssue) ProtoMessage() {}
 
 func (x *ProfileValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[6]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +593,7 @@ func (x *ProfileValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileValidationIssue.ProtoReflect.Descriptor instead.
 func (*ProfileValidationIssue) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProfileValidationIssue) GetField() string {
@@ -524,6 +611,142 @@ func (x *ProfileValidationIssue) GetCode() string {
 }
 
 func (x *ProfileValidationIssue) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ProfileConflict struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Code               string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	CapabilityRef      string                 `protobuf:"bytes,2,opt,name=capability_ref,json=capabilityRef,proto3" json:"capability_ref,omitempty"`
+	RecommendationKeys []string               `protobuf:"bytes,3,rep,name=recommendation_keys,json=recommendationKeys,proto3" json:"recommendation_keys,omitempty"`
+	Message            string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ProfileConflict) Reset() {
+	*x = ProfileConflict{}
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileConflict) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileConflict) ProtoMessage() {}
+
+func (x *ProfileConflict) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileConflict.ProtoReflect.Descriptor instead.
+func (*ProfileConflict) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ProfileConflict) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ProfileConflict) GetCapabilityRef() string {
+	if x != nil {
+		return x.CapabilityRef
+	}
+	return ""
+}
+
+func (x *ProfileConflict) GetRecommendationKeys() []string {
+	if x != nil {
+		return x.RecommendationKeys
+	}
+	return nil
+}
+
+func (x *ProfileConflict) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ProfileOutstanding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	CapabilityRef string                 `protobuf:"bytes,3,opt,name=capability_ref,json=capabilityRef,proto3" json:"capability_ref,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProfileOutstanding) Reset() {
+	*x = ProfileOutstanding{}
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileOutstanding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileOutstanding) ProtoMessage() {}
+
+func (x *ProfileOutstanding) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileOutstanding.ProtoReflect.Descriptor instead.
+func (*ProfileOutstanding) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ProfileOutstanding) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
+func (x *ProfileOutstanding) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ProfileOutstanding) GetCapabilityRef() string {
+	if x != nil {
+		return x.CapabilityRef
+	}
+	return ""
+}
+
+func (x *ProfileOutstanding) GetMessage() string {
 	if x != nil {
 		return x.Message
 	}
@@ -549,7 +772,7 @@ type Profile struct {
 
 func (x *Profile) Reset() {
 	*x = Profile{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +784,7 @@ func (x *Profile) String() string {
 func (*Profile) ProtoMessage() {}
 
 func (x *Profile) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +797,7 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Profile.ProtoReflect.Descriptor instead.
 func (*Profile) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Profile) GetId() string {
@@ -663,7 +886,7 @@ type ListProfilesResponse struct {
 
 func (x *ListProfilesResponse) Reset() {
 	*x = ListProfilesResponse{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +898,7 @@ func (x *ListProfilesResponse) String() string {
 func (*ListProfilesResponse) ProtoMessage() {}
 
 func (x *ListProfilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +911,7 @@ func (x *ListProfilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProfilesResponse.ProtoReflect.Descriptor instead.
 func (*ListProfilesResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListProfilesResponse) GetProfiles() []*Profile {
@@ -709,13 +932,18 @@ type EvaluateProfileResponse struct {
 	Valid           bool                      `protobuf:"varint,7,opt,name=valid,proto3" json:"valid,omitempty"`
 	Explanations    []*ProfileExplanation     `protobuf:"bytes,8,rep,name=explanations,proto3" json:"explanations,omitempty"`
 	Digest          string                    `protobuf:"bytes,9,opt,name=digest,proto3" json:"digest,omitempty"`
+	CatalogRevision string                    `protobuf:"bytes,10,opt,name=catalog_revision,json=catalogRevision,proto3" json:"catalog_revision,omitempty"`
+	Conflicts       []*ProfileConflict        `protobuf:"bytes,11,rep,name=conflicts,proto3" json:"conflicts,omitempty"`
+	Outstanding     []*ProfileOutstanding     `protobuf:"bytes,12,rep,name=outstanding,proto3" json:"outstanding,omitempty"`
+	Preset          *ProfilePreset            `protobuf:"bytes,13,opt,name=preset,proto3" json:"preset,omitempty"`
+	Profiles        []*Profile                `protobuf:"bytes,14,rep,name=profiles,proto3" json:"profiles,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EvaluateProfileResponse) Reset() {
 	*x = EvaluateProfileResponse{}
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -727,7 +955,7 @@ func (x *EvaluateProfileResponse) String() string {
 func (*EvaluateProfileResponse) ProtoMessage() {}
 
 func (x *EvaluateProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -740,7 +968,7 @@ func (x *EvaluateProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateProfileResponse.ProtoReflect.Descriptor instead.
 func (*EvaluateProfileResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *EvaluateProfileResponse) GetProfile() *Profile {
@@ -806,26 +1034,72 @@ func (x *EvaluateProfileResponse) GetDigest() string {
 	return ""
 }
 
+func (x *EvaluateProfileResponse) GetCatalogRevision() string {
+	if x != nil {
+		return x.CatalogRevision
+	}
+	return ""
+}
+
+func (x *EvaluateProfileResponse) GetConflicts() []*ProfileConflict {
+	if x != nil {
+		return x.Conflicts
+	}
+	return nil
+}
+
+func (x *EvaluateProfileResponse) GetOutstanding() []*ProfileOutstanding {
+	if x != nil {
+		return x.Outstanding
+	}
+	return nil
+}
+
+func (x *EvaluateProfileResponse) GetPreset() *ProfilePreset {
+	if x != nil {
+		return x.Preset
+	}
+	return nil
+}
+
+func (x *EvaluateProfileResponse) GetProfiles() []*Profile {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
 var File_vrooli_onboarding_v1_profiles_profiles_proto protoreflect.FileDescriptor
 
 const file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc = "" +
 	"\n" +
 	",vrooli-onboarding/v1/profiles/profiles.proto\x12$vrooli.vrooli_onboarding.v1.profiles\x1a\x1cgoogle/protobuf/struct.proto\"-\n" +
 	"\x13ListProfilesRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\"\x8a\x04\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\"\xf8\x04\n" +
 	"\x16EvaluateProfileRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1d\n" +
 	"\n" +
 	"profile_id\x18\x02 \x01(\tR\tprofileId\x12c\n" +
 	"\aanswers\x18\x03 \x03(\v2I.vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntryR\aanswers\x12>\n" +
 	"\x0etarget_context\x18\x04 \x01(\v2\x17.google.protobuf.StructR\rtargetContext\x12|\n" +
-	"\x10manual_decisions\x18\x05 \x03(\v2Q.vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntryR\x0fmanualDecisions\x1aR\n" +
+	"\x10manual_decisions\x18\x05 \x03(\v2Q.vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntryR\x0fmanualDecisions\x12K\n" +
+	"\x06preset\x18\x06 \x01(\v23.vrooli.vrooli_onboarding.v1.profiles.ProfilePresetR\x06preset\x12\x1f\n" +
+	"\vprofile_ids\x18\a \x03(\tR\n" +
+	"profileIds\x1aR\n" +
 	"\fAnswersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\x1aB\n" +
 	"\x14ManualDecisionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"<\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\x81\x02\n" +
+	"\rProfilePreset\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\x12Z\n" +
+	"\aanswers\x18\x04 \x03(\v2@.vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.AnswersEntryR\aanswers\x1aR\n" +
+	"\fAnswersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"<\n" +
 	"\rProfileOption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tlabel_key\x18\x02 \x01(\tR\blabelKey\"\xe4\x02\n" +
@@ -859,7 +1133,17 @@ const file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc = "" +
 	"\x16ProfileValidationIssue\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xa6\x03\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x97\x01\n" +
+	"\x0fProfileConflict\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12%\n" +
+	"\x0ecapability_ref\x18\x02 \x01(\tR\rcapabilityRef\x12/\n" +
+	"\x13recommendation_keys\x18\x03 \x03(\tR\x12recommendationKeys\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\x7f\n" +
+	"\x12ProfileOutstanding\x12\x14\n" +
+	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12%\n" +
+	"\x0ecapability_ref\x18\x03 \x01(\tR\rcapabilityRef\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xa6\x03\n" +
 	"\aProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1b\n" +
@@ -874,7 +1158,7 @@ const file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc = "" +
 	" \x01(\bR\adefault\x12<\n" +
 	"\x1amanual_selection_available\x18\v \x01(\bR\x18manualSelectionAvailable\"a\n" +
 	"\x14ListProfilesResponse\x12I\n" +
-	"\bprofiles\x18\x01 \x03(\v2-.vrooli.vrooli_onboarding.v1.profiles.ProfileR\bprofiles\"\xbc\x04\n" +
+	"\bprofiles\x18\x01 \x03(\v2-.vrooli.vrooli_onboarding.v1.profiles.ProfileR\bprofiles\"\xb0\a\n" +
 	"\x17EvaluateProfileResponse\x12G\n" +
 	"\aprofile\x18\x01 \x01(\v2-.vrooli.vrooli_onboarding.v1.profiles.ProfileR\aprofile\x12S\n" +
 	"\tquestions\x18\x02 \x03(\v25.vrooli.vrooli_onboarding.v1.profiles.ProfileQuestionR\tquestions\x12e\n" +
@@ -884,7 +1168,13 @@ const file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc = "" +
 	"\x06issues\x18\x06 \x03(\v2<.vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssueR\x06issues\x12\x14\n" +
 	"\x05valid\x18\a \x01(\bR\x05valid\x12\\\n" +
 	"\fexplanations\x18\b \x03(\v28.vrooli.vrooli_onboarding.v1.profiles.ProfileExplanationR\fexplanations\x12\x16\n" +
-	"\x06digest\x18\t \x01(\tR\x06digest2\xa9\x02\n" +
+	"\x06digest\x18\t \x01(\tR\x06digest\x12)\n" +
+	"\x10catalog_revision\x18\n" +
+	" \x01(\tR\x0fcatalogRevision\x12S\n" +
+	"\tconflicts\x18\v \x03(\v25.vrooli.vrooli_onboarding.v1.profiles.ProfileConflictR\tconflicts\x12Z\n" +
+	"\voutstanding\x18\f \x03(\v28.vrooli.vrooli_onboarding.v1.profiles.ProfileOutstandingR\voutstanding\x12K\n" +
+	"\x06preset\x18\r \x01(\v23.vrooli.vrooli_onboarding.v1.profiles.ProfilePresetR\x06preset\x12I\n" +
+	"\bprofiles\x18\x0e \x03(\v2-.vrooli.vrooli_onboarding.v1.profiles.ProfileR\bprofiles2\xa9\x02\n" +
 	"\x0eProfileService\x12\x85\x01\n" +
 	"\fListProfiles\x129.vrooli.vrooli_onboarding.v1.profiles.ListProfilesRequest\x1a:.vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse\x12\x8e\x01\n" +
 	"\x0fEvaluateProfile\x12<.vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest\x1a=.vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles;profilesv1b\x06proto3"
@@ -901,45 +1191,56 @@ func file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescGZIP() []byte {
 	return file_vrooli_onboarding_v1_profiles_profiles_proto_rawDescData
 }
 
-var file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_vrooli_onboarding_v1_profiles_profiles_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_vrooli_onboarding_v1_profiles_profiles_proto_goTypes = []any{
 	(*ListProfilesRequest)(nil),     // 0: vrooli.vrooli_onboarding.v1.profiles.ListProfilesRequest
 	(*EvaluateProfileRequest)(nil),  // 1: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest
-	(*ProfileOption)(nil),           // 2: vrooli.vrooli_onboarding.v1.profiles.ProfileOption
-	(*ProfileQuestion)(nil),         // 3: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion
-	(*ProfileRecommendation)(nil),   // 4: vrooli.vrooli_onboarding.v1.profiles.ProfileRecommendation
-	(*ProfileExplanation)(nil),      // 5: vrooli.vrooli_onboarding.v1.profiles.ProfileExplanation
-	(*ProfileValidationIssue)(nil),  // 6: vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssue
-	(*Profile)(nil),                 // 7: vrooli.vrooli_onboarding.v1.profiles.Profile
-	(*ListProfilesResponse)(nil),    // 8: vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse
-	(*EvaluateProfileResponse)(nil), // 9: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse
-	nil,                             // 10: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry
-	nil,                             // 11: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntry
-	(*structpb.Struct)(nil),         // 12: google.protobuf.Struct
-	(*structpb.Value)(nil),          // 13: google.protobuf.Value
+	(*ProfilePreset)(nil),           // 2: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset
+	(*ProfileOption)(nil),           // 3: vrooli.vrooli_onboarding.v1.profiles.ProfileOption
+	(*ProfileQuestion)(nil),         // 4: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion
+	(*ProfileRecommendation)(nil),   // 5: vrooli.vrooli_onboarding.v1.profiles.ProfileRecommendation
+	(*ProfileExplanation)(nil),      // 6: vrooli.vrooli_onboarding.v1.profiles.ProfileExplanation
+	(*ProfileValidationIssue)(nil),  // 7: vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssue
+	(*ProfileConflict)(nil),         // 8: vrooli.vrooli_onboarding.v1.profiles.ProfileConflict
+	(*ProfileOutstanding)(nil),      // 9: vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding
+	(*Profile)(nil),                 // 10: vrooli.vrooli_onboarding.v1.profiles.Profile
+	(*ListProfilesResponse)(nil),    // 11: vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse
+	(*EvaluateProfileResponse)(nil), // 12: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse
+	nil,                             // 13: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry
+	nil,                             // 14: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntry
+	nil,                             // 15: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.AnswersEntry
+	(*structpb.Struct)(nil),         // 16: google.protobuf.Struct
+	(*structpb.Value)(nil),          // 17: google.protobuf.Value
 }
 var file_vrooli_onboarding_v1_profiles_profiles_proto_depIdxs = []int32{
-	10, // 0: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.answers:type_name -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry
-	12, // 1: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.target_context:type_name -> google.protobuf.Struct
-	11, // 2: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.manual_decisions:type_name -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntry
-	2,  // 3: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion.options:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileOption
-	13, // 4: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion.default_value:type_name -> google.protobuf.Value
-	7,  // 5: vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse.profiles:type_name -> vrooli.vrooli_onboarding.v1.profiles.Profile
-	7,  // 6: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.profile:type_name -> vrooli.vrooli_onboarding.v1.profiles.Profile
-	3,  // 7: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.questions:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion
-	4,  // 8: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.recommendations:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileRecommendation
-	6,  // 9: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.issues:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssue
-	5,  // 10: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.explanations:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileExplanation
-	13, // 11: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry.value:type_name -> google.protobuf.Value
-	0,  // 12: vrooli.vrooli_onboarding.v1.profiles.ProfileService.ListProfiles:input_type -> vrooli.vrooli_onboarding.v1.profiles.ListProfilesRequest
-	1,  // 13: vrooli.vrooli_onboarding.v1.profiles.ProfileService.EvaluateProfile:input_type -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest
-	8,  // 14: vrooli.vrooli_onboarding.v1.profiles.ProfileService.ListProfiles:output_type -> vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse
-	9,  // 15: vrooli.vrooli_onboarding.v1.profiles.ProfileService.EvaluateProfile:output_type -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse
-	14, // [14:16] is the sub-list for method output_type
-	12, // [12:14] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	13, // 0: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.answers:type_name -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry
+	16, // 1: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.target_context:type_name -> google.protobuf.Struct
+	14, // 2: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.manual_decisions:type_name -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.ManualDecisionsEntry
+	2,  // 3: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.preset:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfilePreset
+	15, // 4: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.answers:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.AnswersEntry
+	3,  // 5: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion.options:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileOption
+	17, // 6: vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion.default_value:type_name -> google.protobuf.Value
+	10, // 7: vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse.profiles:type_name -> vrooli.vrooli_onboarding.v1.profiles.Profile
+	10, // 8: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.profile:type_name -> vrooli.vrooli_onboarding.v1.profiles.Profile
+	4,  // 9: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.questions:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion
+	5,  // 10: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.recommendations:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileRecommendation
+	7,  // 11: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.issues:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssue
+	6,  // 12: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.explanations:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileExplanation
+	8,  // 13: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.conflicts:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileConflict
+	9,  // 14: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.outstanding:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding
+	2,  // 15: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.preset:type_name -> vrooli.vrooli_onboarding.v1.profiles.ProfilePreset
+	10, // 16: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse.profiles:type_name -> vrooli.vrooli_onboarding.v1.profiles.Profile
+	17, // 17: vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest.AnswersEntry.value:type_name -> google.protobuf.Value
+	17, // 18: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.AnswersEntry.value:type_name -> google.protobuf.Value
+	0,  // 19: vrooli.vrooli_onboarding.v1.profiles.ProfileService.ListProfiles:input_type -> vrooli.vrooli_onboarding.v1.profiles.ListProfilesRequest
+	1,  // 20: vrooli.vrooli_onboarding.v1.profiles.ProfileService.EvaluateProfile:input_type -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileRequest
+	11, // 21: vrooli.vrooli_onboarding.v1.profiles.ProfileService.ListProfiles:output_type -> vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse
+	12, // 22: vrooli.vrooli_onboarding.v1.profiles.ProfileService.EvaluateProfile:output_type -> vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse
+	21, // [21:23] is the sub-list for method output_type
+	19, // [19:21] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_onboarding_v1_profiles_profiles_proto_init() }
@@ -953,7 +1254,7 @@ func file_vrooli_onboarding_v1_profiles_profiles_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc), len(file_vrooli_onboarding_v1_profiles_profiles_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

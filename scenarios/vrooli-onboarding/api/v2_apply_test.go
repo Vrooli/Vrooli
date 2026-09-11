@@ -171,6 +171,7 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","hostTools":[],"hostSafeguards":[]}`)
+	writeBootstrapMarker(t, root)
 	fake := &recordingApplyExecutor{}
 	previous := onboardingApplyExecutor
 	onboardingApplyExecutor = fake
@@ -181,7 +182,10 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("apply status = %d: %s", w.Code, w.Body.String())
 	}
-	waitApplyTerminal(t, first.ID)
+	firstTerminal := waitApplyTerminal(t, first.ID)
+	if firstTerminal.Status != "applied" {
+		t.Fatalf("first apply = %#v", firstTerminal)
+	}
 	calls := fake.snapshotCalls()
 	if len(calls) != 2 || calls[0] != "resource:postgres" || calls[1] != "scenario:alpha" {
 		t.Fatalf("calls = %#v", calls)

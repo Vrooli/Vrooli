@@ -87,7 +87,6 @@ describe("sidebar create affordances", () => {
         searchQuery=""
         filters={{ statuses: [] }}
         sort={{ field: "recency", direction: "desc" }}
-        onItemClick={vi.fn()}
         onCreateCapture={onCreateCapture}
       />,
     );

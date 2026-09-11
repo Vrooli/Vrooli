@@ -22,6 +22,7 @@ import {
   type TTSVoiceInfo,
   type TTSSummarizeConfig,
 } from "../../audio-integration";
+import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
 import { useAudioPrefs } from "../../hooks/useAudioPrefs";
 import { selectors } from "../../consts/selectors";
 
@@ -175,18 +176,18 @@ export function AudioTab({ testId }: AudioTabProps) {
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm text-slate-300">
-            Speed: {ttsConfig.defaultSpeed.toFixed(2)}×
-            <input
-              type="range"
-              min={0.5}
-              max={2.0}
-              step={0.05}
-              value={ttsConfig.defaultSpeed}
-              onChange={(e) => void saveTtsConfig({ defaultSpeed: Number(e.target.value) })}
-              data-testid={selectors.settings.audioSpeed}
-            />
-          </label>
+          <Slider
+            label="Playback speed"
+            description="Adjust how quickly spoken responses are read aloud."
+            aria-label="Playback speed"
+            min={0.5}
+            max={2.0}
+            step={0.05}
+            value={ttsConfig.defaultSpeed}
+            formatValue={(value) => `${value.toFixed(2)}×`}
+            onChange={(value) => void saveTtsConfig({ defaultSpeed: value })}
+            data-testid={selectors.settings.audioSpeed}
+          />
         </section>
       )}
 

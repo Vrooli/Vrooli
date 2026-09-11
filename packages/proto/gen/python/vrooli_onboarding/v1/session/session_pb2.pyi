@@ -134,7 +134,7 @@ class GetDraftResponse(_message.Message):
     def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
 
 class ProfileSession(_message.Message):
-    __slots__ = ("target", "actor", "mode", "profile_id", "profile_version", "catalog_revision", "base_revision", "answers", "manual_decisions", "target_context", "updated_at", "revision", "reconciliation_state", "current_profile_version", "reconciliation_reasons")
+    __slots__ = ("target", "actor", "mode", "profile_id", "profile_version", "catalog_revision", "base_revision", "answers", "manual_decisions", "target_context", "updated_at", "revision", "reconciliation_state", "current_profile_version", "reconciliation_reasons", "consequence_digest", "next_question_id", "next_action", "reconciliation_changes")
     class ManualDecisionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -157,6 +157,10 @@ class ProfileSession(_message.Message):
     RECONCILIATION_STATE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_PROFILE_VERSION_FIELD_NUMBER: _ClassVar[int]
     RECONCILIATION_REASONS_FIELD_NUMBER: _ClassVar[int]
+    CONSEQUENCE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    NEXT_QUESTION_ID_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    RECONCILIATION_CHANGES_FIELD_NUMBER: _ClassVar[int]
     target: str
     actor: str
     mode: str
@@ -172,7 +176,27 @@ class ProfileSession(_message.Message):
     reconciliation_state: str
     current_profile_version: str
     reconciliation_reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, target: _Optional[str] = ..., actor: _Optional[str] = ..., mode: _Optional[str] = ..., profile_id: _Optional[str] = ..., profile_version: _Optional[str] = ..., catalog_revision: _Optional[str] = ..., base_revision: _Optional[str] = ..., answers: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., manual_decisions: _Optional[_Mapping[str, bool]] = ..., target_context: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[str] = ..., reconciliation_state: _Optional[str] = ..., current_profile_version: _Optional[str] = ..., reconciliation_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    consequence_digest: str
+    next_question_id: str
+    next_action: str
+    reconciliation_changes: _containers.RepeatedCompositeFieldContainer[ReconciliationChange]
+    def __init__(self, target: _Optional[str] = ..., actor: _Optional[str] = ..., mode: _Optional[str] = ..., profile_id: _Optional[str] = ..., profile_version: _Optional[str] = ..., catalog_revision: _Optional[str] = ..., base_revision: _Optional[str] = ..., answers: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., manual_decisions: _Optional[_Mapping[str, bool]] = ..., target_context: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revision: _Optional[str] = ..., reconciliation_state: _Optional[str] = ..., current_profile_version: _Optional[str] = ..., reconciliation_reasons: _Optional[_Iterable[str]] = ..., consequence_digest: _Optional[str] = ..., next_question_id: _Optional[str] = ..., next_action: _Optional[str] = ..., reconciliation_changes: _Optional[_Iterable[_Union[ReconciliationChange, _Mapping]]] = ...) -> None: ...
+
+class ReconciliationChange(_message.Message):
+    __slots__ = ("kind", "field", "before", "after", "impact", "requires_review")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_FIELD_NUMBER: _ClassVar[int]
+    IMPACT_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_REVIEW_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    field: str
+    before: str
+    after: str
+    impact: str
+    requires_review: bool
+    def __init__(self, kind: _Optional[str] = ..., field: _Optional[str] = ..., before: _Optional[str] = ..., after: _Optional[str] = ..., impact: _Optional[str] = ..., requires_review: _Optional[bool] = ...) -> None: ...
 
 class GetProfileSessionRequest(_message.Message):
     __slots__ = ("target", "actor")

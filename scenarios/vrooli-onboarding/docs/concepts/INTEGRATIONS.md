@@ -25,6 +25,13 @@ is reached through Bridge's catalog-admitted scenario procedure proxy. The
 client submits desired configuration once and reattaches to durable apply or
 onboarding state rather than creating a second remote configuration authority.
 
+Bridge's SSH onboarding transport uses the authenticated compatibility route
+`POST /api/v2/handoff`. It is an adapter over the same owner-issued selection
+service, not a second settings store. Bridge sends a target identity and a
+service token (`VROOLI_ONBOARDING_API_TOKEN`, falling back to
+`VROOLI_API_TOKEN`); missing authorization disables configuration handoff and
+leaves pairing-only onboarding available.
+
 Bridge carries the generated `setup/v1.Selection` as the capability-shaped
 handoff document. It includes target, scenarios, resources, host tools and
 safeguards, credentials, trust, update, session, operating-mode, and apply

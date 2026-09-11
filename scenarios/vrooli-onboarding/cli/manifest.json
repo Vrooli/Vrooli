@@ -357,6 +357,35 @@
       ]
     },
     {
+      "name": "handoff",
+      "description": "Resolve a target-bound onboarding handoff",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Resolve a previously issued onboarding handoff",
+          "flags": [
+            { "name": "reference", "description": "Onboarding handoff reference" },
+            { "name": "deployment-id", "description": "Expected deployment identity" },
+            { "name": "target", "description": "Expected onboarding target" },
+            { "name": "enrollment-generation", "description": "Expected enrollment generation" },
+            { "name": "desired-revision", "description": "Expected desired-state revision" },
+            { "name": "selection-digest", "description": "Expected selection digest" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "GetHandoff"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": { "primitive": "proto_list" }
+        }
+      ]
+    },
+    {
       "name": "host",
       "description": "Inspect host requirements and safeguards",
       "commands": [
@@ -494,6 +523,47 @@
             "exception": {
               "class": "external_delegation",
               "reason": "The command reads the write-only credential value from standard input before delegating to the typed API."
+            }
+          }
+        },
+        {
+          "name": "reveal",
+          "description": "Reveal one credential to a confirmed local terminal",
+          "needs_api": false,
+          "flags": [
+            {
+              "name": "logical-id",
+              "description": "Credential logical id",
+              "required": true
+            },
+            {
+              "name": "field",
+              "description": "Credential field",
+              "default": "value"
+            },
+            {
+              "name": "confirm-reveal",
+              "description": "Confirm that the value may be displayed in this terminal",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "credentials.reveal"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:read",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command reads from the local credential authority and deliberately emits a value only to an explicitly confirmed interactive terminal."
             }
           }
         },
@@ -693,6 +763,53 @@
           "architecture": {
             "primitive": "proto_mutation"
           }
+        },
+        {
+          "name": "verify",
+          "description": "Run a bounded capability verification",
+          "flags": [
+            {
+              "name": "capability-id",
+              "description": "Capability id",
+              "aliases": [
+                "id"
+              ]
+            },
+            {
+              "name": "target",
+              "description": "Explicit onboarding target"
+            },
+            {
+              "name": "operation",
+              "description": "Named provider operation to verify"
+            },
+            {
+              "name": "environment",
+              "description": "Execution environment context"
+            },
+            {
+              "name": "account-identity",
+              "description": "Account identity context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "VerifyCapability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command maps operator context flags into a bounded typed verification request before invoking the Connect procedure."
+            }
+          }
         }
       ]
     },
@@ -776,8 +893,12 @@
           "flags": [
             {
               "name": "profile-id",
-              "required": true,
               "description": "Stable profile identifier"
+            },
+            {
+              "name": "profile-ids",
+              "repeatable": true,
+              "description": "Profile identifiers to compose; repeat once per purpose"
             },
             {
               "name": "answers",
@@ -792,6 +913,20 @@
               "required": false,
               "bind": {"field": "manual_decisions", "kind": "json_inline"},
               "bind_waiver": "Manual decisions is a protobuf map of booleans and must be decoded from one JSON object."
+            },
+            {
+              "name": "target-context",
+              "description": "Target and catalog context as a JSON object",
+              "required": false,
+              "bind": {"field": "target_context", "kind": "json_inline"},
+              "bind_waiver": "Target context is a protobuf Struct and must be decoded from one JSON object."
+            },
+            {
+              "name": "preset",
+              "description": "Optional installation or customer preset as a JSON object",
+              "required": false,
+              "bind": {"field": "preset", "kind": "json_inline"},
+              "bind_waiver": "Preset is a protobuf message containing metadata and a map of struct values."
             }
           ],
           "binding": {"kind": "connect-rpc", "service": "ProfileService", "method": "EvaluateProfile"},
@@ -1042,9 +1177,8 @@
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "SelectionService",
-            "method": "GetCoreSet"
+            "kind": "local",
+            "handler": "wizard.core-set"
           },
           "governance": {
             "effect": "write",
@@ -1055,7 +1189,10 @@
             ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The command composes typed core-set preview and operator-state patch calls while enforcing the add/remove workflow contract."
+            }
           }
         }
       ]
@@ -1084,6 +1221,11 @@
       "service": "SelectionService",
       "method": "GetRecommendation",
       "reason": "The wizard and UI consume the recommendation as part of their composed workflow."
+    },
+    {
+      "service": "SelectionService",
+      "method": "GetCoreSet",
+      "reason": "The wizard core-set command composes this preview RPC with the operator-state mutation so add/remove flags remain an atomic workflow."
     },
     {
       "service": "SelectionService",

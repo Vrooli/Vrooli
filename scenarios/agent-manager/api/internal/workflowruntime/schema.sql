@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions (
     engagement_grant_json TEXT,
     approval_digest TEXT NOT NULL DEFAULT '',
     grant_digest TEXT NOT NULL DEFAULT '',
+    execution_preferences_json TEXT NOT NULL DEFAULT '',
     edge_traversals_json TEXT NOT NULL,
     version INTEGER NOT NULL,
     idempotency_key TEXT NOT NULL UNIQUE,

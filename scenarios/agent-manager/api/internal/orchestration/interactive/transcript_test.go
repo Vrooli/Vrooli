@@ -47,6 +47,24 @@ func TestFindTranscript_Codex(t *testing.T) {
 	}
 }
 
+func TestFindTranscript_ClaudeSessionIDPinsPath(t *testing.T) {
+	home := t.TempDir()
+	wd := "/work/dir"
+	slugDir := filepath.Join(home, ".claude", "projects", SlugifyCwd(wd))
+	pinned := filepath.Join(slugDir, "session-123.jsonl")
+	other := filepath.Join(slugDir, "session-999.jsonl")
+	writeFile(t, pinned)
+	writeFile(t, other)
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(other, old, old); err != nil {
+		t.Fatal(err)
+	}
+	got, err := findTranscript(DiscoverParams{RunnerType: domain.RunnerTypeClaudeCode, WorkingDir: wd, HomeDir: home, SessionID: "session-123"})
+	if err != nil || got != pinned {
+		t.Fatalf("pinned transcript = %q, err=%v; want %q", got, err, pinned)
+	}
+}
+
 func TestFindTranscript_Grok(t *testing.T) {
 	runDir := t.TempDir()
 	want := filepath.Join(runDir, "grok", "sessions", "%2Fwork%2Fdir", "sess-123", "updates.jsonl")

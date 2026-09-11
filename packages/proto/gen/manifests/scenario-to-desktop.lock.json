@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-to-desktop",
-  "input_digest": "sha256:21488317aeb36c3561e69f3ae05e5fd00374a8c589c1cbd007ce7dffff5e5209",
+  "input_digest": "sha256:38fede4990363fbda4f778080f22a06b105ba53bb3322e9d9d8a5a88b0efb4f3",
   "input_files": [
     "schemas/scenario-to-desktop/v1/domain/build.proto",
     "schemas/scenario-to-desktop/v1/domain/config.proto",
@@ -56,7 +56,7 @@
     "gen/go/scenario-to-desktop/v1/domain/operations.pb.go": "sha256:4f2132fbf8f4da5648e5a0e5d2ff3f4115c61c2dd4b328cb5f78a069897410af",
     "gen/go/scenario-to-desktop/v1/domain/preflight.pb.go": "sha256:892114becc734d286ac144a5f09ebb7207d20b844ff3739f82a47f0b5b96807f",
     "gen/go/scenario-to-desktop/v1/domain/records.pb.go": "sha256:67b731fffc04160dfdf0c357811ca4ec1d58152006d690998b98aa84b72e8598",
-    "gen/go/scenario-to-desktop/v1/domain/signing.pb.go": "sha256:ad462a172f8cbf14516686f93fb8bd8f079b3431c38faee463f4f9c61fafc6cf",
+    "gen/go/scenario-to-desktop/v1/domain/signing.pb.go": "sha256:0ebf4ee2214091880761b366a211bdb34ea465859d64c53ced094665e10ee144",
     "gen/go/scenario-to-desktop/v1/domain/state.pb.go": "sha256:b0378ee8a05354e60205bc3d81c3b77c7147b99411f77959315977c52b59066b",
     "gen/go/scenario-to-desktop/v1/domain/tasks.pb.go": "sha256:5b0fc1cdce567395b7d3f3eece19d449eebf6cc9bed9f65c4eef2efe54000093",
     "gen/go/scenario-to-desktop/v1/domain/telemetry.pb.go": "sha256:bb83bb6a6ababf3bfd92252dbe43f02391b3830eb7c681bbd4f11f8f0eba3309",
@@ -123,7 +123,7 @@
     "gen/typescript/scenario-to-desktop/v1/domain/operations_pb.ts": "sha256:cdf0bec0ef0554f04c2fe22efc0194c22077b4c5d453340dff18c08cc9ab9963",
     "gen/typescript/scenario-to-desktop/v1/domain/preflight_pb.ts": "sha256:67ce69ae83b558d90f5ff4e6fc0e67223f7e20377d2bf1dc52cf6e343085ef15",
     "gen/typescript/scenario-to-desktop/v1/domain/records_pb.ts": "sha256:7a533c2c9ae633ba8b20e7bbc4ebe8f8ef96a76e6f2ed8292dcb822ec86f6442",
-    "gen/typescript/scenario-to-desktop/v1/domain/signing_pb.ts": "sha256:f7a60ac032b9b4bda0c9c3e36a2f6bef6feb58b2924b4db49c5f402569ff4e49",
+    "gen/typescript/scenario-to-desktop/v1/domain/signing_pb.ts": "sha256:bbf5f8215f3281fc00f5b0ffb94a39cee423823d105b4d828c00906f527d04bb",
     "gen/typescript/scenario-to-desktop/v1/domain/state_pb.ts": "sha256:2efb8989cf8283665dbe3e2d35d274205420e5109a89027054b11507706868f0",
     "gen/typescript/scenario-to-desktop/v1/domain/tasks_pb.ts": "sha256:7244c5cd7e867d0aa87e2d7ba89a88170e6c0331961941804f7b22462770a717",
     "gen/typescript/scenario-to-desktop/v1/domain/telemetry_pb.ts": "sha256:ceae01d3afe6ba363a6d44a7a9e8e19d8b3508b27dd96ca59caaaf543ef00ace",

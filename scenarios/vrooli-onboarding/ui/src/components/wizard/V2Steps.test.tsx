@@ -21,6 +21,7 @@ const capabilitiesApi = vi.hoisted(() => ({
   fetchCapabilities: vi.fn(),
   previewCapability: vi.fn(),
   applyCapability: vi.fn(),
+  verifyCapability: vi.fn(),
 }));
 const selectionApi = vi.hoisted(() => ({
   fetchScenarios: vi.fn(),
@@ -106,6 +107,7 @@ beforeEach(() => {
   capabilitiesApi.fetchCapabilities.mockResolvedValue({ capabilities: [], count: 0 });
   capabilitiesApi.previewCapability.mockResolvedValue({ capability_id: "demo-capability", plan_id: "demo-plan", state: "ready_to_preview", mutations: [{ id: "demo-write", summary: "write a verified demo artifact", reversible: true }] });
   capabilitiesApi.applyCapability.mockResolvedValue({ capability_id: "demo-capability", state: "ready", outcome: "demo_ready", retryable: true, evidence: [{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }] });
+  capabilitiesApi.verifyCapability.mockResolvedValue([{ kind: "demo", artifact_identity: "demo-artifact", observed_at: "now", verified: true }]);
 });
 
 async function openCredentialDetails(tab: "actions" | "questions" = "actions") {
@@ -306,15 +308,15 @@ describe("V2 onboarding wizard steps", () => {
         state: "needs_operator_input", missing_inputs: ["destination"], remediation: "Choose a destination.", updated_at: "now",
       }],
     });
-    renderWithProviders(<StepCredentials />);
+    renderWithProviders(<StepCredentials target="remote" />);
     await openCredentialDetails();
     expect(await screen.findByTestId("capability-card-demo-capability")).toHaveTextContent("Protect a demo artifact");
     fireEvent.change(screen.getByLabelText("Destination"), { target: { value: "/mnt/approved" } });
     fireEvent.click(screen.getByTestId("capability-confirm-demo-capability"));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: false, inputs: { destination: "/mnt/approved" } }));
+    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: false, inputs: { destination: "/mnt/approved" } }, "remote"));
     fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
-    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: true, inputs: { destination: "/mnt/approved" } }));
+    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "demo-capability", confirm: true, inputs: { destination: "/mnt/approved" } }, "remote"));
     expect(screen.getByTestId("capability-result-demo-capability")).toHaveTextContent("demo_ready");
     expect(screen.queryByText("secret-value")).not.toBeInTheDocument();
   });
@@ -337,6 +339,24 @@ describe("V2 onboarding wizard steps", () => {
     expect(await screen.findByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("recovery-drill · verified");
     expect(screen.getByTestId("capability-card-durable-backup-evidence")).toHaveTextContent("run a recovery drill");
     expect(screen.queryByRole("button", { name: "Preview" })).not.toBeInTheDocument();
+  });
+
+  it("binds capability verification to the selected target", async () => {
+    capabilitiesApi.fetchCapabilities.mockResolvedValueOnce({
+      count: 1,
+      capabilities: [{
+        descriptor: {
+          version: "operator-capability/v1", id: "target-verification", owner: "demo.owner", title: "Verify a target",
+          inputs: [], lifecycle: { preview: false, apply: false, verify: true, revoke: false, recover: false },
+          policy: { requires_confirmation: false, idempotent: true, retryable: true }, evidence: { secret_free: true, kinds: ["demo"] },
+        },
+        state: "degraded", updated_at: "now",
+      }],
+    });
+    renderWithProviders(<StepCredentials target="node-7" />);
+    await openCredentialDetails();
+    fireEvent.click(await screen.findByRole("button", { name: "Verify now" }));
+    await waitFor(() => expect(capabilitiesApi.verifyCapability).toHaveBeenCalledWith("target-verification", "node-7"));
   });
 
   it("renders provider provenance and unsupported disposition generically", async () => {
@@ -390,9 +410,9 @@ describe("V2 onboarding wizard steps", () => {
     await waitFor(() => expect(passphrase).toHaveValue("ephemeral-passphrase"));
     fireEvent.click(screen.getByTestId("capability-confirm-secret-capability"));
     fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: false, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    await waitFor(() => expect(capabilitiesApi.previewCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: false, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }, "local"));
     fireEvent.click(await screen.findByRole("button", { name: "Apply reviewed capability" }));
-    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: true, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }));
+    await waitFor(() => expect(capabilitiesApi.applyCapability).toHaveBeenCalledWith({ capability_id: "secret-capability", confirm: true, inputs: { destination: "/mnt/approved", passphrase: "ephemeral-passphrase" } }, "local"));
     expect(screen.getByLabelText("Passphrase")).toHaveValue("");
     expect(screen.getByTestId("capability-result-secret-capability")).not.toHaveTextContent("ephemeral-passphrase");
   });
@@ -484,30 +504,44 @@ describe("V2 onboarding wizard steps", () => {
     expect(input).toHaveValue("secret-value");
   });
 
-  it("keeps credential rows informative across provider-supplied and verified states", async () => {
+	it("keeps credential rows informative across provider-supplied and verified states", async () => {
     readinessApi.fetchReadiness.mockResolvedValueOnce({
       status: "degraded", scenarios: [], resources: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
       credentials: [
         { resource: "derived", logical_id: "derived", field: "endpoint", label: "Derived endpoint", required: true, provisioning: "derived", derived_from: "gateway", status: "configured", evidence_status: "verified", evidence_detail: "Verified by the owning component." },
         { resource: "generated", logical_id: "generated", field: "token", label: "Generated token", required: false, provisioning: "generated", status: "configured" },
         { resource: "pending", logical_id: "pending", field: "key", label: "Pending key", required: true, status: "pending", detail: "Still checking." },
+        { resource: "stored", logical_id: "stored", field: "key", label: "Stored key", required: true, status: "configured", evidence_status: "unverified", evidence_detail: "Verification is required before use." },
       ],
-    });
+      });
     credentialsApi.fetchCredentials.mockResolvedValueOnce({ credentials: [
       { resource: "derived", logical_id: "derived", field: "endpoint", label: "Derived endpoint", required: true, provisioning: "derived", derived_from: "gateway", status: "configured" },
       { resource: "generated", logical_id: "generated", field: "token", label: "Generated token", required: false, provisioning: "generated", status: "configured", description: "Created by onboarding." },
       { resource: "pending", logical_id: "pending", field: "key", label: "Pending key", required: true, status: "pending", detail: "Still checking.", evidence_detail: "The provider has not responded yet." },
+      { resource: "stored", logical_id: "stored", field: "key", label: "Stored key", required: true, status: "configured", evidence_status: "unverified", evidence_detail: "Verification is required before use." },
     ], count: 3 });
     renderWithProviders(<StepCredentials />);
 
-    expect(await screen.findAllByTestId("credential-card")).toHaveLength(3);
+    expect(await screen.findAllByTestId("credential-card")).toHaveLength(4);
+    expect(screen.getByTestId("credential-outstanding-count")).toHaveTextContent("2");
     expect(screen.getByText("Provided by gateway after its source credential is available.")).toBeInTheDocument();
     expect(screen.getByText("Generated by the owning component on first start. There is nothing to enter.")).toBeInTheDocument();
     expect(screen.getByText("Still checking.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Value for Pending key")).toBeInTheDocument();
-  });
+		expect(screen.getByLabelText("Value for Pending key")).toBeInTheDocument();
+	});
 
-  it("renders the credential configuration provider diagnosis and refresh action", async () => {
+	it("keeps provider unavailability distinct from a missing credential", async () => {
+		readinessApi.fetchReadiness.mockResolvedValueOnce({
+			status: "unsupported", scenarios: [], resources: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
+			credentials: [{ resource: "native-store", logical_id: "native-store", field: "token", label: "Native token", required: true, status: "unsupported", detail: "secure store is locked", provider_state: "unavailable", provider_detail: "secure store is locked", evidence_detail: "The credential address cannot be evaluated until its provider is available; readiness remains unknown." }],
+		});
+		credentialsApi.fetchCredentials.mockResolvedValueOnce({ credentials: [{ resource: "native-store", logical_id: "native-store", field: "token", label: "Native token", required: true, status: "unsupported" }], count: 1 });
+		renderWithProviders(<StepCredentials />);
+
+		expect(await screen.findByTestId("credential-card")).toHaveTextContent("secure store is locked");
+	});
+
+	it("renders the credential configuration provider diagnosis and refresh action", async () => {
     readinessApi.fetchReadiness.mockResolvedValueOnce({
       status: "degraded", scenarios: [], resources: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [],
       credentials: [], credential_diagnosis: { provider: { backend: "verified escrow", condition: "attention", explanation: "The escrow is locked.", fix: "Unlock the escrow.", write_condition: "write unavailable", write_fix: "Reconnect the escrow." } },

@@ -18,6 +18,7 @@ func TestV2UnionEvidenceExportsOnlySelectedClosureAndManifestHostRequirements(t 
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "helper", ".vrooli", "service.json"), `{"service":{"name":"helper"},"hostSafeguards":[{"name":"firewall","required":false}]}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "unrelated", ".vrooli", "service.json"), `{"service":{"name":"unrelated"}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","category":"database"}`)
+	writeFixtureFile(t, filepath.Join(root, "resources", "unrelated", "resource.json"), `{"name":"unrelated","category":"database"}`)
 	writeFixtureFile(t, filepath.Join(root, "internal", "tools", "git", "tool.json"), `{"name":"git","description":"source control","commands":["git"]}`)
 	writeFixtureFile(t, filepath.Join(root, "internal", "safeguards", "firewall", "safeguard.json"), `{"name":"firewall","description":"network safety","risk":"medium","privilege":"elevated","bundling":"host-required"}`)
 

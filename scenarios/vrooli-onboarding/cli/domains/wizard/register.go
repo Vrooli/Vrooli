@@ -184,11 +184,17 @@ func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandl
 		"wizard.run": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
 			return runWizard(core, contextArgs(ctx))
 		}),
+		"wizard.core-set": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return runCoreSet(core, contextArgs(ctx))
+		}),
 	}
 }
 
 func contextArgs(ctx cliapp.RunContext) []string {
 	args := append([]string(nil), ctx.Args()...)
+	if ctx.JSON() {
+		args = append(args, "--json")
+	}
 	for _, flag := range ctx.Schema().Flags {
 		if flag.Bool {
 			if ctx.BoolFlag(flag.Name) {

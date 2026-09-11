@@ -80,10 +80,13 @@ func (x *CredentialDescriptor) GetField() string {
 // content_ref is an opaque token minted with the version, never derived from
 // the value.
 type CredentialVersion struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Number        int64                  `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	ContentRef    string                 `protobuf:"bytes,2,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Number     int64                  `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
+	ContentRef string                 `protobuf:"bytes,2,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Provider- or target-supplied validity deadline. Missing means no expiry
+	// was declared by the owner; it is not an implicit infinite guarantee.
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,6 +138,13 @@ func (x *CredentialVersion) GetContentRef() string {
 func (x *CredentialVersion) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *CredentialVersion) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
 	}
 	return nil
 }
@@ -373,11 +383,15 @@ func (x *CredentialAck) GetVerifiedAt() *timestamppb.Timestamp {
 }
 
 type BindingView struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Binding       *CredentialBinding     `protobuf:"bytes,1,opt,name=binding,proto3" json:"binding,omitempty"`
-	Acks          []*CredentialAck       `protobuf:"bytes,2,rep,name=acks,proto3" json:"acks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Binding *CredentialBinding     `protobuf:"bytes,1,opt,name=binding,proto3" json:"binding,omitempty"`
+	Acks    []*CredentialAck       `protobuf:"bytes,2,rep,name=acks,proto3" json:"acks,omitempty"`
+	// Derived at read time from the active version and the owner clock.
+	LifecycleState  string `protobuf:"bytes,3,opt,name=lifecycle_state,json=lifecycleState,proto3" json:"lifecycle_state,omitempty"`
+	LifecycleDetail string `protobuf:"bytes,4,opt,name=lifecycle_detail,json=lifecycleDetail,proto3" json:"lifecycle_detail,omitempty"`
+	NextAction      string `protobuf:"bytes,5,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *BindingView) Reset() {
@@ -422,6 +436,27 @@ func (x *BindingView) GetAcks() []*CredentialAck {
 		return x.Acks
 	}
 	return nil
+}
+
+func (x *BindingView) GetLifecycleState() string {
+	if x != nil {
+		return x.LifecycleState
+	}
+	return ""
+}
+
+func (x *BindingView) GetLifecycleDetail() string {
+	if x != nil {
+		return x.LifecycleDetail
+	}
+	return ""
+}
+
+func (x *BindingView) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
 }
 
 type ListBindingsRequest struct {
@@ -1554,13 +1589,15 @@ const file_scenario_to_cloud_v1_credentials_credentials_proto_rawDesc = "" +
 	"\x14CredentialDescriptor\x12\x1d\n" +
 	"\n" +
 	"logical_id\x18\x01 \x01(\tR\tlogicalId\x12\x14\n" +
-	"\x05field\x18\x02 \x01(\tR\x05field\"\x87\x01\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field\"\xc2\x01\n" +
 	"\x11CredentialVersion\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\x03R\x06number\x12\x1f\n" +
 	"\vcontent_ref\x18\x02 \x01(\tR\n" +
 	"contentRef\x129\n" +
 	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd7\x05\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xd7\x05\n" +
 	"\x11CredentialBinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12]\n" +
@@ -1590,10 +1627,14 @@ const file_scenario_to_cloud_v1_credentials_credentials_proto_rawDesc = "" +
 	"\bconsumer\x18\x02 \x01(\tR\bconsumer\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\x03R\aversion\x12;\n" +
 	"\vverified_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"verifiedAt\"\xaf\x01\n" +
+	"verifiedAt\"\xa4\x02\n" +
 	"\vBindingView\x12T\n" +
 	"\abinding\x18\x01 \x01(\v2:.vrooli.scenario_to_cloud.v1.credentials.CredentialBindingR\abinding\x12J\n" +
-	"\x04acks\x18\x02 \x03(\v26.vrooli.scenario_to_cloud.v1.credentials.CredentialAckR\x04acks\":\n" +
+	"\x04acks\x18\x02 \x03(\v26.vrooli.scenario_to_cloud.v1.credentials.CredentialAckR\x04acks\x12'\n" +
+	"\x0flifecycle_state\x18\x03 \x01(\tR\x0elifecycleState\x12)\n" +
+	"\x10lifecycle_detail\x18\x04 \x01(\tR\x0flifecycleDetail\x12\x1f\n" +
+	"\vnext_action\x18\x05 \x01(\tR\n" +
+	"nextAction\":\n" +
 	"\x13ListBindingsRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"\x8f\x01\n" +
 	"\x14ListBindingsResponse\x12%\n" +
@@ -1750,51 +1791,52 @@ var file_scenario_to_cloud_v1_credentials_credentials_proto_goTypes = []any{
 }
 var file_scenario_to_cloud_v1_credentials_credentials_proto_depIdxs = []int32{
 	20, // 0: vrooli.scenario_to_cloud.v1.credentials.CredentialVersion.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 1: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.descriptor:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialDescriptor
-	1,  // 2: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.version:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialVersion
-	1,  // 3: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.previous_version:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialVersion
-	20, // 4: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.created_at:type_name -> google.protobuf.Timestamp
-	20, // 5: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 6: vrooli.scenario_to_cloud.v1.credentials.CredentialAck.verified_at:type_name -> google.protobuf.Timestamp
-	2,  // 7: vrooli.scenario_to_cloud.v1.credentials.BindingView.binding:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialBinding
-	3,  // 8: vrooli.scenario_to_cloud.v1.credentials.BindingView.acks:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialAck
-	4,  // 9: vrooli.scenario_to_cloud.v1.credentials.ListBindingsResponse.bindings:type_name -> vrooli.scenario_to_cloud.v1.credentials.BindingView
-	20, // 10: vrooli.scenario_to_cloud.v1.credentials.ConsumerProgress.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 11: vrooli.scenario_to_cloud.v1.credentials.Receipt.at:type_name -> google.protobuf.Timestamp
-	21, // 12: vrooli.scenario_to_cloud.v1.credentials.Receipt.details:type_name -> google.protobuf.Struct
-	20, // 13: vrooli.scenario_to_cloud.v1.credentials.OperatorHandoff.requested_at:type_name -> google.protobuf.Timestamp
-	20, // 14: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.issued_at:type_name -> google.protobuf.Timestamp
-	20, // 15: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.expires_at:type_name -> google.protobuf.Timestamp
-	20, // 16: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.auto_revoked_at:type_name -> google.protobuf.Timestamp
-	7,  // 17: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.consumers:type_name -> vrooli.scenario_to_cloud.v1.credentials.ConsumerProgress
-	9,  // 18: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.pending_operator_input:type_name -> vrooli.scenario_to_cloud.v1.credentials.OperatorHandoff
-	20, // 19: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.resume_after:type_name -> google.protobuf.Timestamp
-	10, // 20: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.break_glass:type_name -> vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow
-	8,  // 21: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.receipts:type_name -> vrooli.scenario_to_cloud.v1.credentials.Receipt
-	11, // 22: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.error:type_name -> vrooli.scenario_to_cloud.v1.credentials.OperationError
-	20, // 23: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.created_at:type_name -> google.protobuf.Timestamp
-	20, // 24: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 25: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.completed_at:type_name -> google.protobuf.Timestamp
-	12, // 26: vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse.operation:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperation
-	5,  // 27: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ListBindings:input_type -> vrooli.scenario_to_cloud.v1.credentials.ListBindingsRequest
-	14, // 28: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RotateCredential:input_type -> vrooli.scenario_to_cloud.v1.credentials.RotateCredentialRequest
-	15, // 29: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RevokeCredential:input_type -> vrooli.scenario_to_cloud.v1.credentials.RevokeCredentialRequest
-	16, // 30: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RecoverCredentials:input_type -> vrooli.scenario_to_cloud.v1.credentials.RecoverCredentialsRequest
-	17, // 31: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.GetRotation:input_type -> vrooli.scenario_to_cloud.v1.credentials.GetRotationRequest
-	18, // 32: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ResumeRotation:input_type -> vrooli.scenario_to_cloud.v1.credentials.ResumeRotationRequest
-	19, // 33: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.BreakGlass:input_type -> vrooli.scenario_to_cloud.v1.credentials.BreakGlassRequest
-	6,  // 34: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ListBindings:output_type -> vrooli.scenario_to_cloud.v1.credentials.ListBindingsResponse
-	13, // 35: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RotateCredential:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	13, // 36: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RevokeCredential:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	13, // 37: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RecoverCredentials:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	13, // 38: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.GetRotation:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	13, // 39: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ResumeRotation:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	13, // 40: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.BreakGlass:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
-	34, // [34:41] is the sub-list for method output_type
-	27, // [27:34] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	20, // 1: vrooli.scenario_to_cloud.v1.credentials.CredentialVersion.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.descriptor:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialDescriptor
+	1,  // 3: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.version:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialVersion
+	1,  // 4: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.previous_version:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialVersion
+	20, // 5: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.created_at:type_name -> google.protobuf.Timestamp
+	20, // 6: vrooli.scenario_to_cloud.v1.credentials.CredentialBinding.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 7: vrooli.scenario_to_cloud.v1.credentials.CredentialAck.verified_at:type_name -> google.protobuf.Timestamp
+	2,  // 8: vrooli.scenario_to_cloud.v1.credentials.BindingView.binding:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialBinding
+	3,  // 9: vrooli.scenario_to_cloud.v1.credentials.BindingView.acks:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialAck
+	4,  // 10: vrooli.scenario_to_cloud.v1.credentials.ListBindingsResponse.bindings:type_name -> vrooli.scenario_to_cloud.v1.credentials.BindingView
+	20, // 11: vrooli.scenario_to_cloud.v1.credentials.ConsumerProgress.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 12: vrooli.scenario_to_cloud.v1.credentials.Receipt.at:type_name -> google.protobuf.Timestamp
+	21, // 13: vrooli.scenario_to_cloud.v1.credentials.Receipt.details:type_name -> google.protobuf.Struct
+	20, // 14: vrooli.scenario_to_cloud.v1.credentials.OperatorHandoff.requested_at:type_name -> google.protobuf.Timestamp
+	20, // 15: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.issued_at:type_name -> google.protobuf.Timestamp
+	20, // 16: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.expires_at:type_name -> google.protobuf.Timestamp
+	20, // 17: vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow.auto_revoked_at:type_name -> google.protobuf.Timestamp
+	7,  // 18: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.consumers:type_name -> vrooli.scenario_to_cloud.v1.credentials.ConsumerProgress
+	9,  // 19: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.pending_operator_input:type_name -> vrooli.scenario_to_cloud.v1.credentials.OperatorHandoff
+	20, // 20: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.resume_after:type_name -> google.protobuf.Timestamp
+	10, // 21: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.break_glass:type_name -> vrooli.scenario_to_cloud.v1.credentials.BreakGlassWindow
+	8,  // 22: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.receipts:type_name -> vrooli.scenario_to_cloud.v1.credentials.Receipt
+	11, // 23: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.error:type_name -> vrooli.scenario_to_cloud.v1.credentials.OperationError
+	20, // 24: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.created_at:type_name -> google.protobuf.Timestamp
+	20, // 25: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 26: vrooli.scenario_to_cloud.v1.credentials.CredentialOperation.completed_at:type_name -> google.protobuf.Timestamp
+	12, // 27: vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse.operation:type_name -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperation
+	5,  // 28: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ListBindings:input_type -> vrooli.scenario_to_cloud.v1.credentials.ListBindingsRequest
+	14, // 29: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RotateCredential:input_type -> vrooli.scenario_to_cloud.v1.credentials.RotateCredentialRequest
+	15, // 30: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RevokeCredential:input_type -> vrooli.scenario_to_cloud.v1.credentials.RevokeCredentialRequest
+	16, // 31: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RecoverCredentials:input_type -> vrooli.scenario_to_cloud.v1.credentials.RecoverCredentialsRequest
+	17, // 32: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.GetRotation:input_type -> vrooli.scenario_to_cloud.v1.credentials.GetRotationRequest
+	18, // 33: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ResumeRotation:input_type -> vrooli.scenario_to_cloud.v1.credentials.ResumeRotationRequest
+	19, // 34: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.BreakGlass:input_type -> vrooli.scenario_to_cloud.v1.credentials.BreakGlassRequest
+	6,  // 35: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ListBindings:output_type -> vrooli.scenario_to_cloud.v1.credentials.ListBindingsResponse
+	13, // 36: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RotateCredential:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	13, // 37: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RevokeCredential:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	13, // 38: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.RecoverCredentials:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	13, // 39: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.GetRotation:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	13, // 40: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.ResumeRotation:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	13, // 41: vrooli.scenario_to_cloud.v1.credentials.CredentialsService.BreakGlass:output_type -> vrooli.scenario_to_cloud.v1.credentials.CredentialOperationResponse
+	35, // [35:42] is the sub-list for method output_type
+	28, // [28:35] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_cloud_v1_credentials_credentials_proto_init() }

@@ -21,6 +21,7 @@ vi.mock("../../src/features/stats/components/trends/CostDurationTrends.js", () =
 vi.mock("../../src/features/stats/components/tables/RunnerPerformanceTable.js", () => ({ RunnerPerformanceTable: () => createElement("div", null, "runners") }));
 vi.mock("../../src/features/stats/components/tables/ProfileActivityTable.js", () => ({ ProfileActivityTable: () => createElement("div", null, "profiles") }));
 vi.mock("../../src/features/stats/components/breakdown/ModelUsageBreakdown.js", () => ({ ModelUsageBreakdown: () => createElement("div", null, "models") }));
+vi.mock("../../src/features/stats/components/breakdown/CostDistributionCard.js", () => ({ CostDistributionCard: () => createElement("div", null, "cost distribution") }));
 vi.mock("../../src/features/stats/components/breakdown/ToolUsageAnalytics.js", () => ({ ToolUsageAnalytics: () => createElement("div", null, "tools") }));
 vi.mock("../../src/features/stats/components/errors/ErrorAnalysisSection.js", () => ({ ErrorAnalysisSection: () => createElement("div", null, "errors") }));
 vi.mock("../../src/features/stats/components/workload/RecurringWorkloadPanel.js", () => ({ RecurringWorkloadPanel: () => createElement("div", null, "workloads") }));

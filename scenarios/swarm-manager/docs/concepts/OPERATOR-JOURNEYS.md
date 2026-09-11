@@ -127,12 +127,21 @@ With a fresh acceptance, the next action becomes **run**:
 
 - The operator picks an **execution strategy** from the declared registry. The
   highest-effort default is the **phased plan drain**: implement and validate
-  one plan slice at a time. A one-shot full-plan strategy is a declared
-  alternative for smaller, well-bounded plans.
-- Run-level knobs (slice budget, execution policy `manual`/`scheduled`/`yolo`,
-  delay) are set at queue time. Queueing enforces the same preflight the
-  next-action projection uses: fresh acceptance, dependency order, queue and
-  cost caps, circuit breakers.
+  one plan slice at a time. The Run dialog also reads the
+  Agent Manager execution catalog for the preferred runner, model, and effort;
+  it records both the request and the actual selection for later review.
+- Reviewed limits (slices, tokens, wall seconds, turns, charge, children,
+  attempts, and retries) are visible in the item form. The operator may narrow
+  them for one run, but changing the item contract clears plan acceptance and
+  requires review again. Goal-session strategy is selectable only when the
+  catalog reports a native-objective runner; otherwise the action is disabled
+  with the reported reason.
+- The item’s continuation policy is either **manual** or **until allowance**.
+  A budget-exhausted run records its handoff and may create a fresh child run
+  only while allowance, scope, and acceptance remain valid. Operators can halt
+  or resume this continuation from execution history. Queueing enforces the
+  same preflight the next-action projection uses: fresh acceptance, dependency
+  order, queue and cost caps, circuit breakers.
 
 ### 5. Execute
 

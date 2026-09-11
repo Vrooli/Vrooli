@@ -221,6 +221,31 @@ func TestWorkflowExecutionRepositoryPersistsEngagementGrantAcrossReload(t *testi
 	}
 }
 
+func TestWorkflowExecutionRepositoryPersistsExecutionPreferencesAcrossReload(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &workflowExecutionRepository{db: db, log: logrus.New()}
+	catalog := &workflowRepository{db: db, log: logrus.New()}
+	if err := catalog.ActivateBatch(ctx, []*domain.WorkflowRevision{workflowRevision("owner/flow", "sha256:preferences", "1.0.0")}); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	preferences := &domain.ExecutionPreferences{PreferredRunner: "claude-code", Model: "claude-sonnet", Effort: "high"}
+	execution := &domain.WorkflowExecution{ID: uuid.New(), Owner: "owner", WorkflowKey: "owner/flow", DefinitionDigest: "sha256:preferences", Status: domain.WorkflowExecutionRunning, CurrentNodeID: "start", Input: json.RawMessage(`{}`), EdgeTraversals: map[string]int{}, Version: 1, IdempotencyKey: "preferences-reload", ExecutionPreferences: preferences, CreatedAt: now, UpdatedAt: now}
+	initial := &domain.WorkflowJournalEntry{ID: uuid.New(), ExecutionID: execution.ID, Sequence: 1, Kind: domain.WorkflowJournalInput, Payload: execution.Input, CreatedAt: now}
+	if err := repo.Create(ctx, execution, initial); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Get(ctx, execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.ExecutionPreferences == nil || !reflect.DeepEqual(*got.ExecutionPreferences, *preferences) {
+		t.Fatalf("preferences after reload=%+v, want %+v", got.ExecutionPreferences, preferences)
+	}
+}
+
 func TestWorkflowExecutionRepositoryListsLegacyAttemptWithNullOptionalFields(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

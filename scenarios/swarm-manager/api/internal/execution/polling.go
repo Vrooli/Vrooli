@@ -50,6 +50,11 @@ func (s *Service) ProcessActiveExecutions(ctx context.Context) error {
 		logFinalizationError(executionID, s.processFinalization(ctx, executionID))
 	}
 
+	// Continue only budget-exhausted items whose reviewed policy explicitly
+	// grants unattended continuation. This pass is idempotent and creates
+	// pending children; normal drain/capacity handling starts them below.
+	s.continueExhaustedLocked(ctx)
+
 	// Continuous goal-directed auto-enqueue (D4, default OFF): when enabled,
 	// enqueue ready goal items via the governed QueueBacklog path before the
 	// drain, so they compete for lane slots under the same caps as manual work.

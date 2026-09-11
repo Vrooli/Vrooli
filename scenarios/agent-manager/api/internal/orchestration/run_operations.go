@@ -41,6 +41,63 @@ func (o *Orchestrator) GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, er
 	return statuses, nil
 }
 
+func (o *Orchestrator) ListExecutionOptions(ctx context.Context, roleRef string) ([]ExecutionOption, error) {
+	if o.runners == nil {
+		return nil, nil
+	}
+	options := make([]ExecutionOption, 0)
+	for _, r := range o.runners.List() {
+		options = append(options, executionOptionForRunner(ctx, r))
+	}
+	return options, nil
+}
+
+// executionOptionForRunner keeps a malformed optional adapter from taking
+// down the read-only catalog. A runner that cannot publish capabilities is
+// represented as unavailable with its diagnostic, which is safer than
+// claiming support based on its type alone.
+func executionOptionForRunner(ctx context.Context, r runner.Runner) (option ExecutionOption) {
+	option.Message = "runner adapter did not publish execution capabilities"
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			option.Available = false
+			option.Models = nil
+			option.DefaultModel = ""
+			option.Message = fmt.Sprintf("runner capability probe failed: %v", recovered)
+		}
+	}()
+	if r == nil {
+		option.Message = "runner adapter is nil"
+		return option
+	}
+	option.RunnerType = string(r.Type())
+	available, message := r.IsAvailable(ctx)
+	option.Available = available
+	option.Message = message
+	capabilities := r.Capabilities()
+	for _, capability := range capabilities.SpawnCapabilities {
+		if capability.NativeObjective {
+			option.NativeObjective = true
+			option.SandboxModesWithNativeObjective = append(option.SandboxModesWithNativeObjective, capability.SandboxModes...)
+		}
+	}
+	for _, model := range capabilities.SupportedModels {
+		option.Models = append(option.Models, ExecutionModelOption{ID: model, CanonicalModel: model})
+	}
+	if len(option.Models) > 0 {
+		option.DefaultModel = option.Models[0].ID
+		option.Models[0].IsDefault = true
+	}
+	for effort := range capabilities.EffortMappings {
+		option.EffortLevels = append(option.EffortLevels, effort)
+	}
+	if !available {
+		option.Models = nil
+		option.DefaultModel = ""
+	}
+	return option
+}
+
 // ProbeRunner sends a real, bounded request through the registered runner
 // adapter. Execution therefore follows the same launcher and environment seam
 // as a managed run rather than spawning a coding-agent binary from orchestration.

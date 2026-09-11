@@ -731,12 +731,69 @@ func resolveGeneratedPackageImport(dependencyRoot, dependencyName, importerPath,
 	switch {
 	case strings.HasPrefix(source, dependencyName+"/"):
 		rel := strings.TrimPrefix(source, dependencyName+"/")
+		if resolved, ok := resolveGeneratedPackageExport(dependencyRoot, "./"+rel, deps); ok {
+			return resolved, true
+		}
 		return resolveGeneratedTypeScriptModule(filepath.Join(dependencyRoot, filepath.FromSlash(rel)), deps)
 	case strings.HasPrefix(source, "."):
 		return resolveGeneratedTypeScriptModule(filepath.Join(filepath.Dir(importerPath), filepath.FromSlash(source)), deps)
 	default:
 		return "", false
 	}
+}
+
+// resolveGeneratedPackageExport follows a package's public exports map instead
+// of assuming that a generated package exposes files at its repository root.
+// Shared TypeScript packages commonly publish dist/exports while consumers
+// import stable versioned subpaths such as "@vrooli/.../Button/2". Returning
+// false keeps the legacy filesystem fallback for packages without exports.
+func resolveGeneratedPackageExport(dependencyRoot, subpath string, deps hostProbeDeps) (string, bool) {
+	readFile := deps.readFile
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
+	data, err := readFile(filepath.Join(dependencyRoot, "package.json"))
+	if err != nil {
+		return "", false
+	}
+	var manifest struct {
+		Exports map[string]json.RawMessage `json:"exports"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return "", false
+	}
+	raw, ok := manifest.Exports[subpath]
+	if !ok {
+		return "", false
+	}
+	target, ok := generatedPackageExportTarget(raw)
+	if !ok || !strings.HasPrefix(target, "./") {
+		return "", false
+	}
+	targetPath := filepath.Clean(filepath.Join(dependencyRoot, filepath.FromSlash(strings.TrimPrefix(target, "./"))))
+	if !pathUnderRoot(dependencyRoot, targetPath) {
+		return "", false
+	}
+	return resolveGeneratedTypeScriptModule(targetPath, deps)
+}
+
+func generatedPackageExportTarget(raw json.RawMessage) (string, bool) {
+	var target string
+	if json.Unmarshal(raw, &target) == nil {
+		return target, strings.TrimSpace(target) != ""
+	}
+	var conditions map[string]json.RawMessage
+	if json.Unmarshal(raw, &conditions) != nil {
+		return "", false
+	}
+	for _, condition := range []string{"import", "default", "types", "node", "require"} {
+		if nested, ok := conditions[condition]; ok {
+			if target, ok := generatedPackageExportTarget(nested); ok {
+				return target, true
+			}
+		}
+	}
+	return "", false
 }
 
 func resolveGeneratedTypeScriptModule(base string, deps hostProbeDeps) (string, bool) {

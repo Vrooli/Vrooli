@@ -50,18 +50,44 @@ class GetUnionRequest(_message.Message):
     def __init__(self, target: _Optional[str] = ...) -> None: ...
 
 class CreateHandoffRequest(_message.Message):
-    __slots__ = ("target", "machine_id", "node_id", "node_kind", "desired_selection")
+    __slots__ = ("target", "machine_id", "node_id", "node_kind", "desired_selection", "deployment_id", "enrollment_generation", "desired_revision", "request_key", "missing")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     NODE_KIND_FIELD_NUMBER: _ClassVar[int]
     DESIRED_SELECTION_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    ENROLLMENT_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELD_NUMBER: _ClassVar[int]
     target: str
     machine_id: str
     node_id: str
     node_kind: str
     desired_selection: _selection_pb2.Selection
-    def __init__(self, target: _Optional[str] = ..., machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., node_kind: _Optional[str] = ..., desired_selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ...) -> None: ...
+    deployment_id: str
+    enrollment_generation: int
+    desired_revision: int
+    request_key: str
+    missing: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[str] = ..., machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., node_kind: _Optional[str] = ..., desired_selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ..., deployment_id: _Optional[str] = ..., enrollment_generation: _Optional[int] = ..., desired_revision: _Optional[int] = ..., request_key: _Optional[str] = ..., missing: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetHandoffRequest(_message.Message):
+    __slots__ = ("reference", "deployment_id", "target", "enrollment_generation", "desired_revision", "selection_digest")
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    ENROLLMENT_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    reference: str
+    deployment_id: str
+    target: str
+    enrollment_generation: int
+    desired_revision: int
+    selection_digest: str
+    def __init__(self, reference: _Optional[str] = ..., deployment_id: _Optional[str] = ..., target: _Optional[str] = ..., enrollment_generation: _Optional[int] = ..., desired_revision: _Optional[int] = ..., selection_digest: _Optional[str] = ...) -> None: ...
 
 class Scenario(_message.Message):
     __slots__ = ("name", "description", "system_required", "enabled", "auto_restart", "resources")
@@ -236,8 +262,52 @@ class Resource(_message.Message):
     installed: bool
     def __init__(self, name: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., category: _Optional[str] = ..., enabled: _Optional[bool] = ..., installed: _Optional[bool] = ...) -> None: ...
 
+class Handoff(_message.Message):
+    __slots__ = ("id", "reference", "deployment_id", "target", "machine_id", "node_id", "node_kind", "enrollment_generation", "desired_revision", "actor_scope", "selection_digest", "missing", "state", "created_at", "updated_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_KIND_FIELD_NUMBER: _ClassVar[int]
+    ENROLLMENT_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    reference: str
+    deployment_id: str
+    target: str
+    machine_id: str
+    node_id: str
+    node_kind: str
+    enrollment_generation: int
+    desired_revision: int
+    actor_scope: str
+    selection_digest: str
+    missing: _containers.RepeatedScalarFieldContainer[str]
+    state: str
+    created_at: str
+    updated_at: str
+    def __init__(self, id: _Optional[str] = ..., reference: _Optional[str] = ..., deployment_id: _Optional[str] = ..., target: _Optional[str] = ..., machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., node_kind: _Optional[str] = ..., enrollment_generation: _Optional[int] = ..., desired_revision: _Optional[int] = ..., actor_scope: _Optional[str] = ..., selection_digest: _Optional[str] = ..., missing: _Optional[_Iterable[str]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
 class CreateHandoffResponse(_message.Message):
-    __slots__ = ("selection",)
+    __slots__ = ("selection", "handoff")
     SELECTION_FIELD_NUMBER: _ClassVar[int]
+    HANDOFF_FIELD_NUMBER: _ClassVar[int]
     selection: _selection_pb2.Selection
-    def __init__(self, selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ...) -> None: ...
+    handoff: Handoff
+    def __init__(self, selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ..., handoff: _Optional[_Union[Handoff, _Mapping]] = ...) -> None: ...
+
+class GetHandoffResponse(_message.Message):
+    __slots__ = ("handoff", "selection")
+    HANDOFF_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    handoff: Handoff
+    selection: _selection_pb2.Selection
+    def __init__(self, handoff: _Optional[_Union[Handoff, _Mapping]] = ..., selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ...) -> None: ...

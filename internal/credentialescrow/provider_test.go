@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/securestore"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
@@ -59,6 +60,26 @@ func TestDiscoverReturnsTypedMissingInputsAndMetadataOnlyCandidates(t *testing.T
 	// because discovery has no value-bearing input.
 	if strings.Contains(string(payload), "secret-answer") {
 		t.Fatalf("discovery response leaked a secret answer: %s", payload)
+	}
+}
+
+func TestStoreProviderVerificationReturnsFreshContextBoundEvidence(t *testing.T) {
+	provider := NewProvider(t.TempDir(), t.TempDir())
+	provider.now = func() time.Time { return time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC) }
+	provider.describeStore = func() (securestore.StoreStatus, error) {
+		return securestore.StoreStatus{Initialized: true, Unlocked: true}, nil
+	}
+	store := &storeProvider{parent: provider}
+	receipts, err := store.Verify(context.Background(), operatorcapability.VerificationRequest{
+		CapabilityID: StoreCapabilityID, TargetID: "local", Environment: "development", AccountIdentity: "operator", Operation: "readiness-check",
+		Effect: operatorcapability.EffectBudget{Class: operatorcapability.EffectReadOnly},
+	})
+	if err != nil || len(receipts) != 1 {
+		t.Fatalf("store verification = %+v, %v", receipts, err)
+	}
+	receipt := receipts[0]
+	if receipt.Stage != operatorcapability.VerificationStorage || receipt.TargetID != "local" || receipt.Environment != "development" || receipt.AccountIdentity != "operator" || receipt.Operation != "readiness-check" || !receipt.FreshAt(provider.now().Add(time.Minute)) {
+		t.Fatalf("store evidence was not fresh and context-bound: %+v", receipt)
 	}
 }
 

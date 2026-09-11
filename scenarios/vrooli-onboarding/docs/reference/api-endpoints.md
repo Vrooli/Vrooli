@@ -31,8 +31,8 @@ and CLI mappings are in `.vrooli/endpoints.json`.
 | `SessionService` | `GetSession`, `AdvanceSessionStep`, `GetStepModel` | Share the stable wizard pointer and step model. |
 | `SelectionService` | `ListScenarios`, `GetCoreSet`, `GetRecommendation`, `AcceptRecommendation`, `GetClosure`, `GetUnion`, `CreateHandoff` | Resolve scenario choices, dependencies, core protection, and the Bridge handoff. |
 | `ProfileService` | `ListProfiles`, `EvaluateProfile` | List data-owned purpose profiles and evaluate bounded answers into visible questions and recommendations. |
-| `CapabilitiesService` | `ListCapabilities`, `GetCapabilityStatus`, `PreviewCapability`, `ApplyCapability` | Inspect and apply typed operator capabilities. |
-| `CredentialsService` | `ListCredentials`, `ProvisionCredential`, `DiagnoseCredentials` | Read metadata, relay a write-only value, and diagnose the authority. |
+| `CapabilitiesService` | `ListCapabilities`, `GetCapabilityStatus`, `PreviewCapability`, `ApplyCapability`, `VerifyCapability` | Inspect, verify, and apply typed operator capabilities. Verification is bounded and returns provider evidence; it does not accept secret values in the request. |
+| `CredentialsService` | `ListCredentials`, `ProvisionCredential`, `DiagnoseCredentials` | Read metadata, relay a write-only value, and diagnose the authority. It has no reveal method; credential reveal is a local CLI-only action. |
 | `HostService` | `ListHostRequirements`, `GetHostFacts`, `ListTargets`, `PatchHostSafeguardConfig`, `SetNotificationRecipient` | Read host requirements and delegate the two governed writes. |
 | `OperatorStateService` | `GetOperatorState`, `PatchOperatorState` | Read or field-mask patch the single operator-state document. |
 | `ResourcesService` | `ListResources`, `GetResource`, `GetResourceHealth`, `ListDerivedResources` | Inspect runtime resources, health, and selection-derived resources. |
@@ -44,5 +44,14 @@ Connect errors preserve `invalid_argument`, `unauthenticated`,
 `permission_denied`, `unavailable`, `deadline_exceeded`, `aborted`, and
 `internal` distinctions. Mutation authorization consumes the verified principal
 installed by `api-core/authn` and the shared onboarding capability; credential
-values are write-only. See [`ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md)
+values are write-only. The AuthService is a browser-only facade: it returns
+identity metadata, never exposes the session cookie to JavaScript, and does not
+own accounts or token signing. See [`ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md)
 and [`SECURITY.md`](../internal/SECURITY.md).
+
+## Auxiliary browser authentication
+
+The UI-only `AuthService/Login` procedure is mounted at
+`/vrooli.vrooli_onboarding.v1.auth.AuthService/Login`. It forwards sign-in to
+Scenario Authenticator and establishes the HttpOnly onboarding session cookie;
+it is intentionally not part of the onboarding operator/CLI endpoint catalog.

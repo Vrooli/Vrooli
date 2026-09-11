@@ -76,7 +76,24 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 		}
 	}
 	if len(candidates) == 0 {
-		return SpawnResolution{}, fmt.Errorf("spawn policy has no feasible executionMode/sandboxMode combination")
+		if len(allowed) > 0 {
+			return SpawnResolution{}, fmt.Errorf("spawn policy has no feasible executionMode/sandboxMode combination")
+		}
+		if len(capabilities.SpawnCapabilities) == 0 {
+			// A runner with no declarations retains the launcher's historical
+			// codec-pipe default. The sandbox preference is still applied as a
+			// policy preference, but is not treated as a capability claim.
+			return SpawnResolution{ExecutionMode: "codec_pipe", SandboxMode: fallbackSandboxMode(policy)}, nil
+		}
+		fallback := capabilities.SpawnCapabilities[0]
+		if len(fallback.SandboxModes) == 0 {
+			return SpawnResolution{}, fmt.Errorf("runner declared spawn capability without a sandbox mode: executionMode=%s", fallback.ExecutionMode)
+		}
+		return SpawnResolution{
+			ExecutionMode:   fallback.ExecutionMode,
+			SandboxMode:     fallback.SandboxModes[0],
+			NativeObjective: fallback.NativeObjective,
+		}, nil
 	}
 	best := candidates[0]
 	for _, item := range candidates[1:] {
@@ -92,6 +109,17 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 		resolution.Skipped = append(resolution.Skipped, SpawnPreferenceSkip{ExecutionMode: item.ExecutionMode, SandboxMode: item.SandboxModes[0], Reason: "declared combination ranked below the selected feasible preference"})
 	}
 	return resolution, nil
+}
+
+func fallbackSandboxMode(policy *domain.SpawnPolicy) string {
+	if policy != nil {
+		for _, preferred := range policy.SandboxMode.Prefer {
+			if strings.TrimSpace(preferred) != "" {
+				return strings.TrimSpace(preferred)
+			}
+		}
+	}
+	return string(domain.SandboxModeOff)
 }
 
 func preferenceIndex(values []string, value string) int {

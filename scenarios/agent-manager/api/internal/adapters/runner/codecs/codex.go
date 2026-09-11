@@ -190,21 +190,9 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		"--skip-git-repo-check",
 	}
 
-	// Network access policy determines Codex's internal sandbox mode.
-	// SandboxConfig.Mode (overlayfs file isolation / bwrap-based agent
-	// containment) is a separate concern handled at the orchestration
-	// layer; this codec only sees the resolved RunConfig.
-	switch cfg.NetworkAccess.Effective() {
-	case domain.NetworkAccessNone:
-		// `--full-auto` is deprecated on codex ≥0.135.0; the supported
-		// equivalent for non-interactive exec is an explicit sandbox policy.
-		args = append(args, "--sandbox", "workspace-write")
-	default:
-		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
-	}
-
 	// Runner-native model, effort, and tool controls are centralized so the
-	// interactive path cannot drift from codec-pipe execution.
+	// interactive path cannot drift from codec-pipe execution. This includes
+	// the network-derived approval/sandbox policy translated by ControlArgs.
 	controlArgs, _ := c.ControlArgs(cfg)
 	args = append(args, controlArgs...)
 	if req.WorkingDir != "" {
@@ -255,11 +243,15 @@ type codexState struct {
 	runModel         string // captured at BuildArgs time for cost event labelling
 	billing          domain.BillingSnapshot
 	turn             int
+	rolloutTurnID    string
 	lastMessageID    string
 	lastMessage      string
 	lastMessageEvent *domain.RunEvent
 	lastRolloutUsage *CodexUsage
-	retainUser       bool
+	// Retain the latest rollout usage event so task_complete can promote it
+	// to an authoritative terminal receipt.
+	lastRolloutUsageEvent *domain.RunEvent
+	retainUser            bool
 }
 
 func (s *codexState) SessionID() string { return s.threadID }
@@ -566,6 +558,8 @@ type codexRolloutPayload struct {
 	Content json.RawMessage `json:"content"`
 	// agent_message / user_message
 	Message string `json:"message"`
+	// task_started/task_complete
+	TurnID string `json:"turn_id"`
 	// function_call / custom_tool_call
 	Name      string `json:"name"`
 	Arguments string `json:"arguments"` // function_call: JSON-encoded args
@@ -620,6 +614,9 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 
 	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
 	pl := rl.Payload
+	if pl.TurnID != "" {
+		p.state.rolloutTurnID = pl.TurnID
+	}
 
 	switch rl.Type {
 	case "session_meta":
@@ -639,6 +636,10 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 
 	case "event_msg":
 		switch pl.Type {
+		case "task_started":
+			if p.state.turn == 0 {
+				p.state.turn = 1
+			}
 		case "token_count":
 			if pl.Info != nil && (pl.Info.TotalTokenUsage != nil || pl.Info.LastTokenUsage != nil) {
 				if p.state.turn == 0 {
@@ -651,7 +652,13 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				}
 				delta := rolloutUsageDelta(p.state, usage, cumulative)
 				if delta.InputTokens > 0 || delta.OutputTokens > 0 || delta.CacheReadTokens > 0 {
-					result.Events = markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta), p.state.turn)
+					result.Events = markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta, p.state.billing), p.state.turn)
+					for _, event := range result.Events {
+						if _, ok := event.Data.(*domain.UsageEventData); ok {
+							p.state.lastRolloutUsageEvent = event
+							break
+						}
+					}
 				}
 			}
 		case "agent_message":
@@ -667,6 +674,16 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				result.Events = []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(pl.Message), domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "event_msg.user_message", RawEvidenceRef: "codex:event_msg.user_message"})}
 			}
 		case "task_complete", "turn_completed":
+			if p.state.lastRolloutUsageEvent != nil {
+				// The rollout terminal marker closes the latest provider
+				// invocation. Without this promotion, workflow owners can see
+				// usage and a charge but cannot prove the final usage snapshot.
+				if usage, ok := p.state.lastRolloutUsageEvent.Data.(*domain.UsageEventData); ok {
+					terminalUsage := *usage
+					terminalUsage.ReconciliationAuthority = true
+					result.Events = append(result.Events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: result.Timestamp, Data: &terminalUsage})
+				}
+			}
 			if p.state.lastMessageEvent != nil {
 				markProviderMessageTerminal(p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type)
 				result.Events = append(result.Events, newProviderTerminalEvidence(runID, p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type))
@@ -962,7 +979,10 @@ func newCodexMessageEvent(runID uuid.UUID, state *codexState, content, messageID
 	if state != nil {
 		conversationID = state.threadID
 		if state.turn > 0 {
-			turnID = fmt.Sprintf("%s:turn-%d", conversationID, state.turn)
+			turnID = state.rolloutTurnID
+			if turnID == "" {
+				turnID = fmt.Sprintf("%s:turn-%d", conversationID, state.turn)
+			}
 		}
 	}
 	return domain.NewProviderMessageEvent(runID, "assistant", content, domain.MessageEventData{

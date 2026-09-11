@@ -3,12 +3,14 @@
 package credentialauthority
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/securestore"
 )
 
@@ -133,6 +135,9 @@ func ParseIdentity(raw string) (Identity, error) {
 type Status struct {
 	Identity Identity `json:"identity"`
 	Field    string   `json:"field"`
+	// Version is the opaque authority version of the active value. It is
+	// metadata only and never permits a caller to recover the value.
+	Version string `json:"version,omitempty"`
 	// Configured is only meaningful when ProviderState is available. A caller
 	// that reads Configured alone while the store is down would conclude the
 	// operator never set the value.
@@ -253,6 +258,10 @@ func (a *Authority) Put(identity Identity, field, value string) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// Legacy and generated writes retain their existing single-write contract.
+	// Operator input uses PutCandidate/ActivateCandidate, which commits the
+	// opaque active version needed for exercised evidence without changing the
+	// mint path's storage semantics.
 	return classifyStoreError(a.store.Put(credentialService, storeKey(identity, field), value))
 }
 
@@ -263,26 +272,58 @@ func (a *Authority) Put(identity Identity, field, value string) error {
 // A provider failure keeps its own sentinel so the caller can tell an operator
 // omission from a host fault.
 func (a *Authority) Inject(identity Identity, field, env string, target map[string]string) error {
+	_, err := a.InjectExpected(identity, field, env, target, "")
+	return err
+}
+
+// InjectExpected resolves and injects one credential while holding the
+// authority lock across the active-version check and value read. A non-empty
+// expectedVersion therefore binds the delivered value to the exact version
+// reviewed by the caller; rotation cannot occur between a separate Status and
+// Inject call. The returned version is empty only for legacy active values
+// that predate version metadata and were requested without a binding.
+func (a *Authority) InjectExpected(identity Identity, field, env string, target map[string]string, expectedVersion string) (string, error) {
 	if a == nil || a.store == nil {
-		return fmt.Errorf("%w: no credential store on this host", ErrProviderAbsent)
+		return "", fmt.Errorf("%w: no credential store on this host", ErrProviderAbsent)
 	}
 	if _, err := ParseIdentity(string(identity)); err != nil {
-		return err
+		return "", err
 	}
 	field = strings.TrimSpace(field)
 	env = strings.TrimSpace(env)
 	if field == "" || env == "" || target == nil {
-		return fmt.Errorf("credential field, environment name, and target are required")
+		return "", fmt.Errorf("credential field, environment name, and target are required")
 	}
-	value, err := a.get(identity, field)
+	if err := credentialspec.ValidateEnvironmentName(env); err != nil {
+		return "", err
+	}
+	if _, exists := target[env]; exists {
+		return "", fmt.Errorf("credential environment target already contains %q", env)
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	value, err := a.store.Get(credentialService, storeKey(identity, field))
+	err = classifyStoreError(err)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if strings.TrimSpace(value) == "" {
-		return ErrUnconfigured
+		return "", ErrUnconfigured
+	}
+	version, versionErr := a.activeVersion(identity, field)
+	if expectedVersion != "" {
+		if versionErr != nil {
+			return "", fmt.Errorf("credential version for %s:%s is unavailable: %w", identity, field, versionErr)
+		}
+		if version != expectedVersion {
+			return "", fmt.Errorf("credential version changed for %s:%s: expected %q, active %q", identity, field, expectedVersion, version)
+		}
 	}
 	target[env] = value
-	return nil
+	if versionErr != nil {
+		return "", nil
+	}
+	return version, nil
 }
 
 // Resolve returns one credential value to a trusted runtime consumer. It is
@@ -315,6 +356,22 @@ func (a *Authority) Status(identity Identity, field string) Status {
 		return status
 	}
 	status.Configured = err == nil && strings.TrimSpace(value) != ""
+	if status.Configured {
+		version, versionErr := a.activeVersion(identity, status.Field)
+		if versionErr != nil {
+			if errors.Is(versionErr, ErrUnconfigured) {
+				// Values written before versioned activation remain configured,
+				// but cannot satisfy evidence that requires an exact authority
+				// version until they are provisioned or rotated again.
+				status.ProviderDetail = "active credential version metadata is absent; reprovision before claiming exercised evidence"
+				return status
+			}
+			status.ProviderState = ProviderUnavailable
+			status.ProviderDetail = "active credential version metadata is unavailable"
+			return status
+		}
+		status.Version = version
+	}
 	return status
 }
 
@@ -335,12 +392,33 @@ func (a *Authority) Delete(identity Identity, field string) error {
 }
 
 func (a *Authority) get(identity Identity, field string) (string, error) {
-	a.mu.Lock()
+	// The store is immutable after construction and its adapters own their
+	// read-side synchronization. Do not serialize independent metadata probes
+	// behind the authority availability mutex: onboarding may check many
+	// declared credentials concurrently, and serialized secure-store reads make
+	// readiness latency scale linearly with the number of descriptors.
 	value, err := a.store.Get(credentialService, storeKey(identity, field))
-	a.mu.Unlock()
 	return value, classifyStoreError(err)
 }
 
 func storeKey(identity Identity, field string) string {
 	return string(identity) + ":" + field
+}
+
+func versionKey(identity Identity, field string) string {
+	return "version/" + storeKey(identity, field)
+}
+
+func (a *Authority) activeVersion(identity Identity, field string) (string, error) {
+	version, err := a.store.Get(credentialService, versionKey(identity, field))
+	if err != nil {
+		return "", classifyStoreError(err)
+	}
+	if len(version) != 32 {
+		return "", fmt.Errorf("credential active version metadata is invalid")
+	}
+	if _, err := hex.DecodeString(version); err != nil {
+		return "", fmt.Errorf("credential active version metadata is invalid")
+	}
+	return version, nil
 }

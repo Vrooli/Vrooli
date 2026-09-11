@@ -25,12 +25,13 @@ function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
 }
 
 describe("SessionSummaryCard", () => {
-  it("sidebar mode: opens on click, renders no checkbox", async () => {
-    const onOpen = vi.fn();
-    render(<SessionSummaryCard session={makeSession()} onOpen={onOpen} />);
+  it("list content: renders the summary without its own button or checkbox", () => {
+    render(<SessionSummaryCard session={makeSession()} />);
+    expect(screen.getByText("Plan quality work")).toBeInTheDocument();
+    expect(screen.getByText("Plan work")).toBeInTheDocument();
+    // The CollectionList row owns opening; nested buttons would swallow its click.
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByTestId("sidebar-session-item"));
-    expect(onOpen).toHaveBeenCalledWith("sess-1");
   });
 
   it("pick mode: renders the context row and toggles on click", async () => {

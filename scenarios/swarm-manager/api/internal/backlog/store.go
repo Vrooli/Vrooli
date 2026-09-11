@@ -173,6 +173,16 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 	if item.Effort != "" {
 		item.Effort = strings.ToUpper(strings.TrimSpace(item.Effort))
 	}
+	if item.Continuation == "" {
+		item.Continuation = ContinuationManual
+	} else {
+		item.Continuation = strings.ToLower(strings.TrimSpace(item.Continuation))
+	}
+	if item.ScopePolicy == "" {
+		item.ScopePolicy = ScopePolicyFixed
+	} else {
+		item.ScopePolicy = strings.ToLower(strings.TrimSpace(item.ScopePolicy))
+	}
 	// Ensure priority is within valid range (1-10).
 	if item.Priority < 1 {
 		item.Priority = 5
@@ -265,6 +275,16 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 		merged["execution_limits"] = item.ExecutionLimits
 	} else {
 		delete(merged, "execution_limits")
+	}
+	if strings.TrimSpace(item.Continuation) != "" {
+		merged["continuation"] = strings.TrimSpace(item.Continuation)
+	} else {
+		delete(merged, "continuation")
+	}
+	if strings.TrimSpace(item.ScopePolicy) != "" {
+		merged["scope_policy"] = strings.TrimSpace(item.ScopePolicy)
+	} else {
+		delete(merged, "scope_policy")
 	}
 	if item.PlanAcceptance != nil {
 		merged["plan_acceptance"] = item.PlanAcceptance

@@ -139,6 +139,7 @@ type CreateRunRequest struct {
 	MaxTurns             *int                    `json:"maxTurns,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
 	Model                *string                 `json:"model,omitempty"`
+	PreferredRunner      string                  `json:"preferredRunner,omitempty"`
 	Effort               *domain.Effort          `json:"effort,omitempty"`
 	AllowedTools         []string                `json:"allowedTools,omitempty"`
 	DeniedTools          []string                `json:"deniedTools,omitempty"`
@@ -395,9 +396,10 @@ type StartWorkflowExecutionRequest struct {
 	IdentityToken string                   `json:"-"`
 	// EngagementGrant is an immutable owner-issued aggregate allowance. Agent
 	// Manager persists it with the execution and never widens catalog budgets.
-	EngagementGrant *domain.WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
-	ApprovalDigest  string                          `json:"approvalDigest,omitempty"`
-	GrantDigest     string                          `json:"grantDigest,omitempty"`
+	EngagementGrant      *domain.WorkflowEngagementGrant `json:"engagementGrant,omitempty"`
+	ApprovalDigest       string                          `json:"approvalDigest,omitempty"`
+	GrantDigest          string                          `json:"grantDigest,omitempty"`
+	ExecutionPreferences *domain.ExecutionPreferences    `json:"executionPreferences,omitempty"`
 }
 
 type ListWorkflowExecutionsRequest struct {

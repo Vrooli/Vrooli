@@ -100,11 +100,15 @@ export const useAgentSessionStore = create<AgentSessionStoreState>((set, get) =>
         const nextSessions = filteredRequest && state.sessions.length > 0
           ? mergeSessions(state.sessions, result)
           : sortSessions(result);
-        if (!filteredRequest) {
+        // The list is polled every 4s while any session is active, and most
+        // polls return what we hold. Keep the held array so the sidebar and
+        // its badges skip the render (see upsertSessionIfChanged).
+        const unchanged = JSON.stringify(nextSessions) === JSON.stringify(state.sessions);
+        if (!filteredRequest && !unchanged) {
           saveToStorage(PERSIST_CONFIG, result, now);
         }
         return {
-          sessions: nextSessions,
+          sessions: unchanged ? state.sessions : nextSessions,
           status: "success",
           error: null,
           isRefreshing: false,

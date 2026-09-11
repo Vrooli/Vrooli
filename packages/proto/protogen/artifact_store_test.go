@@ -214,8 +214,24 @@ func TestArtifactStoreRepublishIsIdempotent(t *testing.T) {
 	if _, err := store.Publish(context.Background(), candidate); err != nil {
 		t.Fatal(err)
 	}
+	first, err := store.Resolve(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstGeneratedAt := first.Metadata.GeneratedAt
+	first.Close()
+	candidate.Metadata.GeneratedAt = firstGeneratedAt.Add(time.Hour)
 	if _, err := store.Publish(context.Background(), candidate); err != nil {
 		t.Fatal(err)
+	}
+	second, err := store.Resolve(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	deferredGeneratedAt := second.Metadata.GeneratedAt
+	second.Close()
+	if !deferredGeneratedAt.Equal(firstGeneratedAt) {
+		t.Fatalf("republish changed immutable metadata timestamp = %s, want %s", deferredGeneratedAt, firstGeneratedAt)
 	}
 	entries, err := os.ReadDir(filepath.Join(store.Root, "snapshots"))
 	if err != nil {

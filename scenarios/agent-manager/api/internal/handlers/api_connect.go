@@ -45,6 +45,21 @@ func NewAgentManagerConnectHandler(h *Handler, watchServices ...*supervision.Ser
 	return handler
 }
 
+func (h *AgentManagerConnectHandler) ListExecutionOptions(ctx context.Context, req *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error) {
+	if h.h == nil || h.h.svc.ExecutionOptionsService == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("execution options service unavailable"))
+	}
+	roleRef := ""
+	if req != nil && req.Msg != nil {
+		roleRef = req.Msg.RoleRef
+	}
+	options, err := h.h.svc.ListExecutionOptions(ctx, roleRef)
+	if err != nil {
+		return nil, workflowConnectError(err)
+	}
+	return connect.NewResponse(executionOptionsToProto(options)), nil
+}
+
 func (h *AgentManagerConnectHandler) SetWatchActionAuthorizer(authorizer WatchActionAuthorizer) {
 	h.watchActionAuth = authorizer
 }

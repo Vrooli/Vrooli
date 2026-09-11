@@ -314,6 +314,31 @@ func TestCoordinatorFinalizeSemantics(t *testing.T) {
 	}
 }
 
+// TestCoordinatorStructuredResultSatisfiedUsesOnlyDeterministicSuccess proves
+// that the goal-session completion fallback trusts the canonical structured
+// result projection, while refusing constrained extraction as a tail terminal.
+func TestCoordinatorStructuredResultSatisfiedUsesOnlyDeterministicSuccess(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	run.ResolvedConfig.ResultSpec = &domain.ResultSpec{
+		Kind:           domain.ResultSpecKindJSONSchema,
+		Schema:         []byte(`{"type":"object"}`),
+		ExtractionMode: domain.StructuredExtractionDeterministic,
+	}
+	coord := NewCoordinator(CoordinatorDeps{
+		Result: func(context.Context, uuid.UUID, bool, int, string) (*domain.RunResult, *domain.RunSummary) {
+			return &domain.RunResult{Structured: &domain.StructuredResult{Status: domain.StructuredResultSuccess}}, nil
+		},
+	})
+	if !coord.structuredResultSatisfied(context.Background(), run) {
+		t.Fatal("deterministic structured success should satisfy the completion rule")
+	}
+
+	run.ResolvedConfig.ResultSpec.ExtractionMode = domain.StructuredExtractionConstrained
+	if coord.structuredResultSatisfied(context.Background(), run) {
+		t.Fatal("constrained extraction must not satisfy the completion rule")
+	}
+}
+
 // TestCoordinatorReattachFromCursorNoDuplicateEvents proves that reattaching a
 // tailer from the persisted cursor after a restart replays only NEW transcript
 // content — a second turn appended after the first completed — without

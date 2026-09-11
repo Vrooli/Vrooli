@@ -26,11 +26,11 @@ func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy 
 	// Consumers without a registry can validate the strategy identifier, but
 	// cannot select a workflow. Production always reads that locator from the
 	// declaration above.
-	return []transitions.ExecutionStrategy{{
-		ID:          defaultExecutionStrategy,
-		DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.",
-		WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost.",
-	}}
+	return []transitions.ExecutionStrategy{
+		{ID: defaultExecutionStrategy, DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.", WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost."},
+		{ID: adaptiveImprovementStrategy, DisplayName: "Adaptive improvement campaign", Description: "Executes successive in-scope improvements under one accepted plan.", WhenToUse: "Use for a plan that authorizes adaptive improvement.", CostBand: "Governed aggregate allowance."},
+		{ID: "goal-session", DisplayName: "Native goal session", Description: "Runs the accepted plan in a warm native-goal session.", WhenToUse: "Use when a native-capable runner is available.", CostBand: "Governed aggregate allowance."},
+	}
 }
 
 func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
@@ -191,21 +191,22 @@ func (s *Service) validateAndLoadQueueRequest(ctx context.Context, req CreateReq
 func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogItem, mode Mode, _ ProcessPreflight) Record {
 	now := nowRFC3339()
 	record := Record{
-		ExecutionID:       idgen.Generate(),
-		BacklogKind:       strings.ToLower(strings.TrimSpace(req.BacklogKind)),
-		BacklogName:       strings.TrimSpace(req.BacklogName),
-		PreviousStatus:    strings.ToLower(strings.TrimSpace(item.Status)),
-		Mode:              mode,
-		Status:            StatusPending,
-		StartedBy:         strings.TrimSpace(req.StartedBy),
-		Operation:         normalizeOperation(req.Operation),
-		Force:             req.Force,
-		ExecutionStrategy: req.Strategy,
-		MaxSlices:         req.MaxSlices,
-		ExecutionLimits:   item.ExecutionLimits.Clone(),
-		QueuedAt:          now,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		ExecutionID:          idgen.Generate(),
+		BacklogKind:          strings.ToLower(strings.TrimSpace(req.BacklogKind)),
+		BacklogName:          strings.TrimSpace(req.BacklogName),
+		PreviousStatus:       strings.ToLower(strings.TrimSpace(item.Status)),
+		Mode:                 mode,
+		Status:               StatusPending,
+		StartedBy:            strings.TrimSpace(req.StartedBy),
+		Operation:            normalizeOperation(req.Operation),
+		Force:                req.Force,
+		ExecutionStrategy:    req.Strategy,
+		MaxSlices:            req.MaxSlices,
+		ExecutionLimits:      item.ExecutionLimits.Clone(),
+		ExecutionPreferences: cloneExecutionPreferences(req.ExecutionPreferences),
+		QueuedAt:             now,
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}
 	if item.PlanAcceptance != nil {
 		record.ApprovalDigest = digestStrings(item.PlanAcceptance.SubjectVersion, item.PlanAcceptance.PlanContentHash)
@@ -222,6 +223,20 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		record.Operation = "generator"
 	}
 	return record
+}
+
+func cloneExecutionPreferences(value *ExecutionPreferences) *ExecutionPreferences {
+	if value == nil {
+		return nil
+	}
+	clone := *value
+	clone.PreferredRunner = strings.TrimSpace(clone.PreferredRunner)
+	clone.Model = strings.TrimSpace(clone.Model)
+	clone.Effort = strings.TrimSpace(clone.Effort)
+	if clone.PreferredRunner == "" && clone.Model == "" && clone.Effort == "" {
+		return nil
+	}
+	return &clone
 }
 
 // enforceQueueGovernance applies queue-depth and cost-cap limits before a

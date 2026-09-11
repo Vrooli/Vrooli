@@ -2,6 +2,7 @@ package durablebackup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -198,6 +199,28 @@ func TestDiscoverDegradesWhenDBMIsUnavailable(t *testing.T) {
 	}
 	if status.State != "degraded" || !strings.Contains(status.Remediation, "unavailable") {
 		t.Fatalf("status = %#v, want degraded unavailable evidence", status)
+	}
+}
+
+func TestVerifyClassifiesUnavailableDBMAsRetryable(t *testing.T) {
+	provider := NewProviderWithFetcher(func(context.Context) (Evidence, error) {
+		return Evidence{}, context.DeadlineExceeded
+	})
+	_, err := provider.Verify(context.Background(), operatorcapability.VerificationRequest{CapabilityID: CapabilityID, TargetID: "local", Operation: "readiness-check", Effect: operatorcapability.EffectBudget{Class: operatorcapability.EffectReadOnly}})
+	var verificationErr *operatorcapability.VerificationError
+	if !errors.As(err, &verificationErr) || verificationErr.Code != "durable_backup_evidence_unavailable" || !verificationErr.Retryable || verificationErr.NextAction != "retry-durable-backup-verification" {
+		t.Fatalf("error = %v, want typed retryable DBM-unavailable failure", err)
+	}
+}
+
+func TestVerifyClassifiesIncompleteDBMEvidenceAsNonRetryable(t *testing.T) {
+	provider := NewProviderWithFetcher(func(context.Context) (Evidence, error) {
+		return Evidence{Registered: 1, Planned: 1, BackedUp: 1, Verified: 1}, nil
+	})
+	_, err := provider.Verify(context.Background(), operatorcapability.VerificationRequest{CapabilityID: CapabilityID, TargetID: "local", Operation: "readiness-check", Effect: operatorcapability.EffectBudget{Class: operatorcapability.EffectReadOnly}})
+	var verificationErr *operatorcapability.VerificationError
+	if !errors.As(err, &verificationErr) || verificationErr.Code != "durable_backup_evidence_incomplete" || verificationErr.Retryable || verificationErr.NextAction != "complete-durable-backup-evidence" {
+		t.Fatalf("error = %v, want typed non-retryable incomplete-evidence failure", err)
 	}
 }
 

@@ -23,28 +23,29 @@ type workflowExecutionRepository struct {
 var _ repository.WorkflowExecutionRepository = (*workflowExecutionRepository)(nil)
 
 type workflowExecutionRow struct {
-	ID                  string         `db:"id"`
-	Owner               string         `db:"owner"`
-	WorkflowKey         string         `db:"workflow_key"`
-	DefinitionDigest    string         `db:"definition_digest"`
-	Status              string         `db:"status"`
-	CurrentNodeID       string         `db:"current_node_id"`
-	InputJSON           string         `db:"input_json"`
-	OutputJSON          sql.NullString `db:"output_json"`
-	TerminalReasonJSON  sql.NullString `db:"terminal_reason_json"`
-	BudgetUsageJSON     string         `db:"budget_usage_json"`
-	EngagementGrantJSON sql.NullString `db:"engagement_grant_json"`
-	ApprovalDigest      string         `db:"approval_digest"`
-	GrantDigest         string         `db:"grant_digest"`
-	EdgeTraversalsJSON  string         `db:"edge_traversals_json"`
-	Version             int64          `db:"version"`
-	IdempotencyKey      string         `db:"idempotency_key"`
-	ParentExecutionID   sql.NullString `db:"parent_execution_id"`
-	ParentAttemptID     sql.NullString `db:"parent_attempt_id"`
-	Depth               int            `db:"depth"`
-	CreatedAt           SQLiteTime     `db:"created_at"`
-	UpdatedAt           SQLiteTime     `db:"updated_at"`
-	EndedAt             sql.NullString `db:"ended_at"`
+	ID                       string         `db:"id"`
+	Owner                    string         `db:"owner"`
+	WorkflowKey              string         `db:"workflow_key"`
+	DefinitionDigest         string         `db:"definition_digest"`
+	Status                   string         `db:"status"`
+	CurrentNodeID            string         `db:"current_node_id"`
+	InputJSON                string         `db:"input_json"`
+	OutputJSON               sql.NullString `db:"output_json"`
+	TerminalReasonJSON       sql.NullString `db:"terminal_reason_json"`
+	BudgetUsageJSON          string         `db:"budget_usage_json"`
+	EngagementGrantJSON      sql.NullString `db:"engagement_grant_json"`
+	ApprovalDigest           string         `db:"approval_digest"`
+	GrantDigest              string         `db:"grant_digest"`
+	ExecutionPreferencesJSON sql.NullString `db:"execution_preferences_json"`
+	EdgeTraversalsJSON       string         `db:"edge_traversals_json"`
+	Version                  int64          `db:"version"`
+	IdempotencyKey           string         `db:"idempotency_key"`
+	ParentExecutionID        sql.NullString `db:"parent_execution_id"`
+	ParentAttemptID          sql.NullString `db:"parent_attempt_id"`
+	Depth                    int            `db:"depth"`
+	CreatedAt                SQLiteTime     `db:"created_at"`
+	UpdatedAt                SQLiteTime     `db:"updated_at"`
+	EndedAt                  sql.NullString `db:"ended_at"`
 }
 
 func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.WorkflowExecution, initial *domain.WorkflowJournalEntry) error {
@@ -62,6 +63,7 @@ func (r *workflowExecutionRepository) Create(ctx context.Context, e *domain.Work
 func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExecution) error {
 	budget, _ := json.Marshal(e.BudgetUsage)
 	grant, _ := json.Marshal(e.EngagementGrant)
+	preferences, _ := json.Marshal(e.ExecutionPreferences)
 	edges, _ := json.Marshal(e.EdgeTraversals)
 	terminal, _ := json.Marshal(e.TerminalReason)
 	var output any
@@ -88,20 +90,23 @@ func insertWorkflowExecution(ctx context.Context, tx *Tx, e *domain.WorkflowExec
 	if e.EngagementGrant != nil {
 		grantValue = string(grant)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_executions (id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Owner, e.WorkflowKey, e.DefinitionDigest, e.Status, e.CurrentNodeID, string(e.Input), output, terminalValue, string(budget), grantValue, e.ApprovalDigest, e.GrantDigest, string(edges), e.Version, e.IdempotencyKey, parent, parentAttempt, e.Depth, SQLiteTime(e.CreatedAt), SQLiteTime(e.UpdatedAt), ended)
+	// The column is non-null so legacy executions without preferences remain
+	// representable while keeping the JSON payload round-trippable.
+	preferencesValue := string(preferences)
+	_, err := tx.ExecContext(ctx, `INSERT INTO workflow_executions (id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,execution_preferences_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Owner, e.WorkflowKey, e.DefinitionDigest, e.Status, e.CurrentNodeID, string(e.Input), output, terminalValue, string(budget), grantValue, e.ApprovalDigest, e.GrantDigest, preferencesValue, string(edges), e.Version, e.IdempotencyKey, parent, parentAttempt, e.Depth, SQLiteTime(e.CreatedAt), SQLiteTime(e.UpdatedAt), ended)
 	return err
 }
 
 func (r *workflowExecutionRepository) Get(ctx context.Context, id uuid.UUID) (*domain.WorkflowExecution, error) {
-	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE id=?`, id)
+	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,execution_preferences_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE id=?`, id)
 }
 
 func (r *workflowExecutionRepository) GetByIdempotencyKey(ctx context.Context, key string) (*domain.WorkflowExecution, error) {
-	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE idempotency_key=?`, key)
+	return r.get(ctx, `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,execution_preferences_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions WHERE idempotency_key=?`, key)
 }
 
 func (r *workflowExecutionRepository) List(ctx context.Context, filter repository.WorkflowExecutionListFilter) ([]*domain.WorkflowExecution, error) {
-	query := `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions`
+	query := `SELECT id,owner,workflow_key,definition_digest,status,current_node_id,input_json,output_json,terminal_reason_json,budget_usage_json,engagement_grant_json,approval_digest,grant_digest,execution_preferences_json,edge_traversals_json,version,idempotency_key,parent_execution_id,parent_attempt_id,depth,created_at,updated_at,ended_at FROM workflow_executions`
 	clauses := make([]string, 0, 3)
 	args := make([]any, 0, 5)
 	if filter.Owner != "" {
@@ -177,6 +182,13 @@ func workflowExecutionFromRow(row workflowExecutionRow) (*domain.WorkflowExecuti
 		}
 		e.EngagementGrant = &grant
 	}
+	if row.ExecutionPreferencesJSON.Valid && row.ExecutionPreferencesJSON.String != "" && row.ExecutionPreferencesJSON.String != "null" {
+		var preferences domain.ExecutionPreferences
+		if err := json.Unmarshal([]byte(row.ExecutionPreferencesJSON.String), &preferences); err != nil {
+			return nil, err
+		}
+		e.ExecutionPreferences = &preferences
+	}
 	if err := json.Unmarshal([]byte(row.EdgeTraversalsJSON), &e.EdgeTraversals); err != nil {
 		return nil, err
 	}
@@ -214,6 +226,7 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 		e := c.Execution
 		budget, _ := json.Marshal(e.BudgetUsage)
 		grant, _ := json.Marshal(e.EngagementGrant)
+		preferences, _ := json.Marshal(e.ExecutionPreferences)
 		edges, _ := json.Marshal(e.EdgeTraversals)
 		terminal, _ := json.Marshal(e.TerminalReason)
 		var output any
@@ -232,7 +245,8 @@ func (r *workflowExecutionRepository) Commit(ctx context.Context, c repository.W
 		if e.EngagementGrant != nil {
 			grantValue = string(grant)
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,engagement_grant_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), grantValue, string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion)
+		preferencesValue := string(preferences)
+		res, err := tx.ExecContext(ctx, `UPDATE workflow_executions SET status=?,current_node_id=?,output_json=?,terminal_reason_json=?,budget_usage_json=?,engagement_grant_json=?,execution_preferences_json=?,edge_traversals_json=?,version=?,updated_at=?,ended_at=? WHERE id=? AND version=?`, e.Status, e.CurrentNodeID, output, terminalValue, string(budget), grantValue, preferencesValue, string(edges), e.Version, SQLiteTime(e.UpdatedAt), ended, e.ID, c.ExpectedVersion)
 		if err != nil {
 			return err
 		}

@@ -39,6 +39,7 @@ export type WizardProfileSession = {
   profileId?: string;
   profileVersion?: string;
   catalogRevision?: string;
+  consequenceDigest?: string;
   baseRevision: string;
   answers: Record<string, unknown>;
   manualDecisions: Record<string, boolean>;
@@ -48,6 +49,16 @@ export type WizardProfileSession = {
   reconciliationState?: string;
   currentProfileVersion?: string;
   reconciliationReasons?: string[];
+  reconciliationChanges?: Array<{
+    kind: string;
+    field: string;
+    before: string;
+    after: string;
+    impact: string;
+    requiresReview: boolean;
+  }>;
+  nextQuestionId?: string;
+  nextAction?: string;
 };
 
 export type WizardProfileSessionSaveRequest = Omit<WizardProfileSession, "actor" | "updatedAt" | "revision"> & {
@@ -100,6 +111,7 @@ export async function fetchProfileSession(target = "local"): Promise<WizardProfi
     profileId: value.profileId || undefined,
     profileVersion: value.profileVersion || undefined,
     catalogRevision: value.catalogRevision || undefined,
+    consequenceDigest: value.consequenceDigest || undefined,
     baseRevision: value.baseRevision,
     answers: value.answers ? { ...value.answers } : {},
     manualDecisions: { ...value.manualDecisions },
@@ -109,6 +121,12 @@ export async function fetchProfileSession(target = "local"): Promise<WizardProfi
     reconciliationState: metadata.reconciliationState || undefined,
     currentProfileVersion: metadata.currentProfileVersion || undefined,
     reconciliationReasons: [...(metadata.reconciliationReasons ?? [])],
+    reconciliationChanges: (value.reconciliationChanges ?? []).map((change) => ({
+      kind: change.kind, field: change.field, before: change.before, after: change.after,
+      impact: change.impact, requiresReview: change.requiresReview,
+    })),
+    nextQuestionId: value.nextQuestionId || undefined,
+    nextAction: value.nextAction || undefined,
   };
 }
 
@@ -122,6 +140,7 @@ export async function saveProfileSession(request: WizardProfileSessionSaveReques
       profileId: request.profileId ?? "",
       profileVersion: request.profileVersion ?? "",
       catalogRevision: request.catalogRevision ?? "",
+      consequenceDigest: request.consequenceDigest ?? "",
       baseRevision: request.baseRevision,
       answers: request.answers as JsonObject,
       manualDecisions: request.manualDecisions,
@@ -138,6 +157,7 @@ export async function saveProfileSession(request: WizardProfileSessionSaveReques
     profileId: value.profileId || undefined,
     profileVersion: value.profileVersion || undefined,
     catalogRevision: value.catalogRevision || undefined,
+    consequenceDigest: value.consequenceDigest || undefined,
     baseRevision: value.baseRevision,
     answers: value.answers ? { ...value.answers } : {},
     manualDecisions: { ...value.manualDecisions },
@@ -147,6 +167,12 @@ export async function saveProfileSession(request: WizardProfileSessionSaveReques
     reconciliationState: metadata.reconciliationState || undefined,
     currentProfileVersion: metadata.currentProfileVersion || undefined,
     reconciliationReasons: [...(metadata.reconciliationReasons ?? [])],
+    reconciliationChanges: (value.reconciliationChanges ?? []).map((change) => ({
+      kind: change.kind, field: change.field, before: change.before, after: change.after,
+      impact: change.impact, requiresReview: change.requiresReview,
+    })),
+    nextQuestionId: value.nextQuestionId || undefined,
+    nextAction: value.nextAction || undefined,
   };
 }
 

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#proto-health/v1/health/health.proto\x12\x1dvrooli.proto_health.v1.health\"\x81\x01\n\x10\x44\x65pendencyStatus\x12\x1c\n\tconnected\x18\x01 \x01(\x08R\tconnected\x12\x1d\n\nlatency_ms\x18\x02 \x01(\x01R\tlatencyMs\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\x12\x1a\n\x08\x64\x61tabase\x18\x04 \x01(\tR\x08\x64\x61tabase\"\x8a\x03\n\x08Response\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12%\n\x0euptime_seconds\x18\x06 \x01(\x01R\ruptimeSeconds\x12]\n\x0c\x64\x65pendencies\x18\x07 \x03(\x0b\x32\x39.vrooli.proto_health.v1.health.Response.DependenciesEntryR\x0c\x64\x65pendencies\x1ap\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x45\n\x05value\x18\x02 \x01(\x0b\x32/.vrooli.proto_health.v1.health.DependencyStatusR\x05value:\x02\x38\x01\x42QZOgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health;health_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#proto-health/v1/health/health.proto\x12\x1dvrooli.proto_health.v1.health\"\x81\x01\n\x10\x44\x65pendencyStatus\x12\x1c\n\tconnected\x18\x01 \x01(\x08R\tconnected\x12\x1d\n\nlatency_ms\x18\x02 \x01(\x01R\tlatencyMs\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\x12\x1a\n\x08\x64\x61tabase\x18\x04 \x01(\tR\x08\x64\x61tabase\"\xb1\x03\n\x08Response\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12%\n\x0euptime_seconds\x18\x06 \x01(\x01R\ruptimeSeconds\x12]\n\x0c\x64\x65pendencies\x18\x07 \x03(\x0b\x32\x39.vrooli.proto_health.v1.health.Response.DependenciesEntryR\x0c\x64\x65pendencies\x12%\n\x0e\x62uild_identity\x18\x08 \x01(\tR\rbuildIdentity\x1ap\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x45\n\x05value\x18\x02 \x01(\x0b\x32/.vrooli.proto_health.v1.health.DependencyStatusR\x05value:\x02\x38\x01\x42QZOgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health;health_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,7 +37,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DEPENDENCYSTATUS']._serialized_start=71
   _globals['_DEPENDENCYSTATUS']._serialized_end=200
   _globals['_RESPONSE']._serialized_start=203
-  _globals['_RESPONSE']._serialized_end=597
-  _globals['_RESPONSE_DEPENDENCIESENTRY']._serialized_start=485
-  _globals['_RESPONSE_DEPENDENCIESENTRY']._serialized_end=597
+  _globals['_RESPONSE']._serialized_end=636
+  _globals['_RESPONSE_DEPENDENCIESENTRY']._serialized_start=524
+  _globals['_RESPONSE_DEPENDENCIESENTRY']._serialized_end=636
 # @@protoc_insertion_point(module_scope)

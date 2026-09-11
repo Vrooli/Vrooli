@@ -75,12 +75,28 @@ vrooli-onboarding union export --output "<output>"
 `union export` is what bundle packaging, VPS provisioning, and vrooli-bridge
 consume to decide what to ship.
 
+## Capabilities
+
+```bash
+vrooli-onboarding capabilities list --json
+vrooli-onboarding capabilities preview --id "<capability-id>" --json
+vrooli-onboarding capabilities verify --capability-id "<capability-id>" --target "<target>" --json
+vrooli-onboarding capabilities apply --id "<capability-id>" --confirm --json
+```
+
+`capabilities verify` runs the provider-declared bounded verification for the
+selected target and returns typed evidence. `--operation`, `--environment`,
+and `--account-identity` provide non-secret context when the provider needs it.
+Secrets are never accepted as verification flags; providers obtain them through
+the credential authority.
+
 ## Credentials
 
 ```bash
 vrooli-onboarding credentials list
 printf '%s' "$VALUE" | vrooli-onboarding credentials provision --logical-id "<logical-id>" --field "<field>"
 vrooli-onboarding credentials doctor
+vrooli-onboarding credentials reveal --logical-id "<logical-id>" --field "<field>" --confirm-reveal
 vrooli credentials store status                 # metadata-only encrypted-store status
 printf '%s' "$PASSPHRASE" | vrooli credentials store init
 printf '%s' "$PASSPHRASE" | vrooli credentials store unlock
@@ -93,6 +109,12 @@ not warned about — argv is visible in the process table and in shell history.
 The store commands follow the same rule for passphrases. Backend selection is
 metadata-only: `vrooli-onboarding store select --backend native` (or
 `encrypted-file`) never accepts a secret.
+
+`credentials reveal` is the sole display exception. It resolves one configured
+value from the local authority and writes it only to an interactive terminal;
+it refuses `--json`, missing `--confirm-reveal`, and redirected or piped output.
+The API, UI, readiness, browser state, logs, and operator state remain
+write-only or metadata-only.
 
 `secrets-manager` owns credential lifecycle beyond provisioning: listing
 declarations, keyring inspect and repair, and recovery-bundle export and

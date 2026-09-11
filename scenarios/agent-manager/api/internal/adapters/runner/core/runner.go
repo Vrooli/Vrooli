@@ -232,6 +232,18 @@ func (r *Runner) Stop(ctx context.Context, runID uuid.UUID) error {
 	return nil
 }
 
+// applyStateBilling supplies the run's immutable billing snapshot to a codec
+// state that builds native charge events, so subscription and local runs
+// record an explicit zero charge instead of a metered estimate.
+func (r *Runner) applyStateBilling(state codecs.State, cfg *domain.RunConfig) {
+	if cfg == nil {
+		return
+	}
+	if setter, ok := state.(runner.BillingStateSetter); ok {
+		setter.SetStateBilling(cfg.Billing)
+	}
+}
+
 // Execute runs the agent with the given configuration. Routes to the
 // durable-transcript path when [runner.ExecuteRequest.Transcript] is
 // supplied; otherwise uses the legacy in-memory streaming path.
@@ -253,6 +265,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 
 	startTime := time.Now()
 	state := r.codec.NewState()
+	r.applyStateBilling(state, req.GetConfig())
 
 	if req.Transcript != nil {
 		return r.executeWithDurableTranscript(ctx, req, state, startTime)
@@ -431,6 +444,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	startTime := time.Now()
 	state := r.codec.NewState()
+	r.applyStateBilling(state, req.GetConfig())
 	tag := r.codec.ContinueTag(req)
 
 	if req.Transcript != nil {

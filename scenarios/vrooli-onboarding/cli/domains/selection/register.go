@@ -22,6 +22,7 @@ const (
 	GetClosureProcedure           = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetClosure"
 	GetUnionProcedure             = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion"
 	CreateHandoffProcedure        = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff"
+	GetHandoffProcedure           = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff"
 )
 
 func Request(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {

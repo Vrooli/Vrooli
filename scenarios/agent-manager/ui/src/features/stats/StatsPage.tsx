@@ -12,6 +12,7 @@ import { RunnerPerformanceTable } from "./components/tables/RunnerPerformanceTab
 import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
 import { RunClassBreakdown } from "./components/breakdown/RunClassBreakdown";
+import { CostDistributionCard } from "./components/breakdown/CostDistributionCard";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { TokenAttributionBreakdown } from "./components/breakdown/TokenAttributionBreakdown";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
@@ -79,6 +80,10 @@ function StatsPageContent() {
 
         <ProfiledStatsSection id="Stats:RunClassBreakdown">
           <RunClassBreakdown />
+        </ProfiledStatsSection>
+
+        <ProfiledStatsSection id="Stats:CostDistributionCard">
+          <CostDistributionCard />
         </ProfiledStatsSection>
 
         {/* Tables Row */}

@@ -65,7 +65,12 @@ The bundle contract declares every catalog path onboarding reads, and packaging 
 
 ### Credential values have exactly one path
 
-A value enters in a request body or on standard input, goes to the credential authority, and is never written anywhere else. No response, log, URL, argument, operator-state field, or browser store carries one. The wizard displays configured/unconfigured status and the descriptor's declared purpose and obtain link — never a value.
+A value enters in a request body or on standard input and goes to the credential
+authority. Provisioned values never enter a response, log, URL, argument,
+operator-state field, or browser store. The wizard displays
+configured/unconfigured status and the descriptor's declared purpose and obtain
+link — never a value. The sole display exception is the explicitly confirmed
+local CLI reveal, which refuses JSON and redirected output.
 
 ## The experience
 

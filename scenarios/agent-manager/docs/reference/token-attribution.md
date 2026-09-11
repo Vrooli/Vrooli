@@ -162,3 +162,28 @@ The Stats page exposes the same selectors and columns. Footprint additionally
 shows p50, p95, and maximum footprint. Residency is labelled as the compaction
 attenuation approximation, and an empty retained corpus is shown as an empty
 state rather than a zero-cost claim.
+
+## Per-run cost and token distribution
+
+`throughput.run_cost` also reports the per-run distribution, not only the
+aggregate. Percentiles (`p50`, `p90`, `p95`, `p99`, `max`) use nearest-rank over
+runs with observed token usage, so every value is a real observed run rather
+than an interpolation. A fixed token histogram (`<100K`, `100K-500K`,
+`500K-1M`, `1M-5M`, `5M-25M`, `25M+`) answers "how many runs land in each
+band" without a per-query bucket choice.
+
+The distribution declares its denominator. `distribution_sample_size` counts
+runs with observed usage; `distribution_unobserved_runs` counts matching runs
+without it. A consumer must not present the percentiles as covering every
+matching run. Cost percentiles follow the same billing basis as the aggregate:
+a subscription run's charge is zero, so cost percentiles describe declared
+charge, while token percentiles describe consumption.
+
+The CLI prints the distribution beneath the aggregate:
+
+```bash
+agent-manager measures run-cost --window last_7d
+```
+
+The Stats page renders it as a `CostDistributionCard` with token/cost
+percentile tables and a token-volume histogram.

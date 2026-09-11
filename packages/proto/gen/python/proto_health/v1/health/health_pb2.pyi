@@ -19,7 +19,7 @@ class DependencyStatus(_message.Message):
     def __init__(self, connected: _Optional[bool] = ..., latency_ms: _Optional[float] = ..., error: _Optional[str] = ..., database: _Optional[str] = ...) -> None: ...
 
 class Response(_message.Message):
-    __slots__ = ("status", "service", "timestamp", "readiness", "version", "uptime_seconds", "dependencies")
+    __slots__ = ("status", "service", "timestamp", "readiness", "version", "uptime_seconds", "dependencies", "build_identity")
     class DependenciesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,7 @@ class Response(_message.Message):
     VERSION_FIELD_NUMBER: _ClassVar[int]
     UPTIME_SECONDS_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
+    BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     status: str
     service: str
     timestamp: str
@@ -41,4 +42,5 @@ class Response(_message.Message):
     version: str
     uptime_seconds: float
     dependencies: _containers.MessageMap[str, DependencyStatus]
-    def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., uptime_seconds: _Optional[float] = ..., dependencies: _Optional[_Mapping[str, DependencyStatus]] = ...) -> None: ...
+    build_identity: str
+    def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., uptime_seconds: _Optional[float] = ..., dependencies: _Optional[_Mapping[str, DependencyStatus]] = ..., build_identity: _Optional[str] = ...) -> None: ...

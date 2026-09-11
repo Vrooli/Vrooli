@@ -47,6 +47,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/execution/{execution_id}/follow-up", h.FollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/execution/{execution_id}/trigger-review", h.TriggerReview).Methods("POST")
 	r.HandleFunc("/api/v1/execution/circuit-breaker/reset", h.ResetCircuitBreaker).Methods("POST")
+	r.HandleFunc("/api/v1/execution/continuation/halt", h.HaltContinuation).Methods("POST")
+	r.HandleFunc("/api/v1/execution/continuation/resume", h.ResumeContinuation).Methods("POST")
 	r.HandleFunc("/api/v1/gct/status", h.GCTStatus).Methods("GET")
 }
 
@@ -111,6 +113,22 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	if r.Operation != "" {
 		pb.Operation = &r.Operation
 	}
+	if r.ExecutionPreferences != nil {
+		pb.ExecutionPreferences = &domainpb.ExecutionPreferences{
+			PreferredRunner: r.ExecutionPreferences.PreferredRunner,
+			Model:           r.ExecutionPreferences.Model,
+			Effort:          r.ExecutionPreferences.Effort,
+		}
+	}
+	if r.ActualRunner != "" {
+		pb.ActualRunner = &r.ActualRunner
+	}
+	if r.ActualModel != "" {
+		pb.ActualModel = &r.ActualModel
+	}
+	if r.SelectionReason != "" {
+		pb.SelectionReason = &r.SelectionReason
+	}
 	if r.ArchiveContext != nil {
 		ac := r.ArchiveContext
 		pbAc := &domainpb.ArchiveContext{
@@ -128,6 +146,21 @@ func recordToProto(r Record) *domainpb.ExecutionRecord {
 	}
 	if r.ParentExecutionID != "" {
 		pb.ParentExecutionId = &r.ParentExecutionID
+	}
+	if r.ContinuationOf != "" {
+		pb.ContinuationOf = &r.ContinuationOf
+	}
+	if len(r.ContinuationChildIDs) > 0 {
+		pb.ContinuationChildIds = append([]string(nil), r.ContinuationChildIDs...)
+	}
+	if len(r.ScopeExtensions) > 0 {
+		pb.ScopeExtensions = make([]*domainpb.ScopeExtension, 0, len(r.ScopeExtensions))
+		for _, extension := range r.ScopeExtensions {
+			pb.ScopeExtensions = append(pb.ScopeExtensions, &domainpb.ScopeExtension{
+				Paths: append([]string(nil), extension.Paths...), Reason: extension.Reason,
+				RecordedAt: extension.RecordedAt, Author: extension.Author,
+			})
+		}
 	}
 	pb.FixupAttempt = int32(r.FixupAttempt)
 	if finalization := r.Finalization; finalization != nil {

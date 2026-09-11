@@ -1871,6 +1871,16 @@ not collapse the values to a boolean. `codex exec` has no native goal surface,
 so codec-pipe delivery carries Swarm's bounded `until` completion test in the
 workflow prompt while interactive delivery may use the harness goal surface.
 
+Interactive goal observation is a provider-neutral `goal_status_changed` run
+event. The tailer invokes the selected codec's marker parser for each durable
+JSONL line and the coordinator deduplicates changes before persisting objective,
+status, iteration, and last-reason metadata. Claude's on-disk `attachment` /
+`goal_status` records are supported alongside Codex's `thread_goal_updated`
+envelope. Workflow runtime consumes the latest marker only when no validated
+structured result is present: complete succeeds, blocked blocks, usage/budget
+limited exhausts, and active/paused abstains. Harness corroboration remains
+observable without bypassing the workflow result contract.
+
 ## Related Documentation
 
 ## Friction investigation seam

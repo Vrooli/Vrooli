@@ -3,15 +3,21 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/nodereach"
+	"github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/targetmodel"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session"
 	hostdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/host"
+	"google.golang.org/protobuf/proto"
 )
+
+const onboardingTargetProbeProcedure = "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession"
 
 func hostService(server *Server) hostdomain.Service {
 	return hostdomain.Service{
@@ -142,7 +148,7 @@ func hostFactsToDomain(response hostFactsResponse) hostdomain.Facts {
 func listHostTargets(ctx context.Context, server *Server) ([]targetmodel.Target, string, error) {
 	targets := []targetmodel.Target{{ID: "local", Label: "This machine", Platform: runtime.GOOS, OS: runtime.GOOS, Architecture: runtime.GOARCH, DeviceKind: "local", Available: true, Transport: targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true}, Health: targetmodel.TargetHealth{Status: "local"}}}
 	if server.bridge == nil {
-		server.bridge = nodereach.New(nodereach.Config{})
+		server.bridge = nodereach.New(bridgeClientConfig())
 	}
 	nodes, err := server.bridge.List(ctx, 5*time.Second)
 	if err != nil {
@@ -152,9 +158,70 @@ func listHostTargets(ctx context.Context, server *Server) ([]targetmodel.Target,
 		if node == nil || node.GetId() == "" {
 			continue
 		}
-		targets = append(targets, nodeToTarget(node))
+		target := nodeToTarget(node)
+		if target.Available {
+			if err := probeOnboardingTarget(ctx, server.bridge, target.ID); err != nil {
+				target.Available = false
+				target.Reason = "vrooli-onboarding is not reachable on this target"
+				target.NextAction = "refresh or redeploy vrooli-onboarding on the target, then refresh"
+				target.Transport.Available = false
+				target.Transport.Reason = target.Reason
+				target.Health.Reason = target.Reason
+			}
+		}
+		targets = append(targets, target)
 	}
 	return targets, "", nil
+}
+
+type onboardingScenarioReacher interface {
+	CallScenario(context.Context, nodereach.ScenarioRequest) ([]byte, error)
+}
+
+func probeOnboardingTarget(ctx context.Context, reacher onboardingScenarioReacher, nodeID string) error {
+	body, err := proto.Marshal(&sessionv1.GetSessionRequest{Target: "local"})
+	if err != nil {
+		return err
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 1200*time.Millisecond)
+	defer cancel()
+	_, err = reacher.CallScenario(probeCtx, nodereach.ScenarioRequest{
+		NodeID: nodeID, Scenario: "vrooli-onboarding", Procedure: onboardingTargetProbeProcedure,
+		Body: body, Timeout: 1200 * time.Millisecond, MaxResponse: 64 << 10,
+	})
+	return err
+}
+
+// bridgeClientConfig gives onboarding the same owner-session fallback used by
+// other local apps such as System Monitor. Without the provider, an enrolled
+// desktop has no Authorization header for the Bridge registry call and the
+// target picker silently degrades to the local option.
+func bridgeClientConfig() nodereach.Config {
+	return nodereach.Config{
+		Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+		TokenProvider: resolveLocalOwnerToken,
+	}
+}
+
+func resolveLocalOwnerToken(_ context.Context) (string, error) {
+	store, err := operatorsession.DefaultFileStore()
+	if err != nil {
+		return "", nil
+	}
+	resolution, err := (operatorsession.LocalResolver{Store: store}).Resolve()
+	if err != nil || strings.TrimSpace(resolution.Token) == "" {
+		return "", nil
+	}
+	return operatorsession.LocalSessionScheme + " " + resolution.Token, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func nodeToTarget(node *registryv1.Node) targetmodel.Target {
@@ -171,7 +238,29 @@ func nodeToTarget(node *registryv1.Node) targetmodel.Target {
 	if !available {
 		reason = "target is offline or not dispatchable"
 	}
-	return targetmodel.Target{ID: node.GetId(), Label: node.GetName(), Platform: node.GetOs(), OS: node.GetOs(), Architecture: node.GetArch(), DeviceKind: node.GetKind().String(), Available: available, Reason: reason, NextAction: "bring the target online and refresh", Capabilities: node.GetCapabilities(), Scopes: node.GetScopes(), Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: node.GetOnline(), Reason: reason}, Health: targetmodel.TargetHealth{Status: status, Reason: reason}, Readiness: checks}
+	nextAction := ""
+	if !available {
+		nextAction = "bring the target online and refresh"
+	} else if missing := missingOnboardingScopes(node.GetScopes()); len(missing) > 0 {
+		available = false
+		reason = "target is connected but does not grant " + strings.Join(missing, " or ")
+		nextAction = "grant the required onboarding scope on the target, then refresh"
+	}
+	return targetmodel.Target{ID: node.GetId(), Label: node.GetName(), Platform: node.GetOs(), OS: node.GetOs(), Architecture: node.GetArch(), DeviceKind: node.GetKind().String(), Available: available, Reason: reason, NextAction: nextAction, Capabilities: node.GetCapabilities(), Scopes: node.GetScopes(), Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: node.GetOnline(), Reason: reason}, Health: targetmodel.TargetHealth{Status: status, Reason: reason}, Readiness: checks}
+}
+
+func missingOnboardingScopes(scopes []string) []string {
+	have := make(map[string]struct{}, len(scopes))
+	for _, scope := range scopes {
+		have[strings.TrimSpace(scope)] = struct{}{}
+	}
+	missing := make([]string, 0, 2)
+	for _, required := range []string{"vrooli-onboarding:read", "vrooli-onboarding:write"} {
+		if _, ok := have[required]; !ok {
+			missing = append(missing, required)
+		}
+	}
+	return missing
 }
 
 func patchHostSafeguardConfig(ctx context.Context, name, key string, value any) error {

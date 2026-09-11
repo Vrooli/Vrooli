@@ -46,6 +46,8 @@ export interface UseExecutionDetailDataResult {
   cancel: () => Promise<void>;
   retry: () => Promise<void>;
   triggerReview: () => Promise<void>;
+  haltContinuation: (reason?: string) => Promise<void>;
+  resumeContinuation: () => Promise<void>;
   refetch: () => void;
   actionBusy: boolean;
 }
@@ -146,6 +148,16 @@ export function useExecutionDetailData({
     [doAction, executionId],
   );
 
+  const haltContinuation = useCallback(
+    (reason?: string) => doAction(async () => { await executionService.haltContinuation(`${backlogKind}/${backlogName}`, reason); return execution as ExecutionRecord; }),
+    [backlogKind, backlogName, doAction, execution],
+  );
+
+  const resumeContinuation = useCallback(
+    () => doAction(async () => { await executionService.resumeContinuation(`${backlogKind}/${backlogName}`); return execution as ExecutionRecord; }),
+    [backlogKind, backlogName, doAction, execution],
+  );
+
   const refetch = useCallback(() => {
     void refetchExec();
   }, [refetchExec]);
@@ -166,6 +178,8 @@ export function useExecutionDetailData({
     cancel,
     retry,
     triggerReview: triggerReviewAction,
+    haltContinuation,
+    resumeContinuation,
     refetch,
     actionBusy,
   };

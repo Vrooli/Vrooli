@@ -136,6 +136,38 @@ requires an in-place run (`RunMode == RunModeInPlace`, i.e. sandbox off). The
 gate lives in `internal/domain/validation.go` and is pinned by
 `internal/domain/interactive_gate_test.go`.
 
+## Native objective capability
+
+Native objective delivery is an explicit spawn capability, not an assumption
+made from a runner name. The current interactive capability declaration is:
+
+| Runner | Interactive sandbox modes | Native objective | Launch receipt |
+|---|---|---:|---|
+| Claude Code | tracking, off | yes | live three-turn smoke (`claude 2.1.268`) |
+| Codex | tracking, off | yes | live three-turn smoke (`codex-cli 0.153.4`) |
+
+When a run has `RunConfig.Until` and the selected interactive capability marks
+`NativeObjective`, agent-manager delivers `/goal <until>` before the task
+prompt. The runner-owned transcript parser reports a completed native goal as
+a successful terminal event; ordinary prose that merely mentions a goal does
+not satisfy this contract. The CLI exposes the same completion test through
+`agent-manager run create --until ...`.
+
+Native interactive objectives require an in-place run because interactive
+sessions run in web-console's host tmux. A protected/tracking workspace may be
+selected only when the policy explicitly allows it; the process must not be
+described as protected containment. The spawn resolver falls back to a
+declared capability when preferences have no match, while a non-empty
+`require` clause remains fail-closed. A runner with no declared capabilities
+uses the historical codec-pipe/off fallback only when no capability is
+required.
+
+The live smoke evidence records the runner-owned native-goal receipt and the
+Agent Manager run receipt separately. If the Agent Manager record is
+interrupted after dispatch, the runner receipt remains diagnostic evidence but
+is not promoted to a durable Agent Manager terminal receipt without the
+corresponding run record.
+
 ## What "protected mode" means today (every runner, every path)
 
 | Layer | Effect when `SandboxConfig.Mode == Protected` |

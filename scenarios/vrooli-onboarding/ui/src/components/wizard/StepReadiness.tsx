@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, CircleAlert, Loader2, Save, Search } from "lucide-react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { fetchCapabilities, type CapabilityStatus } from "../../api/capabilities";
 import { fetchCredentials, provisionCredential, type CredentialListItem } from "../../api/credentials";
 import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply } from "../../api/apply";
 import { acknowledgeDegraded, fetchReadiness } from "../../api/readiness";
 import { fetchOperatorInputs, resolveOperatorInputs } from "../../api/operatorinputs";
+import { loginAuthenticator } from "../../api/auth";
 import { pollApplyRun } from "../../lib/applyRun";
 import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 import type { GetApplyRunResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
@@ -15,11 +17,11 @@ import { OperatorInputKind, type OperatorInputRequest } from "@vrooli/proto-type
 import { AnswerSchema, type Answer } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorinputs/operatorinputs_pb";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Alert } from "@vrooli/react-component-library/Alert/1";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { ApplyPlanDisclosure } from "./ApplyPlanDisclosure";
 import { CapabilityActions } from "./CapabilityActions";
 import { GeneratedForm } from "@vrooli/react-component-library/GeneratedForm/1";
-import { PasswordInput as SecureValueInput } from "@vrooli/react-component-library/PasswordInput/2";
 import { toGeneratedFields, type OperatorInput } from "@vrooli/react-component-library/ValidationAdapter/1";
 import type { GeneratedField } from "@vrooli/react-component-library/GeneratedForm/1";
 import { PlanSummary } from "@vrooli/react-component-library/PlanSummary/0";
@@ -28,9 +30,23 @@ import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDial
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Timeline } from "@vrooli/react-component-library/Timeline/1";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { SetupTask, type SetupTaskStatus } from "@vrooli/react-component-library/SetupTask/0";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { InputGroup } from "@vrooli/react-component-library/InputGroup";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { PasswordInput as SecureValueInput } from "@vrooli/react-component-library/PasswordInput/2";
 import { i18n } from "../../i18n";
 
 type ReadinessSurfaceProps = { title: "Credentials" | "Apply" | "Validation"; target?: string };
+
+type ProvisionError = {
+  kind: "operator" | "generic";
+  logicalID: string;
+  field: string;
+  recoveryURL?: string;
+  authSource?: string;
+  authProviders?: string[];
+};
 
 function applyRunStateName(state: ApplyRunState): string {
   return ApplyRunState[state]?.toLowerCase().replace(/_/g, " ") ?? "unknown";
@@ -93,13 +109,40 @@ export function StepReady({ target = "local" }: { target?: string }) {
 export function ReadinessSurface({ title, target = "local" }: ReadinessSurfaceProps) {
   const [credentialDetailsOpen, setCredentialDetailsOpen] = useState(false);
   const [credentialConfigTab, setCredentialConfigTab] = useState("provider");
-  const { data, isLoading, error, refetch } = useQuery({ queryKey: ["readiness", target], queryFn: () => fetchReadiness(target) });
-  const { data: credentialInventory, isLoading: credentialsLoading, error: credentialsError, refetch: refetchCredentials } = useQuery({ queryKey: ["credential-inventory", target], queryFn: () => fetchCredentials(target), enabled: title === "Credentials" });
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["readiness", target],
+    queryFn: () => fetchReadiness(target),
+    staleTime: 15_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const { data: credentialInventory, isLoading: credentialsLoading, error: credentialsError, refetch: refetchCredentials } = useQuery({
+    queryKey: ["credential-inventory", target],
+    queryFn: () => fetchCredentials(target),
+    enabled: title === "Credentials",
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   // Configuration work is intentionally lazy. The credential list is useful
   // on first paint; provider actions and target questions are only needed
   // after the operator opens the setup workflow.
-  const { data: capabilities, isLoading: capabilitiesLoading, refetch: refetchCapabilities } = useQuery({ queryKey: ["capabilities", target], queryFn: () => fetchCapabilities(target), enabled: title === "Credentials" && credentialDetailsOpen });
-  const { data: operatorInputs, isLoading: operatorInputsLoading } = useQuery({ queryKey: ["operator-inputs", target], queryFn: () => fetchOperatorInputs(target), enabled: title === "Credentials" && credentialDetailsOpen });
+  const { data: capabilities, isLoading: capabilitiesLoading, refetch: refetchCapabilities } = useQuery({
+    queryKey: ["capabilities", target],
+    queryFn: () => fetchCapabilities(target),
+    enabled: title === "Credentials" && credentialDetailsOpen,
+    staleTime: 15_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const { data: operatorInputs, isLoading: operatorInputsLoading } = useQuery({
+    queryKey: ["operator-inputs", target],
+    queryFn: () => fetchOperatorInputs(target),
+    enabled: title === "Credentials" && credentialDetailsOpen,
+    staleTime: 15_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   const { data: plan } = useQuery({ queryKey: ["apply-plan", target], queryFn: () => fetchApplyPlan(target), enabled: title === "Apply" });
   useLayoutEffect(() => {
     if (title !== "Apply") return;
@@ -107,7 +150,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   }, [title, data?.status, plan?.items.length]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [provisioning, setProvisioning] = useState<string | null>(null);
-  const [provisionError, setProvisionError] = useState<string | null>(null);
+  const [provisionError, setProvisionError] = useState<ProvisionError | null>(null);
   const [applyState, setApplyState] = useState<ApplyRunView | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applyReconnecting, setApplyReconnecting] = useState(false);
@@ -174,11 +217,40 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
       await provisionCredential({ logical_id: logicalID, field, value }, target);
       setValues((current) => ({ ...current, [key]: "" }));
       await Promise.all([refetch(), refetchCredentials()]);
-    } catch {
-      setProvisionError(i18n.t("onboarding.readiness.provisioningError"));
+    } catch (error) {
+      setProvisionError({
+        kind: error instanceof ConnectError && error.code === Code.Unauthenticated ? "operator" : "generic",
+        logicalID,
+        field,
+        recoveryURL: error instanceof ConnectError ? error.metadata.get("Vrooli-Auth-Recovery-Url") ?? undefined : undefined,
+        authSource: error instanceof ConnectError ? error.metadata.get("Vrooli-Auth-Source") ?? undefined : undefined,
+        authProviders: error instanceof ConnectError ? (error.metadata.get("Vrooli-Auth-Providers") ?? "").split(",").map((value) => value.trim()).filter(Boolean) : undefined,
+      });
     } finally {
       setProvisioning(null);
     }
+  };
+
+  const retryProvision = () => {
+    if (!provisionError) return;
+    void provision(provisionError.logicalID, provisionError.field);
+  };
+
+  const openAuthRecovery = () => {
+    if (typeof window === "undefined") return;
+    // Cloudflare's direct `/cdn-cgi/access/login` URL is only valid when the
+    // edge generated it for a protected request. Replaying the current
+    // protected page lets Cloudflare create that signed login handoff and
+    // preserves the exact setup route for the post-login redirect.
+    if (provisionError?.authSource === "cloudflare_access") {
+      window.location.assign(window.location.href);
+      return;
+    }
+    if (provisionError?.recoveryURL) {
+      window.location.assign(provisionError.recoveryURL);
+      return;
+    }
+    window.location.assign(window.location.href);
   };
 
   const apply = async () => {
@@ -246,11 +318,18 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   const readinessCredentials = new Map((data?.credentials ?? []).map((credential) => [`${credential.logical_id}/${credential.field}`, credential]));
   const credentials = (credentialInventory?.credentials ?? data?.credentials ?? []).map((credential) => {
     const readinessCredential = readinessCredentials.get(`${credential.logical_id}/${credential.field}`);
-    return readinessCredential ? { ...credential, status: readinessCredential.status, detail: readinessCredential.detail, evidence_status: readinessCredential.evidence_status, evidence_detail: readinessCredential.evidence_detail } : credential;
+    return readinessCredential ? { ...credential, status: readinessCredential.status, detail: readinessCredential.detail, consumer_scope: readinessCredential.consumer_scope, evidence_status: readinessCredential.evidence_status, evidence_detail: readinessCredential.evidence_detail, evidence_next_action: readinessCredential.evidence_next_action, evidence_credential_version: readinessCredential.evidence_credential_version, provider_state: readinessCredential.provider_state, provider_detail: readinessCredential.provider_detail } : credential;
   });
   const credentialCount = credentials.length;
-  const outstandingCredentialCount = credentials.filter((credential) => credential.required && credential.status !== "configured").length;
+  const outstandingCredentialCount = credentials.filter(credentialNeedsAttention).length;
   const hasCredentialInventory = credentialInventory !== undefined || data !== undefined;
+  // Readiness and credential inventory are intentionally separate requests.
+  // If readiness wins the race, its contextual credential projection is enough
+  // to render the actual rows while the richer inventory catches up. This
+  // keeps the page stable when a native-store or source-inventory probe is
+  // slow, without hiding that the richer request is still in flight.
+  const credentialListLoading = credentialsLoading && credentialInventory === undefined && data === undefined;
+  const credentialListError = Boolean(credentialsError) && credentialInventory === undefined && data === undefined;
   const credentialTone: "info" | "success" | "warning" | "danger" = error ? "danger" : isLoading ? "info" : data?.status === "ready" ? "success" : "warning";
   const credentialStatus = error
     ? i18n.t("onboarding.readiness.error")
@@ -265,7 +344,6 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     <p className="mt-2 text-sm text-muted">{intro}</p>
     {isLoading && title !== "Credentials" && <p className="mt-6 flex items-center gap-2 text-muted" role="status"><Loader2 className="h-4 w-4 animate-spin" />{i18n.t("onboarding.readiness.loading")}</p>}
     {error && title !== "Credentials" && <p className="mt-6 text-danger" role="alert">{i18n.t("onboarding.readiness.error")}</p>}
-    {provisionError && title !== "Credentials" && <p className="mt-4 text-sm text-danger" role="alert">{provisionError}</p>}
     {applyError && <p className="mt-4 text-sm text-danger" role="alert">{applyError}</p>}
     {applyReconnecting && <p className="mt-4 text-sm text-muted" role="status" data-testid="apply-reconnecting">{i18n.t("onboarding.readiness.reconnecting")}</p>}
     {applyState && <div className="mt-4 rounded-lg border border-muted bg-surface-muted p-3 text-sm" data-testid="apply-state" role="status">
@@ -274,6 +352,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
       {isApplyRunActive(applyState.status) && <Button data-testid="apply-cancel" type="button" variant="secondary" disabled={cancelling} onClick={() => { void cancel(); }}>{cancelling ? i18n.t("onboarding.readiness.cancelling") : i18n.t("onboarding.readiness.cancelApply")}</Button>}
     </div>}
     {title === "Credentials" && <>
+      {provisionError && <CredentialRecoveryDialog error={provisionError} onDismiss={() => setProvisionError(null)} onOpenRecovery={openAuthRecovery} onRetry={retryProvision} />}
       <section className="credential-overview" data-testid="credential-overview" aria-labelledby="credential-overview-title">
         <div className="credential-overview__header">
           <div className="credential-overview__heading">
@@ -285,7 +364,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
         </div>
         <div className="credential-overview__facts" aria-label={i18n.t("onboarding.readiness.credentialInputs")}>
           <div><strong>{hasCredentialInventory ? credentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.credentialInputs")}</span></div>
-          <div><strong>{hasCredentialInventory ? outstandingCredentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.requiredStatus")}</span></div>
+          <div><strong data-testid="credential-outstanding-count">{hasCredentialInventory ? outstandingCredentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.requiredStatus")}</span></div>
         </div>
         <div className="credential-overview__footer">
           <Button type="button" onClick={() => setCredentialDetailsOpen(true)}>{i18n.t("onboarding.readiness.reviewCredentialSetup")}</Button>
@@ -295,11 +374,11 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
       </section>
       <CredentialList
         credentials={credentials}
-        loading={credentialsLoading && credentialInventory === undefined}
-        error={Boolean(credentialsError) && credentialInventory === undefined && data === undefined}
+        checkedAt={data?.checked_at}
+        loading={credentialListLoading}
+        error={credentialListError}
         values={values}
         provisioning={provisioning}
-        provisionError={provisionError}
         onValueChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
         onProvision={(logicalID, field) => { void provision(logicalID, field); }}
       />
@@ -377,7 +456,12 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   </div>;
 }
 
-type Credential = CredentialListItem & { evidence_status?: string; evidence_detail?: string };
+type Credential = CredentialListItem & { consumer_scope?: string; evidence_status?: string; evidence_detail?: string; evidence_next_action?: string; evidence_credential_version?: string; provider_state?: string; provider_detail?: string };
+
+function credentialNeedsAttention(credential: Credential) {
+  if (!credential.required || credential.status !== "configured") return credential.required && credential.status !== "configured";
+  return ["unverified", "unknown", "pending", "verification_unknown"].includes(credential.evidence_status ?? "");
+}
 
 function formatCredentialCondition(condition?: string) {
   const value = condition?.trim().replace(/[_-]+/g, " ");
@@ -387,23 +471,53 @@ function formatCredentialCondition(condition?: string) {
 
 function CredentialList({
   credentials,
+  checkedAt,
   loading,
   error,
   values,
   provisioning,
-  provisionError,
   onValueChange,
   onProvision,
 }: {
   credentials: Credential[];
+  checkedAt?: string;
   loading: boolean;
   error: boolean;
   values: Record<string, string>;
   provisioning: string | null;
-  provisionError: string | null;
   onValueChange: (key: string, value: string) => void;
   onProvision: (logicalID: string, field: string) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState("attention");
+  const checkedDate = checkedAt ? new Date(checkedAt) : undefined;
+  const formattedCheckedAt = checkedDate && !Number.isNaN(checkedDate.getTime())
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(checkedDate)
+    : undefined;
+  const visibleCredentials = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = credentials.filter((credential) => {
+      const stored = credential.status === "configured";
+      const attention = credentialNeedsAttention(credential);
+      const matchesFilter = filter === "all"
+        || (filter === "attention" && attention)
+        || (filter === "configured" && stored)
+        || (filter === "optional" && !credential.required);
+      if (!matchesFilter) return false;
+      if (!query) return true;
+      return [credential.label, credential.logical_id, credential.field, credential.resource, credential.description, credential.detail]
+        .filter(Boolean)
+        .some((value) => value?.toLowerCase().includes(query));
+    });
+    return filtered.sort((left, right) => {
+      if (sort === "name") return (left.label || left.field).localeCompare(right.label || right.field);
+      if (sort === "resource") return left.resource.localeCompare(right.resource) || (left.label || left.field).localeCompare(right.label || right.field);
+      return Number(credentialNeedsAttention(right)) - Number(credentialNeedsAttention(left))
+        || Number(right.required) - Number(left.required)
+        || (left.label || left.field).localeCompare(right.label || right.field);
+    });
+  }, [credentials, filter, search, sort]);
   return <section className="credential-list" data-testid="credential-list" aria-labelledby="credential-list-title">
     <div className="credential-list__heading">
       <div>
@@ -411,40 +525,170 @@ function CredentialList({
         <h2 id="credential-list-title">{i18n.t("onboarding.readiness.credentialInputs")}</h2>
         <p>{i18n.t("onboarding.readiness.credentialListDescription")}</p>
       </div>
-      {!loading && !error && <StatusBadge tone={credentials.some((credential) => credential.required && credential.status !== "configured") ? "warning" : "success"}>{credentials.length}</StatusBadge>}
+      {!loading && !error && <StatusBadge tone={credentials.some(credentialNeedsAttention) ? "warning" : "success"}>{credentials.length}</StatusBadge>}
     </div>
+    {!loading && !error && credentials.length > 0 && <div className="credential-list__controls" aria-label={i18n.t("onboarding.readiness.credentialControls")}>
+      <InputGroup className="credential-list__search" size="lg" shape="rounded" testId="credential-search-group">
+        <InputGroup.Adornment side="leading"><Search aria-hidden="true" /></InputGroup.Adornment>
+        <InputGroup.Field>
+          <Input type="search" data-testid="credential-search" aria-label={i18n.t("onboarding.readiness.credentialSearch")} placeholder={i18n.t("onboarding.readiness.credentialSearchPlaceholder")} value={search} onChange={(event) => setSearch(event.target.value)} />
+        </InputGroup.Field>
+      </InputGroup>
+      <label className="credential-list__select"><span>{i18n.t("onboarding.readiness.credentialFilter")}</span><Select data-testid="credential-filter" aria-label={i18n.t("onboarding.readiness.credentialFilter")} value={filter} onValueChange={setFilter} options={[{ value: "all", label: i18n.t("onboarding.readiness.credentialFilterAll") }, { value: "attention", label: i18n.t("onboarding.readiness.credentialFilterAttention") }, { value: "configured", label: i18n.t("onboarding.readiness.credentialFilterConfigured") }, { value: "optional", label: i18n.t("onboarding.readiness.credentialFilterOptional") }]} /></label>
+      <label className="credential-list__select"><span>{i18n.t("onboarding.readiness.credentialSort")}</span><Select data-testid="credential-sort" aria-label={i18n.t("onboarding.readiness.credentialSort")} value={sort} onValueChange={setSort} options={[{ value: "attention", label: i18n.t("onboarding.readiness.credentialSortAttention") }, { value: "name", label: i18n.t("onboarding.readiness.credentialSortName") }, { value: "resource", label: i18n.t("onboarding.readiness.credentialSortResource") }]} /></label>
+    </div>}
     {loading && <ul className="credential-list__items" aria-label={i18n.t("onboarding.readiness.credentialLoading")} role="status">
       {["one", "two", "three"].map((key) => <li key={key} className="credential-skeleton" aria-hidden="true"><span /><span /><span /></li>)}
     </ul>}
     {!loading && error && <Alert tone="danger" title={i18n.t("onboarding.readiness.credentialSetup")} description={i18n.t("onboarding.readiness.credentialReadinessError")} />}
     {!loading && !error && credentials.length === 0 && <p className="credential-list__empty">{i18n.t("onboarding.readiness.credentialNoInputs")}</p>}
-    {!loading && !error && credentials.length > 0 && <ul className="credential-list__items">{credentials.map((credential) => {
+    {!loading && !error && credentials.length > 0 && <ul className="credential-list__items">{visibleCredentials.map((credential) => {
       const key = `${credential.logical_id}/${credential.field}`;
       const componentSupplied = credential.provisioning === "derived" || credential.provisioning === "generated";
       const stored = credential.status === "configured";
       const verified = credential.evidence_status === "verified";
       const canProvision = !componentSupplied && !stored;
       const checking = credential.status === "pending";
-      const evidenceLabel = checking
+      const deferred = credential.status === "deferred";
+      const evidenceLabel = deferred
+        ? i18n.t("onboarding.readiness.credentialDeferred")
+        : checking
         ? i18n.t("onboarding.readiness.credentialChecking")
         : verified
-        ? i18n.t("onboarding.readiness.credentialVerified")
+        ? stored
+          ? `${i18n.t("onboarding.readiness.credentialStored")} · ${i18n.t("onboarding.readiness.credentialVerified")}`
+          : i18n.t("onboarding.readiness.credentialVerified")
         : stored
-          ? i18n.t("onboarding.readiness.credentialVerificationPending")
+          ? `${i18n.t("onboarding.readiness.credentialStored")} · ${i18n.t("onboarding.readiness.credentialVerificationPending")}`
           : i18n.t("onboarding.readiness.credentialVerificationUnavailable");
-      return <li key={key} data-testid="credential-card" className="credential-list__item">
-        <div className="credential-list__item-heading"><div><p data-testid="credential-purpose" role="note">{credential.label || credential.field}</p><span data-testid="credential-status" role="status">{credential.required ? i18n.t("onboarding.readiness.requiredStatus") : i18n.t("onboarding.readiness.optionalStatus")} · {stored ? i18n.t("onboarding.readiness.credentialStored") : checking ? i18n.t("onboarding.readiness.credentialChecking") : credential.status}</span></div><StatusBadge tone={checking ? "neutral" : verified ? "success" : stored ? "warning" : credential.required ? "warning" : "neutral"}>{evidenceLabel}</StatusBadge></div>
-        {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}
-        {credential.provisioning === "generated" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.generated")}</p>}
-        {credential.description && <p className="credential-list__item-copy">{credential.description}</p>}
-        <a data-testid="credential-obtain-link" className="credential-list__link" href={credential.obtain_url || "/setup/credentials#credential-guidance"}>{credential.obtain_url ? i18n.t("onboarding.readiness.obtain") : i18n.t("onboarding.readiness.credentialGuidance")}</a>
-        {credential.detail && <p className="credential-list__item-copy">{credential.detail}</p>}
-        {credential.evidence_detail && <p className="credential-list__item-copy" role="note">{credential.evidence_detail}</p>}
-        {canProvision && <div className="credential-list__form"><SecureValueInput testId="credential-input" aria-label={i18n.t("onboarding.readiness.valueFor", { label: credential.label || credential.field })} revealable={false} autoComplete="off" value={values[key] ?? ""} onValueChange={(value) => onValueChange(key, value)} className="min-w-0 flex-1" /><Button data-testid="credential-save" type="button" disabled={!values[key]?.trim() || provisioning === key} onClick={() => onProvision(credential.logical_id, credential.field)}>{provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")}</Button></div>}
+      const taskStatus: SetupTaskStatus = checking
+        ? "checking"
+        : credential.status === "unsupported"
+          ? "unavailable"
+          : !credential.required && !stored
+            ? "optional"
+            : verified
+              ? "ready"
+              : "needs_attention";
+      return <li key={key} className="credential-list__item">
+        <div data-testid="credential-status">
+          <SetupTask
+            title={credential.label || credential.field}
+            purpose={credential.description}
+            target={credential.logical_id}
+            account={credential.resource}
+            consumerScope={credential.consumer_scope}
+            checkedAt={formattedCheckedAt}
+            nextAction={credential.evidence_next_action}
+            status={taskStatus}
+            statusLabel={evidenceLabel}
+            testId="credential-card"
+            guidance={<a data-testid="credential-obtain-link" className="credential-list__link" href={credential.obtain_url || "/setup/credentials#credential-guidance"}>{credential.obtain_url ? i18n.t("onboarding.readiness.obtain") : i18n.t("onboarding.readiness.credentialGuidance")}</a>}
+            actions={canProvision ? <InputGroup className="credential-list__form" size="lg" shape="rounded" testId="credential-entry-group">
+              <InputGroup.Field>
+                <Input data-testid="credential-input" type="password" aria-label={i18n.t("onboarding.readiness.valueFor", { label: credential.label || credential.field })} autoComplete="off" value={values[key] ?? ""} onChange={(event) => onValueChange(key, event.target.value)} className="min-w-0 flex-1" />
+              </InputGroup.Field>
+              <InputGroup.Segment side="trailing" emphasis="solid" aria-label={provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")} title={provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")} testId="credential-save" onClick={() => onProvision(credential.logical_id, credential.field)} disabled={!values[key]?.trim() || provisioning === key}>
+                {provisioning === key ? <Loader2 className="credential-list__save-icon credential-list__save-icon--loading" aria-hidden="true" /> : <Save className="credential-list__save-icon" aria-hidden="true" />}
+                <span className="sr-only">{provisioning === key ? i18n.t("onboarding.readiness.saving") : i18n.t("onboarding.readiness.saveSecurely")}</span>
+              </InputGroup.Segment>
+            </InputGroup> : undefined}
+          >
+            {credential.provisioning === "derived" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.derived", { source: credential.derived_from || "the owning component" })}</p>}
+            {credential.provisioning === "generated" && <p className="credential-list__item-copy">{i18n.t("onboarding.readiness.generated")}</p>}
+            {credential.detail && <p className="credential-list__item-copy">{credential.detail}</p>}
+            {credential.provider_detail && <p className="credential-list__item-copy" role="note">{credential.provider_detail}</p>}
+            {credential.evidence_detail && <p className="credential-list__item-copy" role="note">{credential.evidence_detail}</p>}
+          </SetupTask>
+        </div>
       </li>;
     })}</ul>}
-    {provisionError && <p className="credential-list__error" role="alert">{provisionError}</p>}
+    {!loading && !error && credentials.length > 0 && visibleCredentials.length === 0 && <p className="credential-list__empty" role="status">{i18n.t("onboarding.readiness.credentialNoMatches")}</p>}
   </section>;
+}
+
+function CredentialRecoveryDialog({
+  error,
+  onDismiss,
+  onOpenRecovery,
+  onRetry,
+}: {
+  error: ProvisionError;
+  onDismiss: () => void;
+  onOpenRecovery: () => void;
+  onRetry: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const isOperator = error.kind === "operator";
+  const usesAuthenticator = error.authSource === "scenario_authenticator" || error.authProviders?.includes("scenario_authenticator") === true;
+  const recoveryLabel = error.recoveryURL
+    ? usesAuthenticator
+      ? i18n.t("onboarding.readiness.openAuthenticator")
+      : i18n.t("onboarding.readiness.openAccessSignIn")
+    : i18n.t("onboarding.readiness.refreshSession");
+  const confirm = async () => {
+    if (!usesAuthenticator) {
+      onOpenRecovery();
+      return;
+    }
+    if (!email.trim() || !password) {
+      setAuthError(i18n.t("onboarding.readiness.authenticatorRequiredFields"));
+      return;
+    }
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      await loginAuthenticator(email, password);
+      setPassword("");
+      onRetry();
+      onDismiss();
+    } catch (cause) {
+      setAuthError(cause instanceof ConnectError && cause.code === Code.Unauthenticated
+        ? i18n.t("onboarding.readiness.authenticatorInvalidCredentials")
+        : i18n.t("onboarding.readiness.authenticatorUnavailable"));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  return <AlertDialog
+    open
+    title={isOperator ? i18n.t("onboarding.readiness.operatorRequiredTitle") : i18n.t("onboarding.readiness.provisioningErrorTitle")}
+    description={isOperator
+      ? usesAuthenticator
+        ? i18n.t("onboarding.readiness.authenticatorDialogDescription")
+        : i18n.t("onboarding.readiness.operatorRequiredDialogDescription")
+      : i18n.t("onboarding.readiness.provisioningErrorDialogDescription")}
+    status="error"
+    errorMessage={authError ?? (isOperator && !usesAuthenticator ? i18n.t("onboarding.readiness.operatorAccessRecovery") : undefined)}
+    cancelLabel={i18n.t("onboarding.readiness.closeRecovery")}
+    confirmLabel={usesAuthenticator ? i18n.t("onboarding.readiness.signInAndRetry") : recoveryLabel}
+    busy={authBusy}
+    busyLabel={i18n.t("onboarding.readiness.signingIn")}
+    closeLabel={i18n.t("onboarding.readiness.credentialRecoveryDialog")}
+    onCancel={onDismiss}
+    onConfirm={confirm}
+    testIdPrefix="credential-recovery"
+  >
+    {usesAuthenticator ? <form className="credential-recovery__form" onSubmit={(event) => { event.preventDefault(); void confirm(); }}>
+      <label className="credential-recovery__field">
+        <span>{i18n.t("onboarding.readiness.authenticatorEmail")}</span>
+        <Input autoComplete="username" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+      </label>
+      <label className="credential-recovery__field">
+        <span>{i18n.t("onboarding.readiness.authenticatorPassword")}</span>
+        <SecureValueInput autoComplete="current-password" value={password} onValueChange={setPassword} revealLabel={i18n.t("onboarding.readiness.revealPassword")} concealLabel={i18n.t("onboarding.readiness.concealPassword")} />
+      </label>
+      <Button type="submit" size="sm" variant="secondary" disabled={authBusy} data-testid="credential-recovery-retry">
+        {i18n.t("onboarding.readiness.retryProvisioning")}
+      </Button>
+    </form> : <Button type="button" size="sm" variant="secondary" onClick={onRetry} data-testid="credential-recovery-retry">
+      {i18n.t("onboarding.readiness.retryProvisioning")}
+    </Button>}
+  </AlertDialog>;
 }
 
 function CredentialConfiguration({
@@ -502,7 +746,7 @@ function CredentialConfiguration({
         </>}
         {activeTab === "actions" && <>
           <div className="credential-config__panel-heading"><p className="surface-eyebrow">{i18n.t("onboarding.readiness.credentialActions")}</p><h3>{i18n.t("onboarding.readiness.credentialActionsTitle")}</h3><p>{i18n.t("onboarding.readiness.credentialActionsDescription")}</p></div>
-          {capabilitiesLoading ? <ConfigurationSkeleton /> : capabilities ? <CapabilityActions statuses={capabilities.capabilities} onRefresh={onRefresh} /> : <p className="credential-config__empty">{i18n.t("onboarding.readiness.credentialConfigProviderEmpty")}</p>}
+          {capabilitiesLoading ? <ConfigurationSkeleton /> : capabilities ? <CapabilityActions target={target} statuses={capabilities.capabilities} onRefresh={onRefresh} /> : <p className="credential-config__empty">{i18n.t("onboarding.readiness.credentialConfigProviderEmpty")}</p>}
         </>}
         {activeTab === "questions" && <>
           <div className="credential-config__panel-heading"><p className="surface-eyebrow">{i18n.t("onboarding.readiness.credentialQuestions")}</p><h3>{i18n.t("onboarding.readiness.credentialQuestionsTitle")}</h3><p>{i18n.t("onboarding.readiness.credentialQuestionsDescription")}</p></div>

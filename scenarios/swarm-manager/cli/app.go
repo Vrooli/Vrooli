@@ -123,6 +123,8 @@ func (a *App) dependencies() support.Dependencies {
 		ExecutionCancel:             a.cmdExecutionCancel,
 		ExecutionRetry:              a.cmdExecutionRetry,
 		CircuitBreakerReset:         a.cmdCircuitBreakerReset,
+		ExecutionContinuationHalt:   a.cmdContinuationHalt,
+		ExecutionContinuationResume: a.cmdContinuationResume,
 		ReviewList:                  a.cmdReviewList,
 		ReviewVerify:                a.cmdReviewVerify,
 		ReviewRequest:               a.cmdReviewRequest,

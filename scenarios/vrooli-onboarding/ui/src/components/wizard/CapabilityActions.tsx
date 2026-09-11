@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { applyCapability, previewCapability, type CapabilityInput, type CapabilityPreview, type CapabilityResult, type CapabilityStatus } from "../../api/capabilities";
+import { applyCapability, previewCapability, verifyCapability, type CapabilityInput, type CapabilityPreview, type CapabilityResult, type CapabilityStatus } from "../../api/capabilities";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
@@ -12,13 +12,14 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { i18n } from "../../i18n";
 
 interface CapabilityActionsProps {
+  target: string;
   statuses: CapabilityStatus[];
   onRefresh: () => void;
 }
 
 type InputValue = string | boolean;
 
-export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProps) {
+export function CapabilityActions({ target, statuses, onRefresh }: CapabilityActionsProps) {
   const [values, setValues] = useState<Record<string, Record<string, InputValue>>>({});
   const [confirmations, setConfirmations] = useState<Record<string, boolean>>({});
   const [previews, setPreviews] = useState<Record<string, CapabilityPreview | undefined>>({});
@@ -65,7 +66,7 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
           setBusy(status.descriptor.id);
           setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
           try {
-            const preview = await previewCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, false));
+            const preview = await previewCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, false), target);
             setPreviews((current) => ({ ...current, [status.descriptor.id]: preview }));
             setResults((current) => ({ ...current, [status.descriptor.id]: undefined }));
           } catch {
@@ -78,7 +79,7 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
           setBusy(status.descriptor.id);
           setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
           try {
-            const result = await applyCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, confirmations[status.descriptor.id] ?? false));
+            const result = await applyCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, confirmations[status.descriptor.id] ?? false), target);
             setResults((current) => ({ ...current, [status.descriptor.id]: result }));
             if (result.state === "ready" || result.state === "degraded") {
               setValues((current) => ({ ...current, [status.descriptor.id]: {} }));
@@ -91,6 +92,20 @@ export function CapabilityActions({ statuses, onRefresh }: CapabilityActionsProp
             }
           } catch {
             setError((current) => ({ ...current, [status.descriptor.id]: i18n.t("onboarding.capabilities.applyError") }));
+          } finally {
+            setBusy(null);
+          }
+        }}
+        onVerify={async () => {
+          setBusy(status.descriptor.id);
+          setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
+          try {
+            const verification = await verifyCapability(status.descriptor.id, target);
+            const verified = verification.evidence.length > 0 && verification.evidence.every((item) => item.verified) && !verification.error_code;
+            setResults((current) => ({ ...current, [status.descriptor.id]: { capability_id: status.descriptor.id, state: verified ? "ready" : "degraded", outcome: verification.outcome || (verified ? "verified" : "verification_unknown"), retryable: verification.retryable, error_code: verification.error_code, retry_after_seconds: verification.retry_after_seconds, next_action: verification.next_action, remediation: verification.next_action || verification.remediation, evidence: verification.evidence } }));
+            onRefresh();
+          } catch {
+            setError((current) => ({ ...current, [status.descriptor.id]: i18n.t("onboarding.capabilities.verifyError") }));
           } finally {
             setBusy(null);
           }
@@ -113,6 +128,7 @@ function CapabilityCard({
   onConfirm,
   onPreview,
   onApply,
+  onVerify,
 }: {
   status: CapabilityStatus;
   values: Record<string, InputValue>;
@@ -126,6 +142,7 @@ function CapabilityCard({
   onConfirm: (value: boolean) => void;
   onPreview: () => Promise<void>;
   onApply: () => Promise<void>;
+  onVerify: () => Promise<void>;
 }) {
   const descriptor = status.descriptor;
   const hasAction = (descriptor.inputs ?? []).length > 0;
@@ -133,6 +150,7 @@ function CapabilityCard({
   const missing = new Set(status.missing_inputs ?? []);
   const canPreview = !blocked && (descriptor.inputs?.filter((input) => input.required && input.kind !== "confirmation").every((input) => hasInput(input, values, secretValues, missing)) ?? false);
   const canApply = Boolean(preview && confirmed && canPreview);
+  const canVerify = !blocked && descriptor.lifecycle?.verify === true;
 
   const badgeTone = blocked ? "warning" : status.state === "ready" ? "success" : "neutral";
   const hasDetails = Boolean(descriptor.scope || descriptor.purpose || descriptor.sensitivity || descriptor.disposition || descriptor.provenance);
@@ -174,7 +192,9 @@ function CapabilityCard({
     {hasAction && !blocked && <div className="mt-3 flex flex-wrap gap-2">
       <Button type="button" variant="secondary" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? i18n.t("onboarding.capabilities.working") : i18n.t("onboarding.capabilities.preview")}</Button>
       <Button type="button" disabled={busy || !canApply} onClick={() => { void onApply(); }}>{i18n.t("onboarding.capabilities.apply")}</Button>
+      {canVerify && <Button type="button" variant="secondary" disabled={busy} onClick={() => { void onVerify(); }}>{busy ? i18n.t("onboarding.capabilities.verifying") : i18n.t("onboarding.capabilities.verify")}</Button>}
     </div>}
+    {!hasAction && canVerify && <div className="mt-3"><Button type="button" variant="secondary" disabled={busy} onClick={() => { void onVerify(); }}>{busy ? i18n.t("onboarding.capabilities.verifying") : i18n.t("onboarding.capabilities.verify")}</Button></div>}
     </CardContent>
   </Card>;
 }
@@ -189,8 +209,8 @@ function CapabilityInput({ input, value, missing, onValue }: { input: Capability
   return <label className="block text-sm"><span>{label}</span>{input.description && <span className="mt-1 block text-xs text-muted">{input.description}</span>}{input.validation && <span className="mt-1 block text-xs text-muted">{i18n.t("onboarding.capabilities.validation", { value: input.validation })}</span>}{selectOptions.length > 0 ? <Select value={typeof value === "string" ? value : ""} onValueChange={onValue} className="mt-2" aria-label={input.label} options={selectOptions} placeholder={i18n.t("onboarding.capabilities.choose")} /> : input.kind === "secret" ? <PasswordInput revealable={false} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onValueChange={onValue} className="mt-2" aria-label={input.label} /> : <Input type={input.kind === "duration" ? "text" : "text"} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onChange={(event) => onValue(event.target.value)} className="mt-2" aria-label={input.label} />}</label>;
 }
 
-function EvidenceList({ evidence }: { evidence: Array<{ kind: string; artifact_identity: string; verified: boolean; coverage?: string[]; remediation?: string }> }) {
-  return <div className="mt-2" data-testid="capability-evidence"><p className="text-xs font-medium">{i18n.t("onboarding.capabilities.evidence")}</p><ul className="mt-1 space-y-1 text-xs text-muted">{evidence.map((item) => <li key={`${item.kind}-${item.artifact_identity}`}>{item.kind} · {item.verified ? i18n.t("onboarding.capabilities.verified") : i18n.t("onboarding.capabilities.notVerified")}{item.coverage ? ` · ${item.coverage.length} covered` : ""}{item.remediation ? ` · ${item.remediation}` : ""}</li>)}</ul></div>;
+function EvidenceList({ evidence }: { evidence: Array<{ kind: string; stage?: string; artifact_identity: string; verified: boolean; coverage?: string[]; remediation?: string }> }) {
+  return <div className="mt-2" data-testid="capability-evidence"><p className="text-xs font-medium">{i18n.t("onboarding.capabilities.evidence")}</p><ul className="mt-1 space-y-1 text-xs text-muted">{evidence.map((item) => <li key={`${item.kind}-${item.artifact_identity}`}>{item.stage ? `${item.stage} · ` : ""}{item.kind} · {item.verified ? i18n.t("onboarding.capabilities.verified") : i18n.t("onboarding.capabilities.notVerified")}{item.coverage ? ` · ${item.coverage.length} covered` : ""}{item.remediation ? ` · ${item.remediation}` : ""}</li>)}</ul></div>;
 }
 
 function hasInput(input: CapabilityInput, values: Record<string, InputValue>, secretValues: Record<string, string>, missing: Set<string>) {

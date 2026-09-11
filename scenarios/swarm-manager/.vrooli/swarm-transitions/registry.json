@@ -222,6 +222,14 @@
       "description": "Executes the accepted plan through the self-improvement campaign while retaining the same plan, grant, budget, and evidence controls.",
       "whenToUse": "Use when one approved plan should let the agent choose successive in-scope scenario improvements without creating per-repair backlog approvals.",
       "costBand": "Uses the same governed plan-slice budget and aggregate limits as phased plan drain."
+    },
+    {
+      "id": "goal-session",
+      "workflowKey": "swarm-manager/goal-session-drain",
+      "displayName": "Native goal session",
+      "description": "Runs the accepted plan as warm harness goal sessions; the harness's own goal check keeps each session working, and every session is independently reviewed before the next.",
+      "whenToUse": "Use for target-shaped plans with working sensors when fewer, longer sessions are preferred and an available runner declares native goal support.",
+      "costBand": "Fewer re-orientation costs than slices; one review per session; bounded by the same aggregate limits."
     }
     ],
     "applyAction": "apply_plan_execution",

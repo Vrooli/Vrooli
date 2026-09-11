@@ -190,6 +190,7 @@ type RunEvent struct {
 	//	*RunEvent_Cost
 	//	*RunEvent_RateLimit
 	//	*RunEvent_Compaction
+	//	*RunEvent_GoalStatusChanged
 	Data          isRunEvent_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -384,6 +385,15 @@ func (x *RunEvent) GetCompaction() *CompactionEventData {
 	return nil
 }
 
+func (x *RunEvent) GetGoalStatusChanged() *GoalStatusChangedEventData {
+	if x != nil {
+		if x, ok := x.Data.(*RunEvent_GoalStatusChanged); ok {
+			return x.GoalStatusChanged
+		}
+	}
+	return nil
+}
+
 type isRunEvent_Data interface {
 	isRunEvent_Data()
 }
@@ -453,6 +463,11 @@ type RunEvent_Compaction struct {
 	Compaction *CompactionEventData `protobuf:"bytes,22,opt,name=compaction,proto3,oneof"`
 }
 
+type RunEvent_GoalStatusChanged struct {
+	// Runner-owned objective status observation.
+	GoalStatusChanged *GoalStatusChangedEventData `protobuf:"bytes,23,opt,name=goal_status_changed,json=goalStatusChanged,proto3,oneof"`
+}
+
 func (*RunEvent_Log) isRunEvent_Data() {}
 
 func (*RunEvent_Message) isRunEvent_Data() {}
@@ -478,6 +493,76 @@ func (*RunEvent_Cost) isRunEvent_Data() {}
 func (*RunEvent_RateLimit) isRunEvent_Data() {}
 
 func (*RunEvent_Compaction) isRunEvent_Data() {}
+
+func (*RunEvent_GoalStatusChanged) isRunEvent_Data() {}
+
+type GoalStatusChangedEventData struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Objective     string                 `protobuf:"bytes,1,opt,name=objective,proto3" json:"objective,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Iteration     int32                  `protobuf:"varint,3,opt,name=iteration,proto3" json:"iteration,omitempty"`
+	LastReason    string                 `protobuf:"bytes,4,opt,name=last_reason,json=lastReason,proto3" json:"last_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GoalStatusChangedEventData) Reset() {
+	*x = GoalStatusChangedEventData{}
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GoalStatusChangedEventData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GoalStatusChangedEventData) ProtoMessage() {}
+
+func (x *GoalStatusChangedEventData) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GoalStatusChangedEventData.ProtoReflect.Descriptor instead.
+func (*GoalStatusChangedEventData) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GoalStatusChangedEventData) GetObjective() string {
+	if x != nil {
+		return x.Objective
+	}
+	return ""
+}
+
+func (x *GoalStatusChangedEventData) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GoalStatusChangedEventData) GetIteration() int32 {
+	if x != nil {
+		return x.Iteration
+	}
+	return 0
+}
+
+func (x *GoalStatusChangedEventData) GetLastReason() string {
+	if x != nil {
+		return x.LastReason
+	}
+	return ""
+}
 
 // AgentManagerWsMessage wraps agent-manager WebSocket payloads.
 //
@@ -507,7 +592,7 @@ type AgentManagerWsMessage struct {
 
 func (x *AgentManagerWsMessage) Reset() {
 	*x = AgentManagerWsMessage{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -519,7 +604,7 @@ func (x *AgentManagerWsMessage) String() string {
 func (*AgentManagerWsMessage) ProtoMessage() {}
 
 func (x *AgentManagerWsMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -532,7 +617,7 @@ func (x *AgentManagerWsMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentManagerWsMessage.ProtoReflect.Descriptor instead.
 func (*AgentManagerWsMessage) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{1}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AgentManagerWsMessage) GetType() AgentManagerWsMessageType {
@@ -689,7 +774,7 @@ type WorkflowLifecycleUpdate struct {
 
 func (x *WorkflowLifecycleUpdate) Reset() {
 	*x = WorkflowLifecycleUpdate{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -701,7 +786,7 @@ func (x *WorkflowLifecycleUpdate) String() string {
 func (*WorkflowLifecycleUpdate) ProtoMessage() {}
 
 func (x *WorkflowLifecycleUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -714,7 +799,7 @@ func (x *WorkflowLifecycleUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkflowLifecycleUpdate.ProtoReflect.Descriptor instead.
 func (*WorkflowLifecycleUpdate) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{2}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *WorkflowLifecycleUpdate) GetExecutionId() string {
@@ -843,7 +928,7 @@ type RunStatusUpdate struct {
 
 func (x *RunStatusUpdate) Reset() {
 	*x = RunStatusUpdate{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +940,7 @@ func (x *RunStatusUpdate) String() string {
 func (*RunStatusUpdate) ProtoMessage() {}
 
 func (x *RunStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +953,7 @@ func (x *RunStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunStatusUpdate.ProtoReflect.Descriptor instead.
 func (*RunStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RunStatusUpdate) GetRunId() string {
@@ -929,7 +1014,7 @@ type TaskStatusUpdate struct {
 
 func (x *TaskStatusUpdate) Reset() {
 	*x = TaskStatusUpdate{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1026,7 @@ func (x *TaskStatusUpdate) String() string {
 func (*TaskStatusUpdate) ProtoMessage() {}
 
 func (x *TaskStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1039,7 @@ func (x *TaskStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskStatusUpdate.ProtoReflect.Descriptor instead.
 func (*TaskStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TaskStatusUpdate) GetTaskId() string {
@@ -986,7 +1071,7 @@ type WsConnected struct {
 
 func (x *WsConnected) Reset() {
 	*x = WsConnected{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1083,7 @@ func (x *WsConnected) String() string {
 func (*WsConnected) ProtoMessage() {}
 
 func (x *WsConnected) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1011,7 +1096,7 @@ func (x *WsConnected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsConnected.ProtoReflect.Descriptor instead.
 func (*WsConnected) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *WsConnected) GetMessage() string {
@@ -1041,7 +1126,7 @@ type WsPong struct {
 
 func (x *WsPong) Reset() {
 	*x = WsPong{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1053,7 +1138,7 @@ func (x *WsPong) String() string {
 func (*WsPong) ProtoMessage() {}
 
 func (x *WsPong) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1066,7 +1151,7 @@ func (x *WsPong) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WsPong.ProtoReflect.Descriptor instead.
 func (*WsPong) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WsPong) GetTimestamp() *timestamppb.Timestamp {
@@ -1095,7 +1180,7 @@ type AgentManagerWsClientMessage struct {
 
 func (x *AgentManagerWsClientMessage) Reset() {
 	*x = AgentManagerWsClientMessage{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1107,7 +1192,7 @@ func (x *AgentManagerWsClientMessage) String() string {
 func (*AgentManagerWsClientMessage) ProtoMessage() {}
 
 func (x *AgentManagerWsClientMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1120,7 +1205,7 @@ func (x *AgentManagerWsClientMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentManagerWsClientMessage.ProtoReflect.Descriptor instead.
 func (*AgentManagerWsClientMessage) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AgentManagerWsClientMessage) GetType() AgentManagerWsClientMessageType {
@@ -1170,7 +1255,7 @@ type RunSubscription struct {
 
 func (x *RunSubscription) Reset() {
 	*x = RunSubscription{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1182,7 +1267,7 @@ func (x *RunSubscription) String() string {
 func (*RunSubscription) ProtoMessage() {}
 
 func (x *RunSubscription) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1195,7 +1280,7 @@ func (x *RunSubscription) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSubscription.ProtoReflect.Descriptor instead.
 func (*RunSubscription) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RunSubscription) GetRunId() string {
@@ -1223,7 +1308,7 @@ type LogEventData struct {
 
 func (x *LogEventData) Reset() {
 	*x = LogEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1235,7 +1320,7 @@ func (x *LogEventData) String() string {
 func (*LogEventData) ProtoMessage() {}
 
 func (x *LogEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1248,7 +1333,7 @@ func (x *LogEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEventData.ProtoReflect.Descriptor instead.
 func (*LogEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LogEventData) GetLevel() string {
@@ -1299,7 +1384,7 @@ type MessageEventData struct {
 
 func (x *MessageEventData) Reset() {
 	*x = MessageEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1396,7 @@ func (x *MessageEventData) String() string {
 func (*MessageEventData) ProtoMessage() {}
 
 func (x *MessageEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1409,7 @@ func (x *MessageEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageEventData.ProtoReflect.Descriptor instead.
 func (*MessageEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MessageEventData) GetRole() string {
@@ -1442,7 +1527,7 @@ type MessageAttachmentInfo struct {
 
 func (x *MessageAttachmentInfo) Reset() {
 	*x = MessageAttachmentInfo{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1539,7 @@ func (x *MessageAttachmentInfo) String() string {
 func (*MessageAttachmentInfo) ProtoMessage() {}
 
 func (x *MessageAttachmentInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1467,7 +1552,7 @@ func (x *MessageAttachmentInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageAttachmentInfo.ProtoReflect.Descriptor instead.
 func (*MessageAttachmentInfo) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MessageAttachmentInfo) GetId() string {
@@ -1515,7 +1600,7 @@ type MessageDeletedEventData struct {
 
 func (x *MessageDeletedEventData) Reset() {
 	*x = MessageDeletedEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1527,7 +1612,7 @@ func (x *MessageDeletedEventData) String() string {
 func (*MessageDeletedEventData) ProtoMessage() {}
 
 func (x *MessageDeletedEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1540,7 +1625,7 @@ func (x *MessageDeletedEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageDeletedEventData.ProtoReflect.Descriptor instead.
 func (*MessageDeletedEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MessageDeletedEventData) GetTargetEventId() string {
@@ -1571,7 +1656,7 @@ type ToolCallEventData struct {
 
 func (x *ToolCallEventData) Reset() {
 	*x = ToolCallEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +1668,7 @@ func (x *ToolCallEventData) String() string {
 func (*ToolCallEventData) ProtoMessage() {}
 
 func (x *ToolCallEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +1681,7 @@ func (x *ToolCallEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCallEventData.ProtoReflect.Descriptor instead.
 func (*ToolCallEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ToolCallEventData) GetToolName() string {
@@ -1643,7 +1728,7 @@ type ToolResultEventData struct {
 
 func (x *ToolResultEventData) Reset() {
 	*x = ToolResultEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1655,7 +1740,7 @@ func (x *ToolResultEventData) String() string {
 func (*ToolResultEventData) ProtoMessage() {}
 
 func (x *ToolResultEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1668,7 +1753,7 @@ func (x *ToolResultEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolResultEventData.ProtoReflect.Descriptor instead.
 func (*ToolResultEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ToolResultEventData) GetToolName() string {
@@ -1725,7 +1810,7 @@ type StatusEventData struct {
 
 func (x *StatusEventData) Reset() {
 	*x = StatusEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1737,7 +1822,7 @@ func (x *StatusEventData) String() string {
 func (*StatusEventData) ProtoMessage() {}
 
 func (x *StatusEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1750,7 +1835,7 @@ func (x *StatusEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusEventData.ProtoReflect.Descriptor instead.
 func (*StatusEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StatusEventData) GetOldStatus() string {
@@ -1796,7 +1881,7 @@ type MetricEventData struct {
 
 func (x *MetricEventData) Reset() {
 	*x = MetricEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1808,7 +1893,7 @@ func (x *MetricEventData) String() string {
 func (*MetricEventData) ProtoMessage() {}
 
 func (x *MetricEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1821,7 +1906,7 @@ func (x *MetricEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricEventData.ProtoReflect.Descriptor instead.
 func (*MetricEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MetricEventData) GetName() string {
@@ -1873,7 +1958,7 @@ type ArtifactEventData struct {
 
 func (x *ArtifactEventData) Reset() {
 	*x = ArtifactEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1885,7 +1970,7 @@ func (x *ArtifactEventData) String() string {
 func (*ArtifactEventData) ProtoMessage() {}
 
 func (x *ArtifactEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +1983,7 @@ func (x *ArtifactEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactEventData.ProtoReflect.Descriptor instead.
 func (*ArtifactEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{17}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ArtifactEventData) GetType() string {
@@ -1955,7 +2040,7 @@ type ErrorEventData struct {
 
 func (x *ErrorEventData) Reset() {
 	*x = ErrorEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1967,7 +2052,7 @@ func (x *ErrorEventData) String() string {
 func (*ErrorEventData) ProtoMessage() {}
 
 func (x *ErrorEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1980,7 +2065,7 @@ func (x *ErrorEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorEventData.ProtoReflect.Descriptor instead.
 func (*ErrorEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{18}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ErrorEventData) GetCode() string {
@@ -2055,7 +2140,7 @@ type ProgressEventData struct {
 
 func (x *ProgressEventData) Reset() {
 	*x = ProgressEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2067,7 +2152,7 @@ func (x *ProgressEventData) String() string {
 func (*ProgressEventData) ProtoMessage() {}
 
 func (x *ProgressEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[19]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2080,7 +2165,7 @@ func (x *ProgressEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressEventData.ProtoReflect.Descriptor instead.
 func (*ProgressEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{19}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProgressEventData) GetPhase() RunPhase {
@@ -2171,7 +2256,7 @@ type CostEventData struct {
 
 func (x *CostEventData) Reset() {
 	*x = CostEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2183,7 +2268,7 @@ func (x *CostEventData) String() string {
 func (*CostEventData) ProtoMessage() {}
 
 func (x *CostEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[20]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2196,7 +2281,7 @@ func (x *CostEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CostEventData.ProtoReflect.Descriptor instead.
 func (*CostEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{20}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CostEventData) GetInputTokens() int32 {
@@ -2289,7 +2374,7 @@ type RateLimitEventData struct {
 
 func (x *RateLimitEventData) Reset() {
 	*x = RateLimitEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2301,7 +2386,7 @@ func (x *RateLimitEventData) String() string {
 func (*RateLimitEventData) ProtoMessage() {}
 
 func (x *RateLimitEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[21]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2314,7 +2399,7 @@ func (x *RateLimitEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RateLimitEventData.ProtoReflect.Descriptor instead.
 func (*RateLimitEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{21}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RateLimitEventData) GetLimitType() string {
@@ -2387,7 +2472,7 @@ type CompactionEventData struct {
 
 func (x *CompactionEventData) Reset() {
 	*x = CompactionEventData{}
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2399,7 +2484,7 @@ func (x *CompactionEventData) String() string {
 func (*CompactionEventData) ProtoMessage() {}
 
 func (x *CompactionEventData) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[22]
+	mi := &file_agent_manager_v1_domain_events_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2412,7 +2497,7 @@ func (x *CompactionEventData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompactionEventData.ProtoReflect.Descriptor instead.
 func (*CompactionEventData) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{22}
+	return file_agent_manager_v1_domain_events_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CompactionEventData) GetSummary() string {
@@ -2468,7 +2553,7 @@ var File_agent_manager_v1_domain_events_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\n" +
-	"$agent-manager/v1/domain/events.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a#agent-manager/v1/domain/types.proto\x1a&agent-manager/v1/domain/workflow.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\b\n" +
+	"$agent-manager/v1/domain/events.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a#agent-manager/v1/domain/types.proto\x1a&agent-manager/v1/domain/workflow.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x87\t\n" +
 	"\bRunEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x1a\n" +
@@ -2493,8 +2578,15 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"rate_limit\x18\x14 \x01(\v2$.agent_manager.v1.RateLimitEventDataH\x00R\trateLimit\x12G\n" +
 	"\n" +
 	"compaction\x18\x16 \x01(\v2%.agent_manager.v1.CompactionEventDataH\x00R\n" +
-	"compactionB\x06\n" +
-	"\x04data\"\xe5\x04\n" +
+	"compaction\x12^\n" +
+	"\x13goal_status_changed\x18\x17 \x01(\v2,.agent_manager.v1.GoalStatusChangedEventDataH\x00R\x11goalStatusChangedB\x06\n" +
+	"\x04data\"\x91\x01\n" +
+	"\x1aGoalStatusChangedEventData\x12\x1c\n" +
+	"\tobjective\x18\x01 \x01(\tR\tobjective\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1c\n" +
+	"\titeration\x18\x03 \x01(\x05R\titeration\x12\x1f\n" +
+	"\vlast_reason\x18\x04 \x01(\tR\n" +
+	"lastReason\"\xe5\x04\n" +
 	"\x15AgentManagerWsMessage\x12?\n" +
 	"\x04type\x18\x01 \x01(\x0e2+.agent_manager.v1.AgentManagerWsMessageTypeR\x04type\x12\x1a\n" +
 	"\x06run_id\x18\x02 \x01(\tH\x01R\x05runId\x88\x01\x01\x129\n" +
@@ -2684,90 +2776,92 @@ func file_agent_manager_v1_domain_events_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_agent_manager_v1_domain_events_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_agent_manager_v1_domain_events_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_agent_manager_v1_domain_events_proto_goTypes = []any{
 	(AgentManagerWsMessageType)(0),       // 0: agent_manager.v1.AgentManagerWsMessageType
 	(AgentManagerWsClientMessageType)(0), // 1: agent_manager.v1.AgentManagerWsClientMessageType
 	(*RunEvent)(nil),                     // 2: agent_manager.v1.RunEvent
-	(*AgentManagerWsMessage)(nil),        // 3: agent_manager.v1.AgentManagerWsMessage
-	(*WorkflowLifecycleUpdate)(nil),      // 4: agent_manager.v1.WorkflowLifecycleUpdate
-	(*RunStatusUpdate)(nil),              // 5: agent_manager.v1.RunStatusUpdate
-	(*TaskStatusUpdate)(nil),             // 6: agent_manager.v1.TaskStatusUpdate
-	(*WsConnected)(nil),                  // 7: agent_manager.v1.WsConnected
-	(*WsPong)(nil),                       // 8: agent_manager.v1.WsPong
-	(*AgentManagerWsClientMessage)(nil),  // 9: agent_manager.v1.AgentManagerWsClientMessage
-	(*RunSubscription)(nil),              // 10: agent_manager.v1.RunSubscription
-	(*LogEventData)(nil),                 // 11: agent_manager.v1.LogEventData
-	(*MessageEventData)(nil),             // 12: agent_manager.v1.MessageEventData
-	(*MessageAttachmentInfo)(nil),        // 13: agent_manager.v1.MessageAttachmentInfo
-	(*MessageDeletedEventData)(nil),      // 14: agent_manager.v1.MessageDeletedEventData
-	(*ToolCallEventData)(nil),            // 15: agent_manager.v1.ToolCallEventData
-	(*ToolResultEventData)(nil),          // 16: agent_manager.v1.ToolResultEventData
-	(*StatusEventData)(nil),              // 17: agent_manager.v1.StatusEventData
-	(*MetricEventData)(nil),              // 18: agent_manager.v1.MetricEventData
-	(*ArtifactEventData)(nil),            // 19: agent_manager.v1.ArtifactEventData
-	(*ErrorEventData)(nil),               // 20: agent_manager.v1.ErrorEventData
-	(*ProgressEventData)(nil),            // 21: agent_manager.v1.ProgressEventData
-	(*CostEventData)(nil),                // 22: agent_manager.v1.CostEventData
-	(*RateLimitEventData)(nil),           // 23: agent_manager.v1.RateLimitEventData
-	(*CompactionEventData)(nil),          // 24: agent_manager.v1.CompactionEventData
-	nil,                                  // 25: agent_manager.v1.MetricEventData.TagsEntry
-	(RunEventType)(0),                    // 26: agent_manager.v1.RunEventType
-	(*timestamppb.Timestamp)(nil),        // 27: google.protobuf.Timestamp
-	(*WorkflowBudgetUsage)(nil),          // 28: agent_manager.v1.WorkflowBudgetUsage
-	(*WorkflowTerminalReason)(nil),       // 29: agent_manager.v1.WorkflowTerminalReason
-	(RunStatus)(0),                       // 30: agent_manager.v1.RunStatus
-	(FinalOutputSelectionStatus)(0),      // 31: agent_manager.v1.FinalOutputSelectionStatus
-	(TaskStatus)(0),                      // 32: agent_manager.v1.TaskStatus
-	(*structpb.Struct)(nil),              // 33: google.protobuf.Struct
-	(RecoveryAction)(0),                  // 34: agent_manager.v1.RecoveryAction
-	(RunPhase)(0),                        // 35: agent_manager.v1.RunPhase
+	(*GoalStatusChangedEventData)(nil),   // 3: agent_manager.v1.GoalStatusChangedEventData
+	(*AgentManagerWsMessage)(nil),        // 4: agent_manager.v1.AgentManagerWsMessage
+	(*WorkflowLifecycleUpdate)(nil),      // 5: agent_manager.v1.WorkflowLifecycleUpdate
+	(*RunStatusUpdate)(nil),              // 6: agent_manager.v1.RunStatusUpdate
+	(*TaskStatusUpdate)(nil),             // 7: agent_manager.v1.TaskStatusUpdate
+	(*WsConnected)(nil),                  // 8: agent_manager.v1.WsConnected
+	(*WsPong)(nil),                       // 9: agent_manager.v1.WsPong
+	(*AgentManagerWsClientMessage)(nil),  // 10: agent_manager.v1.AgentManagerWsClientMessage
+	(*RunSubscription)(nil),              // 11: agent_manager.v1.RunSubscription
+	(*LogEventData)(nil),                 // 12: agent_manager.v1.LogEventData
+	(*MessageEventData)(nil),             // 13: agent_manager.v1.MessageEventData
+	(*MessageAttachmentInfo)(nil),        // 14: agent_manager.v1.MessageAttachmentInfo
+	(*MessageDeletedEventData)(nil),      // 15: agent_manager.v1.MessageDeletedEventData
+	(*ToolCallEventData)(nil),            // 16: agent_manager.v1.ToolCallEventData
+	(*ToolResultEventData)(nil),          // 17: agent_manager.v1.ToolResultEventData
+	(*StatusEventData)(nil),              // 18: agent_manager.v1.StatusEventData
+	(*MetricEventData)(nil),              // 19: agent_manager.v1.MetricEventData
+	(*ArtifactEventData)(nil),            // 20: agent_manager.v1.ArtifactEventData
+	(*ErrorEventData)(nil),               // 21: agent_manager.v1.ErrorEventData
+	(*ProgressEventData)(nil),            // 22: agent_manager.v1.ProgressEventData
+	(*CostEventData)(nil),                // 23: agent_manager.v1.CostEventData
+	(*RateLimitEventData)(nil),           // 24: agent_manager.v1.RateLimitEventData
+	(*CompactionEventData)(nil),          // 25: agent_manager.v1.CompactionEventData
+	nil,                                  // 26: agent_manager.v1.MetricEventData.TagsEntry
+	(RunEventType)(0),                    // 27: agent_manager.v1.RunEventType
+	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
+	(*WorkflowBudgetUsage)(nil),          // 29: agent_manager.v1.WorkflowBudgetUsage
+	(*WorkflowTerminalReason)(nil),       // 30: agent_manager.v1.WorkflowTerminalReason
+	(RunStatus)(0),                       // 31: agent_manager.v1.RunStatus
+	(FinalOutputSelectionStatus)(0),      // 32: agent_manager.v1.FinalOutputSelectionStatus
+	(TaskStatus)(0),                      // 33: agent_manager.v1.TaskStatus
+	(*structpb.Struct)(nil),              // 34: google.protobuf.Struct
+	(RecoveryAction)(0),                  // 35: agent_manager.v1.RecoveryAction
+	(RunPhase)(0),                        // 36: agent_manager.v1.RunPhase
 }
 var file_agent_manager_v1_domain_events_proto_depIdxs = []int32{
-	26, // 0: agent_manager.v1.RunEvent.event_type:type_name -> agent_manager.v1.RunEventType
-	27, // 1: agent_manager.v1.RunEvent.timestamp:type_name -> google.protobuf.Timestamp
-	11, // 2: agent_manager.v1.RunEvent.log:type_name -> agent_manager.v1.LogEventData
-	12, // 3: agent_manager.v1.RunEvent.message:type_name -> agent_manager.v1.MessageEventData
-	14, // 4: agent_manager.v1.RunEvent.message_deleted:type_name -> agent_manager.v1.MessageDeletedEventData
-	15, // 5: agent_manager.v1.RunEvent.tool_call:type_name -> agent_manager.v1.ToolCallEventData
-	16, // 6: agent_manager.v1.RunEvent.tool_result:type_name -> agent_manager.v1.ToolResultEventData
-	17, // 7: agent_manager.v1.RunEvent.status:type_name -> agent_manager.v1.StatusEventData
-	18, // 8: agent_manager.v1.RunEvent.metric:type_name -> agent_manager.v1.MetricEventData
-	19, // 9: agent_manager.v1.RunEvent.artifact:type_name -> agent_manager.v1.ArtifactEventData
-	20, // 10: agent_manager.v1.RunEvent.error:type_name -> agent_manager.v1.ErrorEventData
-	21, // 11: agent_manager.v1.RunEvent.progress:type_name -> agent_manager.v1.ProgressEventData
-	22, // 12: agent_manager.v1.RunEvent.cost:type_name -> agent_manager.v1.CostEventData
-	23, // 13: agent_manager.v1.RunEvent.rate_limit:type_name -> agent_manager.v1.RateLimitEventData
-	24, // 14: agent_manager.v1.RunEvent.compaction:type_name -> agent_manager.v1.CompactionEventData
-	0,  // 15: agent_manager.v1.AgentManagerWsMessage.type:type_name -> agent_manager.v1.AgentManagerWsMessageType
-	2,  // 16: agent_manager.v1.AgentManagerWsMessage.run_event:type_name -> agent_manager.v1.RunEvent
-	5,  // 17: agent_manager.v1.AgentManagerWsMessage.run_status:type_name -> agent_manager.v1.RunStatusUpdate
-	6,  // 18: agent_manager.v1.AgentManagerWsMessage.task_status:type_name -> agent_manager.v1.TaskStatusUpdate
-	21, // 19: agent_manager.v1.AgentManagerWsMessage.run_progress:type_name -> agent_manager.v1.ProgressEventData
-	7,  // 20: agent_manager.v1.AgentManagerWsMessage.connected:type_name -> agent_manager.v1.WsConnected
-	8,  // 21: agent_manager.v1.AgentManagerWsMessage.pong:type_name -> agent_manager.v1.WsPong
-	4,  // 22: agent_manager.v1.AgentManagerWsMessage.workflow_lifecycle:type_name -> agent_manager.v1.WorkflowLifecycleUpdate
-	28, // 23: agent_manager.v1.WorkflowLifecycleUpdate.budget_usage:type_name -> agent_manager.v1.WorkflowBudgetUsage
-	29, // 24: agent_manager.v1.WorkflowLifecycleUpdate.terminal_reason:type_name -> agent_manager.v1.WorkflowTerminalReason
-	30, // 25: agent_manager.v1.RunStatusUpdate.status:type_name -> agent_manager.v1.RunStatus
-	31, // 26: agent_manager.v1.RunStatusUpdate.result_selection_status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
-	32, // 27: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
-	27, // 28: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
-	27, // 29: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
-	1,  // 30: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
-	10, // 31: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
-	13, // 32: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
-	33, // 33: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
-	25, // 34: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
-	34, // 35: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
-	33, // 36: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
-	35, // 37: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
-	27, // 38: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
-	39, // [39:39] is the sub-list for method output_type
-	39, // [39:39] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	27, // 0: agent_manager.v1.RunEvent.event_type:type_name -> agent_manager.v1.RunEventType
+	28, // 1: agent_manager.v1.RunEvent.timestamp:type_name -> google.protobuf.Timestamp
+	12, // 2: agent_manager.v1.RunEvent.log:type_name -> agent_manager.v1.LogEventData
+	13, // 3: agent_manager.v1.RunEvent.message:type_name -> agent_manager.v1.MessageEventData
+	15, // 4: agent_manager.v1.RunEvent.message_deleted:type_name -> agent_manager.v1.MessageDeletedEventData
+	16, // 5: agent_manager.v1.RunEvent.tool_call:type_name -> agent_manager.v1.ToolCallEventData
+	17, // 6: agent_manager.v1.RunEvent.tool_result:type_name -> agent_manager.v1.ToolResultEventData
+	18, // 7: agent_manager.v1.RunEvent.status:type_name -> agent_manager.v1.StatusEventData
+	19, // 8: agent_manager.v1.RunEvent.metric:type_name -> agent_manager.v1.MetricEventData
+	20, // 9: agent_manager.v1.RunEvent.artifact:type_name -> agent_manager.v1.ArtifactEventData
+	21, // 10: agent_manager.v1.RunEvent.error:type_name -> agent_manager.v1.ErrorEventData
+	22, // 11: agent_manager.v1.RunEvent.progress:type_name -> agent_manager.v1.ProgressEventData
+	23, // 12: agent_manager.v1.RunEvent.cost:type_name -> agent_manager.v1.CostEventData
+	24, // 13: agent_manager.v1.RunEvent.rate_limit:type_name -> agent_manager.v1.RateLimitEventData
+	25, // 14: agent_manager.v1.RunEvent.compaction:type_name -> agent_manager.v1.CompactionEventData
+	3,  // 15: agent_manager.v1.RunEvent.goal_status_changed:type_name -> agent_manager.v1.GoalStatusChangedEventData
+	0,  // 16: agent_manager.v1.AgentManagerWsMessage.type:type_name -> agent_manager.v1.AgentManagerWsMessageType
+	2,  // 17: agent_manager.v1.AgentManagerWsMessage.run_event:type_name -> agent_manager.v1.RunEvent
+	6,  // 18: agent_manager.v1.AgentManagerWsMessage.run_status:type_name -> agent_manager.v1.RunStatusUpdate
+	7,  // 19: agent_manager.v1.AgentManagerWsMessage.task_status:type_name -> agent_manager.v1.TaskStatusUpdate
+	22, // 20: agent_manager.v1.AgentManagerWsMessage.run_progress:type_name -> agent_manager.v1.ProgressEventData
+	8,  // 21: agent_manager.v1.AgentManagerWsMessage.connected:type_name -> agent_manager.v1.WsConnected
+	9,  // 22: agent_manager.v1.AgentManagerWsMessage.pong:type_name -> agent_manager.v1.WsPong
+	5,  // 23: agent_manager.v1.AgentManagerWsMessage.workflow_lifecycle:type_name -> agent_manager.v1.WorkflowLifecycleUpdate
+	29, // 24: agent_manager.v1.WorkflowLifecycleUpdate.budget_usage:type_name -> agent_manager.v1.WorkflowBudgetUsage
+	30, // 25: agent_manager.v1.WorkflowLifecycleUpdate.terminal_reason:type_name -> agent_manager.v1.WorkflowTerminalReason
+	31, // 26: agent_manager.v1.RunStatusUpdate.status:type_name -> agent_manager.v1.RunStatus
+	32, // 27: agent_manager.v1.RunStatusUpdate.result_selection_status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
+	33, // 28: agent_manager.v1.TaskStatusUpdate.status:type_name -> agent_manager.v1.TaskStatus
+	28, // 29: agent_manager.v1.WsConnected.timestamp:type_name -> google.protobuf.Timestamp
+	28, // 30: agent_manager.v1.WsPong.timestamp:type_name -> google.protobuf.Timestamp
+	1,  // 31: agent_manager.v1.AgentManagerWsClientMessage.type:type_name -> agent_manager.v1.AgentManagerWsClientMessageType
+	11, // 32: agent_manager.v1.AgentManagerWsClientMessage.run_subscription:type_name -> agent_manager.v1.RunSubscription
+	14, // 33: agent_manager.v1.MessageEventData.attachments:type_name -> agent_manager.v1.MessageAttachmentInfo
+	34, // 34: agent_manager.v1.ToolCallEventData.input:type_name -> google.protobuf.Struct
+	26, // 35: agent_manager.v1.MetricEventData.tags:type_name -> agent_manager.v1.MetricEventData.TagsEntry
+	35, // 36: agent_manager.v1.ErrorEventData.recovery:type_name -> agent_manager.v1.RecoveryAction
+	34, // 37: agent_manager.v1.ErrorEventData.details:type_name -> google.protobuf.Struct
+	36, // 38: agent_manager.v1.ProgressEventData.phase:type_name -> agent_manager.v1.RunPhase
+	28, // 39: agent_manager.v1.RateLimitEventData.reset_time:type_name -> google.protobuf.Timestamp
+	40, // [40:40] is the sub-list for method output_type
+	40, // [40:40] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_events_proto_init() }
@@ -2792,8 +2886,9 @@ func file_agent_manager_v1_domain_events_proto_init() {
 		(*RunEvent_Cost)(nil),
 		(*RunEvent_RateLimit)(nil),
 		(*RunEvent_Compaction)(nil),
+		(*RunEvent_GoalStatusChanged)(nil),
 	}
-	file_agent_manager_v1_domain_events_proto_msgTypes[1].OneofWrappers = []any{
+	file_agent_manager_v1_domain_events_proto_msgTypes[2].OneofWrappers = []any{
 		(*AgentManagerWsMessage_RunEvent)(nil),
 		(*AgentManagerWsMessage_RunStatus)(nil),
 		(*AgentManagerWsMessage_TaskStatus)(nil),
@@ -2802,17 +2897,17 @@ func file_agent_manager_v1_domain_events_proto_init() {
 		(*AgentManagerWsMessage_Pong)(nil),
 		(*AgentManagerWsMessage_WorkflowLifecycle)(nil),
 	}
-	file_agent_manager_v1_domain_events_proto_msgTypes[7].OneofWrappers = []any{
+	file_agent_manager_v1_domain_events_proto_msgTypes[8].OneofWrappers = []any{
 		(*AgentManagerWsClientMessage_RunSubscription)(nil),
 	}
-	file_agent_manager_v1_domain_events_proto_msgTypes[21].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_events_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_events_proto_rawDesc), len(file_agent_manager_v1_domain_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

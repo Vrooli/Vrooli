@@ -1,12 +1,14 @@
 package setup
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const SelectionSchemaVersion = "v1"
@@ -23,6 +25,28 @@ func ValidateSelectionContract(selection *setupv1.Selection) error {
 		return fmt.Errorf("unsupported setup selection schema version %q; supported version is %q", version, SelectionSchemaVersion)
 	}
 	return nil
+}
+
+// DecodeSelectionB64 decodes the argv-safe setup/v1 handoff used by remote
+// setup invocations. The selection is validated before setup can resolve or
+// apply host requirements, so an unsupported contract fails closed.
+func DecodeSelectionB64(encoded string) (*setupv1.Selection, error) {
+	encoded = strings.TrimSpace(encoded)
+	if encoded == "" {
+		return nil, nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("decode setup selection: %w", err)
+	}
+	selection := &setupv1.Selection{}
+	if err := protojson.Unmarshal(raw, selection); err != nil {
+		return nil, fmt.Errorf("decode setup selection JSON: %w", err)
+	}
+	if err := ValidateSelectionContract(selection); err != nil {
+		return nil, err
+	}
+	return selection, nil
 }
 
 // OperatorInputKind converts the control-plane vocabulary to the versioned

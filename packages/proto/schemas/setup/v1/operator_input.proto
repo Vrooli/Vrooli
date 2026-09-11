@@ -58,10 +58,11 @@ message OperatorInputRequest {
   string provider = 22;
   string requirement_group = 23;
   repeated string consumer_refs = 24;
-  repeated string companion_settings = 25;
+	repeated string companion_settings = 25;
   string acquisition_ref = 26;
   string verification_ref = 27;
   string recovery_ref = 28;
   string help_ref = 29;
-  string evidence_policy = 30;
+	string evidence_policy = 30;
+	repeated string companion_credentials = 31;
 }

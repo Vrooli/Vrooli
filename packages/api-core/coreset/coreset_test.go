@@ -7,8 +7,8 @@ import (
 
 func TestCoreSeedScenariosShape(t *testing.T) {
 	seed := CoreSeedScenarios()
-	if len(seed) != 10 {
-		t.Fatalf("expected 10 seed scenarios, got %d: %v", len(seed), seed)
+	if len(seed) != 14 {
+		t.Fatalf("expected 14 seed scenarios, got %d: %v", len(seed), seed)
 	}
 
 	want := map[string]bool{
@@ -18,9 +18,13 @@ func TestCoreSeedScenariosShape(t *testing.T) {
 		"notification-hub":             true,
 		"prompt-manager":               true,
 		"scenario-dependency-analyzer": true,
+		"storage-manager":             true,
 		"swarm-manager":                true,
+		"system-monitor":               true,
 		"test-genie":                   true,
+		"vrooli-autoheal":              true,
 		"vrooli-events":                true,
+		"web-console":                  true,
 		"workspace-sandbox":            true,
 	}
 	for _, name := range seed {

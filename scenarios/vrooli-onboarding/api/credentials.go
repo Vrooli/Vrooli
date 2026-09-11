@@ -15,11 +15,12 @@ var credentialDoctorCommand = func(ctx context.Context) ([]byte, error) {
 	return onboardingDoctorJSON(ctx)
 }
 
-var credentialProvisionCommand = func(ctx context.Context, logicalID, field, value string) error {
-	if err := onboardingProvision(ctx, logicalID, field, value); err != nil {
-		return fmt.Errorf("credential authority rejected provisioning: %w", err)
+var credentialProvisionCommand = func(ctx context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
+	response, err := onboardingProvision(ctx, logicalID, field, value)
+	if err != nil {
+		return credentialclient.ProvisionResponse{}, fmt.Errorf("credential authority rejected provisioning: %w", err)
 	}
-	return nil
+	return response, nil
 }
 
 func listCredentials(context.Context) ([]credentialdomain.Credential, error) {
@@ -38,7 +39,7 @@ func listCredentials(context.Context) ([]credentialdomain.Credential, error) {
 	return credentialMetadataInventory(closure)
 }
 
-func provisionCredential(ctx context.Context, logicalID, field, value string) error {
+func provisionCredential(ctx context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
 	requestCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	return credentialProvisionCommand(requestCtx, logicalID, field, value)

@@ -29,7 +29,7 @@ var groupCommandNames = map[string][]string{
 	"receipt":    {"get"},
 	"release":    {"verify", "stage", "activate", "rollback", "list", "prune"},
 	"data":       {"inventory", "backup", "restore", "verify"},
-	"host":       {"repair"},
+	"host":       {"observe", "repair"},
 	"credential": {"ingest", "acknowledge", "revoke"},
 	"edge":       {"route-apply", "route-rollback", "route-status"},
 }
@@ -156,6 +156,7 @@ func writeHelp(out io.Writer) error {
 		"  vrooli cloud-target data backup --deployment <id> --operation <id> --step <id> --fence <n> --binding <json>... --key-ref <logical_id:field> [--schema-version --configuration-digest --credential-version-ref... --provider --provider-ref --retention-policy --migration-posture]",
 		"  vrooli cloud-target data restore --deployment <id> --operation <id> --step <id> --fence <n> --recovery-point <id> --into <binding>=<locator>... [--binding <id>]...",
 		"  vrooli cloud-target data verify --deployment <id> --recovery-point <id> [--open] [--expect <json>]",
+		"  vrooli cloud-target host observe --kind <typed observation> [--arg <semantic argument>]...",
 		"  vrooli cloud-target host repair --action <privilege-broker action> [--subject <json>] [--deployment --operation --step --fence]",
 		"  vrooli cloud-target edge route apply --deployment <id> --operation <id> --step <id> --fence <n> (--spec <json> | --spec-file <path>)",
 		"  vrooli cloud-target edge route rollback --deployment <id> --operation <id> --step <id> --fence <n>",
@@ -353,6 +354,13 @@ func execute(ctx *rootcli.CommandContext, verbs Deps, verb string, runCtx cliapp
 			value["receipt"] = effect.Receipt
 			value["replayed"] = effect.Replayed
 		}
+		if err != nil {
+			value["error"] = cloudtarget.AsError(err)
+		}
+		return value, err
+	case "host observe":
+		result, err := cloudtarget.Observe(operationCtx, cloudtarget.ObservationRequest{Kind: runCtx.Flag("kind"), Args: runCtx.FlagValues("arg")}, verbs.Runner)
+		value := map[string]any{"result": result}
 		if err != nil {
 			value["error"] = cloudtarget.AsError(err)
 		}

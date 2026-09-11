@@ -21,6 +21,13 @@
   ],
   "rules": [
     {
+      "id": "local-app-use",
+      "when": {"contains": {"answer": "purposes", "value": "use-local-apps"}},
+      "recommend": [
+        {"capabilityRef": "application.local", "reasonKey": "setup.reason.localUse"}
+      ]
+    },
+    {
       "id": "local-development",
       "when": {"contains": {"answer": "purposes", "value": "develop-apps"}},
       "recommend": [

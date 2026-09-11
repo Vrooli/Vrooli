@@ -540,6 +540,33 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 			response.ChargeByBasis = append(response.ChargeByBasis, &measurepb.ChargeByBasis{Basis: charge.Basis, RunCount: charge.RunCount, ChargeMicroUsd: charge.ChargeMicroUSD, TokenCount: charge.TokenCount, ChargeReason: charge.ChargeReason})
 		}
 	}
+	if distStore, ok := h.store.(interface {
+		RunCostDistribution(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error)
+	}); ok {
+		dist, distErr := distStore.RunCostDistribution(ctx, filter)
+		if distErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, distErr)
+		}
+		response.P50Tokens = dist.P50Tokens
+		response.P90Tokens = dist.P90Tokens
+		response.P95Tokens = dist.P95Tokens
+		response.P99Tokens = dist.P99Tokens
+		response.MaxTokens = dist.MaxTokens
+		response.P50CostUsd = dist.P50CostUSD
+		response.P90CostUsd = dist.P90CostUSD
+		response.P95CostUsd = dist.P95CostUSD
+		response.P99CostUsd = dist.P99CostUSD
+		response.MaxCostUsd = dist.MaxCostUSD
+		response.DistributionSampleSize = dist.SampleSize
+		unobserved := runs.TotalRuns - dist.SampleSize
+		if unobserved < 0 {
+			unobserved = 0
+		}
+		response.DistributionUnobservedRuns = unobserved
+		for _, bucket := range dist.TokenBuckets {
+			response.TokenBuckets = append(response.TokenBuckets, &measurepb.RunTokenBucket{Label: bucket.Label, MinTokens: bucket.MinTokens, MaxTokens: bucket.MaxTokens, RunCount: bucket.RunCount})
+		}
+	}
 	return connect.NewResponse(response), nil
 }
 

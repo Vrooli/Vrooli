@@ -17,6 +17,7 @@ import (
 	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	capabilitiesdomain "vrooli-onboarding/cli/domains/capabilities"
 	credentialsdomain "vrooli-onboarding/cli/domains/credentials"
 	operatordomain "vrooli-onboarding/cli/domains/operator"
 	readinessdomain "vrooli-onboarding/cli/domains/readiness"
@@ -27,7 +28,7 @@ import (
 // cliSurfaceRouteReferences keeps the source-level route contract searchable
 // for the onboarding CLI surface audit. The actual command bindings remain
 // descriptor-driven from cli/manifest.json.
-const cliSurfaceRouteReferences = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply /vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply /vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft /vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft /vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft /vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession /vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession /vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration"
+const cliSurfaceRouteReferences = "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply /vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply /vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft /vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft /vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft /vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession /vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession /vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration /vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/VerifyCapability"
 
 // LoadManifestGroups is the one CLI registration point. It builds the
 // command tree from manifest bindings and uses cli-core's descriptor-backed
@@ -54,11 +55,12 @@ func LoadManifestGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Com
 			{string(readinessv1.File_vrooli_onboarding_v1_readiness_readiness_proto.Services().Get(0).FullName()), readMap("GetReadiness")},
 			{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("ListScenarios")},
 		}, false},
-		{"capabilities", []serviceSpec{{string(capabilitiesv1.File_vrooli_onboarding_v1_capabilities_capabilities_proto.Services().Get(0).FullName()), readMap("ListCapabilities", "GetCapabilityStatus", "PreviewCapability")}}, false},
+		{"capabilities", []serviceSpec{{string(capabilitiesv1.File_vrooli_onboarding_v1_capabilities_capabilities_proto.Services().Get(0).FullName()), readMap("ListCapabilities", "GetCapabilityStatus", "PreviewCapability", "VerifyCapability")}}, false},
 		{"profiles", []serviceSpec{{string(profilesv1.File_vrooli_onboarding_v1_profiles_profiles_proto.Services().Get(0).FullName()), readMap("ListProfiles", "EvaluateProfile")}}, false},
 		{"credentials", []serviceSpec{{string(credentialsv1.File_vrooli_onboarding_v1_credentials_credentials_proto.Services().Get(0).FullName()), readMap("ListCredentials", "DiagnoseCredentials")}}, false},
 		{"scenarios", []serviceSpec{{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("ListScenarios")}}, false},
 		{"union", []serviceSpec{{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("GetUnion")}}, false},
+		{"handoff", []serviceSpec{{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("GetHandoff")}}, false},
 		{"control", []serviceSpec{{string(selectionv1.File_vrooli_onboarding_v1_selection_selection_proto.Services().Get(0).FullName()), readMap("GetClosure")}}, true},
 		{"host", []serviceSpec{{string(hostv1.File_vrooli_onboarding_v1_host_host_proto.Services().Get(0).FullName()), readMap("ListHostRequirements")}}, false},
 		{"wizard", []serviceSpec{
@@ -74,6 +76,9 @@ func LoadManifestGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Com
 		extra := map[string]cliapp.PrimitiveHandler(nil)
 		if group.name == "credentials" {
 			extra = credentialsdomain.ManifestHandlers(core)
+		}
+		if group.name == "capabilities" {
+			extra = capabilitiesdomain.ManifestHandlers(core)
 		}
 		if group.name == "operator" {
 			extra = operatordomain.ManifestHandlers(core)

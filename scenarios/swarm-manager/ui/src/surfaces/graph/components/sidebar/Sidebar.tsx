@@ -5,7 +5,7 @@
  * Manages sidebar UI state via persisted reducer state.
  */
 
-import { useCallback, useState, type ChangeEvent, type CSSProperties, type Ref } from "react";
+import { useCallback, useMemo, useState, type ChangeEvent, type CSSProperties, type Ref } from "react";
 import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
 import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1";
 import { Plus } from "lucide-react";
@@ -88,14 +88,25 @@ export function Sidebar({
     [dispatch],
   );
   const { activeTab } = state;
-  const createAction = !aiMode ? createActionForTab(activeTab, {
-    onCreateGoal: () => setShowCreateGoal(true),
-    onCreateBacklog: () => {
-      setCreateBacklogError(null);
-      setShowCreateBacklog(true);
-    },
-    onQuickCapture,
-  }) : null;
+  // The tabs are memoized; stable handlers keep a keystroke in the search box
+  // from re-rendering the whole list before the debounced query lands.
+  const openCreateGoal = useCallback(() => setShowCreateGoal(true), []);
+  const openCreateBacklog = useCallback(() => {
+    setCreateBacklogError(null);
+    setShowCreateBacklog(true);
+  }, []);
+  const openCreateFromPlan = useCallback(() => setShowCreateFromPlan(true), []);
+  const createAction = useMemo(
+    () =>
+      aiMode
+        ? null
+        : createActionForTab(activeTab, {
+            onCreateGoal: openCreateGoal,
+            onCreateBacklog: openCreateBacklog,
+            onQuickCapture,
+          }),
+    [activeTab, aiMode, onQuickCapture, openCreateBacklog, openCreateGoal],
+  );
 
   const handleCreateBacklog = useCallback(
     async (values: BacklogFormValues) => {
@@ -221,7 +232,7 @@ export function Sidebar({
                   onItemClick={onItemClick}
                   onClearSearch={clearSearch}
                   onCreateBacklog={createAction?.tab === "backlog" ? createAction.onClick : undefined}
-                  onCreateFromPlan={() => setShowCreateFromPlan(true)}
+                  onCreateFromPlan={openCreateFromPlan}
                 />
               )}
               {activeTab === "captures" && (
@@ -229,7 +240,6 @@ export function Sidebar({
                   searchQuery={debouncedSearch}
                   filters={state.filters.captures}
                   sort={state.sorts.captures}
-                  onItemClick={onItemClick}
                   onClearSearch={clearSearch}
                   onCreateCapture={createAction?.tab === "captures" ? createAction.onClick : undefined}
                 />

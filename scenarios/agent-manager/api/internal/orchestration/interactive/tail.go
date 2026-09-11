@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -96,6 +97,9 @@ type TailParams struct {
 	// (LaunchResult.TranscriptPath). For codex it is the seed for
 	// rotation-aware re-discovery; for claude/grok it is pinned.
 	TranscriptPath string
+	SessionID      string
+	Until          string
+	Billing        domain.BillingSnapshot
 	// RunDir / WorkingDir / LaunchedAt mirror the substrate's DiscoverParams,
 	// used only to re-glob the newest codex rollout on rotation.
 	RunDir     string
@@ -104,9 +108,16 @@ type TailParams struct {
 	// StartCursor resumes a tail from a persisted byte offset (0 = start).
 	StartCursor int64
 
-	Sink        runner.EventSink
-	OnAdvance   func(cursor, lastSeq int64) error
-	OnSessionID func(sessionID string) error
+	Sink         runner.EventSink
+	OnAdvance    func(cursor, lastSeq int64) error
+	OnSessionID  func(sessionID string) error
+	OnGoalStatus func(marker runner.GoalMarker) error
+	// StructuredResultSatisfied reports whether the current persisted transcript
+	// satisfies the run's deterministic structured-result contract. It is
+	// checked at a provider success boundary when Until is non-empty, because a
+	// goal-session worker may finish with its structured result without emitting
+	// a runner-native goal marker.
+	StructuredResultSatisfied func() bool
 }
 
 // Tail follows the transcript, emitting codec events to the sink until the
@@ -133,6 +144,9 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 	}
 	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
 		setter.SetTranscriptModel(p.Model)
+	}
+	if setter, ok := parser.(runner.TranscriptBillingSetter); ok {
+		setter.SetTranscriptBilling(p.Billing)
 	}
 
 	path := p.TranscriptPath
@@ -171,6 +185,7 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				}
 				return p.OnSessionID(sessionID)
 			},
+			OnGoalStatus: p.OnGoalStatus,
 		})
 		cursor = nextCursor
 		if cerr != nil {
@@ -187,6 +202,18 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 				continue
 			}
 			return terminal, cerr
+		}
+		if terminal != nil {
+			// In goal mode a provider success marker is only a turn boundary.
+			// Keep following the same live transcript until a native goal
+			// terminal or a fully validated structured result is observed.
+			if terminal.Success && strings.TrimSpace(p.Until) != "" && !strings.HasPrefix(terminal.TerminalReason, "goal_") {
+				if p.StructuredResultSatisfied != nil && p.StructuredResultSatisfied() {
+					terminal.TerminalReason = "structured_result"
+					return terminal, nil
+				}
+				terminal = nil
+			}
 		}
 		if terminal != nil {
 			return terminal, nil
@@ -224,6 +251,7 @@ func (t *Tailer) rediscover(p TailParams) (string, error) {
 		RunDir:     p.RunDir,
 		LaunchedAt: p.LaunchedAt,
 		HomeDir:    t.homeDir,
+		SessionID:  p.SessionID,
 	})
 }
 

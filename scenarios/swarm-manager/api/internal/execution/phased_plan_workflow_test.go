@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -205,6 +206,23 @@ func TestQueueBacklogUsesPersistedAdaptiveImprovementStrategy(t *testing.T) {
 	constraints, ok := payload["constraints"].(map[string]any)
 	if !ok || constraints["executionStrategy"] != adaptiveImprovementStrategy {
 		t.Fatalf("workflow input omitted adaptive strategy: %#v", payload)
+	}
+	roundTripped, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal workflow input: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(roundTripped, &decoded); err != nil {
+		t.Fatalf("workflow input is not JSON round-trippable: %v", err)
+	}
+	decodedConstraints, ok := decoded["constraints"].(map[string]any)
+	if !ok {
+		t.Fatalf("round-tripped constraints type = %T", decoded["constraints"])
+	}
+	for _, key := range []string{"executionStrategy", "maxSlices", "writeScope", "sliceApprovalMode"} {
+		if _, ok := decodedConstraints[key]; !ok {
+			t.Fatalf("round-tripped constraints omitted %q: %#v", key, decodedConstraints)
+		}
 	}
 }
 

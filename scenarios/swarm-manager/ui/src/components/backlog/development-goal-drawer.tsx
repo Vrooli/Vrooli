@@ -4,6 +4,7 @@ import { ConnectError } from "@connectrpc/connect";
 import { DevelopmentGuidanceSchema, DevelopmentOutcomeSchema, PreviewDevelopmentRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/transition_pb";
 import type { DevelopmentGuidance, PreviewDevelopmentRequest, PreviewDevelopmentResponse } from "@vrooli/proto-types/swarm-manager/v1/api/transition_pb";
 import type { DevelopmentClient } from "../../services/development-service";
+import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
 import { Drawer } from "../ui/drawer";
 import { Button } from "../ui/button";
 
@@ -115,11 +116,17 @@ export function DevelopmentGoalDrawer({ initial, client, onClose, onReviewed }: 
         <p className="text-xs text-amber-200">Naming an evidence owner does not configure or qualify its receipt adapter. The runtime must establish that separately.</p>
       </fieldset>
       <fieldset className="space-y-3"><legend className="font-semibold">Engineering guidance</legend>
-        <label className="block">Investigation effort: {guidance.effort}
-          <input type="range" className="mt-2 w-full" min={0} max={2} step={1} aria-label="Investigation effort" aria-valuetext={guidance.effort}
-            value={Math.max(0, efforts.findIndex((v) => v === guidance.effort))} onChange={(e) => changeGuidance((g) => { g.effort = efforts[Number(e.target.value)] ?? "balanced"; })} />
-        </label>
-        <p className="text-xs text-slate-400">Focused → balanced → thorough. Guides investigation; does not change the model or budget.</p>
+        <Slider
+          label="Investigation effort"
+          description="Focused → balanced → thorough. Guides investigation; does not change the model or budget."
+          aria-label="Investigation effort"
+          min={0}
+          max={2}
+          step={1}
+          value={Math.max(0, efforts.findIndex((v) => v === guidance.effort))}
+          formatValue={(value) => efforts[value] ?? "balanced"}
+          onChange={(value) => changeGuidance((g) => { g.effort = efforts[value] ?? "balanced"; })}
+        />
         <label className="block">Starting code state<select className={inputClass} value={guidance.startingState} onChange={(e) => changeGuidance((g) => { g.startingState = e.target.value; })}>
           {startingStates.map((value) => <option key={value} value={value}>{value}</option>)}
         </select></label>

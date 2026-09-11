@@ -10,8 +10,10 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
 	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
+	"golang.org/x/term"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,9 +25,10 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}}
 }
 
-// ManifestHandlers supplies the one credential command whose operation needs
-// stdin handling. The request still crosses the generated Connect contract;
-// only the secret acquisition and final report remain bespoke.
+// ManifestHandlers supplies credential commands whose operations need local
+// terminal handling. Provision still crosses the generated Connect contract;
+// reveal is deliberately local-only so a secret cannot enter an API response,
+// browser, or remote transport.
 func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
 	return map[string]cliapp.PrimitiveHandler{
 		"CredentialsService.ProvisionCredential": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
@@ -55,7 +58,64 @@ func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandl
 			}
 			return cliapp.RenderMutationReport(ctx.Stdout(), cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
 		}),
+		"credentials.reveal": cliapp.ExternalDelegation(reveal),
 	}
+}
+
+type credentialResolver interface {
+	Resolve(credentialauthority.Identity, string) (string, error)
+}
+
+var revealAuthority = func() (credentialResolver, error) {
+	return credentialauthority.Default()
+}
+
+func reveal(ctx cliapp.RunContext) error {
+	if ctx.JSON() {
+		return fmt.Errorf("credentials reveal refuses --json; revealed values may only be written to an interactive terminal")
+	}
+	logicalID := strings.TrimSpace(ctx.Flag("logical-id"))
+	if logicalID == "" {
+		return fmt.Errorf("--logical-id is required")
+	}
+	field := strings.TrimSpace(ctx.Flag("field"))
+	if field == "" {
+		field = "value"
+	}
+	if !ctx.BoolFlag("confirm-reveal") {
+		return fmt.Errorf("refusing to reveal %s:%s without --confirm-reveal", logicalID, field)
+	}
+	if !interactiveTerminal(ctx.Stdout()) {
+		return fmt.Errorf("refusing to reveal %s:%s because stdout is not an interactive terminal; remove redirection and do not pipe the value", logicalID, field)
+	}
+	identity, err := credentialauthority.ParseIdentity(logicalID)
+	if err != nil {
+		return err
+	}
+	authority, err := revealAuthority()
+	if err != nil {
+		return fmt.Errorf("credential authority unavailable: %w", err)
+	}
+	value, err := authority.Resolve(identity, field)
+	if err != nil {
+		return fmt.Errorf("reveal credential %s:%s: %w", identity, field, err)
+	}
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("credential %s:%s is empty", identity, field)
+	}
+	_, err = fmt.Fprintln(ctx.Stdout(), value)
+	return err
+}
+
+func interactiveTerminal(writer io.Writer) bool {
+	file, ok := writer.(*os.File)
+	if !ok {
+		// Test and embedding writers are trusted by the caller; the production
+		// default is os.Stdout and is checked below.
+		return true
+	}
+	fd := int(file.Fd())
+	return term.IsTerminal(fd)
 }
 
 const (

@@ -23,6 +23,19 @@ const DefaultField = "value"
 
 var tierNamePattern = regexp.MustCompile(`^tier-[1-5]-[a-z0-9-]+$`)
 var metadataRefPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*$`)
+var environmentNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// ValidateEnvironmentName keeps runtime injection on the conventional process
+// environment namespace. Rejecting malformed names at the shared contract
+// boundary prevents callers from treating an assignment, path, or whitespace-
+// containing string as a child-process environment key.
+func ValidateEnvironmentName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || !environmentNamePattern.MatchString(name) {
+		return fmt.Errorf("credential environment name %q must match [A-Za-z_][A-Za-z0-9_]*", name)
+	}
+	return nil
+}
 
 // Descriptor declares one credential without binding it to Vault, an
 // environment variable, or a local file. Values are always held by the
@@ -367,6 +380,9 @@ func (c Declaration) Validate(owner string) error {
 			continue
 		}
 		env := strings.TrimSpace(descriptor.Env)
+		if err := ValidateEnvironmentName(env); err != nil {
+			return fmt.Errorf("%s credential %s:%s: %w", owner, identity, field, err)
+		}
 		if prior, duplicate := byEnv[env]; duplicate {
 			return fmt.Errorf("%s declares credential env %s twice, for %s and %s", owner, env, prior, identity)
 		}

@@ -15,6 +15,7 @@ import type { OnboardingTarget } from "./api/host";
 import { i18n } from "./i18n";
 import { ConfigurationSearchPanel } from "./components/configuration/ConfigurationSearchPanel";
 import type { ConfigurationDescriptor } from "./api/configuration";
+import vrooliWordmark from "../../../../assets/readme-display.png";
 
 type AppView = "wizard" | "dashboard" | "glossary" | "configuration";
 
@@ -62,6 +63,11 @@ const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
 function capitalizeLabel(value: string): string {
   const trimmed = value.trim();
   return trimmed ? `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}` : value;
+}
+
+function formatTargetEnumLabel(value: string): string {
+  const normalized = value.trim().replace(/^(node_status|node_kind)_/i, "").replace(/[_-]+/g, " ").toLowerCase();
+  return normalized ? normalized.split(/\s+/).map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(" ") : value;
 }
 
 export default function App() {
@@ -181,7 +187,7 @@ export default function App() {
   };
 
   const selectedTarget = targetOptions.find((option) => option.id === target);
-  const selectedTargetStatus = capitalizeLabel(selectedTarget?.status ?? (target === "local" ? "local" : "ready"));
+  const selectedTargetStatus = formatTargetEnumLabel(selectedTarget?.status ?? (target === "local" ? "local" : "ready"));
   const selectedTargetUnavailable = selectedTarget?.available === false || selectedTarget?.online === false;
   const targetTone = (option: OnboardingTarget): TargetSwitcherOption["statusTone"] => {
     if (option.id === "local") return "local";
@@ -193,9 +199,10 @@ export default function App() {
     label: option.id === "local" ? i18n.t("onboarding.app.local") : capitalizeLabel(option.name ?? option.id),
     meta: [option.os, option.architecture, option.kind].filter(Boolean).map((value) => capitalizeLabel(value as string)).join(" · ") || undefined,
     description: option.reason,
-    status: option.available === false || option.online === false ? i18n.t("onboarding.app.targetUnavailable") : capitalizeLabel(option.status ?? (option.id === "local" ? "local" : "ready")),
+    status: option.available === false || option.online === false ? i18n.t("onboarding.app.targetUnavailable") : formatTargetEnumLabel(option.status ?? (option.id === "local" ? "local" : "ready")),
     statusTone: targetTone(option),
-    badge: option.kind ? capitalizeLabel(option.kind) : undefined,
+    badge: option.kind ? formatTargetEnumLabel(option.kind) : undefined,
+    disabled: option.id !== "local" && (option.available === false || option.online === false),
   }));
   const selectTarget = (nextTarget: string) => {
     setTarget(nextTarget);
@@ -225,8 +232,11 @@ export default function App() {
       >
         <div className="app-bar__inner">
           <div className="app-brand" aria-label={i18n.t("onboarding.app.brand")}>
-            <img className="app-brand__mark" src="/public/logo.webp" alt="" />
-            <span>{i18n.t("onboarding.app.brand")}</span>
+            <img
+              className="app-brand__wordmark"
+              src={vrooliWordmark}
+              alt={i18n.t("onboarding.app.brand")}
+            />
           </div>
           <div
             className="app-tabs"
@@ -236,7 +246,6 @@ export default function App() {
           {NAV_ITEMS.map((item, idx) => (
             <Button
               variant="ghost"
-              icon={item.icon}
               key={item.id}
               ref={(el) => {
                 tabRefs.current[idx] = el;
@@ -261,6 +270,7 @@ export default function App() {
               )}
             >
               <span className="app-tab__content">
+                <span data-control-slot="icon" className="app-tab__icon" aria-hidden="true">{item.icon}</span>
                 <span className="app-tab__label">{item.label}</span>
                 <kbd
                   className="hidden lg:inline-flex h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60"

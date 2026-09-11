@@ -20,11 +20,13 @@ body {
   backdrop-filter: blur(16px);
 }
 .app-bar__inner { max-width: 70rem; min-height: 58px; margin-inline: auto; padding-inline: 1.25rem; display: flex; align-items: center; gap: 1.5rem; }
-.app-brand { display: inline-flex; align-items: center; gap: .65rem; font-weight: 700; letter-spacing: -.02em; }
+.app-brand { display: inline-flex; flex: 0 0 auto; align-items: center; min-inline-size: 0; font-weight: 700; letter-spacing: -.02em; }
 .app-brand__mark { display: block; inline-size: 30px; block-size: 30px; border-radius: 9px; box-shadow: 0 6px 18px var(--shadow-primary); }
+.app-brand__wordmark { display: block; inline-size: clamp(8.25rem, 15vw, 10.5rem); block-size: auto; max-block-size: 2.65rem; object-fit: contain; object-position: left center; }
 .app-tabs { display: flex; align-items: center; gap: .35rem; min-inline-size: 0; }
 .app-tab { white-space: nowrap; }
-.app-tab__content { display: inline-flex; align-items: center; gap: .55rem; min-width: 0; }
+.app-tab__icon { display: inline-flex; flex: 0 0 auto; }
+.app-tab__content { display: inline-flex; align-items: center; gap: .75rem; min-width: 0; }
 .app-tab[aria-selected="true"] { background: var(--color-surface-muted); }
 .target-switcher { position: relative; margin-inline-start: auto; }
 
@@ -288,17 +290,27 @@ h1[tabindex="-1"]:focus { outline: none; }
 .credential-list__heading, .credential-list__item-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; min-inline-size: 0; }
 .credential-list__heading h2 { margin: .2rem 0 0; color: var(--color-foreground-strong); font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
 .credential-list__heading p:last-child { max-inline-size: 60ch; margin: .35rem 0 0; color: var(--color-muted); font-size: .84rem; line-height: 1.5; }
-.credential-list__items { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
-.credential-list__item { display: grid; min-inline-size: 0; gap: .55rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: 14px; background: var(--color-surface-elevated); box-shadow: var(--elev-subtle); }
+.credential-list__controls { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(10rem, 13rem) minmax(10rem, 13rem); gap: .65rem; align-items: end; }
+.credential-list__search { min-inline-size: 0; }
+.credential-list__search [data-rcl-input-group-adornment] svg { inline-size: 1rem; block-size: 1rem; color: var(--color-muted); }
+.credential-list__select { display: grid; gap: .3rem; color: var(--color-muted); font-size: .72rem; font-weight: 650; }
+.credential-list__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr)); gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.credential-list__item { display: block; min-inline-size: 0; }
 .credential-list__item-heading p, .credential-list__item-heading span { margin: 0; }
 .credential-list__item-heading p { color: var(--color-foreground-strong); font-size: .92rem; font-weight: 700; }
 .credential-list__item-heading span { display: block; margin-block-start: .2rem; color: var(--color-muted); font-size: .72rem; }
 .credential-list__item-copy { max-inline-size: 70ch; margin: 0; color: var(--color-muted); font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
 .credential-list__link { display: inline-flex; min-block-size: 2.25rem; align-items: center; width: fit-content; color: var(--color-primary-soft); font-size: .8rem; text-decoration: underline; text-underline-offset: .15em; }
-.credential-list__form { display: flex; min-inline-size: 0; flex-wrap: wrap; align-items: center; gap: .55rem; }
-.credential-list__form [data-rcl-password-control] { min-inline-size: min(100%, 18rem); flex: 1 1 14rem; }
-.credential-list__empty, .credential-list__error { margin: 0; color: var(--color-muted); font-size: .84rem; }
-.credential-list__error { color: var(--color-danger); }
+.credential-list__form { min-inline-size: 0; }
+.credential-list__form [data-rcl-password-control] { min-inline-size: 0; }
+.credential-list__empty { margin: 0; color: var(--color-muted); font-size: .84rem; }
+.credential-list__error { margin-block-start: .5rem; }
+.credential-list__save-icon { inline-size: 1rem; block-size: 1rem; }
+.credential-list__save-icon--loading { animation: credential-save-spin .8s linear infinite; }
+@keyframes credential-save-spin { to { transform: rotate(360deg); } }
+.credential-recovery__form { display: grid; gap: .9rem; }
+.credential-recovery__field { display: grid; gap: .4rem; color: var(--color-foreground); font-size: .8125rem; font-weight: 650; }
+.credential-recovery__hint { margin: 0; color: var(--color-muted); font-size: .8125rem; line-height: 1.5; }
 .credential-skeleton { display: grid; gap: .55rem; padding: 1rem; border: 1px solid var(--color-border-muted); border-radius: 14px; background: var(--color-surface-elevated); }
 .credential-skeleton span { display: block; block-size: .75rem; border-radius: var(--radius-control); background: var(--color-surface-muted); animation: credential-skeleton-pulse 1.35s ease-in-out infinite; }
 .credential-skeleton span:first-child { inline-size: 38%; block-size: 1rem; }
@@ -347,7 +359,7 @@ h1[tabindex="-1"]:focus { outline: none; }
 .credential-details__form { display: flex; min-inline-size: 0; flex-wrap: wrap; align-items: center; gap: .55rem; }
 .credential-details__form [data-rcl-password-control] { min-inline-size: min(100%, 18rem); flex: 1 1 14rem; }
 .credential-details__empty { margin: 0; color: var(--color-muted); font-size: .84rem; }
-@media (max-width: 40rem) { .credential-overview__header, .credential-list__item-heading, .credential-details__item-heading, .credential-config__provider-header { flex-direction: column; } .credential-overview__header > [data-rcl-status-badge], .credential-list__item-heading > [data-rcl-status-badge], .credential-details__item-heading > [data-rcl-status-badge], .credential-config__provider-header > [data-rcl-status-badge] { align-self: flex-start; } .credential-overview__facts > div { flex: 1 1 7rem; } .credential-list__form { align-items: stretch; } .credential-list__form button, .credential-list__form [data-rcl-password-control] { inline-size: 100%; } .credential-config__layout { display: block; } .credential-config__sidebar { display: none; } .credential-config__mobile-tabs { display: block; } }
+@media (max-width: 40rem) { .credential-overview__header, .credential-list__item-heading, .credential-details__item-heading, .credential-config__provider-header { flex-direction: column; } .credential-overview__header > [data-rcl-status-badge], .credential-list__item-heading > [data-rcl-status-badge], .credential-details__item-heading > [data-rcl-status-badge], .credential-config__provider-header > [data-rcl-status-badge] { align-self: flex-start; } .credential-overview__facts > div { flex: 1 1 7rem; } .credential-list__controls { grid-template-columns: 1fr; } .credential-list__items { display: block; } .credential-list__item { padding-block: .95rem; border-block-end: 1px solid var(--color-border-muted); } .credential-list__item:first-child { padding-block-start: .2rem; } .credential-list__item:last-child { border-block-end: 0; } .credential-list__item [data-rcl-setup-task] { gap: .8rem; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; } .credential-list__item [data-rcl-setup-task] [data-rcl-setup-task-meta] { padding-block: .65rem; border-block: 1px solid var(--color-border-muted); } .credential-list__form [data-rcl-input-group] { inline-size: 100%; } .credential-config__layout { display: block; } .credential-config__sidebar { display: none; } .credential-config__mobile-tabs { display: block; } }
 .readiness-surface--apply [data-testid="apply-plan"] { margin-block-start: 1.4rem; }
 .readiness-surface--apply [data-testid="apply-plan-effects"] { background: var(--color-surface-elevated); }
 .readiness-surface--apply [data-testid="apply-plan-pending"] { padding: .8rem 1rem; border: 1px solid color-mix(in srgb, var(--color-warning) 35%, var(--color-border)); border-radius: 12px; background: var(--color-warning-surface); }
@@ -369,7 +381,7 @@ h1[tabindex="-1"]:focus { outline: none; }
      effective inline size. Keep target selection and navigation discoverable
      instead of compressing the tab labels into a clipped single row. */
   .app-bar__inner { min-height: 52px; padding-inline: .75rem; gap: .5rem; flex-wrap: nowrap; }
-  .app-brand > span:last-child { display: none; }
+  .app-brand__wordmark { inline-size: 30px; block-size: 30px; max-block-size: 30px; border-radius: 9px; box-shadow: 0 6px 18px var(--shadow-primary); object-fit: cover; object-position: left center; }
   .app-tabs { flex: 1 1 auto; min-width: 0; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   .app-tabs::-webkit-scrollbar { display: none; }
   .app-tab { min-width: var(--tap-target-min); inline-size: var(--tap-target-min); flex: 0 0 var(--tap-target-min); justify-content: center; white-space: nowrap; padding-inline: 0 !important; }

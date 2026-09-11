@@ -16,6 +16,9 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
 	strategyFlag := fs.String("strategy", "", "Plan execution strategy declared by the server; omitted inherits the reviewed item")
 	maxSlicesFlag := fs.Int("max-slices", 0, "Optional slice limit within the reviewed item allowance")
+	preferredRunnerFlag := fs.String("preferred-runner", "", "Optional preferred agent runner")
+	modelFlag := fs.String("model", "", "Optional preferred model")
+	effortFlag := fs.String("effort", "", "Optional model effort hint")
 	forceFlag := fs.Bool("force", false, "Override unanswered feedback gates (questions/suggestions)")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -23,7 +26,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy STRATEGY] [--max-slices N] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy STRATEGY] [--max-slices N] [--preferred-runner NAME] [--model MODEL] [--effort EFFORT] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 	strategy := strings.TrimSpace(*strategyFlag)
 
@@ -46,6 +49,9 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	}
 	if strategy != "" {
 		payloadMap["strategy"] = strategy
+	}
+	if *preferredRunnerFlag != "" || *modelFlag != "" || *effortFlag != "" {
+		payloadMap["execution_preferences"] = map[string]string{"preferred_runner": strings.TrimSpace(*preferredRunnerFlag), "model": strings.TrimSpace(*modelFlag), "effort": strings.TrimSpace(*effortFlag)}
 	}
 	fs.Visit(func(field *flag.Flag) {
 		if field.Name == "max-slices" {

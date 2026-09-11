@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestGetReadinessProjectsTheRichTypedVerdict(t *testing.T) {
 	handler := NewConnectHandler(internalreadiness.Service{Evaluate: func(context.Context, string) (internalreadiness.Response, error) {
 		return internalreadiness.Response{
 			Status: "missing", Scenarios: []string{"alpha"},
-			Credentials: []internalreadiness.Credential{{LogicalID: "vrooli/demo", Field: "token", Status: "unconfigured", EvidenceStatus: "unavailable", EvidenceDetail: "No stored value is available to verify.", Required: true}},
+			Credentials: []internalreadiness.Credential{{LogicalID: "vrooli/demo", Field: "token", Status: "unsupported", ProviderState: "unavailable", ProviderDetail: "secure store is locked", EvidenceStatus: "unavailable", EvidenceDetail: "No stored value is available to verify.", Required: true}},
 			Blockers:    []internalreadiness.CompletionBlocker{{Kind: "credential", Name: "vrooli/demo:token", Reason: "missing", Remediation: "configure it"}},
 		}, nil
 	}})
@@ -37,15 +38,18 @@ func TestGetReadinessProjectsTheRichTypedVerdict(t *testing.T) {
 	if response.Msg.GetCredentials()[0].GetEvidenceStatus() != "unavailable" || response.Msg.GetCredentials()[0].GetEvidenceDetail() == "" {
 		t.Fatalf("credential evidence was not preserved: %+v", response.Msg.GetCredentials()[0])
 	}
+	if response.Msg.GetCredentials()[0].GetProviderState() != "unavailable" || response.Msg.GetCredentials()[0].GetProviderDetail() != "secure store is locked" {
+		t.Fatalf("credential provider state was not preserved: %+v", response.Msg.GetCredentials()[0])
+	}
 }
 
 func TestGetReadinessPreservesCredentialProvenance(t *testing.T) {
 	handler := NewConnectHandler(internalreadiness.Service{Evaluate: func(context.Context, string) (internalreadiness.Response, error) {
 		return internalreadiness.Response{
 			Credentials: []internalreadiness.Credential{{
-				LogicalID: "vrooli/shared", Field: "token", Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json", Kind: "authority", ConsumerRefs: []string{"alpha broker"},
+				LogicalID: "vrooli/shared", Field: "token", Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json", Kind: "authority", ConsumerRefs: []string{"alpha broker"}, Tiers: []string{"tier-1-local"},
 				Provenance: []internalreadiness.CredentialProvenance{{
-					Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json",
+					Owner: "alpha", SourceRef: "/repo/alpha/.vrooli/service.json", Tiers: []string{"tier-1-local"},
 					Consumers: []internalreadiness.CredentialConsumerProvenance{{Kind: "delegated", Consumer: "alpha broker", SourceRef: "/repo/alpha/api/client.go:7", Required: true}},
 				}},
 			}},
@@ -56,7 +60,7 @@ func TestGetReadinessPreservesCredentialProvenance(t *testing.T) {
 		t.Fatal(err)
 	}
 	credential := response.Msg.GetCredentials()[0]
-	if credential.GetOwner() != "alpha" || credential.GetSourceRef() == "" || len(credential.GetConsumerRefs()) != 1 || len(credential.GetProvenance()) != 1 || len(credential.GetProvenance()[0].GetConsumers()) != 1 {
+	if credential.GetOwner() != "alpha" || credential.GetSourceRef() == "" || len(credential.GetConsumerRefs()) != 1 || !reflect.DeepEqual(credential.GetTiers(), []string{"tier-1-local"}) || len(credential.GetProvenance()) != 1 || !reflect.DeepEqual(credential.GetProvenance()[0].GetTiers(), []string{"tier-1-local"}) || len(credential.GetProvenance()[0].GetConsumers()) != 1 {
 		t.Fatalf("credential provenance = %+v", credential)
 	}
 	if credential.GetProvenance()[0].GetConsumers()[0].GetSourceRef() != "/repo/alpha/api/client.go:7" {

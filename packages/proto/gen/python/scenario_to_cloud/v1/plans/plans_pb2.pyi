@@ -68,16 +68,24 @@ class Action(_message.Message):
     def __init__(self, id: _Optional[str] = ..., owner_operation: _Optional[str] = ..., effect: _Optional[str] = ..., required_capability: _Optional[str] = ..., inputs: _Optional[_Mapping[str, str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., verification: _Optional[str] = ..., recovery: _Optional[str] = ..., retry: _Optional[str] = ..., cancel_point: _Optional[bool] = ..., downtime: _Optional[_Union[Downtime, _Mapping]] = ...) -> None: ...
 
 class Handoff(_message.Message):
-    __slots__ = ("owner", "kind", "reference", "missing")
+    __slots__ = ("owner", "kind", "reference", "missing", "deployment_id", "target", "desired_revision", "selection_digest")
     OWNER_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
     MISSING_FIELD_NUMBER: _ClassVar[int]
+    DEPLOYMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_DIGEST_FIELD_NUMBER: _ClassVar[int]
     owner: str
     kind: str
     reference: str
     missing: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., missing: _Optional[_Iterable[str]] = ...) -> None: ...
+    deployment_id: str
+    target: Target
+    desired_revision: int
+    selection_digest: str
+    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., missing: _Optional[_Iterable[str]] = ..., deployment_id: _Optional[str] = ..., target: _Optional[_Union[Target, _Mapping]] = ..., desired_revision: _Optional[int] = ..., selection_digest: _Optional[str] = ...) -> None: ...
 
 class Presentation(_message.Message):
     __slots__ = ("title", "summary", "downtime_note", "recovery_note")

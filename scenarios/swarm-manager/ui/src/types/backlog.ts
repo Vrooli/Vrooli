@@ -93,6 +93,10 @@ export interface BacklogFormValues {
   effort?: string;
   acceptanceAllow?: string[];
   acceptanceDeny?: string[];
+  executionStrategy?: string;
+  executionLimits?: ExecutionLimits;
+  continuation?: string;
+  scopePolicy?: string;
 }
 
 /**

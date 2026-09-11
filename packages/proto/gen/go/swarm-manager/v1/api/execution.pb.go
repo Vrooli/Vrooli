@@ -156,16 +156,17 @@ func (x *ExecutionPolicyResponse) GetPolicy() *domain.ExecutionPolicy {
 }
 
 type CreateExecutionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BacklogKind   string                 `protobuf:"bytes,1,opt,name=backlog_kind,json=backlogKind,proto3" json:"backlog_kind,omitempty"`
-	BacklogName   string                 `protobuf:"bytes,2,opt,name=backlog_name,json=backlogName,proto3" json:"backlog_name,omitempty"`
-	Mode          string                 `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
-	StartedBy     *string                `protobuf:"bytes,5,opt,name=started_by,json=startedBy,proto3,oneof" json:"started_by,omitempty"`
-	Operation     *string                `protobuf:"bytes,6,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
-	Strategy      *string                `protobuf:"bytes,7,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
-	MaxSlices     *int32                 `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                protoimpl.MessageState       `protogen:"open.v1"`
+	BacklogKind          string                       `protobuf:"bytes,1,opt,name=backlog_kind,json=backlogKind,proto3" json:"backlog_kind,omitempty"`
+	BacklogName          string                       `protobuf:"bytes,2,opt,name=backlog_name,json=backlogName,proto3" json:"backlog_name,omitempty"`
+	Mode                 string                       `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
+	StartedBy            *string                      `protobuf:"bytes,5,opt,name=started_by,json=startedBy,proto3,oneof" json:"started_by,omitempty"`
+	Operation            *string                      `protobuf:"bytes,6,opt,name=operation,proto3,oneof" json:"operation,omitempty"`
+	Strategy             *string                      `protobuf:"bytes,7,opt,name=strategy,proto3,oneof" json:"strategy,omitempty"`
+	MaxSlices            *int32                       `protobuf:"varint,8,opt,name=max_slices,json=maxSlices,proto3,oneof" json:"max_slices,omitempty"`
+	ExecutionPreferences *domain.ExecutionPreferences `protobuf:"bytes,9,opt,name=execution_preferences,json=executionPreferences,proto3,oneof" json:"execution_preferences,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateExecutionRequest) Reset() {
@@ -247,6 +248,13 @@ func (x *CreateExecutionRequest) GetMaxSlices() int32 {
 	return 0
 }
 
+func (x *CreateExecutionRequest) GetExecutionPreferences() *domain.ExecutionPreferences {
+	if x != nil {
+		return x.ExecutionPreferences
+	}
+	return nil
+}
+
 // FollowUpExecutionRequest triggers a follow-up from a completed/failed execution.
 type FollowUpExecutionRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
@@ -323,13 +331,13 @@ var File_swarm_manager_v1_api_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/api/execution.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a'swarm-manager/v1/domain/execution.proto\"^\n" +
+	"$swarm-manager/v1/api/execution.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"^\n" +
 	"\x15ListExecutionResponse\x12E\n" +
 	"\x05items\x18\x01 \x03(\v2/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\x05items\"b\n" +
 	"\x11ExecutionResponse\x12M\n" +
 	"\texecution\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionRecordR\texecution\"b\n" +
 	"\x17ExecutionPolicyResponse\x12G\n" +
-	"\x06policy\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xf0\x02\n" +
+	"\x06policy\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.domain.ExecutionPolicyR\x06policy\"\xfa\x03\n" +
 	"\x16CreateExecutionRequest\x12*\n" +
 	"\fbacklog_kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12'\n" +
@@ -340,12 +348,14 @@ const file_swarm_manager_v1_api_execution_proto_rawDesc = "" +
 	"\bstrategy\x18\a \x01(\tH\x02R\bstrategy\x88\x01\x01\x12.\n" +
 	"\n" +
 	"max_slices\x18\b \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x03R\tmaxSlices\x88\x01\x01B\r\n" +
+	"\xbaH\a\x1a\x05\x18\x80\x04(\x01H\x03R\tmaxSlices\x88\x01\x01\x12n\n" +
+	"\x15execution_preferences\x18\t \x01(\v24.vrooli.swarm_manager.v1.domain.ExecutionPreferencesH\x04R\x14executionPreferences\x88\x01\x01B\r\n" +
 	"\v_started_byB\f\n" +
 	"\n" +
 	"_operationB\v\n" +
 	"\t_strategyB\r\n" +
-	"\v_max_slicesJ\x04\b\x04\x10\x05\"\xe8\x01\n" +
+	"\v_max_slicesB\x18\n" +
+	"\x16_execution_preferencesJ\x04\b\x04\x10\x05\"\xe8\x01\n" +
 	"\x18FollowUpExecutionRequest\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12D\n" +
 	"\x0efollow_up_type\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19R\x05fixupR\bfollowupR\x06customR\ffollowUpType\x12\x1d\n" +
@@ -368,23 +378,25 @@ func file_swarm_manager_v1_api_execution_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_swarm_manager_v1_api_execution_proto_goTypes = []any{
-	(*ListExecutionResponse)(nil),    // 0: vrooli.swarm_manager.v1.api.ListExecutionResponse
-	(*ExecutionResponse)(nil),        // 1: vrooli.swarm_manager.v1.api.ExecutionResponse
-	(*ExecutionPolicyResponse)(nil),  // 2: vrooli.swarm_manager.v1.api.ExecutionPolicyResponse
-	(*CreateExecutionRequest)(nil),   // 3: vrooli.swarm_manager.v1.api.CreateExecutionRequest
-	(*FollowUpExecutionRequest)(nil), // 4: vrooli.swarm_manager.v1.api.FollowUpExecutionRequest
-	(*domain.ExecutionRecord)(nil),   // 5: vrooli.swarm_manager.v1.domain.ExecutionRecord
-	(*domain.ExecutionPolicy)(nil),   // 6: vrooli.swarm_manager.v1.domain.ExecutionPolicy
+	(*ListExecutionResponse)(nil),       // 0: vrooli.swarm_manager.v1.api.ListExecutionResponse
+	(*ExecutionResponse)(nil),           // 1: vrooli.swarm_manager.v1.api.ExecutionResponse
+	(*ExecutionPolicyResponse)(nil),     // 2: vrooli.swarm_manager.v1.api.ExecutionPolicyResponse
+	(*CreateExecutionRequest)(nil),      // 3: vrooli.swarm_manager.v1.api.CreateExecutionRequest
+	(*FollowUpExecutionRequest)(nil),    // 4: vrooli.swarm_manager.v1.api.FollowUpExecutionRequest
+	(*domain.ExecutionRecord)(nil),      // 5: vrooli.swarm_manager.v1.domain.ExecutionRecord
+	(*domain.ExecutionPolicy)(nil),      // 6: vrooli.swarm_manager.v1.domain.ExecutionPolicy
+	(*domain.ExecutionPreferences)(nil), // 7: vrooli.swarm_manager.v1.domain.ExecutionPreferences
 }
 var file_swarm_manager_v1_api_execution_proto_depIdxs = []int32{
 	5, // 0: vrooli.swarm_manager.v1.api.ListExecutionResponse.items:type_name -> vrooli.swarm_manager.v1.domain.ExecutionRecord
 	5, // 1: vrooli.swarm_manager.v1.api.ExecutionResponse.execution:type_name -> vrooli.swarm_manager.v1.domain.ExecutionRecord
 	6, // 2: vrooli.swarm_manager.v1.api.ExecutionPolicyResponse.policy:type_name -> vrooli.swarm_manager.v1.domain.ExecutionPolicy
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	7, // 3: vrooli.swarm_manager.v1.api.CreateExecutionRequest.execution_preferences:type_name -> vrooli.swarm_manager.v1.domain.ExecutionPreferences
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_execution_proto_init() }

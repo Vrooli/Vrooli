@@ -100,7 +100,17 @@ message RunEvent {
 
     // Compaction event data (event_type = COMPACTION).
     CompactionEventData compaction = 22;
+
+    // Runner-owned objective status observation.
+    GoalStatusChangedEventData goal_status_changed = 23;
   }
+}
+
+message GoalStatusChangedEventData {
+  string objective = 1;
+  string status = 2;
+  int32 iteration = 3;
+  string last_reason = 4;
 }
 
 // =============================================================================

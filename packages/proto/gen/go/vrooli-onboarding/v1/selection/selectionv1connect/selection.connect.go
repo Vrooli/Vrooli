@@ -54,6 +54,9 @@ const (
 	// SelectionServiceCreateHandoffProcedure is the fully-qualified name of the SelectionService's
 	// CreateHandoff RPC.
 	SelectionServiceCreateHandoffProcedure = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff"
+	// SelectionServiceGetHandoffProcedure is the fully-qualified name of the SelectionService's
+	// GetHandoff RPC.
+	SelectionServiceGetHandoffProcedure = "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff"
 )
 
 // SelectionServiceClient is a client for the vrooli.vrooli_onboarding.v1.selection.SelectionService
@@ -66,6 +69,7 @@ type SelectionServiceClient interface {
 	GetClosure(context.Context, *connect.Request[selection.GetClosureRequest]) (*connect.Response[selection.GetClosureResponse], error)
 	GetUnion(context.Context, *connect.Request[selection.GetUnionRequest]) (*connect.Response[selection.GetUnionResponse], error)
 	CreateHandoff(context.Context, *connect.Request[selection.CreateHandoffRequest]) (*connect.Response[selection.CreateHandoffResponse], error)
+	GetHandoff(context.Context, *connect.Request[selection.GetHandoffRequest]) (*connect.Response[selection.GetHandoffResponse], error)
 }
 
 // NewSelectionServiceClient constructs a client for the
@@ -122,6 +126,12 @@ func NewSelectionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(selectionServiceMethods.ByName("CreateHandoff")),
 			connect.WithClientOptions(opts...),
 		),
+		getHandoff: connect.NewClient[selection.GetHandoffRequest, selection.GetHandoffResponse](
+			httpClient,
+			baseURL+SelectionServiceGetHandoffProcedure,
+			connect.WithSchema(selectionServiceMethods.ByName("GetHandoff")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -134,6 +144,7 @@ type selectionServiceClient struct {
 	getClosure           *connect.Client[selection.GetClosureRequest, selection.GetClosureResponse]
 	getUnion             *connect.Client[selection.GetUnionRequest, selection.GetUnionResponse]
 	createHandoff        *connect.Client[selection.CreateHandoffRequest, selection.CreateHandoffResponse]
+	getHandoff           *connect.Client[selection.GetHandoffRequest, selection.GetHandoffResponse]
 }
 
 // ListScenarios calls vrooli.vrooli_onboarding.v1.selection.SelectionService.ListScenarios.
@@ -172,6 +183,11 @@ func (c *selectionServiceClient) CreateHandoff(ctx context.Context, req *connect
 	return c.createHandoff.CallUnary(ctx, req)
 }
 
+// GetHandoff calls vrooli.vrooli_onboarding.v1.selection.SelectionService.GetHandoff.
+func (c *selectionServiceClient) GetHandoff(ctx context.Context, req *connect.Request[selection.GetHandoffRequest]) (*connect.Response[selection.GetHandoffResponse], error) {
+	return c.getHandoff.CallUnary(ctx, req)
+}
+
 // SelectionServiceHandler is an implementation of the
 // vrooli.vrooli_onboarding.v1.selection.SelectionService service.
 type SelectionServiceHandler interface {
@@ -182,6 +198,7 @@ type SelectionServiceHandler interface {
 	GetClosure(context.Context, *connect.Request[selection.GetClosureRequest]) (*connect.Response[selection.GetClosureResponse], error)
 	GetUnion(context.Context, *connect.Request[selection.GetUnionRequest]) (*connect.Response[selection.GetUnionResponse], error)
 	CreateHandoff(context.Context, *connect.Request[selection.CreateHandoffRequest]) (*connect.Response[selection.CreateHandoffResponse], error)
+	GetHandoff(context.Context, *connect.Request[selection.GetHandoffRequest]) (*connect.Response[selection.GetHandoffResponse], error)
 }
 
 // NewSelectionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -233,6 +250,12 @@ func NewSelectionServiceHandler(svc SelectionServiceHandler, opts ...connect.Han
 		connect.WithSchema(selectionServiceMethods.ByName("CreateHandoff")),
 		connect.WithHandlerOptions(opts...),
 	)
+	selectionServiceGetHandoffHandler := connect.NewUnaryHandler(
+		SelectionServiceGetHandoffProcedure,
+		svc.GetHandoff,
+		connect.WithSchema(selectionServiceMethods.ByName("GetHandoff")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_onboarding.v1.selection.SelectionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SelectionServiceListScenariosProcedure:
@@ -249,6 +272,8 @@ func NewSelectionServiceHandler(svc SelectionServiceHandler, opts ...connect.Han
 			selectionServiceGetUnionHandler.ServeHTTP(w, r)
 		case SelectionServiceCreateHandoffProcedure:
 			selectionServiceCreateHandoffHandler.ServeHTTP(w, r)
+		case SelectionServiceGetHandoffProcedure:
+			selectionServiceGetHandoffHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -284,4 +309,8 @@ func (UnimplementedSelectionServiceHandler) GetUnion(context.Context, *connect.R
 
 func (UnimplementedSelectionServiceHandler) CreateHandoff(context.Context, *connect.Request[selection.CreateHandoffRequest]) (*connect.Response[selection.CreateHandoffResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.selection.SelectionService.CreateHandoff is not implemented"))
+}
+
+func (UnimplementedSelectionServiceHandler) GetHandoff(context.Context, *connect.Request[selection.GetHandoffRequest]) (*connect.Response[selection.GetHandoffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_onboarding.v1.selection.SelectionService.GetHandoff is not implemented"))
 }

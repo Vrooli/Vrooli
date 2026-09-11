@@ -82,6 +82,8 @@ export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
     ...(protoItem.spawnedFrom ? { spawnedFrom: protoItem.spawnedFrom } : {}),
     ...(planRef ? { planRef } : {}),
     ...(protoItem.executionStrategy ? { executionStrategy: protoItem.executionStrategy } : {}),
+    ...(protoItem.continuation ? { continuation: protoItem.continuation } : {}),
+    ...(protoItem.scopePolicy ? { scopePolicy: protoItem.scopePolicy } : {}),
     ...(protoItem.planAcceptance ? { planAcceptance: {
       actor: protoItem.planAcceptance.actor,
       acceptedAt: protoItem.planAcceptance.acceptedAt,

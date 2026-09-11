@@ -68,9 +68,9 @@ func toProto(result internalreadiness.Response) *readinessv1.GetReadinessRespons
 			for _, consumer := range value.Consumers {
 				consumers = append(consumers, &readinessv1.CredentialConsumerProvenance{LogicalId: consumer.LogicalID, AddressPattern: consumer.AddressPattern, Field: consumer.Field, Kind: consumer.Kind, Consumer: consumer.Consumer, SourceRef: consumer.SourceRef, Required: consumer.Required, Reason: consumer.Reason, Tiers: consumer.Tiers})
 			}
-			provenance = append(provenance, &readinessv1.CredentialProvenance{Version: value.Version, Owner: value.Owner, SourceRef: value.SourceRef, Kind: value.Kind, Provider: value.Provider, AppliesWhen: applicabilityToReadinessProto(value.AppliesWhen), RequirementGroup: value.RequirementGroup, ConsumerRefs: value.ConsumerRefs, CompanionSettings: value.CompanionSettings, CompanionCredentials: value.CompanionCredentials, AcquisitionRef: value.AcquisitionRef, VerificationRef: value.VerificationRef, RecoveryRef: value.RecoveryRef, HelpRef: value.HelpRef, EvidencePolicy: value.EvidencePolicy, ProviderVersion: value.ProviderVersion, Env: value.Env, Label: value.Label, Description: value.Description, ObtainUrl: value.ObtainURL, Provisioning: value.Provisioning, DerivedFrom: value.DerivedFrom, Required: value.Required, Consumers: consumers})
+			provenance = append(provenance, &readinessv1.CredentialProvenance{Version: value.Version, Owner: value.Owner, SourceRef: value.SourceRef, Kind: value.Kind, Provider: value.Provider, AppliesWhen: applicabilityToReadinessProto(value.AppliesWhen), Tiers: value.Tiers, RequirementGroup: value.RequirementGroup, ConsumerRefs: value.ConsumerRefs, CompanionSettings: value.CompanionSettings, CompanionCredentials: value.CompanionCredentials, AcquisitionRef: value.AcquisitionRef, VerificationRef: value.VerificationRef, RecoveryRef: value.RecoveryRef, HelpRef: value.HelpRef, EvidencePolicy: value.EvidencePolicy, ProviderVersion: value.ProviderVersion, Env: value.Env, Label: value.Label, Description: value.Description, ObtainUrl: value.ObtainURL, Provisioning: value.Provisioning, DerivedFrom: value.DerivedFrom, Required: value.Required, Consumers: consumers})
 		}
-		credentials = append(credentials, &readinessv1.Credential{Resource: item.Resource, LogicalId: item.LogicalID, Field: item.Field, Label: item.Label, Description: item.Description, ObtainUrl: item.ObtainURL, Provisioning: item.Provisioning, DerivedFrom: item.DerivedFrom, Required: item.Required, Status: state(item.Status), LegacyStatus: item.Status, Detail: item.Detail, Owner: item.Owner, SourceRef: item.SourceRef, Kind: item.Kind, ConsumerRefs: item.ConsumerRefs, Version: item.Version, Provider: item.Provider, AppliesWhen: applicabilityToReadinessProto(item.AppliesWhen), RequirementGroup: item.RequirementGroup, CompanionSettings: item.CompanionSettings, CompanionCredentials: item.CompanionCredentials, AcquisitionRef: item.AcquisitionRef, VerificationRef: item.VerificationRef, RecoveryRef: item.RecoveryRef, HelpRef: item.HelpRef, EvidencePolicy: item.EvidencePolicy, ProviderVersion: item.ProviderVersion, MigrationDiagnostics: migrationDiagnosticsToReadinessProto(item.MigrationDiagnostics), EvidenceStatus: item.EvidenceStatus, EvidenceDetail: item.EvidenceDetail, Provenance: provenance})
+		credentials = append(credentials, &readinessv1.Credential{Resource: item.Resource, LogicalId: item.LogicalID, Field: item.Field, Label: item.Label, Description: item.Description, ObtainUrl: item.ObtainURL, Provisioning: item.Provisioning, DerivedFrom: item.DerivedFrom, Required: item.Required, Status: state(item.Status), LegacyStatus: legacyCredentialStatus(item.Status), Detail: item.Detail, Owner: item.Owner, SourceRef: item.SourceRef, Kind: item.Kind, ConsumerRefs: item.ConsumerRefs, Version: item.Version, Provider: item.Provider, AppliesWhen: applicabilityToReadinessProto(item.AppliesWhen), RequirementGroup: item.RequirementGroup, CompanionSettings: item.CompanionSettings, CompanionCredentials: item.CompanionCredentials, AcquisitionRef: item.AcquisitionRef, VerificationRef: item.VerificationRef, RecoveryRef: item.RecoveryRef, HelpRef: item.HelpRef, EvidencePolicy: item.EvidencePolicy, ProviderVersion: item.ProviderVersion, MigrationDiagnostics: migrationDiagnosticsToReadinessProto(item.MigrationDiagnostics), EvidenceStatus: item.EvidenceStatus, EvidenceDetail: item.EvidenceDetail, EvidenceNextAction: item.EvidenceNextAction, EvidenceCredentialVersion: item.EvidenceCredentialVersion, ProviderState: item.ProviderState, ProviderDetail: item.ProviderDetail, Tiers: item.Tiers, Provenance: provenance})
 	}
 	items := make([]*readinessv1.ReadinessItem, 0, len(result.Integrations))
 	for _, item := range result.Integrations {
@@ -151,6 +151,20 @@ func state(value string) readinessv1.ReadinessState {
 	default:
 		return readinessv1.ReadinessState_READINESS_STATE_UNSPECIFIED
 	}
+}
+
+// LegacyStatus is retained for older consumers that only understand the
+// configured/unconfigured vocabulary. The typed Status field above carries
+// richer states such as unsupported and deferred; collapsing those states here
+// preserves compatibility without making the new readiness state misleading.
+func legacyCredentialStatus(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "ready") || strings.EqualFold(strings.TrimSpace(value), "configured") {
+		return "configured"
+	}
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return "unconfigured"
 }
 
 func checkedAt(value string) *timestamppb.Timestamp {

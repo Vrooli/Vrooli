@@ -139,6 +139,35 @@ func buildCostEvents(runID uuid.UUID, runnerType domain.RunnerType, pricing Pric
 	return events
 }
 
+// nativeChargeEvent builds the charge event for a codec that reports its own
+// native dollar cost (Claude Code, OpenCode). The run's immutable billing
+// snapshot is authoritative: subscription and local runs record an explicit
+// zero charge under their declared basis, while every other run records the
+// runner-reported cost as metered. Without this, a subscription run is
+// mislabeled metered and counted as real spend.
+func nativeChargeEvent(runID uuid.UUID, runnerType domain.RunnerType, model string, billing domain.BillingSnapshot, nativeCostUSD float64) *domain.RunEvent {
+	basis := domain.ChargeBasisMetered
+	if billing.Mode != "" || billing.Basis != "" {
+		basis = billing.EffectiveBasis()
+	}
+	charge := &domain.ChargeEventData{
+		PayloadKind: domain.PayloadKindCharge,
+		Basis:       basis,
+		Currency:    "USD",
+		Model:       model,
+		RunnerType:  string(runnerType),
+	}
+	switch basis {
+	case domain.ChargeBasisSubscription, domain.ChargeBasisLocal:
+		zero := int64(0)
+		charge.AmountMicroUSD = &zero
+	default:
+		amount := int64(nativeCostUSD*1_000_000 + 0.5)
+		charge.AmountMicroUSD = &amount
+	}
+	return &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: charge}
+}
+
 func markUsageTurn(events []*domain.RunEvent, turnIndex int) []*domain.RunEvent {
 	for _, event := range events {
 		if event == nil {

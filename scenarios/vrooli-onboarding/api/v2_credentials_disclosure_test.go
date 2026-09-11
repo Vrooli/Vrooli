@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"net/http"
 	"strings"
 	"testing"
@@ -10,11 +11,11 @@ import (
 func TestCredentialProvisionDoesNotDiscloseValue(t *testing.T) {
 	const secret = "credential-value-must-not-leak"
 	previous := credentialProvisionCommand
-	credentialProvisionCommand = func(_ context.Context, logicalID, field, value string) error {
+	credentialProvisionCommand = func(_ context.Context, logicalID, field, value string) (credentialclient.ProvisionResponse, error) {
 		if logicalID != "vrooli/demo" || field != "api-key" || value != secret {
 			t.Fatalf("provision command received %q/%q/%q", logicalID, field, value)
 		}
-		return nil
+		return credentialclient.ProvisionResponse{Version: "opaque-version"}, nil
 	}
 	t.Cleanup(func() { credentialProvisionCommand = previous })
 

@@ -109,6 +109,14 @@ func ResolveRunResult(events []*RunEvent, success bool, exitCode int, terminalRe
 		return result
 	}
 	if len(best) != 1 {
+		if selected, ok := selectLatestDistinctProviderTurn(best); ok {
+			result.FinalOutput = selected.Content
+			result.Selection.Status = FinalOutputSelectionSelected
+			result.Selection.SelectedCandidateID = selected.ID
+			result.Selection.Rule = "latest_distinct_provider_turn"
+			result.Selection.Evidence = append(candidateEvidence(selected), "tie_break=latest_distinct_provider_turn")
+			return result
+		}
 		result.Selection.Status = FinalOutputSelectionAmbiguous
 		result.Selection.Rule = finalOutputRuleAmbiguous
 		result.Selection.Evidence = []string{fmt.Sprintf("%d candidates at evidence tier %d", len(best), bestTier)}
@@ -129,6 +137,36 @@ func ResolveRunResult(events []*RunEvent, success bool, exitCode int, terminalRe
 	}
 	result.Selection.Evidence = candidateEvidence(selected)
 	return result
+}
+
+// selectLatestDistinctProviderTurn resolves the expected shape of an
+// interactive transcript: several terminal turn messages from one provider
+// conversation, each carrying a distinct provider turn identity. Without
+// those identities we keep the conservative ambiguity result; tail position
+// alone is never sufficient evidence.
+func selectLatestDistinctProviderTurn(candidates []FinalOutputCandidate) (FinalOutputCandidate, bool) {
+	if len(candidates) < 2 {
+		return FinalOutputCandidate{}, false
+	}
+	provider := strings.TrimSpace(candidates[0].ProviderOrigin)
+	conversation := strings.TrimSpace(candidates[0].ConversationID)
+	turns := make(map[string]struct{}, len(candidates))
+	selected := candidates[0]
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate.ProviderOrigin) == "" || candidate.ProviderOrigin != provider ||
+			strings.TrimSpace(candidate.ConversationID) == "" || candidate.ConversationID != conversation ||
+			strings.TrimSpace(candidate.TurnID) == "" {
+			return FinalOutputCandidate{}, false
+		}
+		if _, exists := turns[candidate.TurnID]; exists {
+			return FinalOutputCandidate{}, false
+		}
+		turns[candidate.TurnID] = struct{}{}
+		if candidate.Sequence > selected.Sequence {
+			selected = candidate
+		}
+	}
+	return selected, true
 }
 
 func finalOutputEvidenceTier(candidate FinalOutputCandidate) int {

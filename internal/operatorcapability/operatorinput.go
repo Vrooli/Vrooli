@@ -33,7 +33,7 @@ func (d Descriptor) OperatorInputs() ([]Request, error) {
 			Remediation: d.Remediation, Validation: input.Validation, Required: input.Required,
 			Declinable: input.Declinable, Decision: DecisionPending,
 			CredentialLogicalID: input.CredentialLogicalID, CredentialField: input.CredentialField, Provider: input.Provider,
-			RequirementGroup: input.RequirementGroup, ConsumerRefs: append([]string(nil), input.ConsumerRefs...), CompanionSettings: append([]string(nil), input.CompanionSettings...),
+			RequirementGroup: input.RequirementGroup, ConsumerRefs: append([]string(nil), input.ConsumerRefs...), CompanionSettings: append([]string(nil), input.CompanionSettings...), CompanionCredentials: append([]string(nil), input.CompanionCredentials...),
 			AcquisitionRef: input.AcquisitionRef, VerificationRef: input.VerificationRef, RecoveryRef: input.RecoveryRef, HelpRef: input.HelpRef, EvidencePolicy: input.EvidencePolicy,
 		})
 	}

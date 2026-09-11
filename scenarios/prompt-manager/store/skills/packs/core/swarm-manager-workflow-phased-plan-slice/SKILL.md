@@ -7,9 +7,9 @@ metadata:
   schemaVersion: 1
   tags: ["swarm-manager","agent-manager","workflow","prompt-contract"]
   status: "active"
-  revision: 13
+  revision: 14
   createdAt: "2026-07-18T03:05:26Z"
-  updatedAt: "2026-09-10T00:00:00Z"
+  updatedAt: "2026-09-11T00:00:00Z"
   modes: ["contract"]
   requires:
     scenarios: ["prompt-manager", "swarm-manager"]
@@ -56,6 +56,21 @@ ordinary phase-by-phase procedure below.
 8. Return `complete` only after the owner records completion and every required mandate outcome has applicable evidence. Verify the retained assessment and limitations. A completed phase list or successful wrapper alone does not prove the target. Do not repeat unchanged validation merely to create another green result.
 9. Write a handoff with local nuance for the next slice.
 
+## Scope policy
+
+Apply this exact rule before any edit that is outside the authored
+`acceptance_allow`:
+
+```text
+extend-with-record: run `plan-manager exec boundary-extend {{.plan_execution_id}} --paths <globs> --reason "<phase intent> needs <what>"` before edit, then name the recorded extension in the handoff.
+fixed: return `approvalRequired: true` and `approvalReason: "operator-decision"`; state the exact paths in the handoff.
+```
+
+The execution constraints expose the selected `scopePolicy` and the effective
+write scope. A recorded extension is accepted only when it is covered by that
+scope and by the Plan Manager execution's boundary ledger. Plan acceptance is
+unchanged by an extension.
+
 Classify each approval request so the workflow can preserve the accepted strategy:
 
 | Situation on `continue` | Result fields |
@@ -63,6 +78,8 @@ Classify each approval request so the workflow can preserve the accepted strateg
 | An authored phase is complete and no new authority is needed. | `approvalRequired: true`, `approvalReason: "phase-boundary"` |
 | A target amendment, ungranted effect, destructive operation, or explicit operator pause needs a decision. | `approvalRequired: true`, `approvalReason: "operator-decision"` |
 | An in-scope intervention, baseline setup, or other preparation leaves work within the current phase. | `approvalRequired: false`; omit `approvalReason` |
+| Review finds a changed path covered by the authored scope or a recorded extension. | Accept the covered path. |
+| Review finds a changed path outside both the authored scope and recorded extensions. | Reject it and preserve the operator-decision request. |
 
 The accepted `adaptive-improvement` strategy continues past routine phase boundaries after independent review. Ordinary phased execution retains its configured phase approval policy. An `operator-decision` always waits; neither strategy nor a global automatic phase policy supplies missing authority. If both reasons apply, use `operator-decision`. State the required decision in the handoff before the affected action.
 

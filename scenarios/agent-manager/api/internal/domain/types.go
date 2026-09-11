@@ -382,7 +382,14 @@ type ExecutionPolicySnapshot struct {
 	SelectedIndex     int                         `json:"selectedIndex"`
 	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
 	Explanation       PolicyResolutionExplanation `json:"explanation"`
+	SelectionReason   string                      `json:"selectionReason,omitempty"`
 	CanaryArm         string                      `json:"canaryArm,omitempty"`
+}
+
+type ExecutionPreferences struct {
+	PreferredRunner string `json:"preferredRunner,omitempty"`
+	Model           string `json:"model,omitempty"`
+	Effort          string `json:"effort,omitempty"`
 }
 
 // NetworkAccess controls the level of network access granted to an agent during execution.
@@ -1346,6 +1353,7 @@ type RunConfig struct {
 	Until                 string        `json:"until,omitempty"`
 	Model                 string        `json:"model,omitempty"`
 	RoleRef               string        `json:"roleRef,omitempty"`
+	PreferredRunner       string        `json:"preferredRunner,omitempty"`
 	MaxTurns              int           `json:"maxTurns,omitempty"`
 	Timeout               time.Duration `json:"timeout,omitempty"`
 	Effort                Effort        `json:"effort,omitempty"`
@@ -1493,17 +1501,18 @@ type RunEvent struct {
 type RunEventType string
 
 const (
-	EventTypeLog            RunEventType = "log"
-	EventTypeMessage        RunEventType = "message"
-	EventTypeMessageDeleted RunEventType = "message_deleted"
-	EventTypeToolCall       RunEventType = "tool_call"
-	EventTypeToolResult     RunEventType = "tool_result"
-	EventTypeStatus         RunEventType = "status"
-	EventTypeMetric         RunEventType = "metric"
-	EventTypeArtifact       RunEventType = "artifact"
-	EventTypeError          RunEventType = "error"
-	EventTypeCompaction     RunEventType = "compaction"
-	EventTypeLifecycle      RunEventType = "lifecycle"
+	EventTypeLog               RunEventType = "log"
+	EventTypeMessage           RunEventType = "message"
+	EventTypeMessageDeleted    RunEventType = "message_deleted"
+	EventTypeToolCall          RunEventType = "tool_call"
+	EventTypeToolResult        RunEventType = "tool_result"
+	EventTypeStatus            RunEventType = "status"
+	EventTypeMetric            RunEventType = "metric"
+	EventTypeArtifact          RunEventType = "artifact"
+	EventTypeError             RunEventType = "error"
+	EventTypeCompaction        RunEventType = "compaction"
+	EventTypeLifecycle         RunEventType = "lifecycle"
+	EventTypeGoalStatusChanged RunEventType = "goal_status_changed"
 
 	// Typed operational events.
 	//

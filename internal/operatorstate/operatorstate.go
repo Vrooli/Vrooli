@@ -118,17 +118,18 @@ type Session struct {
 // Answers are JSON values because profile questions have typed controls; raw
 // credential input and executable data are rejected by validateProfileSession.
 type ProfileSession struct {
-	Target          string                     `json:"target"`
-	Actor           string                     `json:"actor"`
-	Mode            string                     `json:"mode"`
-	ProfileID       string                     `json:"profile_id,omitempty"`
-	ProfileVersion  string                     `json:"profile_version,omitempty"`
-	CatalogRevision string                     `json:"catalog_revision,omitempty"`
-	BaseRevision    string                     `json:"base_revision"`
-	Answers         map[string]json.RawMessage `json:"answers,omitempty"`
-	ManualDecisions map[string]bool            `json:"manual_decisions,omitempty"`
-	TargetContext   map[string]string          `json:"target_context,omitempty"`
-	UpdatedAt       string                     `json:"updated_at"`
+	Target            string                     `json:"target"`
+	Actor             string                     `json:"actor"`
+	Mode              string                     `json:"mode"`
+	ProfileID         string                     `json:"profile_id,omitempty"`
+	ProfileVersion    string                     `json:"profile_version,omitempty"`
+	CatalogRevision   string                     `json:"catalog_revision,omitempty"`
+	ConsequenceDigest string                     `json:"consequence_digest,omitempty"`
+	BaseRevision      string                     `json:"base_revision"`
+	Answers           map[string]json.RawMessage `json:"answers,omitempty"`
+	ManualDecisions   map[string]bool            `json:"manual_decisions,omitempty"`
+	TargetContext     map[string]string          `json:"target_context,omitempty"`
+	UpdatedAt         string                     `json:"updated_at"`
 }
 
 var ErrProfileSessionConflict = errors.New("profile session conflict")
@@ -146,7 +147,7 @@ func validateProfileSession(value *ProfileSession) error {
 	if value.Mode != "guided" && value.Mode != "manual" {
 		return errors.New("profile session mode must be guided or manual")
 	}
-	if len(value.ProfileID) > 128 || len(value.ProfileVersion) > 64 || len(value.CatalogRevision) > 256 || len(value.BaseRevision) > 256 {
+	if len(value.ProfileID) > 128 || len(value.ProfileVersion) > 64 || len(value.CatalogRevision) > 256 || len(value.ConsequenceDigest) > 256 || len(value.BaseRevision) > 256 {
 		return errors.New("profile session revision or profile reference is too long")
 	}
 	if len(value.Answers) > 250 {
@@ -234,6 +235,40 @@ type Draft struct {
 	UpdatedAt    string            `json:"updated_at"`
 }
 
+// Handoff is a non-secret, target-bound onboarding continuation. It is kept
+// beside drafts because both are resumable operator intent, but a handoff has
+// an owner-issued identity and explicit fences for the cloud deployment that
+// created it.
+type Handoff struct {
+	ID                   string           `json:"id"`
+	RequestKey           string           `json:"request_key,omitempty"`
+	DeploymentID         string           `json:"deployment_id"`
+	Target               string           `json:"target"`
+	MachineID            string           `json:"machine_id"`
+	NodeID               string           `json:"node_id"`
+	NodeKind             string           `json:"node_kind,omitempty"`
+	EnrollmentGeneration uint64           `json:"enrollment_generation"`
+	DesiredRevision      uint64           `json:"desired_revision"`
+	ActorScope           string           `json:"actor_scope"`
+	SelectionDigest      string           `json:"selection_digest"`
+	Missing              []string         `json:"missing,omitempty"`
+	Selection            HandoffSelection `json:"selection"`
+	State                string           `json:"state"`
+	CreatedAt            string           `json:"created_at"`
+	UpdatedAt            string           `json:"updated_at"`
+}
+
+// HandoffSelection mirrors setup/v1 Selection without making the foundational
+// operator-state package depend on generated protobuf code.
+type HandoffSelection struct {
+	SchemaVersion     string            `json:"schema_version"`
+	Scenarios         []string          `json:"scenarios,omitempty"`
+	OptionalResources []string          `json:"optional_resources,omitempty"`
+	HostTools         []string          `json:"host_tools,omitempty"`
+	HostSafeguards    []string          `json:"host_safeguards,omitempty"`
+	OperatingMode     map[string]string `json:"operating_mode,omitempty"`
+}
+
 var ErrDraftConflict = errors.New("operator draft conflict")
 
 // NotificationsChoice names the person the host's notifications go to.
@@ -266,6 +301,7 @@ type Document struct {
 	Completion          *Completion                `json:"completion,omitempty"`
 	Session             *Session                   `json:"session,omitempty"`
 	Drafts              map[string]Draft           `json:"drafts,omitempty"`
+	Handoffs            map[string]Handoff         `json:"handoffs,omitempty"`
 	RawFields           map[string]json.RawMessage `json:"-"`
 }
 
@@ -787,6 +823,7 @@ func Default() Document {
 		Scenarios:           map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
 		HostTools: map[string]OptInChoice{}, HostSafeguards: map[string]OptInChoice{},
 		Drafts:    map[string]Draft{},
+		Handoffs:  map[string]Handoff{},
 		RawFields: map[string]json.RawMessage{},
 	}
 }
@@ -794,7 +831,7 @@ func Default() Document {
 var knownFields = map[string]bool{
 	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true, "capacity_posture": true, "accel_preference": true,
 	"core": true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true, "capacity": true,
-	"host_tools": true, "host_safeguards": true, "completion": true, "session": true, "drafts": true,
+	"host_tools": true, "host_safeguards": true, "completion": true, "session": true, "drafts": true, "handoffs": true,
 }
 
 func unmarshalDocument(data []byte, doc *Document) error {
@@ -930,7 +967,7 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	}
 	// Validate the fields owned by this version. RawFields are deliberately
 	// excluded: they are future schema fields and must survive this writer.
-	owned, err := marshalDocument(Document{Schema: doc.Schema, Version: doc.Version, UpdatedAt: doc.UpdatedAt, TrustPosture: doc.TrustPosture, HostWorkloadPosture: doc.HostWorkloadPosture, Core: doc.Core, ActiveProfile: doc.ActiveProfile, Scenarios: doc.Scenarios, Resources: doc.Resources, HostTools: doc.HostTools, HostSafeguards: doc.HostSafeguards, Completion: doc.Completion, Session: doc.Session, Drafts: doc.Drafts})
+	owned, err := marshalDocument(Document{Schema: doc.Schema, Version: doc.Version, UpdatedAt: doc.UpdatedAt, TrustPosture: doc.TrustPosture, HostWorkloadPosture: doc.HostWorkloadPosture, Core: doc.Core, ActiveProfile: doc.ActiveProfile, Scenarios: doc.Scenarios, Resources: doc.Resources, HostTools: doc.HostTools, HostSafeguards: doc.HostSafeguards, Completion: doc.Completion, Session: doc.Session, Drafts: doc.Drafts, Handoffs: doc.Handoffs})
 	if err != nil {
 		return err
 	}

@@ -46,13 +46,16 @@ export const useAgentActivitiesStore = create<AgentActivitiesStoreState>((set, g
     set({ isRefreshing: true });
     try {
       const activities = await agentActivityService.list({ active: activeOnly });
-      set({
-        activities: sortActivities(
+      set((state) => {
+        const next = sortActivities(
           activities.map((activity) => ({
             ...activity,
-            isStopping: get().activities.find((entry) => entry.runId === activity.runId)?.isStopping ?? false,
+            isStopping: state.activities.find((entry) => entry.runId === activity.runId)?.isStopping ?? false,
           }))
-        ),
+        );
+        // Polled every 5s and usually unchanged. Keeping the previous array
+        // lets every subscriber (the backlog list among them) skip the render.
+        return JSON.stringify(next) === JSON.stringify(state.activities) ? state : { activities: next };
       });
     } catch {
       // Activity polling is supplemental UI state. Preserve the last known

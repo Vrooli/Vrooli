@@ -250,6 +250,36 @@ type RunDurationStatistics struct {
 	Count             int64
 }
 
+// RunCostDistribution is the per-run token and cost distribution over runs
+// with observed token usage. Percentiles use nearest-rank over the filtered
+// population, and SampleSize makes the observed denominator explicit so a
+// consumer never presents the distribution as covering every matching run.
+type RunCostDistribution struct {
+	P50Tokens      int64
+	P90Tokens      int64
+	P95Tokens      int64
+	P99Tokens      int64
+	MaxTokens      int64
+	P50CostUSD     float64
+	P90CostUSD     float64
+	P95CostUSD     float64
+	P99CostUSD     float64
+	MaxCostUSD     float64
+	TokenBuckets   []RunTokenBucket
+	SampleSize     int64
+	UnobservedRuns int64
+}
+
+// RunTokenBucket is one run-count bucket of the token distribution. The
+// range is inclusive on MinTokens and exclusive on MaxTokens; a zero
+// MaxTokens means unbounded.
+type RunTokenBucket struct {
+	Label     string
+	MinTokens int64
+	MaxTokens int64
+	RunCount  int64
+}
+
 // RunStatusCount is one explicit terminal-run status bucket. It is a table
 // rather than a synthetic scalar so consumers can preserve the current
 // status-distribution product without reconstructing it from raw events.

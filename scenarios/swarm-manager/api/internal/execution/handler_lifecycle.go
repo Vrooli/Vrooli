@@ -34,6 +34,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Strategy:    pbReq.GetStrategy(),
 		MaxSlices:   int(pbReq.GetMaxSlices()),
 	}
+	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
+		req.ExecutionPreferences = &ExecutionPreferences{
+			PreferredRunner: preferences.GetPreferredRunner(),
+			Model:           preferences.GetModel(),
+			Effort:          preferences.GetEffort(),
+		}
+	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
 		apierr.MapError(w, "[execution] create", err)
@@ -47,7 +54,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 // Strategies returns execution choices declared by the transition registry.
 // It has no side effects and is safe to read when opening a run sheet.
 func (h *Handler) Strategies(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.ExecutionStrategies()
+	backlogKind := r.URL.Query().Get("backlog_kind")
+	if backlogKind == "" {
+		backlogKind = r.URL.Query().Get("kind")
+	}
+	backlogName := r.URL.Query().Get("backlog_name")
+	if backlogName == "" {
+		backlogName = r.URL.Query().Get("name")
+	}
+	items, err := h.service.ExecutionStrategiesForItem(backlogKind, backlogName)
 	if err != nil {
 		apierr.MapError(w, "[execution] strategies", err)
 		return
@@ -76,6 +91,37 @@ func (h *Handler) ResetCircuitBreaker(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+type continuationControlRequest struct {
+	Item   string `json:"item"`
+	Reason string `json:"reason,omitempty"`
+}
+
+func (h *Handler) HaltContinuation(w http.ResponseWriter, r *http.Request) {
+	var body continuationControlRequest
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[execution] continuation halt", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if err := h.service.HaltContinuation(body.Item, body.Reason); err != nil {
+		apierr.MapError(w, "[execution] continuation halt", err)
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"item": body.Item, "halted": true})
+}
+
+func (h *Handler) ResumeContinuation(w http.ResponseWriter, r *http.Request) {
+	var body continuationControlRequest
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[execution] continuation resume", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if err := h.service.ResumeContinuation(body.Item); err != nil {
+		apierr.MapError(w, "[execution] continuation resume", err)
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"item": body.Item, "halted": false})
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {

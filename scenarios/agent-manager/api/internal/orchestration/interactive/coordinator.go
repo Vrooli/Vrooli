@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -267,6 +268,18 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 		run.SessionID = sessionID
 		return c.deps.Runs.Update(context.Background(), run)
 	}
+	var lastGoal *runner.GoalMarker
+	onGoalStatus := func(marker runner.GoalMarker) error {
+		if lastGoal != nil && *lastGoal == marker {
+			return nil
+		}
+		copy := marker
+		lastGoal = &copy
+		if sink == nil {
+			return nil
+		}
+		return sink.Emit(domain.NewGoalStatusChangedEvent(run.ID, marker.Objective, string(marker.Status), marker.Iteration, marker.LastReason))
+	}
 
 	var lastTerminal *runner.TranscriptTerminal
 	for {
@@ -286,6 +299,9 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			RunnerType:     run.ResolvedConfig.RunnerType,
 			Model:          transcriptModel(run),
 			TranscriptPath: run.TranscriptPath,
+			SessionID:      run.SessionID,
+			Until:          run.ResolvedConfig.Until,
+			Billing:        run.Billing,
 			RunDir:         tc.RunDir,
 			WorkingDir:     tc.WorkingDir,
 			LaunchedAt:     tc.LaunchedAt,
@@ -293,6 +309,10 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			Sink:           sink,
 			OnAdvance:      onAdvance,
 			OnSessionID:    onSessionID,
+			OnGoalStatus:   onGoalStatus,
+			StructuredResultSatisfied: func() bool {
+				return c.structuredResultSatisfied(ctx, run)
+			},
 		})
 		cancel()
 
@@ -310,11 +330,17 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 		if !term.Success {
 			return term, nil
 		}
+		if term.TerminalReason != "" && strings.HasPrefix(term.TerminalReason, "goal_") {
+			return term, nil
+		}
 
 		// A success terminal is a turn boundary. Wait out the idle-debounce: if
 		// the transcript grows, a new turn began and we keep tailing; otherwise
 		// the run is complete.
 		lastTerminal = term
+		if lastTerminal.TerminalReason == "" {
+			lastTerminal.TerminalReason = "turn_boundary_idle"
+		}
 		mu.Lock()
 		boundary := cursor
 		mu.Unlock()
@@ -322,6 +348,23 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			return term, nil
 		}
 	}
+}
+
+// structuredResultSatisfied checks the canonical result projection after a
+// provider success marker has been persisted. It is the deterministic
+// structured-output completion rule for goal-driven interactive runs when the
+// provider does not emit a native goal marker.
+func (c *Coordinator) structuredResultSatisfied(ctx context.Context, run *domain.Run) bool {
+	if c.deps.Result == nil || run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.ResultSpec == nil {
+		return false
+	}
+	// Only deterministic extraction may end the tail. A constrained extractor
+	// can be unavailable or asynchronous and is not a transcript terminal rule.
+	if run.ResolvedConfig.ResultSpec.ExtractionMode != "" && run.ResolvedConfig.ResultSpec.ExtractionMode != domain.StructuredExtractionDeterministic {
+		return false
+	}
+	result, _ := c.deps.Result(ctx, run.ID, true, 0, "structured_result")
+	return result != nil && result.Structured != nil && result.Structured.Status == domain.StructuredResultSuccess
 }
 
 // awaitNextTurn blocks until the transcript grows beyond the turn-boundary
@@ -464,8 +507,12 @@ func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, ter
 	run.UpdatedAt = now
 	exit := terminal.ExitCode
 	run.ExitCode = &exit
+	reason := terminal.TerminalReason
+	if reason == "" {
+		reason = "completed"
+	}
 	if c.deps.Result != nil {
-		run.Result, run.Summary = c.deps.Result(ctx, run.ID, true, exit, "completed")
+		run.Result, run.Summary = c.deps.Result(ctx, run.ID, true, exit, reason)
 	} else if summary := c.buildSummary(ctx, run, terminal); summary != nil {
 		run.Summary = summary
 	}

@@ -18,7 +18,20 @@ func (a *App) cmdRunner(args []string) error {
 		"list":  a.runnerList,
 		"probe": a.runnerProbe,
 		"tools": a.runnerTools,
+		"execution-options": a.runnerExecutionOptions,
 	})
+}
+
+func (a *App) runnerExecutionOptions(args []string) error {
+	fs := flag.NewFlagSet("runner execution-options", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	role := fs.String("role", "", "Portable role reference")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil { return err }
+	body, response, err := a.services.Runners.ExecutionOptions(*role)
+	if err != nil { return err }
+	if *jsonOutput { cliutil.PrintJSON(body); return nil }
+	for _, option := range response.Options { fmt.Printf("%-16s available=%-5t native_objective=%-5t default=%s models=%d\n", option.RunnerType.String(), option.Available, option.NativeObjective, option.DefaultModel, len(option.Models)) }
+	return nil
 }
 
 func (a *App) runnerTools(args []string) error {

@@ -704,9 +704,10 @@ type WorkflowExecution struct {
 	// Reviewed Swarm engagement identity, when supplied by an owning adapter.
 	ApprovalDigest string `protobuf:"bytes,23,opt,name=approval_digest,json=approvalDigest,proto3" json:"approval_digest,omitempty"`
 	// Exact grant identity, kept separate from the workflow definition digest.
-	GrantDigest   string `protobuf:"bytes,24,opt,name=grant_digest,json=grantDigest,proto3" json:"grant_digest,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	GrantDigest          string                `protobuf:"bytes,24,opt,name=grant_digest,json=grantDigest,proto3" json:"grant_digest,omitempty"`
+	ExecutionPreferences *ExecutionPreferences `protobuf:"bytes,25,opt,name=execution_preferences,json=executionPreferences,proto3" json:"execution_preferences,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *WorkflowExecution) Reset() {
@@ -905,6 +906,13 @@ func (x *WorkflowExecution) GetGrantDigest() string {
 		return x.GrantDigest
 	}
 	return ""
+}
+
+func (x *WorkflowExecution) GetExecutionPreferences() *ExecutionPreferences {
+	if x != nil {
+		return x.ExecutionPreferences
+	}
+	return nil
 }
 
 // WorkflowNodeAttempt is the durable, per-node execution identity. Prompt
@@ -1231,7 +1239,7 @@ var File_agent_manager_v1_domain_workflow_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\n" +
-	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
+	"&agent-manager/v1/domain/workflow.proto\x12\x10agent_manager.v1\x1a!agent-manager/v1/domain/run.proto\x1a%agent-manager/v1/domain/profile.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
 	"\x10WorkflowRevision\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x10\n" +
@@ -1292,8 +1300,7 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x0emetering_basis\x18\x03 \x01(\tR\rmeteringBasis\x12\x1a\n" +
 	"\bmeasured\x18\x04 \x01(\bR\bmeasured\x12\x12\n" +
 	"\x04note\x18\x05 \x01(\tR\x04noteB\x13\n" +
-	"\x11_amount_micro_usd\"\xab\n" +
-	"\n" +
+	"\x11_amount_micro_usd\"\x88\v\n" +
 	"\x11WorkflowExecution\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12!\n" +
@@ -1321,7 +1328,8 @@ const file_agent_manager_v1_domain_workflow_proto_rawDesc = "" +
 	"\x0echarge_receipt\x18\x15 \x01(\v2\x1f.agent_manager.v1.ChargeReceiptR\rchargeReceipt\x12T\n" +
 	"\x10engagement_grant\x18\x16 \x01(\v2).agent_manager.v1.WorkflowEngagementGrantR\x0fengagementGrant\x12'\n" +
 	"\x0fapproval_digest\x18\x17 \x01(\tR\x0eapprovalDigest\x12!\n" +
-	"\fgrant_digest\x18\x18 \x01(\tR\vgrantDigest\x1aA\n" +
+	"\fgrant_digest\x18\x18 \x01(\tR\vgrantDigest\x12[\n" +
+	"\x15execution_preferences\x18\x19 \x01(\v2&.agent_manager.v1.ExecutionPreferencesR\x14executionPreferences\x1aA\n" +
 	"\x13EdgeTraversalsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xc4\x06\n" +
@@ -1408,6 +1416,7 @@ var file_agent_manager_v1_domain_workflow_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),   // 12: google.protobuf.Timestamp
 	(*structpb.Value)(nil),          // 13: google.protobuf.Value
 	(*ReceiptObservations)(nil),     // 14: agent_manager.v1.ReceiptObservations
+	(*ExecutionPreferences)(nil),    // 15: agent_manager.v1.ExecutionPreferences
 }
 var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
 	11, // 0: agent_manager.v1.WorkflowRevision.definition:type_name -> google.protobuf.Struct
@@ -1425,15 +1434,16 @@ var file_agent_manager_v1_domain_workflow_proto_depIdxs = []int32{
 	14, // 12: agent_manager.v1.WorkflowExecution.observations:type_name -> agent_manager.v1.ReceiptObservations
 	6,  // 13: agent_manager.v1.WorkflowExecution.charge_receipt:type_name -> agent_manager.v1.ChargeReceipt
 	5,  // 14: agent_manager.v1.WorkflowExecution.engagement_grant:type_name -> agent_manager.v1.WorkflowEngagementGrant
-	12, // 15: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
-	12, // 16: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
-	12, // 17: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
-	12, // 18: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	15, // 15: agent_manager.v1.WorkflowExecution.execution_preferences:type_name -> agent_manager.v1.ExecutionPreferences
+	12, // 16: agent_manager.v1.WorkflowNodeAttempt.created_at:type_name -> google.protobuf.Timestamp
+	12, // 17: agent_manager.v1.WorkflowNodeAttempt.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 18: agent_manager.v1.WorkflowNodeAttempt.completed_at:type_name -> google.protobuf.Timestamp
+	12, // 19: agent_manager.v1.WorkflowJournalEntry.created_at:type_name -> google.protobuf.Timestamp
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_workflow_proto_init() }
@@ -1442,6 +1452,7 @@ func file_agent_manager_v1_domain_workflow_proto_init() {
 		return
 	}
 	file_agent_manager_v1_domain_run_proto_init()
+	file_agent_manager_v1_domain_profile_proto_init()
 	file_agent_manager_v1_domain_workflow_proto_msgTypes[4].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_workflow_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

@@ -311,14 +311,19 @@ func (x *GetUnionRequest) GetTarget() string {
 }
 
 type CreateHandoffRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Target           string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	MachineId        string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
-	NodeId           string                 `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	NodeKind         string                 `protobuf:"bytes,4,opt,name=node_kind,json=nodeKind,proto3" json:"node_kind,omitempty"`
-	DesiredSelection *v1.Selection          `protobuf:"bytes,5,opt,name=desired_selection,json=desiredSelection,proto3" json:"desired_selection,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Target               string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	MachineId            string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId               string                 `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	NodeKind             string                 `protobuf:"bytes,4,opt,name=node_kind,json=nodeKind,proto3" json:"node_kind,omitempty"`
+	DesiredSelection     *v1.Selection          `protobuf:"bytes,5,opt,name=desired_selection,json=desiredSelection,proto3" json:"desired_selection,omitempty"`
+	DeploymentId         string                 `protobuf:"bytes,6,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	EnrollmentGeneration uint64                 `protobuf:"varint,7,opt,name=enrollment_generation,json=enrollmentGeneration,proto3" json:"enrollment_generation,omitempty"`
+	DesiredRevision      uint64                 `protobuf:"varint,8,opt,name=desired_revision,json=desiredRevision,proto3" json:"desired_revision,omitempty"`
+	RequestKey           string                 `protobuf:"bytes,9,opt,name=request_key,json=requestKey,proto3" json:"request_key,omitempty"`
+	Missing              []string               `protobuf:"bytes,10,rep,name=missing,proto3" json:"missing,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *CreateHandoffRequest) Reset() {
@@ -386,6 +391,125 @@ func (x *CreateHandoffRequest) GetDesiredSelection() *v1.Selection {
 	return nil
 }
 
+func (x *CreateHandoffRequest) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *CreateHandoffRequest) GetEnrollmentGeneration() uint64 {
+	if x != nil {
+		return x.EnrollmentGeneration
+	}
+	return 0
+}
+
+func (x *CreateHandoffRequest) GetDesiredRevision() uint64 {
+	if x != nil {
+		return x.DesiredRevision
+	}
+	return 0
+}
+
+func (x *CreateHandoffRequest) GetRequestKey() string {
+	if x != nil {
+		return x.RequestKey
+	}
+	return ""
+}
+
+func (x *CreateHandoffRequest) GetMissing() []string {
+	if x != nil {
+		return x.Missing
+	}
+	return nil
+}
+
+type GetHandoffRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Reference            string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	DeploymentId         string                 `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	Target               string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	EnrollmentGeneration uint64                 `protobuf:"varint,4,opt,name=enrollment_generation,json=enrollmentGeneration,proto3" json:"enrollment_generation,omitempty"`
+	DesiredRevision      uint64                 `protobuf:"varint,5,opt,name=desired_revision,json=desiredRevision,proto3" json:"desired_revision,omitempty"`
+	SelectionDigest      string                 `protobuf:"bytes,6,opt,name=selection_digest,json=selectionDigest,proto3" json:"selection_digest,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetHandoffRequest) Reset() {
+	*x = GetHandoffRequest{}
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHandoffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHandoffRequest) ProtoMessage() {}
+
+func (x *GetHandoffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHandoffRequest.ProtoReflect.Descriptor instead.
+func (*GetHandoffRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetHandoffRequest) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *GetHandoffRequest) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *GetHandoffRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *GetHandoffRequest) GetEnrollmentGeneration() uint64 {
+	if x != nil {
+		return x.EnrollmentGeneration
+	}
+	return 0
+}
+
+func (x *GetHandoffRequest) GetDesiredRevision() uint64 {
+	if x != nil {
+		return x.DesiredRevision
+	}
+	return 0
+}
+
+func (x *GetHandoffRequest) GetSelectionDigest() string {
+	if x != nil {
+		return x.SelectionDigest
+	}
+	return ""
+}
+
 type Scenario struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -400,7 +524,7 @@ type Scenario struct {
 
 func (x *Scenario) Reset() {
 	*x = Scenario{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +536,7 @@ func (x *Scenario) String() string {
 func (*Scenario) ProtoMessage() {}
 
 func (x *Scenario) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[7]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +549,7 @@ func (x *Scenario) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Scenario.ProtoReflect.Descriptor instead.
 func (*Scenario) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Scenario) GetName() string {
@@ -480,7 +604,7 @@ type ListScenariosResponse struct {
 
 func (x *ListScenariosResponse) Reset() {
 	*x = ListScenariosResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -492,7 +616,7 @@ func (x *ListScenariosResponse) String() string {
 func (*ListScenariosResponse) ProtoMessage() {}
 
 func (x *ListScenariosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[8]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -505,7 +629,7 @@ func (x *ListScenariosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListScenariosResponse.ProtoReflect.Descriptor instead.
 func (*ListScenariosResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListScenariosResponse) GetScenarios() []*Scenario {
@@ -535,7 +659,7 @@ type SupervisionAttributionStep struct {
 
 func (x *SupervisionAttributionStep) Reset() {
 	*x = SupervisionAttributionStep{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +671,7 @@ func (x *SupervisionAttributionStep) String() string {
 func (*SupervisionAttributionStep) ProtoMessage() {}
 
 func (x *SupervisionAttributionStep) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[9]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +684,7 @@ func (x *SupervisionAttributionStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SupervisionAttributionStep.ProtoReflect.Descriptor instead.
 func (*SupervisionAttributionStep) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SupervisionAttributionStep) GetName() string {
@@ -610,7 +734,7 @@ type SupervisionMember struct {
 
 func (x *SupervisionMember) Reset() {
 	*x = SupervisionMember{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +746,7 @@ func (x *SupervisionMember) String() string {
 func (*SupervisionMember) ProtoMessage() {}
 
 func (x *SupervisionMember) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[10]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +759,7 @@ func (x *SupervisionMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SupervisionMember.ProtoReflect.Descriptor instead.
 func (*SupervisionMember) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SupervisionMember) GetName() string {
@@ -681,7 +805,7 @@ type GetCoreSetResponse struct {
 
 func (x *GetCoreSetResponse) Reset() {
 	*x = GetCoreSetResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -693,7 +817,7 @@ func (x *GetCoreSetResponse) String() string {
 func (*GetCoreSetResponse) ProtoMessage() {}
 
 func (x *GetCoreSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[11]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -706,7 +830,7 @@ func (x *GetCoreSetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoreSetResponse.ProtoReflect.Descriptor instead.
 func (*GetCoreSetResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetCoreSetResponse) GetAvailable() bool {
@@ -770,7 +894,7 @@ type GetRecommendationResponse struct {
 
 func (x *GetRecommendationResponse) Reset() {
 	*x = GetRecommendationResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +906,7 @@ func (x *GetRecommendationResponse) String() string {
 func (*GetRecommendationResponse) ProtoMessage() {}
 
 func (x *GetRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[12]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +919,7 @@ func (x *GetRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*GetRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetRecommendationResponse) GetProfile() string {
@@ -836,7 +960,7 @@ type AcceptRecommendationResponse struct {
 
 func (x *AcceptRecommendationResponse) Reset() {
 	*x = AcceptRecommendationResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +972,7 @@ func (x *AcceptRecommendationResponse) String() string {
 func (*AcceptRecommendationResponse) ProtoMessage() {}
 
 func (x *AcceptRecommendationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[13]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +985,7 @@ func (x *AcceptRecommendationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptRecommendationResponse.ProtoReflect.Descriptor instead.
 func (*AcceptRecommendationResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AcceptRecommendationResponse) GetSelection() *v1.Selection {
@@ -888,7 +1012,7 @@ type ClosureProvenance struct {
 
 func (x *ClosureProvenance) Reset() {
 	*x = ClosureProvenance{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -900,7 +1024,7 @@ func (x *ClosureProvenance) String() string {
 func (*ClosureProvenance) ProtoMessage() {}
 
 func (x *ClosureProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[14]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -913,7 +1037,7 @@ func (x *ClosureProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClosureProvenance.ProtoReflect.Descriptor instead.
 func (*ClosureProvenance) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ClosureProvenance) GetKind() string {
@@ -945,7 +1069,7 @@ type ClosureMember struct {
 
 func (x *ClosureMember) Reset() {
 	*x = ClosureMember{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[15]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1081,7 @@ func (x *ClosureMember) String() string {
 func (*ClosureMember) ProtoMessage() {}
 
 func (x *ClosureMember) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[15]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1094,7 @@ func (x *ClosureMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClosureMember.ProtoReflect.Descriptor instead.
 func (*ClosureMember) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{15}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ClosureMember) GetName() string {
@@ -1032,7 +1156,7 @@ type GetClosureResponse struct {
 
 func (x *GetClosureResponse) Reset() {
 	*x = GetClosureResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[16]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1168,7 @@ func (x *GetClosureResponse) String() string {
 func (*GetClosureResponse) ProtoMessage() {}
 
 func (x *GetClosureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[16]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1181,7 @@ func (x *GetClosureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetClosureResponse.ProtoReflect.Descriptor instead.
 func (*GetClosureResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{16}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetClosureResponse) GetScenarios() []*ClosureMember {
@@ -1091,7 +1215,7 @@ type GetUnionResponse struct {
 
 func (x *GetUnionResponse) Reset() {
 	*x = GetUnionResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[17]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1103,7 +1227,7 @@ func (x *GetUnionResponse) String() string {
 func (*GetUnionResponse) ProtoMessage() {}
 
 func (x *GetUnionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[17]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1116,7 +1240,7 @@ func (x *GetUnionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUnionResponse.ProtoReflect.Descriptor instead.
 func (*GetUnionResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{17}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetUnionResponse) GetScenarios() []*ClosureMember {
@@ -1196,7 +1320,7 @@ type Resource struct {
 
 func (x *Resource) Reset() {
 	*x = Resource{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[18]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1208,7 +1332,7 @@ func (x *Resource) String() string {
 func (*Resource) ProtoMessage() {}
 
 func (x *Resource) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[18]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1221,7 +1345,7 @@ func (x *Resource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resource.ProtoReflect.Descriptor instead.
 func (*Resource) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{18}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Resource) GetName() string {
@@ -1266,16 +1390,173 @@ func (x *Resource) GetInstalled() bool {
 	return false
 }
 
+type Handoff struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Reference            string                 `protobuf:"bytes,2,opt,name=reference,proto3" json:"reference,omitempty"`
+	DeploymentId         string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	Target               string                 `protobuf:"bytes,4,opt,name=target,proto3" json:"target,omitempty"`
+	MachineId            string                 `protobuf:"bytes,5,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId               string                 `protobuf:"bytes,6,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	NodeKind             string                 `protobuf:"bytes,7,opt,name=node_kind,json=nodeKind,proto3" json:"node_kind,omitempty"`
+	EnrollmentGeneration uint64                 `protobuf:"varint,8,opt,name=enrollment_generation,json=enrollmentGeneration,proto3" json:"enrollment_generation,omitempty"`
+	DesiredRevision      uint64                 `protobuf:"varint,9,opt,name=desired_revision,json=desiredRevision,proto3" json:"desired_revision,omitempty"`
+	ActorScope           string                 `protobuf:"bytes,10,opt,name=actor_scope,json=actorScope,proto3" json:"actor_scope,omitempty"`
+	SelectionDigest      string                 `protobuf:"bytes,11,opt,name=selection_digest,json=selectionDigest,proto3" json:"selection_digest,omitempty"`
+	Missing              []string               `protobuf:"bytes,12,rep,name=missing,proto3" json:"missing,omitempty"`
+	State                string                 `protobuf:"bytes,13,opt,name=state,proto3" json:"state,omitempty"`
+	CreatedAt            string                 `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt            string                 `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *Handoff) Reset() {
+	*x = Handoff{}
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Handoff) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Handoff) ProtoMessage() {}
+
+func (x *Handoff) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Handoff.ProtoReflect.Descriptor instead.
+func (*Handoff) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Handoff) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Handoff) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *Handoff) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *Handoff) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *Handoff) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *Handoff) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *Handoff) GetNodeKind() string {
+	if x != nil {
+		return x.NodeKind
+	}
+	return ""
+}
+
+func (x *Handoff) GetEnrollmentGeneration() uint64 {
+	if x != nil {
+		return x.EnrollmentGeneration
+	}
+	return 0
+}
+
+func (x *Handoff) GetDesiredRevision() uint64 {
+	if x != nil {
+		return x.DesiredRevision
+	}
+	return 0
+}
+
+func (x *Handoff) GetActorScope() string {
+	if x != nil {
+		return x.ActorScope
+	}
+	return ""
+}
+
+func (x *Handoff) GetSelectionDigest() string {
+	if x != nil {
+		return x.SelectionDigest
+	}
+	return ""
+}
+
+func (x *Handoff) GetMissing() []string {
+	if x != nil {
+		return x.Missing
+	}
+	return nil
+}
+
+func (x *Handoff) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *Handoff) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Handoff) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
 type CreateHandoffResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Selection     *v1.Selection          `protobuf:"bytes,1,opt,name=selection,proto3" json:"selection,omitempty"`
+	Handoff       *Handoff               `protobuf:"bytes,2,opt,name=handoff,proto3" json:"handoff,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateHandoffResponse) Reset() {
 	*x = CreateHandoffResponse{}
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[19]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1287,7 +1568,7 @@ func (x *CreateHandoffResponse) String() string {
 func (*CreateHandoffResponse) ProtoMessage() {}
 
 func (x *CreateHandoffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[19]
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1300,10 +1581,69 @@ func (x *CreateHandoffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateHandoffResponse.ProtoReflect.Descriptor instead.
 func (*CreateHandoffResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{19}
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateHandoffResponse) GetSelection() *v1.Selection {
+	if x != nil {
+		return x.Selection
+	}
+	return nil
+}
+
+func (x *CreateHandoffResponse) GetHandoff() *Handoff {
+	if x != nil {
+		return x.Handoff
+	}
+	return nil
+}
+
+type GetHandoffResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Handoff       *Handoff               `protobuf:"bytes,1,opt,name=handoff,proto3" json:"handoff,omitempty"`
+	Selection     *v1.Selection          `protobuf:"bytes,2,opt,name=selection,proto3" json:"selection,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHandoffResponse) Reset() {
+	*x = GetHandoffResponse{}
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHandoffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHandoffResponse) ProtoMessage() {}
+
+func (x *GetHandoffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_onboarding_v1_selection_selection_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHandoffResponse.ProtoReflect.Descriptor instead.
+func (*GetHandoffResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetHandoffResponse) GetHandoff() *Handoff {
+	if x != nil {
+		return x.Handoff
+	}
+	return nil
+}
+
+func (x *GetHandoffResponse) GetSelection() *v1.Selection {
 	if x != nil {
 		return x.Selection
 	}
@@ -1329,14 +1669,28 @@ const file_vrooli_onboarding_v1_selection_selection_proto_rawDesc = "" +
 	"\x11GetClosureRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\")\n" +
 	"\x0fGetUnionRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\"\xcc\x01\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\"\x8c\x03\n" +
 	"\x14CreateHandoffRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x02 \x01(\tR\tmachineId\x12\x17\n" +
 	"\anode_id\x18\x03 \x01(\tR\x06nodeId\x12\x1b\n" +
 	"\tnode_kind\x18\x04 \x01(\tR\bnodeKind\x12G\n" +
-	"\x11desired_selection\x18\x05 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\x10desiredSelection\"\xc4\x01\n" +
+	"\x11desired_selection\x18\x05 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\x10desiredSelection\x12#\n" +
+	"\rdeployment_id\x18\x06 \x01(\tR\fdeploymentId\x123\n" +
+	"\x15enrollment_generation\x18\a \x01(\x04R\x14enrollmentGeneration\x12)\n" +
+	"\x10desired_revision\x18\b \x01(\x04R\x0fdesiredRevision\x12\x1f\n" +
+	"\vrequest_key\x18\t \x01(\tR\n" +
+	"requestKey\x12\x18\n" +
+	"\amissing\x18\n" +
+	" \x03(\tR\amissing\"\xf9\x01\n" +
+	"\x11GetHandoffRequest\x12\x1c\n" +
+	"\treference\x18\x01 \x01(\tR\treference\x12#\n" +
+	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\tR\x06target\x123\n" +
+	"\x15enrollment_generation\x18\x04 \x01(\x04R\x14enrollmentGeneration\x12)\n" +
+	"\x10desired_revision\x18\x05 \x01(\x04R\x0fdesiredRevision\x12)\n" +
+	"\x10selection_digest\x18\x06 \x01(\tR\x0fselectionDigest\"\xc4\x01\n" +
 	"\bScenario\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12'\n" +
@@ -1417,9 +1771,34 @@ const file_vrooli_onboarding_v1_selection_selection_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
 	"\bcategory\x18\x04 \x01(\tR\bcategory\x12\x18\n" +
 	"\aenabled\x18\x05 \x01(\bR\aenabled\x12\x1c\n" +
-	"\tinstalled\x18\x06 \x01(\bR\tinstalled\"Q\n" +
+	"\tinstalled\x18\x06 \x01(\bR\tinstalled\"\xe3\x03\n" +
+	"\aHandoff\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
+	"\treference\x18\x02 \x01(\tR\treference\x12#\n" +
+	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\x12\x16\n" +
+	"\x06target\x18\x04 \x01(\tR\x06target\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x05 \x01(\tR\tmachineId\x12\x17\n" +
+	"\anode_id\x18\x06 \x01(\tR\x06nodeId\x12\x1b\n" +
+	"\tnode_kind\x18\a \x01(\tR\bnodeKind\x123\n" +
+	"\x15enrollment_generation\x18\b \x01(\x04R\x14enrollmentGeneration\x12)\n" +
+	"\x10desired_revision\x18\t \x01(\x04R\x0fdesiredRevision\x12\x1f\n" +
+	"\vactor_scope\x18\n" +
+	" \x01(\tR\n" +
+	"actorScope\x12)\n" +
+	"\x10selection_digest\x18\v \x01(\tR\x0fselectionDigest\x12\x18\n" +
+	"\amissing\x18\f \x03(\tR\amissing\x12\x14\n" +
+	"\x05state\x18\r \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x0e \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x0f \x01(\tR\tupdatedAt\"\x9b\x01\n" +
 	"\x15CreateHandoffResponse\x128\n" +
-	"\tselection\x18\x01 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\tselection2\xec\a\n" +
+	"\tselection\x18\x01 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\tselection\x12H\n" +
+	"\ahandoff\x18\x02 \x01(\v2..vrooli.vrooli_onboarding.v1.selection.HandoffR\ahandoff\"\x98\x01\n" +
+	"\x12GetHandoffResponse\x12H\n" +
+	"\ahandoff\x18\x01 \x01(\v2..vrooli.vrooli_onboarding.v1.selection.HandoffR\ahandoff\x128\n" +
+	"\tselection\x18\x02 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\tselection2\xf0\b\n" +
 	"\x10SelectionService\x12\x8a\x01\n" +
 	"\rListScenarios\x12;.vrooli.vrooli_onboarding.v1.selection.ListScenariosRequest\x1a<.vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse\x12\x81\x01\n" +
 	"\n" +
@@ -1429,7 +1808,9 @@ const file_vrooli_onboarding_v1_selection_selection_proto_rawDesc = "" +
 	"\n" +
 	"GetClosure\x128.vrooli.vrooli_onboarding.v1.selection.GetClosureRequest\x1a9.vrooli.vrooli_onboarding.v1.selection.GetClosureResponse\x12{\n" +
 	"\bGetUnion\x126.vrooli.vrooli_onboarding.v1.selection.GetUnionRequest\x1a7.vrooli.vrooli_onboarding.v1.selection.GetUnionResponse\x12\x8a\x01\n" +
-	"\rCreateHandoff\x12;.vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest\x1a<.vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponseB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection;selectionv1b\x06proto3"
+	"\rCreateHandoff\x12;.vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest\x1a<.vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse\x12\x81\x01\n" +
+	"\n" +
+	"GetHandoff\x128.vrooli.vrooli_onboarding.v1.selection.GetHandoffRequest\x1a9.vrooli.vrooli_onboarding.v1.selection.GetHandoffResponseB[ZYgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection;selectionv1b\x06proto3"
 
 var (
 	file_vrooli_onboarding_v1_selection_selection_proto_rawDescOnce sync.Once
@@ -1443,7 +1824,7 @@ func file_vrooli_onboarding_v1_selection_selection_proto_rawDescGZIP() []byte {
 	return file_vrooli_onboarding_v1_selection_selection_proto_rawDescData
 }
 
-var file_vrooli_onboarding_v1_selection_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_vrooli_onboarding_v1_selection_selection_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_vrooli_onboarding_v1_selection_selection_proto_goTypes = []any{
 	(*ListScenariosRequest)(nil),         // 0: vrooli.vrooli_onboarding.v1.selection.ListScenariosRequest
 	(*GetCoreSetRequest)(nil),            // 1: vrooli.vrooli_onboarding.v1.selection.GetCoreSetRequest
@@ -1452,61 +1833,69 @@ var file_vrooli_onboarding_v1_selection_selection_proto_goTypes = []any{
 	(*GetClosureRequest)(nil),            // 4: vrooli.vrooli_onboarding.v1.selection.GetClosureRequest
 	(*GetUnionRequest)(nil),              // 5: vrooli.vrooli_onboarding.v1.selection.GetUnionRequest
 	(*CreateHandoffRequest)(nil),         // 6: vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest
-	(*Scenario)(nil),                     // 7: vrooli.vrooli_onboarding.v1.selection.Scenario
-	(*ListScenariosResponse)(nil),        // 8: vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse
-	(*SupervisionAttributionStep)(nil),   // 9: vrooli.vrooli_onboarding.v1.selection.SupervisionAttributionStep
-	(*SupervisionMember)(nil),            // 10: vrooli.vrooli_onboarding.v1.selection.SupervisionMember
-	(*GetCoreSetResponse)(nil),           // 11: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse
-	(*GetRecommendationResponse)(nil),    // 12: vrooli.vrooli_onboarding.v1.selection.GetRecommendationResponse
-	(*AcceptRecommendationResponse)(nil), // 13: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse
-	(*ClosureProvenance)(nil),            // 14: vrooli.vrooli_onboarding.v1.selection.ClosureProvenance
-	(*ClosureMember)(nil),                // 15: vrooli.vrooli_onboarding.v1.selection.ClosureMember
-	(*GetClosureResponse)(nil),           // 16: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse
-	(*GetUnionResponse)(nil),             // 17: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse
-	(*Resource)(nil),                     // 18: vrooli.vrooli_onboarding.v1.selection.Resource
-	(*CreateHandoffResponse)(nil),        // 19: vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse
-	nil,                                  // 20: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.MemberCountsEntry
-	nil,                                  // 21: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.LoadErrorsEntry
-	(*v1.Selection)(nil),                 // 22: vrooli.setup.v1.Selection
+	(*GetHandoffRequest)(nil),            // 7: vrooli.vrooli_onboarding.v1.selection.GetHandoffRequest
+	(*Scenario)(nil),                     // 8: vrooli.vrooli_onboarding.v1.selection.Scenario
+	(*ListScenariosResponse)(nil),        // 9: vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse
+	(*SupervisionAttributionStep)(nil),   // 10: vrooli.vrooli_onboarding.v1.selection.SupervisionAttributionStep
+	(*SupervisionMember)(nil),            // 11: vrooli.vrooli_onboarding.v1.selection.SupervisionMember
+	(*GetCoreSetResponse)(nil),           // 12: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse
+	(*GetRecommendationResponse)(nil),    // 13: vrooli.vrooli_onboarding.v1.selection.GetRecommendationResponse
+	(*AcceptRecommendationResponse)(nil), // 14: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse
+	(*ClosureProvenance)(nil),            // 15: vrooli.vrooli_onboarding.v1.selection.ClosureProvenance
+	(*ClosureMember)(nil),                // 16: vrooli.vrooli_onboarding.v1.selection.ClosureMember
+	(*GetClosureResponse)(nil),           // 17: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse
+	(*GetUnionResponse)(nil),             // 18: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse
+	(*Resource)(nil),                     // 19: vrooli.vrooli_onboarding.v1.selection.Resource
+	(*Handoff)(nil),                      // 20: vrooli.vrooli_onboarding.v1.selection.Handoff
+	(*CreateHandoffResponse)(nil),        // 21: vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse
+	(*GetHandoffResponse)(nil),           // 22: vrooli.vrooli_onboarding.v1.selection.GetHandoffResponse
+	nil,                                  // 23: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.MemberCountsEntry
+	nil,                                  // 24: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.LoadErrorsEntry
+	(*v1.Selection)(nil),                 // 25: vrooli.setup.v1.Selection
 }
 var file_vrooli_onboarding_v1_selection_selection_proto_depIdxs = []int32{
-	22, // 0: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationRequest.selection:type_name -> vrooli.setup.v1.Selection
-	22, // 1: vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest.desired_selection:type_name -> vrooli.setup.v1.Selection
-	7,  // 2: vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.Scenario
-	9,  // 3: vrooli.vrooli_onboarding.v1.selection.SupervisionMember.attribution_chain:type_name -> vrooli.vrooli_onboarding.v1.selection.SupervisionAttributionStep
-	10, // 4: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.members:type_name -> vrooli.vrooli_onboarding.v1.selection.SupervisionMember
-	20, // 5: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.member_counts:type_name -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.MemberCountsEntry
-	21, // 6: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.load_errors:type_name -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.LoadErrorsEntry
-	22, // 7: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse.selection:type_name -> vrooli.setup.v1.Selection
-	14, // 8: vrooli.vrooli_onboarding.v1.selection.ClosureMember.provenance:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureProvenance
-	15, // 9: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
-	15, // 10: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse.resources:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
-	15, // 11: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
-	15, // 12: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.resources:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
-	18, // 13: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.resource_models:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
-	18, // 14: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.required_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
-	18, // 15: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.optional_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
-	18, // 16: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.standalone_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
-	22, // 17: vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse.selection:type_name -> vrooli.setup.v1.Selection
-	0,  // 18: vrooli.vrooli_onboarding.v1.selection.SelectionService.ListScenarios:input_type -> vrooli.vrooli_onboarding.v1.selection.ListScenariosRequest
-	1,  // 19: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetCoreSet:input_type -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetRequest
-	2,  // 20: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetRecommendation:input_type -> vrooli.vrooli_onboarding.v1.selection.GetRecommendationRequest
-	3,  // 21: vrooli.vrooli_onboarding.v1.selection.SelectionService.AcceptRecommendation:input_type -> vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationRequest
-	4,  // 22: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetClosure:input_type -> vrooli.vrooli_onboarding.v1.selection.GetClosureRequest
-	5,  // 23: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetUnion:input_type -> vrooli.vrooli_onboarding.v1.selection.GetUnionRequest
-	6,  // 24: vrooli.vrooli_onboarding.v1.selection.SelectionService.CreateHandoff:input_type -> vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest
-	8,  // 25: vrooli.vrooli_onboarding.v1.selection.SelectionService.ListScenarios:output_type -> vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse
-	11, // 26: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetCoreSet:output_type -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse
-	12, // 27: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetRecommendation:output_type -> vrooli.vrooli_onboarding.v1.selection.GetRecommendationResponse
-	13, // 28: vrooli.vrooli_onboarding.v1.selection.SelectionService.AcceptRecommendation:output_type -> vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse
-	16, // 29: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetClosure:output_type -> vrooli.vrooli_onboarding.v1.selection.GetClosureResponse
-	17, // 30: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetUnion:output_type -> vrooli.vrooli_onboarding.v1.selection.GetUnionResponse
-	19, // 31: vrooli.vrooli_onboarding.v1.selection.SelectionService.CreateHandoff:output_type -> vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse
-	25, // [25:32] is the sub-list for method output_type
-	18, // [18:25] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	25, // 0: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationRequest.selection:type_name -> vrooli.setup.v1.Selection
+	25, // 1: vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest.desired_selection:type_name -> vrooli.setup.v1.Selection
+	8,  // 2: vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.Scenario
+	10, // 3: vrooli.vrooli_onboarding.v1.selection.SupervisionMember.attribution_chain:type_name -> vrooli.vrooli_onboarding.v1.selection.SupervisionAttributionStep
+	11, // 4: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.members:type_name -> vrooli.vrooli_onboarding.v1.selection.SupervisionMember
+	23, // 5: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.member_counts:type_name -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.MemberCountsEntry
+	24, // 6: vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.load_errors:type_name -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse.LoadErrorsEntry
+	25, // 7: vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse.selection:type_name -> vrooli.setup.v1.Selection
+	15, // 8: vrooli.vrooli_onboarding.v1.selection.ClosureMember.provenance:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureProvenance
+	16, // 9: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
+	16, // 10: vrooli.vrooli_onboarding.v1.selection.GetClosureResponse.resources:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
+	16, // 11: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.scenarios:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
+	16, // 12: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.resources:type_name -> vrooli.vrooli_onboarding.v1.selection.ClosureMember
+	19, // 13: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.resource_models:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
+	19, // 14: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.required_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
+	19, // 15: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.optional_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
+	19, // 16: vrooli.vrooli_onboarding.v1.selection.GetUnionResponse.standalone_resources:type_name -> vrooli.vrooli_onboarding.v1.selection.Resource
+	25, // 17: vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse.selection:type_name -> vrooli.setup.v1.Selection
+	20, // 18: vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse.handoff:type_name -> vrooli.vrooli_onboarding.v1.selection.Handoff
+	20, // 19: vrooli.vrooli_onboarding.v1.selection.GetHandoffResponse.handoff:type_name -> vrooli.vrooli_onboarding.v1.selection.Handoff
+	25, // 20: vrooli.vrooli_onboarding.v1.selection.GetHandoffResponse.selection:type_name -> vrooli.setup.v1.Selection
+	0,  // 21: vrooli.vrooli_onboarding.v1.selection.SelectionService.ListScenarios:input_type -> vrooli.vrooli_onboarding.v1.selection.ListScenariosRequest
+	1,  // 22: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetCoreSet:input_type -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetRequest
+	2,  // 23: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetRecommendation:input_type -> vrooli.vrooli_onboarding.v1.selection.GetRecommendationRequest
+	3,  // 24: vrooli.vrooli_onboarding.v1.selection.SelectionService.AcceptRecommendation:input_type -> vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationRequest
+	4,  // 25: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetClosure:input_type -> vrooli.vrooli_onboarding.v1.selection.GetClosureRequest
+	5,  // 26: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetUnion:input_type -> vrooli.vrooli_onboarding.v1.selection.GetUnionRequest
+	6,  // 27: vrooli.vrooli_onboarding.v1.selection.SelectionService.CreateHandoff:input_type -> vrooli.vrooli_onboarding.v1.selection.CreateHandoffRequest
+	7,  // 28: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetHandoff:input_type -> vrooli.vrooli_onboarding.v1.selection.GetHandoffRequest
+	9,  // 29: vrooli.vrooli_onboarding.v1.selection.SelectionService.ListScenarios:output_type -> vrooli.vrooli_onboarding.v1.selection.ListScenariosResponse
+	12, // 30: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetCoreSet:output_type -> vrooli.vrooli_onboarding.v1.selection.GetCoreSetResponse
+	13, // 31: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetRecommendation:output_type -> vrooli.vrooli_onboarding.v1.selection.GetRecommendationResponse
+	14, // 32: vrooli.vrooli_onboarding.v1.selection.SelectionService.AcceptRecommendation:output_type -> vrooli.vrooli_onboarding.v1.selection.AcceptRecommendationResponse
+	17, // 33: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetClosure:output_type -> vrooli.vrooli_onboarding.v1.selection.GetClosureResponse
+	18, // 34: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetUnion:output_type -> vrooli.vrooli_onboarding.v1.selection.GetUnionResponse
+	21, // 35: vrooli.vrooli_onboarding.v1.selection.SelectionService.CreateHandoff:output_type -> vrooli.vrooli_onboarding.v1.selection.CreateHandoffResponse
+	22, // 36: vrooli.vrooli_onboarding.v1.selection.SelectionService.GetHandoff:output_type -> vrooli.vrooli_onboarding.v1.selection.GetHandoffResponse
+	29, // [29:37] is the sub-list for method output_type
+	21, // [21:29] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_onboarding_v1_selection_selection_proto_init() }
@@ -1520,7 +1909,7 @@ func file_vrooli_onboarding_v1_selection_selection_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_onboarding_v1_selection_selection_proto_rawDesc), len(file_vrooli_onboarding_v1_selection_selection_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -68,16 +68,16 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && vite build",
-    "build:profile": "pnpm selector:manifest && vite build --mode profile",
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
+    "build:profile": "pnpm selector:manifest \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
-    "test": "vitest run",
-    "type-check": "tsc --noEmit",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

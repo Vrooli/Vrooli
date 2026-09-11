@@ -24,16 +24,17 @@ import (
 const applyReviewTTL = 15 * time.Minute
 
 type applyReviewRecord struct {
-	Target              string `json:"target"`
-	PlanID              string `json:"plan_id"`
-	PlanDigest          string `json:"plan_digest"`
-	Revision            string `json:"revision"`
-	ConsentReceiptID    string `json:"consent_receipt_id"`
-	ExpiresAt           string `json:"expires_at"`
-	ActorSource         string `json:"actor_source"`
-	ActorSubject        string `json:"actor_subject"`
-	ConsumedBy          string `json:"consumed_by,omitempty"`
-	ConsumedOperationID string `json:"consumed_operation_id,omitempty"`
+	Target                   string `json:"target"`
+	PlanID                   string `json:"plan_id"`
+	PlanDigest               string `json:"plan_digest"`
+	Revision                 string `json:"revision"`
+	ProfileConsequenceDigest string `json:"profile_consequence_digest,omitempty"`
+	ConsentReceiptID         string `json:"consent_receipt_id"`
+	ExpiresAt                string `json:"expires_at"`
+	ActorSource              string `json:"actor_source"`
+	ActorSubject             string `json:"actor_subject"`
+	ConsumedBy               string `json:"consumed_by,omitempty"`
+	ConsumedOperationID      string `json:"consumed_operation_id,omitempty"`
 }
 
 type applyAdmissionRecord struct {
@@ -136,11 +137,15 @@ func (s *Server) reviewApply(ctx context.Context, request applydomain.ReviewRequ
 	if request.PlanID != plan.PlanID || request.PlanDigest != plan.Digest || request.ExpectedRevision != plan.Revision {
 		return applydomain.Review{}, errors.New("stale or changed apply plan; refresh review")
 	}
+	profileDigest, err := profileConsequenceDigest(ctx, plan.Target, actorSource, actorSubject)
+	if err != nil {
+		return applydomain.Review{}, err
+	}
 	receiptID, err := newOpaqueID("consent")
 	if err != nil {
 		return applydomain.Review{}, err
 	}
-	record := applyReviewRecord{Target: plan.Target, PlanID: plan.PlanID, PlanDigest: plan.Digest, Revision: plan.Revision, ConsentReceiptID: receiptID, ExpiresAt: operatorStateNow().UTC().Add(applyReviewTTL).Format(time.RFC3339), ActorSource: actorSource, ActorSubject: actorSubject}
+	record := applyReviewRecord{Target: plan.Target, PlanID: plan.PlanID, PlanDigest: plan.Digest, Revision: plan.Revision, ProfileConsequenceDigest: profileDigest, ConsentReceiptID: receiptID, ExpiresAt: operatorStateNow().UTC().Add(applyReviewTTL).Format(time.RFC3339), ActorSource: actorSource, ActorSubject: actorSubject}
 	path, err := applyReviewPath(receiptID)
 	if err != nil {
 		return applydomain.Review{}, err
@@ -216,6 +221,13 @@ func (s *Server) admitApply(ctx context.Context, request applydomain.StartReques
 	if review.ActorSource != actorSource || review.ActorSubject != actorSubject {
 		return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("consent receipt does not match the current apply actor")
 	}
+	currentProfileDigest, err := profileConsequenceDigest(ctx, request.Target, actorSource, actorSubject)
+	if err != nil {
+		return applydomain.Plan{}, applyReviewRecord{}, nil, err
+	}
+	if review.ProfileConsequenceDigest != currentProfileDigest {
+		return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("consent receipt is stale because the onboarding profile consequences changed; review the apply plan again")
+	}
 	// A retry with the same owner operation identity can finish an interrupted
 	// admission. The receipt is consumed before the run is published so a
 	// crash cannot let a second operation reuse the same consent. The operation
@@ -257,4 +269,18 @@ func (s *Server) admitApply(ctx context.Context, request applydomain.StartReques
 		return applydomain.Plan{}, applyReviewRecord{}, nil, fmt.Errorf("persist apply admission: %w", err)
 	}
 	return plan, review, &run, nil
+}
+
+func profileConsequenceDigest(ctx context.Context, target, actorSource, actorSubject string) (string, error) {
+	profile, err := operatorStateService().ProfileSession(ctx)
+	if err != nil {
+		return "", err
+	}
+	if profile == nil {
+		return "", nil
+	}
+	if profile.Target != strings.TrimSpace(target) || profile.Actor != strings.TrimSpace(actorSource)+":"+strings.TrimSpace(actorSubject) {
+		return "", nil
+	}
+	return profile.ConsequenceDigest, nil
 }

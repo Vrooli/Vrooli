@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-onboarding/v1/profiles/profiles.proto.
  */
 export const file_vrooli_onboarding_v1_profiles_profiles: GenFile = /*@__PURE__*/
-  fileDesc("Cix2cm9vbGktb25ib2FyZGluZy92MS9wcm9maWxlcy9wcm9maWxlcy5wcm90bxIkdnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzIiUKE0xpc3RQcm9maWxlc1JlcXVlc3QSDgoGdGFyZ2V0GAEgASgJIrYDChZFdmFsdWF0ZVByb2ZpbGVSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCRISCgpwcm9maWxlX2lkGAIgASgJEloKB2Fuc3dlcnMYAyADKAsySS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdC5BbnN3ZXJzRW50cnkSLwoOdGFyZ2V0X2NvbnRleHQYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EmsKEG1hbnVhbF9kZWNpc2lvbnMYBSADKAsyUS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdC5NYW51YWxEZWNpc2lvbnNFbnRyeRpGCgxBbnN3ZXJzRW50cnkSCwoDa2V5GAEgASgJEiUKBXZhbHVlGAIgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlOgI4ARo2ChRNYW51YWxEZWNpc2lvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAg6AjgBIi4KDVByb2ZpbGVPcHRpb24SCgoCaWQYASABKAkSEQoJbGFiZWxfa2V5GAIgASgJIocCCg9Qcm9maWxlUXVlc3Rpb24SCgoCaWQYASABKAkSDAoEdHlwZRgCIAEoCRISCgpwcm9tcHRfa2V5GAMgASgJEhAKCHJlcXVpcmVkGAQgASgIEkQKB29wdGlvbnMYBSADKAsyMy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZU9wdGlvbhIWCg5taW5fc2VsZWN0aW9ucxgGIAEoBRIWCg5tYXhfc2VsZWN0aW9ucxgHIAEoBRIPCgd2aXNpYmxlGAggASgIEi0KDWRlZmF1bHRfdmFsdWUYCSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUinAEKFVByb2ZpbGVSZWNvbW1lbmRhdGlvbhIWCg5jYXBhYmlsaXR5X3JlZhgBIAEoCRIVCg1zY2VuYXJpb19yZWZzGAIgAygJEhIKCnJlYXNvbl9rZXkYAyABKAkSDwoHcnVsZV9pZBgEIAEoCRILCgNrZXkYBSABKAkSEAoIc2VsZWN0ZWQYBiABKAgSEAoIcmVxdWlyZWQYByABKAgiegoSUHJvZmlsZUV4cGxhbmF0aW9uEg8KB3J1bGVfaWQYASABKAkSFgoOY2FwYWJpbGl0eV9yZWYYAiABKAkSFQoNc2NlbmFyaW9fcmVmcxgDIAMoCRISCgpyZWFzb25fa2V5GAQgASgJEhAKCHNlbGVjdGVkGAUgASgIIkYKFlByb2ZpbGVWYWxpZGF0aW9uSXNzdWUSDQoFZmllbGQYASABKAkSDAoEY29kZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIogCCgdQcm9maWxlEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEQoJdGl0bGVfa2V5GAMgASgJEhcKD2Rlc2NyaXB0aW9uX2tleRgEIAEoCRINCgVvd25lchgFIAEoCRIZChFwcm92ZW5hbmNlX3NvdXJjZRgGIAEoCRIbChNwcm92ZW5hbmNlX3JldmlzaW9uGAcgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAggASgJEiAKGGNvbXBhdGlibGVfY2F0YWxvZ19tYWpvchgJIAEoBRIPCgdkZWZhdWx0GAogASgIEiIKGm1hbnVhbF9zZWxlY3Rpb25fYXZhaWxhYmxlGAsgASgIIlcKFExpc3RQcm9maWxlc1Jlc3BvbnNlEj8KCHByb2ZpbGVzGAEgAygLMi0udnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLlByb2ZpbGUi3AMKF0V2YWx1YXRlUHJvZmlsZVJlc3BvbnNlEj4KB3Byb2ZpbGUYASABKAsyLS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZRJICglxdWVzdGlvbnMYAiADKAsyNS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZVF1ZXN0aW9uElQKD3JlY29tbWVuZGF0aW9ucxgDIAMoCzI7LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlUmVjb21tZW5kYXRpb24SEQoJc2NlbmFyaW9zGAQgAygJEhEKCXJlc291cmNlcxgFIAMoCRJMCgZpc3N1ZXMYBiADKAsyPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZVZhbGlkYXRpb25Jc3N1ZRINCgV2YWxpZBgHIAEoCBJOCgxleHBsYW5hdGlvbnMYCCADKAsyOC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZUV4cGxhbmF0aW9uEg4KBmRpZ2VzdBgJIAEoCTKpAgoOUHJvZmlsZVNlcnZpY2UShQEKDExpc3RQcm9maWxlcxI5LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5MaXN0UHJvZmlsZXNSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLkxpc3RQcm9maWxlc1Jlc3BvbnNlEo4BCg9FdmFsdWF0ZVByb2ZpbGUSPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdBo9LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5FdmFsdWF0ZVByb2ZpbGVSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1vbmJvYXJkaW5nL3YxL3Byb2ZpbGVzO3Byb2ZpbGVzdjFiBnByb3RvMw", [file_google_protobuf_struct]);
+  fileDesc("Cix2cm9vbGktb25ib2FyZGluZy92MS9wcm9maWxlcy9wcm9maWxlcy5wcm90bxIkdnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzIiUKE0xpc3RQcm9maWxlc1JlcXVlc3QSDgoGdGFyZ2V0GAEgASgJIpAEChZFdmFsdWF0ZVByb2ZpbGVSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCRISCgpwcm9maWxlX2lkGAIgASgJEloKB2Fuc3dlcnMYAyADKAsySS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdC5BbnN3ZXJzRW50cnkSLwoOdGFyZ2V0X2NvbnRleHQYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EmsKEG1hbnVhbF9kZWNpc2lvbnMYBSADKAsyUS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdC5NYW51YWxEZWNpc2lvbnNFbnRyeRJDCgZwcmVzZXQYBiABKAsyMy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZVByZXNldBITCgtwcm9maWxlX2lkcxgHIAMoCRpGCgxBbnN3ZXJzRW50cnkSCwoDa2V5GAEgASgJEiUKBXZhbHVlGAIgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlOgI4ARo2ChRNYW51YWxEZWNpc2lvbnNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAg6AjgBItcBCg1Qcm9maWxlUHJlc2V0EgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSDgoGc291cmNlGAMgASgJElEKB2Fuc3dlcnMYBCADKAsyQC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZVByZXNldC5BbnN3ZXJzRW50cnkaRgoMQW5zd2Vyc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZToCOAEiLgoNUHJvZmlsZU9wdGlvbhIKCgJpZBgBIAEoCRIRCglsYWJlbF9rZXkYAiABKAkihwIKD1Byb2ZpbGVRdWVzdGlvbhIKCgJpZBgBIAEoCRIMCgR0eXBlGAIgASgJEhIKCnByb21wdF9rZXkYAyABKAkSEAoIcmVxdWlyZWQYBCABKAgSRAoHb3B0aW9ucxgFIAMoCzIzLnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlT3B0aW9uEhYKDm1pbl9zZWxlY3Rpb25zGAYgASgFEhYKDm1heF9zZWxlY3Rpb25zGAcgASgFEg8KB3Zpc2libGUYCCABKAgSLQoNZGVmYXVsdF92YWx1ZRgJIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZSKcAQoVUHJvZmlsZVJlY29tbWVuZGF0aW9uEhYKDmNhcGFiaWxpdHlfcmVmGAEgASgJEhUKDXNjZW5hcmlvX3JlZnMYAiADKAkSEgoKcmVhc29uX2tleRgDIAEoCRIPCgdydWxlX2lkGAQgASgJEgsKA2tleRgFIAEoCRIQCghzZWxlY3RlZBgGIAEoCBIQCghyZXF1aXJlZBgHIAEoCCJ6ChJQcm9maWxlRXhwbGFuYXRpb24SDwoHcnVsZV9pZBgBIAEoCRIWCg5jYXBhYmlsaXR5X3JlZhgCIAEoCRIVCg1zY2VuYXJpb19yZWZzGAMgAygJEhIKCnJlYXNvbl9rZXkYBCABKAkSEAoIc2VsZWN0ZWQYBSABKAgiRgoWUHJvZmlsZVZhbGlkYXRpb25Jc3N1ZRINCgVmaWVsZBgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkiZQoPUHJvZmlsZUNvbmZsaWN0EgwKBGNvZGUYASABKAkSFgoOY2FwYWJpbGl0eV9yZWYYAiABKAkSGwoTcmVjb21tZW5kYXRpb25fa2V5cxgDIAMoCRIPCgdtZXNzYWdlGAQgASgJIloKElByb2ZpbGVPdXRzdGFuZGluZxINCgVmaWVsZBgBIAEoCRIMCgRjb2RlGAIgASgJEhYKDmNhcGFiaWxpdHlfcmVmGAMgASgJEg8KB21lc3NhZ2UYBCABKAkiiAIKB1Byb2ZpbGUSCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoCRIRCgl0aXRsZV9rZXkYAyABKAkSFwoPZGVzY3JpcHRpb25fa2V5GAQgASgJEg0KBW93bmVyGAUgASgJEhkKEXByb3ZlbmFuY2Vfc291cmNlGAYgASgJEhsKE3Byb3ZlbmFuY2VfcmV2aXNpb24YByABKAkSFgoOc2NoZW1hX3ZlcnNpb24YCCABKAkSIAoYY29tcGF0aWJsZV9jYXRhbG9nX21ham9yGAkgASgFEg8KB2RlZmF1bHQYCiABKAgSIgoabWFudWFsX3NlbGVjdGlvbl9hdmFpbGFibGUYCyABKAgiVwoUTGlzdFByb2ZpbGVzUmVzcG9uc2USPwoIcHJvZmlsZXMYASADKAsyLS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZSKVBgoXRXZhbHVhdGVQcm9maWxlUmVzcG9uc2USPgoHcHJvZmlsZRgBIAEoCzItLnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlEkgKCXF1ZXN0aW9ucxgCIAMoCzI1LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlUXVlc3Rpb24SVAoPcmVjb21tZW5kYXRpb25zGAMgAygLMjsudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLlByb2ZpbGVSZWNvbW1lbmRhdGlvbhIRCglzY2VuYXJpb3MYBCADKAkSEQoJcmVzb3VyY2VzGAUgAygJEkwKBmlzc3VlcxgGIAMoCzI8LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlVmFsaWRhdGlvbklzc3VlEg0KBXZhbGlkGAcgASgIEk4KDGV4cGxhbmF0aW9ucxgIIAMoCzI4LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlRXhwbGFuYXRpb24SDgoGZGlnZXN0GAkgASgJEhgKEGNhdGFsb2dfcmV2aXNpb24YCiABKAkSSAoJY29uZmxpY3RzGAsgAygLMjUudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLlByb2ZpbGVDb25mbGljdBJNCgtvdXRzdGFuZGluZxgMIAMoCzI4LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5Qcm9maWxlT3V0c3RhbmRpbmcSQwoGcHJlc2V0GA0gASgLMjMudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLlByb2ZpbGVQcmVzZXQSPwoIcHJvZmlsZXMYDiADKAsyLS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuUHJvZmlsZTKpAgoOUHJvZmlsZVNlcnZpY2UShQEKDExpc3RQcm9maWxlcxI5LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5MaXN0UHJvZmlsZXNSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLnByb2ZpbGVzLkxpc3RQcm9maWxlc1Jlc3BvbnNlEo4BCg9FdmFsdWF0ZVByb2ZpbGUSPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEucHJvZmlsZXMuRXZhbHVhdGVQcm9maWxlUmVxdWVzdBo9LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5wcm9maWxlcy5FdmFsdWF0ZVByb2ZpbGVSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1vbmJvYXJkaW5nL3YxL3Byb2ZpbGVzO3Byb2ZpbGVzdjFiBnByb3RvMw", [file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ListProfilesRequest
@@ -59,6 +59,20 @@ export type EvaluateProfileRequest = Message<"vrooli.vrooli_onboarding.v1.profil
    * @generated from field: map<string, bool> manual_decisions = 5;
    */
   manualDecisions: { [key: string]: boolean };
+
+  /**
+   * @generated from field: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset preset = 6;
+   */
+  preset?: ProfilePreset | undefined;
+
+  /**
+   * profile_id remains the backwards-compatible single-profile form. When
+   * profile_ids is present, the evaluator composes those profiles into one
+   * deterministic selection and preserves each source in the response.
+   *
+   * @generated from field: repeated string profile_ids = 7;
+   */
+  profileIds: string[];
 };
 
 /**
@@ -67,6 +81,38 @@ export type EvaluateProfileRequest = Message<"vrooli.vrooli_onboarding.v1.profil
  */
 export const EvaluateProfileRequestSchema: GenMessage<EvaluateProfileRequest> = /*@__PURE__*/
   messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 1);
+
+/**
+ * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfilePreset
+ */
+export type ProfilePreset = Message<"vrooli.vrooli_onboarding.v1.profiles.ProfilePreset"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * @generated from field: map<string, google.protobuf.Value> answers = 4;
+   */
+  answers: { [key: string]: Value };
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.profiles.ProfilePreset.
+ * Use `create(ProfilePresetSchema)` to create a new message.
+ */
+export const ProfilePresetSchema: GenMessage<ProfilePreset> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 2);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileOption
@@ -88,7 +134,7 @@ export type ProfileOption = Message<"vrooli.vrooli_onboarding.v1.profiles.Profil
  * Use `create(ProfileOptionSchema)` to create a new message.
  */
 export const ProfileOptionSchema: GenMessage<ProfileOption> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 2);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 3);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileQuestion
@@ -145,7 +191,7 @@ export type ProfileQuestion = Message<"vrooli.vrooli_onboarding.v1.profiles.Prof
  * Use `create(ProfileQuestionSchema)` to create a new message.
  */
 export const ProfileQuestionSchema: GenMessage<ProfileQuestion> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 3);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 4);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileRecommendation
@@ -192,7 +238,7 @@ export type ProfileRecommendation = Message<"vrooli.vrooli_onboarding.v1.profile
  * Use `create(ProfileRecommendationSchema)` to create a new message.
  */
 export const ProfileRecommendationSchema: GenMessage<ProfileRecommendation> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 4);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 5);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileExplanation
@@ -229,7 +275,7 @@ export type ProfileExplanation = Message<"vrooli.vrooli_onboarding.v1.profiles.P
  * Use `create(ProfileExplanationSchema)` to create a new message.
  */
 export const ProfileExplanationSchema: GenMessage<ProfileExplanation> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 5);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 6);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileValidationIssue
@@ -256,7 +302,71 @@ export type ProfileValidationIssue = Message<"vrooli.vrooli_onboarding.v1.profil
  * Use `create(ProfileValidationIssueSchema)` to create a new message.
  */
 export const ProfileValidationIssueSchema: GenMessage<ProfileValidationIssue> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 6);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 7);
+
+/**
+ * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileConflict
+ */
+export type ProfileConflict = Message<"vrooli.vrooli_onboarding.v1.profiles.ProfileConflict"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string capability_ref = 2;
+   */
+  capabilityRef: string;
+
+  /**
+   * @generated from field: repeated string recommendation_keys = 3;
+   */
+  recommendationKeys: string[];
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.profiles.ProfileConflict.
+ * Use `create(ProfileConflictSchema)` to create a new message.
+ */
+export const ProfileConflictSchema: GenMessage<ProfileConflict> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 8);
+
+/**
+ * @generated from message vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding
+ */
+export type ProfileOutstanding = Message<"vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding"> & {
+  /**
+   * @generated from field: string field = 1;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string capability_ref = 3;
+   */
+  capabilityRef: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding.
+ * Use `create(ProfileOutstandingSchema)` to create a new message.
+ */
+export const ProfileOutstandingSchema: GenMessage<ProfileOutstanding> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 9);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.Profile
@@ -323,7 +433,7 @@ export type Profile = Message<"vrooli.vrooli_onboarding.v1.profiles.Profile"> & 
  * Use `create(ProfileSchema)` to create a new message.
  */
 export const ProfileSchema: GenMessage<Profile> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 7);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 10);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.ListProfilesResponse
@@ -340,7 +450,7 @@ export type ListProfilesResponse = Message<"vrooli.vrooli_onboarding.v1.profiles
  * Use `create(ListProfilesResponseSchema)` to create a new message.
  */
 export const ListProfilesResponseSchema: GenMessage<ListProfilesResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 8);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 11);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.profiles.EvaluateProfileResponse
@@ -390,6 +500,31 @@ export type EvaluateProfileResponse = Message<"vrooli.vrooli_onboarding.v1.profi
    * @generated from field: string digest = 9;
    */
   digest: string;
+
+  /**
+   * @generated from field: string catalog_revision = 10;
+   */
+  catalogRevision: string;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_onboarding.v1.profiles.ProfileConflict conflicts = 11;
+   */
+  conflicts: ProfileConflict[];
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_onboarding.v1.profiles.ProfileOutstanding outstanding = 12;
+   */
+  outstanding: ProfileOutstanding[];
+
+  /**
+   * @generated from field: vrooli.vrooli_onboarding.v1.profiles.ProfilePreset preset = 13;
+   */
+  preset?: ProfilePreset | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_onboarding.v1.profiles.Profile profiles = 14;
+   */
+  profiles: Profile[];
 };
 
 /**
@@ -397,7 +532,7 @@ export type EvaluateProfileResponse = Message<"vrooli.vrooli_onboarding.v1.profi
  * Use `create(EvaluateProfileResponseSchema)` to create a new message.
  */
 export const EvaluateProfileResponseSchema: GenMessage<EvaluateProfileResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 9);
+  messageDesc(file_vrooli_onboarding_v1_profiles_profiles, 12);
 
 /**
  * @generated from service vrooli.vrooli_onboarding.v1.profiles.ProfileService

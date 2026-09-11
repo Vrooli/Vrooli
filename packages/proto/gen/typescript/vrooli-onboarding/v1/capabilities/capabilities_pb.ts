@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-onboarding/v1/capabilities/capabilities.proto.
  */
 export const file_vrooli_onboarding_v1_capabilities_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("CjR2cm9vbGktb25ib2FyZGluZy92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEih2cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzIikKF0xpc3RDYXBhYmlsaXRpZXNSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCSIsChpHZXRDYXBhYmlsaXR5U3RhdHVzUmVxdWVzdBIOCgZ0YXJnZXQYASABKAkicwoYUHJldmlld0NhcGFiaWxpdHlSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCRJHCgZhY3Rpb24YAiABKAsyNy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkFjdGlvblJlcXVlc3QicQoWQXBwbHlDYXBhYmlsaXR5UmVxdWVzdBIOCgZ0YXJnZXQYASABKAkSRwoGYWN0aW9uGAIgASgLMjcudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5BY3Rpb25SZXF1ZXN0InkKDUFjdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYAiABKAkSDwoHY29uZmlybRgDIAEoCBInCgZpbnB1dHMYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IvYCChNDYXBhYmlsaXR5Q2FuZGlkYXRlEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDQoFbGFiZWwYAyABKAkSEAoIbG9jYXRpb24YBCABKAkSFwoPc3RhYmxlX2lkZW50aXR5GAUgASgJEhcKD2RldmljZV9pZGVudGl0eRgGIAEoCRIQCgh3cml0YWJsZRgHIAEoCBIdChVwaHlzaWNhbF9pbmRlcGVuZGVuY2UYCCABKAkSDgoGc3RhdHVzGAkgASgJEgwKBHJpc2sYCiABKAkSEwoLcmVtZWRpYXRpb24YCyABKAkSXQoIbWV0YWRhdGEYDCADKAsySy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlDYW5kaWRhdGUuTWV0YWRhdGFFbnRyeRovCg1NZXRhZGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi9gQKGUNhcGFiaWxpdHlJbnB1dERlc2NyaXB0b3ISCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVsYWJlbBgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghyZXF1aXJlZBgFIAEoCBIPCgdvcHRpb25zGAYgAygJEhUKDWRlZmF1bHRfdmFsdWUYByABKAkSUQoKY2FuZGlkYXRlcxgIIAMoCzI9LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eUNhbmRpZGF0ZRISCgp2YWxpZGF0aW9uGAkgASgJEhIKCmRlY2xpbmFibGUYCiABKAgSWQoLY29uc3RyYWludHMYCyABKAsyRC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlJbnB1dENvbnN0cmFpbnRzEh0KFWNyZWRlbnRpYWxfbG9naWNhbF9pZBgMIAEoCRIYChBjcmVkZW50aWFsX2ZpZWxkGA0gASgJEhAKCHByb3ZpZGVyGA4gASgJEhkKEXJlcXVpcmVtZW50X2dyb3VwGA8gASgJEhUKDWNvbnN1bWVyX3JlZnMYECADKAkSGgoSY29tcGFuaW9uX3NldHRpbmdzGBEgAygJEhcKD2FjcXVpc2l0aW9uX3JlZhgSIAEoCRIYChB2ZXJpZmljYXRpb25fcmVmGBMgASgJEhQKDHJlY292ZXJ5X3JlZhgUIAEoCRIQCghoZWxwX3JlZhgVIAEoCRIXCg9ldmlkZW5jZV9wb2xpY3kYFiABKAkicAoaQ2FwYWJpbGl0eUlucHV0Q29uc3RyYWludHMSEgoKbWluX2xlbmd0aBgBIAEoBRISCgptYXhfbGVuZ3RoGAIgASgFEhQKDG1pbl9kdXJhdGlvbhgDIAEoCRIUCgxtYXhfZHVyYXRpb24YBCABKAkihgEKEENhcGFiaWxpdHlQb2xpY3kSHQoVcmVxdWlyZXNfY29uZmlybWF0aW9uGAEgASgIEhIKCmlkZW1wb3RlbnQYAiABKAgSEQoJcmV0cnlhYmxlGAMgASgIEhcKD3Byb3RlY3RlZF9yb290cxgEIAMoCRITCgtyZW1lZGlhdGlvbhgFIAEoCSJsChpDYXBhYmlsaXR5RXZpZGVuY2VDb250cmFjdBINCgVraW5kcxgBIAMoCRIXCg9yZXF1aXJlZF9maWVsZHMYAiADKAkSEwoLc2VjcmV0X2ZyZWUYAyABKAgSEQoJZnJlc2huZXNzGAQgASgJIqAGChRDYXBhYmlsaXR5RGVzY3JpcHRvchIPCgd2ZXJzaW9uGAEgASgJEgoKAmlkGAIgASgJEg0KBW93bmVyGAMgASgJEg0KBXRpdGxlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEgwKBHJpc2sYBiABKAkSUwoGaW5wdXRzGAcgAygLMkMudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5SW5wdXREZXNjcmlwdG9yEhUKDXByZXJlcXVpc2l0ZXMYCCADKAkSSgoGcG9saWN5GAkgASgLMjoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5UG9saWN5ElYKCGV2aWRlbmNlGAogASgLMkQudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5RXZpZGVuY2VDb250cmFjdBITCgtyZW1lZGlhdGlvbhgLIAEoCRINCgVzY29wZRgMIAEoCRIPCgdwdXJwb3NlGA0gASgJEhMKC3NlbnNpdGl2aXR5GA4gASgJElgKDWFwcGxpY2FiaWxpdHkYDyABKAsyQS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlBcHBsaWNhYmlsaXR5EhMKC2Rpc3Bvc2l0aW9uGBAgASgJEhoKEmRpc3Bvc2l0aW9uX3JlYXNvbhgRIAEoCRJcCgpwcm92ZW5hbmNlGBIgASgLMkgudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5UGVybWlzc2lvblByb3ZlbmFuY2USUAoJbGlmZWN5Y2xlGBMgASgLMj0udnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5TGlmZWN5Y2xlEhUKDXJlZmVyZW5jZV91cmwYFCABKAkiUwoXQ2FwYWJpbGl0eUFwcGxpY2FiaWxpdHkSEQoJcGxhdGZvcm1zGAEgAygJEhQKDGVudmlyb25tZW50cxgCIAMoCRIPCgd0YXJnZXRzGAMgAygJInIKHkNhcGFiaWxpdHlQZXJtaXNzaW9uUHJvdmVuYW5jZRIRCglyZXF1ZXN0ZXIYASABKAkSDQoFc2NvcGUYAiABKAkSFAoMZ3JhbnRfc291cmNlGAMgASgJEhgKEHJldm9jYXRpb25fbGltaXQYBCABKAkieAoTQ2FwYWJpbGl0eUxpZmVjeWNsZRIPCgdwcmV2aWV3GAEgASgIEg0KBWFwcGx5GAIgASgIEg4KBnZlcmlmeRgDIAEoCBIOCgZyZXZva2UYBCABKAgSDwoHcmVjb3ZlchgFIAEoCBIQCghyZWNvdmVyeRgGIAEoCSL5BAoSQ2FwYWJpbGl0eUV2aWRlbmNlEgwKBGtpbmQYASABKAkSGQoRYXJ0aWZhY3RfaWRlbnRpdHkYAiABKAkSGQoRc291cmNlX2dlbmVyYXRpb24YAyABKAkSEAoIY2hlY2tzdW0YBCABKAkSEAoIY292ZXJhZ2UYBSADKAkSLwoLb2JzZXJ2ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHZlcmlmaWVkGAcgASgIEhMKC3JlbWVkaWF0aW9uGAggASgJEhYKDnNjaGVtYV92ZXJzaW9uGAkgASgJEhUKDWNhcGFiaWxpdHlfaWQYCiABKAkSVwoOY3JlZGVudGlhbF9yZWYYCyABKAsyPy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNyZWRlbnRpYWxFdmlkZW5jZVJlZhIRCgl0YXJnZXRfaWQYDCABKAkSEwoLZW52aXJvbm1lbnQYDSABKAkSGAoQYWNjb3VudF9pZGVudGl0eRgOIAEoCRIRCglvcGVyYXRpb24YDyABKAkSDgoGc3RhdHVzGBAgASgJEi4KCmV4cGlyZXNfYXQYESABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWFydGlmYWN0X3JlZnMYEiADKAkSEwoLbGltaXRhdGlvbnMYEyADKAkSEwoLbmV4dF9hY3Rpb24YFCABKAkSFAoMZWZmZWN0X2NsYXNzGBUgASgJEhQKDGVmZmVjdHNfdXNlZBgWIAEoBRIZChFjbGVhbnVwX2NvbXBsZXRlZBgXIAEoCCJLChVDcmVkZW50aWFsRXZpZGVuY2VSZWYSEgoKbG9naWNhbF9pZBgBIAEoCRINCgVmaWVsZBgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJIrADChBDYXBhYmlsaXR5U3RhdHVzElIKCmRlc2NyaXB0b3IYASABKAsyPi52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlEZXNjcmlwdG9yEkgKBXN0YXRlGAIgASgOMjkudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSUQoKY2FuZGlkYXRlcxgDIAMoCzI9LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eUNhbmRpZGF0ZRIWCg5taXNzaW5nX2lucHV0cxgEIAMoCRJOCghldmlkZW5jZRgFIAMoCzI8LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eUV2aWRlbmNlEhMKC3JlbWVkaWF0aW9uGAYgASgJEi4KCnVwZGF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInsKGExpc3RDYXBhYmlsaXRpZXNSZXNwb25zZRJQCgxjYXBhYmlsaXRpZXMYASADKAsyOi52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0dXMSDQoFY291bnQYAiABKAUiegobR2V0Q2FwYWJpbGl0eVN0YXR1c1Jlc3BvbnNlEkwKCHN0YXR1c2VzGAEgAygLMjoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdHVzEg0KBWNvdW50GAIgASgFIkUKEkNhcGFiaWxpdHlNdXRhdGlvbhIKCgJpZBgBIAEoCRIPCgdzdW1tYXJ5GAIgASgJEhIKCnJldmVyc2libGUYAyABKAgi9gIKGVByZXZpZXdDYXBhYmlsaXR5UmVzcG9uc2USFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEkgKBXN0YXRlGAMgASgOMjkudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSTwoJbXV0YXRpb25zGAQgAygLMjwudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5TXV0YXRpb24SUQoKY2FuZGlkYXRlcxgFIAMoCzI9LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eUNhbmRpZGF0ZRITCgtyZW1lZGlhdGlvbhgGIAEoCRIuCgpleHBpcmVzX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKaAwoXQXBwbHlDYXBhYmlsaXR5UmVzcG9uc2USFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRJICgVzdGF0ZRgCIAEoDjI5LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlEg8KB291dGNvbWUYAyABKAkSEQoJcmV0cnlhYmxlGAQgASgIEhIKCmVycm9yX2NvZGUYBSABKAkSEwoLcmVtZWRpYXRpb24YBiABKAkSTgoIZXZpZGVuY2UYByADKAsyPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlFdmlkZW5jZRJPCgltdXRhdGlvbnMYCCADKAsyPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlNdXRhdGlvbhIwCgxjb21wbGV0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKuoCCg9DYXBhYmlsaXR5U3RhdGUSIAocQ0FQQUJJTElUWV9TVEFURV9VTlNQRUNJRklFRBAAEh8KG0NBUEFCSUxJVFlfU1RBVEVfRElTQ09WRVJFRBABEikKJUNBUEFCSUxJVFlfU1RBVEVfTkVFRFNfT1BFUkFUT1JfSU5QVVQQAhIlCiFDQVBBQklMSVRZX1NUQVRFX1JFQURZX1RPX1BSRVZJRVcQAxIdChlDQVBBQklMSVRZX1NUQVRFX0FQUExZSU5HEAQSHgoaQ0FQQUJJTElUWV9TVEFURV9WRVJJRllJTkcQBRIaChZDQVBBQklMSVRZX1NUQVRFX1JFQURZEAYSJgoiQ0FQQUJJTElUWV9TVEFURV9SRVRSWUFCTEVfRkFJTFVSRRAHEh0KGUNBUEFCSUxJVFlfU1RBVEVfREVHUkFERUQQCBIgChxDQVBBQklMSVRZX1NUQVRFX1VOU1VQUE9SVEVEEAkyjgUKE0NhcGFiaWxpdGllc1NlcnZpY2USmQEKEExpc3RDYXBhYmlsaXRpZXMSQS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkxpc3RDYXBhYmlsaXRpZXNSZXF1ZXN0GkIudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5MaXN0Q2FwYWJpbGl0aWVzUmVzcG9uc2USogEKE0dldENhcGFiaWxpdHlTdGF0dXMSRC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkdldENhcGFiaWxpdHlTdGF0dXNSZXF1ZXN0GkUudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5HZXRDYXBhYmlsaXR5U3RhdHVzUmVzcG9uc2USnAEKEVByZXZpZXdDYXBhYmlsaXR5EkIudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5QcmV2aWV3Q2FwYWJpbGl0eVJlcXVlc3QaQy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLlByZXZpZXdDYXBhYmlsaXR5UmVzcG9uc2USlgEKD0FwcGx5Q2FwYWJpbGl0eRJALnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQXBwbHlDYXBhYmlsaXR5UmVxdWVzdBpBLnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQXBwbHlDYXBhYmlsaXR5UmVzcG9uc2VCYVpfZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktb25ib2FyZGluZy92MS9jYXBhYmlsaXRpZXM7Y2FwYWJpbGl0aWVzdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CjR2cm9vbGktb25ib2FyZGluZy92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEih2cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzIikKF0xpc3RDYXBhYmlsaXRpZXNSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCSIsChpHZXRDYXBhYmlsaXR5U3RhdHVzUmVxdWVzdBIOCgZ0YXJnZXQYASABKAkicwoYUHJldmlld0NhcGFiaWxpdHlSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCRJHCgZhY3Rpb24YAiABKAsyNy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkFjdGlvblJlcXVlc3QicQoWQXBwbHlDYXBhYmlsaXR5UmVxdWVzdBIOCgZ0YXJnZXQYASABKAkSRwoGYWN0aW9uGAIgASgLMjcudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5BY3Rpb25SZXF1ZXN0In4KF1ZlcmlmeUNhcGFiaWxpdHlSZXF1ZXN0Eg4KBnRhcmdldBgBIAEoCRJTCgx2ZXJpZmljYXRpb24YAiABKAsyPS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLlZlcmlmaWNhdGlvblJlcXVlc3QiugQKE1ZlcmlmaWNhdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRJXCg5jcmVkZW50aWFsX3JlZhgCIAEoCzI/LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ3JlZGVudGlhbEV2aWRlbmNlUmVmEhEKCXRhcmdldF9pZBgDIAEoCRITCgtlbnZpcm9ubWVudBgEIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAUgASgJEhEKCW9wZXJhdGlvbhgGIAEoCRJbCgdjb250ZXh0GAcgAygLMkoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5WZXJpZmljYXRpb25SZXF1ZXN0LkNvbnRleHRFbnRyeRIUCgxlZmZlY3RfY2xhc3MYCCABKAkSFgoObWF4X29wZXJhdGlvbnMYCSABKAUSFgoOY2xlYW51cF9wb2xpY3kYCiABKAkSFwoPdGltZW91dF9zZWNvbmRzGAsgASgDEhYKDmNvbnRleHRfZGlnZXN0GAwgASgJEhgKEGNhdGFsb2dfcmV2aXNpb24YDSABKAkSHgoWY29uZmlndXJhdGlvbl9yZXZpc2lvbhgOIAEoCRIgChhwcm92aWRlcl9hZGFwdGVyX3ZlcnNpb24YDyABKAkaLgoMQ29udGV4dEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEijAEKDUFjdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYAiABKAkSDwoHY29uZmlybRgDIAEoCBInCgZpbnB1dHMYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhEKCXRhcmdldF9pZBgFIAEoCSL2AgoTQ2FwYWJpbGl0eUNhbmRpZGF0ZRIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEg0KBWxhYmVsGAMgASgJEhAKCGxvY2F0aW9uGAQgASgJEhcKD3N0YWJsZV9pZGVudGl0eRgFIAEoCRIXCg9kZXZpY2VfaWRlbnRpdHkYBiABKAkSEAoId3JpdGFibGUYByABKAgSHQoVcGh5c2ljYWxfaW5kZXBlbmRlbmNlGAggASgJEg4KBnN0YXR1cxgJIAEoCRIMCgRyaXNrGAogASgJEhMKC3JlbWVkaWF0aW9uGAsgASgJEl0KCG1ldGFkYXRhGAwgAygLMksudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5Q2FuZGlkYXRlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIpUFChlDYXBhYmlsaXR5SW5wdXREZXNjcmlwdG9yEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDQoFbGFiZWwYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEAoIcmVxdWlyZWQYBSABKAgSDwoHb3B0aW9ucxgGIAMoCRIVCg1kZWZhdWx0X3ZhbHVlGAcgASgJElEKCmNhbmRpZGF0ZXMYCCADKAsyPS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlDYW5kaWRhdGUSEgoKdmFsaWRhdGlvbhgJIAEoCRISCgpkZWNsaW5hYmxlGAogASgIElkKC2NvbnN0cmFpbnRzGAsgASgLMkQudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5SW5wdXRDb25zdHJhaW50cxIdChVjcmVkZW50aWFsX2xvZ2ljYWxfaWQYDCABKAkSGAoQY3JlZGVudGlhbF9maWVsZBgNIAEoCRIQCghwcm92aWRlchgOIAEoCRIZChFyZXF1aXJlbWVudF9ncm91cBgPIAEoCRIVCg1jb25zdW1lcl9yZWZzGBAgAygJEhoKEmNvbXBhbmlvbl9zZXR0aW5ncxgRIAMoCRIXCg9hY3F1aXNpdGlvbl9yZWYYEiABKAkSGAoQdmVyaWZpY2F0aW9uX3JlZhgTIAEoCRIUCgxyZWNvdmVyeV9yZWYYFCABKAkSEAoIaGVscF9yZWYYFSABKAkSFwoPZXZpZGVuY2VfcG9saWN5GBYgASgJEh0KFWNvbXBhbmlvbl9jcmVkZW50aWFscxgXIAMoCSJwChpDYXBhYmlsaXR5SW5wdXRDb25zdHJhaW50cxISCgptaW5fbGVuZ3RoGAEgASgFEhIKCm1heF9sZW5ndGgYAiABKAUSFAoMbWluX2R1cmF0aW9uGAMgASgJEhQKDG1heF9kdXJhdGlvbhgEIAEoCSKGAQoQQ2FwYWJpbGl0eVBvbGljeRIdChVyZXF1aXJlc19jb25maXJtYXRpb24YASABKAgSEgoKaWRlbXBvdGVudBgCIAEoCBIRCglyZXRyeWFibGUYAyABKAgSFwoPcHJvdGVjdGVkX3Jvb3RzGAQgAygJEhMKC3JlbWVkaWF0aW9uGAUgASgJInwKGkNhcGFiaWxpdHlFdmlkZW5jZUNvbnRyYWN0Eg0KBWtpbmRzGAEgAygJEhcKD3JlcXVpcmVkX2ZpZWxkcxgCIAMoCRITCgtzZWNyZXRfZnJlZRgDIAEoCBIRCglmcmVzaG5lc3MYBCABKAkSDgoGc3RhZ2VzGAUgAygJIqAGChRDYXBhYmlsaXR5RGVzY3JpcHRvchIPCgd2ZXJzaW9uGAEgASgJEgoKAmlkGAIgASgJEg0KBW93bmVyGAMgASgJEg0KBXRpdGxlGAQgASgJEhMKC2Rlc2NyaXB0aW9uGAUgASgJEgwKBHJpc2sYBiABKAkSUwoGaW5wdXRzGAcgAygLMkMudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5SW5wdXREZXNjcmlwdG9yEhUKDXByZXJlcXVpc2l0ZXMYCCADKAkSSgoGcG9saWN5GAkgASgLMjoudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5UG9saWN5ElYKCGV2aWRlbmNlGAogASgLMkQudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5RXZpZGVuY2VDb250cmFjdBITCgtyZW1lZGlhdGlvbhgLIAEoCRINCgVzY29wZRgMIAEoCRIPCgdwdXJwb3NlGA0gASgJEhMKC3NlbnNpdGl2aXR5GA4gASgJElgKDWFwcGxpY2FiaWxpdHkYDyABKAsyQS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlBcHBsaWNhYmlsaXR5EhMKC2Rpc3Bvc2l0aW9uGBAgASgJEhoKEmRpc3Bvc2l0aW9uX3JlYXNvbhgRIAEoCRJcCgpwcm92ZW5hbmNlGBIgASgLMkgudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5UGVybWlzc2lvblByb3ZlbmFuY2USUAoJbGlmZWN5Y2xlGBMgASgLMj0udnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5TGlmZWN5Y2xlEhUKDXJlZmVyZW5jZV91cmwYFCABKAkiUwoXQ2FwYWJpbGl0eUFwcGxpY2FiaWxpdHkSEQoJcGxhdGZvcm1zGAEgAygJEhQKDGVudmlyb25tZW50cxgCIAMoCRIPCgd0YXJnZXRzGAMgAygJInIKHkNhcGFiaWxpdHlQZXJtaXNzaW9uUHJvdmVuYW5jZRIRCglyZXF1ZXN0ZXIYASABKAkSDQoFc2NvcGUYAiABKAkSFAoMZ3JhbnRfc291cmNlGAMgASgJEhgKEHJldm9jYXRpb25fbGltaXQYBCABKAkieAoTQ2FwYWJpbGl0eUxpZmVjeWNsZRIPCgdwcmV2aWV3GAEgASgIEg0KBWFwcGx5GAIgASgIEg4KBnZlcmlmeRgDIAEoCBIOCgZyZXZva2UYBCABKAgSDwoHcmVjb3ZlchgFIAEoCBIQCghyZWNvdmVyeRgGIAEoCSKLBgoSQ2FwYWJpbGl0eUV2aWRlbmNlEgwKBGtpbmQYASABKAkSGQoRYXJ0aWZhY3RfaWRlbnRpdHkYAiABKAkSGQoRc291cmNlX2dlbmVyYXRpb24YAyABKAkSEAoIY2hlY2tzdW0YBCABKAkSEAoIY292ZXJhZ2UYBSADKAkSLwoLb2JzZXJ2ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHZlcmlmaWVkGAcgASgIEhMKC3JlbWVkaWF0aW9uGAggASgJEhYKDnNjaGVtYV92ZXJzaW9uGAkgASgJEhUKDWNhcGFiaWxpdHlfaWQYCiABKAkSVwoOY3JlZGVudGlhbF9yZWYYCyABKAsyPy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNyZWRlbnRpYWxFdmlkZW5jZVJlZhIRCgl0YXJnZXRfaWQYDCABKAkSEwoLZW52aXJvbm1lbnQYDSABKAkSGAoQYWNjb3VudF9pZGVudGl0eRgOIAEoCRIRCglvcGVyYXRpb24YDyABKAkSDgoGc3RhdHVzGBAgASgJEi4KCmV4cGlyZXNfYXQYESABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWFydGlmYWN0X3JlZnMYEiADKAkSEwoLbGltaXRhdGlvbnMYEyADKAkSEwoLbmV4dF9hY3Rpb24YFCABKAkSFAoMZWZmZWN0X2NsYXNzGBUgASgJEhQKDGVmZmVjdHNfdXNlZBgWIAEoBRIZChFjbGVhbnVwX2NvbXBsZXRlZBgXIAEoCBINCgVzdGFnZRgYIAEoCRINCgVvd25lchgZIAEoCRIWCg5jb250ZXh0X2RpZ2VzdBgaIAEoCRIYChBjYXRhbG9nX3JldmlzaW9uGBsgASgJEh4KFmNvbmZpZ3VyYXRpb25fcmV2aXNpb24YHCABKAkSIAoYcHJvdmlkZXJfYWRhcHRlcl92ZXJzaW9uGB0gASgJIksKFUNyZWRlbnRpYWxFdmlkZW5jZVJlZhISCgpsb2dpY2FsX2lkGAEgASgJEg0KBWZpZWxkGAIgASgJEg8KB3ZlcnNpb24YAyABKAkisAMKEENhcGFiaWxpdHlTdGF0dXMSUgoKZGVzY3JpcHRvchgBIAEoCzI+LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eURlc2NyaXB0b3ISSAoFc3RhdGUYAiABKA4yOS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRJRCgpjYW5kaWRhdGVzGAMgAygLMj0udnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5Q2FuZGlkYXRlEhYKDm1pc3NpbmdfaW5wdXRzGAQgAygJEk4KCGV2aWRlbmNlGAUgAygLMjwudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5RXZpZGVuY2USEwoLcmVtZWRpYXRpb24YBiABKAkSLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoYTGlzdENhcGFiaWxpdGllc1Jlc3BvbnNlElAKDGNhcGFiaWxpdGllcxgBIAMoCzI6LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXR1cxINCgVjb3VudBgCIAEoBSJ6ChtHZXRDYXBhYmlsaXR5U3RhdHVzUmVzcG9uc2USTAoIc3RhdHVzZXMYASADKAsyOi52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0dXMSDQoFY291bnQYAiABKAUiRQoSQ2FwYWJpbGl0eU11dGF0aW9uEgoKAmlkGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSEgoKcmV2ZXJzaWJsZRgDIAEoCCL2AgoZUHJldmlld0NhcGFiaWxpdHlSZXNwb25zZRIVCg1jYXBhYmlsaXR5X2lkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSSAoFc3RhdGUYAyABKA4yOS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRJPCgltdXRhdGlvbnMYBCADKAsyPC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlNdXRhdGlvbhJRCgpjYW5kaWRhdGVzGAUgAygLMj0udnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5Q2FuZGlkYXRlEhMKC3JlbWVkaWF0aW9uGAYgASgJEi4KCmV4cGlyZXNfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpoDChdBcHBseUNhcGFiaWxpdHlSZXNwb25zZRIVCg1jYXBhYmlsaXR5X2lkGAEgASgJEkgKBXN0YXRlGAIgASgOMjkudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSDwoHb3V0Y29tZRgDIAEoCRIRCglyZXRyeWFibGUYBCABKAgSEgoKZXJyb3JfY29kZRgFIAEoCRITCgtyZW1lZGlhdGlvbhgGIAEoCRJOCghldmlkZW5jZRgHIAMoCzI8LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eUV2aWRlbmNlEk8KCW11dGF0aW9ucxgIIAMoCzI8LnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eU11dGF0aW9uEjAKDGNvbXBsZXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAigAIKGFZlcmlmeUNhcGFiaWxpdHlSZXNwb25zZRIVCg1jYXBhYmlsaXR5X2lkGAEgASgJEk4KCGV2aWRlbmNlGAIgAygLMjwudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5RXZpZGVuY2USEwoLcmVtZWRpYXRpb24YAyABKAkSEgoKZXJyb3JfY29kZRgEIAEoCRIRCglyZXRyeWFibGUYBSABKAgSGwoTcmV0cnlfYWZ0ZXJfc2Vjb25kcxgGIAEoAxITCgtuZXh0X2FjdGlvbhgHIAEoCRIPCgdvdXRjb21lGAggASgJKuoCCg9DYXBhYmlsaXR5U3RhdGUSIAocQ0FQQUJJTElUWV9TVEFURV9VTlNQRUNJRklFRBAAEh8KG0NBUEFCSUxJVFlfU1RBVEVfRElTQ09WRVJFRBABEikKJUNBUEFCSUxJVFlfU1RBVEVfTkVFRFNfT1BFUkFUT1JfSU5QVVQQAhIlCiFDQVBBQklMSVRZX1NUQVRFX1JFQURZX1RPX1BSRVZJRVcQAxIdChlDQVBBQklMSVRZX1NUQVRFX0FQUExZSU5HEAQSHgoaQ0FQQUJJTElUWV9TVEFURV9WRVJJRllJTkcQBRIaChZDQVBBQklMSVRZX1NUQVRFX1JFQURZEAYSJgoiQ0FQQUJJTElUWV9TVEFURV9SRVRSWUFCTEVfRkFJTFVSRRAHEh0KGUNBUEFCSUxJVFlfU1RBVEVfREVHUkFERUQQCBIgChxDQVBBQklMSVRZX1NUQVRFX1VOU1VQUE9SVEVEEAkyqgYKE0NhcGFiaWxpdGllc1NlcnZpY2USmQEKEExpc3RDYXBhYmlsaXRpZXMSQS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkxpc3RDYXBhYmlsaXRpZXNSZXF1ZXN0GkIudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5MaXN0Q2FwYWJpbGl0aWVzUmVzcG9uc2USogEKE0dldENhcGFiaWxpdHlTdGF0dXMSRC52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLkdldENhcGFiaWxpdHlTdGF0dXNSZXF1ZXN0GkUudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5HZXRDYXBhYmlsaXR5U3RhdHVzUmVzcG9uc2USnAEKEVByZXZpZXdDYXBhYmlsaXR5EkIudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5QcmV2aWV3Q2FwYWJpbGl0eVJlcXVlc3QaQy52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLlByZXZpZXdDYXBhYmlsaXR5UmVzcG9uc2USlgEKD0FwcGx5Q2FwYWJpbGl0eRJALnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQXBwbHlDYXBhYmlsaXR5UmVxdWVzdBpBLnZyb29saS52cm9vbGlfb25ib2FyZGluZy52MS5jYXBhYmlsaXRpZXMuQXBwbHlDYXBhYmlsaXR5UmVzcG9uc2USmQEKEFZlcmlmeUNhcGFiaWxpdHkSQS52cm9vbGkudnJvb2xpX29uYm9hcmRpbmcudjEuY2FwYWJpbGl0aWVzLlZlcmlmeUNhcGFiaWxpdHlSZXF1ZXN0GkIudnJvb2xpLnZyb29saV9vbmJvYXJkaW5nLnYxLmNhcGFiaWxpdGllcy5WZXJpZnlDYXBhYmlsaXR5UmVzcG9uc2VCYVpfZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktb25ib2FyZGluZy92MS9jYXBhYmlsaXRpZXM7Y2FwYWJpbGl0aWVzdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesRequest
@@ -93,6 +93,115 @@ export const ApplyCapabilityRequestSchema: GenMessage<ApplyCapabilityRequest> = 
   messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 3);
 
 /**
+ * @generated from message vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest
+ */
+export type VerifyCapabilityRequest = Message<"vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest"> & {
+  /**
+   * @generated from field: string target = 1;
+   */
+  target: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest verification = 2;
+   */
+  verification?: VerificationRequest | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityRequest.
+ * Use `create(VerifyCapabilityRequestSchema)` to create a new message.
+ */
+export const VerifyCapabilityRequestSchema: GenMessage<VerifyCapabilityRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 4);
+
+/**
+ * @generated from message vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest
+ */
+export type VerificationRequest = Message<"vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest"> & {
+  /**
+   * @generated from field: string capability_id = 1;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef credential_ref = 2;
+   */
+  credentialRef?: CredentialEvidenceRef | undefined;
+
+  /**
+   * @generated from field: string target_id = 3;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string environment = 4;
+   */
+  environment: string;
+
+  /**
+   * @generated from field: string account_identity = 5;
+   */
+  accountIdentity: string;
+
+  /**
+   * @generated from field: string operation = 6;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: map<string, string> context = 7;
+   */
+  context: { [key: string]: string };
+
+  /**
+   * @generated from field: string effect_class = 8;
+   */
+  effectClass: string;
+
+  /**
+   * @generated from field: int32 max_operations = 9;
+   */
+  maxOperations: number;
+
+  /**
+   * @generated from field: string cleanup_policy = 10;
+   */
+  cleanupPolicy: string;
+
+  /**
+   * @generated from field: int64 timeout_seconds = 11;
+   */
+  timeoutSeconds: bigint;
+
+  /**
+   * @generated from field: string context_digest = 12;
+   */
+  contextDigest: string;
+
+  /**
+   * @generated from field: string catalog_revision = 13;
+   */
+  catalogRevision: string;
+
+  /**
+   * @generated from field: string configuration_revision = 14;
+   */
+  configurationRevision: string;
+
+  /**
+   * @generated from field: string provider_adapter_version = 15;
+   */
+  providerAdapterVersion: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.capabilities.VerificationRequest.
+ * Use `create(VerificationRequestSchema)` to create a new message.
+ */
+export const VerificationRequestSchema: GenMessage<VerificationRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 5);
+
+/**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.ActionRequest
  */
 export type ActionRequest = Message<"vrooli.vrooli_onboarding.v1.capabilities.ActionRequest"> & {
@@ -118,6 +227,14 @@ export type ActionRequest = Message<"vrooli.vrooli_onboarding.v1.capabilities.Ac
    * @generated from field: google.protobuf.Struct inputs = 4;
    */
   inputs?: JsonObject | undefined;
+
+  /**
+   * Target whose state and permissions the operator reviewed. Providers must
+   * bind effects and evidence to this target rather than silently using local.
+   *
+   * @generated from field: string target_id = 5;
+   */
+  targetId: string;
 };
 
 /**
@@ -125,7 +242,7 @@ export type ActionRequest = Message<"vrooli.vrooli_onboarding.v1.capabilities.Ac
  * Use `create(ActionRequestSchema)` to create a new message.
  */
 export const ActionRequestSchema: GenMessage<ActionRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 4);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 6);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityCandidate
@@ -197,7 +314,7 @@ export type CapabilityCandidate = Message<"vrooli.vrooli_onboarding.v1.capabilit
  * Use `create(CapabilityCandidateSchema)` to create a new message.
  */
 export const CapabilityCandidateSchema: GenMessage<CapabilityCandidate> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 5);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 7);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputDescriptor
@@ -312,6 +429,11 @@ export type CapabilityInputDescriptor = Message<"vrooli.vrooli_onboarding.v1.cap
    * @generated from field: string evidence_policy = 22;
    */
   evidencePolicy: string;
+
+  /**
+   * @generated from field: repeated string companion_credentials = 23;
+   */
+  companionCredentials: string[];
 };
 
 /**
@@ -319,7 +441,7 @@ export type CapabilityInputDescriptor = Message<"vrooli.vrooli_onboarding.v1.cap
  * Use `create(CapabilityInputDescriptorSchema)` to create a new message.
  */
 export const CapabilityInputDescriptorSchema: GenMessage<CapabilityInputDescriptor> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 6);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 8);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityInputConstraints
@@ -351,7 +473,7 @@ export type CapabilityInputConstraints = Message<"vrooli.vrooli_onboarding.v1.ca
  * Use `create(CapabilityInputConstraintsSchema)` to create a new message.
  */
 export const CapabilityInputConstraintsSchema: GenMessage<CapabilityInputConstraints> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 7);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 9);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityPolicy
@@ -388,7 +510,7 @@ export type CapabilityPolicy = Message<"vrooli.vrooli_onboarding.v1.capabilities
  * Use `create(CapabilityPolicySchema)` to create a new message.
  */
 export const CapabilityPolicySchema: GenMessage<CapabilityPolicy> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 8);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 10);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidenceContract
@@ -413,6 +535,11 @@ export type CapabilityEvidenceContract = Message<"vrooli.vrooli_onboarding.v1.ca
    * @generated from field: string freshness = 4;
    */
   freshness: string;
+
+  /**
+   * @generated from field: repeated string stages = 5;
+   */
+  stages: string[];
 };
 
 /**
@@ -420,7 +547,7 @@ export type CapabilityEvidenceContract = Message<"vrooli.vrooli_onboarding.v1.ca
  * Use `create(CapabilityEvidenceContractSchema)` to create a new message.
  */
 export const CapabilityEvidenceContractSchema: GenMessage<CapabilityEvidenceContract> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 9);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 11);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityDescriptor
@@ -532,7 +659,7 @@ export type CapabilityDescriptor = Message<"vrooli.vrooli_onboarding.v1.capabili
  * Use `create(CapabilityDescriptorSchema)` to create a new message.
  */
 export const CapabilityDescriptorSchema: GenMessage<CapabilityDescriptor> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 10);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 12);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityApplicability
@@ -559,7 +686,7 @@ export type CapabilityApplicability = Message<"vrooli.vrooli_onboarding.v1.capab
  * Use `create(CapabilityApplicabilitySchema)` to create a new message.
  */
 export const CapabilityApplicabilitySchema: GenMessage<CapabilityApplicability> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 11);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 13);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityPermissionProvenance
@@ -591,7 +718,7 @@ export type CapabilityPermissionProvenance = Message<"vrooli.vrooli_onboarding.v
  * Use `create(CapabilityPermissionProvenanceSchema)` to create a new message.
  */
 export const CapabilityPermissionProvenanceSchema: GenMessage<CapabilityPermissionProvenance> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 12);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 14);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityLifecycle
@@ -633,7 +760,7 @@ export type CapabilityLifecycle = Message<"vrooli.vrooli_onboarding.v1.capabilit
  * Use `create(CapabilityLifecycleSchema)` to create a new message.
  */
 export const CapabilityLifecycleSchema: GenMessage<CapabilityLifecycle> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 13);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 15);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence
@@ -753,6 +880,36 @@ export type CapabilityEvidence = Message<"vrooli.vrooli_onboarding.v1.capabiliti
    * @generated from field: bool cleanup_completed = 23;
    */
   cleanupCompleted: boolean;
+
+  /**
+   * @generated from field: string stage = 24;
+   */
+  stage: string;
+
+  /**
+   * @generated from field: string owner = 25;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string context_digest = 26;
+   */
+  contextDigest: string;
+
+  /**
+   * @generated from field: string catalog_revision = 27;
+   */
+  catalogRevision: string;
+
+  /**
+   * @generated from field: string configuration_revision = 28;
+   */
+  configurationRevision: string;
+
+  /**
+   * @generated from field: string provider_adapter_version = 29;
+   */
+  providerAdapterVersion: string;
 };
 
 /**
@@ -760,7 +917,7 @@ export type CapabilityEvidence = Message<"vrooli.vrooli_onboarding.v1.capabiliti
  * Use `create(CapabilityEvidenceSchema)` to create a new message.
  */
 export const CapabilityEvidenceSchema: GenMessage<CapabilityEvidence> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 14);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 16);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CredentialEvidenceRef
@@ -787,7 +944,7 @@ export type CredentialEvidenceRef = Message<"vrooli.vrooli_onboarding.v1.capabil
  * Use `create(CredentialEvidenceRefSchema)` to create a new message.
  */
 export const CredentialEvidenceRefSchema: GenMessage<CredentialEvidenceRef> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 15);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 17);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityStatus
@@ -834,7 +991,7 @@ export type CapabilityStatus = Message<"vrooli.vrooli_onboarding.v1.capabilities
  * Use `create(CapabilityStatusSchema)` to create a new message.
  */
 export const CapabilityStatusSchema: GenMessage<CapabilityStatus> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 16);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 18);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.ListCapabilitiesResponse
@@ -856,7 +1013,7 @@ export type ListCapabilitiesResponse = Message<"vrooli.vrooli_onboarding.v1.capa
  * Use `create(ListCapabilitiesResponseSchema)` to create a new message.
  */
 export const ListCapabilitiesResponseSchema: GenMessage<ListCapabilitiesResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 17);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 19);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.GetCapabilityStatusResponse
@@ -878,7 +1035,7 @@ export type GetCapabilityStatusResponse = Message<"vrooli.vrooli_onboarding.v1.c
  * Use `create(GetCapabilityStatusResponseSchema)` to create a new message.
  */
 export const GetCapabilityStatusResponseSchema: GenMessage<GetCapabilityStatusResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 18);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 20);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.CapabilityMutation
@@ -905,7 +1062,7 @@ export type CapabilityMutation = Message<"vrooli.vrooli_onboarding.v1.capabiliti
  * Use `create(CapabilityMutationSchema)` to create a new message.
  */
 export const CapabilityMutationSchema: GenMessage<CapabilityMutation> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 19);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 21);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.PreviewCapabilityResponse
@@ -952,7 +1109,7 @@ export type PreviewCapabilityResponse = Message<"vrooli.vrooli_onboarding.v1.cap
  * Use `create(PreviewCapabilityResponseSchema)` to create a new message.
  */
 export const PreviewCapabilityResponseSchema: GenMessage<PreviewCapabilityResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 20);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 22);
 
 /**
  * @generated from message vrooli.vrooli_onboarding.v1.capabilities.ApplyCapabilityResponse
@@ -1009,7 +1166,63 @@ export type ApplyCapabilityResponse = Message<"vrooli.vrooli_onboarding.v1.capab
  * Use `create(ApplyCapabilityResponseSchema)` to create a new message.
  */
 export const ApplyCapabilityResponseSchema: GenMessage<ApplyCapabilityResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 21);
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 23);
+
+/**
+ * @generated from message vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse
+ */
+export type VerifyCapabilityResponse = Message<"vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse"> & {
+  /**
+   * @generated from field: string capability_id = 1;
+   */
+  capabilityId: string;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_onboarding.v1.capabilities.CapabilityEvidence evidence = 2;
+   */
+  evidence: CapabilityEvidence[];
+
+  /**
+   * @generated from field: string remediation = 3;
+   */
+  remediation: string;
+
+  /**
+   * Verification failures remain a successful typed operation response so
+   * clients can render the provider-neutral remediation contract instead of
+   * reducing every provider outcome to a transport error.
+   *
+   * @generated from field: string error_code = 4;
+   */
+  errorCode: string;
+
+  /**
+   * @generated from field: bool retryable = 5;
+   */
+  retryable: boolean;
+
+  /**
+   * @generated from field: int64 retry_after_seconds = 6;
+   */
+  retryAfterSeconds: bigint;
+
+  /**
+   * @generated from field: string next_action = 7;
+   */
+  nextAction: string;
+
+  /**
+   * @generated from field: string outcome = 8;
+   */
+  outcome: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_onboarding.v1.capabilities.VerifyCapabilityResponse.
+ * Use `create(VerifyCapabilityResponseSchema)` to create a new message.
+ */
+export const VerifyCapabilityResponseSchema: GenMessage<VerifyCapabilityResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 24);
 
 /**
  * @generated from enum vrooli.vrooli_onboarding.v1.capabilities.CapabilityState
@@ -1111,6 +1324,14 @@ export const CapabilitiesService: GenService<{
     methodKind: "unary";
     input: typeof ApplyCapabilityRequestSchema;
     output: typeof ApplyCapabilityResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService.VerifyCapability
+   */
+  verifyCapability: {
+    methodKind: "unary";
+    input: typeof VerifyCapabilityRequestSchema;
+    output: typeof VerifyCapabilityResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_onboarding_v1_capabilities_capabilities, 0);

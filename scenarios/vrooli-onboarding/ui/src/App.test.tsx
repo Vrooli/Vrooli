@@ -153,7 +153,7 @@ describe("App - View Navigation", () => {
     await renderApp();
     const nav = screen.getByTestId("app-nav");
     expect(nav).toBeInTheDocument();
-    expect(nav.querySelector(".app-brand__mark")).toHaveAttribute("src", "/public/logo.webp");
+    expect(nav.querySelector(".app-brand__wordmark")).toHaveAttribute("alt", "Vrooli");
     expect(nav.querySelector(".app-tab [data-control-slot=\"icon\"]")).toBeInTheDocument();
     expect(screen.getByTestId("nav-dashboard")).toHaveAttribute("aria-label", "Health Dashboard");
     expect(screen.getByTestId("setup-target-trigger")).toHaveTextContent("Local");

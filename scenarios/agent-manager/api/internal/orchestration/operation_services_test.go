@@ -8,7 +8,7 @@ func TestHandlerServicesExposeOnlyTheConcreteCapabilityImplementations(t *testin
 	for name, got := range map[string]any{
 		"profiles": services.ProfileService, "tasks": services.TaskService, "workflows": services.WorkflowService,
 		"runs": services.RunService, "approval": services.ApprovalService, "events": services.EventService,
-		"policy": services.PolicyService, "status": services.StatusService, "maintenance": services.MaintenanceService,
+		"policy": services.PolicyService, "status": services.StatusService, "execution-options": services.ExecutionOptionsService, "maintenance": services.MaintenanceService,
 		"investigation-settings": services.InvestigationSettingsService, "orchestration-settings": services.OrchestrationSettingsService,
 		"path-validation": services.PathValidationService, "identity": services.IdentityService, "run-report": services.RunReportService,
 		"invocation-facts": services.InvocationFactService, "findings": services.FindingsService, "project-root": services.ProjectRootService,

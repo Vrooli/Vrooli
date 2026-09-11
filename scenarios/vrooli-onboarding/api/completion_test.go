@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/config"
@@ -55,6 +56,35 @@ func TestAssessCompletionSeparatesRequiredFromOptional(t *testing.T) {
 	}
 }
 
+func TestAssessCompletionDoesNotTellOperatorToProvisionAnUnavailableProvider(t *testing.T) {
+	assessment := assessCompletion(readinessResponse{Credentials: []credentialReadiness{
+		credential("provider", "vrooli/provider", "token", true, "unsupported"),
+	}}, nil)
+	if len(assessment.Blockers) != 1 {
+		t.Fatalf("blockers = %+v, want one provider blocker", assessment.Blockers)
+	}
+	remediation := assessment.Blockers[0].Remediation
+	if !strings.Contains(remediation, "Retry credential verification") || strings.Contains(remediation, "Provide this credential") {
+		t.Fatalf("unsupported provider remediation = %q, want retry/diagnose guidance", remediation)
+	}
+}
+
+func TestAssessCompletionDoesNotBlockOnUnrelatedGlobalRecoveryGaps(t *testing.T) {
+	readiness := readinessResponse{
+		Credentials: []credentialReadiness{
+			credential("alpha", "vrooli/alpha", "token", true, "configured"),
+		},
+		Recovery: recoveryReadiness{RequiredAbsent: []string{
+			"vrooli/unselected-release:signing-key",
+			"vrooli/alpha:token",
+		}},
+	}
+	assessment := assessCompletion(readiness, nil)
+	if got := blockerNames(assessment.Blockers); len(got) != 1 || got[0] != "recovery/vrooli/alpha:token" {
+		t.Fatalf("recovery blockers = %v, want only the contextual gap", got)
+	}
+}
+
 // A derived credential is provided by its owning component after its source is
 // available, so it is neither a blocker nor a degraded gap.
 func TestAssessCompletionIgnoresDerivedCredentials(t *testing.T) {
@@ -64,6 +94,16 @@ func TestAssessCompletionIgnoresDerivedCredentials(t *testing.T) {
 	assessment := assessCompletion(readiness, nil)
 	if len(assessment.Blockers) != 0 || len(assessment.Degraded) != 0 {
 		t.Fatalf("derived credential produced %v / %v", assessment.Blockers, assessment.Degraded)
+	}
+}
+
+func TestAssessCompletionIgnoresDeferredOptionalCredentials(t *testing.T) {
+	readiness := readinessResponse{Credentials: []credentialReadiness{
+		{LogicalID: "vrooli/optional", Field: "token", Required: false, Status: "deferred"},
+	}}
+	assessment := assessCompletion(readiness, nil)
+	if len(assessment.Blockers) != 0 || len(assessment.Degraded) != 0 {
+		t.Fatalf("deferred optional credential produced %v / %v", assessment.Blockers, assessment.Degraded)
 	}
 }
 
@@ -129,6 +169,31 @@ func TestConfigurationMayCompleteWithNothingUnresolved(t *testing.T) {
 	}}, nil)
 	if !configurationMayComplete(assessment, OperatorState{}) {
 		t.Fatal("a clean readiness verdict must be allowed to complete")
+	}
+}
+
+func TestAssessCompletionRequiresExercisedEvidenceWhenPolicyRequiresIt(t *testing.T) {
+	readiness := readinessResponse{Credentials: []credentialReadiness{{
+		LogicalID: "vrooli/payments", Field: "api-key", Required: true, Status: "configured",
+		EvidenceStatus: credentialEvidenceUnverified, EvidencePolicy: "release-required",
+	}}}
+	assessment := assessCompletion(readiness, nil)
+	if len(assessment.Blockers) != 1 || assessment.Blockers[0].Name != "vrooli/payments:api-key:verification" {
+		t.Fatalf("verification blockers = %+v", assessment.Blockers)
+	}
+	if configurationMayComplete(assessment, OperatorState{}) {
+		t.Fatal("stored but unverified release-required credential satisfied completion")
+	}
+}
+
+func TestAssessCompletionKeepsAdvisoryEvidenceNonBlocking(t *testing.T) {
+	readiness := readinessResponse{Credentials: []credentialReadiness{{
+		LogicalID: "vrooli/telemetry", Field: "token", Required: false, Status: "configured",
+		EvidenceStatus: credentialEvidenceUnverified, EvidencePolicy: "advisory",
+	}}}
+	assessment := assessCompletion(readiness, nil)
+	if len(assessment.Blockers) != 0 || len(assessment.Degraded) != 0 {
+		t.Fatalf("advisory evidence produced completion findings: %+v / %+v", assessment.Blockers, assessment.Degraded)
 	}
 }
 

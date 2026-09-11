@@ -62,17 +62,68 @@ class ApplyCapabilityRequest(_message.Message):
     action: ActionRequest
     def __init__(self, target: _Optional[str] = ..., action: _Optional[_Union[ActionRequest, _Mapping]] = ...) -> None: ...
 
+class VerifyCapabilityRequest(_message.Message):
+    __slots__ = ("target", "verification")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    VERIFICATION_FIELD_NUMBER: _ClassVar[int]
+    target: str
+    verification: VerificationRequest
+    def __init__(self, target: _Optional[str] = ..., verification: _Optional[_Union[VerificationRequest, _Mapping]] = ...) -> None: ...
+
+class VerificationRequest(_message.Message):
+    __slots__ = ("capability_id", "credential_ref", "target_id", "environment", "account_identity", "operation", "context", "effect_class", "max_operations", "cleanup_policy", "timeout_seconds", "context_digest", "catalog_revision", "configuration_revision", "provider_adapter_version")
+    class ContextEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_REF_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    EFFECT_CLASS_FIELD_NUMBER: _ClassVar[int]
+    MAX_OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_POLICY_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_REVISION_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ADAPTER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    capability_id: str
+    credential_ref: CredentialEvidenceRef
+    target_id: str
+    environment: str
+    account_identity: str
+    operation: str
+    context: _containers.ScalarMap[str, str]
+    effect_class: str
+    max_operations: int
+    cleanup_policy: str
+    timeout_seconds: int
+    context_digest: str
+    catalog_revision: str
+    configuration_revision: str
+    provider_adapter_version: str
+    def __init__(self, capability_id: _Optional[str] = ..., credential_ref: _Optional[_Union[CredentialEvidenceRef, _Mapping]] = ..., target_id: _Optional[str] = ..., environment: _Optional[str] = ..., account_identity: _Optional[str] = ..., operation: _Optional[str] = ..., context: _Optional[_Mapping[str, str]] = ..., effect_class: _Optional[str] = ..., max_operations: _Optional[int] = ..., cleanup_policy: _Optional[str] = ..., timeout_seconds: _Optional[int] = ..., context_digest: _Optional[str] = ..., catalog_revision: _Optional[str] = ..., configuration_revision: _Optional[str] = ..., provider_adapter_version: _Optional[str] = ...) -> None: ...
+
 class ActionRequest(_message.Message):
-    __slots__ = ("capability_id", "idempotency_key", "confirm", "inputs")
+    __slots__ = ("capability_id", "idempotency_key", "confirm", "inputs", "target_id")
     CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     CONFIRM_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     capability_id: str
     idempotency_key: str
     confirm: bool
     inputs: _struct_pb2.Struct
-    def __init__(self, capability_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., confirm: _Optional[bool] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    target_id: str
+    def __init__(self, capability_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., confirm: _Optional[bool] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., target_id: _Optional[str] = ...) -> None: ...
 
 class CapabilityCandidate(_message.Message):
     __slots__ = ("id", "kind", "label", "location", "stable_identity", "device_identity", "writable", "physical_independence", "status", "risk", "remediation", "metadata")
@@ -110,7 +161,7 @@ class CapabilityCandidate(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., location: _Optional[str] = ..., stable_identity: _Optional[str] = ..., device_identity: _Optional[str] = ..., writable: _Optional[bool] = ..., physical_independence: _Optional[str] = ..., status: _Optional[str] = ..., risk: _Optional[str] = ..., remediation: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class CapabilityInputDescriptor(_message.Message):
-    __slots__ = ("id", "kind", "label", "description", "required", "options", "default_value", "candidates", "validation", "declinable", "constraints", "credential_logical_id", "credential_field", "provider", "requirement_group", "consumer_refs", "companion_settings", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy")
+    __slots__ = ("id", "kind", "label", "description", "required", "options", "default_value", "candidates", "validation", "declinable", "constraints", "credential_logical_id", "credential_field", "provider", "requirement_group", "consumer_refs", "companion_settings", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy", "companion_credentials")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
@@ -133,6 +184,7 @@ class CapabilityInputDescriptor(_message.Message):
     RECOVERY_REF_FIELD_NUMBER: _ClassVar[int]
     HELP_REF_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    COMPANION_CREDENTIALS_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: str
     label: str
@@ -155,7 +207,8 @@ class CapabilityInputDescriptor(_message.Message):
     recovery_ref: str
     help_ref: str
     evidence_policy: str
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., required: _Optional[bool] = ..., options: _Optional[_Iterable[str]] = ..., default_value: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[CapabilityCandidate, _Mapping]]] = ..., validation: _Optional[str] = ..., declinable: _Optional[bool] = ..., constraints: _Optional[_Union[CapabilityInputConstraints, _Mapping]] = ..., credential_logical_id: _Optional[str] = ..., credential_field: _Optional[str] = ..., provider: _Optional[str] = ..., requirement_group: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., companion_settings: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ...) -> None: ...
+    companion_credentials: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., required: _Optional[bool] = ..., options: _Optional[_Iterable[str]] = ..., default_value: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[CapabilityCandidate, _Mapping]]] = ..., validation: _Optional[str] = ..., declinable: _Optional[bool] = ..., constraints: _Optional[_Union[CapabilityInputConstraints, _Mapping]] = ..., credential_logical_id: _Optional[str] = ..., credential_field: _Optional[str] = ..., provider: _Optional[str] = ..., requirement_group: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., companion_settings: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ..., companion_credentials: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CapabilityInputConstraints(_message.Message):
     __slots__ = ("min_length", "max_length", "min_duration", "max_duration")
@@ -184,16 +237,18 @@ class CapabilityPolicy(_message.Message):
     def __init__(self, requires_confirmation: _Optional[bool] = ..., idempotent: _Optional[bool] = ..., retryable: _Optional[bool] = ..., protected_roots: _Optional[_Iterable[str]] = ..., remediation: _Optional[str] = ...) -> None: ...
 
 class CapabilityEvidenceContract(_message.Message):
-    __slots__ = ("kinds", "required_fields", "secret_free", "freshness")
+    __slots__ = ("kinds", "required_fields", "secret_free", "freshness", "stages")
     KINDS_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SECRET_FREE_FIELD_NUMBER: _ClassVar[int]
     FRESHNESS_FIELD_NUMBER: _ClassVar[int]
+    STAGES_FIELD_NUMBER: _ClassVar[int]
     kinds: _containers.RepeatedScalarFieldContainer[str]
     required_fields: _containers.RepeatedScalarFieldContainer[str]
     secret_free: bool
     freshness: str
-    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., required_fields: _Optional[_Iterable[str]] = ..., secret_free: _Optional[bool] = ..., freshness: _Optional[str] = ...) -> None: ...
+    stages: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., required_fields: _Optional[_Iterable[str]] = ..., secret_free: _Optional[bool] = ..., freshness: _Optional[str] = ..., stages: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CapabilityDescriptor(_message.Message):
     __slots__ = ("version", "id", "owner", "title", "description", "risk", "inputs", "prerequisites", "policy", "evidence", "remediation", "scope", "purpose", "sensitivity", "applicability", "disposition", "disposition_reason", "provenance", "lifecycle", "reference_url")
@@ -278,7 +333,7 @@ class CapabilityLifecycle(_message.Message):
     def __init__(self, preview: _Optional[bool] = ..., apply: _Optional[bool] = ..., verify: _Optional[bool] = ..., revoke: _Optional[bool] = ..., recover: _Optional[bool] = ..., recovery: _Optional[str] = ...) -> None: ...
 
 class CapabilityEvidence(_message.Message):
-    __slots__ = ("kind", "artifact_identity", "source_generation", "checksum", "coverage", "observed_at", "verified", "remediation", "schema_version", "capability_id", "credential_ref", "target_id", "environment", "account_identity", "operation", "status", "expires_at", "artifact_refs", "limitations", "next_action", "effect_class", "effects_used", "cleanup_completed")
+    __slots__ = ("kind", "artifact_identity", "source_generation", "checksum", "coverage", "observed_at", "verified", "remediation", "schema_version", "capability_id", "credential_ref", "target_id", "environment", "account_identity", "operation", "status", "expires_at", "artifact_refs", "limitations", "next_action", "effect_class", "effects_used", "cleanup_completed", "stage", "owner", "context_digest", "catalog_revision", "configuration_revision", "provider_adapter_version")
     KIND_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     SOURCE_GENERATION_FIELD_NUMBER: _ClassVar[int]
@@ -302,6 +357,12 @@ class CapabilityEvidence(_message.Message):
     EFFECT_CLASS_FIELD_NUMBER: _ClassVar[int]
     EFFECTS_USED_FIELD_NUMBER: _ClassVar[int]
     CLEANUP_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_REVISION_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ADAPTER_VERSION_FIELD_NUMBER: _ClassVar[int]
     kind: str
     artifact_identity: str
     source_generation: str
@@ -325,7 +386,13 @@ class CapabilityEvidence(_message.Message):
     effect_class: str
     effects_used: int
     cleanup_completed: bool
-    def __init__(self, kind: _Optional[str] = ..., artifact_identity: _Optional[str] = ..., source_generation: _Optional[str] = ..., checksum: _Optional[str] = ..., coverage: _Optional[_Iterable[str]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., verified: _Optional[bool] = ..., remediation: _Optional[str] = ..., schema_version: _Optional[str] = ..., capability_id: _Optional[str] = ..., credential_ref: _Optional[_Union[CredentialEvidenceRef, _Mapping]] = ..., target_id: _Optional[str] = ..., environment: _Optional[str] = ..., account_identity: _Optional[str] = ..., operation: _Optional[str] = ..., status: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., artifact_refs: _Optional[_Iterable[str]] = ..., limitations: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., effect_class: _Optional[str] = ..., effects_used: _Optional[int] = ..., cleanup_completed: _Optional[bool] = ...) -> None: ...
+    stage: str
+    owner: str
+    context_digest: str
+    catalog_revision: str
+    configuration_revision: str
+    provider_adapter_version: str
+    def __init__(self, kind: _Optional[str] = ..., artifact_identity: _Optional[str] = ..., source_generation: _Optional[str] = ..., checksum: _Optional[str] = ..., coverage: _Optional[_Iterable[str]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., verified: _Optional[bool] = ..., remediation: _Optional[str] = ..., schema_version: _Optional[str] = ..., capability_id: _Optional[str] = ..., credential_ref: _Optional[_Union[CredentialEvidenceRef, _Mapping]] = ..., target_id: _Optional[str] = ..., environment: _Optional[str] = ..., account_identity: _Optional[str] = ..., operation: _Optional[str] = ..., status: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., artifact_refs: _Optional[_Iterable[str]] = ..., limitations: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., effect_class: _Optional[str] = ..., effects_used: _Optional[int] = ..., cleanup_completed: _Optional[bool] = ..., stage: _Optional[str] = ..., owner: _Optional[str] = ..., context_digest: _Optional[str] = ..., catalog_revision: _Optional[str] = ..., configuration_revision: _Optional[str] = ..., provider_adapter_version: _Optional[str] = ...) -> None: ...
 
 class CredentialEvidenceRef(_message.Message):
     __slots__ = ("logical_id", "field", "version")
@@ -420,3 +487,23 @@ class ApplyCapabilityResponse(_message.Message):
     mutations: _containers.RepeatedCompositeFieldContainer[CapabilityMutation]
     completed_at: _timestamp_pb2.Timestamp
     def __init__(self, capability_id: _Optional[str] = ..., state: _Optional[_Union[CapabilityState, str]] = ..., outcome: _Optional[str] = ..., retryable: _Optional[bool] = ..., error_code: _Optional[str] = ..., remediation: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[CapabilityEvidence, _Mapping]]] = ..., mutations: _Optional[_Iterable[_Union[CapabilityMutation, _Mapping]]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class VerifyCapabilityResponse(_message.Message):
+    __slots__ = ("capability_id", "evidence", "remediation", "error_code", "retryable", "retry_after_seconds", "next_action", "outcome")
+    CAPABILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    RETRY_AFTER_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    capability_id: str
+    evidence: _containers.RepeatedCompositeFieldContainer[CapabilityEvidence]
+    remediation: str
+    error_code: str
+    retryable: bool
+    retry_after_seconds: int
+    next_action: str
+    outcome: str
+    def __init__(self, capability_id: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[CapabilityEvidence, _Mapping]]] = ..., remediation: _Optional[str] = ..., error_code: _Optional[str] = ..., retryable: _Optional[bool] = ..., retry_after_seconds: _Optional[int] = ..., next_action: _Optional[str] = ..., outcome: _Optional[str] = ...) -> None: ...

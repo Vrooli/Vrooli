@@ -71,6 +71,7 @@ func claudeBase() baseCodec {
 		installHint:    "Install: npm install -g @anthropic-ai/claude-code",
 		tagEnvKey:      claudeTagEnvKey,
 		continuePrefix: "claude",
+		goalStatus:     claudeGoalStatus,
 		labels: Labels{
 			StartMessage:         "Claude Code execution started",
 			EndMessage:           "Claude Code execution completed",
@@ -113,6 +114,7 @@ func (c *Claude) HasChargeSource() bool { return true }
 // Capabilities satisfies [Codec].
 func (c *Claude) Capabilities() runner.Capabilities {
 	return codingAgentCapabilities(runner.Capabilities{
+		SpawnCapabilities:        []runner.SpawnCapability{{ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true}},
 		SupportsToolEvents:       true,
 		SupportsCostTracking:     true,
 		SupportsImageAttachments: true,
@@ -243,6 +245,7 @@ type claudeState struct {
 	gotResult            bool
 	resultIsError        bool
 	model                string
+	billing              domain.BillingSnapshot
 	retainUser           bool
 	turn                 int
 	lastTurnInput        int64
@@ -595,6 +598,14 @@ func (p *claudeTranscriptParser) SetTranscriptModel(model string) {
 	}
 }
 
+func (p *claudeTranscriptParser) SetTranscriptBilling(billing domain.BillingSnapshot) {
+	p.state.billing = billing
+}
+
+// SetStateBilling satisfies [runner.BillingStateSetter] for the live decode
+// path so a subscription run never emits a metered charge.
+func (s *claudeState) SetStateBilling(billing domain.BillingSnapshot) { s.billing = billing }
+
 type claudeTranscriptParser struct {
 	state *claudeState
 	// onDisk latches once a camelCase `sessionId` field is seen, marking
@@ -632,7 +643,15 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 		// top of this marker (interactive sessions stay open awaiting input).
 		if p.onDisk && strings.EqualFold(streamEvent.Type, "assistant") &&
 			streamEvent.Message != nil && streamEvent.Message.StopReason == "end_turn" {
-			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
+			for _, event := range result.Events {
+				if usage, ok := event.Data.(*domain.UsageEventData); ok {
+					// The final on-disk assistant usage is the best available
+					// terminal snapshot for interactive Claude. It remains a
+					// token receipt even when pricing is unavailable.
+					usage.ReconciliationAuthority = true
+				}
+			}
+			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "turn_boundary"}
 		}
 		if strings.EqualFold(streamEvent.Type, "result") {
 			terminal := &runner.TranscriptTerminal{
@@ -657,6 +676,9 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 				}
 			}
 			result.Terminal = terminal
+		}
+		if marker, ok := claudeGoalStatus(line); ok {
+			result.Goal = &marker
 		}
 	}
 	return result
@@ -790,7 +812,7 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 				}
 			}
 		}
-		resultEvents, err := parseClaudeResultEvent(runID, &streamEvent, state.model)
+		resultEvents, err := parseClaudeResultEvent(runID, &streamEvent, state.model, state.billing)
 		if err != nil || len(resultEvents) == 0 {
 			return nil, err
 		}
@@ -1067,8 +1089,13 @@ func newClaudeMessageEvent(runID uuid.UUID, ev *ClaudeStreamEvent, content strin
 		conversationID = ev.SessionIDAlt
 	}
 	return domain.NewProviderMessageEvent(runID, role, content, domain.MessageEventData{
-		MessageID:         messageID,
-		ConversationID:    conversationID,
+		MessageID:      messageID,
+		ConversationID: conversationID,
+		// Claude's on-disk interactive transcript has no explicit turn_id.
+		// The provider message id is its stable per-turn identity and lets
+		// final-output selection distinguish an earlier end_turn from the
+		// final handoff in the same warm session.
+		TurnID:            messageID,
 		ProviderOrigin:    "claude",
 		CompletionReason:  stopReason,
 		Terminal:          terminal,
@@ -1159,7 +1186,7 @@ func resetToolUseState(state *claudeState) {
 // parseClaudeResultEvent handles the terminal `result` event. Errors are
 // classified via detectClaudeRateLimit; successful results emit a cost
 // event when usage data is present.
-func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model string) ([]*domain.RunEvent, error) {
+func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model string, billing domain.BillingSnapshot) ([]*domain.RunEvent, error) {
 	resultStr := decodeClaudeResultString(event.Result)
 
 	// Rate-limit classification only fires when the CLI itself flagged
@@ -1201,15 +1228,7 @@ func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model str
 				TurnIndex:               event.NumTurns,
 			},
 		}
-		amount := int64(event.TotalCostUSD*1_000_000 + 0.5)
-		chargeEvent := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: &domain.ChargeEventData{
-			PayloadKind:    domain.PayloadKindCharge,
-			Basis:          domain.ChargeBasisMetered,
-			AmountMicroUSD: &amount,
-			Currency:       "USD",
-			RunnerType:     string(domain.RunnerTypeClaudeCode),
-			Model:          model,
-		}}
+		chargeEvent := nativeChargeEvent(runID, domain.RunnerTypeClaudeCode, model, billing, event.TotalCostUSD)
 		events := []*domain.RunEvent{usageEvent, chargeEvent}
 		if event.Usage != nil && event.Usage.ServerToolUse != nil {
 			if data, ok := usageEvent.Data.(*domain.UsageEventData); ok {

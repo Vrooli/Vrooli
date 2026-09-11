@@ -10,6 +10,22 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-10 · `098832f7-08af-4bbe-9d13-019cd1692582` · `workflow-e29e98cc-b141-4f65-9994-5270c3ef7f43-slice` · errored
+
+**Lesson.** This is a second corroboration in the current review cycle of the existing agent-manager launch/finalization integrity failure, not evidence about agent behavior. The bounded report recorded `status=failed`, `exit_code=-1`, `244083ms` duration, `0` turns, `0` tokens, `0` tools, no diff, and no viable assistant candidate. The terminal error was `database error during begin_immediate_transaction: database is locked (5) (SQLITE_BUSY)`. The run had one available receipt, but no trustworthy work product; the event trail contained one error, one heartbeat miss, five lifecycle events, and fifteen log events.
+
+**Implicated.** Primary: agent-manager launch/finalization persistence and result-provenance reporting. Existing backlog `agent-manager-launch-prerequisite-integrity` is the owner handoff, and the 2026-09-09 friction receipt `knw-1788994035566990762` already captures the same root cause. No Action candidate: no deterministic manual CLI sequence or existing Action would repair host SQLite contention or launch prerequisites. Exclude this run from skill and agent-behavior scoring.
+
+**Action decision.** `capability-work-item` via the existing `agent-manager-launch-prerequisite-integrity`; no duplicate filing. The owner should keep the terminal cause typed and suppress any ambiguous result state when final persistence cannot complete.
+
+**Measurement plan.** Baseline: two corroborating runs in the current review cycle (`098832f7` and `f7e42896`) with `SQLITE_BUSY` during persistence/finalization, no trustworthy diff, and no agent work product. Over the next 7 heartbeats, count database-lock finalization signatures; target a typed prerequisite/persistence terminal cause, zero ambiguous candidates for this family, and zero attribution to dispatched agent behavior.
+
+**Program-runtime ratchet.** Governed share was `6463/6474 = 0.9983008958912574` over `604800s` (`2026-09-03T22:45:14.99392738Z`–`2026-09-10T22:45:14.99392738Z`). Repeated unresolved shapes were `inputs` (20, last seen `2026-09-04T07:25:53.6662514Z`), `test_geni` (6, last seen `2026-08-17T05:09:27.76424369Z`), `vrooli_memory` (3, last seen `2026-09-09T20:36:07.160645155Z`), and `bindings` (2, last seen `2026-09-04T07:36:06.218170755Z`); existing queue items or the contrarian consolidation challenge cover these, so no new item was filed. Library search found the governed `prompt-manager.meta-optimization-reads` program, but no new unresolved-name capability was justified.
+
+**Discovery gaps.** `prompt-manager discovery-gaps --since 7d --json` returned 18 clusters. Repeated clusters were `bindings` (2) and `install qdrant resource dependency in scenario service manifest` (2); `bindings` is already represented by `program-runtime-unresolved-bindings-20260907` and the consolidation challenge, while the Qdrant cluster is covered by the existing discovery handoff. The remaining 16 clusters were singleton-only; no new work item was justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
 ### 2026-09-09 · `f7e42896-62eb-4a8a-b6bd-e75b15dbf10c` · `heartbeat-meta-optimization/skill-optimizer` · errored
 
 **Lesson.** This run is infrastructure-contaminated evidence, not a skill-optimizer lesson. The agent began its heartbeat and completed initial board reads, then agent-manager failed during transcript drain and final persistence with `database error during begin_immediate_transaction: database is locked (5) (SQLITE_BUSY)`. Cleanup also failed to persist final state, while the result surface exposed two non-terminal candidates as `FINAL_OUTPUT_SELECTION_STATUS_AMBIGUOUS`.

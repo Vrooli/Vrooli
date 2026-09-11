@@ -50,3 +50,9 @@ Usage-weighted priority audit of the skill library. Maintained by `skill-optimiz
 | Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
 |-------|---------|--------|--------|--------------|-------------|-------|
 | signal-and-feedback-surface-design | not reported | 0.39 (low inbound discoverability) | mixed | 2026-09-09 | capability-work-item | Board Guide G32 (Observability / telemetry wiring) is missing, although this active 6,532-character judgment skill is the closest reusable provider. Discovery found no exact Action or governed telemetry-wiring CLI. Backlog `chore/add-observability-telemetry-guide-capability` requests an owning Guide mapping or capability definition. Baseline: Guide 3% NOW (1/33), G32 missing; expected delta: G32 becomes in-reach with explicit owner and stable validation path. Measure via `coverage status`, `coverage explain-cell guide/G32`, skill graph health, and Action discovery/validation if a CLI owner is added. |
+
+## 2026-09-10 Rotation Addendum
+
+| Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
+|-------|---------|--------|--------|--------------|-------------|-------|
+| sandbox | 0 | 0.20 (stale command reference; low inbound) | drift | 2026-09-10 | capability-work-item | Act A25 is missing: canonical in-place file edit outside a sandbox. The skill documents isolated create/review/promote only; graph flags stale `workspace-sandbox configure/status` references, and discovery found no exact Action. Filed `fix/capability-act-a25-canonical-file-edit-owner-20260910` for an explicit governed owner/provider. No skill edit or Action candidate until the operation has a stable contract. |

@@ -248,6 +248,14 @@
     },
     {
       "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/VerifyCapability",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness",
       "surfaces": [
         "cli",
@@ -378,6 +386,21 @@
         "search-hub"
       ],
       "internal_reason": "Safe metadata search returns stable settings routes and never configured values"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff",
+      "surfaces": [
+        "cli",
+        "ui"
+      ],
+      "internal_reason": "Resolves only an authenticated owner-issued handoff after target and revision fences match"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/handoff",
+      "surfaces": [],
+      "internal_reason": "Authenticated Bridge compatibility adapter over the canonical onboarding selection handoff"
     }
   ]
 }

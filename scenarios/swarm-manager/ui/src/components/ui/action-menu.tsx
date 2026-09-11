@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Loader2, MoreVertical } from "lucide-react";
-import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1.3.0";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { Button, type ButtonProps } from "./button";
 import { cn } from "../../lib/utils";
 

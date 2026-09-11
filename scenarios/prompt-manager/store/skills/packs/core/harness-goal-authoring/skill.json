@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-11T00:00:00Z",
+  "description": "Write the message a coding agent runs under in harness goal mode (Claude Code and Codex `/goal`, Agent Manager `until`), or the assignment a coordinator hands a sub-agent. Nine slots, four handoff shapes, and the split between what the docs and plan hold and what the goal message holds. Not for Swarm goal records; use swarm-manager-work-authoring for those.",
+  "entry": "SKILL.md",
+  "icon": "target",
+  "id": "harness-goal-authoring",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "harness-goal-authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "goal",
+    "harness",
+    "until",
+    "delegation",
+    "sub-agent",
+    "orchestration",
+    "prompt"
+  ],
+  "updatedAt": "2026-09-11T00:00:00Z"
+}

@@ -21,6 +21,31 @@ func TestRequireMutationDeniesAnonymousAndUnderprivilegedCallers(t *testing.T) {
 	}
 }
 
+func TestRequireMutationCarriesConfiguredRecoveryDetails(t *testing.T) {
+	ctx := identity.WithStatus(context.Background(), identity.Status{
+		Source:          identity.SourceCloudflareAccess,
+		RecoveryURL:     "https://team.example.test/cdn-cgi/access/login",
+		ProviderSources: []identity.AuthSource{identity.SourceCloudflareAccess},
+	})
+	err := RequireMutation(ctx)
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("code = %v, error = %v", connect.CodeOf(err), err)
+	}
+	connectErr, ok := err.(*connect.Error)
+	if !ok {
+		t.Fatalf("error type = %T, want *connect.Error", err)
+	}
+	if got := connectErr.Meta().Get("Vrooli-Auth-Recovery-Url"); got != "https://team.example.test/cdn-cgi/access/login" {
+		t.Fatalf("recovery URL = %q", got)
+	}
+	if got := connectErr.Meta().Get("Vrooli-Auth-Source"); got != "cloudflare_access" {
+		t.Fatalf("auth source = %q", got)
+	}
+	if got := connectErr.Meta().Get("Vrooli-Auth-Providers"); got != "cloudflare_access" {
+		t.Fatalf("auth providers = %q", got)
+	}
+}
+
 func TestRequireMutationDeniesAgentsAndAcceptsScopedHuman(t *testing.T) {
 	agent := identity.WithPrincipal(context.Background(), identity.Principal{
 		Kind: identity.ActorAgent, Subject: "run-1", Verified: true,

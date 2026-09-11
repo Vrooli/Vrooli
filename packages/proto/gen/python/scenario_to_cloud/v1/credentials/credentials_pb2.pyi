@@ -19,14 +19,16 @@ class CredentialDescriptor(_message.Message):
     def __init__(self, logical_id: _Optional[str] = ..., field: _Optional[str] = ...) -> None: ...
 
 class CredentialVersion(_message.Message):
-    __slots__ = ("number", "content_ref", "created_at")
+    __slots__ = ("number", "content_ref", "created_at", "expires_at")
     NUMBER_FIELD_NUMBER: _ClassVar[int]
     CONTENT_REF_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     number: int
     content_ref: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, number: _Optional[int] = ..., content_ref: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    expires_at: _timestamp_pb2.Timestamp
+    def __init__(self, number: _Optional[int] = ..., content_ref: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CredentialBinding(_message.Message):
     __slots__ = ("id", "deployment_id", "descriptor", "source_class", "target_type", "target_name", "version", "previous_version", "consumer_refs", "grant_ref", "recovery_key_ref", "state", "created_at", "updated_at")
@@ -74,12 +76,18 @@ class CredentialAck(_message.Message):
     def __init__(self, binding_id: _Optional[str] = ..., consumer: _Optional[str] = ..., version: _Optional[int] = ..., verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class BindingView(_message.Message):
-    __slots__ = ("binding", "acks")
+    __slots__ = ("binding", "acks", "lifecycle_state", "lifecycle_detail", "next_action")
     BINDING_FIELD_NUMBER: _ClassVar[int]
     ACKS_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_STATE_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
     binding: CredentialBinding
     acks: _containers.RepeatedCompositeFieldContainer[CredentialAck]
-    def __init__(self, binding: _Optional[_Union[CredentialBinding, _Mapping]] = ..., acks: _Optional[_Iterable[_Union[CredentialAck, _Mapping]]] = ...) -> None: ...
+    lifecycle_state: str
+    lifecycle_detail: str
+    next_action: str
+    def __init__(self, binding: _Optional[_Union[CredentialBinding, _Mapping]] = ..., acks: _Optional[_Iterable[_Union[CredentialAck, _Mapping]]] = ..., lifecycle_state: _Optional[str] = ..., lifecycle_detail: _Optional[str] = ..., next_action: _Optional[str] = ...) -> None: ...
 
 class ListBindingsRequest(_message.Message):
     __slots__ = ("deployment_id",)

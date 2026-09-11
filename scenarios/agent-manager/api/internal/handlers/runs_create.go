@@ -133,6 +133,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			model := inline.GetModel()
 			req.Model = &model
 		}
+		if strings.TrimSpace(inline.GetUntil()) != "" {
+			req.Until = inline.GetUntil()
+		}
 		if len(inline.AllowedTools) > 0 || inline.ClearAllowedTools {
 			req.AllowedTools = inline.AllowedTools
 		}

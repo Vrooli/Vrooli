@@ -68,6 +68,15 @@ func (h *connectHandler) CreateHandoff(ctx context.Context, req *connect.Request
 	})
 }
 
+func (h *connectHandler) GetHandoff(ctx context.Context, req *connect.Request[selectionv1.GetHandoffRequest]) (*connect.Response[selectionv1.GetHandoffResponse], error) {
+	if strings.TrimSpace(req.Msg.GetReference()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("handoff reference is required"))
+	}
+	return unary(ctx, func(ctx context.Context) (*selectionv1.GetHandoffResponse, error) {
+		return h.service.ResolveHandoff(ctx, req.Msg)
+	})
+}
+
 func unary[T any](ctx context.Context, call func(context.Context) (*T, error)) (*connect.Response[T], error) {
 	value, err := call(ctx)
 	if err != nil {
@@ -79,6 +88,9 @@ func unary[T any](ctx context.Context, call func(context.Context) (*T, error)) (
 func selectionError(err error) error {
 	if strings.Contains(err.Error(), "unsupported setup selection schema version") {
 		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if strings.Contains(err.Error(), "stale or outside the authorized target revision") {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	return connect.NewError(connect.CodeInternal, fmt.Errorf("selection operation: %w", err))
 }

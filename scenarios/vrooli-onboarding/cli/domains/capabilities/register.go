@@ -28,22 +28,95 @@ func (list *stringList) Set(value string) error {
 	return nil
 }
 
+// ManifestHandlers supplies verification's nested request mapping. The
+// generated primitive can expose the RPC, but this operation needs to turn
+// operator-friendly context flags into VerificationRequest without exposing
+// provider secrets or requiring a hand-authored JSON envelope.
+func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
+	return map[string]cliapp.PrimitiveHandler{
+		"CapabilitiesService.VerifyCapability": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+			return verify(ctx.Core(), ctx)
+		}),
+	}
+}
+
+func verify(core *cliapp.ScenarioApp, ctx cliapp.RunContext) error {
+	return runVerification(core, flagValue(ctx, "capability-id"), flagValue(ctx, "id"), flagValue(ctx, "target"), flagValue(ctx, "operation"), flagValue(ctx, "environment"), flagValue(ctx, "account-identity"), ctx.JSON())
+}
+
+func flagValue(ctx cliapp.RunContext, name string) string {
+	if !ctx.FlagDeclared(name) {
+		return ""
+	}
+	return ctx.Flag(name)
+}
+
+func verifyArgs(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("capabilities verify")
+	capabilityID := fs.String("capability-id", "", "Capability id")
+	id := fs.String("id", "", "Capability id (alias for --capability-id)")
+	target := fs.String("target", "", "Explicit onboarding target")
+	operation := fs.String("operation", "", "Named provider operation to verify")
+	environment := fs.String("environment", "", "Execution environment context")
+	accountIdentity := fs.String("account-identity", "", "Account identity context")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	return runVerification(core, *capabilityID, *id, *target, *operation, *environment, *accountIdentity, *jsonOutput)
+}
+
+func runVerification(core *cliapp.ScenarioApp, capabilityID, aliasID, target, operation, environment, accountIdentity string, jsonOutput bool) error {
+	id := strings.TrimSpace(capabilityID)
+	if id == "" {
+		id = strings.TrimSpace(aliasID)
+	}
+	if id == "" {
+		return fmt.Errorf("--capability-id is required")
+	}
+	target = strings.TrimSpace(target)
+	if target == "" {
+		target = "local"
+	}
+	request := &capabilitiesv1.VerifyCapabilityRequest{
+		Target: target,
+		Verification: &capabilitiesv1.VerificationRequest{
+			CapabilityId:    id,
+			TargetId:        target,
+			Operation:       strings.TrimSpace(operation),
+			Environment:     strings.TrimSpace(environment),
+			AccountIdentity: strings.TrimSpace(accountIdentity),
+			EffectClass:     "read_only",
+			TimeoutSeconds:  30,
+		},
+	}
+	response := &capabilitiesv1.VerifyCapabilityResponse{}
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceVerifyCapabilityProcedure, request, response); err != nil {
+		return err
+	}
+	return renderJSONOrPretty(response, jsonOutput, "capability verification")
+}
+
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "capabilities", Description: "Inspect and apply operator capabilities", NeedsAPI: true, Subcommands: []cliapp.Command{
 		{Name: "list", Description: "List capability descriptors and status", Run: func(args []string) error { return list(core, args) }},
 		{Name: "preview", Description: "Preview a capability action", Run: func(args []string) error { return action(core, args, false) }},
 		{Name: "apply", Description: "Preview and apply a capability action", Run: func(args []string) error { return action(core, args, true) }},
+		{Name: "verify", Description: "Run a bounded capability verification", Run: func(args []string) error {
+			return verifyArgs(core, args)
+		}},
 	}}
 }
 
 func list(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("capabilities list")
+	target := fs.String("target", "local", "Explicit onboarding target")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	response := &capabilitiesv1.ListCapabilitiesResponse{}
-	if err := request(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: "local"}, response); err != nil {
+	if err := request(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: strings.TrimSpace(*target)}, response); err != nil {
 		return err
 	}
 	return renderJSONOrPretty(response, *jsonOutput, "capabilities")
@@ -52,6 +125,7 @@ func list(core *cliapp.ScenarioApp, args []string) error {
 func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	fs := support.NewFlagSet("capabilities action")
 	id := fs.String("id", "", "Capability id")
+	target := fs.String("target", "local", "Explicit onboarding target")
 	var inputFlags stringList
 	fs.Var(&inputFlags, "input", "Non-secret input as key=value; repeatable")
 	secretFlag := fs.String("secret", "", "Rejected: capability secrets must be read from standard input")
@@ -77,9 +151,13 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	if err != nil {
 		return fmt.Errorf("encode capability inputs: %w", err)
 	}
-	request := &capabilitiesv1.ActionRequest{CapabilityId: strings.TrimSpace(*id), Confirm: false, Inputs: inputStruct}
+	targetID := strings.TrimSpace(*target)
+	if targetID == "" {
+		targetID = "local"
+	}
+	request := &capabilitiesv1.ActionRequest{CapabilityId: strings.TrimSpace(*id), TargetId: targetID, Confirm: false, Inputs: inputStruct}
 	preview := &capabilitiesv1.PreviewCapabilityResponse{}
-	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure, &capabilitiesv1.PreviewCapabilityRequest{Target: "local", Action: request}, preview); err != nil {
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure, &capabilitiesv1.PreviewCapabilityRequest{Target: targetID, Action: request}, preview); err != nil {
 		return err
 	}
 	if *jsonOutput || !apply {
@@ -103,7 +181,7 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	}
 	request.Confirm = true
 	result := &capabilitiesv1.ApplyCapabilityResponse{}
-	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceApplyCapabilityProcedure, &capabilitiesv1.ApplyCapabilityRequest{Target: "local", Action: request}, result); err != nil {
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceApplyCapabilityProcedure, &capabilitiesv1.ApplyCapabilityRequest{Target: targetID, Action: request}, result); err != nil {
 		return err
 	}
 	if *jsonOutput {

@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/vrooli/internal/operatorcapability"
 	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
 	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/authz"
 	internaloperatorinputs "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/operatorinputs"
@@ -16,6 +17,16 @@ func TestResolveMutationRequiresVerifiedPrincipal(t *testing.T) {
 	err := authz.RequireMutation(context.Background())
 	if connect.CodeOf(err) != connect.CodeUnauthenticated || !strings.Contains(err.Error(), "verified onboarding operator") {
 		t.Fatalf("authorization error = %v", err)
+	}
+}
+
+func TestOperatorInputProjectionPreservesCompanionCredentials(t *testing.T) {
+	projected := requestToProto(operatorcapability.Request{
+		ID: "fixture:secret", Kind: operatorcapability.KindSecret, Title: "Secret",
+		CompanionCredentials: []string{"fixture/access-key-id"},
+	})
+	if got := projected.GetCompanionCredentials(); len(got) != 1 || got[0] != "fixture/access-key-id" {
+		t.Fatalf("companion credentials = %#v, want the durable request metadata", got)
 	}
 }
 
