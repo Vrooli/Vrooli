@@ -260,7 +260,7 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. Material implementation work is then shaped through Plan Manager and receives one canonical `plan_ref`; the operator chooses phased execution or the `adaptive-improvement` strategy. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
+Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. Material implementation work is then shaped through Plan Manager and receives one canonical `plan_ref`. The plan has a **shape**, `phased` or `mandate`, defined in [Scenario development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#grant-plan-shape-and-execution-mode). The operator grants the item and picks an **execution mode** in the Run dialog: `sliced` (one bounded worker run per slice with an independent review, through the `phased-plan-drain` workflow) or `goal` (one Agent Manager run that carries the finish line as a harness goal). Any shape runs under either mode. After execution, Swarm **finalization** restarts the scenario, checks health, gathers evidence, runs the review agent, and sets the item to done, needs_review, or follow-up. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
@@ -268,21 +268,30 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 │  Feature Team  → idea    │──┐         │ Backlog item + outcome       │
 │  QA Team       → fix     │──┼────────▶│          ↓                   │
 │  Other owner  → evidence │──┘         │ Plan Manager plan_ref        │
-└──────────────────────────┘            │          ↓                   │
-                                        │ Operator grant + strategy    │
-                                        │   ├ phased plan slices       │
-                                        │   └ adaptive improvements     │
+└──────────────────────────┘            │   shape: phased | mandate    │
+                                        │          ↓                   │
+                                        │ Operator grant + mode        │
+                                        │   ├ sliced (workflow)        │
+                                        │   └ goal (one run)           │
                                         └──────────┬───────────────────┘
                                                    ↓
-                                        Agent Manager workflow + evidence
+                                        Agent Manager run(s) + evidence
+                                                   ↓
+                                        Swarm finalization → outcome
 ```
 
 **Why staging matters:**
 - Operators get a single place to review all agent-generated plans
-- Goal and plan workflows shape intent and implementation separately; neither
+- Swarm goals and plans shape intent and implementation separately; neither
   approves or launches work automatically
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
+
+**Implementation status.** The backlog item today carries `execution_strategy`
+with the values `phased-plan-drain`, `adaptive-improvement`, and `goal-session`;
+the plan `shape` field does not exist yet. The interim mapping to the target
+vocabulary is in
+[SCENARIO_DEVELOPMENT.md](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#implementation-status).
 
 Actions do not replace this staging layer. If a missing operation needs new scenario/resource/project behavior, the correct output is still a backlog item or `capability-work`. Once the CLI behavior exists and is stable, an Action can wrap it for future execution.
 

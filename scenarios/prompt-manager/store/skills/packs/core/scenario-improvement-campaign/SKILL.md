@@ -10,9 +10,9 @@ metadata:
   icon: "list-checks"
   status: "active"
   targetToolId: "run-agent"
-  revision: 5
+  revision: 6
   createdAt: "2026-05-29T00:00:00Z"
-  updatedAt: "2026-09-10T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: ["prompt-manager", "test-genie"]
     commands: ["prompt-manager skill read", "test-genie runs", "vrooli scenario test"]
@@ -24,9 +24,9 @@ metadata:
 Implement and verify successive improvements inside the caller's authorized
 engagement. Let the scenario improve skill choose the concern; let owner evidence
 establish the result. One coherent repair needs no campaign machinery of its own.
-The engagement always belongs to a canonical Plan Manager work package; the
-campaign is an adaptive execution strategy over that plan, not a planless
-development lifecycle.
+The engagement always belongs to a canonical Plan Manager plan, normally one
+with shape `mandate` (see `adaptive-mandate-authoring`); the campaign is the
+improvement loop over that plan, not a planless development lifecycle.
 
 Required reading:
 - `path:docs/agent-system/SCENARIO_DEVELOPMENT.md` — target, authority, and completion.
@@ -37,16 +37,18 @@ Load `<scenario>-improve` for scenario-contract work. Load `scenario-maturity-la
 for an explicit maturity review. Load implementation-plan execution when working
 an actual plan; it is not a prerequisite for every repair.
 
-When Swarm supplies an ordinary adaptive plan item, use its accepted canonical
-plan, item limits and execution checkpoint. The Swarm execution owner admits
-the declared workflow and retains its correlation; Agent Manager owns the run
-journal and grant accounting. This skill selects the next in-scope repair and
-reports evidence. Independently reviewed routine phase boundaries continue
-under the original approval. Target or grant amendments remain operator decisions.
-Existing retained `contract-development` engagements keep their own owner;
-never add that second lifecycle to an ordinary adaptive item.
-Do not create a second approval for an ordinary repair or treat a workflow's
-terminal result as the operator's final acceptance.
+When Swarm supplies a plan-backed item, use its accepted canonical plan, item
+limits and execution checkpoint. The item runs in one of two execution modes.
+In sliced mode the `swarm-manager/phased-plan-drain` workflow gives you one
+slice at a time with an independent review after each. In goal mode you hold
+one Agent Manager run under a harness goal composed by `harness-goal-authoring`,
+with no per-session reviewer; Swarm's finalization reviews the item afterwards.
+This skill owns the improvement loop in both modes: it selects the next in-scope
+repair and reports evidence. Agent Manager owns the run journal and grant
+accounting. Target or grant amendments remain operator decisions. Do not create
+a second approval for an ordinary repair, and do not treat a slice result, a
+harness "met" verdict, or a workflow terminal result as the operator's final
+acceptance.
 
 ### 1. Resolve the engagement
 

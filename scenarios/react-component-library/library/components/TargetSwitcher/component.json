@@ -16,6 +16,14 @@
     "0.1.1",
     "0.1.0"
   ],
-  "latest": "0.1.4",
-  "libraryId": "react-component-library:TargetSwitcher"
+  "latest": "0.3.4",
+  "libraryId": "react-component-library:TargetSwitcher",
+  "displayName": "Target Switcher",
+  "description": "A compact target identity control with an anchored fleet menu, presence details, keyboard navigation, and an optional target-linking action.",
+  "tags": [
+    "navigation",
+    "target",
+    "fleet",
+    "overlay"
+  ]
 }

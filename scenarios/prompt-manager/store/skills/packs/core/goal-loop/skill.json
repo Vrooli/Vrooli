@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-02T00:00:00Z",
-  "description": "Select authorized development or observation for scenario improvement; use its improve skill and caller-owned continuity. Does not grant permissions or schedule itself.",
+  "description": "Select the development or observation posture for scenario improvement and route development to the campaign; use the scenario improve skill and caller-owned continuity. Does not grant permissions, compose a harness goal, or schedule itself.",
   "entry": "SKILL.md",
   "icon": "repeat",
   "id": "goal-loop",
@@ -21,7 +21,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 6,
+  "revision": 7,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -31,5 +31,5 @@
     "setpoint",
     "heartbeat"
   ],
-  "updatedAt": "2026-09-08T00:00:00Z"
+  "updatedAt": "2026-09-11T12:00:00Z"
 }

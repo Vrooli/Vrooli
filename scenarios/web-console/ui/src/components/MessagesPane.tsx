@@ -31,7 +31,9 @@ import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
 import { MessageRow, type PressHandlers } from "./messages/MessageRow";
-import { MessagesReader } from "./messages/MessagesReader";
+import { MessagesReader, clampReaderFont } from "./messages/MessagesReader";
+import type { MessageActionContext } from "./messages/messageActions";
+import { holdKeyboardForNextField } from "../lib/keyboardFocus";
 import type { ActionsOrigin } from "./messages/MessageActionList";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useTouchControls } from "../hooks/useTouchControls";
@@ -328,6 +330,22 @@ export default function MessagesPane({
     };
   }, [sessionId]);
 
+  const estimateMessageHeight = useCallback((index: number) => {
+    const event = events[index];
+    if (!event) return 140;
+    const lineEstimate = Math.ceil(event.text.length / 90);
+    return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
+  }, [events]);
+  const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
+  const { registerItem, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex, anchorItem, listScrollTop } = useVirtualList({
+    count: events.length,
+    estimateSize: estimateMessageHeight,
+    getItemKey: getMessageKey,
+    overscan: 8,
+    scrollElementRef: scrollContainerRef,
+    enabled: events.length > 40,
+  });
+
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -339,7 +357,8 @@ export default function MessagesPane({
         setFollow(remaining <= FOLLOW_THRESHOLD_PX);
         schedulePositionSave();
       }
-      if (el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
+      // In list coordinates: mid-fling the rows may still carry a correction.
+      if (listScrollTop() <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
         const containerTop = el.getBoundingClientRect().top;
         const anchor = [...el.querySelectorAll<HTMLElement>("[data-event-id]")]
           .find((row) => row.getBoundingClientRect().bottom > containerTop);
@@ -359,7 +378,7 @@ export default function MessagesPane({
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => { el.removeEventListener("scroll", onScroll); };
-  }, [sessionId, setFollow, schedulePositionSave]);
+  }, [listScrollTop, sessionId, setFollow, schedulePositionSave]);
 
   // A user gesture ends any programmatic scroll in flight, so the scroll
   // events it produces are the user's and decide follow. Without this, a user
@@ -440,37 +459,19 @@ export default function MessagesPane({
     [focusedEventId, searchMatchIndexById],
   );
 
-  const estimateMessageHeight = useCallback((index: number) => {
-    const event = events[index];
-    if (!event) return 140;
-    const lineEstimate = Math.ceil(event.text.length / 90);
-    return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
-  }, [events]);
-  const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
-  const { registerItem, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex } = useVirtualList({
-    count: events.length,
-    estimateSize: estimateMessageHeight,
-    getItemKey: getMessageKey,
-    overscan: 8,
-    scrollElementRef: scrollContainerRef,
-    enabled: events.length > 40,
-  });
-
   // useLayoutEffect runs after React has placed the prepended page but before
   // the browser paints it.  The former anchor is temporarily outside the
   // virtual window at this point, so use its new virtual index rather than a
-  // DOM lookup. Subsequent row measurement adjustments are anchored by the
-  // virtualizer itself.
+  // DOM lookup. The virtualizer holds it in place, mid-fling without a
+  // scrollTop write; later row measurement is anchored by the virtualizer too.
   useLayoutEffect(() => {
     const anchor = prependScrollAnchorRef.current;
-    const el = scrollContainerRef.current;
-    if (!anchor || !el) return;
+    if (!anchor) return;
     const index = events.findIndex((event) => event.id === anchor.eventId);
     if (index < 0) return;
-    scrollToIndex(index, "auto", "start");
-    el.scrollTop -= anchor.offsetFromViewportTop;
+    anchorItem(index, anchor.offsetFromViewportTop);
     prependScrollAnchorRef.current = null;
-  }, [events, scrollToIndex]);
+  }, [anchorItem, events]);
 
   // Restore, step 1: a saved place outside the loaded window is paged in
   // before anything scrolls. A place that cannot be found is reported and the
@@ -640,16 +641,28 @@ export default function MessagesPane({
   const closeMermaidViewer = useCallback(() => { setMermaidViewer(null); }, []);
 
   // --- Reader: a long reply in full, over the list, which stays mounted ---
-  const [readerEvent, setReaderEvent] = useState<ConversationEvent | null>(null);
+  const [readerEventId, setReaderEventId] = useState<string | null>(null);
+  const readerIndex = readerEventId == null ? undefined : eventIndexById.get(readerEventId);
+  const readerEvent = readerIndex == null ? null : events[readerIndex] ?? null;
+  // The reader steps between replies; the operator's own messages are skipped.
+  const replyNear = (from: number, direction: -1 | 1): string | null => {
+    for (let index = from + direction; index >= 0 && index < events.length; index += direction) {
+      const candidate = events[index];
+      if (candidate && candidate.role !== "user") return candidate.id;
+    }
+    return null;
+  };
+  const prevReplyId = readerIndex == null ? null : replyNear(readerIndex, -1);
+  const nextReplyId = readerIndex == null ? null : replyNear(readerIndex, 1);
+  const readerFontSize = clampReaderFont(useMessagesViewStore((state) => state.readerFontSize) ?? fontSize);
+  const setReaderFontSize = useCallback((size: number) => { useMessagesViewStore.getState().setReaderFontSize(size); }, []);
   const openReader = useCallback((eventId: string) => {
-    const index = eventIndexById.get(eventId);
-    const target = index == null ? undefined : events[index];
-    if (target) setReaderEvent(target);
-  }, [eventIndexById, events]);
+    if (eventIndexById.has(eventId)) setReaderEventId(eventId);
+  }, [eventIndexById]);
   const closeReader = useCallback(() => {
-    const eventId = readerEvent?.id;
-    setReaderEvent(null);
-    // Return focus to the row the reader opened from; the list did not move.
+    const eventId = readerEventId;
+    setReaderEventId(null);
+    // Return focus to the row the reader showed last; the list did not move.
     if (eventId) {
       requestAnimationFrame(() => {
         scrollContainerRef.current
@@ -657,7 +670,7 @@ export default function MessagesPane({
           ?.focus({ preventScroll: true });
       });
     }
-  }, [readerEvent]);
+  }, [readerEventId]);
 
   // --- Message actions: the pane owns which row's list is open (one at a time) ---
   const coarsePointer = useTouchControls();
@@ -666,11 +679,29 @@ export default function MessagesPane({
     setActionsTarget({ eventId, origin });
   }, []);
   const closeActions = useCallback(() => { setActionsTarget(null); }, []);
-  const ignoreTap = useCallback(() => undefined, []);
-  // Long-press on touch opens the row's action sheet; movement past the
-  // gesture threshold cancels it, so scrolling never opens a sheet.
-  const { getGestureHandlers } = usePressGesture<string>({ onTap: ignoreTap, onLongPress: openActions });
-  const getPressHandlers: (eventId: string) => PressHandlers = getGestureHandlers;
+  // On touch a tap on a row reveals its inline actions, as hover does on a
+  // fine pointer: one row at a time, and a second tap hides them. A tap that
+  // lands on a control inside the row (a link, a revealed action) is that
+  // control's, not a reveal. Long-press opens the full sheet; movement past
+  // the gesture threshold cancels both, so scrolling never does either.
+  const [tapRevealedId, setTapRevealedId] = useState<string | null>(null);
+  const tapOnControlRef = useRef(false);
+  const toggleTapReveal = useCallback((eventId: string) => {
+    if (tapOnControlRef.current) return;
+    setTapRevealedId((current) => (current === eventId ? null : eventId));
+  }, []);
+  const { getGestureHandlers } = usePressGesture<string>({ onTap: toggleTapReveal, onLongPress: openActions });
+  const getPressHandlers = useCallback((eventId: string): PressHandlers => {
+    const handlers = getGestureHandlers(eventId);
+    return {
+      ...handlers,
+      onPointerDown: (pointerEvent) => {
+        tapOnControlRef.current = pointerEvent.target instanceof Element
+          && pointerEvent.target.closest("a, button, input, textarea, select, summary, [role='button']") !== null;
+        handlers.onPointerDown(pointerEvent);
+      },
+    };
+  }, [getGestureHandlers]);
 
   // Keyboard: j/k move between messages, Enter opens the focused message's
   // actions, Escape closes them. Typing in a field inside the pane is left alone.
@@ -707,6 +738,37 @@ export default function MessagesPane({
     focusAndScroll(nextId);
   }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator]);
 
+  // One action context per message, shared by its row and the reader.
+  const actionContextFor = (event: ConversationEvent): MessageActionContext => ({
+    event,
+    sessionId,
+    readOnly,
+    copied: copiedEventId === event.id,
+    isPlaintext: plaintextIds.has(event.id),
+    isAudioLoading: event.role !== "user" && loadingEventId === event.id,
+    isTtsSpeaking,
+    activeSpeakingEventId,
+    summarizeLevel,
+    selectedVersion: selectedVersionForEvent(event),
+    summarizingEventId,
+    getSummarizeError,
+    onClearSummarizeError,
+    onToggleSummarized,
+    onChangeLevel,
+    onCopy: handleCopy,
+    onPlayFromHere,
+    onOpenReader: openReader,
+    onToggleRenderMode: toggleRenderMode,
+    onSendToComposer,
+    onSaveAsSnippet: (text) => {
+      setSnippetSaveSource({
+        body: text,
+        sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
+      });
+    },
+    onHandoff: readOnly ? undefined : onHandoff,
+  });
+
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
@@ -722,7 +784,11 @@ export default function MessagesPane({
           type="button"
           data-testid="messages-search-field"
           data-count={totalCount}
-          onClick={() => { openNavigator("search"); }}
+          onClick={() => {
+            // The search box mounts a commit later, inside the sheet's portal.
+            if (coarsePointer) holdKeyboardForNextField();
+            openNavigator("search");
+          }}
           className={cn(
             "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-faint transition hover:border-wc-accent/40",
             searchQuery && "text-wc-text-primary ring-1 ring-wc-accent/40",
@@ -806,40 +872,13 @@ export default function MessagesPane({
                   style={{ top: `${String(start)}px` }}
                 >
                   <MessageRow
-                    actionContext={{
-                      event,
-                      sessionId,
-                      readOnly,
-                      copied: copiedEventId === event.id,
-                      isPlaintext: plaintextIds.has(event.id),
-                      isAudioLoading: event.role !== "user" && loadingEventId === event.id,
-                      isTtsSpeaking,
-                      activeSpeakingEventId,
-                      summarizeLevel,
-                      selectedVersion: selectedVersionForEvent(event),
-                      summarizingEventId,
-                      getSummarizeError,
-                      onClearSummarizeError,
-                      onToggleSummarized,
-                      onChangeLevel,
-                      onCopy: handleCopy,
-                      onPlayFromHere,
-                      onOpenReader: openReader,
-                      onToggleRenderMode: toggleRenderMode,
-                      onSendToComposer,
-                      onSaveAsSnippet: (text) => {
-                        setSnippetSaveSource({
-                          body: text,
-                          sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
-                        });
-                      },
-                      onHandoff: readOnly ? undefined : onHandoff,
-                    }}
+                    actionContext={actionContextFor(event)}
                     fontSize={fontSize}
                     isFocused={focusedEventId === event.id}
                     isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
                     isDimmed={!!searchQuery && serverSearchReady && !searchMatchSet.has(event.id)}
                     coarsePointer={coarsePointer}
+                    tapRevealed={coarsePointer && tapRevealedId === event.id}
                     actionsOpen={actionsTarget?.eventId === event.id}
                     actionsOrigin={actionsTarget?.eventId === event.id ? actionsTarget.origin : null}
                     onOpenActions={openActions}
@@ -880,29 +919,36 @@ export default function MessagesPane({
         <SessionStateSlot slot={stateSlot} onOpenTerminal={onOpenTerminal} onAnswer={answerSlotPrompt} />
       </div>
 
-      {newMessageCount > 0 && (
-        <button
-          data-testid="msg-new-pill"
-          data-count={newMessageCount}
-          onClick={scrollToBottom}
-          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
-          type="button"
+      {/* Centred by a full-width row, not a transform: the library button
+          resets `transform` on hover and press, which slid it sideways. */}
+      {(newMessageCount > 0 || (!following && events.length > 0)) && (
+        <div
+          data-testid="msg-bottom-actions"
+          className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,var(--wc-safe-bottom,0px))] z-wc-chrome-raised flex justify-center"
         >
-          <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
-          {t(strings.messagesPane.newMessages, { count: newMessageCount })}
-        </button>
-      )}
-
-      {newMessageCount === 0 && !following && events.length > 0 && (
-        <IconButton
-          data-testid="msg-jump-bottom"
-          aria-label={t(strings.messagesPane.jumpToBottomAria)}
-          onClick={scrollToBottom}
-          surface="soft"
-          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 shadow-lg"
-        >
-          <ArrowDown />
-        </IconButton>
+          {newMessageCount > 0 ? (
+            <button
+              data-testid="msg-new-pill"
+              data-count={newMessageCount}
+              onClick={scrollToBottom}
+              className="pointer-events-auto rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-colors hover:bg-wc-surface-input"
+              type="button"
+            >
+              <ArrowDown className="me-1.5 inline-block h-3.5 w-3.5" />
+              {t(strings.messagesPane.newMessages, { count: newMessageCount })}
+            </button>
+          ) : (
+            <IconButton
+              data-testid="msg-jump-bottom"
+              aria-label={t(strings.messagesPane.jumpToBottomAria)}
+              onClick={scrollToBottom}
+              surface="soft"
+              className="pointer-events-auto shadow-lg"
+            >
+              <ArrowDown />
+            </IconButton>
+          )}
+        </div>
       )}
 
       <MessagesFileViewer
@@ -919,12 +965,14 @@ export default function MessagesPane({
 
       {readerEvent && (
         <MessagesReader
-          event={readerEvent}
-          fontSize={fontSize}
-          isPlaintext={plaintextIds.has(readerEvent.id)}
+          actionContext={{ ...actionContextFor(readerEvent), onOpenReader: undefined }}
+          fontSize={readerFontSize}
+          onFontSizeChange={setReaderFontSize}
+          coarsePointer={coarsePointer}
           onClose={closeReader}
-          onCopy={handleCopy}
           onPlay={readOnly ? undefined : onPlayEvent}
+          onPrev={prevReplyId ? () => { setReaderEventId(prevReplyId); } : undefined}
+          onNext={nextReplyId ? () => { setReaderEventId(nextReplyId); } : undefined}
           onLinkClick={handleMarkdownLinkClick}
           onFileReferenceClick={handleInlineCodeFileClick}
           onMermaidOpen={handleMermaidOpen}

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, useLayoutEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
-import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Search, SlidersHorizontal, Square, X } from "lucide-react";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import { InputGroup } from "@vrooli/react-component-library/InputGroup";
+import { AlignLeft, CheckSquare, Code, FileText, Search, Share, SlidersHorizontal, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent, ConversationSearchMatch, ConversationSearchModeName } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -389,7 +391,7 @@ export default function MessageJumpList({
   // virtual list a new ref when it does, so it binds to the element it scrolls.
   const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
   const listRef = useMemo(() => ({ current: listEl }), [listEl]);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const anchoredStyle = useAnchoredPopoverPosition(
     Boolean(desktopAnchorRef) && !isMobile,
@@ -490,12 +492,19 @@ export default function MessageJumpList({
     }
   }, [focusedEventId, scrollToEvent, results]);
 
-  // Opened to search (the search field, Cmd/Ctrl+K): focus the input at once,
-  // inside the opening gesture, so a phone raises its keyboard. Opened without
-  // saying: desktop only, since on mobile the keyboard would cover the results
-  // before the user has chosen to search.
-  useLayoutEffect(() => {
-    if (initialFocus === "search") searchRef.current?.focus();
+  // Opened to search (the search field, Cmd/Ctrl+K): focus the input the
+  // moment it mounts. On mobile it mounts a commit late, inside the sheet's
+  // portal, so neither a layout effect nor the sheet's own open-focus finds it;
+  // the pane's keyboard stand-in keeps a phone's keyboard up until then.
+  // Opened without saying: desktop only, since on mobile the keyboard would
+  // cover the results before the user has chosen to search.
+  const focusedOnOpenRef = useRef(false);
+  const attachSearch = useCallback((node: HTMLInputElement | null) => {
+    searchRef.current = node;
+    if (node && initialFocus === "search" && !focusedOnOpenRef.current) {
+      focusedOnOpenRef.current = true;
+      node.focus();
+    }
   }, [initialFocus]);
   const wantsSearchFocus = initialFocus == null && search !== undefined;
   useEffect(() => {
@@ -654,61 +663,79 @@ export default function MessageJumpList({
     </div>
   );
 
-  // The export affordance is chrome, not content: on mobile it rides the
-  // sheet's header slot, on desktop the anchored panel's own title row.
+  // The header is the search field, the navigator's first job, with Export
+  // beside it: on mobile in the sheet's header, on desktop in the panel's own.
   const exportAction =
     canExport && !exportActive ? (
-      <button
-        type="button"
+      <IconButton
         data-testid="msg-export-enter"
-        onClick={() => setIsExportSelecting(true)}
-        className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+        aria-label={t(strings.messageExport.exportAction)}
+        title={t(strings.messageExport.exportAction)}
+        surface="soft"
+        size="sm"
+        onClick={() => { setIsExportSelecting(true); }}
       >
-        <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
-        {t(strings.messageExport.exportAction)}
-      </button>
+        <Share />
+      </IconButton>
     ) : null;
+
+  const headerField = (
+    <div data-testid="msg-nav-header" className="flex min-w-0 flex-1 items-center gap-2">
+      {search ? (
+        <InputGroup className="min-w-0 flex-1" size="md" shape="rounded" testId="msg-nav-search-group">
+          <InputGroup.Adornment side="leading">
+            <Search aria-hidden />
+          </InputGroup.Adornment>
+          <InputGroup.Field>
+            <Input
+              ref={attachSearch}
+              data-testid="msg-nav-search"
+              type="search"
+              value={q}
+              onChange={(e) => { setQuery(e.target.value); }}
+              // The overlay wrapper calls preventDefault on mousedown to keep focus
+              // off the host (terminal); that also blocks the browser from focusing
+              // this input on click. Stop the event here so the input focuses
+              // normally while the rest of the overlay keeps its behavior.
+              onMouseDown={(e) => { e.stopPropagation(); }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={t(strings.messageJumpList.searchPlaceholder)}
+              aria-label={t(strings.messageJumpList.searchAriaLabel)}
+            />
+          </InputGroup.Field>
+          {q && (
+            <InputGroup.Action>
+              <IconButton
+                data-testid="msg-nav-clear"
+                aria-label={t(strings.messageJumpList.clearSearch)}
+                onClick={() => {
+                  setQuery("");
+                  searchRef.current?.focus();
+                }}
+                shape="rounded"
+                surface="ghost"
+                size="sm"
+              >
+                <X aria-hidden />
+              </IconButton>
+            </InputGroup.Action>
+          )}
+        </InputGroup>
+      ) : (
+        // A picker without search keeps a plain title.
+        <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">{title}</span>
+      )}
+      {!isMobile && exportAction}
+    </div>
+  );
 
   const body_node = (
     <>
-      {/* Search: only where the owner runs the server search */}
-      {search && (
-      <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1.5">
-        <Search className="h-4 w-4 shrink-0 text-wc-text-muted" aria-hidden="true" />
-        <input
-          ref={searchRef}
-          data-testid="msg-nav-search"
-          type="text"
-          value={q}
-          onChange={(e) => setQuery(e.target.value)}
-          // The overlay wrapper calls preventDefault on mousedown to keep focus
-          // off the host (terminal); that also blocks the browser from focusing
-          // this input on click. Stop the event here so the input focuses
-          // normally while the rest of the overlay keeps its behavior.
-          onMouseDown={(e) => e.stopPropagation()}
-          onKeyDown={handleSearchKeyDown}
-          placeholder={t(strings.messageJumpList.searchPlaceholder)}
-          aria-label={t(strings.messageJumpList.searchAriaLabel)}
-          className="min-w-0 flex-1 bg-transparent text-sm text-wc-text-primary placeholder:text-wc-text-muted outline-none"
-        />
-        {q && (
-          <button
-            type="button"
-            data-testid="msg-nav-clear"
-            onClick={() => {
-              setQuery("");
-              searchRef.current?.focus();
-            }}
-            className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-            aria-label={t(strings.messageJumpList.clearSearch)}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+      {exportActive && (
+        <div className="shrink-0 px-3 pt-2 pb-1 text-[11px] font-medium text-wc-text-secondary">{title}</div>
       )}
       {search && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1 px-3 pb-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1 px-3 pt-2 pb-1.5">
           <div
             data-testid="msg-jump-mode"
             role="group"
@@ -979,7 +1006,9 @@ export default function MessageJumpList({
       <BottomSheet
         open
         onClose={onClose}
-        title={title}
+        title={headerField}
+        ariaLabel={title}
+        className="wc-nav-sheet"
         headerActions={exportAction}
         closeLabel={t(strings.messageJumpList.closeAriaLabel)}
         testId="msg-jump-list"
@@ -1007,29 +1036,16 @@ export default function MessageJumpList({
       onKeyDown={handleKeyDown}
       className="wc-stable-theme flex max-h-[32rem] min-h-0 w-[22rem] flex-col overflow-hidden rounded-xl border border-wc-default bg-wc-surface-raised shadow-2xl"
     >
-      {/* Title + export + close */}
-      <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1 pb-1">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-wc-text-faint">{title}</span>
-        <span className="flex items-center gap-1">
-          {canExport && !exportActive && (
-            <button
-              type="button"
-              data-testid="msg-export-enter"
-              onClick={() => setIsExportSelecting(true)}
-              className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-wc-surface-input/40 px-2.5 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-            >
-              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden="true" />
-              {t(strings.messageExport.exportAction)}
-            </button>
-          )}
-          <IconButton
-            onClick={onClose}
-            size="sm"
-            aria-label={t(strings.messageJumpList.closeAriaLabel)}
-          >
-            <X />
-          </IconButton>
-        </span>
+      {/* Search + export + close */}
+      <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1">
+        {headerField}
+        <IconButton
+          onClick={onClose}
+          size="sm"
+          aria-label={t(strings.messageJumpList.closeAriaLabel)}
+        >
+          <X />
+        </IconButton>
       </div>
       {body_node}
     </div>

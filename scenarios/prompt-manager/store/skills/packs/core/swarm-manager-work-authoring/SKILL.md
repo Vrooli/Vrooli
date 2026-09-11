@@ -8,9 +8,9 @@ metadata:
   modes: ["tools"]
   tags: ["swarm-manager","backlog","goals","writing"]
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-07-25T00:00:00Z"
-  updatedAt: "2026-07-25T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: ["vrooli"]
     commands: ["vrooli scenario"]
@@ -58,13 +58,49 @@ disposition. A plan reference is required before development authority is
 approved. The plan may point to a reviewed Tech Tree Designer revision when a
 design graph helps, but that revision does not replace the plan.
 
-Use the same work package for phased execution and successive improvement. The
-latter is the `adaptive-improvement` strategy and may run
-`scenario-improvement-campaign` across several repairs under one approved
-grant. Do not create a separate planless contract item for ordinary scenario
+Use the same work package for a phased plan and for an adaptive mandate. The
+plan's shape says what the work is; the execution mode (`sliced` or `goal`)
+says how it runs, and any shape runs under either mode. A mandate-shaped plan
+lets `scenario-improvement-campaign` make several repairs under one approved
+grant. Do not create a separate planless item for ordinary scenario
 development. Include the target scenario's usage and improve skills, expected
-evidence, acceptance boundary, special instructions, and a proposed strategy
+evidence, acceptance boundary, an operator note, and a proposed execution mode
 so the later plan author and operator have the information needed to review it.
+
+### Plan-backed item recipe
+
+Send only the fields the CLI accepts today; unknown fields fail fast. `kind`
+is one of `idea`, `research`, `fix`, `execute`, `chore`.
+
+```bash
+swarm-manager backlog create --data '{
+  "kind": "execute",
+  "name": "<name>",
+  "title": "<end state, present tense>",
+  "description": "<outcome>\n\nDone when:\n- <Gherkin or command>\n\nOperator note\n<intent, reminders, authority to fix shared packages with a record>",
+  "plan_ref": {"provider": "plan-manager", "plan_id": "<plan uuid>", "slug": "<plan slug>", "role": "execution_spec"},
+  "execution_strategy": "phased-plan-drain",
+  "execution_limits": {"max_slices": 8, "max_tokens": 4000000, "max_wall_seconds": 28800, "max_turns": 400, "max_charge_micro_usd": 20000000, "max_children": 16, "max_node_attempts": 64, "max_retries": 4},
+  "continuation": "until-allowance",
+  "scope_policy": "extend-with-record",
+  "acceptance_allow": ["scenarios/<scenario>/**", "packages/<shared-package>/**", "packages/proto/schemas/<scenario>/**"],
+  "acceptance_deny": ["scenarios/<scenario>/data/**"]
+}'
+swarm-manager backlog update --kind execute --name <name> --data '{
+  "execution_strategy": "adaptive-improvement",
+  "continuation": "until-allowance",
+  "scope_policy": "extend-with-record"
+}'
+```
+
+| Field | Values today | Meaning |
+|---|---|---|
+| `execution_strategy` | `phased-plan-drain`, `adaptive-improvement`, `goal-session` | Today's spelling of the execution mode: sliced over a phased plan, sliced over a mandate-shaped plan, and the interim workflow-based goal mode (superseded). Target field: `execution_mode` (`sliced` \| `goal`). |
+| `execution_limits` | `max_slices`, `max_tokens`, `max_wall_seconds`, `max_turns`, `max_charge_micro_usd`, `max_children`, `max_node_attempts`, `max_retries` | One aggregate allowance across resumes. `max_slices` applies to sliced mode only. |
+| `continuation` | `manual`, `until-allowance` | Resume policy for involuntary interruptions only. A verdict is final under both. |
+| `scope_policy` | `fixed`, `extend-with-record` | Whether the worker may append allow globs with `plan-manager exec boundary-extend` and a reason. |
+| `acceptance_allow` / `acceptance_deny` | globs | Narrow to the target scenario, its shared packages, protos and docs. Deny still refuses after an extension. |
+| `operator_note` | target field | Free text that reaches the agent verbatim. Until it exists, put it in the description under an "Operator note" heading. |
 
 ### Shape
 

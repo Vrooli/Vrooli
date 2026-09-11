@@ -1,13 +1,16 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
+import { PlaybackModeControl } from "../tts/PlaybackModeControl";
 import {
+  MESSAGE_ACTIONS,
   actionIcon,
   actionLabelKey,
   actionPlacement,
+  orderedActions,
   type MessageAction,
   type MessageActionContext,
 } from "./messageActions";
@@ -18,6 +21,43 @@ import {
 export interface ActionsOrigin {
   x: number;
   y: number;
+}
+
+/**
+ * A message's actions as a surface offers them: the context with the
+ * playback-mode control wired in, the actions that apply (primary first), and
+ * the composite controls they render. The row and the reader both use it, so
+ * both offer the same list.
+ */
+export function useMessageActions(base: MessageActionContext, anchorRef: RefObject<HTMLElement | null>, isTall: boolean) {
+  const [playbackModeOpen, setPlaybackModeOpen] = useState(false);
+  const { event, selectedVersion, summarizingEventId, summarizeLevel, onToggleSummarized, onChangeLevel } = base;
+  const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
+  const ctx: MessageActionContext = {
+    ...base,
+    isTall,
+    onOpenPlaybackMode: () => { setPlaybackModeOpen(true); },
+    renderPlaybackAction: () => (
+      <PlaybackModeControl
+        testIdPrefix={`msg-${event.id}`}
+        isSummarized={selectedVersion === "active" && hasSummary}
+        hasOriginalVersion={hasSummary}
+        canSummarize
+        isSummarizing={summarizingEventId === event.id}
+        currentLevel={summarizeLevel}
+        onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
+        onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
+        open={playbackModeOpen}
+        onOpenChange={setPlaybackModeOpen}
+        hideTrigger
+        anchorRef={anchorRef}
+      />
+    ),
+  };
+  const composites = MESSAGE_ACTIONS.filter((action) => action.render && action.appliesTo(ctx)).map((action) => (
+    <span key={`${action.id}-composite`}>{action.render?.(ctx)}</span>
+  ));
+  return { ctx, actions: orderedActions(ctx), composites };
 }
 
 interface MessageActionListProps {

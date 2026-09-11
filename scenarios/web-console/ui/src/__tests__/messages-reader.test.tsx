@@ -56,7 +56,7 @@ describe("messages reader", () => {
     Element.prototype.scrollIntoView = vi.fn();
     vi.stubGlobal("ResizeObserver", vi.fn().mockImplementation(() => ({ observe: vi.fn(), disconnect: vi.fn() })));
     globalThis.fetch = vi.fn() as typeof fetch;
-    useMessagesViewStore.setState({ viewModes: {}, positions: {} });
+    useMessagesViewStore.setState({ viewModes: {}, positions: {}, readerFontSize: null });
     useConversationStore.setState({
       sessions: {
         "sess-1": createConversationSessionState({
@@ -125,6 +125,67 @@ describe("messages reader", () => {
     fireEvent.change(screen.getByTestId("reader-find-input"), { target: { value: "" } });
     await waitFor(() => { expect(body.querySelectorAll("mark")).toHaveLength(0); });
     expect(body).toHaveTextContent("alpha one. beta two. alpha three.");
+  });
+
+  it("[REQ:P0-017d] pads its text, and offers step controls only once there is a query", () => {
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+
+    expect(document.querySelector("[data-rcl-full-page-drawer]")).toHaveAttribute("data-content-padding", "comfortable");
+    expect(screen.queryByTestId("reader-find-prev")).toBeNull();
+    expect(screen.queryByTestId("reader-find-next")).toBeNull();
+    fireEvent.change(screen.getByTestId("reader-find-input"), { target: { value: "alpha" } });
+    expect(screen.getByTestId("reader-find-prev")).toBeInTheDocument();
+    expect(screen.getByTestId("reader-find-next")).toBeInTheDocument();
+  });
+
+  it("[REQ:P0-017d] steps to the previous and next reply", () => {
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    const reader = screen.getByTestId("messages-reader");
+
+    expect(screen.getByTestId("reader-next-reply")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("reader-prev-reply"));
+    expect(reader).toHaveTextContent("#1");
+    expect(screen.getByTestId("messages-reader-body")).toHaveTextContent("A short reply.");
+    expect(screen.getByTestId("reader-prev-reply")).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId("reader-next-reply"));
+    expect(reader).toHaveTextContent("#2");
+    expect(screen.getByTestId("messages-reader-body")).toHaveTextContent("alpha three.");
+  });
+
+  it("[REQ:P0-017d] resizes its text with the size buttons and a pinch, and keeps the size", () => {
+    const { unmount } = render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    const body = () => screen.getByTestId("messages-reader-body");
+    const start = parseFloat(body().style.fontSize);
+
+    fireEvent.click(screen.getByTestId("reader-font-larger"));
+    expect(parseFloat(body().style.fontSize)).toBeGreaterThan(start);
+    fireEvent.click(screen.getByTestId("reader-font-smaller"));
+    expect(parseFloat(body().style.fontSize)).toBe(start);
+
+    // Two fingers spreading to twice their distance double the size.
+    fireEvent.touchStart(body(), { touches: [{ identifier: 0, clientX: 0, clientY: 0 }, { identifier: 1, clientX: 0, clientY: 100 }] });
+    fireEvent.touchMove(body(), { touches: [{ identifier: 0, clientX: 0, clientY: 0 }, { identifier: 1, clientX: 0, clientY: 200 }] });
+    fireEvent.touchEnd(body(), { touches: [] });
+    expect(parseFloat(body().style.fontSize)).toBe(start * 2);
+
+    unmount();
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    expect(parseFloat(body().style.fontSize)).toBe(start * 2);
+  });
+
+  it("[REQ:P0-017c] the More button lists the message's other actions", () => {
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+
+    fireEvent.click(screen.getByTestId("reader-more"));
+    const menu = screen.getByTestId("msg-actions-menu-long");
+    expect(within(menu).getByTestId("msg-render-toggle-long")).toBeInTheDocument();
+    expect(within(menu).queryByTestId("msg-open-in-reader-long")).toBeNull();
   });
 
   it("[REQ:P0-017d] copies the full text and plays the message", () => {

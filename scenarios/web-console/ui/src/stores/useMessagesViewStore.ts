@@ -24,11 +24,14 @@ export const MESSAGES_POSITION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 interface MessagesViewState {
   viewModes: Record<string, PaneViewMode>;
   positions: Record<string, MessagesPosition>;
+  /** The reader's text size in px; null follows the pane's. */
+  readerFontSize: number | null;
 }
 
 interface MessagesViewActions {
   setViewMode: (sessionId: string, mode: PaneViewMode) => void;
   savePosition: (sessionId: string, position: Omit<MessagesPosition, "savedAt">) => void;
+  setReaderFontSize: (size: number) => void;
   /** Drops everything remembered for a session; called when it is deleted. */
   forget: (sessionId: string) => void;
 }
@@ -53,10 +56,12 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
     (set) => ({
       viewModes: {},
       positions: {},
+      readerFontSize: null,
       setViewMode: (sessionId, mode) => { set((state) => ({ viewModes: { ...state.viewModes, [sessionId]: mode } })); },
       savePosition: (sessionId, position) => {
         set((state) => ({ positions: { ...state.positions, [sessionId]: { ...position, savedAt: Date.now() } } }));
       },
+      setReaderFontSize: (size) => { set({ readerFontSize: size }); },
       forget: (sessionId) => {
         set((state) => ({
           viewModes: Object.fromEntries(Object.entries(state.viewModes).filter(([id]) => id !== sessionId)),
@@ -76,13 +81,14 @@ export const useMessagesViewStore = create<MessagesViewState & MessagesViewActio
         }
         return state as unknown as MessagesViewState & MessagesViewActions;
       },
-      partialize: (state) => ({ viewModes: state.viewModes, positions: state.positions }),
+      partialize: (state) => ({ viewModes: state.viewModes, positions: state.positions, readerFontSize: state.readerFontSize }),
       merge: (persisted, current) => {
         const state = (persisted ?? {}) as Partial<MessagesViewState>;
         return {
           ...current,
           viewModes: state.viewModes ?? current.viewModes,
           positions: pruneStalePositions(state.positions ?? {}, Date.now()),
+          readerFontSize: state.readerFontSize ?? current.readerFontSize,
         };
       },
     },

@@ -20,7 +20,7 @@
       "vrooli"
     ]
   },
-  "revision": 1,
+  "revision": 2,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -29,5 +29,5 @@
     "goals",
     "writing"
   ],
-  "updatedAt": "2026-07-25T00:00:00Z"
+  "updatedAt": "2026-09-11T12:00:00Z"
 }

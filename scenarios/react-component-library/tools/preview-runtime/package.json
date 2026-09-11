@@ -1,7 +1,4 @@
 {
-  "name": "@vrooli/preview-runtime",
-  "private": true,
-  "packageManager": "pnpm@9.12.1",
   "dependencies": {
     "@testing-library/dom": "10.4.1",
     "clsx": "^2.1.1",
@@ -11,5 +8,8 @@
     "remark-gfm": "^4.0.1",
     "shiki": "^4.4.2",
     "tailwind-merge": "^2.6.1"
-  }
+  },
+  "name": "@vrooli/preview-runtime",
+  "packageManager": "pnpm@9.12.1",
+  "private": true
 }

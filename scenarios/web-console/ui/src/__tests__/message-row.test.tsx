@@ -164,6 +164,34 @@ describe("message row", () => {
     for (const actionRow of rows) expect(actionRow.className).toContain("min-h-11");
   });
 
+  it("[REQ:P0-017c] a tap on a touch device reveals the row's inline actions and its More button; tapping again hides them", () => {
+    setPointer(true);
+    render(<MessagesPane {...props} />);
+    const tap = (target: HTMLElement, pointerId: number) => {
+      fireEvent.pointerDown(target, { pointerType: "touch", pointerId, button: 0, clientX: 10, clientY: 10 });
+      act(() => { window.dispatchEvent(new PointerEvent("pointerup", { pointerId, clientX: 10, clientY: 10 })); });
+    };
+
+    const row = screen.getByTestId("msg-card-a2");
+    tap(row, 11);
+    const cluster = within(row).getByTestId("msg-actions-inline");
+    expect(within(cluster).getByTestId("msg-copy-a2")).toBeInTheDocument();
+
+    // Tapping a revealed control runs it; the row stays revealed.
+    tap(within(cluster).getByTestId("msg-actions-more-a2"), 12);
+    fireEvent.click(within(cluster).getByTestId("msg-actions-more-a2"));
+    expect(screen.getByTestId("msg-action-sheet")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByTestId("msg-action-sheet"), { key: "Escape" });
+
+    // Another row takes the reveal; a second tap on it hides it.
+    const other = screen.getByTestId("msg-card-a3");
+    tap(other, 13);
+    expect(within(row).queryByTestId("msg-actions-inline")).toBeNull();
+    expect(within(other).getByTestId("msg-actions-inline")).toBeInTheDocument();
+    tap(other, 14);
+    expect(screen.queryByTestId("msg-actions-inline")).toBeNull();
+  });
+
   it("[REQ:P0-017h] Read from here starts playback from that row", () => {
     setPointer(false);
     const onPlayFromHere = vi.fn();

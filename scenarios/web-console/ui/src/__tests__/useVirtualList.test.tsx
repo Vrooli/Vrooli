@@ -59,8 +59,102 @@ describe("useVirtualList", () => {
       heights.clear();
       observers.length = 0;
       frames = [];
+      vi.useRealTimers();
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
+    });
+
+    /** Browser-like measurement: rows report the heights a test sets; frames and timers run on demand. */
+    function stubMeasurement() {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => { frames.push(cb); return frames.length; });
+      vi.stubGlobal("cancelAnimationFrame", () => undefined);
+      vi.stubGlobal("ResizeObserver", class {
+        private entry: { callback: ResizeObserverCallback; targets: Set<Element> };
+        constructor(callback: ResizeObserverCallback) {
+          this.entry = { callback, targets: new Set() };
+          observers.push(this.entry);
+        }
+        observe(target: Element) { this.entry.targets.add(target); }
+        unobserve(target: Element) { this.entry.targets.delete(target); }
+        disconnect() { this.entry.targets.clear(); }
+      });
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        const height = heights.get(this.getAttribute("data-testid") ?? "") ?? 0;
+        return { top: 0, bottom: height, left: 0, right: 0, width: 0, height, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+      });
+    }
+
+    /** Mounts the list with a recorded scrollTop, and reports a row measuring `height`. */
+    function mountScroller() {
+      render(<Harness />);
+      const scroller = screen.getByTestId("scroller");
+      const state = { scrollTop: 0, writes: [] as number[] };
+      Object.defineProperty(scroller, "clientHeight", { configurable: true, get: () => 400 });
+      Object.defineProperty(scroller, "scrollTop", {
+        configurable: true,
+        get: () => state.scrollTop,
+        set: (value: number) => { state.writes.push(value); state.scrollTop = value; },
+      });
+      const measure = (testId: string, height: number) => {
+        heights.set(testId, height);
+        const row = screen.getByTestId(testId);
+        act(() => {
+          for (const observer of observers) {
+            if (observer.targets.has(row)) observer.callback([], {} as ResizeObserver);
+          }
+          const pending = frames;
+          frames = [];
+          for (const frame of pending) frame(0);
+        });
+      };
+      const screenOffset = (testId: string) => parseFloat(screen.getByTestId(testId).style.top) - state.scrollTop;
+      return { scroller, state, measure, screenOffset };
+    }
+
+    it("[REQ:P0-017a] during a fling, a row above measuring taller writes no scrollTop and moves nothing on screen; the correction lands when the fling ends", () => {
+      stubMeasurement();
+      const { scroller, state, measure, screenOffset } = mountScroller();
+      // A finger drags the list to 1000 and lifts; the fling carries on.
+      act(() => {
+        fireEvent.touchStart(scroller);
+        state.scrollTop = 1000;
+        fireEvent.scroll(scroller);
+        fireEvent.touchEnd(scroller);
+      });
+      expect(screenOffset("row-10")).toBe(200);
+
+      // Row 2 (above the viewport) measures 200 px taller mid-fling. A scrollTop
+      // write would stop the fling on iOS, so none happens.
+      measure("row-2", 320);
+      expect(state.writes).toEqual([]);
+      expect(screenOffset("row-10")).toBe(200);
+
+      // The fling ends: one write carries the correction, and still nothing moves.
+      act(() => { vi.advanceTimersByTime(500); });
+      expect(state.writes).toEqual([1200]);
+      expect(screenOffset("row-10")).toBe(200);
+    });
+
+    it("[REQ:P0-017a] holds the correction while a finger is on the list, however long it stays", () => {
+      stubMeasurement();
+      const { scroller, state, measure, screenOffset } = mountScroller();
+      act(() => {
+        fireEvent.touchStart(scroller);
+        state.scrollTop = 1000;
+        fireEvent.scroll(scroller);
+      });
+      measure("row-2", 320);
+      act(() => { vi.advanceTimersByTime(2000); });
+      expect(state.writes).toEqual([]);
+      expect(screenOffset("row-10")).toBe(200);
+
+      act(() => {
+        fireEvent.touchEnd(scroller);
+        vi.advanceTimersByTime(500);
+      });
+      expect(state.writes).toEqual([1200]);
+      expect(screenOffset("row-10")).toBe(200);
     });
 
     it("moves scrollTop in the same commit as the rows it compensates (no one-frame jump)", async () => {

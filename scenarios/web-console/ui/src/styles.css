@@ -41,6 +41,12 @@
   opacity: 0;
 }
 
+/* The message navigator's sheet header is its search field: let the title
+ * slot the sheet puts it in take the row beside the Export action. */
+.wc-nav-sheet .rcl-bottom-sheet__header > :first-child {
+  flex: 1 1 auto;
+}
+
 /* The terminal grid must be measured against the same face on every host.
  * The font is bundled by @fontsource and emitted by Vite from this origin;
  * `block` prevents xterm's first fit from observing a fallback face. */

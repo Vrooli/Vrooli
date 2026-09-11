@@ -19,14 +19,20 @@ import (
 	"code-facts/internal/database"
 )
 
+// buildIdentityEnv is the environment variable the lifecycle sets to
+// the authored-source digest so the health probe can verify the
+// running binary serves the expected revision.
+const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+
 // Deps wires the seams the health handler needs. Service and Version
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger       database.Pinger
-	Service      string
-	Version      string
-	CacheMetrics func(context.Context) (map[string]any, error)
+	Pinger        database.Pinger
+	Service       string
+	Version       string
+	BuildIdentity string
+	CacheMetrics  func(context.Context) (map[string]any, error)
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -37,12 +43,17 @@ func NewHandler(d Deps) http.HandlerFunc {
 	startedAt := time.Now()
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
+		identity := d.BuildIdentity
+		if identity == "" {
+			identity = os.Getenv(buildIdentityEnv)
+		}
 		resp := healthResponse{
 			Status:        "healthy",
 			Service:       d.Service,
 			Timestamp:     now.UTC().Format(time.RFC3339),
 			Readiness:     true,
 			Version:       d.Version,
+			BuildIdentity: identity,
 			UptimeSeconds: now.Sub(startedAt).Seconds(),
 			Dependencies:  map[string]dependencyStatus{},
 			Metrics:       runtimeMetrics(startedAt, now),
@@ -84,6 +95,7 @@ type healthResponse struct {
 	Timestamp     string                      `json:"timestamp"`
 	Readiness     bool                        `json:"readiness"`
 	Version       string                      `json:"version,omitempty"`
+	BuildIdentity string                      `json:"build_identity,omitempty"`
 	UptimeSeconds float64                     `json:"uptime_seconds,omitempty"`
 	Dependencies  map[string]dependencyStatus `json:"dependencies,omitempty"`
 	Metrics       map[string]any              `json:"metrics,omitempty"`

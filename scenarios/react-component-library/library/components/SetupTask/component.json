@@ -1,0 +1,24 @@
+{
+  "catalogId": "react-component-library:SetupTask",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "entry": "SetupTask.tsx",
+  "evictedVersions": [],
+  "latest": "0.2.0",
+  "libraryId": "react-component-library:SetupTask",
+  "displayName": "Setup Task",
+  "description": "Provider-neutral responsive setup task surface with status, target/account context, guidance, body, and owner actions.",
+  "tags": [
+    "setup",
+    "credentials",
+    "onboarding",
+    "settings"
+  ]
+}

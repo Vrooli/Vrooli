@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 1
+  revision: 2
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-11T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -22,8 +22,9 @@ metadata:
 ## Practice focus: Harness Goal Authoring
 
 Write a goal message that a fresh agent can finish from, that a transcript-only
-evaluator can judge, and that stays under 1,500 characters because the design it
-serves lives in the documentation and the plan, not in the message.
+evaluator can judge, and that stays under 2,048 characters (Agent Manager's
+`until` cap) because the design it serves lives in the documentation and the
+plan, not in the message.
 
 Required reading:
 - `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes" — which shape of work
@@ -37,7 +38,7 @@ Required reading:
 ### 1. Scope
 
 In scope: the text of a harness goal (`/goal <condition>` in Claude Code or
-Codex, `--until` on `agent-manager runs create`, the `until` field of an Agent
+Codex, `--until` on `agent-manager run create`, the `until` field of an Agent
 Manager workflow run node) and the assignment message a coordinator gives a
 sub-agent, with or without native goal support.
 
@@ -58,9 +59,10 @@ Agent Manager delivers `until` as prompt text on every runner and also types
 `/goal <until>` into the session when the runner declares native objective
 support for the selected sandbox mode. Write one text that works both ways.
 
-Inside a Swarm `goal-session` execution, an independent review child inspects
-every session result, so the `until` text can be lean about proof. A goal typed
-into a bare session has no review behind it and must carry its own proof clause.
+In Swarm goal mode there is no per-session reviewer. Swarm's finalization
+reviews the item after the run ends, so the proof clause must still name the
+check and require its output in the transcript. A goal typed into a bare session
+has no review behind it at all and carries the same proof clause.
 
 ### 3. The slots
 
@@ -75,7 +77,7 @@ reads as its directive; the rest are instructions to the working agent.
 | **boundary** | Allowed paths and effects. Scope policy: `fixed` or `extend-with-record`. | Use the plan's `acceptance_allow` when a plan exists. |
 | **dials** | Validation posture (targeted by default; name the heavy runs that are owed). Adjacent-defect posture (fix when understood and blocking; otherwise file and continue). Quality bar (no shims, no dead code, docs updated with the code). | Select a posture. The tiers themselves live in `implementation-plan-execution`. |
 | **blocked** | "Blocked means a decision, credential, or approval you lack. Name it. Friction you can diagnose is not blocked." | Include this sentence verbatim or by skill reference. Agents define "blocked" for themselves when the goal does not. |
-| **budget** | A turn, time, or token clause, and the wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. |
+| **budget** | A turn, time, or token clause, and the wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. State that an involuntary interruption (usage window, timeout, crash, session lost) is resumed by Swarm under `continuation: until-allowance`, and that a verdict (`complete`, `blocked`, `abstained`) is final. |
 | **handoff** | Where to checkpoint (Plan Manager log, a progress file) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
 | **non-goals** | What not to do: widen scope, loosen or delete tests, rerun unchanged validation for a greener result. | Cite `improvement-do-and-dont` for the anti-gaming rules. |
 
@@ -117,12 +119,14 @@ Budget: stop after <N> turns or <time>; checkpoint through Plan Manager first an
 
 **B. Adaptive mandate goal.** The work is large or its architecture is not yet
 clear, and the scenario has a documented target and an improve skill with
-sensors. Receiving skills: `goal-loop`, `scenario-improvement-campaign`,
-`<scenario>-improve`. Through Swarm this is strategy `adaptive-improvement` or
-`goal-session`; the workflow supplies the `until` text.
+sensors. The goal points at a plan of shape `mandate`, authored with
+`adaptive-mandate-authoring`. Receiving skills: `goal-loop`,
+`scenario-improvement-campaign`, `<scenario>-improve`.
+Through Swarm a mandate plan runs in goal mode; Swarm composes the goal message
+from this shape, the item and the plan, and appends the operator note verbatim.
 
 ```text
-/goal Every readable setpoint row in <scenario>-improve is in band on two consecutive reads of run <scenario>.setpoint-read, or the handoff names each out-of-band row with its blocker.
+/goal Every required setpoint row in <scenario>-improve is in band on run <scenario>.setpoint-read, read as often as the outcome contract requires, and the evidence audit passes; or the handoff names each out-of-band row with its blocker.
 
 Authority: <plan slug or Swarm item> grants development inside <acceptance_allow>.
 Read first: goal-loop, scenario-improvement-campaign, <scenario>-improve, and the scenario docs (START-HERE, ARCHITECTURE, PROBLEMS). The docs are the target; where the intended design is missing from them, write it there before the code.

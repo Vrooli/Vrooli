@@ -1,6 +1,6 @@
 ---
 name: "goal-loop"
-description: "Select authorized development or observation for scenario improvement; use its improve skill and caller-owned continuity. Does not grant permissions or schedule itself."
+description: "Select the development or observation posture for scenario improvement and route development to the campaign; use the scenario improve skill and caller-owned continuity. Does not grant permissions, compose a harness goal, or schedule itself."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["goal", "loop", "self-improvement", "setpoint", "heartbeat"]
   icon: "repeat"
   status: "active"
-  revision: 6
+  revision: 7
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-08T00:00:00Z"
+  updatedAt: "2026-09-11T12:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager skill read"]
@@ -20,9 +20,11 @@ metadata:
 ---
 ## Practice focus: Goal Loop
 
-Resolve the caller's target and authority, then select development or observation.
+Resolve the caller's target and authority, then select the development or
+observation posture. Development routes to `scenario-improvement-campaign`.
 Keep scheduling with the caller and execution with the existing runtime. This
-skill does not create a Swarm goal, invent a cadence, or grant implementation.
+skill does not create a Swarm goal, compose a harness goal, invent a cadence, or
+grant implementation.
 
 Required reading:
 - `path:docs/agent-system/SCENARIO_DEVELOPMENT.md` — contract, authority, and completion.
@@ -42,9 +44,10 @@ budget, and acceptance policy.
 | A target change or effect outside the grant. | Request the missing decision before that action. |
 
 Reuse the work identity across cycles. Do not create goals, milestones, or items
-merely to run this skill. Whole-goal authority is distinct from harness goals. A
-goal points to the work package; it does not substitute for the package's
-accepted implementation plan.
+merely to run this skill. A Swarm goal is distinct from a harness goal: the
+Swarm goal points to the work package and grants nothing by itself; the harness
+goal, when the run has one, is composed by `harness-goal-authoring` and names the
+finish line. This skill reads both and selects the posture; it writes neither.
 
 ### 2. Observe or perform authorized curation
 

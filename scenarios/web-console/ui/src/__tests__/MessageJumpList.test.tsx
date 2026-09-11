@@ -166,6 +166,37 @@ describe("MessageJumpList navigator", () => {
 
   // ── Search ───────────────────────────────────────────────────────────────
 
+  const exportSelection = (): MessageExportSelection => ({
+    selectedIds: new Set(),
+    onToggle: vi.fn(),
+    onSelectAll: vi.fn(),
+    onSelectVisible: vi.fn(),
+    onClear: vi.fn(),
+    onContinue: vi.fn(),
+  });
+
+  it("[REQ:P0-017g] desktop: the search field is the header, focused on open, beside an Export icon; no title text", () => {
+    const events = [makeEvent({ id: "e1", sequence: 1 })];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} initialFocus="search" query="" onQueryChange={vi.fn()} search={search()} exportSelection={exportSelection()} />);
+
+    const header = screen.getByTestId("msg-nav-header");
+    expect(within(header).getByTestId("msg-nav-search")).toHaveFocus();
+    expect(within(header).getByTestId("msg-export-enter")).toHaveAttribute("aria-label", "messageExport.exportAction");
+    expect(screen.queryByText("messageJumpList.titleJump")).toBeNull();
+  });
+
+  it("[REQ:P0-017g] phone: the sheet's header is the search field and an Export icon", () => {
+    setMobileViewport();
+    const events = [makeEvent({ id: "e1", sequence: 1 })];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} initialFocus="search" query="" onQueryChange={vi.fn()} search={search()} exportSelection={exportSelection()} />);
+
+    const header = screen.getByTestId("msg-nav-header");
+    expect(within(header).getByTestId("msg-nav-search")).toHaveFocus();
+    expect(screen.getByTestId("msg-export-enter")).toHaveAttribute("aria-label", "messageExport.exportAction");
+    expect(screen.getByRole("dialog", { name: "messageJumpList.titleJump" })).toBeInTheDocument();
+    expect(screen.queryByText("messageJumpList.titleJump")).toBeNull();
+  });
+
   it("renders search input and result count", () => {
     const events = [makeEvent({ id: "e1", sequence: 1 })];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
@@ -491,7 +522,7 @@ describe("MessageJumpList export selection", () => {
     render(<Harness events={threeEvents()} />);
     const enter = screen.getByTestId("msg-export-enter");
     expect(enter).toBeInTheDocument();
-    expect(enter.textContent).toContain("messageExport.exportAction");
+    expect(enter).toHaveAttribute("aria-label", "messageExport.exportAction");
   });
 
   it("activating Export enters selection mode without closing the navigator", () => {
@@ -584,7 +615,7 @@ describe("MessageJumpList export selection", () => {
     fireEvent.click(screen.getByTestId("msg-export-cancel"));
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByTestId("msg-export-footer")).toBeNull();
-    expect(screen.getByText("messageJumpList.titleJump")).toBeInTheDocument();
+    expect(screen.queryByText("messageExport.selectionTitle")).toBeNull();
 
     fireEvent.click(screen.getByTestId("msg-export-enter"));
     expect(screen.getByTestId("msg-jump-item-a").getAttribute("aria-checked")).toBe("true");

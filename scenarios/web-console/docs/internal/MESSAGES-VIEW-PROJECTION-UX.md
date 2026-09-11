@@ -95,11 +95,11 @@ Messages renders exactly one presentation under the last row (`data-testid="mess
 
 The row header is `speaker · time`; the sequence number appears only in the time's tooltip. Speaker comes from `speakerLabel(event)`: user rows are "You"; assistant rows map the capture source (`claude_hook` Claude, `codex_tailer` Codex, `grok_tailer` Grok, `opencode_api` OpenCode, otherwise Agent).
 
-Actions stay declared in `ui/src/components/messages/messageActions.ts`. They are hidden at rest. On a fine pointer, hover or keyboard focus reveals at most three inline actions with 44 px hit areas; right-click opens the full list. On a coarse pointer a long-press opens a bottom sheet with every applicable action, primary first. `j`/`k` move focus between rows, `Enter` opens the list, `Escape` closes it. The `audio-settings` action is removed; `read-from-here` and `open-in-reader` exist.
+Actions stay declared in `ui/src/components/messages/messageActions.ts`. They are hidden at rest. On a fine pointer, hover or keyboard focus reveals at most three inline actions with 44 px hit areas; right-click opens the full list. On a coarse pointer a tap reveals the same inline actions and the More button, on one row at a time; tapping the row again hides them, and a tap on a link or control inside the row is that control's. A long-press opens a bottom sheet with every applicable action, primary first. `j`/`k` move focus between rows, `Enter` opens the list, `Escape` closes it. The `audio-settings` action is removed; `read-from-here` and `open-in-reader` exist.
 
 ## The reader
 
-Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens a full-height reader with its own scroll, find-in-message with a match count, copy, and play. The list stays mounted underneath and does not move; closing returns focus to the originating row. There is no inline expand.
+Rows taller than 400 px end in a gradient and an outline footer ("Open in reader · N words · N headings · N code blocks"). The footer opens a full-height reader with its own scroll and padded text. Its header has copy, play, and More, which opens the message's full action list (the same one the row offers, less "Open in reader"). Find-in-message is one field; the match count and the previous and next match controls appear only once there is a query. The reader's footer steps to the previous and next reply (the operator's own messages are skipped) and changes the text size in 2 px steps from 12 to 32 px; a two-finger pinch on the text does the same, and the size is kept across readers and reloads. The list stays mounted underneath and does not move; closing returns focus to the row the reader showed last. There is no inline expand.
 
 ## Echo rows and history
 
@@ -126,7 +126,7 @@ Session, navigator, and archived search share one repository function (`searchEv
 
 A query the index cannot narrow (a regex with no usable literal, punctuation only) scans the newest 20,000 rows and reports `truncated`. Text mode matches word prefixes, so a match inside a word (`settle` in `unsettled`) needs regex. Whole word keeps only matches bounded by non-word characters. An invalid or oversized (> 512 bytes) pattern returns a readable `error` in the response, never a transport error. Each hit carries its role, time, an excerpt, and the match ranges inside it in UTF-16 units.
 
-The navigator lists server hits in sequence order with those ranges for highlighting; a hit outside the loaded window keeps the server's role and time, and status and content filters (which need the event) keep loaded hits only. Its search row has the `Text`/`Regex`/`Fuzzy` control, `Aa`, and `Whole word`. Nothing is matched client-side: the playback picker, which has no server search behind it, shows no search field. The navigator measures its rows, caps the mobile sheet to the viewport, and keeps its footer visible.
+The navigator lists server hits in sequence order with those ranges for highlighting; a hit outside the loaded window keeps the server's role and time, and status and content filters (which need the event) keep loaded hits only. Its header is the search field, focused when it opens (on a phone a stand-in field focused inside the tap keeps the keyboard up until the sheet's field mounts), with an Export icon beside it; the row below has the `Text`/`Regex`/`Fuzzy` control, `Aa`, and `Whole word`. Nothing is matched client-side: the playback picker, which has no server search behind it, shows no search field. The navigator measures its rows, caps the mobile sheet to the viewport, and keeps its footer visible.
 
 ## The pill
 
@@ -137,6 +137,8 @@ Playback is one floating pill over the list that takes no layout height. Collaps
 - Only the scroll handler writes `follow`, and only for user scrolls (never during a programmatic scroll).
 - New content moves the viewport only while `follow` is true.
 - The only anchors are the virtualizer's resize compensation and the prepend anchor.
+- Neither anchor writes scrollTop while the user scrolls; the rows carry the correction until the scroll ends (a write would stop an iOS fling).
+- The jump-to-bottom button and the new-messages pill are centred by a full-width row, never by a transform.
 - Position restore loads the page containing the saved message before it scrolls, once, with no retries.
 
 ## Decisions

@@ -21,7 +21,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 1,
+  "revision": 2,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "orchestration",
     "prompt"
   ],
-  "updatedAt": "2026-09-11T00:00:00Z"
+  "updatedAt": "2026-09-11T12:00:00Z"
 }

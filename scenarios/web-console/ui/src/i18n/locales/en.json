@@ -1809,6 +1809,10 @@
     "prev": "Previous match",
     "next": "Next match",
     "close": "Close reader",
-    "play": "Play this message"
+    "play": "Play this message",
+    "prevReply": "Previous reply",
+    "nextReply": "Next reply",
+    "smaller": "Smaller text",
+    "larger": "Larger text"
   }
 }

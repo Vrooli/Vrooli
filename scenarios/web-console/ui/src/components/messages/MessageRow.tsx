@@ -12,16 +12,13 @@ import { Loader2, MoreHorizontal } from "lucide-react";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { MarkdownRenderer } from "../markdown";
-import { PlaybackModeControl } from "../tts/PlaybackModeControl";
 import {
-  MESSAGE_ACTIONS,
   actionIcon,
   actionLabelKey,
   actionPlacement,
-  orderedActions,
   type MessageActionContext,
 } from "./messageActions";
-import { MessageActionList, type ActionsOrigin } from "./MessageActionList";
+import { MessageActionList, useMessageActions, type ActionsOrigin } from "./MessageActionList";
 import { messageOutline } from "./outline";
 import { speakerKey, timeLabel } from "./speaker";
 
@@ -48,8 +45,10 @@ interface MessageRowProps {
   isFocused: boolean;
   isSearchFocused: boolean;
   isDimmed: boolean;
-  /** Touch devices open actions from a long-press sheet; nothing reveals on hover. */
+  /** Touch devices reveal actions by tap and open the full list by long-press; nothing reveals on hover. */
   coarsePointer: boolean;
+  /** On touch, whether this is the one row the pane has revealed by tap. */
+  tapRevealed: boolean;
   /** The pane owns which row's action list is open, so only one is. */
   actionsOpen: boolean;
   actionsOrigin: ActionsOrigin | null;
@@ -68,6 +67,7 @@ function MessageRowImpl({
   isSearchFocused,
   isDimmed,
   coarsePointer,
+  tapRevealed,
   actionsOpen,
   actionsOrigin,
   onOpenActions,
@@ -82,19 +82,13 @@ function MessageRowImpl({
     isTtsSpeaking,
     activeSpeakingEventId,
     isAudioLoading,
-    summarizeLevel,
-    selectedVersion,
-    summarizingEventId,
     getSummarizeError,
     onClearSummarizeError,
-    onToggleSummarized,
-    onChangeLevel,
     isPlaintext,
     onOpenReader,
   } = actionContext;
   const { t, i18n } = useTranslation();
   const [revealed, setRevealed] = useState(false);
-  const [playbackModeOpen, setPlaybackModeOpen] = useState(false);
   const [isTall, setIsTall] = useState(false);
   const rowRef = useRef<HTMLElement | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -113,36 +107,15 @@ function MessageRowImpl({
 
   const isUser = event.role === "user";
   const isSpeaking = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
-  const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
-  const useSummarized = selectedVersion === "active" && hasSummary;
   const outline = useMemo(() => (isTall ? messageOutline(event.text) : null), [event.text, isTall]);
   const summarizeError = getSummarizeError(event.id);
 
-  const resolvedContext: MessageActionContext = {
-    ...actionContext,
-    isTall,
-    onOpenPlaybackMode: () => { setPlaybackModeOpen(true); },
-    renderPlaybackAction: () => (
-      <PlaybackModeControl
-        testIdPrefix={`msg-${event.id}`}
-        isSummarized={useSummarized}
-        hasOriginalVersion={hasSummary}
-        canSummarize
-        isSummarizing={summarizingEventId === event.id}
-        currentLevel={summarizeLevel}
-        onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
-        onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
-        open={playbackModeOpen}
-        onOpenChange={setPlaybackModeOpen}
-        hideTrigger
-        anchorRef={rowRef}
-      />
-    ),
-  };
-  const actions = orderedActions(resolvedContext);
+  const { ctx: resolvedContext, actions, composites } = useMessageActions(actionContext, rowRef, isTall);
   const primary = actions.filter((action) => actionPlacement(action, resolvedContext) === "primary");
   const inline = primary.slice(0, MAX_INLINE_CONTROLS - 1);
-  const showCluster = !coarsePointer && revealed && !actionsOpen;
+  // Hover and focus reveal on a fine pointer; on touch, a tap does (the pane
+  // keeps it to one row).
+  const showCluster = (coarsePointer ? tapRevealed : revealed) && !actionsOpen;
   const press = coarsePointer ? getPressHandlers(event.id) : null;
 
   const openFromMoreButton = () => {
@@ -299,9 +272,7 @@ function MessageRowImpl({
         </div>
       )}
 
-      {MESSAGE_ACTIONS.filter((action) => action.render && action.appliesTo(resolvedContext)).map((action) => (
-        <span key={`${action.id}-composite`}>{action.render?.(resolvedContext)}</span>
-      ))}
+      {composites}
 
       {actionsOpen && (
         <MessageActionList
@@ -328,6 +299,7 @@ export const MessageRow = memo(MessageRowImpl, (prev, next) => (
   prev.isSearchFocused === next.isSearchFocused &&
   prev.isDimmed === next.isDimmed &&
   prev.coarsePointer === next.coarsePointer &&
+  prev.tapRevealed === next.tapRevealed &&
   prev.actionsOpen === next.actionsOpen &&
   prev.actionsOrigin === next.actionsOrigin &&
   prev.onOpenActions === next.onOpenActions &&

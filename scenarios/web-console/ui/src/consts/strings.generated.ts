@@ -1822,6 +1822,10 @@ export const strings = {
     next: "reader.next",
     close: "reader.close",
     play: "reader.play",
+    prevReply: "reader.prevReply",
+    nextReply: "reader.nextReply",
+    smaller: "reader.smaller",
+    larger: "reader.larger",
   },
 } as const;
 

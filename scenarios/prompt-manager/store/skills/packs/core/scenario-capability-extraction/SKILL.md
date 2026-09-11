@@ -225,10 +225,10 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
    - migrate additional consumers,
    - remove or retire source implementation,
    - document compatibility removal triggers.
-2. Decide whether adoption work belongs in item-level mode, `holistic-loop`, or `phased-plan-drain`:
-   - Use item-level when integrations are independent and reviewable in isolation.
-   - Use holistic-loop when source and target changes are coupled or ground truth is stale.
-   - Use phased-plan-drain when there is a stable sequential plan with handoffs.
+2. Decide the work shape for adoption (`docs/agent-system/SWARM_MANAGER_WORK.md` §Work shapes; plan shapes and execution modes in `docs/agent-system/SCENARIO_DEVELOPMENT.md`):
+   - Use bounded tasks when integrations are independent and reviewable in isolation.
+   - Use an adaptive mandate when source and target changes are coupled or ground truth is stale.
+   - Use a phased plan when there is a stable sequential route with handoffs; it runs sliced or in goal mode.
 3. Create or update Swarm Manager items only after the target scenario has enough docs to anchor execution.
 
 **Exit criteria:** Adoption is not left as an implicit "later"; it has owners, phases, validation, and cleanup triggers.
@@ -331,12 +331,12 @@ Create this as `docs/internal/EXTRACTION-SOURCES.md` in the target scenario.
 
 #### **Operating Mode Choice After Setup**
 
-| Work Shape | Recommended Swarm Manager Mode |
+| Work Shape | Recommended Swarm Manager shape |
 |---|---|
-| Independent adoption items, each reviewable alone | `item-level` |
-| Target/source changes are coupled and likely to shift | `holistic-loop` |
-| Stable multi-phase implementation should be drained sequentially with handoffs | `phased-plan-drain` |
-| Full greenfield scenario development beyond extraction setup | Use the `scenario-generation` skill and a Swarm Manager phased-plan-drain workflow |
+| Independent adoption items, each reviewable alone | Bounded tasks |
+| Target/source changes are coupled and likely to shift | Adaptive mandate (`adaptive-mandate-authoring`) |
+| Stable multi-phase implementation should be drained sequentially with handoffs | Phased plan (`implementation-plan-authoring`), sliced or goal mode |
+| Full greenfield scenario development beyond extraction setup | Use the `scenario-generation` skill and a plan-backed Swarm Manager item |
 
 ---
 
@@ -389,4 +389,4 @@ You must not:
 - Skip source evidence because the desired target seems obvious.
 - Copy source code wholesale without classifying boundaries.
 - Leave adoption and source cleanup implicit.
-- Add a new operating mode unless the work shape requires one beyond existing `item-level`, `holistic-loop`, or `phased-plan-drain`.
+- Add a new work shape or execution mode; the four shapes in `SWARM_MANAGER_WORK.md` and the two modes in `SCENARIO_DEVELOPMENT.md` cover extraction work.
