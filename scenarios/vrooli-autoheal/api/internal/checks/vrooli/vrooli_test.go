@@ -7,11 +7,102 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 )
+
+// [REQ:RES-MON-006] [REQ:RES-MON-007]
+func TestResourceChecksShareFreshFleetSnapshotAndEscalateAnomaly(t *testing.T) {
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
+		{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"},
+		{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":false,"message":"unhealthy"}]}`)}
+	executor.Responses["vrooli resource status redis --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"redis","installed":true,"running":true,"healthy":false,"status":"unhealthy","resource":{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":false,"message":"unhealthy"}}`)}
+	provider := integration.NewSnapshotProvider(integration.NewClient(executor), integration.WithSnapshotTTL(time.Minute))
+
+	healthy := NewResourceCheck("postgres", WithResourceStatusProvider(provider)).Run(context.Background())
+	anomaly := NewResourceCheck("redis", WithResourceStatusProvider(provider)).Run(context.Background())
+	if healthy.Status != checks.StatusOK {
+		t.Fatalf("healthy status = %s, want ok", healthy.Status)
+	}
+	if anomaly.Status != checks.StatusCritical {
+		t.Fatalf("anomaly status = %s, want critical", anomaly.Status)
+	}
+	if anomaly.Details["deepProbeAttempted"] != true || anomaly.Details["escalationReason"] != "anomaly" {
+		t.Fatalf("anomaly escalation details = %#v", anomaly.Details)
+	}
+	metrics := provider.SnapshotMetrics()
+	if metrics.FleetRefreshes != 1 || metrics.NamedDeepChecks != 1 || metrics.EscalationReasons["anomaly"] != 1 {
+		t.Fatalf("snapshot metrics = %+v", metrics)
+	}
+	if got := len(executor.Calls); got != 2 {
+		t.Fatalf("typed status calls = %d, want one fleet plus one deep call", got)
+	}
+	if got := testutil.CommandKey(executor.Calls[0].Name, executor.Calls[0].Args); got != "vrooli resource status --json" {
+		t.Fatalf("first call = %q, want fleet status", got)
+	}
+}
+
+// [REQ:RES-MON-006] [REQ:RES-MON-007]
+func TestResourceCheckNeverTreatsFailedSnapshotFallbackAsHealthy(t *testing.T) {
+	now := time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)
+	current := now
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
+	provider := integration.NewSnapshotProvider(integration.NewClient(executor),
+		integration.WithSnapshotTTL(time.Second),
+		integration.WithSnapshotClock(func() time.Time { return current }),
+	)
+	check := NewResourceCheck("postgres", WithResourceStatusProvider(provider))
+	if result := check.Run(context.Background()); result.Status != checks.StatusOK {
+		t.Fatalf("initial status = %s, want ok; details=%#v", result.Status, result.Details)
+	}
+	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Error: errors.New("fixture timeout")}
+	current = current.Add(2 * time.Second)
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusUndetermined {
+		t.Fatalf("fallback status = %s, want undetermined", result.Status)
+	}
+	if result.Details["snapshotFresh"] != false || result.Details["snapshotSource"] != string(integration.SnapshotSourceFallback) {
+		t.Fatalf("fallback metadata = %#v", result.Details)
+	}
+	metrics := provider.SnapshotMetrics()
+	if metrics.RefreshFailures != 1 || metrics.UndeterminedResults != 1 || metrics.StaleReads != 0 {
+		t.Fatalf("fallback metrics = %+v", metrics)
+	}
+}
+
+// [REQ:RES-MON-006] [REQ:RES-MON-007]
+func TestResourceRecoveryVerificationBypassesCachedSnapshot(t *testing.T) {
+	executor := testutil.NewMockExecutor()
+	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
+	provider := integration.NewSnapshotProvider(integration.NewClient(executor), integration.WithSnapshotTTL(time.Minute))
+	check := NewResourceCheck(
+		"postgres",
+		WithResourceExecutor(executor),
+		WithResourceStatusProvider(provider),
+		WithResourceRecoveryPolling(15*time.Millisecond, time.Millisecond, 0),
+	)
+	if result := check.Run(context.Background()); result.Status != checks.StatusOK {
+		t.Fatalf("pre-action status = %s, want ok", result.Status)
+	}
+
+	// The fleet cache still reports the pre-action healthy state, while the
+	// named read reports that recovery did not actually succeed. Verification
+	// must trust the latter and refuse to certify the cached result.
+	executor.Responses["vrooli resource status postgres --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"postgres","installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
+	verified := check.verifyRecovery(context.Background(), checks.ActionResult{ActionID: "restart", CheckID: check.ID()}, "restart", time.Now())
+	if verified.Success {
+		t.Fatalf("verification = %#v, want failed fresh deep verification", verified)
+	}
+	if metrics := provider.SnapshotMetrics(); metrics.NamedDeepChecks == 0 || metrics.EscalationReasons["recovery"] == 0 {
+		t.Fatalf("recovery metrics = %+v, want a named deep recovery probe", metrics)
+	}
+}
 
 // TestResourceCheckInterface verifies ResourceCheck implements Check
 // [REQ:RESOURCE-CHECK-001]

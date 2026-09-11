@@ -39,7 +39,7 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 | Which integrations a scenario needs | `scenarios/<name>/.vrooli/service.json` → `integrations[]` (declared connector + scopes + purpose; binding contract in progress) | onboarding integrations step |
 | Which connection a scenario actually uses | `.vrooli/operator-state.json` → `integrations.<scenario>.<connector>` (binding contract in progress) | onboarding integrations step |
 | Connector-level secrets (e.g. OAuth client_secret) | Credential authority under identity `vrooli/integrations/connectors/<connector_id>` (needed as drivers are added) | integration-hub setup, not user-facing |
-| Active profile | `.vrooli/operator-state.json` → `active_profile` | reserved for future use; profiles deferred |
+| Active profile | `.vrooli/operator-state.json` → `active_profile` | onboarding purpose intake and profile evaluator |
 
 Anything not in this table is out of scope for the wizard.
 
@@ -93,6 +93,30 @@ For `multi: true` scenarios (persona-actor case), the operator-state value is an
 
 These resolution orders are the contract. UIs and runtime code consume them; new surfaces should reuse the same evaluator rather than reimplementing.
 
+## Generated operator-control inventory
+
+The operator-control catalog is generated from provider descriptors at runtime;
+the onboarding wizard and the CLI consume the same inventory. Each descriptor
+must name its owner, scope, purpose, sensitivity, applicability, disposition,
+permission provenance, and supported lifecycle operations. A descriptor with a
+`deferred` or `unsupported` disposition must also provide the reason, so a
+required blocker cannot be mistaken for a missing input. Renderers must not
+add a capability-specific control branch.
+
+The current control census has these authoritative owners:
+
+| Control family | Authority | Disposition | Durable source | Notes |
+|---|---|---|---|---|
+| scenario/resource enablement, capacity, update posture, trust posture, notifications | operator-state authority | configurable | `.vrooli/operator-state.json` | Validated by `operatorstate` and manifest-backed resolvers. |
+| host tools and safeguards | host-requirement owner | configurable or required | manifests plus operator state | Optional decline is distinct from an absent choice and survives restart. |
+| credential-store access and escrow | credential authority | configurable | credential authority and capability evidence | Secret values are write-only for the action. |
+| storage recovery standing approvals | storage-manager | configurable | storage-manager approval owner | Approval is provider-scoped and revocable; it is not an arbitrary command grant. |
+| durable backup and recovery evidence | data-backup-manager | protected | data-backup-manager evidence | Onboarding can refresh evidence but cannot mutate the backup policy. |
+| external integrations without an owner | named future owner | deferred or unsupported | no binding is written | Required cases remain blockers with an explicit reason. Profiles are owned by onboarding and are not deferred. |
+
+For a machine-readable descriptor inventory, use `vrooli capability catalog
+--json`; `vrooli capability status --json` returns the live status projection.
+
 ## Host update-control modes
 
 The host update-control mode is operator state, not a manifest default. This
@@ -134,5 +158,4 @@ Items intentionally deferred from the current schema bundle. Each is a future-co
 
 - **`integration-hub` expansion** — the Hub pilot owns metadata-only connection lifecycle and the OpenRouter API-key connector. Remaining work includes connector manifests, OAuth/device-flow drivers, onboarding binding, and multi-instance consumption. See [`integrations/connectors.md`](integrations/connectors.md) and [`integrations/connections.md`](integrations/connections.md).
 - **External-auth credential schema** — concrete schema dispatch for `oauth_web` / `oauth_device` / `external_sign_in_command` / `app_password` patterns. Catalog lives in [`integrations/external-auth.md`](integrations/external-auth.md); the schema lands as part of the integration-hub work above. The current `secretDescriptor` continues to cover paste-string resource secrets independently.
-- **Profiles** — bundled selections of scenarios + resources + secrets (e.g. "engineering", "marketing", "homelab"). `operator-state.json` reserves `active_profile` for this; `profile.schema.json` lands when the second concrete profile exists. See [`profiles.md`](profiles.md).
 - **Schema-types unification (Wave 2)** — Wave 1 landed: `verificationCheck` (one-shot post-action verification) was lifted to `common.schema.json` and is referenced by both `tool.schema.json` and `safeguard.schema.json`, replacing the two duplicate inline definitions. Wave 2 is the harder consolidation: continuous monitoring declarations in the canonical service and resource schemas need to fold into a shared `runtimeProbe` definition. The naming-convention reconciliation (snake_case vs camelCase) and the Go-consumer migration on both sides are real work; deferred to its own plan. `dependencies` shape overlap between `service.dependencies.scenarios` and `service.tier_feasibility.dependencies` is also Wave 2 territory.

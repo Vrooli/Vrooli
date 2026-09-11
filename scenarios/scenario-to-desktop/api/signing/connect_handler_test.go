@@ -141,3 +141,21 @@ func TestSigningConnectReadinessPatchingAndDiscovery(t *testing.T) {
 		t.Fatalf("missing discovery platform code = %v", connect.CodeOf(err))
 	}
 }
+
+func TestSigningConnectRejectsUnsupportedWindowsCertificateSourcePatch(t *testing.T) {
+	service, repo := newConnectSigningService()
+	cloudSource := domainv1.CertificateSource_CERTIFICATE_SOURCE_AZURE_KEY_VAULT
+	_, err := service.PatchSigningPlatform(context.Background(), connect.NewRequest(&domainv1.PatchSigningPlatformRequest{
+		ScenarioName: "demo",
+		Platform:     sharedv1.Platform_PLATFORM_WIN,
+		Config: &domainv1.PatchSigningPlatformRequest_Windows{Windows: &domainv1.WindowsSigningConfig{
+			CertificateSource: cloudSource,
+		}},
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("cloud Windows patch code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	if repo.configs["demo"] != nil {
+		t.Fatal("unsupported cloud patch must not persist a configuration")
+	}
+}

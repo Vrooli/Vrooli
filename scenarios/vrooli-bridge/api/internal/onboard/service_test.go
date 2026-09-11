@@ -309,7 +309,7 @@ func TestStart_OnboardingHandoffReceivesIdentityAndAppliesReturnedSelection(t *t
 	require.NoError(t, err)
 	op := waitTerminal(t, svc, dec.OpID)
 	require.Equal(t, onboard.StateSucceeded, op.State)
-	require.Equal(t, onboarding.HandoffRequest{MachineID: "machine-1", NodeID: testNodeID, NodeKind: "agent"}, handoff.request)
+	require.Equal(t, onboarding.HandoffRequest{Target: testNodeID, MachineID: "machine-1", NodeID: testNodeID, NodeKind: "agent"}, handoff.request)
 	require.Len(t, driver.commands, 2)
 	require.Contains(t, driver.commands[0], "wizard commit --selection")
 	require.Contains(t, driver.commands[0], "$HOME/.vrooli/bin/vrooli-onboarding")

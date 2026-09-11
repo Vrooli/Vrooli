@@ -23,3 +23,5 @@ minimumReleaseAge: 10080
 public-hoist-pattern:
   - "*eslint*"
   - "*prettier*"
+allowBuilds:
+  esbuild: set this to true or false

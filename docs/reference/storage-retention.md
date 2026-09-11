@@ -118,10 +118,12 @@ artifacts. Repository source paths are relative to the checkout, not that home.
 
 The shared `.vrooli/repo-contract.json` is authoritative for control-plane
 runtime-home classes. `bin`, `cache`, `logs`, `metrics`, `processes`, `build`,
-`test_runs`, and `artifacts` are regenerable and may be previewed or reclaimed
-by Storage Manager only when their contract retention policy permits it.
-`plans`, `state`, `config`, `data`, `runtime_db`, `secrets`, `secrets_enc`, and
-`backups` are protected and have no cleanup provider.
+and `test_runs` are regenerable and may be previewed or reclaimed by Storage
+Manager only when their contract retention policy permits it. `artifacts`,
+`plans`, `plan-artifacts`, `state`, `config`, `data`, `runtime_db`, `secrets`,
+`secrets_enc`, and `backups` are protected and have no cleanup provider. Plan
+source material and execution evidence under `~/.vrooli/plan-artifacts` are
+irreplaceable intent and must never be offered as a safe cleanup target.
 
 Retention precedence is conservative: the repository contract supplies the
 default, an active profile may narrow it, an operator override may narrow it
@@ -129,6 +131,13 @@ again, and an owner-specific policy may narrow it further. No lower layer may
 make a protected entry deletable, shorten its minimum age, or raise its byte
 ceiling. Missing policy means `cleanup: never`; malformed policy rejects the
 contract instead of broadening cleanup.
+
+The control-plane metrics declaration applies to `~/.vrooli/metrics`, including
+`timings.jsonl`: the recorder additionally rotates its active file at 64 MiB or
+30 days and keeps three backups. Linux journald is bounded by the control-plane
+`host_hardening` safeguard (`SystemMaxUse=500M`, `RuntimeMaxUse=100M`,
+`MaxRetentionSec=30d`); journald settings are host policy, not scenario-owned
+cleanup.
 
 `protect_active` protects process and Test Genie lease markers (including lock,
 socket, `.active`, `.lease`, `.running`, and in-progress markers) during both
@@ -204,6 +213,16 @@ apply requires the preview, approval mode, and an idempotency key. A provider
 reports whether its client is unavailable, its owner is unreachable, or its
 owner does not implement the contract. It never silently converts those cases
 to a zero-byte success.
+
+Qdrant generation owners follow the same contract through their domain API.
+Agent Manager exposes `/api/v1/conversation-search/generations` for bounded
+inspection and `/cleanup/preview` plus `/cleanup/apply` for the approved
+operation. The owner catalog records active, candidate, retired, failed,
+expired, protected, quarantined, and deleted states. Active and rollback
+generations are protected, leases are rechecked before each deletion batch,
+and unrecognized collections are quarantined. Collection deletion uses the
+Qdrant API only; logical deletion and measured physical reclaim are separate
+receipt fields. A changed alias or catalog snapshot invalidates the plan.
 
 ### Owner automatic cleanup policy
 

@@ -10,6 +10,7 @@ import (
 // Manager handles loading, saving, and accessing configuration
 type Manager struct {
 	mu               sync.RWMutex
+	saveMu           sync.Mutex
 	config           *Config
 	configPath       string
 	schemaPath       string
@@ -68,8 +69,14 @@ func (m *Manager) Load() error {
 
 // Save writes the current configuration to file
 func (m *Manager) Save() error {
+	// Config mutations can arrive concurrently from the UI, CLI, and
+	// supervision reconciliation. Serialize the fixed-name temp-file swap so
+	// one writer cannot rename another writer's temp file out from under it.
+	m.saveMu.Lock()
+	defer m.saveMu.Unlock()
+
 	m.mu.RLock()
-	config := m.config
+	config := m.copyConfig(m.config)
 	m.mu.RUnlock()
 
 	// Ensure directory exists
@@ -104,7 +111,7 @@ func (m *Manager) Get() *Config {
 	defer m.mu.RUnlock()
 
 	// Return a copy to prevent external modification
-	return m.copyConfig(m.config)
+	return m.effectiveConfigLocked(m.config)
 }
 
 // Update replaces the configuration and saves to file
@@ -117,6 +124,7 @@ func (m *Manager) Update(config *Config) error {
 
 	m.mu.Lock()
 	m.config = m.copyConfig(config)
+	m.enforceSupervisedChecksLocked(m.config)
 	m.mu.Unlock()
 
 	return m.Save()
@@ -211,7 +219,23 @@ func (m *Manager) SetSupervisedChecks(supervised map[string]string) {
 	}
 	m.mu.Lock()
 	m.supervisedChecks = copyOf
+	m.enforceSupervisedChecksLocked(m.config)
 	m.mu.Unlock()
+}
+
+// ProtectedChecks returns the checks that belong to the canonical supervision
+// set and the reason they are protected. These checks form the recovery floor:
+// they must remain enabled and auto-healable even when an older config file or
+// a bulk UI action asks otherwise.
+func (m *Manager) ProtectedChecks() map[string]string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	protected := make(map[string]string, len(m.supervisedChecks))
+	for checkID, intent := range m.supervisedChecks {
+		protected[checkID] = intent
+	}
+	return protected
 }
 
 // CheckConfig is the resolved configuration for a check (with defaults applied)
@@ -365,6 +389,9 @@ func (m *Manager) SetCheckEnabled(checkID string, enabled bool) error {
 	if m.config.Checks == nil {
 		m.config.Checks = make(map[string]Check)
 	}
+	if _, protected := m.supervisedChecks[checkID]; protected {
+		enabled = true
+	}
 	check := m.config.Checks[checkID]
 	check.Enabled = boolPtr(enabled)
 	m.config.Checks[checkID] = check
@@ -378,6 +405,9 @@ func (m *Manager) SetCheckAutoHeal(checkID string, autoHeal bool) error {
 	m.mu.Lock()
 	if m.config.Checks == nil {
 		m.config.Checks = make(map[string]Check)
+	}
+	if _, protected := m.supervisedChecks[checkID]; protected {
+		autoHeal = true
 	}
 	check := m.config.Checks[checkID]
 	check.AutoHeal = boolPtr(autoHeal)
@@ -396,6 +426,9 @@ func (m *Manager) SetAllEnabled(enabled bool) error {
 	for checkID := range KnownCheckDefaults {
 		check := m.config.Checks[checkID]
 		check.Enabled = boolPtr(enabled)
+		if _, protected := m.supervisedChecks[checkID]; protected {
+			check.Enabled = boolPtr(true)
+		}
 		m.config.Checks[checkID] = check
 	}
 	m.mu.Unlock()
@@ -412,11 +445,35 @@ func (m *Manager) SetAllAutoHeal(autoHeal bool) error {
 	for checkID := range KnownCheckDefaults {
 		check := m.config.Checks[checkID]
 		check.AutoHeal = boolPtr(autoHeal)
+		if _, protected := m.supervisedChecks[checkID]; protected {
+			check.AutoHeal = boolPtr(true)
+		}
 		m.config.Checks[checkID] = check
 	}
 	m.mu.Unlock()
 
 	return m.Save()
+}
+
+func (m *Manager) effectiveConfigLocked(config *Config) *Config {
+	effective := m.copyConfig(config)
+	m.enforceSupervisedChecksLocked(effective)
+	return effective
+}
+
+func (m *Manager) enforceSupervisedChecksLocked(config *Config) {
+	if config == nil || len(m.supervisedChecks) == 0 {
+		return
+	}
+	if config.Checks == nil {
+		config.Checks = make(map[string]Check)
+	}
+	for checkID := range m.supervisedChecks {
+		check := config.Checks[checkID]
+		check.Enabled = boolPtr(true)
+		check.AutoHeal = boolPtr(true)
+		config.Checks[checkID] = check
+	}
 }
 
 // Validate checks if a configuration is valid

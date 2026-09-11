@@ -39,4 +39,36 @@ describe("ChecksSettings", () => {
     expect(onToggleEnabled).toHaveBeenCalledWith("dns", false);
     expect(onToggleAutoHeal).toHaveBeenCalledWith("dns", false);
   });
+
+  it("locks protected recovery checks and explains the protection", () => {
+    renderWithProviders(
+      <ChecksSettings
+        checksByCategory={{
+          scenario: [{
+            id: "scenario-agent-manager",
+            title: "Agent Manager",
+            description: "Keeps the agent scheduler available",
+            importance: "Required",
+            category: "scenario",
+            intervalSeconds: 60,
+            protectionReason: "must_start",
+            config: { enabled: true, autoHeal: true },
+          }],
+        }}
+        expandedCategories={{ scenario: true }}
+        toggleCategory={vi.fn()}
+        categoryLabels={{ scenario: "Scenarios" }}
+        categoryIcons={{}}
+        onToggleEnabled={vi.fn()}
+        onToggleAutoHeal={vi.fn()}
+        onBulkUpdate={vi.fn()}
+        isUpdating={false}
+      />,
+    );
+
+    expect(screen.getByText(/protected recovery check \(must-start\)/i)).toBeDefined();
+    const protectedSwitches = screen.getAllByRole("switch").slice(-2);
+    expect(protectedSwitches).toHaveLength(2);
+    expect(protectedSwitches.every((switchControl) => (switchControl as HTMLButtonElement).disabled)).toBe(true);
+  });
 });

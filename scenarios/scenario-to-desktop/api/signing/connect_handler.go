@@ -122,10 +122,17 @@ func (s *ConnectService) PatchSigningPlatform(ctx context.Context, req *connect.
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("matching platform configuration is required"))
 	}
+	if config.Windows != nil && !supportedWindowsCertificateSource(config.Windows.CertificateSource) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported Windows certificate source %q: use %q or %q", config.Windows.CertificateSource, types.CertSourceFile, types.CertSourceStore))
+	}
 	if err := s.handler.repo.Save(ctx, req.Msg.GetScenarioName(), config); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(s.configResponse(config)), nil
+}
+
+func supportedWindowsCertificateSource(source string) bool {
+	return source == types.CertSourceFile || source == types.CertSourceStore
 }
 
 func (s *ConnectService) DeleteSigningConfig(ctx context.Context, req *connect.Request[domainv1.DeleteSigningConfigRequest]) (*connect.Response[domainv1.DeleteSigningResponse], error) {

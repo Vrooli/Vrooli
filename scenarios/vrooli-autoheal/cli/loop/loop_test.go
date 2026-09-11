@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -133,6 +135,47 @@ func TestStatusFileWrittenBeforeExit(t *testing.T) {
 	}
 	if l.run(context.Background()) != exitNonHealable {
 		t.Fatal("run after exit must return the recorded code")
+	}
+}
+
+func TestTickPublishesHeartbeatWhileRequestRuns(t *testing.T) {
+	isolatedHome(t)
+	previousInterval := loopHeartbeatInterval
+	loopHeartbeatInterval = time.Millisecond
+	t.Cleanup(func() { loopHeartbeatInterval = previousInterval })
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/tick" {
+			http.NotFound(w, r)
+			return
+		}
+		close(started)
+		<-release
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"status":"ok","summary":{"total":1,"ok":1,"warning":0,"critical":0}}`))
+	}))
+	defer srv.Close()
+
+	config := testConfig(t)
+	config.TickEndpoint = srv.URL + "/api/v1/tick"
+	l, _ := testLoop(t, config)
+	done := make(chan loopState, 1)
+	go func() { done <- l.tick(context.Background(), stateHealthy) }()
+	<-started
+	status := readStatus(t, l)
+	if status.LastTickStatus != "running" || status.LastTickAt == nil {
+		t.Fatalf("long-running tick did not publish a heartbeat: %+v", status)
+	}
+	close(release)
+	select {
+	case state := <-done:
+		if state != stateHealthy {
+			t.Fatalf("tick state = %s, want healthy", state)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("tick did not finish after the server was released")
 	}
 }
 

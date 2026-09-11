@@ -3,6 +3,7 @@ package userconfig
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected version 1.0, got %s", cfg.Version)
 	}
 
-	if cfg.Global.GracePeriodSeconds != 60 {
-		t.Errorf("expected grace period 60, got %d", cfg.Global.GracePeriodSeconds)
+	if cfg.Global.GracePeriodSeconds != 600 {
+		t.Errorf("expected grace period 600, got %d", cfg.Global.GracePeriodSeconds)
 	}
 
 	if cfg.Global.TickIntervalSeconds != 60 {
@@ -82,6 +83,40 @@ func TestManagerComputedSupervisionFloorOverridesStaleCheckConfig(t *testing.T) 
 	if !mgr.IsCheckEnabled("scenario-vrooli-events") || !mgr.IsAutoHealEnabled("scenario-vrooli-events") {
 		t.Fatal("computed supervision floor must remain enabled and auto-healable")
 	}
+
+	if err := mgr.SetCheckEnabled("scenario-vrooli-events", false); err != nil {
+		t.Fatalf("SetCheckEnabled() error = %v", err)
+	}
+	if err := mgr.SetCheckAutoHeal("scenario-vrooli-events", false); err != nil {
+		t.Fatalf("SetCheckAutoHeal() error = %v", err)
+	}
+	if got := mgr.Get().Checks["scenario-vrooli-events"]; got.Enabled == nil || !*got.Enabled || got.AutoHeal == nil || !*got.AutoHeal {
+		t.Fatalf("protected config was not normalized: %+v", got)
+	}
+	if got := mgr.ProtectedChecks()["scenario-vrooli-events"]; got != "must_start" {
+		t.Fatalf("protected check reason = %q, want must_start", got)
+	}
+}
+
+func TestManagerBulkUpdatesPreserveSupervisionFloor(t *testing.T) {
+	mgr := NewManager(filepath.Join(t.TempDir(), "config.json"), filepath.Join(t.TempDir(), "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	mgr.SetSupervisedChecks(map[string]string{"scenario-agent-manager": "must_start"})
+
+	if err := mgr.SetAllEnabled(false); err != nil {
+		t.Fatalf("SetAllEnabled() error = %v", err)
+	}
+	if err := mgr.SetAllAutoHeal(false); err != nil {
+		t.Fatalf("SetAllAutoHeal() error = %v", err)
+	}
+	if got := mgr.GetCheck("scenario-agent-manager"); !got.Enabled || !got.AutoHeal {
+		t.Fatalf("bulk update disabled protected check: %+v", got)
+	}
+	if got := mgr.GetCheck("resource-postgres"); got.Enabled || got.AutoHeal {
+		t.Fatalf("bulk update did not remain effective for optional check: %+v", got)
+	}
 }
 
 func TestManagerLoadSave(t *testing.T) {
@@ -123,6 +158,46 @@ func TestManagerLoadSave(t *testing.T) {
 	cfg2 := mgr2.Get()
 	if cfg2.Global.GracePeriodSeconds != 120 {
 		t.Errorf("expected grace period 120 after reload, got %d", cfg2.Global.GracePeriodSeconds)
+	}
+}
+
+func TestManagerConcurrentSavesAreSerialized(t *testing.T) {
+	tmpDir := t.TempDir()
+	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	checks := []string{
+		"infra-network",
+		"infra-dns",
+		"infra-cloudflared",
+		"resource-cloudflared",
+		"resource-opencode",
+		"scenario-agent-manager",
+		"scenario-prompt-manager",
+		"scenario-web-console",
+	}
+	var wg sync.WaitGroup
+	for _, checkID := range checks {
+		wg.Add(1)
+		go func(checkID string) {
+			defer wg.Done()
+			if err := mgr.SetCheckAutoHeal(checkID, true); err != nil {
+				t.Errorf("SetCheckAutoHeal(%q) failed: %v", checkID, err)
+			}
+		}(checkID)
+	}
+	wg.Wait()
+
+	loaded := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
+	if err := loaded.Load(); err != nil {
+		t.Fatalf("Load after concurrent saves failed: %v", err)
+	}
+	for _, checkID := range checks {
+		if !loaded.IsAutoHealEnabled(checkID) {
+			t.Errorf("%s autoHeal was lost during concurrent saves", checkID)
+		}
 	}
 }
 
@@ -239,7 +314,7 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:          60,
+					GracePeriodSeconds:          600,
 					TickIntervalSeconds:         60,
 					VerifyDelaySeconds:          30,
 					MaxRestartAttempts:          3,
@@ -285,7 +360,7 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:          60,
+					GracePeriodSeconds:          600,
 					TickIntervalSeconds:         5, // Too low
 					VerifyDelaySeconds:          30,
 					MaxRestartAttempts:          3,

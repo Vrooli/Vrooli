@@ -389,28 +389,46 @@ func companionSymbolMatches(local localDeclaration, symbol companionSymbol) bool
 	return true
 }
 
-// packageImportIndex caches each directory's import set for the life of one
+// packageImportSet keeps production and test imports separate. A production
+// declaration must not appear to use a companion merely because a sibling
+// _test.go file imports that companion.
+type packageImportSet struct {
+	all        map[string]bool
+	production map[string]bool
+}
+
+// packageImportIndex caches each directory's import sets for the life of one
 // analysis. Shape matching asks the same question of every declaration in a
 // package, and re-reading the package per declaration is wasted work.
-type packageImportIndex map[string]map[string]bool
+type packageImportIndex map[string]packageImportSet
 
-func (index packageImportIndex) imports(dir string) map[string]bool {
+func (index packageImportIndex) imports(dir string, includeTests bool) map[string]bool {
 	if set, ok := index[dir]; ok {
-		return set
+		if includeTests {
+			return set.all
+		}
+		return set.production
 	}
-	set := map[string]bool{}
+	set := packageImportSet{all: map[string]bool{}, production: map[string]bool{}}
 	if entries, err := os.ReadDir(dir); err == nil {
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 				continue
 			}
-			for _, imported := range goImports(filepath.Join(dir, entry.Name())) {
-				set[imported] = true
+			imports := goImports(filepath.Join(dir, entry.Name()))
+			for _, imported := range imports {
+				set.all[imported] = true
+				if !strings.HasSuffix(entry.Name(), "_test.go") {
+					set.production[imported] = true
+				}
 			}
 		}
 	}
 	index[dir] = set
-	return set
+	if includeTests {
+		return set.all
+	}
+	return set.production
 }
 
 // declarationWorksWithOwner reports whether the package that declares a local
@@ -426,7 +444,7 @@ func (index packageImportIndex) imports(dir string) map[string]bool {
 // a method-count floor high enough to miss the two-method fakes that make up
 // most of the fleet's real duplicates.
 func declarationWorksWithOwner(index packageImportIndex, local localDeclaration, export companionExport) bool {
-	imported := index.imports(filepath.Dir(local.File))
+	imported := index.imports(filepath.Dir(local.File), local.TestOnly)
 	if export.OwnerImportPath != "" && imported[export.OwnerImportPath] {
 		return true
 	}
@@ -497,7 +515,13 @@ func bestCompanionMatch(local localDeclaration, registry companionRegistry, inde
 	for _, export := range exports {
 		for _, symbol := range export.Symbols {
 			if companionSymbolMatches(local, symbol) {
-				return companionMatch{Export: export, Symbol: symbol, Reason: matchByName}, true
+				// A production declaration with a common companion name is not
+				// evidence of duplication unless its package actually uses the
+				// companion owner. Test-only declarations remain eligible because
+				// their location is itself the ownership signal.
+				if local.TestOnly || containsExport(registry.Seams, export) || declarationWorksWithOwner(index, local, export) {
+					return companionMatch{Export: export, Symbol: symbol, Reason: matchByName}, true
+				}
 			}
 		}
 	}

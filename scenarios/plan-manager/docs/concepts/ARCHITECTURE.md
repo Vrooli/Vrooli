@@ -54,7 +54,7 @@ proto contracts.
 3. Plan + phase records persist to the durable `~/.vrooli` home store (see [`DATA.md`](DATA.md)); Plan Manager owns the structured record and rendered mirrors.
 4. Authoring writes a structured plan; execution reads/advances it (and reads the `log` ledger summary for just-in-time context and the handoff); the `log` domain captures the agent's typed work products (decisions/findings/bugs/records/notes) in-flow; validation resolves references, computes staleness, and runs baselines; the rendered markdown view is always derived from the structured record, never parsed back.
 
-The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md).
+The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md). A plan carries a **shape** (`phased` or `mandate`) that decides which body sections, quality rules, and execution status it has; see [Plan shape](PLAN-MODEL.md#plan-shape). The `shape` field is a target, not yet built; every plan today is phased.
 
 ### Target: artifact-first review
 

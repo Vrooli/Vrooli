@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/resourcegpu"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/system"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
@@ -51,6 +52,7 @@ type DefaultCheckFactory struct {
 	criticalScenarios      []string
 	nonCriticalScenarios   []string
 	resources              []string
+	resourceStatusProvider integration.ResourceStatusSnapshotProvider
 
 	// diskConfig carries the resolved system-disk configuration so the check
 	// is built from the same values the configuration surface reports. A zero
@@ -77,6 +79,7 @@ func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *Defa
 		criticalScenarios:      monitoring.GetCriticalScenarios(),
 		nonCriticalScenarios:   monitoring.GetNonCriticalScenarios(),
 		resources:              monitoring.Resources,
+		resourceStatusProvider: integration.NewSnapshotProvider(integration.NewClient(checks.DefaultExecutor)),
 	}
 }
 
@@ -138,6 +141,13 @@ func WithResources(resources []string) DefaultCheckFactoryOption {
 	}
 }
 
+// WithResourceStatusProvider injects the shared typed observation seam.
+// Production uses one provider per factory; tests may supply deterministic
+// fakes without starting a control-plane resource.
+func WithResourceStatusProvider(provider integration.ResourceStatusSnapshotProvider) DefaultCheckFactoryOption {
+	return func(f *DefaultCheckFactory) { f.resourceStatusProvider = provider }
+}
+
 // NewDefaultCheckFactoryWithOptions creates a factory with custom configuration.
 func NewDefaultCheckFactoryWithOptions(opts ...DefaultCheckFactoryOption) *DefaultCheckFactory {
 	f := NewDefaultCheckFactory()
@@ -149,7 +159,10 @@ func NewDefaultCheckFactoryWithOptions(opts ...DefaultCheckFactoryOption) *Defau
 
 // CreateInfrastructureChecks creates all infrastructure checks
 func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabilities) []checks.Check {
-	cloudflaredCheck := infra.NewCloudflaredCheck(caps, infra.WithExternalURL(f.cloudflaredExternalURL))
+	cloudflaredCheck := infra.NewCloudflaredCheck(caps,
+		infra.WithExternalURL(f.cloudflaredExternalURL),
+		infra.WithManagedResource(true),
+	)
 	return []checks.Check{
 		infra.NewNetworkCheck(f.networkTarget),
 		infra.NewDNSCheck(f.dnsDomain, caps, infra.WithExternalDNSServer(f.externalDNSServer)),
@@ -242,7 +255,7 @@ func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []
 		log.Printf("vrooli-autoheal: %q is in the monitored resource list but is not a resource in this repository; skipping its checks", name)
 	}
 	for _, name := range monitored {
-		vrooliChecks = append(vrooliChecks, vrooli.NewResourceCheck(name))
+		vrooliChecks = append(vrooliChecks, vrooli.NewResourceCheck(name, vrooli.WithResourceStatusProvider(f.resourceStatusProvider)))
 	}
 
 	// Accelerator placement checks, for the resources that declare a non-CPU
@@ -252,7 +265,7 @@ func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []
 	// self-contained rather than depending on the order this factory builds
 	// things in.
 	for _, name := range acceleratedResources(monitored) {
-		vrooliChecks = append(vrooliChecks, vrooli.NewModeDriftCheck(name))
+		vrooliChecks = append(vrooliChecks, vrooli.NewModeDriftCheck(name, vrooli.WithModeDriftStatusProvider(f.resourceStatusProvider)))
 	}
 
 	// Critical scenario checks

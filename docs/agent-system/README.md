@@ -2,7 +2,10 @@
 
 Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, Source Ledger topics, actions, and CLIs fit together.
 
-This folder is **canon**. Edits go through accepted, operator-dispositioned Swarm Manager work on the `meta-optimization` team. Other teams cite files here as required reading; nobody outside the owning flow rewrites them in place.
+This folder is **canon**, owned by `meta-optimization`. Apply the authority rules in
+[TEAM_DOCS_PATTERNS.md](TEAM_DOCS_PATTERNS.md#promotion-rule): normal team changes use
+accepted Swarm work; explicit operator-directed canonical edits retain their actual
+authority. Other teams cite this canon rather than maintaining private copies.
 
 ## Status
 
@@ -116,6 +119,7 @@ For a first read, use this order:
 | `SWARM_MANAGER_WORK.md` | canon | One-hop filing, operator disposition, evidence return path, action boundaries, cross-team ownership, and inbox backpressure |
 | `REVIEW_FEEDBACK.md` | canon | Evidence review, correction requests, and return to the unified Swarm Manager work stream |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
+| `SCENARIO_DEVELOPMENT.md` | canon | One-item development mandates, artifact-first review, authority-aware improvement, and runtime qualification boundaries |
 | `FRAMEWORK_HEALTH.md` | canon | The framework's own targets: contract validity, declaration integrity, coupling visibility, canon coherence, skill conditioning quality. Each target names its sensor, deadband, and actuator. Framework health only — portfolio goals live in director-swarm's `OUTCOMES_CHARTER.md` |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
 | `REFERENCE_SCENARIOS.md` | canon | Gold-star reference scenario registry (template→reference pair, generation date, audit cadence), nomination + demotion rules, rot triage including template-rot |
@@ -147,7 +151,7 @@ Discover programmatically: `prompt-manager graph topics` resolves every `intake[
 
 ## Editing rules
 
-1. **Approval-gated.** Operator-curated via `meta-optimization` work items. Agents propose diffs; they never edit directly.
+1. **Approval-gated.** Use the [Promotion Rule](TEAM_DOCS_PATTERNS.md#promotion-rule); a proposed diff or discovered rule is not edit authority.
 2. **Cross-team-readable.** Any team's members may cite a file here as required reading.
 3. **One concept, one file.** No double residency. The PoR coherence test (`path:scenarios/prompt-manager/test/agent_system_canon_test.sh`) enforces this.
 4. **Skills cite, never restate.** Any skill that previously contained doctrine in this folder must drop it and add a `Required reading: docs/agent-system/<file>` line.

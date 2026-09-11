@@ -11,9 +11,10 @@ Every piece of guidance in the agent system has exactly one correct home. The ru
 ```
 Truth lives in Plan of Record.
 Judgment lives in Skills and operator dispositions.
-Execution lives in Actions.
-Implementation lives in CLIs.
-Unbuilt work lives in the Swarm Manager backlog.
+Repeatable composition lives in governed Programs.
+Single-command discovery lives in Actions.
+Implementation and domain state live in Scenarios, exposed through CLIs and APIs.
+Project work and disposition live in Swarm Manager; in-scope progress stays with that work.
 Raw learning starts in inboxes and synthesis.
 Identity stays in SOUL.md.
 Ownership stays in team contracts and responsibilities.
@@ -30,13 +31,18 @@ When you have a paragraph and don't know where it belongs, ask what it is *sayin
 ```
 If it says what is true       -> Plan of Record.
 If it says how to decide      -> Skill.
-If it says what to run        -> Action.
-If it says how it works       -> CLI implementation.
-If it says what is missing    -> Swarm Manager backlog.
-If it is unverified or one-off-> inbox / synthesis (not permanent).
+If it composes repeated calls -> governed Program.
+If it wraps one command       -> Action.
+If it owns state or invariants -> Scenario implementation.
+If it records in-scope work   -> existing engagement's log.
+If it needs new disposition   -> Swarm Manager backlog / capture.
+If it is unverified or one-off -> inbox / synthesis (not permanent).
 ```
 
-Apply the classifier first. If the answer is "inbox / synthesis," the paragraph is debt — it exists because the permanent solution doesn't yet. The promotion ladder (`PROMOTION_LADDER.md`) describes how it eventually graduates or retires.
+Use the classifier without inferring write authority. Observation-only work returns
+its findings to the caller. [SCENARIO_DEVELOPMENT.md](SCENARIO_DEVELOPMENT.md) owns
+the distinction between authorized implementation and new work disposition;
+[PROMOTION_LADDER.md](PROMOTION_LADDER.md) owns graduation and retirement.
 
 ---
 
@@ -57,9 +63,10 @@ When canon lives in the wrong home — typically when a skill restates doctrine 
 | Layer | Location | Examples |
 |---|---|---|
 | Plan of Record | `path:docs/<domain>/` and `path:docs/agent-system/` | `path:docs/monetization/`, `path:docs/marketing/evidence/research/README.md`, this file |
-| Skills | `path:scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `signal-classifier`, `team-member-capability-architecture-audit` |
+| Skills | Scenario-owned `skills/<skill-id>/SKILL.md` or Prompt Manager's `store/skills/packs/<pack>/<skill-id>/SKILL.md` | Scenario roles and cross-scenario methods; placement in `SKILL_AUTHORING.md` |
+| Programs | `path:scenarios/<owner>/.vrooli/program-runtime/` | Typed composition contracts and sources; protocol owned by Program Runtime |
 | Actions | `path:scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, framework-health |
-| CLIs | `path:scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |
+| Scenario implementation | `path:scenarios/<scenario>/` and shared owner packages | Domain state and operations; CLI/API are invocation surfaces |
 | Backlog | Swarm Manager backlog and captures | filed with `swarm-manager backlog create` or `captures create` |
 | Inbox / synthesis | Source Ledger entries under a team scope | `research-inbox/<signal-type>/<slug>` |
 | Identity | `path:store/agents/<id>/SOUL.md` | per-agent identity prose |

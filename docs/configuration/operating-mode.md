@@ -54,7 +54,11 @@ The scope is intentionally narrow: a scenario can be "enabled, not auto-restarti
 
 ## Profile-driven defaults
 
-When profiles land (currently deferred — see [`profiles.md`](profiles.md)), a profile may declare a different `auto_restart_default` for specific scenarios than the manifest does. Until that lands, profiles influence operator-state directly via the wizard's profile-pre-selection step.
+When a profile declares a different `auto_restart_default` for a scenario than
+the manifest does, the profile supplies a recommendation and the operator's
+reviewed choice is written to `operator-state.json`. Profiles do not bypass the
+normal operator-state authority or change supervision membership; they are
+another input to the same field-scoped selection flow.
 
 ## Open work items
 
@@ -68,4 +72,4 @@ These are intentionally not in the current schema bundle:
 
 - [`scenarios.md`](scenarios.md) — `runtime.kind` per scenario
 - [`architecture.md#resolution-order`](architecture.md#resolution-order) — full resolution rules
-- [`profiles.md`](profiles.md) — how profiles will eventually influence runtime defaults (deferred)
+- [`profiles.md`](profiles.md) — how active profiles influence runtime defaults

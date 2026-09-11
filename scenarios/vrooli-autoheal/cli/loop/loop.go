@@ -65,6 +65,12 @@ const (
 	preflightEveryTicks = 60
 )
 
+// loopHeartbeatInterval keeps the watchdog's liveness evidence fresh while a
+// deliberately bounded API tick is still running. A full tick may take
+// several minutes on a busy host, which is longer than the readiness check's
+// stale-heartbeat window.
+var loopHeartbeatInterval = 30 * time.Second
+
 // nextBackoff doubles the wait, from healBackoffMin up to healBackoffMax.
 func nextBackoff(current time.Duration) time.Duration {
 	if current < healBackoffMin {
@@ -313,7 +319,13 @@ func (l *loop) doDegraded(ctx context.Context) loopState {
 // what healing is for (Heal).
 func (l *loop) tick(ctx context.Context, stay loopState) loopState {
 	l.ticksSincePreflight++
+	started := time.Now().UTC()
+	l.record.LastTickAt = &started
+	l.record.LastTickStatus = "running"
+	l.persist()
+	stopHeartbeat := l.startTickHeartbeat()
 	result, err := runTick(ctx, l.config)
+	stopHeartbeat()
 	now := time.Now().UTC()
 	l.record.LastTickAt = &now
 	defer l.persist()
@@ -345,4 +357,40 @@ func (l *loop) tick(ctx context.Context, stay loopState) loopState {
 	l.record.DegradedReason = ""
 	log.Printf("tick: %s (ok %d, warn %d, crit %d)", result.Status, result.Summary.OK, result.Summary.Warning, result.Summary.Critical)
 	return stateHealthy
+}
+
+// startTickHeartbeat writes a fresh copy of the loop status during a long
+// tick. The state machine remains single-threaded; only the immutable-in-this-
+// interval record copy is written from the heartbeat goroutine, and the caller
+// waits for it to stop before changing l.record again.
+func (l *loop) startTickHeartbeat() func() {
+	interval := loopHeartbeatInterval
+	if interval <= 0 {
+		return func() {}
+	}
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				now := time.Now().UTC()
+				heartbeat := l.record
+				heartbeat.LastTickAt = &now
+				heartbeat.LastTickStatus = "running"
+				if err := l.status.write(heartbeat); err != nil {
+					log.Printf("tick heartbeat write failed: %v", err)
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
 }

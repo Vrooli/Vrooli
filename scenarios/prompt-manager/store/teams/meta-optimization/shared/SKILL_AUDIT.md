@@ -56,3 +56,9 @@ Usage-weighted priority audit of the skill library. Maintained by `skill-optimiz
 | Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
 |-------|---------|--------|--------|--------------|-------------|-------|
 | sandbox | 0 | 0.20 (stale command reference; low inbound) | drift | 2026-09-10 | capability-work-item | Act A25 is missing: canonical in-place file edit outside a sandbox. The skill documents isolated create/review/promote only; graph flags stale `workspace-sandbox configure/status` references, and discovery found no exact Action. Filed `fix/capability-act-a25-canonical-file-edit-owner-20260910` for an explicit governed owner/provider. No skill edit or Action candidate until the operation has a stable contract. |
+
+## 2026-09-11 Rotation Addendum
+
+| Skill | Inbound | Health | Rating | Last visited | Disposition | Notes |
+|-------|---------|--------|--------|--------------|-------------|-------|
+| storage-steer | 3 | 0.51 (oversized; external tooling warning) | mixed | 2026-09-11 | graduate | Usage ladder: 13 returned / 0 reads in 7d; graph node explicitly records `programmaticHome: storage-manager:storage`. Detection is owned by the operational `storage-manager` CLI (`validate scenario <name>` and `validate prove-isolation <name>`); retain this skill as the judgment layer. Discovery found no exact registered Action, so do not add an Action wrapper. Baseline: 48,562 chars, 13 returns, health 0.51. Expected delta: repeated storage detection leaves prose and becomes reproducible CLI evidence; measure with programmatic validation receipts, skill token size after owner acceptance, and future Action discoverability. |

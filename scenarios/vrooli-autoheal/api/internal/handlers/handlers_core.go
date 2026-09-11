@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -303,11 +305,16 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Vrooli Autoheal API",
-		"version":   "1.0.0",
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"status":  status,
+		"service": "Vrooli Autoheal API",
+		"version": "1.0.0",
+		// The lifecycle registry uses this identity to reject a stale API
+		// process after authored source changes. Autoheal is itself part of
+		// the recovery plane, so its health endpoint must carry the same
+		// contract as every other managed scenario.
+		"build_identity": strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY")),
+		"readiness":      status == "healthy",
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"dependencies": map[string]interface{}{
 			"database": dbDependency,
 		},

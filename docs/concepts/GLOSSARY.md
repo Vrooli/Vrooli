@@ -50,6 +50,18 @@ not have. Degraded is a state, never a secret.
 
 A complete application or focused service that orchestrates resources and sometimes other scenarios to deliver business or platform value.
 
+## Learn verb
+
+A governed `learn.*` operation inside a Program Runtime program for task identity, step capture, recall, choice, typed notes, outcomes, inference, fragments, or delegation.
+
+## Fragment
+
+A normalized `def step(inputs, bindings): ...` function used to fill a `learn.act` hole through its declared binding allow-set.
+
+## Step key
+
+The stable identity formed from an operation, bounded input digest, and step name so learning evidence can be recalled across runs.
+
 ## Supervision Set
 
 The computed set of scenarios and resources Vrooli must observe. It starts at

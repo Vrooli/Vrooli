@@ -6,6 +6,8 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/coreset"
 )
 
 type AutoHealResult struct {
@@ -57,6 +59,15 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 
 	// Phase 1: Collect and filter candidates
 	for _, result := range results {
+		r.observeScenarioHealth(result)
+		if recoveryRequestID := r.requestScenarioRecoveryIfReady(ctx, result); recoveryRequestID != "" {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:           result.CheckID,
+				Attempted:         false,
+				Reason:            "coding-agent recovery scheduled",
+				RecoveryRequestID: recoveryRequestID,
+			})
+		}
 		// Auto-heal trigger is per-check policy (critical or warning+critical).
 		if !r.shouldTriggerAutoHeal(result) {
 			continue
@@ -240,31 +251,10 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Update heal tracker based on result
 		outcome := outcomeFromActionResult(actionResult)
 		r.updateHealTracker(c.result.CheckID, outcome)
-		if outcome == outcomeSuccess {
-			r.clearRecoveryRequest(c.result.CheckID)
-		}
 
 		// Get updated tracker for result
 		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
 		r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcome, updatedTracker)
-		recoveryRequestID := ""
-		if outcome == outcomeFailure && strings.HasPrefix(c.result.CheckID, "scenario-") {
-			if policy, ok := r.getAutoHealPolicy(); ok && updatedTracker.ConsecutiveFailures >= policy.MaxRestartAttempts {
-				if requester := r.getRecoveryRequester(); requester != nil && r.claimRecoveryRequest(c.result.CheckID) {
-					scenario := strings.TrimPrefix(c.result.CheckID, "scenario-")
-					reason := actionResult.Error
-					if reason == "" {
-						reason = actionResult.Message
-					}
-					var requestErr error
-					recoveryRequestID, requestErr = requester(ctx, scenario, fmt.Sprintf("mechanical autoheal exhausted action %s: %s", c.selectedAction.ID, reason))
-					if requestErr != nil {
-						log.Printf("vrooli-autoheal: control-plane recovery request for %s failed: %v", scenario, requestErr)
-					}
-				}
-			}
-		}
-
 		autoHealResults = append(autoHealResults, AutoHealResult{
 			CheckID:             c.result.CheckID,
 			Attempted:           true,
@@ -274,11 +264,42 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 			Suspended:           updatedTracker.IsSuspended(),
 			SuspensionReason:    updatedTracker.SuspensionReason,
-			RecoveryRequestID:   recoveryRequestID,
 		})
 	}
 
 	return autoHealResults
+}
+
+func (r *Registry) requestScenarioRecoveryIfReady(ctx context.Context, result Result) string {
+	if !strings.HasPrefix(result.CheckID, "scenario-") {
+		return ""
+	}
+	if !r.IsAutoHealEnabled(result.CheckID) {
+		return ""
+	}
+	policy, ok := r.getAutoHealPolicy()
+	if !ok {
+		return ""
+	}
+	tracker := r.getHealTrackerSnapshot(result.CheckID)
+	if tracker.ConsecutiveFailures < policy.MaxRestartAttempts || !r.recoveryGraceElapsed(result.CheckID, r.now()) {
+		return ""
+	}
+	requester := r.getRecoveryRequester()
+	if requester == nil {
+		return ""
+	}
+	scenario := strings.TrimPrefix(result.CheckID, "scenario-")
+	reason := result.Message
+	if reason == "" {
+		reason = "scenario health check remains unhealthy"
+	}
+	requestID, err := requester(ctx, scenario, fmt.Sprintf("mechanical autoheal exhausted after continuous unhealthy period: %s", reason))
+	if err != nil {
+		log.Printf("vrooli-autoheal: control-plane coding-agent recovery request for %s failed: %v", scenario, err)
+		return ""
+	}
+	return requestID
 }
 
 func (r *Registry) recordHealIncident(ctx context.Context, checkID, actionID string, actionResult ActionResult, outcome healOutcome, tracker HealTracker) {
@@ -373,9 +394,6 @@ func outcomeFromActionResult(r ActionResult) healOutcome {
 // is skipped and a non-attempted result is appended.
 // Returns true if the candidate was skipped.
 func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results *[]AutoHealResult) bool {
-	recheckCtx, cancel := context.WithTimeout(ctx, DefaultCheckTimeout)
-	defer cancel()
-
 	// Re-run the check to see if it's still unhealthy.
 	r.mu.RLock()
 	check, exists := r.checks[c.result.CheckID]
@@ -383,6 +401,8 @@ func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results 
 	if !exists {
 		return false // Check was unregistered; let the caller handle it
 	}
+	recheckCtx, cancel := context.WithTimeout(ctx, timeoutForCheck(check))
+	defer cancel()
 
 	freshResult := check.Run(recheckCtx)
 
@@ -562,6 +582,68 @@ func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
 	return *tracker
 }
 
+// observeScenarioHealth tracks continuous unhealthy time independently from
+// action cooldowns. A restart attempt can fail while the scenario remains
+// unhealthy; the grace window must survive those attempts and be persisted so
+// an autoheal restart does not reset the escalation clock.
+func (r *Registry) observeScenarioHealth(result Result) {
+	if !strings.HasPrefix(result.CheckID, "scenario-") {
+		return
+	}
+	now := result.Timestamp
+	if now.IsZero() {
+		now = r.now()
+	}
+	r.mu.Lock()
+	tracker, exists := r.healTrackers[result.CheckID]
+	if !exists {
+		tracker = &HealTracker{}
+		r.healTrackers[result.CheckID] = tracker
+	}
+	changed := false
+	if result.Status == StatusOK || result.Status == StatusNotApplicable {
+		if !tracker.UnhealthySince.IsZero() || tracker.ConsecutiveFailures > 0 || tracker.ConsecutiveTimeouts > 0 || tracker.IsSuspended() {
+			tracker.UnhealthySince = time.Time{}
+			tracker.ConsecutiveFailures = 0
+			tracker.ConsecutiveTimeouts = 0
+			tracker.SuspendedAt = time.Time{}
+			tracker.SuspensionReason = ""
+			tracker.Disposition = HealDispositionHealed
+			tracker.DispositionAt = now
+			tracker.CooldownUntil = now
+			changed = true
+		}
+	} else if tracker.UnhealthySince.IsZero() {
+		tracker.UnhealthySince = now
+		changed = true
+	}
+	store := r.healTrackerStore
+	copy := *tracker
+	r.mu.Unlock()
+	if changed && store != nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = store.SaveHealTracker(ctx, result.CheckID, &copy)
+		}()
+	}
+}
+
+func (r *Registry) recoveryGraceElapsed(checkID string, now time.Time) bool {
+	r.mu.RLock()
+	grace := r.recoveryGracePeriod
+	tracker, exists := r.healTrackers[checkID]
+	var unhealthySince time.Time
+	if exists && tracker != nil {
+		unhealthySince = tracker.UnhealthySince
+	}
+	r.mu.RUnlock()
+	if grace <= 0 || !exists || unhealthySince.IsZero() {
+		return grace <= 0
+	}
+	return !now.Before(unhealthySince.Add(grace))
+}
+
 // updateHealTracker updates the heal tracker after a heal attempt and persists to store.
 //
 // The outcome distinguishes between success, genuine failure, and timeout.
@@ -633,7 +715,7 @@ func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 			tracker.CooldownUntil = now
 		}
 	}
-	if policy != nil && tracker.ConsecutiveFailures >= policy.MaxRestartAttempts && outcome != outcomeSuccess {
+	if policy != nil && tracker.ConsecutiveFailures >= policy.MaxRestartAttempts && outcome != outcomeSuccess && !r.persistentRecoveryCheckLocked(checkID) {
 		tracker.SuspendedAt = now
 		tracker.SuspensionReason = fmt.Sprintf("reached consecutive failure limit (%d)", policy.MaxRestartAttempts)
 		tracker.Disposition = HealDispositionEscalated
@@ -761,6 +843,19 @@ func (r *Registry) ReconcileHealTrackerDispositions(ctx context.Context) error {
 			}
 			continue
 		}
+		if r.persistentRecoveryCheckLocked(id) {
+			// The configured core set is a durable recovery obligation. Its
+			// retry cadence is bounded by the normal cooldown, capped at one
+			// hour, but an old failure streak must never permanently disable
+			// the only mechanism that can restore the recovery plane.
+			if tracker.IsSuspended() {
+				tracker.SuspendedAt = time.Time{}
+				tracker.SuspensionReason = ""
+				tracker.CooldownUntil = now
+				changed[id] = *tracker
+			}
+			continue
+		}
 		if tracker.ConsecutiveFailures >= r.autoHealPolicy.MaxRestartAttempts && !tracker.IsSuspended() {
 			tracker.SuspendedAt = now
 			tracker.SuspensionReason = fmt.Sprintf("restored above consecutive failure limit (%d)", r.autoHealPolicy.MaxRestartAttempts)
@@ -795,6 +890,38 @@ func (r *Registry) ReconcileHealTrackerDispositions(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// persistentRecoveryCheck identifies the recovery plane that must keep
+// retrying after repeated failures. Optional checks retain bounded suspension
+// so a broken optional scenario cannot consume the whole recovery budget. The
+// operator's configured core seed is authoritative for scenario membership;
+// the directly coupled access/model resources remain protected with it.
+func (r *Registry) persistentRecoveryCheck(checkID string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.persistentRecoveryCheckLocked(checkID)
+}
+
+func (r *Registry) persistentRecoveryCheckLocked(checkID string) bool {
+	checkID = strings.TrimSpace(checkID)
+	switch checkID {
+	case "infra-cloudflared", "resource-cloudflared", "resource-openrouter", "resource-opencode":
+		return true
+	}
+	if scenario, ok := strings.CutPrefix(checkID, "scenario-"); ok {
+		_, supervised := r.supervisedChecks[checkID]
+		if supervised {
+			return true
+		}
+		for _, required := range coreset.RequiredOperationalScenarios {
+			if scenario == required {
+				return true
+			}
+		}
+		return coreset.IsCoreSeed(scenario)
+	}
+	return false
 }
 
 // ResetHealTracker resets the heal tracker for a check (for manual intervention)

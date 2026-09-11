@@ -76,6 +76,14 @@ type Check interface {
 	Run(ctx context.Context) Result
 }
 
+// CheckTimeoutOverride is an optional per-check execution budget. Most checks
+// use DefaultCheckTimeout; checks that deliberately observe a bounded fleet
+// operation may request a larger budget without widening the timeout for every
+// other check.
+type CheckTimeoutOverride interface {
+	CheckTimeout() time.Duration
+}
+
 // Info provides metadata about a registered check
 type Info struct {
 	ID              string          `json:"id"`

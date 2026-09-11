@@ -451,6 +451,12 @@ A destination-clear skill is a *precondition* for climbing the promotion ladder:
 
 ## Scenario skill sets: roles, step rungs, and the learning spine
 
+Use [Scenario Development Under a Grant](SCENARIO_DEVELOPMENT.md) for the target
+artifact contract, execution authority, and documentation-first authoring. An
+improve skill supplies judgment inside an authorized engagement; it does not
+require a separate backlog item for each repair. Read-only callers retain
+read-only authority. Cite that canon rather than copying it into each role.
+
 A scenario owes a small, derivable set of skills. The set is declared once in the scenario's `.vrooli/service.json` under `skills`, lives in `scenarios/<scenario>/skills/<skill-id>/SKILL.md`, and is read by the `prompt-manager.skill-set-read` program. Run `prompt-manager skill-set validate <scenario>` for the current declaration findings; Test Genie also exposes the owner-provided `skill-set` phase. These checks establish structural conformance. `skill-validation` owns judgment about the skill's quality, and executed program fixtures establish behavior beyond declarations.
 
 ### The three-speed capability stack
@@ -497,7 +503,16 @@ parent execution alone do not establish a successful child outcome.
 |---|---|---|---|
 | **Usage** | `tools` | The scenario has a CLI manifest (`cli/manifest.json`) | The judgment that beats `--help`, written as a decision tree whose leaves carry a rung label (below); the learning spine when a memory scope is declared; the in-use settings the agent may change without a diff; the debug order; safety |
 | **Feature** | `tools` or `practice` | Optional. Only after the pattern appears in two or more agents (`capability-extraction` §Extraction Test) | One decision table for one use case; never a restatement of the reference |
-| **Improve** | `practice` | The scenario owns a projection (Answer, Validate, Guide, Act) **or** two or more scenarios or teams depend on it | The control-loop sections in `improve-skill-authoring`: setpoint, sensors, golden corpora, curation moves, ladder rungs, anti-gaming by id, evidence, stop rules |
+| **Improve** | `practice` | The scenario owns a projection (Answer, Validate, Guide, Act) **or** two or more scenarios or teams depend on it **or** it is named in a `team.json::instrument.scenario` | The control-loop sections in `improve-skill-authoring`: setpoint, sensors, golden corpora, curation moves, ladder rungs, anti-gaming by id, evidence, stop rules |
+
+**The instrument trigger.** A scenario a team reads as its instrument owes both roles
+regardless of how many other scenarios import it. A team instrument is read by every member
+of that team on every heartbeat, which is the same standing that the dependent-count trigger
+exists to detect — but `dependencies.scenarios` does not record it, because a team is not a
+scenario. Resolve the trigger from `team.json::instrument.scenario` across
+`path:scenarios/prompt-manager/store/teams/`, not from the dependency graph alone. Without
+the roles, the team's judgment stays in its member files and the instrument is a database its
+members hand-query: see `TARGET_MODEL.md` §9 deviation D11.
 
 Any owed role a scenario does not ship needs a waiver with a dated reason in the declaration. A waiver that hides a role the trigger says is owed is suppression-shaped and earns zero credit (`improvement-do-and-dont`).
 

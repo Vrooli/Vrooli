@@ -6,6 +6,8 @@
 package generation
 
 import (
+	"fmt"
+
 	"scenario-to-desktop-api/signing/types"
 )
 
@@ -54,6 +56,11 @@ type Options struct {
 	// Default: "scripts/notarize.js"
 	NotarizeScriptPath string
 
+	// LinuxArtifactSignerPath is the relative path for the electron-builder
+	// afterAllArtifactBuild hook that signs Linux artifacts and emits the
+	// release metadata sidecar. Default: "scripts/sign-linux-artifacts.js".
+	LinuxArtifactSignerPath string
+
 	// EnvironmentResolver resolves environment variable references.
 	// If nil, environment variables are kept as ${VAR} references.
 	EnvironmentResolver EnvironmentReader
@@ -62,9 +69,10 @@ type Options struct {
 // DefaultOptions returns the default generator options.
 func DefaultOptions() *Options {
 	return &Options{
-		OutputDir:          "build",
-		EntitlementsPath:   "entitlements.mac.plist",
-		NotarizeScriptPath: "scripts/notarize.js",
+		OutputDir:               "build",
+		EntitlementsPath:        "entitlements.mac.plist",
+		NotarizeScriptPath:      "scripts/notarize.js",
+		LinuxArtifactSignerPath: "scripts/sign-linux-artifacts.js",
 	}
 }
 
@@ -87,6 +95,9 @@ func (g *DefaultGenerator) GenerateElectronBuilder(config *types.SigningConfig) 
 	if config == nil || !config.Enabled {
 		return nil, nil
 	}
+	if config.Windows != nil && !isSupportedWindowsCertificateSource(config.Windows.CertificateSource) {
+		return nil, fmt.Errorf("unsupported Windows certificate source %q: use %q or %q", config.Windows.CertificateSource, types.CertSourceFile, types.CertSourceStore)
+	}
 
 	result := &types.ElectronBuilderSigningConfig{}
 
@@ -101,6 +112,10 @@ func (g *DefaultGenerator) GenerateElectronBuilder(config *types.SigningConfig) 
 	}
 
 	return result, nil
+}
+
+func isSupportedWindowsCertificateSource(source string) bool {
+	return source == types.CertSourceFile || source == types.CertSourceStore
 }
 
 // GenerateEntitlements creates macOS entitlements.plist content.
@@ -150,6 +165,14 @@ func (g *DefaultGenerator) GenerateAll(config *types.SigningConfig) (map[string]
 				files[g.opts.NotarizeScriptPath] = script
 			}
 		}
+	}
+
+	if config.Linux != nil {
+		script, err := generateLinuxArtifactSigner(config.Linux)
+		if err != nil {
+			return nil, err
+		}
+		files[g.opts.LinuxArtifactSignerPath] = script
 	}
 
 	return files, nil

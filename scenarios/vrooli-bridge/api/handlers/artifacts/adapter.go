@@ -128,8 +128,8 @@ func newDeviceSyncDelivery(pusher ArtifactPlacementPusher) deviceSyncDelivery {
 }
 
 const (
-	deviceSyncCredentialIdentity = "vrooli/device-sync-hub"
-	deviceSyncCredentialField    = "bridge-origin-device-token"
+	deviceSyncCredentialIdentity = "vrooli/device-sync-hub"     // #nosec G101 -- this is a credential identity namespace, not a credential.
+	deviceSyncCredentialField    = "bridge-origin-device-token" // #nosec G101 -- this is a credential-store field name, not a secret.
 )
 
 func resolveDeviceSyncToken() string {

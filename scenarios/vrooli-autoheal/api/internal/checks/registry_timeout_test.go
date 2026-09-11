@@ -6,6 +6,67 @@ import (
 	"time"
 )
 
+type extendedTimeoutCheck struct {
+	mockCheck
+	timeout time.Duration
+	delay   time.Duration
+}
+
+func (c *extendedTimeoutCheck) CheckTimeout() time.Duration { return c.timeout }
+
+func (c *extendedTimeoutCheck) Run(ctx context.Context) Result {
+	select {
+	case <-time.After(c.delay):
+		return Result{CheckID: c.id, Status: StatusOK, Message: "completed"}
+	case <-ctx.Done():
+		return Result{CheckID: c.id, Status: StatusCritical, Message: ctx.Err().Error()}
+	}
+}
+
+func TestRunCheckHonorsPerCheckTimeoutOverride(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	check := &extendedTimeoutCheck{
+		mockCheck: mockCheck{id: "slow-resource", interval: 0},
+		timeout:   80 * time.Millisecond,
+		delay:     20 * time.Millisecond,
+	}
+	reg.Register(check)
+
+	results := reg.RunChecksForIDs(context.Background(), []string{check.id})
+	if len(results) != 1 {
+		t.Fatalf("results = %d, want 1", len(results))
+	}
+	if results[0].Status != StatusOK {
+		t.Fatalf("status = %s, want %s", results[0].Status, StatusOK)
+	}
+}
+
+func TestPersistentRecoveryChecksDoNotBecomePermanentlySuspended(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	if err := reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:         time.Minute,
+		MaxRestartAttempts:   2,
+		FastActionTimeout:    DefaultFastActionTimeout,
+		RestartActionTimeout: DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		reg.updateHealTracker("scenario-agent-manager", outcomeFailure)
+	}
+	tracker, ok := reg.GetHealTracker("scenario-agent-manager")
+	if !ok {
+		t.Fatal("expected persistent recovery tracker")
+	}
+	if tracker.IsSuspended() {
+		t.Fatalf("persistent recovery tracker was suspended: %+v", tracker)
+	}
+	if tracker.CooldownUntil.Sub(time.Now()) > time.Hour+time.Second {
+		t.Fatalf("cooldown = %s, want no more than one hour", tracker.CooldownUntil.Sub(time.Now()))
+	}
+}
+
 func TestNewAutoHealPolicyFromGlobal(t *testing.T) {
 	policy, err := NewAutoHealPolicyFromGlobal(300, 3, 30, 300, 30)
 	if err != nil {
@@ -725,10 +786,12 @@ func TestExecuteAutoHealAction_HealTrackerPersistsTimeoutCounters(t *testing.T) 
 		{CheckID: "scenario-app-monitor", Status: StatusCritical},
 	})
 
-	select {
-	case <-store.saveCh:
-	case <-time.After(2 * time.Second):
-		t.Fatal("expected persistence save")
+	for i := 0; i < 2; i++ {
+		select {
+		case <-store.saveCh:
+		case <-time.After(2 * time.Second):
+			t.Fatal("expected unhealthy-state and action persistence saves")
+		}
 	}
 
 	persisted := store.trackers["scenario-app-monitor"]

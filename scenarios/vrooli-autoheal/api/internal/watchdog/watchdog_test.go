@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	platformgo "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
@@ -192,6 +193,9 @@ func newWatchdogContractFixtureRepo(t *testing.T) string {
 
 func watchdogRepoRoot(t *testing.T) string {
 	t.Helper()
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
 	return filepath.Clean(filepath.Join(filepath.Dir(testFilePath(t)), "..", "..", "..", "..", ".."))
 }
 

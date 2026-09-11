@@ -4,6 +4,7 @@ package infra
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -89,13 +90,14 @@ func SelectCloudflaredVerifyMethod(caps *platform.Capabilities) CloudflaredVerif
 // CloudflaredCheck verifies cloudflared service.
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type CloudflaredCheck struct {
-	caps           *platform.Capabilities
-	localTestPort  int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
-	externalURL    string // Optional external tunnel URL to verify end-to-end connectivity
-	connectTimeout time.Duration
-	executor       checks.CommandExecutor
-	httpClient     checks.HTTPDoer
-	lookPather     LookPather // Injectable for testing binary detection
+	caps            *platform.Capabilities
+	managedResource bool
+	localTestPort   int    // Port to test local tunnel connectivity (e.g., 21774 for app-monitor UI)
+	externalURL     string // Optional external tunnel URL to verify end-to-end connectivity
+	connectTimeout  time.Duration
+	executor        checks.CommandExecutor
+	httpClient      checks.HTTPDoer
+	lookPather      LookPather // Injectable for testing binary detection
 }
 
 // CloudflaredOption configures a CloudflaredCheck.
@@ -148,6 +150,13 @@ func WithCloudflaredLookPather(lp LookPather) CloudflaredOption {
 	}
 }
 
+// WithManagedResource makes the check observe and recover the canonical
+// Vrooli-managed cloudflared resource. This keeps autoheal on the same
+// lifecycle path as tunnel-manager instead of creating a second service owner.
+func WithManagedResource(enabled bool) CloudflaredOption {
+	return func(c *CloudflaredCheck) { c.managedResource = enabled }
+}
+
 // NewCloudflaredCheck creates a cloudflared health check with injected platform capabilities.
 // Options can configure local port testing and external URL verification.
 func NewCloudflaredCheck(caps *platform.Capabilities, opts ...CloudflaredOption) *CloudflaredCheck {
@@ -192,6 +201,9 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 	result.Details["installed"] = true
+	if c.managedResource {
+		return c.checkManagedResource(ctx, result)
+	}
 
 	// Second decision: Can we verify it's running?
 	verifyMethod := SelectCloudflaredVerifyMethod(c.caps)
@@ -211,6 +223,45 @@ func (c *CloudflaredCheck) Run(ctx context.Context) checks.Result {
 		result.Message = "Cloudflared status check not supported"
 		return result
 	}
+}
+
+type managedCloudflaredStatus struct {
+	Success bool   `json:"success"`
+	Running bool   `json:"running"`
+	Healthy bool   `json:"healthy"`
+	Status  string `json:"status"`
+	Serving bool   `json:"serving"`
+}
+
+// checkManagedResource delegates observation to the control plane, which owns
+// the resource lifecycle and credential injection.
+func (c *CloudflaredCheck) checkManagedResource(ctx context.Context, result checks.Result) checks.Result {
+	output, err := c.executor.Output(ctx, "vrooli", "resource", "status", "cloudflared", "--no-fast", "--json")
+	if err != nil {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource status unavailable"
+		result.Details["error"] = err.Error()
+		return result
+	}
+	var status managedCloudflaredStatus
+	if err := json.Unmarshal(output, &status); err != nil {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource status unreadable"
+		result.Details["error"] = err.Error()
+		return result
+	}
+	result.Details["resourceStatus"] = status.Status
+	result.Details["resourceRunning"] = status.Running
+	result.Details["resourceHealthy"] = status.Healthy
+	result.Details["resourceServing"] = status.Serving
+	if !status.Success || !status.Running || !status.Healthy || !status.Serving {
+		result.Status = checks.StatusCritical
+		result.Message = "Cloudflared managed resource is not healthy"
+		return result
+	}
+	result.Status = checks.StatusOK
+	result.Message = "Cloudflared managed resource is healthy"
+	return result
 }
 
 // checkSystemdService verifies cloudflared via the native service manager.
@@ -435,6 +486,9 @@ func (c *CloudflaredCheck) RecoveryActions(lastResult *checks.Result) []checks.R
 		if status, ok := lastResult.Details["serviceStatus"].(string); ok {
 			isRunning = status == "active"
 		}
+		if status, ok := lastResult.Details["resourceRunning"].(bool); ok {
+			isRunning = status
+		}
 	}
 
 	return []checks.RecoveryAction{
@@ -487,6 +541,9 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 
 	switch actionID {
 	case "start":
+		if c.managedResource {
+			return c.executeManagedResourceAction(ctx, actionID, start)
+		}
 		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "start", "cloudflared")
 		result.Elevation = &outcome
 		result.Output = string(output)
@@ -501,6 +558,9 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		return c.verifyRecovery(ctx, result, "start", start)
 
 	case "restart":
+		if c.managedResource {
+			return c.executeManagedResourceAction(ctx, actionID, start)
+		}
 		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "cloudflared")
 		result.Elevation = &outcome
 		result.Output = string(output)
@@ -543,6 +603,20 @@ func (c *CloudflaredCheck) ExecuteAction(ctx context.Context, actionID string) c
 		result.Duration = time.Since(start)
 		return result
 	}
+}
+
+func (c *CloudflaredCheck) executeManagedResourceAction(ctx context.Context, actionID string, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{ActionID: actionID, CheckID: c.ID(), Timestamp: start}
+	output, err := c.executor.Output(ctx, "vrooli", "resource", actionID, "cloudflared", "--json")
+	result.Output = string(output)
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to " + actionID + " managed cloudflared resource"
+		result.Duration = time.Since(start)
+		return result
+	}
+	return c.verifyRecovery(ctx, result, actionID, start)
 }
 
 // executeTestTunnel tests tunnel connectivity

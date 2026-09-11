@@ -26,11 +26,14 @@ type ResourceCheck struct {
 	interval          int
 	executor          checks.CommandExecutor
 	client            *integration.Client
+	statusProvider    integration.ResourceStatusSnapshotProvider
 	recoveryPoll      checks.PollConfig
 	critical          bool
 	supervisionIntent string
 	attributionChain  []coreset.AttributionStep
 }
+
+const resourceCheckTimeout = 60 * time.Second
 
 // ResourceCheckOption configures a ResourceCheck.
 type ResourceCheckOption func(*ResourceCheck)
@@ -41,6 +44,13 @@ func WithResourceExecutor(executor checks.CommandExecutor) ResourceCheckOption {
 		c.executor = executor
 		c.client = integration.NewClient(executor)
 	}
+}
+
+// WithResourceStatusProvider shares the typed fleet snapshot cache across
+// resource checks. A nil provider preserves the direct named-status seam used
+// by isolated callers and legacy action tests.
+func WithResourceStatusProvider(provider integration.ResourceStatusSnapshotProvider) ResourceCheckOption {
+	return func(c *ResourceCheck) { c.statusProvider = provider }
 }
 
 // WithResourceRecoveryPolling configures lifecycle verification. Production
@@ -142,7 +152,19 @@ func (c *ResourceCheck) Category() checks.Category  { return checks.CategoryReso
 func (c *ResourceCheck) IntervalSeconds() int       { return c.interval }
 func (c *ResourceCheck) Platforms() []platform.Type { return nil } // all platforms
 
+// CheckTimeout gives the shared fleet snapshot enough time to complete under
+// normal host contention. It is still bounded and applies only to resource
+// checks; a slow resource observation must not widen every auto-heal check.
+func (c *ResourceCheck) CheckTimeout() time.Duration { return resourceCheckTimeout }
+
 func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
+	return c.run(ctx, false)
+}
+
+// run evaluates the check with an optional forced deep read. Recovery
+// verification uses this mode so a recent pre-action snapshot cannot certify
+// recovery after a mutation.
+func (c *ResourceCheck) run(ctx context.Context, forceDeep bool) checks.Result {
 	result := checks.Result{
 		CheckID: c.id,
 		Details: make(map[string]interface{}),
@@ -153,12 +175,89 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	}
 	result.Details["critical"] = c.critical
 
-	status, _, err := c.client.ResourceStatus(ctx, c.resourceName)
-	if err != nil {
-		result.Status = c.failureStatus()
-		result.Message = c.resourceName + " resource is not healthy"
-		result.Details["error"] = err.Error()
-		return result
+	var status integration.ResourceStatus
+	if c.statusProvider != nil {
+		if forceDeep {
+			var snapshotErr error
+			status, snapshotErr = c.deepStatus(ctx)
+			observedAt := snapshotNow(c.statusProvider)
+			result.Details["snapshotObservedAt"] = observedAt.UTC()
+			result.Details["snapshotAgeSeconds"] = float64(0)
+			result.Details["snapshotComplete"] = true
+			result.Details["snapshotFresh"] = true
+			result.Details["snapshotSource"] = string(integration.SnapshotSourceNamedDeep)
+			result.Details["snapshotProbeLevel"] = string(integration.ProbeLevelDeep)
+			result.Details["deepProbeAttempted"] = true
+			result.Details["escalationReason"] = "recovery"
+			if snapshotErr != nil {
+				result.Status = c.failureStatus()
+				result.Message = c.resourceName + " resource deep status is unavailable for recovery verification"
+				result.Details["error"] = snapshotErr.Error()
+				addSnapshotMetrics(result.Details, c.statusProvider)
+				return result
+			}
+			addSnapshotMetrics(result.Details, c.statusProvider)
+		} else {
+			now := snapshotNow(c.statusProvider)
+			snapshot, snapshotErr := c.statusProvider.Snapshot(ctx, []string{c.resourceName})
+			addSnapshotDetails(result.Details, snapshot, now)
+			addSnapshotMetrics(result.Details, c.statusProvider)
+			if snapshotErr != nil {
+				recordSnapshotUndetermined(c.statusProvider)
+				result.Status = checks.StatusUndetermined
+				result.Message = c.resourceName + " resource status is undetermined because the typed snapshot is unavailable"
+				result.Details["error"] = snapshotErr.Error()
+				return result
+			}
+			if !snapshot.FreshAt(now) {
+				recordSnapshotUndetermined(c.statusProvider)
+				result.Status = checks.StatusUndetermined
+				result.Message = c.resourceName + " resource status is undetermined because the snapshot is stale or degraded"
+				if snapshot.RefreshError != "" {
+					result.Details["error"] = snapshot.RefreshError
+				}
+				return result
+			}
+			var ok bool
+			status, ok = snapshot.Resources[c.resourceName]
+			if !ok {
+				recordSnapshotUndetermined(c.statusProvider)
+				result.Status = checks.StatusUndetermined
+				result.Message = c.resourceName + " resource status is undetermined because the snapshot is incomplete"
+				return result
+			}
+			if resourceStatusNeedsDeep(status) {
+				recordSnapshotEscalation(c.statusProvider, deepEscalationReason(status))
+				deep, deepErr := c.statusProvider.DeepStatus(ctx, c.resourceName)
+				result.Details["escalationReason"] = deepEscalationReason(status)
+				result.Details["deepProbeAttempted"] = true
+				if deepErr != nil {
+					// Keep the fresh fast anomaly. A failed confirmation must never
+					// turn an unhealthy observation into healthy state.
+					result.Details["deepProbeError"] = deepErr.Error()
+				} else {
+					status = deep
+					result.Details["snapshotSource"] = string(integration.SnapshotSourceNamedDeep)
+					result.Details["snapshotProbeLevel"] = string(integration.ProbeLevelDeep)
+					result.Details["deepObservedAt"] = time.Now().UTC()
+				}
+				addSnapshotMetrics(result.Details, c.statusProvider)
+			}
+		}
+	} else {
+		var err error
+		status, _, err = c.client.ResourceStatus(ctx, c.resourceName)
+		result.Details["snapshotSource"] = string(integration.SnapshotSourceNamedDeep)
+		result.Details["snapshotProbeLevel"] = string(integration.ProbeLevelDeep)
+		result.Details["snapshotComplete"] = true
+		result.Details["snapshotFresh"] = true
+		result.Details["snapshotObservedAt"] = time.Now().UTC()
+		if err != nil {
+			result.Status = c.failureStatus()
+			result.Message = c.resourceName + " resource is not healthy"
+			result.Details["error"] = err.Error()
+			return result
+		}
 	}
 
 	result.Details["installed"] = status.Installed
@@ -243,6 +342,90 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	return result
+}
+
+func (c *ResourceCheck) deepStatus(ctx context.Context) (integration.ResourceStatus, error) {
+	if forced, ok := c.statusProvider.(integration.ResourceStatusForceProvider); ok {
+		forcedStatus, err := forced.ForceDeepStatus(ctx, c.resourceName)
+		if recorder, recorderOK := c.statusProvider.(integration.SnapshotMetricsRecorder); recorderOK {
+			recorder.RecordEscalation("recovery")
+		}
+		return forcedStatus, err
+	}
+	status, err := c.statusProvider.DeepStatus(ctx, c.resourceName)
+	if recorder, recorderOK := c.statusProvider.(integration.SnapshotMetricsRecorder); recorderOK {
+		recorder.RecordEscalation("recovery")
+	}
+	return status, err
+}
+
+func addSnapshotDetails(details map[string]interface{}, snapshot integration.ResourceStatusSnapshot, now time.Time) {
+	age := snapshot.AgeAt(now)
+	details["snapshotObservedAt"] = snapshot.ObservedAt.UTC()
+	details["snapshotExpiresAt"] = snapshot.ExpiresAt.UTC()
+	details["snapshotAgeSeconds"] = age.Seconds()
+	details["snapshotComplete"] = snapshot.Complete
+	details["snapshotFresh"] = snapshot.FreshAt(now)
+	details["snapshotSource"] = string(snapshot.Source)
+	details["snapshotProbeLevel"] = string(snapshot.ProbeLevel)
+	if snapshot.RefreshError != "" {
+		details["snapshotRefreshError"] = snapshot.RefreshError
+	}
+	if !snapshot.NextRefreshAt.IsZero() {
+		details["snapshotNextRefreshAt"] = snapshot.NextRefreshAt.UTC()
+	}
+	if !snapshot.StaleUntil.IsZero() {
+		details["snapshotStaleUntil"] = snapshot.StaleUntil.UTC()
+	}
+}
+
+func addSnapshotMetrics(details map[string]interface{}, provider integration.ResourceStatusSnapshotProvider) {
+	metricsProvider, ok := provider.(integration.SnapshotMetricsProvider)
+	if !ok {
+		return
+	}
+	details["snapshotMetrics"] = metricsProvider.SnapshotMetrics()
+}
+
+func recordSnapshotUndetermined(provider integration.ResourceStatusSnapshotProvider) {
+	if recorder, ok := provider.(integration.SnapshotMetricsRecorder); ok {
+		recorder.RecordUndetermined()
+	}
+}
+
+func recordSnapshotEscalation(provider integration.ResourceStatusSnapshotProvider, reason string) {
+	if recorder, ok := provider.(integration.SnapshotMetricsRecorder); ok {
+		recorder.RecordEscalation(reason)
+	}
+}
+
+func snapshotNow(provider integration.ResourceStatusSnapshotProvider) time.Time {
+	if clock, ok := provider.(integration.SnapshotClockProvider); ok {
+		return clock.SnapshotNow()
+	}
+	return time.Now()
+}
+
+func resourceStatusNeedsDeep(status integration.ResourceStatus) bool {
+	if !status.Success || !status.Installed || !status.Running || status.NeedsReacquire || status.ModeDrift || status.IsDegraded() {
+		return true
+	}
+	return status.Healthy != nil && !*status.Healthy
+}
+
+func deepEscalationReason(status integration.ResourceStatus) string {
+	switch {
+	case status.NeedsReacquire:
+		return "reacquire"
+	case status.ModeDrift:
+		return "mode_drift"
+	case status.Healthy != nil && !*status.Healthy:
+		return "anomaly"
+	case !status.Running || !status.Installed:
+		return "anomaly"
+	default:
+		return "missing_semantics"
+	}
 }
 
 func (c *ResourceCheck) failureStatus() checks.Status {
@@ -434,7 +617,7 @@ func (c *ResourceCheck) verifyRecovery(ctx context.Context, result checks.Action
 	// A serving resource has recovered availability even when a companion is
 	// degraded. Keep the warning, but do not turn availability into a failed
 	// heal that restarts the serving target again.
-	pollResult := checks.PollForResult(ctx, c, c.recoveryPoll, resourceRecoveryAccepted)
+	pollResult := checks.PollForResult(ctx, recoveryVerificationCheck{ResourceCheck: c}, c.recoveryPoll, resourceRecoveryAccepted)
 	result.Duration = time.Since(start)
 
 	if pollResult.Success {
@@ -458,6 +641,14 @@ func (c *ResourceCheck) verifyRecovery(ctx context.Context, result checks.Action
 	}
 
 	return result
+}
+
+// recoveryVerificationCheck gives the generic polling helper a check-shaped
+// view that requests a fresh named status on every verification attempt.
+type recoveryVerificationCheck struct{ *ResourceCheck }
+
+func (c recoveryVerificationCheck) Run(ctx context.Context) checks.Result {
+	return c.ResourceCheck.run(ctx, true)
 }
 
 func resourceRecoveryAccepted(result checks.Result) bool {

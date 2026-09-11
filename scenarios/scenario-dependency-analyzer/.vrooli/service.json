@@ -176,6 +176,22 @@
         "description": "Provides batch import facts used to build actual cross-scenario usage evidence",
         "degraded_behavior": "Dependency graph analysis remains available without import attribution, but cross-scenario usage evidence is marked incomplete until code-facts recovers.",
         "startup_policy": "must_start"
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the live program-binding library used to enrich deployment dependency analysis.",
+        "degraded_behavior": "Deployment analysis falls back to the checked-in program-binding projection when program-runtime is unavailable."
+      },
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Provides the federated search control plane used to register and query SDA knowledge providers.",
+        "degraded_behavior": "Dependency analysis remains available, but federated search registration and remote queries are unavailable."
       }
     }
   },

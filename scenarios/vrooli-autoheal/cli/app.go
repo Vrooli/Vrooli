@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"vrooli-autoheal/cli/domains"
 	"vrooli-autoheal/cli/internal/support"
 
@@ -37,6 +39,11 @@ func NewApp() (*App, error) {
 		BuildTimestamp:       buildTimestamp,
 		BuildSourceRoot:      buildSourceRoot,
 		AllowAnonymous:       true,
+		// A full fleet tick is intentionally bounded by the API's six-minute
+		// safety valve and normally completes in a few minutes. Keep the CLI
+		// timeout above that bound so a slow but live supervisor is not reported
+		// as dead by its own operator command.
+		DefaultHTTPTimeout: 7 * time.Minute,
 		IncludeStatusCommand: &disableStatus,
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			return domains.CommandGroups(core, support.Dependencies{

@@ -223,7 +223,10 @@ type TickResponse struct {
 
 // tickTimeout bounds one /tick call. Ticks run every check; a busy database
 // makes them slow, not hung.
-const tickTimeout = 5 * time.Minute
+// The API bounds one full tick at five minutes. Keep the loop's client budget
+// above that server-side deadline so a successful response is not cancelled at
+// the same instant it is written on a busy host.
+const tickTimeout = 6 * time.Minute
 
 // runTick calls the /tick endpoint.
 func runTick(ctx context.Context, config *Config) (*TickResponse, error) {

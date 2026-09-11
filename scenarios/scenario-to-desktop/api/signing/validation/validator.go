@@ -145,11 +145,14 @@ func (v *DefaultValidator) validateWindows(config *types.WindowsSigningConfig, r
 			pv.Errors = append(pv.Errors, "Certificate thumbprint missing")
 		}
 	case types.CertSourceAzureKeyVault, types.CertSourceAWSKMS:
-		addWarning(result, types.ValidationWarning{
-			Code:     "WIN_CLOUD_KMS_LIMITED",
-			Platform: types.PlatformWindows,
-			Message:  "Cloud KMS signing (Azure/AWS) requires custom signtool configuration not fully supported by electron-builder",
+		addError(result, types.ValidationError{
+			Code:        "WIN_CERT_SOURCE_UNSUPPORTED",
+			Platform:    types.PlatformWindows,
+			Field:       "certificate_source",
+			Message:     "Cloud certificate signing is not supported by the current Windows signer adapter",
+			Remediation: "Use a local .pfx/.p12 file or an installed Windows Certificate Store identity",
 		})
+		pv.Errors = append(pv.Errors, "Cloud certificate signing is unsupported")
 	case "":
 		addError(result, types.ValidationError{
 			Code:        "WIN_CERT_SOURCE_MISSING",
@@ -165,7 +168,7 @@ func (v *DefaultValidator) validateWindows(config *types.WindowsSigningConfig, r
 			Platform:    types.PlatformWindows,
 			Field:       "certificate_source",
 			Message:     "Invalid certificate source: " + config.CertificateSource,
-			Remediation: "Use 'file', 'store', 'azure_keyvault', or 'aws_kms'",
+			Remediation: "Use 'file' or 'store' until a qualified cloud signer adapter is available",
 		})
 		pv.Errors = append(pv.Errors, "Invalid certificate source")
 	}

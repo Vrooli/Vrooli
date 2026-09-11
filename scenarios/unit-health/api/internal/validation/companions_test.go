@@ -56,6 +56,8 @@ func writeFakeClockFixture(t *testing.T, root string) {
 	t.Helper()
 	writeFile(t, filepath.Join(root, "fake_clock.go"), `package fixture
 
+import _ "github.com/vrooli/api-core/scheduletest"
+
 type FakeClock struct{}
 func (FakeClock) Now() {}
 func (FakeClock) Advance() {}
@@ -63,6 +65,43 @@ func (FakeClock) NewTimer() {}
 func (FakeClock) NewTicker() {}
 func (FakeClock) Sleep() {}
 `)
+}
+
+func TestExactCompanionMatchRequiresOwnerUseForProductionTypes(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".vrooli", "test-companions.json"), `{
+  "schema_version": "1.0.0",
+  "companions": [{
+    "owner": "api-core/boottest",
+    "owner_import_path": "github.com/vrooli/api-core/boottest",
+    "import_path": "github.com/vrooli/api-core/boottest",
+    "symbols": [{"name": "Config", "kind": "type"}]
+  }],
+  "seams": []
+}`)
+	writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "config.go"), `package fixture
+
+type Config struct{}
+`)
+
+	findings := analyzeGoCompanionDeclarations("demo", Workspace{ID: "api", Language: "go", RootPath: root}, fixedNowStr, DependencyClosure{})
+	for _, finding := range findings {
+		if finding.Symbol == "Config" {
+			t.Fatalf("unrelated production Config must not match a test companion: %+v", findings)
+		}
+	}
+
+	writeFile(t, filepath.Join(root, "testutil", "config.go"), `package testutil
+
+import _ "github.com/vrooli/api-core/boottest"
+
+type Config struct{}
+`)
+	findings = analyzeGoCompanionDeclarations("demo", Workspace{ID: "api", Language: "go", RootPath: root}, fixedNowStr, DependencyClosure{})
+	if finding, ok := findingByCode(findings, codeCompanionAvailable); !ok || finding.Symbol != "Config" {
+		t.Fatalf("test-only exact companion should remain visible: %+v", findings)
+	}
 }
 
 func TestCompanionRulesUseClosureForSeverity(t *testing.T) {

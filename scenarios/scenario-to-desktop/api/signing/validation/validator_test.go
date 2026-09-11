@@ -130,7 +130,7 @@ func TestDefaultValidator_ValidateConfig_WindowsInvalidSource(t *testing.T) {
 	assert.Equal(t, "WIN_CERT_SOURCE_INVALID", result.Errors[0].Code)
 }
 
-func TestDefaultValidator_ValidateConfig_WindowsCloudKMSWarning(t *testing.T) {
+func TestDefaultValidator_ValidateConfig_WindowsCloudKMSIsUnsupported(t *testing.T) {
 	v := NewValidator()
 
 	for _, source := range []string{types.CertSourceAzureKeyVault, types.CertSourceAWSKMS} {
@@ -142,10 +142,9 @@ func TestDefaultValidator_ValidateConfig_WindowsCloudKMSWarning(t *testing.T) {
 		}
 		result := v.ValidateConfig(config)
 
-		// Should be valid but with warning
-		assert.True(t, result.Valid, "Cloud KMS source %s should be valid", source)
-		require.Len(t, result.Warnings, 1)
-		assert.Equal(t, "WIN_CLOUD_KMS_LIMITED", result.Warnings[0].Code)
+		assert.False(t, result.Valid, "Cloud KMS source %s must not be ready", source)
+		require.Len(t, result.Errors, 1)
+		assert.Equal(t, "WIN_CERT_SOURCE_UNSUPPORTED", result.Errors[0].Code)
 	}
 }
 

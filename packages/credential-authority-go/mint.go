@@ -78,17 +78,25 @@ func (a *Authority) Require(identity Identity, field string) (string, error) {
 // map. The exposure is intentionally explicit: callers must label this as
 // runtime injection and clear the map after the receiving process starts.
 func (a *Authority) Inject(identity Identity, field, env string, target map[string]string) error {
+	_, err := a.InjectExpected(identity, field, env, target, "")
+	return err
+}
+
+// InjectExpected atomically binds runtime delivery to the active authority
+// version. Use this when a consumer has reviewed a specific credential
+// version; rotation between a separate status read and injection is rejected.
+func (a *Authority) InjectExpected(identity Identity, field, env string, target map[string]string, expectedVersion string) (string, error) {
 	identity, field, err := normalizeAddress(identity, field)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if a == nil || a.inner == nil {
-		return ErrProviderAbsent
+		return "", ErrProviderAbsent
 	}
 	if strings.TrimSpace(env) == "" || target == nil {
-		return fmt.Errorf("runtime injection requires an environment name and target")
+		return "", fmt.Errorf("runtime injection requires an environment name and target")
 	}
-	return a.inner.Inject(identity, field, env, target)
+	return a.inner.InjectExpected(identity, field, env, target, expectedVersion)
 }
 
 // ResolveOrMint resolves a generated credential or creates it exactly once in

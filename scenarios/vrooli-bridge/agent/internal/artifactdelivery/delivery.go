@@ -23,7 +23,7 @@ const (
 	// limit is enforced again on the node so a malicious or misconfigured hub
 	// cannot make the agent consume unbounded disk space.
 	MaxBytes          int64 = 2 << 30
-	deviceTokenHeader       = "X-Device-Token"
+	deviceTokenHeader       = "X-Device-Token" // #nosec G101 -- this is an HTTP header name, not credential material.
 )
 
 type Request struct {

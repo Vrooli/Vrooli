@@ -82,7 +82,7 @@ Current `materialize` is an outside-scenario write path: it writes validated pla
 The intended extension is a reviewable design bundle spanning existing or new
 scenarios, resources, and shared paths. It includes proposed docs, requirements,
 experiences, interfaces, skills, and programs rather than only proto text.
-[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
+[Scenario Development Under a Grant](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md)
 owns the shared review, authority, and promotion contract.
 
 TTD owns bundle identity, graph relationships, revision navigation, and design

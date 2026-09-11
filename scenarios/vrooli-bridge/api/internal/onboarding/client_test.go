@@ -20,17 +20,24 @@ func TestHTTPHandoffClientRefusesWhenEndpointUnset(t *testing.T) {
 func TestHTTPHandoffClientCarriesIdentityAndDecodesSelection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "Bearer onboarding-token", r.Header.Get("Authorization"))
 		var request HandoffRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
-		require.Equal(t, HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"}, request)
+		require.Equal(t, HandoffRequest{Target: "node-1", MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"}, request)
 		_, _ = w.Write([]byte(`{"scenarios":["demo"],"apply":true}`))
 	}))
 	defer server.Close()
 
-	selection, err := (HTTPHandoffClient{Endpoint: HandoffEndpoint(server.URL)}).Resolve(context.Background(), HandoffRequest{MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"})
+	selection, err := (HTTPHandoffClient{Endpoint: HandoffEndpoint(server.URL), Token: "onboarding-token"}).Resolve(context.Background(), HandoffRequest{Target: "node-1", MachineID: "machine-1", NodeID: "node-1", NodeKind: "agent"})
 	require.NoError(t, err)
 	require.True(t, selection.Apply)
 	require.Equal(t, []string{"demo"}, selection.Scenarios)
+}
+
+func TestHTTPHandoffClientRefusesWithoutAuthorization(t *testing.T) {
+	_, err := (HTTPHandoffClient{Endpoint: "http://example.test/api/v2/handoff"}).Resolve(context.Background(), HandoffRequest{NodeID: "node-1"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "VROOLI_ONBOARDING_API_TOKEN")
 }
 
 func TestHandoffEndpointUsesStableRoute(t *testing.T) {

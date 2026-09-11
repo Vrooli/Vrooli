@@ -117,6 +117,17 @@ gpg --list-secret-keys
 **Save config**
 - In Signing tab, enable Linux and paste the key ID/fingerprint. Add `gpg_passphrase_env` if your key is protected.
 
+The generated Linux build installs an electron-builder `afterAllArtifactBuild`
+hook. It creates an ASCII-armored detached `.asc` signature for each Linux
+artifact and emits `linux-update-metadata.json` beside the artifacts. That
+metadata binds the package filename, platform, detected architecture, release
+version, update channel, artifact SHA-512 digest, and signature SHA-512 digest.
+The passphrase is read only from the configured environment variable; it is
+never written to the generated project or metadata. The publication owner must
+serve the artifact, signature, and metadata from the same immutable release
+revision. This is the Linux trust boundary; GPG does not provide a universal
+OS-level trust prompt equivalent to macOS notarization or Windows Authenticode.
+
 **Reference**
 - Debian package signing — https://wiki.debian.org/Packaging/Signing
 - RPM signing — https://rpm-packaging-guide.github.io/#signing

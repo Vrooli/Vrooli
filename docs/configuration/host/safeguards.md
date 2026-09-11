@@ -7,6 +7,11 @@ On Linux it configures the supported rotation and rate-limit controls. On
 macOS and Windows the current handler reports `unsupported` because native
 log-store controls are not implemented yet.
 
+The Linux `host_hardening` safeguard owns the journald drop-in. It explicitly
+sets `SystemMaxUse=500M`, `RuntimeMaxUse=100M`, and `MaxRetentionSec=30d`, in
+addition to the journald rate limit. The control plane renders and applies
+these settings; scenarios only observe the resulting host state.
+
 The emergency watchdog is installed and managed as a Go binary. It checks the
 configured free-space floor and reports pressure through the typed storage
 client. It does not shell the `vrooli` CLI.

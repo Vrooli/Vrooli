@@ -258,16 +258,41 @@ There are two deliberately different dependency classes:
 - Every scenario API is its own Go module (`go.mod` per scenario) with independently pinned third-party versions.
 - The repository structure and the executable policies for this dependency topology are owned by [Structure Health's generated rule catalog](../../scenarios/structure-health/docs/reference/structure-rules.md) and [coverage matrix](../../scenarios/structure-health/docs/reference/structure-rule-coverage.md). This project-level page explains the architecture; it does not restate enforcement claims.
 
-### First-party shared packages — deliberately source-coupled
+### First-party shared packages — isolated runtime snapshots with source-compatible adoption
 
 Shared Vrooli packages are consumed **by source path**, not by published version:
 
 - JS: `"@vrooli/api-base": "file:../../../packages/api-base"` in scenario UIs
 - Go: `replace github.com/vrooli/api-core => ../../../packages/api-core` in scenario `go.mod`s
 
-This means every scenario builds against HEAD of `packages/*`. A breaking change there propagates fleet-wide at the next build/install — the opposite of the third-party isolation above. **This is an accepted tradeoff, not an oversight**: source coupling is what makes the compounding loop cheap (one improvement to a shared package is instantly available to every scenario, with no release ceremony), and the fleet is small enough that conformance discipline is cheaper than version management. The guards are additive-evolution discipline on shared package APIs (see the API surface manifest & conformance work) and buf breaking-change checks on the shared proto contracts.
+Most first-party packages still use source-compatible local adoption, but the
+React Component Library is the first package to separate mutable authoring from
+runtime consumption. Its build projects a candidate, validates the complete
+package metadata/output pair, publishes an immutable content-addressed snapshot,
+and selects it through an atomic pointer. Existing `file:` consumers continue
+to resolve through the package path, which is materialized from the selected
+snapshot. A failed candidate can therefore leave compatible running consumers
+on the last verified snapshot and report degraded status; no snapshot, corrupt
+snapshot, or missing exact export remains a hard failure.
 
-**Revisit trigger:** if fleet-wide breakage from shared-package changes starts costing more than release ceremony would (recurring multi-scenario build breaks of the kind conformance checks don't catch), move `packages/*` to versioned releases that scenarios pin and upgrade deliberately.
+This preserves the low-friction local workflow while removing the dangerous
+property that every scenario consumes mutable shared-package HEAD during
+startup. The RCL snapshot manifest carries source, dependency-closure,
+toolchain, export, and output identity. Draft catalog edits are not runtime
+inputs; publication changes the selected identity and drives targeted consumer
+refresh through the governed lifecycle.
+
+Other `packages/*` remain source-coupled until they earn an equivalent artifact
+contract. A breaking change there can still propagate fleet-wide at the next
+build/install. The guards are additive-evolution discipline on shared package
+APIs (see the API surface manifest & conformance work) and buf breaking-change
+checks on the shared proto contracts.
+
+**Revisit trigger:** apply this snapshot pattern to another shared package when
+its mutable build can block unrelated startup, when it has a stable output
+contract, and when its owner can define exact compatibility and rollback
+semantics. Do not generalize it into one npm package per component or a remote
+registry requirement without measured need.
 
 ### React component restyling
 

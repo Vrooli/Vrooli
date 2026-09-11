@@ -34,6 +34,51 @@ func TestCodingPolicyCommandsResolveAndReportPosture(t *testing.T) {
 	}
 }
 
+// A catalog that declares billing sources and per-role model lists resolves, and
+// the resolve response keeps Agent Manager's strict billing-snapshot shape: the
+// declared source list must not leak into it.
+func TestCodingPolicyResolveOmitsDeclaredBillingSources(t *testing.T) {
+	catalog := `{
+  "schema_version": "v1",
+  "runner": "opencode",
+  "provenance": {"source": "test", "observed_at": "` + time.Now().UTC().Format("2006-01-02") + `"},
+  "billing": {"mode": "subscription", "source": "operator", "sources": [
+    {"id": "opencode-go", "label": "OpenCode Go", "billing_mode": "subscription", "credential_key": "OPENCODE_GO_KEY", "endpoint": "https://opencode.ai/zen/go/v1"}
+  ]},
+  "roles": {
+    "code.default": {"models": [{"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null}], "model": "opencode-go/deepseek-v4.1-flash", "description": "d", "capabilities": ["code"]},
+    "code.fast": {"model": "m", "description": "d", "capabilities": ["code"]},
+    "code.smart": {"model": "m", "description": "d", "capabilities": ["code"]},
+    "code.cheap": {"model": "m", "description": "d", "capabilities": ["code"]}
+  }
+}`
+	path := filepath.Join(t.TempDir(), "model-policy.json")
+	if err := os.WriteFile(path, []byte(catalog), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	group := CodingPolicyCommands(CodingPolicyConfig{Runner: "opencode", CatalogPath: path, Posture: EnforcementPosture{Permissions: "native"}, Stdout: &stdout, Stderr: &stderr})
+	if err := command(group, "resolve").Run([]string{"--role", "code.default", "--json"}); err != nil {
+		t.Fatalf("resolve() error = %v; stderr=%s", err, stderr.String())
+	}
+	var raw struct {
+		Model   string                     `json:"model"`
+		Billing map[string]json.RawMessage `json:"billing"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &raw); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if raw.Model != "opencode-go/deepseek-v4.1-flash" {
+		t.Fatalf("model = %q", raw.Model)
+	}
+	if _, leaked := raw.Billing["sources"]; leaked {
+		t.Fatalf("billing.sources leaked into the resolve response: %s", stdout.String())
+	}
+	if string(raw.Billing["mode"]) != `"subscription"` {
+		t.Fatalf("billing.mode = %s", raw.Billing["mode"])
+	}
+}
+
 func TestModelResolveUsesResourceOwnedAlias(t *testing.T) {
 	path := writeCodingCatalog(t, "future-runner")
 	resolution, err := ResolveCatalogModel("future-runner", path, "future-model")

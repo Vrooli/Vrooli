@@ -65,6 +65,11 @@ recurring friction should move downward and simplify the layers above.
    manager (`pnpm add`, `go get`, `npm install`, `pip install`). Use
    `scenario-dependency-analyzer deps install …` to install and `deps approved {search,
    approve-observed,…}` to govern. Detail: **docs/package-governance.md**.
+8. **Shape before plan**: a plan is one work shape, not the default. Choose among
+   plan-backed, adaptive mandate, bounded task, and investigation with
+   **docs/agent-system/SWARM_MANAGER_WORK.md** §"Work shapes", and write the handoff as
+   a harness goal (`prompt-manager skill read harness-goal-authoring`). Update the
+   target docs first so goals point at them instead of restating the design.
 
 ## 🧠 Situational Skill Loading
 
@@ -76,7 +81,11 @@ wait for the user to request it — recognize the pattern and act. Load with
 |---|---|
 | Brainstorming/workshopping a new idea | `idea-workshop` |
 | Debugging a non-obvious issue | `scientific-debugging` |
-| Creating an implementation plan | `implementation-plan-authoring` |
+| Creating an implementation plan (ordered phases) | `implementation-plan-authoring` |
+| Authoring an adaptive mandate (scenario target + sensors, no fixed phases) | `adaptive-mandate-authoring` |
+| Setting up or running unattended scenario self-improvement through Swarm (goal or sliced mode) | `goal-loop` → `scenario-improvement-campaign`; model in **docs/agent-system/SCENARIO_DEVELOPMENT.md** |
+| Coordinating a large cross-scenario effort across plans, agents, and resumed sessions | `large-effort-orchestration` |
+| Writing a `/goal`, an `until`, or a sub-agent assignment | `harness-goal-authoring` |
 | Executing an existing plan | `implementation-plan-execution` |
 | Coordinating a reviewed multi-plan family | `plan-family-orchestration` |
 | Improving Plan Manager from execution evidence | `plan-manager-improve` |

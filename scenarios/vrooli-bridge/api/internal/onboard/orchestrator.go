@@ -339,7 +339,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		return
 	}
 	if s.handoff != nil {
-		handoffRequest := onboarding.HandoffRequest{MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind}
+		handoffRequest := onboarding.HandoffRequest{Target: nodeID, MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind}
 		if requested {
 			desired := selection
 			handoffRequest.DesiredSelection = &desired

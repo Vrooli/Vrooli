@@ -89,9 +89,13 @@ describe("WindowsSigningForm", () => {
     fireEvent.change(screen.getByLabelText("Certificate Thumbprint"), {
       target: { value: "NEW-THUMBPRINT" },
     });
-    fireEvent.change(screen.getByLabelText("Certificate Source"), {
-      target: { value: "azure_keyvault" },
+    const cloudOption = screen.getByRole("option", {
+      name: "Azure Key Vault (coming soon)",
     });
+    expect(cloudOption).toBeDisabled();
+    expect(
+      screen.getByRole("option", { name: "AWS KMS (coming soon)" }),
+    ).toBeDisabled();
     fireEvent.change(
       screen.getByRole("combobox", { name: "Discovered certificates" }),
       { target: { value: "cert-1" } },
@@ -100,10 +104,7 @@ describe("WindowsSigningForm", () => {
       certificate_source: "store",
       certificate_thumbprint: "NEW-THUMBPRINT",
     });
-    expect(onChange).toHaveBeenNthCalledWith(2, {
-      certificate_source: "azure_keyvault",
-      certificate_thumbprint: "OLD",
-    });
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(onApplyDiscovered).toHaveBeenCalledWith(discovered[0]);
   });
 });

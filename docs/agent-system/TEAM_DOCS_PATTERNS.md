@@ -27,7 +27,7 @@ The full contract — the six invariants, the two archetypes, the degradation co
 
 Teams that produce durable intent use a **plan of record**. The plan of record is the authoritative documentation surface under `path:docs/<domain>/`.
 
-- **Who writes:** operator-curated through an accepted Swarm Manager work item. Agents propose changes; they do not directly edit canon during normal team operation.
+- **Who writes:** operator-curated through accepted work. Agents propose changes unless the active authorization permits the canonical edit; see the Promotion Rule below.
 - **Who reads:** owning team, other teams, scenarios, and the operator.
 - **Lifespan:** durable. Entries persist and evolve through explicit operator dispositions.
 - **Growth direction:** grows only when the team's accepted truth expands.
@@ -70,16 +70,20 @@ Every declared topic must identify its producer, reader, and downstream surface;
 
 Typed evidence is promoted by its drainer/router, which picks exactly one outcome from the uniform action set defined in `INTAKE_PIPELINE.md` § Promotion / Routing (drop, canonical observation, Swarm Manager work, or a PoR/skill/CLI/Action update).
 
-Agents may freely add typed observations when their member or writer skill declares the output. Promotion into durable truth or executable behavior requires the right gate:
+Declared writer surfaces permit scoped observations, not promotion. Normal team
+promotion uses accepted Swarm work; reuse an existing item's authorization when it
+covers the change. An operator can explicitly authorize canonical edits in a direct
+session under [SCENARIO_DEVELOPMENT.md](SCENARIO_DEVELOPMENT.md#purpose-and-adoption-boundary).
+Retain that instruction as authority; do not fabricate a Swarm receipt or give the
+exception to unattended callers. Publication and external effects retain their own gates.
 
 | Destination | Gate |
 |---|---|
-| Plan of record | operator-curated edit with the approved work item's evidence |
-| Skill guidance | Swarm Manager work item accepted by the owning operator |
-| Action graduation / prose retirement | accepted Swarm Manager work item |
-| CLI or scenario work | accepted work item routed through Swarm Manager |
-| Missing capability | Swarm Manager work item with the blocked outcome and evidence |
-| Team/member contract | accepted Swarm Manager work item owned by the team |
+| Plan of record / skill guidance | Active authorization covers the source edit and target semantics. |
+| Action graduation / prose retirement | Active authorization and verified replacement contract. |
+| CLI or scenario work | Active implementation grant covers the affected owner and effects. |
+| Missing capability | Repair within the existing grant; request disposition when authority is missing. |
+| Team/member contract | Explicit authorization covers the team's operating authority. |
 | Canonical knowledge observation | drainer retags or writes to declared destination prefix |
 
 The router always chooses the smallest useful outcome; `SWARM_MANAGER_WORK.md` defines when a drain may execute an outcome directly versus leave it for operator disposition.
@@ -92,8 +96,8 @@ Agent-written observations, evidence, findings, drafts, and raw lessons go to th
 owning team's Source Ledger scope. A member may write only the scope and topic
 surfaces declared by its team contract or writer skill. It does not create a local
 append-only file or a second approval record. When the entry needs implementation or
-operator judgment, file one evidence-backed Swarm Manager work item and use the
-disposition on a later heartbeat.
+operator judgment outside the active grant, file one evidence-backed Swarm Manager
+work item. Keep authorized implementation progress in the existing engagement log.
 
 ---
 
@@ -112,13 +116,13 @@ disposition on a later heartbeat.
 
 When deciding where something belongs:
 
-1. **Is it accepted durable truth?** Put it in the owning PoR through an operator-dispositioned work item.
+1. **Is it accepted durable truth?** Use the owning PoR and the Promotion Rule's authority check.
 2. **Is it raw or partially interpreted evidence?** Put it in a typed knowledge topic.
 3. **Is it a bug?** Use `report-bug` into `bug-inbox/*`.
 4. **Is it friction, workaround, inefficiency, missing process, or repeated manual pain?** Use `report-friction` into `friction-inbox/*`.
-5. **Is an outcome missing or blocked?** File one evidence-backed Swarm Manager work item.
-6. **Is it repeatable improvement?** File one bounded Swarm Manager work item or keep it in the team ledger until it is actionable.
-7. **Does it require implementation work?** Route the work item through Swarm Manager.
+5. **Is implementation already authorized?** Repair and retain evidence within that engagement.
+6. **Does it need new disposition?** File one bounded Swarm item with the missing outcome and requested authority.
+7. **Is repeated composition established?** Apply `PROMOTION_LADDER.md` within the active grant.
 
 ---
 

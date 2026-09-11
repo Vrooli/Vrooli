@@ -169,6 +169,11 @@ func responseFor(cfg CodingPolicyConfig, catalog CodingRoleCatalog, role string,
 	if catalog.Billing != nil {
 		billing = *catalog.Billing
 	}
+	// The resolve response is Agent Manager's billing snapshot contract, which
+	// carries one resolved billing posture. The declared source list stays in
+	// the catalog for inspection surfaces; emitting it here would be rejected
+	// by the strict consumer as an unknown field.
+	billing.Sources = nil
 	envPrefix := "VROOLI_" + strings.ToUpper(strings.ReplaceAll(catalog.Runner, "-", "_")) + "_BILLING_"
 	if value := strings.TrimSpace(os.Getenv(envPrefix + "MODE")); value != "" {
 		billing.Mode = value

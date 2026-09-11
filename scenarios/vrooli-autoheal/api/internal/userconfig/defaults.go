@@ -5,7 +5,7 @@ const (
 	DefaultVersion = "1.0"
 
 	// Global defaults
-	DefaultGracePeriodSeconds     = 60
+	DefaultGracePeriodSeconds     = 600
 	DefaultTickIntervalSeconds    = 60
 	DefaultVerifyDelaySeconds     = 30
 	DefaultMaxRestartAttempts     = 3

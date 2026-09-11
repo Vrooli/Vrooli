@@ -137,7 +137,8 @@
     }
   },
   "environment": {
-    "VROOLI_MEMORY_WORKSPACE_ROOT": "/home/matthalloran8/Vrooli"
+    "VROOLI_MEMORY_WORKSPACE_ROOT": "/home/matthalloran8/Vrooli",
+    "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT": "500"
   },
   "components": {
     "api": {

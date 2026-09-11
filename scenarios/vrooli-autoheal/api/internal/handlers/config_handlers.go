@@ -54,6 +54,19 @@ func (h *ConfigHandlers) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetProtectedChecks returns the canonical recovery-floor checks. The UI uses
+// this metadata to explain why those checks cannot be disabled while leaving
+// other tracked checks operator-configurable.
+// GET /api/v1/config/protected-checks
+func (h *ConfigHandlers) GetProtectedChecks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"checks": h.configMgr.ProtectedChecks(),
+	}); err != nil {
+		apierrors.LogError("get_protected_checks", "encode_response", err)
+	}
+}
+
 // UpdateConfig replaces the configuration
 // PUT /api/v1/config
 func (h *ConfigHandlers) UpdateConfig(w http.ResponseWriter, r *http.Request) {
@@ -231,12 +244,15 @@ func (h *ConfigHandlers) UpdateCheckEnabled(w http.ResponseWriter, r *http.Reque
 		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "update check enabled state", err))
 		return
 	}
+	effective := h.configMgr.GetCheck(checkID)
+	protected := h.configMgr.ProtectedChecks()
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"checkId": checkID,
-		"enabled": req.Enabled,
+		"success":   true,
+		"checkId":   checkID,
+		"enabled":   effective.Enabled,
+		"protected": protected[checkID],
 	}); err != nil {
 		apierrors.LogError("update_check_enabled", "encode_response", err)
 	}
@@ -260,12 +276,15 @@ func (h *ConfigHandlers) UpdateCheckAutoHeal(w http.ResponseWriter, r *http.Requ
 		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "update check auto-heal state", err))
 		return
 	}
+	effective := h.configMgr.GetCheck(checkID)
+	protected := h.configMgr.ProtectedChecks()
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":  true,
-		"checkId":  checkID,
-		"autoHeal": req.AutoHeal,
+		"success":   true,
+		"checkId":   checkID,
+		"autoHeal":  effective.AutoHeal,
+		"protected": protected[checkID],
 	}); err != nil {
 		apierrors.LogError("update_check_autoheal", "encode_response", err)
 	}

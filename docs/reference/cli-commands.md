@@ -6,6 +6,18 @@ This document summarizes the current root CLI surface for the project-level plat
 
 Use `vrooli help` and subcommand `--help` output as the final authority for exact flags and any newly added commands.
 
+## Agent Manager execution selection
+
+```bash
+agent-manager runner execution-options --role <role> [--json]
+agent-manager workflow start --owner <scenario> --key <workflow> --input-file <file> \
+  --idempotency-key <key> [--preferred-runner <runner>] [--model <model>] [--effort <level>]
+```
+
+Execution preferences are hints, not pins. The server validates the runner and
+effort, applies preferences to fresh workflow run nodes, and records the
+actual selection and reason in the run policy snapshot.
+
 ## Prompt-manager skill governance
 
 ```bash
@@ -32,18 +44,55 @@ path-list environment variables `VROOLI_SKILL_PROJECTION_DIR` and
 Edit the canonical `SKILL.md` in the owning scenario or Prompt Manager's
 `store/skills/packs/<pack>/<id>/` tree. Files under native skill directories
 such as `.codex/skills` with the Prompt Manager generated marker are disposable
-projections; edits there can be overwritten. Compare any local differences
-before refreshing. `skill topology` reports residency, not content freshness.
+projections. Preserve local differences before replacement.
 
-Projection currently runs at Prompt Manager startup when its projection settings
-are enabled; `skill sync` reads the indexed corpus and does not refresh native
-files. After source edits, use the managed lifecycle (`make restart` in
-`scenarios/prompt-manager`) and verify the affected projection against the source,
-ignoring only the generated marker. Keep managed projections as regular files:
-the current writer adds that marker and writes directly to the target, so a
-symlink can write generated content into the canonical source. A future explicit
-refresh operation should report content drift and preserve local edits before
-replacement; changing the link layout alone does not provide that contract.
+Four facts are distinct:
+
+| Fact | Owner evidence |
+| --- | --- |
+| Selected for native installation | Prompt Manager's `store/skills/_base-pack.json`; not every registry skill is selected. |
+| Available through the registry | `prompt-manager skill read <id>`; `skill sync` does not refresh native files. |
+| Resident and current on disk | `skill topology` reports residency; `skill refresh` reports content identities and freshness. |
+| Actually consumed by an agent | The run's skill-read/provenance evidence; fresh files do not prove an existing conversation reloaded them. |
+
+Use scoped preview and apply after canonical edits:
+
+```bash
+prompt-manager skill refresh --runtime codex --skills scenario-work-ladder --json
+prompt-manager skill refresh --runtime codex --skills scenario-work-ladder --apply --expected-digest '<preview digest>' --json
+```
+
+No restart is required once the server and CLI support `RefreshProjection`.
+Runtime names come from the server's configured resource targets; a single private
+`VROOLI_SKILL_PROJECTION_DIR` uses `configured`. Empty selectors inspect the configured
+targets and governed base pack, never the entire corpus. Clients cannot supply a
+destination path. The digest binds selection, paths, adoption policy, source,
+installed content, and receipt identities. Changed inputs require another preview.
+
+`current`, `missing`, and `outdated` rows can apply. `recoverable` means an earlier
+receipt was written but its replacement did not finish. `modified`, `unmanaged`,
+and `conflict` rows preserve the installed file. `legacy` means the generated marker
+exists but no baseline proves whether differences are local edits. Compare the
+native file with canonical source, excluding only the generated marker. If the
+differences are approved, preview again with `--adopt-legacy`, then apply that digest
+with the same flag. There is no force-overwrite flag for modified tracked files.
+
+The writer retains replaced bytes under the target's
+`.prompt-manager/backups/<skill>/<hash>.md` and a before/after receipt at
+`.prompt-manager/<skill>.json`. Apply results name recovery copies. For recovery,
+inspect that copy and the current file; preserve newer edits before an operator-
+authorized restoration. A retry uses a new preview and skips unchanged bytes.
+Partial results are per runtime and skill; CLI apply exits nonzero if any selected
+row did not apply. An API response alone is not an all-target success verdict.
+
+Startup uses the same conflict-safe writer without legacy adoption. It no longer
+deletes unselected skill directories. Removing a base-pack entry stops updates;
+retiring an installed copy is a separate reviewed operation. Symlinked destinations
+or ancestors are refused. This is cooperative local publication, not isolation
+against a hostile process racing filesystem operations. Refresh currently projects
+`SKILL.md`, not supporting assets. Recovery receipts do not establish which revision
+an agent consumed. Existing conversations must explicitly reread canonical guidance
+or start a fresh run before claiming the revised guidance governed their behavior.
 
 ## Root Commands
 
@@ -86,6 +135,20 @@ contracts against deterministic schema and portfolio dimensions. `usage-triage`
 selects a bounded attributed cohort and spends one governed batch classification.
 These commands measure the corpus; they do not authorize edits to another
 scenario.
+
+## Program Runtime learning and dependency commands
+
+```bash
+program-runtime library run program-runtime.fragment-promote --input step_key=<step-key>,min_verified=5 --json
+program-runtime bindings list --include-program-bindings --json
+```
+
+`fragment-promote` reads a verified `learn.act` fragment and returns a bounded,
+reviewable crystallization candidate. It does not replace scenario source
+without the improve-cycle decision. `--include-program-bindings` adds the
+program-runtime contract graph to dependency inspection; Scenario Dependency
+Analyzer consumes the same graph and keeps the scenario manifest authoritative
+for lifecycle startup and packaging.
 
 ## Orientation
 
@@ -427,6 +490,92 @@ Practical guidance:
 - `vrooli cleanup locks` expires stale leases and non-authoritative registry claims
 - `vrooli orphans` inspects or terminates orphaned Vrooli-managed processes
 - `vrooli diagnose-port <port>` is the targeted tool for a fixed-port startup failure after lifecycle has already attempted automatic cleanup
+
+## Cloud target (target-local deployment owner)
+
+`vrooli cloud-target` runs on a cloud deployment target inside the native
+`vrooli` binary the deploying side uploads. It is the control-plane owner of
+release staging, activation, receipts and host repair for that target; the
+scenario-to-cloud API drives it over its reach layer with argv, never with a
+shell string. Package: `internal/cloudtarget`.
+
+```bash
+vrooli cloud-target receipt get --deployment <id> --operation <id> --step <id>
+vrooli cloud-target release verify --deployment <id> --release-manifest <path> --archive <path>
+vrooli cloud-target release stage --deployment <id> --operation <id> --step <id> --fence <n> --release-manifest <path> --archive <path>
+vrooli cloud-target release activate --deployment <id> --operation <id> --step <id> --fence <n> --release <digest> [--strategy side_by_side|maintenance] [--scenario <id>]... [--port <name>=<n>]... [--data-binding <id>=<scenario>/<path>]... [--legacy-carry <scenario>/<path>]... [--legacy-root <workdir>] [--restart]
+vrooli cloud-target release rollback --deployment <id> --operation <id> --step <id> --fence <n> --to <digest>
+vrooli cloud-target release list --deployment <id>
+vrooli cloud-target data inventory --deployment <id> --workdir <path> --scenario <id> [--bindings '[{"id":"uploads","path":"data/uploads"}]']
+vrooli cloud-target host repair --action <privilege-broker action> --subject '<json>' [--deployment --operation --step --fence]
+# JSON-shaped flags (--subject, --bindings, --binding, --spec) also accept b64:<base64url JSON>, the spelling the cloud side uses on argv-only transports.
+# release activate pins listener ports as <NAME>_PORT for the lifecycle owner, binds --data-binding paths to <deployment>/persistent-data/<id> (adopting legacy content by rename, never copying or deleting), carries --legacy-carry paths under persistent-data/legacy/, reports every unmapped heuristic directory as legacy_unmapped and leaves it in place; --restart re-runs the activator for the already active release (start/resume).
+vrooli cloud-target credential ingest --deployment <id> --binding <id> --version <n> --operation <id> --step <id> --fence <n> [--grant <id> --from-env <VAR> --logical-id <id> --field <f> --content-ref <ref>]   # sealed payload on stdin
+vrooli cloud-target credential acknowledge --deployment <id> --binding <id> --version <n> --consumer <scenario:id|resource:id> --operation <id> --step <id> --fence <n>
+vrooli cloud-target credential revoke --deployment <id> --binding <id> --version <n> --operation <id> --step <id> --fence <n>
+```
+
+State lives beneath `~/.vrooli/cloud/deployments/<deployment-id>/`:
+`releases/<release-digest>/` (complete, immutable), `releases/<digest>.staging-<op>/`
+(in flight, never activatable), `active-release.json` (active and retained
+predecessor), `activation-intent.json` (present only while a switch is in
+flight), `operations/<operation-id>/<step>.json` (receipts) and `fence.json`.
+
+Contract for every effectful verb (`stage`, `activate`, `rollback`,
+`credential ingest|acknowledge|revoke`, and `host repair` when `--operation`
+is given):
+
+- The fence is refused when it is below the highest fence the deployment has
+  accepted (`{"error":{"code":"fence_stale"}}`, exit 2); an accepted fence is
+  recorded before the verb runs.
+- One receipt exists per (operation, step). A re-run returns that receipt
+  unchanged with `"replayed": true` and never re-executes; a re-run with
+  different inputs is refused with `receipt_input_mismatch`. To retry a failed
+  step, use a new step id or a new operation.
+- Exit codes: 0 ok, 1 failed (receipt outcome `failed`), 2 refused.
+
+Credential verbs (`internal/cloudtarget/credential.go`): `ingest` reads the
+sealed JSON payload `{schema_version:1, deployment_id, binding_id, logical_id,
+field, version, content_ref, value}` from standard input (or, for a Bridge
+dispatch, the value from the environment variable `--from-env` names) and
+writes it into the node credential authority; the receipt input digest covers
+metadata only and a value never appears in argv, the receipt or the ledger
+(`credentials/<binding-slug>.json`). A locked store is refused with
+`credential_store_locked` before any write; a version below the held one is
+`credential_version_stale`; a revoked version can never be re-ingested
+(`credential_version_revoked`). `acknowledge` proves the held version matches
+and the authority still answers for it. `revoke` deletes the active version
+and marks it revoked; its receipt lists what was proven, what is unproven and
+the limitation that a compromised host's memory cannot be proven cleared.
+
+Release trust: `verify` (and `stage` before it writes anything) checks the
+archive sha256 against `bundle_sha256`, the running binary's sha256 and
+GOOS/GOARCH against `native_cli`, and `release_digest` against the canonical
+identity `{"bundle_sha256","closure_digest","configuration_digest","native_cli":{"goarch","goos","sha256"}}`
+encoded as sorted-key compact JSON and hashed with sha256. It then walks the
+archive without writing, enforcing no absolute paths or `..`, no escaping
+symlink or hardlink, no device/fifo entries, and the manifest's
+`limits.max_entries`, `max_expanded_bytes`, `max_entry_bytes` plus a time
+budget. Reason codes: `release_digest_mismatch`, `bundle_sha256_mismatch`,
+`native_cli_mismatch`, `archive_traversal`, `archive_symlink_escape`,
+`archive_too_large`, `archive_entry_limit`, `archive_unsupported_entry`,
+`archive_time_budget`.
+
+Activation is delegated to the lifecycle owner: the default activator runs
+`vrooli scenario restart <id> --path <release-dir>/scenarios/<id>` for every
+scenario in the release (after `vrooli scenario stop` under the `maintenance`
+strategy). The active pointer is committed only after the runtime owner
+succeeds; a crash in between leaves the prior release active and an
+`interrupted_activation` entry in `release list` for reconciliation.
+`rollback --to` accepts only the retained predecessor.
+
+`host repair` accepts only privilege-broker actions with their typed subject
+(`{"apt":{"packages":[...]}}`, `{"edge":{"port":80}}`,
+`{"process":{"scenario":"<id>","workdir":"<abs>"}}`, and the existing
+bridge/volume/storage families). `process.stop.scoped` is executed through
+`vrooli scenario stop <id>` as the workload owner; every other action goes to
+the broker socket and fails closed when the broker is absent. There is no
+generic shell verb.
 
 ## Plan Manager Commands
 

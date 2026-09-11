@@ -23,27 +23,43 @@ import (
 // protobuf messages contain an internal mutex and must not be copied by value.
 // The handler performs the explicit proto-to-DTO conversion at the boundary.
 type Selection struct {
-	SchemaVersion       string            `json:"schema_version,omitempty"`
-	Target              string            `json:"target,omitempty"`
-	Scenarios           []string          `json:"scenarios,omitempty"`
-	OptionalResources   []string          `json:"optional_resources,omitempty"`
-	CoreSeed            []string          `json:"core_seed,omitempty"`
-	TrustedBase         []string          `json:"trusted_base,omitempty"`
-	HostTools           []string          `json:"host_tools,omitempty"`
-	HostSafeguards      []string          `json:"host_safeguards,omitempty"`
-	CredentialAddresses []string          `json:"credential_addresses,omitempty"`
-	TrustPosture        string            `json:"trust_posture,omitempty"`
-	UpdateControl       string            `json:"update_control,omitempty"`
-	SessionMode         string            `json:"session_mode,omitempty"`
-	OperatingMode       map[string]string `json:"operating_mode,omitempty"`
-	Apply               bool              `json:"apply,omitempty"`
-	FieldPresence       map[string]string `json:"field_presence,omitempty"`
+	SchemaVersion                 string                               `json:"schema_version,omitempty"`
+	Target                        string                               `json:"target,omitempty"`
+	Scenarios                     []string                             `json:"scenarios,omitempty"`
+	OptionalResources             []string                             `json:"optional_resources,omitempty"`
+	CoreSeed                      []string                             `json:"core_seed,omitempty"`
+	TrustedBase                   []string                             `json:"trusted_base,omitempty"`
+	HostTools                     []string                             `json:"host_tools,omitempty"`
+	HostSafeguards                []string                             `json:"host_safeguards,omitempty"`
+	CredentialAddresses           []string                             `json:"credential_addresses,omitempty"`
+	TrustPosture                  string                               `json:"trust_posture,omitempty"`
+	UpdateControl                 string                               `json:"update_control,omitempty"`
+	SessionMode                   string                               `json:"session_mode,omitempty"`
+	OperatingMode                 map[string]string                    `json:"operating_mode,omitempty"`
+	Apply                         bool                                 `json:"apply,omitempty"`
+	CapacityPosture               string                               `json:"capacity_posture,omitempty"`
+	TransientHeadroomReserveBytes uint64                               `json:"transient_headroom_reserve_bytes,omitempty"`
+	ResourceCapacity              map[string]ResourceCapacitySelection `json:"resource_capacity,omitempty"`
+	FieldPresence                 map[string]string                    `json:"field_presence,omitempty"`
+}
+
+// ResourceCapacitySelection is the proto-free projection of one resource's
+// target-local capacity choice. Keeping it in the handoff DTO prevents a
+// remote target from silently losing reviewed capacity settings.
+type ResourceCapacitySelection struct {
+	Rung             string            `json:"rung,omitempty"`
+	Tunables         map[string]string `json:"tunables,omitempty"`
+	GPUIndex         uint32            `json:"gpu_index,omitempty"`
+	Priority         string            `json:"priority,omitempty"`
+	YieldWhenIdle    bool              `json:"yield_when_idle,omitempty"`
+	IdleGraceSeconds uint32            `json:"idle_grace_seconds,omitempty"`
 }
 
 // HandoffRequest is the only identity Bridge sends across the scenario
 // boundary. It deliberately contains no credentials or Bridge persistence
 // details; onboarding remains the authority for the returned selection.
 type HandoffRequest struct {
+	Target    string `json:"target"`
 	MachineID string `json:"machine_id"`
 	NodeID    string `json:"node_id"`
 	NodeKind  string `json:"node_kind"`
@@ -84,12 +100,18 @@ func HandoffEndpoint(baseURL string) string {
 // installed or reachable.
 type HTTPHandoffClient struct {
 	Endpoint string
-	Client   *http.Client
+	// Token is a service-to-service owner credential. It is never included in
+	// the handoff document or persisted operation state.
+	Token  string
+	Client *http.Client
 }
 
 func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) (Selection, error) {
 	if strings.TrimSpace(c.Endpoint) == "" {
 		return Selection{}, fmt.Errorf("onboarding handoff endpoint is not configured; start vrooli-onboarding on the target and retry configuration")
+	}
+	if strings.TrimSpace(c.Token) == "" {
+		return Selection{}, fmt.Errorf("onboarding handoff authorization is not configured; set VROOLI_ONBOARDING_API_TOKEN and retry configuration")
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -100,6 +122,7 @@ func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) 
 		return Selection{}, fmt.Errorf("create onboarding handoff request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.Token))
 	client := c.Client
 	if client == nil {
 		client = http.DefaultClient

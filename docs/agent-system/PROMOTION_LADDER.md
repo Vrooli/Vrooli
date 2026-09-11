@@ -26,8 +26,8 @@ flowchart LR
 
     P0 -->|patterns stabilize<br/>across many runs| P1
     P1 -->|most logic now<br/>in CLI / scenario| P2
-    P2 -->|one command owns it;<br/>create Action and file<br/>the bounded work| P3
-    P3 -->|operator dispositioned<br/>work item accepted;<br/>prose retires| P4
+    P2 -->|one command owns it;<br/>validate optional Action| P3
+    P3 -->|authorized retirement;<br/>replacement verified| P4
 
     P1 -.LLM still needed<br/>for inputs / synthesis.-> P1
     P2 -.partial automation<br/>steady state.-> P2
@@ -45,8 +45,14 @@ Every CLI-operational guidance follows the same path:
 
 1. **Interim judgment.** Add minimal skill guidance while the route is still being learned.
 2. **Crystallize recurrence as a program.** When several governed operations recur with stable joins, encode them as one bounded program contract. Keep applicability and safety judgment in the skill.
+
+   A `learn.act` fragment is the step-granularity path within this stage: keep
+   the hole in the program, retain verified and contradicted traces in the
+   durable fragment cache, and revisit when the verified threshold is met or
+   contradictions accumulate. Promotion is a reviewable improve-cycle action;
+   a cache hit alone never edits source.
 3. **Promote missing primitives to the scenario.** When a program repeatedly works around a missing invariant or operation, improve the owning scenario and expose a deterministic CLI/tool contract. Use an Action when that operation is one discoverable command.
-4. **Retire superseded prose and workarounds.** Collapse skill instructions and program compensation only after the durable scenario contract covers them. Record the evidence and acceptance in the owning Swarm Manager work item.
+4. **Retire superseded prose and workarounds.** Collapse skill instructions and program compensation only after the durable scenario contract covers them. Record the evidence and acceptance under the existing authorized work.
 
 Programs and scenario commands are not competing destinations. Programs are
 cheap, governed workflow composition; scenarios are the robust source of truth.
@@ -54,7 +60,12 @@ A useful program can remain permanently when composition is its essential value.
 It should not remain the permanent owner of validation, storage, recovery, or
 other invariants that belong to a scenario.
 
-The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is permanent. Reverse moves (un-retiring prose because a CLI regressed, demoting an Action to a skill) happen through a new bounded work item; they are not the default direction.
+The ladder's default direction is toward durable capability. A regression can
+require temporary guidance again. Use existing work when that repair is already
+authorized; request new disposition otherwise. Record the fallback's removal
+condition so temporary prose does not become a second implementation. The
+[development grant](SCENARIO_DEVELOPMENT.md#authorization-and-change-classification)
+owns this authority distinction.
 
 ---
 
@@ -88,7 +99,7 @@ These are judgment, not execution. They live in skills permanently per `LAYERS.m
 
 A prose skill section is an Action conversion candidate if **all three** are true:
 
-1. **A Vrooli-controlled CLI command covers the behavior.** This may be a project CLI, resource CLI, prompt-manager CLI, or scenario CLI. If no controlled command exists, file a Swarm Manager backlog item instead of creating a partial Action.
+1. **A Vrooli-controlled CLI command covers the behavior.** This may be a project CLI, resource CLI, prompt-manager CLI, or scenario CLI. If none exists, repair the owner under an existing grant or request that work; do not create a partial Action.
 2. **The behavior is deterministic.** Same input should produce the same operation and a clear success/failure state. If the work is judgment, synthesis, or taste, leave it in a Skill or Plan of Record.
 3. **Discoverable execution would reduce future cost.** The current prose causes meaningful token load, repeated manual command lookup, or repeated run friction.
 
@@ -98,24 +109,24 @@ If any is false, route through normal skill improvement, inbox routing, or backl
 
 ## Conversion procedure
 
-Step-by-step, executed by `skill-optimizer` or the owning member, with a bounded Swarm Manager work item filed at the end:
+Executed by `skill-optimizer` or the owning member within authorized work:
 
 1. **Baseline the prose.** Count the relevant token/prose section, usage count, and current manual steps.
-2. **Identify the CLI owner.** Name the exact Vrooli-controlled command. Run `cli-health search "<operation>"` first — it indexes every scenario's `cli/manifest.json` (with a `--help` fallback) and returns ranked matches across all CLIs. Treat a hit there as the source of truth; only file a `cli-backlog` if the search finds nothing close. If the command needs branching logic, route that work to the owning CLI before creating an Action.
+2. **Identify the CLI owner.** Name the exact Vrooli-controlled command. Run `cli-health search "<operation>"` first — it indexes scenario CLI contracts. Inspect a candidate's current contract before relying on it. A missing or insufficient command needs owner work under an existing grant or new disposition, not a partial Action. If the command needs branching logic, route that work to the owning CLI before creating an Action.
 3. **Inspect existing Actions.** Run `prompt-manager discover "<operation>" --type all` and `prompt-manager action show <id>` for any candidate. Improve an existing Action before proposing a new one.
 4. **Draft or update the Action.** The Action wraps exactly one CLI command, declares inputs/outputs, permissions, examples, validation, and `runEligible`.
 5. **Collapse or retire prose.** Keep judgment and safety boundaries in Skills (per the retention criteria). Replace deterministic command prose with an Action reference once the Action validates.
 6. **Validate.** Use `prompt-manager action validate <id>` and, when appropriate, `prompt-manager action run <id> --dry-run`.
 7. **Measure the delta.** Compare prose/token cost, repeated manual operation count, discovery hits, and Action run history after adoption.
-8. **File the work item.** Include the baseline, expected delta, validation evidence, and measurement plan in the Swarm Manager item.
+8. **Record the outcome.** Attach the baseline, measured delta, validation evidence, and remaining work to the existing work record. File separate work only when new disposition is required.
 
 ---
 
 ## Anti-patterns
 
-- **Creating an Action before a controlled CLI exists.** File `cli-backlog` first; build the CLI; then promote.
+- **Creating an Action before a controlled CLI exists.** Discover the owner, establish authority for the missing operation, build it, then promote.
 - **Encoding branching, shell conditionals, or multi-command workflows in the Action contract.** Actions wrap one CLI command. Judgment belongs in skills; repeatable composition belongs in governed programs; durable primitives belong in scenario CLIs.
-- **Hardening a program workaround instead of improving its owner.** Repeated compensation is evidence of a missing scenario capability. File and build the primitive, then simplify the program.
+- **Hardening a program workaround instead of improving its owner.** Repeated compensation is evidence of a missing scenario capability. Repair that owner within authorized work, then simplify the program.
 - **Proposing Action conversion without a baseline and post-adoption measurement.** Without measurement, the conversion can't be validated as net-positive.
 - **Treating every CLI-adjacent skill as convertible when the remaining value is judgment.** If retention criteria apply, leave the prose.
 

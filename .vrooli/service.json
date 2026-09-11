@@ -7,6 +7,8 @@
         "field": "username",
         "label": "Remote desktop username",
         "logical_id": "vrooli/remote-desktop",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/docs/configuration/host/safeguards.md",
+        "provisioning": "operator",
         "required": false
       },
       {
@@ -14,6 +16,8 @@
         "field": "password",
         "label": "Remote desktop password",
         "logical_id": "vrooli/remote-desktop",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/docs/configuration/host/safeguards.md",
+        "provisioning": "operator",
         "required": false
       }
     ]

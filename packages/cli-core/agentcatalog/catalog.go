@@ -48,6 +48,21 @@ type Billing struct {
 	PlanLabel   string `json:"plan_label,omitempty"`
 	QuotaWindow string `json:"quota_window,omitempty"`
 	Source      string `json:"source,omitempty"`
+	// Sources declares every billing source the runner can draw on (a
+	// subscription, a metered gateway, a local daemon). Role entries in
+	// CodingRole.Models refer to these by id. Resolution still reads
+	// CodingRole.Model; this list is declarative evidence for operators and
+	// for the resource's own model-source selection.
+	Sources []BillingSource `json:"sources,omitempty"`
+}
+
+// BillingSource is one declared origin of model capacity for a runner.
+type BillingSource struct {
+	ID            string `json:"id"`
+	Label         string `json:"label,omitempty"`
+	BillingMode   string `json:"billing_mode,omitempty"`
+	CredentialKey string `json:"credential_key,omitempty"`
+	Endpoint      string `json:"endpoint,omitempty"`
 }
 
 type CodingRole struct {
@@ -57,6 +72,17 @@ type CodingRole struct {
 	Description    string      `json:"description"`
 	Capabilities   []string    `json:"capabilities"`
 	Challenger     *Challenger `json:"challenger,omitempty"`
+	// Models is the ordered multi-source preference list for the role. Each
+	// entry names a model and the Billing.Sources id it is served through.
+	// Model and Fallbacks remain the resolved answer; Models is declarative.
+	Models []RoleModel `json:"models,omitempty"`
+}
+
+// RoleModel is one entry of a role's multi-source preference list.
+type RoleModel struct {
+	Model  string  `json:"model"`
+	Source string  `json:"source,omitempty"`
+	Effort *string `json:"effort"`
 }
 
 // ModelAlias is deliberately generic. Resources decide whether their

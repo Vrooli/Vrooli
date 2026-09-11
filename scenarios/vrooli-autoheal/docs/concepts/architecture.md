@@ -158,6 +158,15 @@ additive operator overrides. If the source becomes unavailable, the controller
 keeps its in-memory last-known-good set and reports degraded source health; it
 never substitutes an empty set.
 
+Resource health has an additional typed observation seam. The shared
+`ResourceStatusSnapshotProvider` reads one fast fleet response for the
+supervised population, retains it only for a bounded TTL, and projects cloned
+per-resource values. It escalates fresh anomalies and placement drift through
+the existing named typed status call; recovery verification uses a forced
+named read that bypasses pre-action caches. Snapshot metadata and provider metrics
+are included in resource check details, while lifecycle, driver, health-probe,
+placement, and OS-specific behavior remain owned by the control plane.
+
 ## Data Flow
 
 1. **Tick Request** arrives (HTTP POST or CLI command)

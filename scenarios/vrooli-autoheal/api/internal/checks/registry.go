@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/big"
 	mathrand "math/rand"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,6 +44,16 @@ const (
 	// DefaultHealInterlockWindow is deliberately short: it contains cross-check
 	// disagreement without indefinitely masking a genuinely flapping target.
 	DefaultHealInterlockWindow = 30 * time.Second
+
+	// DefaultRecoveryGracePeriod gives mechanical actions time to settle before
+	// a coding agent is admitted. It is deliberately long enough to cover a
+	// normal lifecycle restart but short enough to recover during an absence.
+	DefaultRecoveryGracePeriod = 10 * time.Minute
+
+	// DefaultRecurringJitterFraction bounds the extra delay after a check run.
+	// It spreads recurring work without changing the configured interval by
+	// more than ten percent.
+	DefaultRecurringJitterFraction = 0.10
 )
 
 // longRunningActionIDs enumerates action IDs that receive the long lifecycle
@@ -205,6 +217,7 @@ type HealTracker struct {
 	Disposition         string    `json:"disposition,omitempty"`
 	DispositionAt       time.Time `json:"dispositionAt,omitempty"`
 	SuccessHistory      string    `json:"successHistory,omitempty"`
+	UnhealthySince      time.Time `json:"unhealthySince,omitempty"`
 }
 
 const (
@@ -278,6 +291,7 @@ type Registry struct {
 	checks               map[string]Check
 	results              map[string]Result
 	lastRun              map[string]time.Time
+	nextRun              map[string]time.Time
 	healTrackers         map[string]*HealTracker // Track healing state per check
 	autoHealPolicy       *AutoHealPolicy
 	platform             *platform.Capabilities
@@ -286,7 +300,8 @@ type Registry struct {
 	recoveryGate         RecoveryOwnershipGate
 	healIncidentReporter HealIncidentReporter
 	recoveryRequester    RecoveryRequester
-	recoveryRequested    map[string]bool
+	supervisedChecks     map[string]struct{}
+	recoveryGracePeriod  time.Duration
 	clock                Clock
 	interlockMu          sync.Mutex
 	recentHealActions    map[HealTarget]RecentHealAction
@@ -306,25 +321,30 @@ func (r *Registry) getRecoveryRequester() RecoveryRequester {
 	return r.recoveryRequester
 }
 
-func (r *Registry) claimRecoveryRequest(checkID string) bool {
+// SetSupervisedChecks publishes the current computed supervision closure to
+// the registry. Every member remains retryable even when its operator seed is
+// indirect, so a derived recovery dependency cannot be permanently suspended.
+func (r *Registry) SetSupervisedChecks(checks map[string]string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.recoveryRequested == nil {
-		r.recoveryRequested = make(map[string]bool)
+	r.supervisedChecks = make(map[string]struct{}, len(checks))
+	for checkID := range checks {
+		r.supervisedChecks[strings.TrimSpace(checkID)] = struct{}{}
 	}
-	if r.recoveryRequested[checkID] {
-		return false
-	}
-	r.recoveryRequested[checkID] = true
-	return true
 }
 
-func (r *Registry) clearRecoveryRequest(checkID string) {
+// SetRecoveryGracePeriod controls how long a scenario must remain continuously
+// unhealthy before mechanical exhaustion can request a coding-agent repair.
+func (r *Registry) SetRecoveryGracePeriod(period time.Duration) {
+	if period < 0 {
+		period = 0
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.recoveryRequested != nil {
-		delete(r.recoveryRequested, checkID)
+	if period == 0 {
+		period = DefaultRecoveryGracePeriod
 	}
+	r.recoveryGracePeriod = period
 }
 
 // SetRecoveryOwnershipGate installs the cross-controller restart ownership
@@ -375,9 +395,11 @@ func NewRegistry(plat *platform.Capabilities) *Registry {
 		checks:              make(map[string]Check),
 		results:             make(map[string]Result),
 		lastRun:             make(map[string]time.Time),
+		nextRun:             make(map[string]time.Time),
 		healTrackers:        make(map[string]*HealTracker),
 		recentHealActions:   make(map[HealTarget]RecentHealAction),
-		recoveryRequested:   make(map[string]bool),
+		supervisedChecks:    make(map[string]struct{}),
+		recoveryGracePeriod: DefaultRecoveryGracePeriod,
 		healInterlockWindow: DefaultHealInterlockWindow,
 		platform:            plat,
 		clock:               realClock{},
@@ -398,6 +420,7 @@ func (r *Registry) Unregister(id string) {
 	delete(r.checks, id)
 	delete(r.results, id)
 	delete(r.lastRun, id)
+	delete(r.nextRun, id)
 }
 
 // SetConfigProvider sets the configuration provider for the registry.
@@ -453,6 +476,7 @@ func (r *Registry) SeedStartupJitter(now time.Time, rng *mathrand.Rand) {
 			offset = secureJitterOffset(interval)
 		}
 		r.lastRun[id] = now.Add(-offset)
+		r.nextRun[id] = now.Add(interval - offset)
 	}
 }
 
@@ -472,7 +496,8 @@ func secureJitterOffset(interval time.Duration) time.Duration {
 	return time.Duration(n.Int64())
 }
 
-// SetClock sets the time source for cooldown calculations (used by tests).
+// SetClock sets the time source for cooldown and recurring schedule calculations
+// (used by tests).
 func (r *Registry) SetClock(clock Clock) {
 	if clock == nil {
 		return
@@ -541,14 +566,19 @@ func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
 
 	// Check interval.
 	// Caller must hold at least a read lock for r.lastRun access.
-	lastRun, exists := r.lastRun[check.ID()]
-
+	nextRun, exists := r.nextRun[check.ID()]
 	if !exists {
-		return true
+		lastRun, hasLastRun := r.lastRun[check.ID()]
+		if !hasLastRun {
+			return true
+		}
+		nextRun = lastRun.Add(time.Duration(check.IntervalSeconds()) * time.Second)
 	}
 
-	interval := time.Duration(check.IntervalSeconds()) * time.Second
-	return time.Since(lastRun) >= interval
+	if nextRun.IsZero() {
+		return true
+	}
+	return !r.clock.Now().Before(nextRun)
 }
 
 func (r *Registry) platformCompatible(check Check) bool {
@@ -600,6 +630,17 @@ func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 		}
 	}
 	r.mu.RUnlock()
+	// The recovery plane must be observed before optional checks consume the
+	// tick budget. Keep the remaining order deterministic so a long-running
+	// optional check cannot consistently starve one particular core member.
+	sort.SliceStable(checks, func(i, j int) bool {
+		iRecovery := r.persistentRecoveryCheck(checks[i].ID())
+		jRecovery := r.persistentRecoveryCheck(checks[j].ID())
+		if iRecovery != jRecovery {
+			return iRecovery
+		}
+		return checks[i].ID() < checks[j].ID()
+	})
 
 	results := make([]Result, 0, len(checks))
 	for _, check := range checks {
@@ -667,10 +708,12 @@ func (r *Registry) storeResult(result Result) {
 
 // runCheck executes a single check with timeout and stores the result
 func (r *Registry) runCheck(ctx context.Context, check Check) Result {
-	start := time.Now()
+	start := r.clock.Now()
+	wallStart := time.Now()
 
 	// Create per-check timeout context
-	checkCtx, cancel := context.WithTimeout(ctx, DefaultCheckTimeout)
+	timeout := timeoutForCheck(check)
+	checkCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Run check with timeout - use channel to capture result
@@ -688,23 +731,39 @@ func (r *Registry) runCheck(ctx context.Context, check Check) Result {
 		result = Result{
 			CheckID: check.ID(),
 			Status:  StatusCritical,
-			Message: fmt.Sprintf("Check timed out after %s", DefaultCheckTimeout),
+			Message: fmt.Sprintf("Check timed out after %s", timeout),
 			Details: map[string]interface{}{
 				"error":   "timeout",
-				"timeout": DefaultCheckTimeout.String(),
+				"timeout": timeout.String(),
 			},
 		}
 	}
 
-	result.Duration = time.Since(start)
+	result.Duration = time.Since(wallStart)
 	result.Timestamp = start
 
 	r.mu.Lock()
 	r.results[check.ID()] = result
 	r.lastRun[check.ID()] = start
+	interval := time.Duration(check.IntervalSeconds()) * time.Second
+	jitterWindow := time.Duration(float64(interval) * DefaultRecurringJitterFraction)
+	if jitterWindow > 0 {
+		r.nextRun[check.ID()] = start.Add(interval + secureJitterOffset(jitterWindow))
+	} else {
+		r.nextRun[check.ID()] = start.Add(interval)
+	}
 	r.mu.Unlock()
 
 	return result
+}
+
+func timeoutForCheck(check Check) time.Duration {
+	if override, ok := check.(CheckTimeoutOverride); ok {
+		if timeout := override.CheckTimeout(); timeout > 0 {
+			return timeout
+		}
+	}
+	return DefaultCheckTimeout
 }
 
 // GetResult returns the last result for a specific check
@@ -723,6 +782,7 @@ func (r *Registry) SetResult(result Result) {
 	r.results[result.CheckID] = result
 	// Also update lastRun so interval checks work correctly
 	r.lastRun[result.CheckID] = result.Timestamp
+	delete(r.nextRun, result.CheckID)
 }
 
 // GetAllResults returns all stored check results for currently registered checks.

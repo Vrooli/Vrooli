@@ -138,5 +138,13 @@ func GenerateElectronBuilderJSON(config *types.SigningConfig, opts *Options) (ma
 		}
 	}
 
+	// Linux artifacts are signed after electron-builder has produced the
+	// immutable package files. The hook returns detached signatures and the
+	// metadata sidecar so the publication owner can bind channel, version,
+	// architecture, and digests before promotion.
+	if config.Linux != nil {
+		result["afterAllArtifactBuild"] = opts.LinuxArtifactSignerPath
+	}
+
 	return result, nil
 }

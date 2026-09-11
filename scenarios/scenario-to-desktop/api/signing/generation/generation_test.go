@@ -1,6 +1,8 @@
 package generation
 
 import (
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -111,6 +113,20 @@ func TestGenerateWindowsConfig_EmptyPasswordEnv(t *testing.T) {
 	got := generateWindowsConfig(cfg, nil)
 	if got.CertificatePassword != "" {
 		t.Errorf("CertificatePassword = %q, want empty when env not set", got.CertificatePassword)
+	}
+}
+
+func TestDefaultGenerator_RejectsUnsupportedWindowsCertificateSource(t *testing.T) {
+	for _, source := range []string{types.CertSourceAzureKeyVault, types.CertSourceAWSKMS} {
+		t.Run(source, func(t *testing.T) {
+			_, err := NewGenerator(nil).GenerateElectronBuilder(&types.SigningConfig{
+				Enabled: true,
+				Windows: &types.WindowsSigningConfig{CertificateSource: source},
+			})
+			if err == nil {
+				t.Fatalf("expected unsupported certificate source %q to be rejected", source)
+			}
+		})
 	}
 }
 
@@ -266,6 +282,57 @@ func TestGenerateElectronBuilderJSON_MacWithNotarization(t *testing.T) {
 	}
 	if got["afterSign"] != opts.NotarizeScriptPath {
 		t.Errorf("afterSign = %v, want %q", got["afterSign"], opts.NotarizeScriptPath)
+	}
+}
+
+func TestGenerateElectronBuilderJSON_LinuxUsesArtifactSigningHook(t *testing.T) {
+	cfg := &types.SigningConfig{Enabled: true, Linux: &types.LinuxSigningConfig{GPGKeyID: "ABC123"}}
+	got, err := GenerateElectronBuilderJSON(cfg, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["afterAllArtifactBuild"] != DefaultOptions().LinuxArtifactSignerPath {
+		t.Fatalf("afterAllArtifactBuild = %v", got["afterAllArtifactBuild"])
+	}
+}
+
+func TestGenerateLinuxArtifactSigner_BindsDigestsAndDoesNotEmbedPassphrase(t *testing.T) {
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{GPGKeyID: "ABC123", GPGPassphraseEnv: "GPG_SECRET", GPGHomedir: "/secure/gnupg"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	text := string(content)
+	for _, expected := range []string{"linux-update-metadata.json", "sha512", "architecture", "VROOLI_UPDATE_CHANNEL", "GPG_SECRET", "gpg"} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("generated hook does not contain %q", expected)
+		}
+	}
+	if strings.Contains(text, "secret-value") {
+		t.Fatal("generated hook embedded credential material")
+	}
+}
+
+func TestGenerateLinuxArtifactSignerRequiresKey(t *testing.T) {
+	if _, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{}); err == nil {
+		t.Fatal("expected missing GPG key to fail")
+	}
+}
+
+func TestGenerateLinuxArtifactSignerIsValidNodeModule(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{GPGKeyID: "ABC123"})
+	if err != nil {
+		t.Fatalf("generate hook: %v", err)
+	}
+	path := t.TempDir() + "/sign-linux-artifacts.js"
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write hook: %v", err)
+	}
+	if output, err := exec.Command(node, "--check", path).CombinedOutput(); err != nil {
+		t.Fatalf("generated hook is not valid Node.js: %v\n%s", err, output)
 	}
 }
 

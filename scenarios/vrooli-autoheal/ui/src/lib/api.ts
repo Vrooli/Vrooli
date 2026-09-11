@@ -941,6 +941,10 @@ export interface ConfigResponse {
   config: Config;
 }
 
+export interface ProtectedChecksResponse {
+  checks: Record<string, string>;
+}
+
 export interface CheckConfigResponse {
   checkId: string;
   config: {
@@ -968,6 +972,10 @@ export interface DefaultsResponse {
 // Fetch current configuration
 export async function fetchConfig(): Promise<Config> {
   return apiRequest<Config>("/config");
+}
+
+export async function fetchProtectedChecks(): Promise<ProtectedChecksResponse> {
+  return apiRequest<ProtectedChecksResponse>("/config/protected-checks");
 }
 
 // Update entire configuration

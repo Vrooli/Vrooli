@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestResolvePrefersExplicitRootOverride(t *testing.T) {
@@ -64,6 +66,9 @@ func newFixtureRepo(t *testing.T) string {
 
 func repoRootFromCaller(t *testing.T) string {
 	t.Helper()
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")

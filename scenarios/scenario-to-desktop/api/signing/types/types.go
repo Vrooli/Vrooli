@@ -69,7 +69,8 @@ type SigningConfig struct {
 // WindowsSigningConfig contains Windows Authenticode signing settings.
 type WindowsSigningConfig struct {
 	// CertificateSource specifies how the certificate is provided.
-	// Values: "file", "store", "azure_keyvault", "aws_kms"
+	// Values include legacy wire values "azure_keyvault" and "aws_kms" for
+	// compatibility, but the current signer supports only "file" and "store".
 	CertificateSource string `json:"certificate_source"`
 
 	// CertificateFile is the path to the .pfx/.p12 certificate file.

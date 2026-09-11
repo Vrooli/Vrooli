@@ -16,14 +16,14 @@ by four different surfaces:
 | A | Per-surface conformance | "Is each surface built right?" (CLI/UI/docs manifests, proto bindings) | cli-health, ui-health, knowledge-observatory, scenario-auditor | point-in-time, **gating** |
 | B | Code quality | "Is this code clean?" (file/function length, complexity, duplication) | tidiness-manager | point-in-time, metric |
 | C | Structural architecture | "Does the structure cohere & scream its purpose?" (cycles, coupling, convergence, mislocation) | architecture-cartographer *(detection)* | point-in-time, confidence-gated |
-| D | Improvement campaign | "Drive this scenario TO a goal, over time, handholding the agent" | architecture-cartographer *(campaign)* | **longitudinal, stateful** |
+| D | Architecture finding lifecycle | "Which findings persist, regress, or are verified resolved?" | architecture-cartographer *(campaign)* | **longitudinal, stateful** |
 
 A, B, and C answer *whether* something is right — they are **validation**
-(point-in-time). D *drives* a scenario toward right — it is **process**
-(longitudinal). Making cartographer "just a test phase" would discard D, which is
-its entire reason to exist: large screaming-architecture refactors fail when an
-agent cannot track the surface area (this is what happened to the swarm-manager
-refactor). The tracker is the substrate that handholds the agent through it.
+(point-in-time). D retains finding-level continuity across those observations.
+It supports development but does not own the work's authorization, product
+targets, or final acceptance. The
+[scenario development method](../agent-system/SCENARIO_DEVELOPMENT.md) owns that
+separation; an architecture campaign is not a second project control plane.
 
 Code quality (B, tidiness-manager) is a **separate axis** — file/function
 metrics, not structural cohesion. It is not folded into the architecture audit;
@@ -33,22 +33,23 @@ it may become an ingest source for the tracker later, but it is not wired today.
 
 ```
   test-genie  ──ArchitectureFinding──▶  architecture-cartographer
-  (the camera)                          (the project plan)
-  stateless audit AGGREGATOR            stateful campaign TRACKER
+  (run and evidence owner)              (finding lifecycle owner)
+  audit AGGREGATOR                      campaign TRACKER
 ```
 
 - **test-genie is the camera.** It runs the per-surface validators it already
   orchestrates (A) plus a structural `architecture` phase that delegates to
   cartographer's read-only audit (C), and emits **one normalized findings
-  report**. It has no memory: each run is a fresh photograph.
-- **architecture-cartographer's campaign domain is the project plan.** It
+  report**. It retains run history and evidence under the
+  [testing contract](../TESTING.md); one run is an observation, not the work plan.
+- **architecture-cartographer's campaign domain tracks findings.** It
   ingests that report, tracks every finding through a lifecycle, hands the agent
   a profile-ranked worklist, and on each re-audit reconciles by stable ID. It
-  holds all the memory: history, lifecycle, regressions.
+  owns finding lifecycle and regression reconciliation, not all project memory.
 
 The normalized findings report is the **seam** — the shared
 `ArchitectureFinding` contract (`packages/proto/schemas/architecture/v1/`).
-Detection has no memory; tracking does all of it.
+Run evidence and finding lifecycle have distinct owners.
 
 **Cartographer never calls test-genie or the health CLIs.** Findings arrive only
 by ingest (push). There is no cycle: the camera produces, the tracker consumes.
@@ -68,36 +69,22 @@ afid from the same shared helper (`packages/proto/architecture/findingid`).
 
 ## The validation → campaign loop
 
-When a single audit surfaces more findings than one pass can responsibly fix,
-test-genie's output **nudges** the agent to open a tracked campaign rather than
-fixing ad-hoc. The loop (driven by the `scenario-improvement-campaign` skill):
+An audit can recommend tracking when findings outgrow a local repair. That
+recommendation does not authorize implementation or require a new Swarm item.
+For an authorized multi-cycle engagement, `scenario-improvement-campaign` owns
+the driving loop and selects the tracker when finding continuity is needed.
+An assessment-only caller reports findings without creating or mutating a campaign.
 
-```bash
-# 1. AUDIT — take the first photograph
-test-genie execute <scenario> --preset architecture-audit --json > audit-1.json
-#    Above the single-pass threshold, the output appends:
-#      ⚠️  Improvement campaign recommended …
-#         architecture-cartographer campaign create <scenario> --from-audit audit-1.json
+Use [docs/TESTING.md](../TESTING.md) for audit scope, durable evidence, and waiting.
+Use the current cartographer campaign contract for ingest, ranked worklists,
+resolution notes, and re-audit reconciliation. Do not treat a launch response as
+an ingestible completed audit. A resolution note is a claim; re-audit supplies
+verification. Stable IDs preserve persistent and returning findings.
 
-# 2. CREATE — ingest the photograph
-architecture-cartographer campaign create <scenario> --from-audit audit-1.json
-
-# 3. NEXT — the handholding. --profile picks the ordering:
-#    fast (cheapest path to green) | balanced (default) | long-term (root-cause-first)
-architecture-cartographer campaign next <campaign-id> --profile balanced
-
-# 4. FIX + MARK OFF
-architecture-cartographer campaign resolve <campaign-id> --finding <afid> --note "…"
-
-# 5. RE-AUDIT — new photograph, reconcile by stable ID
-test-genie execute <scenario> --preset architecture-audit --json > audit-2.json
-architecture-cartographer campaign reaudit <campaign-id> --from-audit audit-2.json
-#    → gone → validated · persists → open · (re)appeared → flagged regression
-
-# 6. REPEAT → CLOSE
-architecture-cartographer campaign status <campaign-id>
-architecture-cartographer campaign close <campaign-id>
-```
+The ranking profile orders candidate repairs. It cannot change acceptance floors
+or expand the work's scope. Closing a finding tracker does not establish that the
+scenario's other required outcomes pass. Stop and acceptance decisions remain
+with the authorized development grant and its finish line, not an unconditional "until clean" loop.
 
 The campaign nudge remains the primary steering mechanism. The `architecture`
 phase preserves cartographer's graded semantics for warnings, errors, and
@@ -120,7 +107,7 @@ the nudge, but they do not fail CI.
 - `scenarios/prompt-manager/store/skills/packs/core/screaming-architecture-audit/SKILL.md`
   — the executable procedure an agent follows.
 - `scenarios/prompt-manager/store/skills/packs/core/scenario-improvement-campaign/SKILL.md`
-  — the driving loop for responsibility D: profile (ordering) vs target (stop
-  condition), and the `campaign next --profile fast|balanced|long-term` knob.
+  — the authorized development loop that can use D; profile ranks candidate
+  repairs while the approved target determines acceptance.
 - `scenarios/test-genie/docs/phases/architecture/README.md` — the architecture
   phase that produces the C findings.

@@ -19,6 +19,7 @@ import (
 )
 
 func TestHealth_Healthy(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-autoheal")
 	store := &mockStore{pingErr: nil}
 	h := setupTestHandlers(store)
 
@@ -38,6 +39,9 @@ func TestHealth_Healthy(t *testing.T) {
 
 	if resp["readiness"] != true {
 		t.Errorf("readiness = %v, want true", resp["readiness"])
+	}
+	if resp["build_identity"] != "sha256:test-autoheal" {
+		t.Errorf("build_identity = %v, want sha256:test-autoheal", resp["build_identity"])
 	}
 
 	deps, ok := resp["dependencies"].(map[string]interface{})

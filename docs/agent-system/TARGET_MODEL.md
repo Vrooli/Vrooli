@@ -252,6 +252,16 @@ These are the named shapes of error. Any member may report any of them through `
 | D8 | **A pipeline-stage member** — a member that exists to hand state to the next member | Its whole job is to move a record along | collapse per consolidation §7 |
 | D9 | **An unwatched instrument** — nothing outside the team observes the instrument's own condition | No other loop names it | raise `capability-work` |
 | D10 | **A silent capability** — supply that is counted, green, and called by nobody | Zero reads over a full window | condition axis; deprecation only after the roadmap check in `DEPRECATION_POLICY.md` |
+| D11 | **Unowned member procedure** — the steps for reading and acting on the team's instrument live in member files instead of the instrument's own skill set | Your heartbeat or responsibilities name the operations, ordering, or degradation protocol for a scenario that ships no usage skill; or the same procedure appears in two or more member files | `skill-set-authoring` on the instrument, then collapse the member files to the lane's judgment |
+
+D11 is not D5 or D3 wearing a different hat. D5 is a skill that over-explains a thin
+scenario; D3 is a record whose state is held in markdown. D11 is procedure with **no owner at
+all** — it never reached a skill, so no skill can be too long, and it describes operations
+rather than holding state. The tell is duplication across lanes: judgment differs per member
+by design, so the same paragraph in two member files is procedure that belongs to the
+instrument. What stays in the member is the lane's judgment, its own fallback target, and its
+stop conditions; the reading and degradation protocol goes to the instrument's usage skill
+(`SKILL_AUTHORING.md` §"The three roles", the instrument trigger).
 
 Reporting a deviation is **inside every member's lane**, not outside it. It costs one typed observation and requires no decision.
 

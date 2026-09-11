@@ -129,7 +129,7 @@ There are **two distinct `.vrooli` directories** and they must never be conflate
 - **Structure** — the directory name (`.vrooli`) and the well-known entry inventory — lives in `runtime_home` and is read through `packages/repo-contract-go` (`RuntimeHome`, `RuntimeHomeEntry(ies)`, `ScopedRuntimePath`, and the `HomeKey*` constants). These helpers are pure functions of a supplied `home`; they never resolve `home` themselves.
 - **Resolution** — turning "the operator's home" into a concrete path, **sudo-aware** — lives in `internal/config.HomeDir`. A sudo'd process resolves the *invoking* user's home (via `$SUDO_USER`), never `/root`. Internal code calls `config.VrooliHome` / `config.VrooliPath(<HomeKey>, sub…)` / `config.VrooliScopedPath`; shared `packages/*` receive the resolver by injection (the `home` parameter), wired to `config.HomeDir` at composition roots. `packages/*` never import `internal/*`.
 
-**`runtime_home` entries** carry ownership and lifecycle policy: `owner`, `regenerable`, `protected`, `cleanup`, and optional `retention` (`max_age`, `max_bytes`, `keep_count`, and `protect_active`). `false` regenerable entries are durable operator state that must be preserved (`plans`, `state`, `config`, `data`, `runtime_db` = `state/runtime.db`, `secrets`, `secrets_enc`, `backups`); `true` entries are reconstructable (`bin`, `shims`, `cache`, `logs`, `metrics`, `processes`, `build`, `test_runs`, `artifacts`).
+**`runtime_home` entries** carry ownership and lifecycle policy: `owner`, `regenerable`, `protected`, `cleanup`, and optional `retention` (`max_age`, `max_bytes`, `keep_count`, and `protect_active`). `false` regenerable entries are durable operator state that must be preserved (`plans`, `plan_artifacts`, `state`, `config`, `data`, `runtime_db` = `state/runtime.db`, `secrets`, `secrets_enc`, `backups`); `true` entries are reconstructable (`bin`, `shims`, `cache`, `logs`, `metrics`, `processes`, `build`, `test_runs`, `artifacts`).
 
 `regenerable` and `protected` are independent, and reading one off the other is a mistake the code has already made once. `regenerable` answers *must this be backed up*; `protected` answers *may a reaper walk it*. `bin` is both regenerable and protected: its contents are build output nobody needs restored from a backup, and it is still the shared executable install root that no bulk age-or-size rule may prune. Reclaiming a single dead CLI there is `scenario-binaries`' job, which proves the specific artifact is an orphan and removes it under a lease and a receipt.
 
@@ -137,7 +137,7 @@ Three postures follow, and every entry declares exactly one:
 
 | Posture | Declaration | Entries |
 |---|---|---|
-| Protected | `protected: true`, `cleanup: never`, no `retention` | `plans`, `state`, `config`, `data`, `runtime_db`, `secrets`, `secrets_enc`, `backups`, `bin` |
+| Protected | `protected: true`, `cleanup: never`, no `retention` | `plans`, `plan_artifacts`, `state`, `config`, `data`, `runtime_db`, `secrets`, `secrets_enc`, `backups`, `bin` |
 | Storage-manager managed | `cleanup: storage_manager` + bounded `retention` | `cache`, `logs`, `metrics`, `processes`, `build`, `test_runs`, `artifacts` |
 | Self-managed | `cleanup: never`, no `retention`, not protected | `shims` |
 

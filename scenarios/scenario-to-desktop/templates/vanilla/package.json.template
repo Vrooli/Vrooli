@@ -46,6 +46,7 @@
     "productName": "{{APP_DISPLAY_NAME}}",
     "copyright": "Copyright © {{YEAR}} {{AUTHOR}}",
     "afterPack": "scripts/post-build-windows.js",
+    "afterAllArtifactBuild": {{LINUX_ARTIFACT_SIGNER_HOOK}},
     "directories": {
       "output": "dist-electron",
       "buildResources": "assets"

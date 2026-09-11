@@ -7,6 +7,7 @@ const settingsMocks = vi.hoisted(() => ({
   fetchConfig: vi.fn(),
   updateConfig: vi.fn(),
   fetchDefaults: vi.fn(),
+  fetchProtectedChecks: vi.fn(),
   exportConfig: vi.fn(),
   importConfig: vi.fn(),
   setCheckEnabled: vi.fn(),
@@ -44,6 +45,7 @@ describe("SettingsDialog", () => {
     vi.clearAllMocks();
     settingsMocks.fetchConfig.mockResolvedValue(config);
     settingsMocks.fetchDefaults.mockResolvedValue(defaults);
+    settingsMocks.fetchProtectedChecks.mockResolvedValue({ checks: {} });
     settingsMocks.fetchChecks.mockResolvedValue([
       { id: "infra-dns", title: "DNS", description: "DNS health", importance: "required", category: "infrastructure", intervalSeconds: 30 },
       { id: "resource-postgres", title: "Postgres", description: "Database", importance: "required", category: "resource", intervalSeconds: 60 },

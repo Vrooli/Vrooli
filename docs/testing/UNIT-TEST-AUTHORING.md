@@ -287,7 +287,7 @@ not claims that all examples already pass this guide. The reference work is:
 | i18n and semantic interaction | Template HealthCard.test.tsx and i18n/format.test.ts | Role/name interactions, real plural/fallback/missing-key cases |
 | Async/provider isolation | Template test-utils/renderWithProviders.test.tsx | Cancellation, completion and fresh cache/locale state |
 | Scoped console diagnostics | Template test-utils/console.test.ts and components/ErrorBoundary.test.tsx | Unmatched errors fail, expected errors are scoped to the throwing render, and methods restore on failure |
-| Static/runtime limits | Unit Health calibration and adapter conformance corpus (planned) | Unknown helpers, hooks, bare expect and supported test-kind exceptions |
+| Static/runtime limits | `unit-health calibrate run --partition development` and the committed adapter-conformance corpus; reviewed comparison at `api/internal/testquality/testdata/holdouts/assertion-observation-go-v1/` | Unknown helpers, hooks, bare expect and supported test-kind exceptions remain explicit; `unit-health calibrate corpus` reports implemented, retired, and specified counts |
 
 The health fixture example stays executable in the template source but is
 excluded from generated scenarios. Add a response factory only when tests

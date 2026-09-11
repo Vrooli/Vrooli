@@ -99,6 +99,13 @@ check. `must_start` members are critical; `try_start` members are warning-level.
 Use `vrooli supervision-set --json` to inspect the effective member and its
 attribution chain before changing autoheal configuration.
 
+Resource checks use one shared typed fleet snapshot per 20-second TTL. The
+30-second refresh-cycle deadline and 5-second failed-refresh backoff are fixed
+safety bounds in the provider; tests may inject shorter values for deterministic
+fixtures. Stable resources use the fast fleet result. Anomaly, mode-drift, and
+reacquire evidence invokes one named deep check, while stale or incomplete
+evidence is reported as `undetermined`.
+
 All scheduled and manual recovery actions cross the same heal interlock. A
 successful start-like action blocks a dangerous action from another check
 against the same target for the 30-second safety window. This guard is separate

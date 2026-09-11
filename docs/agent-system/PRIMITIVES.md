@@ -104,7 +104,7 @@ task state remains in `tasks.json`.
 Doctrine — durable, operator-curated documentation that defines what is true. Lives at `path:docs/<domain>/` (e.g., `path:docs/monetization/`, `path:docs/marketing/evidence/research/`, `path:docs/agent-system/`).
 
 Properties:
-- **Approval-gated:** operator-curated via approved Swarm Manager work. Agents file evidence and scope; they never edit directly.
+- **Approval-gated:** operator-curated under the authority rules in `TEAM_DOCS_PATTERNS.md`; discovery or a review request grants no write permission.
 - **Cross-team-readable:** consumers from other teams or scenarios may cite it as required reading.
 - **Durable:** entries persist and evolve. High churn signals something wrong with the plan, not with the rate of change.
 - **One concept, one file:** no double residency.
@@ -123,11 +123,10 @@ An Action exists when the underlying CLI workflow is **deterministic** and benef
 
 ## CLI
 
-The implementation layer: a Vrooli-controlled command that performs the actual work. Project CLI (`vrooli`), resource CLIs (`resource-postgres`), scenario CLIs (`prompt-manager`, `swarm-manager`), and so on.
-
-CLIs own deterministic execution. Branching, shell conditionals, and multi-step workflows belong here, not in Action contracts.
-
----
+The command surface for Vrooli-owned operations: project CLI (`vrooli`), resource
+CLIs, and scenario CLIs. Scenario domain services own business rules and state;
+thin CLI adapters invoke them. Recurring cross-operation composition belongs in
+Programs, not Action contracts or duplicated CLI business logic.
 
 ---
 
@@ -166,10 +165,10 @@ The hierarchy is `Objective -> Goal -> Milestone -> Backlog item`. Every goal de
 
 ## Backlog item
 
-Unbuilt work. A backlog item names an outcome to build or a bounded correction to make,
-with evidence, scope, dependencies, and a clear completion condition. File it through
-Swarm Manager so the operator sees one work stream and the executing agent can read the
-same context.
+A unit of operator-visible work with an outcome, scope, dependencies, and completion
+condition. It may authorize a specific change or successive repairs under a
+[development mandate](SCENARIO_DEVELOPMENT.md). Keep authorized progress with that
+item; a newly discovered implementation step does not itself require another item.
 
 ### Gated work item
 

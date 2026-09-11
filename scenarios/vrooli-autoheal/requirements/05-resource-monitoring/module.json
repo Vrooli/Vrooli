@@ -9,14 +9,14 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "criticality": "P0",
-      "description": "Use vrooli resource status \u003cname\u003e --json to check resource health",
+      "description": "Use the typed vrooli resource status fleet contract for ordinary supervised health checks and retain named --json status for deep safety checks",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/checks/vrooli/vrooli_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Covered by Go vrooli resource-check tests (api/internal/checks/vrooli)"
+          "status": "implemented",
+          "notes": "Covered by typed fleet and named-status compatibility tests in api/internal/checks/vrooli and api/internal/integrations/vrooli"
         }
       ]
     },
@@ -85,6 +85,54 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Covered by Go vrooli resource-check tests (api/internal/checks/vrooli)"
+        }
+      ]
+    },
+    {
+      "id": "RES-MON-006",
+      "title": "Freshness-aware resource snapshots",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Represent snapshot age, expiry, completeness, source, probe level, and undetermined outcomes without treating stale healthy data as current",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/integrations/vrooli/resource_snapshot_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tagged [REQ:RES-MON-006]; covers immutable copies, partial responses, and failed refresh fallback."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tagged [REQ:RES-MON-006]; covers fleet classification metadata."
+        }
+      ]
+    },
+    {
+      "id": "RES-MON-007",
+      "title": "Bounded resource status acquisition",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Coalesce concurrent fleet refreshes and escalate fresh anomalies through bounded named deep status checks",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/integrations/vrooli/resource_snapshot_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tagged [REQ:RES-MON-007]; covers single-flight refresh and retry backoff."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tagged [REQ:RES-MON-007]; covers one fleet call plus anomaly deep escalation."
         }
       ]
     }

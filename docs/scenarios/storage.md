@@ -71,7 +71,7 @@ At runtime this resolves to class-scoped directories like:
 - `<logs-root>/vrooli/<scenario>/...`
 - `<state-root>/vrooli/<scenario>/...`
 
-See [packages/api-core/docs/storage.md](/home/matthalloran8/Vrooli/packages/api-core/docs/storage.md) for the package-level contract.
+See [packages/api-core/docs/storage.md](../../packages/api-core/docs/storage.md) for the package-level contract.
 
 Tracked source-tree `config/` or `policy/` files are different from `package:api-core/storage` `config` class files:
 

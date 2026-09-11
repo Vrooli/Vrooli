@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -603,19 +604,22 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	buildIdentity := strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY"))
+
 	stats, err := s.store.Stats(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
-			"status":    "unhealthy",
-			"service":   "vrooli-events",
-			"timestamp": now,
-			"readiness": false,
-			"error":     err.Error(),
+			"status":         "unhealthy",
+			"service":        "vrooli-events",
+			"timestamp":      now,
+			"readiness":      false,
+			"error":          err.Error(),
+			"build_identity": buildIdentity,
 		})
 		return
 	}
 
-	writeJSON(w, 0, map[string]any{
+	resp := map[string]any{
 		"status":      "healthy",
 		"service":     "vrooli-events",
 		"timestamp":   now,
@@ -625,7 +629,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 			"totalEvents":       stats.TotalEvents,
 			"totalPayloadBytes": stats.TotalPayloadBytes,
 		},
-	})
+	}
+	if buildIdentity != "" {
+		resp["build_identity"] = buildIdentity
+	}
+	writeJSON(w, 0, resp)
 }
 
 // orEmpty returns s if non-nil, otherwise an empty slice of the same type.

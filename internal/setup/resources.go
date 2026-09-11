@@ -42,7 +42,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		if err := preflightDockerResources(root, home, requiredNames, opts); err != nil {
 			return nil, err
 		}
-		return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation)
+		return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation, root, home)
 	}
 
 	names := []string{}
@@ -60,7 +60,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 	if err := preflightDockerResources(root, home, requiredNames, opts); err != nil {
 		return nil, err
 	}
-	return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation)
+	return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation, root, home)
 }
 
 func partitionResourceNames(root, home string, names []string) (required, optional []string, err error) {
@@ -79,7 +79,7 @@ func partitionResourceNames(root, home string, names []string) (required, option
 	return required, optional, nil
 }
 
-func installSelectedResources(controller resourceRunner, names, optionalNames []string, stdout, stderr io.Writer, operation func(string)) ([]string, error) {
+func installSelectedResources(controller resourceRunner, names, optionalNames []string, stdout, stderr io.Writer, operation func(string), root, home string) ([]string, error) {
 	optional := make(map[string]struct{}, len(optionalNames))
 	for _, name := range optionalNames {
 		optional[name] = struct{}{}
@@ -94,6 +94,17 @@ func installSelectedResources(controller resourceRunner, names, optionalNames []
 				continue
 			}
 			return degraded, err
+		}
+	}
+	ensureController := resources.NewController(root, home)
+	for _, name := range names {
+		manifest, err := ensureController.ResourceManifest(name)
+		if err != nil || !manifest.Capabilities.SupportsEnsure {
+			continue
+		}
+		operation("Ensuring resource " + name)
+		if err := ensureController.RunResourceCLI(name, []string{"ensure"}, stdout, stderr); err != nil {
+			_, _ = fmt.Fprintf(stderr, "[WARN]    Resource %s ensure failed: %v\n", name, err)
 		}
 	}
 	return degraded, nil

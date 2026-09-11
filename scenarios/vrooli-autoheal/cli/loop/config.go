@@ -100,6 +100,9 @@ func parseFlags(args []string) (options, error) {
 	if err := fs.Parse(args); err != nil {
 		return options{}, err
 	}
+	if fs.NArg() > 0 {
+		return options{}, fmt.Errorf("unexpected loop arguments: %s", strings.Join(fs.Args(), " "))
+	}
 	if *apiURL != "" {
 		if err := validateLocalEndpoint(*apiURL); err != nil {
 			return options{}, fmt.Errorf("invalid --api-url: %w", err)

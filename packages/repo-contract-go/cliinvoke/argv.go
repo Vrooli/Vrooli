@@ -53,6 +53,20 @@ func AgentRecover(scenario, reason, requester string) []string {
 	return []string{"agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", requester}
 }
 
+// AgentLaunch returns the governed coding-agent launch argv. The existing
+// `vrooli agent launch` command first attempts Agent Manager attachment and
+// then falls back to the selected native runner, so recovery callers should
+// use this builder instead of duplicating that ladder.
+func AgentLaunch(runner, prompt, cwd string, claims []string) []string {
+	argv := []string{"agent", "launch", "--runner", runner, "--prompt", prompt, "--cwd", cwd}
+	for _, claim := range claims {
+		if claim != "" {
+			argv = append(argv, "--claim", claim)
+		}
+	}
+	return argv
+}
+
 // Setup returns `setup` with an optional --json.
 func Setup(jsonOutput bool) []string {
 	if jsonOutput {

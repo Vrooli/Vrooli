@@ -56,6 +56,26 @@ func TestCloudflaredCheckRunWithMock_ServiceActive(t *testing.T) {
 	}
 }
 
+func TestCloudflaredCheckRunWithMock_ManagedResource(t *testing.T) {
+	mockExec := testutil.NewMockExecutor()
+	mockExec.Responses["vrooli resource status cloudflared --no-fast --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"running":true,"healthy":true,"status":"healthy","serving":true}`),
+	}
+
+	check := NewCloudflaredCheck(&platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true},
+		WithCloudflaredExecutor(mockExec),
+		WithManagedResource(true),
+	)
+	result := check.Run(context.Background())
+
+	if result.Status != checks.StatusOK {
+		t.Fatalf("Status = %v, want %v (Message: %s)", result.Status, checks.StatusOK, result.Message)
+	}
+	if result.Details["resourceHealthy"] != true || result.Details["resourceServing"] != true {
+		t.Fatalf("managed resource details = %#v, want healthy and serving", result.Details)
+	}
+}
+
 // TestCloudflaredCheckRunWithMock_ServiceInactive tests when cloudflared service is not active
 func TestCloudflaredCheckRunWithMock_ServiceInactive(t *testing.T) {
 	caps := &platform.Capabilities{

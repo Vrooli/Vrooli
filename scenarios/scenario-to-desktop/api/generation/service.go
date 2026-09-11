@@ -341,7 +341,9 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 		})
 		return
 	}
-	s.prepareSigningConfig(buildID, config)
+	if err := s.prepareSigningConfig(buildID, config); err != nil {
+		return
+	}
 
 	configPath, err := s.writeConfigFile(buildID, config)
 	if err != nil {
@@ -353,7 +355,7 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 }
 
 // prepareSigningConfig loads and applies signing configuration if needed.
-func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) {
+func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) error {
 	if config.CodeSigning == nil && config.ScenarioName != "" {
 		signingConfig, err := s.loadSigningConfig(config.ScenarioName)
 		if err != nil {
@@ -369,17 +371,22 @@ func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopCon
 	}
 
 	if config.CodeSigning == nil || !config.CodeSigning.Enabled {
-		return
+		return nil
 	}
 	if err := s.generateSigningArtifacts(config); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
-			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Warning: Failed to generate signing artifacts: %v", err))
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to generate signing artifacts: %v", err))
+			now := time.Now()
+			status.CompletedAt = &now
 		})
+		return err
 	} else {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.BuildLog = append(status.BuildLog, "Generated signing artifacts")
 		})
 	}
+	return nil
 }
 
 // writeConfigFile marshals config to a temp JSON file, returning the path.
@@ -562,11 +569,12 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	if config.CodeSigning.MacOS != nil {
+	if config.CodeSigning.MacOS != nil || config.CodeSigning.Linux != nil {
 		opts := &signinggeneration.Options{
-			OutputDir:          outputPath,
-			EntitlementsPath:   "entitlements.mac.plist",
-			NotarizeScriptPath: "scripts/notarize.js",
+			OutputDir:               outputPath,
+			EntitlementsPath:        "entitlements.mac.plist",
+			NotarizeScriptPath:      "scripts/notarize.js",
+			LinuxArtifactSignerPath: "scripts/sign-linux-artifacts.js",
 		}
 
 		generator := signinggeneration.NewGenerator(opts)
@@ -594,7 +602,7 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 			}
 		}
 
-		if config.CodeSigning.MacOS.EntitlementsFile == "" {
+		if config.CodeSigning.MacOS != nil && config.CodeSigning.MacOS.EntitlementsFile == "" {
 			config.CodeSigning.MacOS.EntitlementsFile = "entitlements.mac.plist"
 		}
 	}

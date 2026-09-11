@@ -120,6 +120,13 @@ That second effect is the closing edge of the §1 diagram. It is why the loop is
 
 ## 5. Who runs it — the operating layer
 
+For developing one scenario, [Scenario Development Under a Grant](../agent-system/SCENARIO_DEVELOPMENT.md)
+defines the operator-approved target and the agent's implementation authority.
+One work item can cover successive measured improvements; the improvement skill
+guides work inside that engagement rather than requiring a new item per decision.
+This complements observation-driven team intake below. It does not grant a
+monitoring agent implementation authority or make a harness goal a product verdict.
+
 The loop is executed by **agent swarms** — Vrooli's "executive team," running on heartbeats (`ARCHITECTURE.md` → *operator steers, agents execute*). One swarm is dedicated to the loop itself: the **Meta-Optimization Team**, whose plan-of-record is [`docs/meta-optimization/`](../meta-optimization/README.md) and whose operating cadence (six audit loops draining a universal friction inbox) is [`OPERATING_MODEL.md`](../meta-optimization/operating/OPERATING_MODEL.md). It is not the only loop steering the platform, and its measurements only hold while the substrate beneath it does — how it sits beside the platform-reliability loop and above the fast service loops is *Control topology*, below.
 
 Its instrument is the **`meta-optimization-manager`** scenario — a thin, read-mostly aggregator that **measures** per-projection coverage and **tells the swarms what to prioritize** (it surfaces candidates and numbers; it does not decide — substrate, tiering, and improvement decisions stay agentic). The live measurement is:

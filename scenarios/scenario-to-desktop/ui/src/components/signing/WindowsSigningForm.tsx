@@ -91,9 +91,17 @@ export function WindowsSigningForm({
         >
           <option value="file">File (.pfx/.p12)</option>
           <option value="store">Windows Certificate Store</option>
-          <option value="azure_keyvault">Azure Key Vault</option>
-          <option value="aws_kms">AWS KMS</option>
+          <option value="azure_keyvault" disabled>
+            Azure Key Vault (coming soon)
+          </option>
+          <option value="aws_kms" disabled>
+            AWS KMS (coming soon)
+          </option>
         </Select>
+        <p className="mt-1 text-xs text-slate-500">
+          Cloud certificate signing is not available in this signer yet. Use a
+          local certificate file or the Windows Certificate Store.
+        </p>
       </div>
 
       {/* File-based certificate fields */}

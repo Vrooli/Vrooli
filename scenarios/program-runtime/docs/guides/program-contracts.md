@@ -348,7 +348,7 @@ are `null` when the row has no band yet; the keys are always present.
 `reason` is a closed vocabulary describing evidence availability, not execution
 authority or scheduling. `goal-loop` and `scenario-improvement-campaign` apply
 the caller's grant under
-[Contract-Driven Scenario Development](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
+[Scenario Development Under a Grant](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
 
 | `reason` | Meaning | Evidence treatment |
 |---|---|---|

@@ -22,6 +22,76 @@ the Go `protogen` command, an advisory cross-process lock, a staging tree beside
 `gen/`, and publish-on-change semantics. Scoped runs include reverse dependents
 and shared imports.
 
+## Shared-worktree runtime artifact contract
+
+The repository intentionally has one shared worktree. Agents must not use Git
+worktrees or source copies as a correctness mechanism. Proto source files remain
+visible to every agent, including while an edit is incomplete. Runtime
+consumers are protected at the generated-artifact boundary instead:
+
+```mermaid
+flowchart LR
+  S[Shared packages/proto source] --> D[Capture closure and digest]
+  D --> C[Private candidate]
+  C --> V[Generation + output + consumer checks]
+  V --> I[Immutable snapshot under ~/.vrooli/artifacts/proto]
+  I --> P[Atomic active.json]
+  P --> R[Lifecycle resolves once and holds lease]
+  R --> B[Setup/build compatibility view]
+  I -. failed refresh .-> L[last-known-good.json]
+  L --> R
+```
+
+`protogen generate` builds and validates a candidate before publishing it. The
+runtime artifact root contains `snapshots/<artifact-id>/gen`, `metadata.json`,
+and, when validation was recorded, `validation-receipt.json`. `active.json` and
+`last-known-good.json` are selection records, not generated output. A reader
+validates the selected metadata and every declared file digest before opening a
+lease. Garbage collection protects active, last-known-good, and leased
+snapshots.
+
+The selection record is the only runtime publication boundary:
+
+```json
+{
+  "schema_version": 1,
+  "artifact_id": "<content-derived-id>",
+  "snapshot": "snapshots/<content-derived-id>",
+  "metadata_digest": "sha256:<metadata-digest>",
+  "selected_at": "<RFC3339 timestamp>"
+}
+```
+
+Metadata records the source digest, exact input closure, scope, generator and
+tool identity, parent artifact, output paths/sizes/digests, and validation
+status. If source inputs change while tools are running, the candidate is
+rejected and the previous selection remains usable. A pointer-write or
+compatibility-view failure has the same availability behavior.
+
+Scenario startup is a reader, not an implicit Proto refresh. Lifecycle setup
+resolves the selected snapshot, installs the fixed-path compatibility view for
+legacy Go/TypeScript module tooling, and holds the shared Proto lock through the
+consumer build. Explicit refresh is allowed to wait for that lock; startup does
+not wait for a potentially invalid source edit to regenerate. If a refresh is
+newer or unavailable but a valid last-known-good snapshot exists, startup can
+continue with an observable degraded/stale artifact state. If no valid snapshot
+exists, startup fails before mutating the consumer environment.
+
+Inspect and recover the runtime store with the governed Proto command:
+
+```bash
+cd packages/proto
+go run -mod=mod ./cmd/protogen artifact status --json
+go run -mod=mod ./cmd/protogen artifact promote --artifact <validated-id>
+go run -mod=mod ./cmd/protogen artifact rollback --artifact <validated-id>
+go run -mod=mod ./cmd/protogen artifact cleanup
+```
+
+Promotion and rollback validate the snapshot and metadata again; they never
+construct an artifact from the mutable worktree. A malformed selection causes
+resolution and cleanup to fail closed so an operator can inspect and repair it
+without risking deletion of the only valid snapshot.
+
 Use a full-fleet generation only deliberately, for example after a plugin or
 vendored-module change:
 

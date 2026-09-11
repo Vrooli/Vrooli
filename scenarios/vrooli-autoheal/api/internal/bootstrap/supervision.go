@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	checksvrooli "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
@@ -119,13 +120,22 @@ func validateSupervisionReport(report coreset.Report) error {
 // check registry. Operator monitoring config is advisory only and cannot add
 // a second, unreconciled supervision universe.
 type SupervisionController struct {
-	mu         sync.Mutex
-	registry   *checks.Registry
-	configMgr  *userconfig.Manager
-	source     *SupervisionSource
-	managed    map[string]struct{}
-	coreDemand demand.LeaseClient
-	coreLeases map[string]string
+	mu                     sync.Mutex
+	registry               *checks.Registry
+	configMgr              *userconfig.Manager
+	source                 *SupervisionSource
+	managed                map[string]struct{}
+	coreDemand             demand.LeaseClient
+	coreLeases             map[string]string
+	resourceStatusProvider integration.ResourceStatusSnapshotProvider
+}
+
+// SetResourceStatusProvider installs the process-shared typed snapshot seam
+// used by dynamically reconciled resource checks.
+func (c *SupervisionController) SetResourceStatusProvider(provider integration.ResourceStatusSnapshotProvider) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.resourceStatusProvider = provider
 }
 
 // NewSupervisionController accepts an optional demand client so unit tests can
@@ -183,7 +193,10 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 				continue
 			}
 			id = "resource-" + member.Name
-			check = checksvrooli.NewResourceCheck(member.Name, checksvrooli.WithResourceSupervision(member.SupervisionIntent, member.AttributionChain))
+			check = checksvrooli.NewResourceCheck(member.Name,
+				checksvrooli.WithResourceSupervision(member.SupervisionIntent, member.AttributionChain),
+				checksvrooli.WithResourceStatusProvider(c.resourceStatusProvider),
+			)
 		}
 		desired[id] = check
 		supervised[id] = member.SupervisionIntent
@@ -230,6 +243,7 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 	for id := range desired {
 		c.managed[id] = struct{}{}
 	}
+	c.registry.SetSupervisedChecks(supervised)
 	c.configMgr.SetSupervisedChecks(supervised)
 	return snapshot, nil
 }

@@ -82,6 +82,17 @@ The build-output digest is part of UI freshness, so rebuilding a shared package
 invalidates the consumer's installed copy on its next setup. Generated outputs
 remain lifecycle-owned artifacts and are not hand-built by scenario operators.
 
+The React Component Library additionally publishes immutable snapshots under
+`$HOME/.vrooli/artifacts/react-component-library` (or the configured runtime
+artifact root). `current.json` selects a verified snapshot and
+`runtime-status.json` records the latest candidate outcome. Its governed build
+command declares `artifact_selection`, so lifecycle freshness includes the
+selected snapshot identity: draft catalog edits do not invalidate compatible
+running consumers, while a newly selected artifact does. A failed candidate
+may return a degraded success only when the selected snapshot is intact and
+contains every exact export requested by the consumer; missing, corrupt, or
+incompatible artifacts remain hard failures.
+
 Provisioning is single-flight at two levels: lifecycle phase entrypoints hold
 the scenario lock, and each governed package is protected by a shared-package
 lock under `$HOME/.vrooli/state/locks`. This is required because different
@@ -90,3 +101,33 @@ Lifecycle-owned package commands receive the setup environment and EOF stdin,
 so package-manager prompts fail deterministically and cannot wait on an
 operator terminal. Lock waits and command durations are recorded in the
 scenario lifecycle log with the package root, process ID, and wait duration.
+
+Shared package lifecycle commands may use the `{scenario}` substitution token
+when the command needs to know which scenario requested it. The lifecycle
+replaces the token with that scenario name; when there is no requesting
+scenario, it removes the `--scenario {scenario}` argument (or its
+`--scenario={scenario}` form) so the command remains valid when run directly.
+Package manifests should use this token only for requester context, not as a
+second package identity.
+
+## Proto artifact selection
+
+`packages/proto` is a governed generated contract package. Its lifecycle
+selection is `@vrooli/proto-types`, and scenario setup treats it as a reader of
+the selected runtime artifact rather than as an instruction to regenerate
+against the mutable shared worktree. The selected artifact is resolved from
+`$HOME/.vrooli/artifacts/proto` and materialized into the fixed local module
+path only after metadata and output digests pass validation.
+
+Proto generation and lifecycle setup use the same cross-process lock at
+`$HOME/.vrooli/locks/proto-generation.lock`. Lifecycle holds that lock through
+compatibility-view installation and the consumer build. A failed or cancelled
+refresh therefore cannot replace the active or last-known-good record, and a
+scenario with an available valid snapshot does not wait for unrelated source
+edits to become valid.
+
+The shared-worktree rule is intentional: agents continue to collaborate in one
+checkout. Reliability comes from closure digests, private candidates,
+immutable snapshots, atomic selection records, reader leases, and explicit
+refresh/promotion/rollback operations. A missing valid snapshot is a precise
+startup failure; silently falling back to `packages/proto/gen` is not allowed.

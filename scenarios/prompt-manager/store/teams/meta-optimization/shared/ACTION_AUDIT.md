@@ -47,3 +47,9 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 | Operation | Status | Validation | Discoverability | Disposition | Notes |
 |-----------|--------|------------|-----------------|-------------|-------|
 | canonical in-place file edit outside a sandbox (Act A25) | no exact Action | blocked | `prompt-manager discover "edit a file in place outside a sandbox" --type all` found only `sandbox` and unrelated commit/provenance skills; no executable Action | capability-work-item | Coverage `act/A25` is missing with no runtime owner/provider. Existing `workspace-sandbox` exposes create/diff/promote, not canonical edits. Filed `fix/capability-act-a25-canonical-file-edit-owner-20260910`; runEligible=false until an owner, contract, permissions, and refusal tests exist. No Action candidate proposed. |
+
+## 2026-09-11 Rotation Addendum
+
+| Operation | Status | Validation | Discoverability | Disposition | Notes |
+|-----------|--------|------------|-----------------|-------------|-------|
+| storage architecture validation / isolation proof | programmatic CLI, no exact Action | CLI help available; `storage-manager validate scenario prompt-manager --json` executed and returned structured findings; no Action contract | `prompt-manager discover "validate scenario storage architecture and isolation with storage-manager" --type all` returned skills only; `action show/validate storage-manager.storage.validate` returned not found | graduate-reference | `storage-manager` is the validated programmatic home for `storage-steer` detection, so no duplicate Action candidate is proposed. The CLI contract is scenario-name input with structured analyzer findings/output; permissions and Action receipt semantics are not registered. Revisit if repeated manual invocation justifies a governed Action. |

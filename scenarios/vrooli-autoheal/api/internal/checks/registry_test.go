@@ -261,6 +261,27 @@ func TestIntervalFiltering(t *testing.T) {
 	}
 }
 
+// [REQ:AUTOHEAL-P1-008]
+func TestRecurringScheduleAddsBoundedJitter(t *testing.T) {
+	reg := newTestRegistry()
+	check := &mockCheck{
+		id:       "jitter-check",
+		interval: 60,
+		result:   Result{CheckID: "jitter-check", Status: StatusOK},
+	}
+	reg.Register(check)
+	reg.RunAll(context.Background(), true)
+
+	reg.mu.RLock()
+	lastRun := reg.lastRun[check.ID()]
+	nextRun := reg.nextRun[check.ID()]
+	reg.mu.RUnlock()
+	interval := 60 * time.Second
+	if nextRun.Before(lastRun.Add(interval)) || nextRun.After(lastRun.Add(interval+6*time.Second)) {
+		t.Fatalf("next run = %s, want within [%s, %s]", nextRun, lastRun.Add(interval), lastRun.Add(interval+6*time.Second))
+	}
+}
+
 // TestGetResult verifies result retrieval
 // [REQ:HEALTH-REGISTRY-004]
 func TestGetResult(t *testing.T) {

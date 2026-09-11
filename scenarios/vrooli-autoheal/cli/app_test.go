@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 )
 
 func TestCLIStatusCommand(t *testing.T) {
@@ -83,6 +85,7 @@ func TestCLIWatchdogInstallJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv(cliinvoke.BinaryEnvVar, stub)
 
 	app, err := NewApp()
 	if err != nil {

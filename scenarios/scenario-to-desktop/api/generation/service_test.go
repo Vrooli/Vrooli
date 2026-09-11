@@ -542,6 +542,39 @@ func TestGenerateSigningArtifactsIsNoOpWhenDisabledAndWritesMacOSFiles(t *testin
 	}
 }
 
+func TestGenerateSigningArtifactsWritesLinuxSignerHook(t *testing.T) {
+	output := t.TempDir()
+	config := &DesktopConfig{OutputPath: output, CodeSigning: &signing.SigningConfig{
+		Enabled: true,
+		Linux:   &signing.LinuxSigningConfig{GPGKeyID: "ABC123"},
+	}}
+	if err := NewService().generateSigningArtifacts(config); err != nil {
+		t.Fatalf("generate Linux signing artifacts: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(output, "scripts", "sign-linux-artifacts.js")); err != nil {
+		t.Fatalf("Linux signer hook missing: %v", err)
+	}
+}
+
+func TestPrepareSigningConfigFailsClosedWhenLinuxSignerCannotBeGenerated(t *testing.T) {
+	builds := newMockBuildStore()
+	builds.Create("linux-invalid")
+	service := NewService(WithBuildStore(builds))
+	if err := service.prepareSigningConfig("linux-invalid", &DesktopConfig{
+		OutputPath: t.TempDir(),
+		CodeSigning: &signing.SigningConfig{
+			Enabled: true,
+			Linux:   &signing.LinuxSigningConfig{},
+		},
+	}); err == nil {
+		t.Fatal("expected invalid Linux signing configuration to fail")
+	}
+	status, ok := builds.Get("linux-invalid")
+	if !ok || status.Status != "failed" || len(status.ErrorLog) == 0 {
+		t.Fatalf("signing failure was not terminal: %#v", status)
+	}
+}
+
 func writeNodeFixture(t *testing.T, directory, body string) {
 	t.Helper()
 	path := filepath.Join(directory, "node")

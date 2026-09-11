@@ -259,6 +259,24 @@ host-level event work belongs behind `/api/v1/system-events` and the
 `system_events` SQLite table so it can dedupe repeated ingestion and survive
 process restarts.
 
+### Typed resource snapshot seam
+
+`checks/vrooli.ResourceCheck` and `ModeDriftCheck` consume the injected
+`integrations/vrooli.ResourceStatusSnapshotProvider`. The provider uses the
+existing typed `vrooli resource status --json` fleet contract, keeps an
+immutable cloned snapshot with observed/expiry times, completeness, source,
+probe level, and bounded errors, and coalesces concurrent refreshes. Stable
+checks use the fast fleet observation. A fresh anomaly or mode-drift finding
+escalates to the existing named typed status call; recovery verification uses
+a forced named read that bypasses pre-action caches.
+
+This seam does not own resource discovery, lifecycle, health probes, placement,
+process accounting, or platform repair. Those remain control-plane/platform
+responsibilities. A failed or stale refresh becomes `undetermined` in the
+check result, and the result details expose snapshot age and bounded provider
+metrics. Do not add OS commands, shell parsing, `/proc` reads, or a Unix-only
+transport to common Autoheal code.
+
 ### Watchdog Detection System Probe Seam
 
 `api/internal/watchdog/watchdog.go` now routes environment/runtime interactions through a dedicated `detectorProbe` boundary. This seam isolates:

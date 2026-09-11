@@ -112,6 +112,16 @@ interface DesktopConfig {
         auto_check?: boolean;
     };
 
+    // Signing configuration is prepared by the Go signing owner. The Linux
+    // hook is referenced here so electron-builder actually executes the
+    // generated detached-signature step.
+    code_signing?: {
+        enabled?: boolean;
+        linux?: {
+            gpg_key_id?: string;
+        };
+    };
+
     // Port configuration for all service ports
     // Key is the port name (e.g., "api", "ui", "websocket")
     // Value includes env_var and default port
@@ -447,6 +457,12 @@ class DesktopTemplateGenerator {
             UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
             UPDATE_SERVER_URL: this.getUpdateServerUrl(),
 
+            LINUX_ARTIFACT_SIGNER_HOOK: JSON.stringify(
+                this.config.code_signing?.enabled && this.config.code_signing.linux
+                    ? 'scripts/sign-linux-artifacts.js'
+                    : null
+            ),
+
             // Auth configuration
             LPBS_URL: this.config.lpbs_url || 'https://vrooli.com',
 
@@ -507,6 +523,7 @@ class DesktopTemplateGenerator {
                 owner: github?.owner || "your-organization",
                 repo: github?.repo || `${this.config.app_name}-desktop`,
                 releaseType: channel === 'stable' ? 'release' : 'prerelease',
+                channel,
             };
 
             // Add private repo support if needed
@@ -543,6 +560,7 @@ class DesktopTemplateGenerator {
             return {
                 provider: "generic",
                 url: fullUrl,
+                channel,
                 useMultipleRangeRequest: false, // Better compatibility
             };
         }

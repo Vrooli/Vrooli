@@ -292,14 +292,17 @@ func (s *Store) getActionLogsForCheckSQLite(ctx context.Context, checkID string,
 }
 
 const saveHealTrackerQuery = `
-		INSERT INTO heal_trackers (check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until, suspended_at, suspension_reason, disposition, disposition_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO heal_trackers (check_id, last_attempt, last_success, unhealthy_since, consecutive_failures, consecutive_timeouts, total_attempts, total_successes, total_timeouts, cooldown_until, suspended_at, suspension_reason, disposition, disposition_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(check_id) DO UPDATE SET
 			last_attempt = excluded.last_attempt,
 			last_success = excluded.last_success,
+			unhealthy_since = excluded.unhealthy_since,
 			consecutive_failures = excluded.consecutive_failures,
+			consecutive_timeouts = excluded.consecutive_timeouts,
 			total_attempts = excluded.total_attempts,
 			total_successes = excluded.total_successes,
+			total_timeouts = excluded.total_timeouts,
 			cooldown_until = excluded.cooldown_until,
 			suspended_at = excluded.suspended_at,
 			suspension_reason = excluded.suspension_reason,
@@ -313,9 +316,12 @@ func healTrackerArgs(checkID string, tracker *checks.HealTracker) []any {
 		checkID,
 		nullableTimeToDBText(tracker.LastAttempt),
 		nullableTimeToDBText(tracker.LastSuccess),
+		nullableTimeToDBText(tracker.UnhealthySince),
 		tracker.ConsecutiveFailures,
+		tracker.ConsecutiveTimeouts,
 		tracker.TotalAttempts,
 		tracker.TotalSuccesses,
+		tracker.TotalTimeouts,
 		nullableTimeToDBText(tracker.CooldownUntil),
 		nullableTimeToDBText(tracker.SuspendedAt),
 		tracker.SuspensionReason,
@@ -347,7 +353,7 @@ func (s *Store) saveHealTrackersSQLite(ctx context.Context, trackers map[string]
 
 func (s *Store) getAllHealTrackersSQLite(ctx context.Context) (map[string]*checks.HealTracker, error) {
 	query := `
-		SELECT check_id, last_attempt, last_success, consecutive_failures, total_attempts, total_successes, cooldown_until, suspended_at, suspension_reason, disposition, disposition_at
+		SELECT check_id, last_attempt, last_success, unhealthy_since, consecutive_failures, consecutive_timeouts, total_attempts, total_successes, total_timeouts, cooldown_until, suspended_at, suspension_reason, disposition, disposition_at
 		FROM heal_trackers
 	`
 	rows, err := s.db.QueryContext(ctx, query)
@@ -361,6 +367,7 @@ func (s *Store) getAllHealTrackersSQLite(ctx context.Context) (map[string]*check
 		var checkID string
 		var lastAttemptRaw any
 		var lastSuccessRaw any
+		var unhealthySinceRaw any
 		var cooldownUntilRaw any
 		var suspendedAtRaw any
 		var dispositionAtRaw any
@@ -370,9 +377,12 @@ func (s *Store) getAllHealTrackersSQLite(ctx context.Context) (map[string]*check
 			&checkID,
 			&lastAttemptRaw,
 			&lastSuccessRaw,
+			&unhealthySinceRaw,
 			&tracker.ConsecutiveFailures,
+			&tracker.ConsecutiveTimeouts,
 			&tracker.TotalAttempts,
 			&tracker.TotalSuccesses,
+			&tracker.TotalTimeouts,
 			&cooldownUntilRaw,
 			&suspendedAtRaw,
 			&tracker.SuspensionReason,
@@ -389,6 +399,10 @@ func (s *Store) getAllHealTrackersSQLite(ctx context.Context) (map[string]*check
 		lastSuccess, ok := parseNullableDBTime(lastSuccessRaw)
 		if ok {
 			tracker.LastSuccess = lastSuccess
+		}
+		unhealthySince, ok := parseNullableDBTime(unhealthySinceRaw)
+		if ok {
+			tracker.UnhealthySince = unhealthySince
 		}
 		cooldownUntil, ok := parseNullableDBTime(cooldownUntilRaw)
 		if ok {
@@ -429,6 +443,9 @@ func (s *Store) ensureHealTrackerColumns(ctx context.Context) error {
 		existing[name] = true
 	}
 	for _, column := range []struct{ name, declaration string }{
+		{"unhealthy_since", "TEXT"},
+		{"consecutive_timeouts", "INTEGER NOT NULL DEFAULT 0"},
+		{"total_timeouts", "INTEGER NOT NULL DEFAULT 0"},
 		{"suspended_at", "TEXT"},
 		{"suspension_reason", "TEXT NOT NULL DEFAULT ''"},
 		{"disposition", "TEXT NOT NULL DEFAULT ''"},
