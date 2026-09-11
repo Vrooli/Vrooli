@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-09-02T16:13:34-04:00"
+    "last_validated_at": "2026-09-06T01:19:07-04:00"
   },
   "requirements": [
     {
@@ -37,7 +37,7 @@
         },
         {
           "type": "test",
-          "ref": "api/events_test.go:TestHandleEvents_InvalidLimitFallback",
+          "ref": "api/events_test.go:TestEventsService_List_DefaultLimit",
           "phase": "unit",
           "status": "failing",
           "notes": "Invalid limit param falls back to default"
@@ -51,7 +51,7 @@
         },
         {
           "type": "test",
-          "ref": "api/events_test.go:TestHandleEvents_LimitCappedAt1000",
+          "ref": "api/events_test.go:TestEventsService_List_LimitCappedAt1000",
           "phase": "unit",
           "status": "failing",
           "notes": "Events endpoint caps limit at 1000 for safety"
@@ -61,7 +61,7 @@
     {
       "id": "REQ-P1-004b",
       "title": "Operational Metrics Collection",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "performance",
       "description": "Metrics collection for session count, active connections, WebSocket throughput, reconnect rate, and AI provider latency. Exposed via /metrics endpoint.",

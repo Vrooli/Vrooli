@@ -22,6 +22,7 @@
     "14-session-groups-roles-and-handoffs/module.json",
     "15-message-snippets-and-actions/module.json",
     "16-account-and-paid-inference/module.json",
+    "17-messages-view-projection-and-playback/module.json",
     "90-uncovered-targets/module.json"
   ],
   "modules": [
@@ -120,6 +121,12 @@
       "path": "16-account-and-paid-inference",
       "priority": "P0",
       "title": "Account And Paid Inference"
+    },
+    {
+      "id": "MOD-P0-017",
+      "path": "17-messages-view-projection-and-playback",
+      "priority": "P0",
+      "title": "Messages View Projection And Playback"
     }
   ]
 }

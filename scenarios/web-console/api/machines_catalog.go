@@ -23,7 +23,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	credentialgrantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
@@ -32,6 +31,12 @@ import (
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply"
+	applyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply/applyv1connect"
+	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
+	operatorinputsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs/operatorinputsv1connect"
+	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
+	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness/readinessv1connect"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines"
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines/machines_v1connect"
 )
@@ -40,6 +45,8 @@ import (
 // machines list is rendered on open, so a slow control plane must degrade to a
 // stated reason rather than an unbounded spinner.
 const bridgeCallTimeout = 3 * time.Second
+
+const onboardingOperatorInputsContractVersion = "1"
 
 type machineRPC struct {
 	server *Server
@@ -217,20 +224,31 @@ func (h *machineRPC) GetConfiguration(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, err
 	}
-	questions, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/operator-inputs", HTTPMethod: "GET", HTTPPath: "api/v2/operator-inputs", Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	callCtx, cancel := context.WithTimeout(ctx, bridgeCallTimeout)
+	defer cancel()
+	baseURL, err := client.ScenarioURL(callCtx, nodeID, "vrooli-onboarding")
+	if err != nil {
+		return nil, controlPlaneError("resolve target onboarding endpoint", err)
+	}
+	onboardingClient := operatorinputsconnect.NewOperatorInputsServiceClient(client.ConnectTransport(callCtx, baseURL), baseURL)
+	// The Bridge URL has already selected the remote node. Once the request
+	// arrives there, onboarding must treat it as a node-local call; forwarding
+	// the remote node id in the body would make the node proxy the request back
+	// through Bridge and produce a 502 loop.
+	questions, err := onboardingClient.ListOperatorInputs(callCtx, connect.NewRequest(&operatorinputsv1.ListOperatorInputsRequest{Target: "local"}))
 	if err != nil {
 		return nil, controlPlaneError("read target configuration questions", err)
 	}
-	readiness, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/readiness", HTTPMethod: "GET", HTTPPath: "api/v2/readiness", Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	if questions == nil || questions.Msg == nil || strings.TrimSpace(questions.Msg.GetContractVersion()) != onboardingOperatorInputsContractVersion {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("target_onboarding_incompatible: the target onboarding API returned an unsupported operator-input contract; refresh or redeploy vrooli-onboarding on the target, then refresh this machine"))
+	}
+	readinessClient := readinessconnect.NewReadinessServiceClient(client.ConnectTransport(callCtx, baseURL), baseURL)
+	readiness, err := readinessClient.GetReadiness(callCtx, connect.NewRequest(&readinessv1.GetReadinessRequest{Target: "local"}))
 	if err != nil {
 		return nil, controlPlaneError("read target readiness", err)
 	}
-	response := &machinesv1.GetConfigurationResponse{QuestionsJson: questions, ReadinessJson: readiness, TargetId: nodeID}
-	if detail := h.machineDetailForNode(ctx, client, nodeID); detail != nil {
-		if encoded, marshalErr := protojson.Marshal(detail); marshalErr == nil {
-			response.MachineDetailJson = encoded
-		}
-	}
+	response := &machinesv1.GetConfigurationResponse{Questions: questions.Msg, Readiness: readiness.Msg, TargetId: nodeID}
+	response.MachineDetail = h.machineDetailForNode(ctx, client, nodeID)
 	return connect.NewResponse(response), nil
 }
 
@@ -265,11 +283,20 @@ func (h *machineRPC) ResolveConfiguration(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/operator-inputs/resolve", HTTPMethod: "POST", HTTPPath: "api/v2/operator-inputs/resolve", Body: req.Msg.GetAnswersJson(), Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	callCtx, cancel := context.WithTimeout(ctx, bridgeCallTimeout)
+	defer cancel()
+	baseURL, err := client.ScenarioURL(callCtx, nodeID, "vrooli-onboarding")
+	if err != nil {
+		return nil, controlPlaneError("resolve target onboarding endpoint", err)
+	}
+	onboardingClient := operatorinputsconnect.NewOperatorInputsServiceClient(client.ConnectTransport(callCtx, baseURL), baseURL)
+	result, err := onboardingClient.ResolveOperatorInputs(callCtx, connect.NewRequest(&operatorinputsv1.ResolveOperatorInputsRequest{
+		Target: "local", ExpectedRevision: strings.TrimSpace(req.Msg.GetExpectedRevision()), Answers: req.Msg.GetAnswers(),
+	}))
 	if err != nil {
 		return nil, controlPlaneError("submit target configuration answers", err)
 	}
-	return connect.NewResponse(&machinesv1.ResolveConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+	return connect.NewResponse(&machinesv1.ResolveConfigurationResponse{Result: result.Msg, TargetId: nodeID}), nil
 }
 
 func (h *machineRPC) credentialGrantClient(ctx context.Context) (credentialgrantconnect.CredentialGrantServiceClient, error) {
@@ -341,14 +368,35 @@ func (h *machineRPC) ReapplyConfiguration(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, err
 	}
-	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/apply", HTTPMethod: "POST", HTTPPath: "api/v2/apply", Body: []byte("{}"), Timeout: 30 * time.Second, MaxResponse: 8 << 20})
+	baseURL, err := client.ScenarioURL(ctx, nodeID, "vrooli-onboarding")
+	if err != nil {
+		return nil, controlPlaneError("resolve target onboarding endpoint", err)
+	}
+	onboardingClient := applyconnect.NewApplyServiceClient(client.ConnectTransport(ctx, baseURL), baseURL)
+	plan, err := onboardingClient.GetApplyPlan(ctx, connect.NewRequest(&applyv1.GetApplyPlanRequest{Target: "local"}))
+	if err != nil {
+		return nil, controlPlaneError("read target configuration apply plan", err)
+	}
+	if strings.TrimSpace(plan.Msg.GetPlanId()) == "" || strings.TrimSpace(plan.Msg.GetPlanDigest()) == "" || strings.TrimSpace(plan.Msg.GetRevision()) == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("target returned an incomplete apply plan; reload configuration and retry"))
+	}
+	review, err := onboardingClient.ReviewApply(ctx, connect.NewRequest(&applyv1.ReviewApplyRequest{
+		Target: "local", PlanId: plan.Msg.GetPlanId(), PlanDigest: plan.Msg.GetPlanDigest(), ExpectedRevision: plan.Msg.GetRevision(),
+	}))
+	if err != nil {
+		return nil, controlPlaneError("review target configuration apply plan", err)
+	}
+	result, err := onboardingClient.StartApply(ctx, connect.NewRequest(&applyv1.StartApplyRequest{
+		Target: "local", PlanId: review.Msg.GetPlanId(), PlanDigest: review.Msg.GetPlanDigest(), ExpectedRevision: review.Msg.GetRevision(),
+		ConsentReceiptId: review.Msg.GetConsentReceiptId(), IdempotencyKey: "web-console:" + nodeID + ":" + plan.Msg.GetPlanDigest(),
+	}))
 	if err != nil {
 		return nil, controlPlaneError("re-apply target configuration", err)
 	}
-	return connect.NewResponse(&machinesv1.ReapplyConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+	return connect.NewResponse(&machinesv1.ReapplyConfigurationResponse{Result: result.Msg, TargetId: nodeID}), nil
 }
 
-func (h *machineRPC) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machinesv1.GetConfigurationApplyStatusRequest]) (*connect.Response[machinesv1.ReapplyConfigurationResponse], error) {
+func (h *machineRPC) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machinesv1.GetConfigurationApplyStatusRequest]) (*connect.Response[applyv1.GetApplyRunResponse], error) {
 	client, _, err := h.client(ctx)
 	if err != nil {
 		return nil, err
@@ -361,11 +409,16 @@ func (h *machineRPC) GetConfigurationApplyStatus(ctx context.Context, req *conne
 	if runID == "" || strings.ContainsAny(runID, "/\\") {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a valid apply run id is required"))
 	}
-	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/apply status", HTTPMethod: "GET", HTTPPath: "api/v2/apply/" + runID, Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	baseURL, err := client.ScenarioURL(ctx, nodeID, "vrooli-onboarding")
+	if err != nil {
+		return nil, controlPlaneError("resolve target onboarding endpoint", err)
+	}
+	onboardingClient := applyconnect.NewApplyServiceClient(client.ConnectTransport(ctx, baseURL), baseURL)
+	result, err := onboardingClient.GetApplyRun(ctx, connect.NewRequest(&applyv1.GetApplyRunRequest{Target: "local", RunId: runID}))
 	if err != nil {
 		return nil, controlPlaneError("read configuration apply status", err)
 	}
-	return connect.NewResponse(&machinesv1.ReapplyConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+	return connect.NewResponse(result.Msg), nil
 }
 
 func (h *machineRPC) GetOnboarding(ctx context.Context, req *connect.Request[onboardv1.GetOnboardingRequest]) (*connect.Response[onboardv1.GetOnboardingResponse], error) {
@@ -735,6 +788,22 @@ func (h *machineRPC) controlPlaneConsoleURL(ctx context.Context) string {
 // safety outcome the operator must see as such; everything else is reported as
 // the control plane being unable to complete the action.
 func controlPlaneError(action string, err error) error {
+	if classification, ok := scenarioProxyClassification(err); ok {
+		switch classification {
+		case "target_incompatible":
+			return connect.NewError(connect.CodeFailedPrecondition, errors.New("target_onboarding_incompatible: the target onboarding API is missing a required procedure; refresh or redeploy vrooli-onboarding on the target, then refresh this machine"))
+		case "contract_mismatch":
+			return connect.NewError(connect.CodeFailedPrecondition, errors.New("target_onboarding_contract_mismatch: the target onboarding API rejected the current contract; refresh or redeploy vrooli-onboarding on the target"))
+		case "target_unauthorized":
+			return connect.NewError(connect.CodePermissionDenied, errors.New("target_onboarding_unauthorized: the target refused the onboarding API call; refresh the target trust or permission grant"))
+		case "target_timeout":
+			return connect.NewError(connect.CodeDeadlineExceeded, errors.New("target_onboarding_timeout: the target onboarding API did not respond before the deadline; check the target agent and retry"))
+		case "target_service_failure":
+			return connect.NewError(connect.CodeUnavailable, errors.New("target_onboarding_unavailable: the target onboarding service failed; check its health and retry"))
+		case "target_unreachable":
+			return connect.NewError(connect.CodeUnavailable, errors.New("target_onboarding_unreachable: the target could not be reached through Bridge; check the target agent and retry"))
+		}
+	}
 	if nodereach.IsKind(err, nodereach.ErrInvalidRequest) {
 		// The words are the one field the joining machine could not choose for
 		// itself, so a mismatch is the single refusal an operator must be able
@@ -749,4 +818,13 @@ func controlPlaneError(action string, err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewError(connect.CodeUnavailable, fmt.Errorf("could not %s: %w", action, err))
+}
+
+func scenarioProxyClassification(err error) (string, bool) {
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) {
+		return "", false
+	}
+	classification := strings.TrimSpace(connectErr.Meta().Get("X-Vrooli-Error-Code"))
+	return classification, classification != ""
 }

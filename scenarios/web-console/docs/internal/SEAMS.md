@@ -515,6 +515,20 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 **Knobs (package vars/consts for tests)**: `hubRingSize` (replay buffer depth, default 1024), `hubSubscriberBuffer` (per-subscriber channel, default 256), `hubHeartbeatInterval` (SSE keepalive comment cadence, default 15s).
 
+### Session Activity Seam (API, added 2026-09-11)
+**Files**: `api/session/activity.go`, `api/session_activity.go`, `api/hook_stop_handler.go`, `api/hook_notification_handler.go`, `api/opencode_activity.go`, `api/handlers/sessions/activity.go`
+**Purpose**: One owner for "what is the agent doing between messages" — working, idle, waiting on you (with the prompt), or unknown — so the Messages view never infers it from message timing. Design: `docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#session-activity-contract`.
+
+| Component | Surface |
+|-----------|---------|
+| `session.ActivityDetector` | Event-driven, no polling: `OnFrame` (PTY output; debounced screen evaluation), `OnInput` (echo suppression), `OnHook(waiting\|idle\|output)`, `OnHarnessPrompt` / `OnHarnessPromptResolved` / `OnHarnessState` (OpenCode), `Current()`. Publishes on change and on a heartbeat while working; confidence below 0.6 reports `unknown`. Clock injectable. |
+| `Manager.SetActivityFactory` | Attaches a detector to every registered session, including those recovered before the server existed; closes it on `Done`. |
+| `Server.newActivityDetector` | Picks the screen detector by the session's agent type (`agentTypeCache`, 10 s TTL) and publishes `session_activity` hub envelopes (snake_case payload). |
+| Evidence sources | Claude `Stop` hook → idle; Claude `Notification` hook (`permission_prompt`, `elicitation_dialog` → waiting; `idle_prompt` → idle); OpenCode `permission.asked`/`question.asked`/`*.replied`/`session.status`; screen detectors; the output clock. |
+| Read paths | SSE `session_activity` on `GET /api/v1/events/stream`; `Session.activity` on `ListSessions` (live sessions only, never cached for idempotent replay). |
+
+**Invariants**: user input echo is never read as working; a hook or harness event outranks the screen until the screen shows a different state; no timer runs for an idle session.
+
 ### File Preview Resolver + Preview-ID Store Seam (API)
 **File**: `api/internal/filepreview/` (resolver, classification, store), `api/file_preview_handlers.go` (adapter + blob route)
 **Purpose**: Keep path resolution, MIME/kind classification, and the opaque preview-id store transport-neutral and independently unit-testable, and keep the blob route from ever becoming an arbitrary local file server.
@@ -557,11 +571,11 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | Component | Surface |
 |-----------|---------|
 | `backend.KeyMap` | `Encode(name) ([]byte, bool)` — symbolic key → bytes (e.g. `Ctrl+C` → `\x03`). Nil means session default. |
-| `backend.PromptDetector` | `IsAwaitingInput(view ScreenView) bool` — backend-aware "agent is at input prompt" signal. Nil means fall back to idle heuristics. |
+| `backend.PromptDetector` | `Analyze(view ScreenView) PromptAnalysis` — per-harness screen reading: a parsed `PendingPrompt` (question/permission box), `Working` (in-progress marker), or `AwaitingInput` (input glyph on the cursor row), with a confidence. Selected by agent type through `backends.PromptDetectorFor(agent)`, not by the terminal backend; nil (OpenCode, unknown agents) means the harness reports its own state or the output clock decides. See the Session Activity Seam. |
 | `backend.IdleHeuristic` | `QuietWindowExceeded(sinceLastMillis int64) bool` — backend-aware quiet-window decision. Nil means session default. |
 | `backend.ScreenView` | Narrow read surface for detectors: `Cols/Rows/CursorRow/CursorCol/PlainText`. Session adapts its richer screen type to this interface. |
-| `backends/claude/` | `FilterEnv`, `DefaultPromptDetector` — claude-specific env stripping + ❯-glyph-on-cursor-row detector. |
-| `backends/codex/` | `SharedHome`, `SessionHome`, `SessionsDir`, `PrepareSessionHome`, `ExtractAssistantText`, `ExtractUserText`, `RolloutLine`, `DefaultPromptDetector` — codex-specific home layout + rollout parsing + heuristic detector. |
+| `backends/claude/` | `FilterEnv`, `DefaultPromptDetector` — claude-specific env stripping + prompt-box parser (hint-anchored, or cursor-anchored for the hint-less AskUserQuestion box) + "esc to interrupt" working marker + ❯-glyph idle. Contract: live 2.1.268 screens in `testdata/prompts`. |
+| `backends/codex/` | `SharedHome`, `SessionHome`, `SessionsDir`, `PrepareSessionHome`, `ExtractAssistantText`, `ExtractUserText`, `RolloutLine`, `DefaultPromptDetector` — codex-specific home layout + rollout parsing + `›`-glyph / working-marker detector (approvals detected, not parsed). Contract: live 0.153.4 screens in `testdata/prompts`. |
 
 **Invariants**: Nil-safe (verified by `internal/backend/plug_test.go`); no import cycle (interfaces live in `internal/backend`, not in `session/`); descriptor JSON unchanged so the UI's backend picker keeps working byte-for-byte.
 
@@ -1652,3 +1666,25 @@ write-only and are never placed in response JSON, browser storage, URLs, or
 component state. The focused contract tests live in
 `ui/src/__tests__/integrations-panel.test.tsx` and
 `ui/src/api/__tests__/commercial-context.test.ts`.
+
+## Cross-scenario interoperability boundary
+
+The browser talks only to Web Console's own API. Inter-scenario calls are
+server-to-server Connect-RPC addressed through `api-core/discovery`; the
+audio-tools client owns bounded retry and re-resolution after unavailable or
+deadline errors. The same-origin voice WebSocket remains an intentional
+transport exception until native partial-stream RPC support exists upstream.
+Web Console must not add a CORS escape hatch or call audio provider resources
+directly.
+
+## Storage ownership and persistence boundaries
+
+Domain-owned schemas under `api/internal/` are initialized idempotently through
+the database substrate. Repository interfaces hide SQLite from handlers;
+SQLite is the production backend and in-memory implementations are test seams.
+Persistent operator configuration, workspace layout, snippets, transcript
+cursors, and conversation search belong to Web Console, while PTY processes,
+runtime event buffers, counters, and replay caches remain process-scoped. The
+scenario reports filesystem/database drift for storage-manager or operator
+approval and does not implement host cleanup. Recovery copies only
+session-owned rollout files, not regenerable runtime state.

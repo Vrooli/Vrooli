@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -13,7 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"web-console/backends/opencode"
+	"web-console/internal/config"
 	"web-console/internal/sessionstore"
 )
 
@@ -60,6 +63,9 @@ type OpenCodeWatcher struct {
 	mu      sync.Mutex
 	client  opencode.Client
 	claimed map[string]string // opencode session id -> web-console session id
+	// pendingPermission is the permission request each pane is waiting on:
+	// web-console session id -> OpenCode request id.
+	pendingPermission map[string]string
 }
 
 func NewOpenCodeWatcher(server *Server) *OpenCodeWatcher {
@@ -129,7 +135,10 @@ func (w *OpenCodeWatcher) run() {
 		// One reconcile on (re)connect catches anything the stream missed while
 		// we were not subscribed.
 		signal(trigger)
-		err := client.Events(ctx, func(opencode.Event) { signal(trigger) })
+		err := client.Events(ctx, func(ev opencode.Event) {
+			w.applyActivity(ev)
+			signal(trigger)
+		})
 		if ctx.Err() != nil {
 			return
 		}
@@ -303,12 +312,21 @@ func (w *OpenCodeWatcher) claim(paneID string, s opencode.Session) {
 	w.mu.Unlock()
 
 	if w.server.sessionStore != nil {
-		_ = w.server.sessionStore.UpdateAgentInfo(context.Background(), paneID, sessionstore.AgentInfo{
+		if err := w.server.sessionStore.UpdateAgentInfo(context.Background(), paneID, sessionstore.AgentInfo{
 			AgentType:      sessionstore.AgentOpenCode,
 			AgentSessionID: s.ID,
 			CWD:            s.Directory,
 			LastActivityAt: time.Now(),
-		})
+		}); err != nil {
+			// Do not permanently consume the native session when its catalog
+			// projection could not be persisted. A later reconciliation can
+			// safely retry the attribution.
+			w.mu.Lock()
+			delete(w.claimed, s.ID)
+			w.mu.Unlock()
+			log.Printf("opencode-watcher: persist attribution %s -> %s: %v", s.ID, paneID, err)
+			return
+		}
 	}
 	log.Printf("opencode-watcher: attributed session %s -> pane %s", s.ID, paneID)
 }
@@ -321,16 +339,30 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 	}
 	cur := w.loadCursor(ocID)
 	emissions, next := opencode.Normalize(messages, cur)
+	allAppended := true
 	for _, e := range emissions {
+		var result ConversationAppendResult
 		switch e.Role {
 		case "user":
-			logOpencodeAppend("user", wcID, w.server.AppendUser(e.Text, wcID, opencodeSource))
+			result = w.server.AppendUser(e.Text, wcID, opencodeSource)
+			logOpencodeAppend("user", wcID, result)
 		case "assistant":
-			logOpencodeAppend("assistant", wcID, w.server.AppendAssistant(e.Text, wcID, opencodeSource))
+			result = w.server.AppendAssistant(e.Text, wcID, opencodeSource)
+			logOpencodeAppend("assistant", wcID, result)
+		default:
+			continue
+		}
+		if !result.Appended {
+			allAppended = false
 		}
 	}
-	if next != cur {
+	if allAppended && next != cur {
 		w.saveCursor(ocID, wcID, next)
+	} else if !allAppended {
+		// Keep the native cursor behind any dropped projection so the next
+		// reconciliation retries the event instead of making an intact native
+		// message permanently invisible to Web Console.
+		log.Printf("opencode-watcher: cursor not advanced for %s because a message projection failed", ocID)
 	}
 }
 
@@ -392,7 +424,16 @@ func spawnOpenCodeServe() (string, func(), error) {
 	if err != nil {
 		return "", nil, err
 	}
+	launchContext, err := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{
+		WorkingDir:  config.ResolveWorkingDir(),
+		Environment: os.Environ(),
+	})
+	if err != nil {
+		return "", nil, fmt.Errorf("resolve opencode context: %w", err)
+	}
 	cmd := exec.Command(path, "serve", "--hostname", "127.0.0.1", "--port", "0")
+	cmd.Dir = launchContext.WorkingDir
+	cmd.Env = cliutil.PrepareLaunchEnvironment(os.Environ(), launchContext)
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return "", nil, err

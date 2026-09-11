@@ -232,6 +232,100 @@
       ]
     },
     {
+      "name": "continuity",
+      "description": "Audit and reconcile durable conversation continuity",
+      "commands": [
+        {
+          "name": "integrity",
+          "description": "Read-only continuity integrity audit",
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "Integrity"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "reconcile",
+          "description": "Plan or apply catalog reconciliation",
+          "flags": [
+            {"name": "apply", "bool": true, "description": "Apply the dry-run plan"},
+            {"name": "generation", "description": "Expected integrity generation"},
+            {"name": "operation-id", "description": "Stable idempotency key (required with --apply)"},
+            {"name": "manifest-hash", "description": "Expected dry-run manifest hash"},
+            {"name": "offset", "description": "Bounded batch offset"},
+            {"name": "batch-size", "description": "Bounded batch size"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "Reconcile"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"], "requires_confirmation": true}
+        },
+        {
+          "name": "catalog",
+          "description": "List canonical conversation records and source aliases",
+          "flags": [{"name": "state", "description": "Filter by lifecycle state", "bind": {"field": "lifecycle_state"}}],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "ListCatalog"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "search",
+          "description": "Search local conversations across all lifecycle states",
+          "flags": [
+            {"name": "query", "description": "Optional exact text query; combine with metadata filters"},
+            {"name": "after", "description": "RFC3339 lower time bound", "bind": {"field": "created_after"}},
+            {"name": "state", "description": "Lifecycle state: any|live|archived|recoverable|exited", "bind": {"field": "lifecycle_state"}},
+            {"name": "agent", "description": "Agent type filter", "bind": {"field": "agent_type"}},
+            {"name": "cwd", "description": "Exact working-directory filter"},
+            {"name": "session-id", "description": "Web Console pane/session identity"},
+            {"name": "agent-session-id", "description": "Native agent thread identity"},
+            {"name": "title", "description": "Partial original or current title filter"},
+            {"name": "topic", "description": "Partial topic-summary filter", "bind": {"field": "topic_summary"}}
+            ,{"name": "limit", "description": "Maximum number of matches to return"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "Search"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "inspect",
+          "description": "Inspect a conversation by stable session, pane, or agent-thread identity",
+          "flags": [
+            {"name": "session-id", "description": "Stable Web Console session or pane identity"},
+            {"name": "thread-id", "description": "Native agent conversation/thread identity"},
+            {"name": "agent-session-id", "description": "Native agent thread identity"},
+            {"name": "after", "description": "RFC3339 lower time bound", "bind": {"field": "created_after"}},
+            {"name": "state", "description": "Lifecycle state filter", "bind": {"field": "lifecycle_state"}},
+            {"name": "agent", "description": "Agent type filter", "bind": {"field": "agent_type"}},
+            {"name": "cwd", "description": "Exact working-directory filter"},
+            {"name": "title", "description": "Partial title filter"},
+            {"name": "topic", "description": "Partial topic-summary filter"}
+          ],
+          "binding": {"kind": "local", "handler": "inspect"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "operational"},
+          "semantics": {"kind": "query"}
+        },
+        {
+          "name": "receipt",
+          "description": "Inspect a durable lifecycle receipt",
+          "flags": [{"name": "operation-id", "description": "Receipt operation ID (required)"}],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "GetReceipt"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "rollback",
+          "description": "Restore the catalog projection preimage for a reconciliation manifest",
+          "flags": [
+            {"name": "manifest-hash", "description": "Manifest hash to restore (required)"},
+            {"name": "operation-id", "description": "Stable rollback receipt ID (required)"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "Rollback"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:write"], "requires_confirmation": true}
+        },
+        {
+          "name": "publish",
+          "description": "Publish queued continuity records to Agent Manager",
+          "flags": [{"name": "limit", "description": "Maximum records to attempt"}],
+          "binding": {"kind": "connect-rpc", "service": "ContinuityService", "method": "Publish"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "events",
       "description": "Show recent lifecycle events from the in-memory ring buffer",
       "commands": [
@@ -900,6 +994,30 @@
           }
         },
         {
+          "name": "archive",
+          "description": "Archive a session while preserving its transcript",
+          "positionals": [{"name": "session-id", "required": true, "description": "Session ID"}],
+          "flags": [{"name": "operation-id", "description": "Stable retry key"}],
+          "binding": {"kind": "connect-rpc", "service": "SessionsService", "method": "Archive"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "unarchive",
+          "description": "Remove a session's archive marker",
+          "positionals": [{"name": "session-id", "required": true, "description": "Session ID"}],
+          "flags": [{"name": "operation-id", "description": "Stable retry key"}],
+          "binding": {"kind": "connect-rpc", "service": "SessionsService", "method": "Unarchive"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "reopen",
+          "description": "Reopen an archived session into a new pane",
+          "positionals": [{"name": "session-id", "required": true, "description": "Session ID"}],
+          "flags": [{"name": "operation-id", "description": "Stable retry key"}],
+          "binding": {"kind": "connect-rpc", "service": "SessionsService", "method": "Reopen"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
           "name": "delete",
           "description": "Terminate a session",
           "positionals": [
@@ -908,6 +1026,10 @@
               "required": true,
               "description": "Session ID"
             }
+          ],
+          "flags": [
+            {"name": "operation-id", "description": "Stable retry key"},
+            {"name": "confirm", "description": "Required confirmation: DELETE:<session-id>"}
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -919,7 +1041,8 @@
             "run_eligible": false,
             "permissions": [
               "network:internal"
-            ]
+            ],
+            "requires_confirmation": true
           }
         },
         {
@@ -1680,6 +1803,11 @@
     }
   ],
   "omitted": [
+    {
+      "service": "TerminalService",
+      "method": "AnswerPrompt",
+      "reason": "Prompts are answered from the Messages view, which shows the prompt being answered and sends its hash; a CLI answer would type into an agent without that check. Scripts use terminal send-text and send-keys."
+    },
     {
       "service": "MachineService",
       "method": "PreflightOnboarding",

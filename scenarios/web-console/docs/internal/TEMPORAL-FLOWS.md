@@ -2,6 +2,40 @@
 
 > Source of truth: the code. Verify claims below against actual implementation.
 
+## Conversation continuity lifecycle
+
+The continuity domain has an explicit finite state model:
+
+```mermaid
+stateDiagram-v2
+    [*] --> provisioning
+    provisioning --> live: process_started
+    provisioning --> recoverable: process_start_failed_with_history
+    live --> archive_pending: archive_requested
+    live --> exited: process_exited
+    archive_pending --> live: archive_undone
+    archive_pending --> archived: grace_elapsed_and_process_stopped
+    exited --> recoverable: resumable_source_found
+    exited --> archived: archive_requested
+    recoverable --> live: recovery_succeeded
+    recoverable --> archived: dismiss_to_archive
+    archived --> live: reopen_succeeded
+    archived --> delete_pending: permanent_delete_confirmed
+    delete_pending --> deleted: artifacts_pruned_and_receipt_committed
+    delete_pending --> archived: deletion_failed_preserved
+```
+
+The runtime may report `process_exited`, but it cannot choose deletion policy.
+The continuity service then records `resumable_source_found` when durable
+provider evidence is available, moving the record from `exited` to
+`recoverable`; a process-exit observer may report that fact but cannot delete
+or archive the evidence.
+Archive persists its visibility decision before stopping a managed process.
+Retries use the durable lifecycle receipt and must converge on the same result;
+failure at an external cleanup boundary returns to a preserved state. This
+model is executable in `api/internal/continuity` and is covered by its matrix
+and illegal-transition tests.
+
 ## Flow Index
 
 | Flow ID | Domain | Risk | Model Status | Source of Truth | Tests | Remaining Gaps |
@@ -42,7 +76,7 @@
 |------|------|---------|------------|---------|------------|
 | **PTY readLoop** | `session.go:146` | `SessionManager.Create()` | PTY file descriptor | Broadcasts to client channels, sets `processExited`, closes `exitCh` | PTY read error (process exit) |
 | **Session auto-cleanup** | `session.go:261` | `SessionManager.Create()` | `<-sess.Done()` (exitCh closed) | Removes session from manager map | Immediate after Done signal |
-| **ExpirationSweeper** | `session_policy.go:157` | `Server` startup via `NewServer` | 30s ticker, session list | Deletes expired sessions, emits events, updates metrics | `Stop()` called in server Cleanup |
+| **ExpirationSweeper** | `session/session_policy.go` | `Server` startup via `NewServer` | 30s ticker, session list, continuity archive handler | Requests the domain-owned archive transition for expired sessions, emits events, updates metrics; standalone package fixtures use the manager fallback | `Stop()` called in server Cleanup |
 | **WebSocket output forwarder** | `terminal_ws.go:101` | WS upgrade in `handleTerminalWS` | PTY output channel + `ctx.Done()` | Writes stdout/exit to WS conn, calls `FlushPending` after each write | Channel closed (process exit), WS write error, or `ctx.Done()` (input loop exited) |
 | **WebSocket input loop** | `terminal_ws.go` | WS upgrade (inline, same goroutine) | WS read | Writes to PTY stdin, triggers resize | WS read error → `defer cancel()` signals forwarder |
 | **AI provider chain** | `ai_generate.go:253` | `POST /api/v1/ai/generate` | HTTP request context | Per-provider timeout context, health metrics | All providers tried or first success |

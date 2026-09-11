@@ -1,10 +1,12 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { createRef, type RefObject } from "react";
 import MobileToolbar, { type MobileToolbarHandle } from "../components/MobileToolbar";
 import { i18n } from "../i18n";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useConversationStore } from "../stores/useConversationStore";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import type { PendingInputSnapshot } from "../components/MobileToolbar";
 import { toolbarPrefsFromPreset, type ToolbarPrefs } from "../lib/toolbarLayout";
@@ -75,6 +77,94 @@ function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> =
 
   return { ...utils, onInput, fireSettled, setSnapshot };
 }
+
+describe("MobileToolbar — sends stay visible in Messages", () => {
+  beforeEach(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* no-op */
+    }
+    useConversationStore.setState({ echoes: {} });
+    useSessionActivityStore.setState({ activities: {} });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function typeDraft(text: string) {
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: text } });
+  }
+
+  it("[REQ:P0-017f] a settled send leaves an echo for Messages", () => {
+    const { fireSettled } = renderToolbar();
+    typeDraft("run the tests");
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(useConversationStore.getState().echoes["sess-1"] ?? []).toHaveLength(0);
+
+    act(() => fireSettled(1, true));
+
+    expect((useConversationStore.getState().echoes["sess-1"] ?? []).map((echo) => echo.text)).toEqual(["run the tests"]);
+  });
+
+  it("[REQ:P0-017f] a settled send is kept in this device's history", () => {
+    const { fireSettled } = renderToolbar();
+    typeDraft("run the tests");
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    act(() => fireSettled(1, true));
+    const stored = JSON.parse(localStorage.getItem("wc-command-history") ?? "[]") as { text: string }[];
+    expect(stored.map((entry) => entry.text)).toEqual(["run the tests"]);
+  });
+
+  it("[REQ:P0-017f] the History control opens the sent-message history", () => {
+    setToolbarPrefs({ enabled: { history: true } });
+    renderToolbar({ viewMode: "messages" });
+    fireEvent.click(screen.getByTestId("toolbar-history"));
+    expect(screen.getByTestId("sent-history-sheet")).toBeInTheDocument();
+  });
+
+  it("[REQ:P0-017f] a failed send leaves no echo", () => {
+    const { fireSettled } = renderToolbar();
+    typeDraft("run the tests");
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    act(() => fireSettled(1, false));
+    expect(useConversationStore.getState().echoes["sess-1"] ?? []).toHaveLength(0);
+  });
+
+  it("[REQ:P0-017f] long-press on Send offers Send and press Enter", () => {
+    vi.useFakeTimers();
+    const { onInput } = renderToolbar();
+    typeDraft("run the tests");
+    const send = screen.getByTestId("mobile-command-submit");
+
+    fireEvent.pointerDown(send, { pointerId: 1, pointerType: "touch", clientX: 10, clientY: 10, button: 0 });
+    act(() => { vi.advanceTimersByTime(600); });
+    fireEvent.pointerUp(send, { pointerId: 1, pointerType: "touch", clientX: 10, clientY: 10 });
+    expect(onInput).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("mobile-send-and-enter"));
+    expect(onInput).toHaveBeenNthCalledWith(1, "run the tests", "bulk_text");
+    expect(onInput).toHaveBeenNthCalledWith(2, "\r", "typing");
+  });
+
+  it("[REQ:P0-017f] a tap on Send still types the draft only", () => {
+    const { onInput } = renderToolbar();
+    typeDraft("run the tests");
+    fireEvent.click(screen.getByTestId("mobile-command-submit"));
+    expect(onInput).toHaveBeenCalledTimes(1);
+    expect(onInput).toHaveBeenCalledWith("run the tests", "bulk_text");
+  });
+
+  it("[REQ:P0-017f] Send stays enabled while the session waits, and the chip says so", () => {
+    useSessionActivityStore.setState({
+      activities: { "sess-1": { state: "waiting", source: "hook", confidence: 0.9, since: "2026-09-11T08:00:00Z", harness: "claude" } },
+    });
+    renderToolbar({ viewMode: "messages" });
+    expect(screen.getByTestId("mobile-command-submit")).not.toBeDisabled();
+    expect(screen.getByTestId("composer-state-chip")).toHaveAttribute("data-state", "waiting");
+  });
+});
 
 describe("MobileToolbar — send/ack flow", () => {
   beforeEach(() => {
@@ -542,10 +632,10 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(screen.getByRole("button", { name: "Arrow up" })).toHaveAttribute("data-rcl-control", "true");
   });
 
-  it("renders message-mode actions and invokes the view switch after a send", () => {
+  it("[REQ:P0-017f] renders message-mode actions; a send leaves an echo instead of leaving Messages", () => {
+    useConversationStore.setState({ echoes: {} });
     const onInput = vi.fn(() => ({ status: "sent" as const, offset: 2 }));
-    const onSwitchToTerminal = vi.fn();
-    const { fireSettled } = renderToolbar({ onInput, viewMode: "messages", onSwitchToTerminal, onOpenAi: vi.fn(), onUploadImage: vi.fn() });
+    const { fireSettled } = renderToolbar({ onInput, viewMode: "messages", onOpenAi: vi.fn(), onUploadImage: vi.fn() });
     expect(screen.getByTestId("messages-toolbar-actions")).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByTestId("messages-toolbar-actions"));
     fireEvent.pointerDown(screen.getByTestId("toolbar-ai"));
@@ -553,7 +643,7 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "hello" } });
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
     act(() => fireSettled(2, true));
-    expect(onSwitchToTerminal).toHaveBeenCalled();
+    expect((useConversationStore.getState().echoes["sess-1"] ?? []).map((echo) => echo.text)).toEqual(["hello"]);
   });
 
   it("keeps the key area inside the row budget instead of wrapping", () => {
@@ -611,6 +701,18 @@ describe("MobileToolbar — modifiers and optional actions", () => {
 
       unmount();
     }
+  });
+
+  it("applies the selected density to live button dimensions", () => {
+    setToolbarPrefs({ density: "compact", arrows: "inline", enabled: { ai: true } });
+    renderToolbar();
+
+    expect(screen.getByTestId("combo-picker-trigger")).toHaveStyle({ width: "32px", height: "32px", minWidth: "32px", minHeight: "32px" });
+
+    cleanup();
+    setToolbarPrefs({ density: "large", arrows: "inline", enabled: { ai: true } });
+    renderToolbar();
+    expect(screen.getAllByTestId("combo-picker-trigger").at(-1)).toHaveStyle({ width: "44px", height: "44px", minWidth: "44px", minHeight: "44px" });
   });
 
   it("keeps pointer gestures from stealing focus across every preset", () => {

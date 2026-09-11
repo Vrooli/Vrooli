@@ -5,7 +5,6 @@ import {
   getSessionRefetchSinceSequence,
   getSessionUnlistenedEvents,
   getSessionUnreadCount,
-  getSessionViewMode,
   useConversationStore,
   createConversationSessionState,
 } from "./useConversationStore";
@@ -15,7 +14,7 @@ const event = (id: string, sequence: number, role: "assistant" | "user" = "assis
   createdAt: "now", sequence, deliveryState: "received", ttsState: "idle", consumptionState: "unseen",
 });
 
-beforeEach(() => useConversationStore.setState({ sessions: {}, viewModes: {} }));
+beforeEach(() => useConversationStore.setState({ sessions: {} }));
 
 describe("conversation store state transitions", () => {
   it("hydrates, prepends, merges, updates, cursors and clears", () => {
@@ -26,24 +25,24 @@ describe("conversation store state transitions", () => {
     store.updateEvent("s", "e3", { summarized: true, speechParagraphs: ["short"], originalSpeechParagraphs: ["long"] });
     store.updateEvent("s", "missing", { summarized: true });
     store.updateCursor("s", { lastSeenSequence: 2, lastListenedSequence: 1 });
-    store.setViewMode("s", "messages");
     const current = useConversationStore.getState();
     expect(current.sessions.s?.events.map((e) => e.id)).toEqual(["e1", "e2", "e3"]);
     expect(current.sessions.s?.events[2]).toMatchObject({ summarized: true, speechParagraphs: ["short"] });
     expect(getSessionUnreadCount(current, "s")).toBe(1);
     expect(getSessionUnlistenedEvents(current, "s")).toHaveLength(2);
-    expect(getSessionViewMode(current, "s")).toBe("messages");
     expect(getSessionConversationCursor(current, "missing")).toEqual({ lastSeenSequence: 0, lastListenedSequence: 0 });
     expect(getSessionRefetchSinceSequence(current, "s")).toBe(3);
     store.clearSession("s");
-    expect(getSessionViewMode(useConversationStore.getState(), "s")).toBe("terminal");
+    expect(useConversationStore.getState().sessions.s).toBeUndefined();
   });
 
   it("marks gaps and chooses prefix refetch", () => {
     const store = useConversationStore.getState();
     store.setSessionWindow("s", [event("e2", 2), event("e4", 4)], { lastSeenSequence: 0, lastListenedSequence: 0 }, { oldestSequence: 2, hasOlder: true, totalCount: 4 });
+    // The window starts where the server said it does (2), so only the gap
+    // after e2 is missing: refetch from just before it, not the whole history.
     const state = useConversationStore.getState();
-    expect(getSessionRefetchSinceSequence(state, "s")).toBe(0);
+    expect(getSessionRefetchSinceSequence(state, "s")).toBe(2);
     store.mergeEvents("s", [], undefined);
     expect(getSessionConversationEventsFallback(useConversationStore.getState(), "s")).toHaveLength(2);
   });
@@ -66,7 +65,6 @@ describe("conversation store state transitions", () => {
 
     useConversationStore.setState({
       sessions: { empty: createConversationSessionState({ events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: false }) },
-      viewModes: {},
     });
     useConversationStore.getState().mergeEvents("empty", [], undefined);
     expect(useConversationStore.getState().sessions.empty?.hydrated).toBe(true);
@@ -84,14 +82,12 @@ describe("conversation store state transitions", () => {
       sessions: {
         legacy: createConversationSessionState({ events: [event("e2", 2), event("e4", 4)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
-      viewModes: {},
     });
     expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "legacy")).toBe(0);
     useConversationStore.setState({
       sessions: {
         legacy: createConversationSessionState({ events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
-      viewModes: {},
     });
     expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "legacy")).toBe(2);
   });
@@ -108,7 +104,6 @@ describe("conversation store state transitions", () => {
         gap: createConversationSessionState({ events: [event("e1", 1), event("e3", 3)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
         contiguous: createConversationSessionState({ events: [event("e1", 1), event("e2", 2)], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true }),
       },
-      viewModes: {},
     });
     expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "prefix")).toBe(0);
     expect(getSessionRefetchSinceSequence(useConversationStore.getState(), "gap")).toBe(1);

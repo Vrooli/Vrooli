@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,36 @@ import (
 	"github.com/vrooli/api-core/targetmodel"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
+
+func TestBridgeNodeClientUsesInjectedDiscoveryResolver(t *testing.T) {
+	client := newBridgeNodeClient(targetConnection{}, func(context.Context) (string, error) {
+		return "http://discovered-bridge.test:19001", nil
+	}, "owner", nil)
+
+	got, err := client.ResolveURL(context.Background())
+	if err != nil {
+		t.Fatalf("ResolveURL() error = %v", err)
+	}
+	if got != "http://discovered-bridge.test:19001" {
+		t.Fatalf("ResolveURL() = %q, want the discovered Bridge endpoint", got)
+	}
+}
+
+func TestConfiguredRemoteTargetMarksOnlyExplicitBridgeURLAsPinned(t *testing.T) {
+	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())
+	t.Setenv("VROOLI_BRIDGE_NODE_ID", "node-1")
+	t.Setenv("VROOLI_BRIDGE_API_TOKEN", "bridge-token")
+	t.Setenv("VROOLI_BRIDGE_REAUTH_TOKEN", "reauth-token")
+	t.Setenv("WC_BRIDGE_URL", "")
+	if target := configuredRemoteTarget(); target.BaseURLExplicit {
+		t.Fatal("discovered Bridge URL was incorrectly marked as an explicit override")
+	}
+
+	t.Setenv("WC_BRIDGE_URL", "https://bridge.example.test")
+	if target := configuredRemoteTarget(); !target.BaseURLExplicit {
+		t.Fatal("explicit WC_BRIDGE_URL was not marked as pinned")
+	}
+}
 
 func TestConfiguredRemoteTargetFailsClosedWithoutAllCredentials(t *testing.T) {
 	t.Setenv("VROOLI_OPERATOR_SESSION_DIR", t.TempDir())

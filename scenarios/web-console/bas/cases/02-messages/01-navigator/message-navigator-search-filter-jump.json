@@ -3,22 +3,22 @@
   "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
   "name": "message-navigator-search-filter-jump",
   "folder_path": "/bas/cases/02-messages/01-navigator",
-  "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+  "description": "Open the Messages view, search the navigator, scroll the results to the end, unfold Filters, filter to user messages, and jump to a seeded message",
   "metadata": {
     "name": "message-navigator-search-filter-jump",
-    "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+    "description": "Open the Messages view, search the navigator, scroll the results to the end, unfold Filters, filter to user messages, and jump to a seeded message",
     "execution_mode": "mutating",
     "reset": "none",
     "labels": {
       "reset": "none",
       "requires_confirmation": "true",
       "routed_isolation": "true",
-      "requirements_json": "[\"REQ-P0-001a\"]"
+      "requirements_json": "[\"REQ-P0-001a\", \"REQ-P0-017g\"]"
     }
   },
   "tags": [
     "reset:none",
-    "requirements_json:[\"REQ-P0-001a\"]"
+    "requirements_json:[\"REQ-P0-001a\", \"REQ-P0-017g\"]"
   ],
   "version": 1,
   "created_at": "2026-07-12T19:31:13.441529116Z",
@@ -172,6 +172,70 @@
         }
       },
       {
+        "id": "scroll-results-to-end",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); const scroller = document.querySelector('[data-testid=\"msg-jump-scroll\"]'); if (!(scroller instanceof HTMLElement)) { document.body.setAttribute('data-nav-last-visible', 'no-scroller'); return; } scroller.scrollTop = scroller.scrollHeight; scroller.dispatchEvent(new Event('scroll')); await sleep(400); const rows = Array.from(scroller.querySelectorAll('[data-jump-item]')); const last = rows[rows.length - 1]; const box = scroller.getBoundingClientRect(); const rect = last ? last.getBoundingClientRect() : null; const visible = !!rect && rect.bottom <= box.bottom + 1 && rect.top >= box.top - 1; document.body.setAttribute('data-nav-last-visible', visible ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Scroll the result list to its end"
+          }
+        }
+      },
+      {
+        "id": "assert-last-result-visible",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-nav-last-visible='true']",
+            "failure_message": "Expected the last navigator result to be rendered and visible after scrolling to the end",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify the last result is visible"
+          }
+        }
+      },
+      {
+        "id": "open-filters",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/messages.filtersToggle"
+          },
+          "metadata": {
+            "label": "Open the folded Filters"
+          }
+        }
+      },
+      {
+        "id": "assert-filters-open",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid=\"msg-nav-advanced\"]",
+            "failure_message": "Expected the Filters section to unfold",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify Filters unfolded"
+          }
+        }
+      },
+      {
+        "id": "pick-status-all",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"msg-nav-status-all\"]"
+          },
+          "metadata": {
+            "label": "Pick a status inside Filters"
+          }
+        }
+      },
+      {
         "id": "filter-user",
         "action": {
           "type": "ACTION_TYPE_CLICK",
@@ -210,16 +274,28 @@
         }
       },
       {
+        "id": "check-navigator-closed",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { await new Promise((r) => setTimeout(r, 500)); document.body.setAttribute('data-nav-closed', document.querySelector('[data-testid=\"msg-jump-list\"]') ? 'false' : 'true'); })()"
+          },
+          "metadata": {
+            "label": "Record whether the navigator closed after the selection"
+          }
+        }
+      },
+      {
         "id": "assert-navigator-closed",
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "@selector/messages.navPanel",
+            "selector": "body[data-nav-closed='true']",
             "failure_message": "Expected the navigator to close after selecting a result",
             "timeout_ms": 5000
           },
           "metadata": {
-            "label": "Verify navigator closed after jump"
+            "label": "Verify the navigator closed"
           }
         }
       },
@@ -302,29 +378,65 @@
       {
         "id": "e11",
         "source": "assert-search-results",
-        "target": "filter-user",
+        "target": "scroll-results-to-end",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e12",
+        "source": "scroll-results-to-end",
+        "target": "assert-last-result-visible",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "assert-last-result-visible",
+        "target": "open-filters",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "open-filters",
+        "target": "assert-filters-open",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-filters-open",
+        "target": "pick-status-all",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "pick-status-all",
+        "target": "filter-user",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e17",
         "source": "filter-user",
         "target": "assert-user-result",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e13",
+        "id": "e18",
         "source": "assert-user-result",
         "target": "select-user-result",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e14",
+        "id": "e19",
         "source": "select-user-result",
+        "target": "check-navigator-closed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e20",
+        "source": "check-navigator-closed",
         "target": "assert-navigator-closed",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e15",
+        "id": "e21",
         "source": "assert-navigator-closed",
         "target": "assert-jumped",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"

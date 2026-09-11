@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 const defaultLifecycleActionTimeout = 180 * time.Second
@@ -75,6 +78,9 @@ type ExecCommandRunner struct{}
 
 func (ExecCommandRunner) Run(ctx context.Context, name string, args ...string) (CommandResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if err := prepareWorkspaceCommand(cmd); err != nil {
+		return CommandResult{ExitCode: -1}, err
+	}
 	stdout, err := cmd.Output()
 	result := CommandResult{Stdout: stdout}
 	if cmd.ProcessState != nil {
@@ -91,6 +97,20 @@ func (ExecCommandRunner) Run(ctx context.Context, name string, args ...string) (
 	}
 	result.ExitCode = -1
 	return result, err
+}
+
+// prepareWorkspaceCommand gives capability lifecycle commands the same
+// validated workspace and installed-tool PATH as interactive agent sessions.
+// These commands are local control-plane operations; remote target commands
+// remain owned by their remote transport and do not pass through this helper.
+func prepareWorkspaceCommand(cmd *exec.Cmd) error {
+	context, err := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{Environment: os.Environ()})
+	if err != nil {
+		return fmt.Errorf("resolve capability command context: %w", err)
+	}
+	cmd.Dir = context.WorkingDir
+	cmd.Env = cliutil.PrepareLaunchEnvironment(os.Environ(), context)
+	return nil
 }
 
 type LifecycleActionService struct {

@@ -349,8 +349,8 @@ func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, sour
 // UpdateSpeechParagraphs replaces the SpeechParagraphs field for a stored event
 // with a summarized version. The original paragraphs are preserved so the
 // frontend can toggle between summarized and original playback.
-func (s *ConversationStore) UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) {
-	_ = s.repository.UpdateSpeechParagraphs(ctx, sessionID, eventID, paragraphs)
+func (s *ConversationStore) UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error {
+	return s.repository.UpdateSpeechParagraphs(ctx, sessionID, eventID, paragraphs)
 }
 
 // GetEvent returns a copy of a single event by ID. The bool is false when the
@@ -398,11 +398,11 @@ func (s *ConversationStore) SessionStorageBytes(ctx context.Context, sessionID s
 	return size
 }
 
-func (s *ConversationStore) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
-	return s.repository.SearchSession(ctx, sessionID, query, limit)
+func (s *ConversationStore) SearchSession(ctx context.Context, sessionID string, query ConversationSearchQuery) (ConversationSearchResult, error) {
+	return s.repository.SearchSession(ctx, sessionID, query)
 }
 
-func (s *ConversationStore) SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) ([]ArchivedConversationSearchMatch, bool, int64, int64, error) {
+func (s *ConversationStore) SearchArchived(ctx context.Context, filter ArchivedConversationSearchFilter) (ArchivedConversationSearchResult, error) {
 	return s.repository.SearchArchived(ctx, filter)
 }
 
@@ -429,12 +429,12 @@ func (s *ConversationStore) UpdateCursor(ctx context.Context, sessionID string, 
 	return cursor
 }
 
-func (s *ConversationStore) RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) {
-	_ = s.repository.RecordPlaybackStage(ctx, sessionID, eventID, stage)
+func (s *ConversationStore) RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) error {
+	return s.repository.RecordPlaybackStage(ctx, sessionID, eventID, stage)
 }
 
-func (s *ConversationStore) DeleteSession(ctx context.Context, sessionID string) {
-	_ = s.repository.DeleteSession(ctx, sessionID)
+func (s *ConversationStore) DeleteSession(ctx context.Context, sessionID string) error {
+	return s.repository.DeleteSession(ctx, sessionID)
 }
 
 // CopySession duplicates the conversation history from oldID onto newID so a

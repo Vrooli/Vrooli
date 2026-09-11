@@ -6,6 +6,7 @@ import {
 } from "../hooks/useGlobalEventStream";
 import { useConversationStore, getSessionUnreadCount, getSessionConversationEvents } from "../stores/useConversationStore";
 import { useLiveStreamStore } from "../stores/useLiveStreamStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 
 const { mockRefresh } = vi.hoisted(() => ({ mockRefresh: vi.fn().mockResolvedValue(true) }));
 vi.mock("../hooks/useConversationSession", () => ({
@@ -47,7 +48,7 @@ function conversationEnvelope(id: number, sessionId: string, sequence: number, r
 }
 
 beforeEach(() => {
-  useConversationStore.setState({ sessions: {}, viewModes: {} });
+  useConversationStore.setState({ sessions: {} });
   mockRefresh.mockClear();
   vi.restoreAllMocks();
 });
@@ -150,6 +151,25 @@ describe("dispatchGlobalEvent session_status (Layer 1)", () => {
       { onSessionEnded },
     );
     expect(onSessionEnded).toHaveBeenCalledWith("ext-3", "deleted");
+  });
+
+  it("[REQ:P0-017b] a deleted session is forgotten by the conversation and messages-view stores", () => {
+    useConversationStore.getState().appendEvent({
+      id: "gone-1", sessionId: "ext-9", source: "claude_hook", role: "assistant", text: "bye", speechParagraphs: ["bye"],
+      summarized: false, createdAt: "now", sequence: 1, deliveryState: "received", ttsState: "idle", consumptionState: "unseen",
+    });
+    useMessagesViewStore.getState().setViewMode("ext-9", "messages");
+    useMessagesViewStore.getState().savePosition("ext-9", { topEventId: "gone-1", topSequence: 1, offsetPx: 0, follow: false });
+
+    dispatchGlobalEvent(
+      { id: 15, session_id: "ext-9", kind: "session_status", sequence: 0, payload: { action: "deleted" } },
+      undefined,
+      {},
+    );
+
+    expect(useConversationStore.getState().sessions["ext-9"]).toBeUndefined();
+    expect(useMessagesViewStore.getState().viewModes["ext-9"]).toBeUndefined();
+    expect(useMessagesViewStore.getState().positions["ext-9"]).toBeUndefined();
   });
 
   it("routes a terminated event to onSessionEnded with reason 'terminated'", () => {

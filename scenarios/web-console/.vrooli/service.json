@@ -23,6 +23,10 @@
         "subpath": "web-console.db-wal",
         "format": "sqlite",
         "regenerable": true,
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "SQLite WAL growth is bounded by the same durable database ceiling; checkpoints can reclaim it without deleting conversation evidence."
+        },
         "rationale": "SQLite write-ahead log sidecar for the durable Web Console database."
       },
       "web-console-db-shm": {
@@ -32,6 +36,10 @@
         "subpath": "web-console.db-shm",
         "format": "sqlite",
         "regenerable": true,
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "SQLite shared-memory sidecar is regenerable and receives a bounded ceiling to detect abnormal growth."
+        },
         "rationale": "SQLite shared-memory sidecar for the durable Web Console database."
       },
       "recovery-snapshots": {
@@ -40,10 +48,10 @@
         "class": "data",
         "subpath": "recovery-snapshots",
         "regenerable": false,
-        "budget": {
-          "max_bytes": "1GiB",
-          "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling detects runaway snapshot accumulation without authorizing automatic deletion."
-        },
+      "budget": {
+        "max_bytes": "2GiB",
+        "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling covers the current multi-copy recovery set while still detecting runaway accumulation without authorizing automatic deletion."
+      },
         "rationale": "Protected SQLite recovery copies created before potentially destructive repair."
       },
       "deployment-report": {
@@ -313,6 +321,19 @@
     "kind": "long_running",
     "auto_restart_default": true
   },
+  "skills": {
+    "usage": {
+      "source": "skills/web-console-continuity/SKILL.md",
+      "programs": ["web-console.continuity-integrity-audit"]
+    },
+    "improve": {
+      "source": "skills/web-console-continuity-improve/SKILL.md",
+      "programs": ["web-console.continuity-integrity-audit"]
+    },
+    "learning": {
+      "scope": "web-console-continuity"
+    }
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -388,7 +409,9 @@
         "field": "refresh-token",
         "label": "Vrooli subscription session",
         "description": "Device-scoped subscription refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
-        "required": false
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
       },
       {
         "logical_id": "vrooli/openrouter",
@@ -396,6 +419,7 @@
         "label": "OpenRouter API key",
         "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
         "required": false,
+        "provisioning": "operator",
         "obtain_url": "https://openrouter.ai/keys"
       }
     ]

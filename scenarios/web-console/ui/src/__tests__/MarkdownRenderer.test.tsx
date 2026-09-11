@@ -1,7 +1,9 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { MarkdownRenderer } from "../components/markdown";
+import { readFileSync } from "node:fs";
+const appStyles = readFileSync("src/styles.css", "utf8");
 
 // Mock shiki and mermaid to avoid async loading in jsdom
 vi.mock("shiki", () => ({
@@ -94,8 +96,20 @@ describe("MarkdownRenderer", () => {
       expect(h.className).toMatch(/min-w-\[8rem\]/);
     });
     const wrapper = document.querySelector("table")?.parentElement;
-    expect(wrapper?.className).toMatch(/overflow-x-auto/);
-    expect(document.querySelector("table")?.className).toMatch(/w-auto/);
+    expect(wrapper?.className).toMatch(/rcl-md__table-scroll/);
+    expect(document.querySelectorAll('[data-rcl-md-resize-handle]')).toHaveLength(4);
+  });
+
+  it("exposes keyboard-resizable boundaries for adjacent table columns", async () => {
+    render(<MarkdownRenderer content={"| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |"} />);
+    const handle = screen.getByRole("separator", { name: "Resize column 1" });
+    const before = Number(handle.getAttribute("aria-valuenow"));
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+
+    await waitFor(() => {
+      expect(Number(handle.getAttribute("aria-valuenow"))).toBeGreaterThan(before);
+    });
   });
 
   it("renders links with target=_blank", () => {
@@ -104,6 +118,24 @@ describe("MarkdownRenderer", () => {
     expect(link).not.toBeNull();
     expect(link?.getAttribute("target")).toBe("_blank");
     expect(link?.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("keeps formatted link labels in the link color", () => {
+    // Model the generated utility colors, then load the actual app stylesheet.
+    // The browser smoke additionally checks the full Tailwind output.
+    const style = document.createElement("style");
+    style.textContent = `.text-wc-accent { color: rgb(34, 211, 238); } .text-wc-text-primary { color: rgb(248, 250, 252); }` + appStyles.replace(/^@tailwind .*;$/gm, "");
+    document.head.appendChild(style);
+    try {
+      render(<MarkdownRenderer content={'[**Bold link**](https://example.com) [`Code link`](https://example.com)'} />);
+      for (const link of screen.getAllByRole("link")) {
+        const label = link.querySelector("strong, code");
+        if (!label) throw new Error("Expected a formatted link label");
+        expect(getComputedStyle(label).color).toBe(getComputedStyle(link).color);
+      }
+    } finally {
+      style.remove();
+    }
   });
 
   it("does not force target=_blank on local file-style links", () => {
@@ -188,6 +220,66 @@ describe("MarkdownRenderer", () => {
     const code = document.querySelector("code");
     expect(code).not.toBeNull();
     expect(code?.textContent).toBe("console.log");
+  });
+
+  it("opens a fenced block that holds only a path", () => {
+    const onFileReferenceClick = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```\n/the/path/example.md\n```"}
+        onFileReferenceClick={onFileReferenceClick}
+      />,
+    );
+    // Pinned to the block treatment: the inline-code chip already handled
+    // `paths` in backticks, so a passing assertion must prove the fenced
+    // block itself became clickable (block copy button + "path" label).
+    expect(document.querySelector("button[aria-label='Copy code']")).not.toBeNull();
+    expect(screen.getByText("path")).toBeInTheDocument();
+    const button = document.querySelector("button[title='Open /the/path/example.md']");
+    expect(button).not.toBeNull();
+    fireEvent.click(button as HTMLElement);
+    expect(onFileReferenceClick).toHaveBeenCalledWith("/the/path/example.md");
+  });
+
+  it("opens every line of a fenced block that holds only paths", () => {
+    const onFileReferenceClick = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```\ndocs/plan.md\n~/notes/todo.txt\nREADME.md\n```"}
+        onFileReferenceClick={onFileReferenceClick}
+      />,
+    );
+    const buttons = document.querySelectorAll("button[title^='Open ']");
+    expect(buttons).toHaveLength(3);
+    fireEvent.click(buttons[1] as HTMLElement);
+    expect(onFileReferenceClick).toHaveBeenCalledWith("~/notes/todo.txt");
+  });
+
+  it("leaves a fenced block alone when any line is not a path", () => {
+    const onFileReferenceClick = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```\n/the/path/example.md\nmake start\n```"}
+        onFileReferenceClick={onFileReferenceClick}
+      />,
+    );
+    expect(document.querySelector("button[title^='Open ']")).toBeNull();
+  });
+
+  it("leaves a language-tagged fence alone even when it holds only a path", () => {
+    const onFileReferenceClick = vi.fn();
+    render(
+      <MarkdownRenderer
+        content={"```bash\n./scripts/build.sh\n```"}
+        onFileReferenceClick={onFileReferenceClick}
+      />,
+    );
+    expect(document.querySelector("button[title^='Open ']")).toBeNull();
+  });
+
+  it("does not make path blocks clickable without a handler", () => {
+    render(<MarkdownRenderer content={"```\n/the/path/example.md\n```"} />);
+    expect(document.querySelector("button[title^='Open ']")).toBeNull();
   });
 
   it("renders fenced code blocks", () => {

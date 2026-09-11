@@ -107,6 +107,11 @@ func (s *Server) dispatchInputMessage(
 		go func() {
 			writeErr := <-result
 			sess.CompleteInputFor(client, data, writeErr)
+			if writeErr == nil {
+				// The screen will echo this input; activity must not read the
+				// echo as the agent working.
+				sess.NoteInput()
+			}
 			if writeErr == nil && strings.Contains(string(data), "\n") {
 				s.emitActivationOnce(context.Background(), activationFirstCommandRun)
 			}

@@ -1,137 +1,6 @@
 {
+  "schemaVersion": 1,
   "selectors": {
-    "library.usevoiceinput.root": {
-      "testId": "usevoiceinput",
-      "selector": "[data-testid=\"usevoiceinput\"]"
-    },
-    "library.voiceinputbutton.root": {
-      "testId": "voiceinputbutton",
-      "selector": "[data-testid=\"voiceinputbutton\"]"
-    },
-    "library.voiceinputbutton.voiceFixtureState": {
-      "testId": "voiceinputbutton.voice-fixture-state",
-      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
-    },
-    "library.foundations.visual-recipes.root": {
-      "testId": "foundations.visual-recipes",
-      "selector": "[data-testid=\"foundations.visual-recipes\"]"
-    },
-    "library.foundations.tokens.root": {
-      "testId": "foundations.tokens",
-      "selector": "[data-testid=\"foundations.tokens\"]"
-    },
-    "library.foundations.tokens.semanticCount": {
-      "testId": "foundations.tokens.semantic-count",
-      "selector": "[data-testid=\"foundations.tokens.semantic-count\"]"
-    },
-    "library.foundations.tokens.spaceCount": {
-      "testId": "foundations.tokens.space-count",
-      "selector": "[data-testid=\"foundations.tokens.space-count\"]"
-    },
-    "library.controls.pressable.root": {
-      "testId": "controls.pressable",
-      "selector": "[data-testid=\"controls.pressable\"]"
-    },
-    "library.controls.icon-button.root": {
-      "testId": "controls.icon-button",
-      "selector": "[data-testid=\"controls.icon-button\"]"
-    },
-    "library.drawershell.root": {
-      "testId": "drawershell",
-      "selector": "[data-testid=\"drawershell\"]"
-    },
-    "library.controlbase.root": {
-      "testId": "controlbase",
-      "selector": "[data-testid=\"controlbase\"]"
-    },
-    "library.forms.color-picker.root": {
-      "testId": "forms.color-picker",
-      "selector": "[data-testid=\"forms.color-picker\"]"
-    },
-    "library.forms.color-picker.formsColorPickerColorPickerCustomInput": {
-      "testId": "forms.color-picker.forms.color-picker-color-picker-custom-input",
-      "selector": "[data-testid=\"forms.color-picker.forms.color-picker-color-picker-custom-input\"]"
-    },
-    "library.forms.color-picker.selectedColor": {
-      "testId": "forms.color-picker.selected-color",
-      "selector": "[data-testid=\"forms.color-picker.selected-color\"]"
-    },
-    "library.controls.button.root": {
-      "testId": "controls.button",
-      "selector": "[data-testid=\"controls.button\"]"
-    },
-    "library.controls.button.icon": {
-      "testId": "controls.button.icon",
-      "selector": "[data-testid=\"controls.button.icon\"]"
-    },
-    "library.controls.button.label": {
-      "testId": "controls.button.label",
-      "selector": "[data-testid=\"controls.button.label\"]"
-    },
-    "library.forms.textarea.root": {
-      "testId": "forms.textarea",
-      "selector": "[data-testid=\"forms.textarea\"]"
-    },
-    "library.overlays.full-page-drawer.root": {
-      "testId": "overlays.full-page-drawer",
-      "selector": "[data-testid=\"overlays.full-page-drawer\"]"
-    },
-    "library.overlays.full-page-drawer.close": {
-      "testId": "overlays.full-page-drawer.close",
-      "selector": "[data-testid=\"overlays.full-page-drawer.close\"]"
-    },
-    "library.overlays.full-page-drawer.grabber": {
-      "testId": "overlays.full-page-drawer.grabber",
-      "selector": "[data-testid=\"overlays.full-page-drawer.grabber\"]"
-    },
-    "library.overlays.full-page-drawer.subheader": {
-      "testId": "overlays.full-page-drawer.subheader",
-      "selector": "[data-testid=\"overlays.full-page-drawer.subheader\"]"
-    },
-    "library.overlays.responsive-dialog.root": {
-      "testId": "overlays.responsive-dialog",
-      "selector": "[data-testid=\"overlays.responsive-dialog\"]"
-    },
-    "library.overlays.responsive-dialog.subheader": {
-      "testId": "overlays.responsive-dialog.subheader",
-      "selector": "[data-testid=\"overlays.responsive-dialog.subheader\"]"
-    },
-    "library.navigation.tabs.root": {
-      "testId": "navigation.tabs",
-      "selector": "[data-testid=\"navigation.tabs\"]"
-    },
-    "library.navigation.tabs.links": {
-      "testId": "navigation.tabs.Links",
-      "selector": "[data-testid=\"navigation.tabs.Links\"]"
-    },
-    "library.navigation.tabs.settingsTabSessions": {
-      "testId": "navigation.tabs.settings-tab-sessions",
-      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
-    },
-    "library.overlays.bottom-sheet.root": {
-      "testId": "overlays.bottom-sheet",
-      "selector": "[data-testid=\"overlays.bottom-sheet\"]"
-    },
-    "library.overlays.bottom-sheet.close": {
-      "testId": "overlays.bottom-sheet.close",
-      "selector": "[data-testid=\"overlays.bottom-sheet.close\"]"
-    },
-    "library.overlays.bottom-sheet.grabber": {
-      "testId": "overlays.bottom-sheet.grabber",
-      "selector": "[data-testid=\"overlays.bottom-sheet.grabber\"]"
-    },
-    "library.overlays.bottom-sheet.subheader": {
-      "testId": "overlays.bottom-sheet.subheader",
-      "selector": "[data-testid=\"overlays.bottom-sheet.subheader\"]"
-    },
-    "library.useviewportenvironment.root": {
-      "testId": "useviewportenvironment",
-      "selector": "[data-testid=\"useviewportenvironment\"]"
-    },
-    "library.hooks.use-viewport-environment.root": {
-      "testId": "hooks.use-viewport-environment",
-      "selector": "[data-testid=\"hooks.use-viewport-environment\"]"
-    },
     "workspace.settings": {
       "testId": "toolbar-settings",
       "selector": "[data-testid=\"toolbar-settings\"]"
@@ -179,6 +48,78 @@
     "workspace.topEdge": {
       "testId": "workspace-top-edge",
       "selector": "[data-testid=\"workspace-top-edge\"]"
+    },
+    "playback.pill": {
+      "testId": "playback-pill",
+      "selector": "[data-testid=\"playback-pill\"]"
+    },
+    "playback.playPause": {
+      "testId": "pill-play-pause",
+      "selector": "[data-testid=\"pill-play-pause\"]"
+    },
+    "playback.summary": {
+      "testId": "pill-summary",
+      "selector": "[data-testid=\"pill-summary\"]"
+    },
+    "playback.label": {
+      "testId": "pill-label",
+      "selector": "[data-testid=\"pill-label\"]"
+    },
+    "playback.time": {
+      "testId": "pill-time",
+      "selector": "[data-testid=\"pill-time\"]"
+    },
+    "playback.equalizer": {
+      "testId": "pill-equalizer",
+      "selector": "[data-testid=\"pill-equalizer\"]"
+    },
+    "playback.progress": {
+      "testId": "pill-progress",
+      "selector": "[data-testid=\"pill-progress\"]"
+    },
+    "playback.close": {
+      "testId": "pill-close",
+      "selector": "[data-testid=\"pill-close\"]"
+    },
+    "playback.scrub": {
+      "testId": "pill-scrub",
+      "selector": "[data-testid=\"pill-scrub\"]"
+    },
+    "playback.previous": {
+      "testId": "pill-previous",
+      "selector": "[data-testid=\"pill-previous\"]"
+    },
+    "playback.next": {
+      "testId": "pill-next",
+      "selector": "[data-testid=\"pill-next\"]"
+    },
+    "playback.rate": {
+      "testId": "pill-rate",
+      "selector": "[data-testid=\"pill-rate\"]"
+    },
+    "playback.voice": {
+      "testId": "pill-voice",
+      "selector": "[data-testid=\"pill-voice\"]"
+    },
+    "playback.jump": {
+      "testId": "pill-jump",
+      "selector": "[data-testid=\"pill-jump\"]"
+    },
+    "playback.queued": {
+      "testId": "pill-queued",
+      "selector": "[data-testid=\"pill-queued\"]"
+    },
+    "playback.settings": {
+      "testId": "pill-settings",
+      "selector": "[data-testid=\"pill-settings\"]"
+    },
+    "playback.settingsDialog": {
+      "testId": "pill-settings-dialog",
+      "selector": "[data-testid=\"pill-settings-dialog\"]"
+    },
+    "playback.restore": {
+      "testId": "tts-restore",
+      "selector": "[data-testid=\"tts-restore\"]"
     },
     "terminal.pane": {
       "testId": "terminal-pane",
@@ -598,43 +539,43 @@
     },
     "fleet.deviceCard": {
       "testId": "[data-testid^=\"fleet-card-device-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 fleet-card-device-\\22 ]\"]"
     },
     "fleet.machineCard": {
       "testId": "[data-testid^=\"fleet-card-machine-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 fleet-card-machine-\\22 ]\"]"
     },
     "fleet.machineStartSession": {
       "testId": "[data-testid^=\"machines-start-session-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"machines-start-session-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 machines-start-session-\\22 ]\"]"
     },
     "fleet.machineDetails": {
       "testId": "[data-testid^=\"machines-details-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"machines-details-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 machines-details-\\22 ]\"]"
     },
     "fleet.machineIssues": {
       "testId": "[data-testid^=\"machines-issues-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"machines-issues-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 machines-issues-\\22 ]\"]"
     },
     "fleet.machineDetail": {
       "testId": "[data-testid^=\"machine-detail-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"machine-detail-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 machine-detail-\\22 ]\"]"
     },
     "fleet.deviceSilhouette": {
       "testId": "[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]",
-      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 fleet-card-device-\\22 ] [data-testid=\\22 device-silhouette\\22 ]\"]"
     },
     "fleet.machineSilhouette": {
       "testId": "[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]",
-      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 fleet-card-machine-\\22 ] [data-testid=\\22 machine-silhouette\\22 ]\"]"
     },
     "fleet.deviceFrame": {
       "testId": "[data-testid^=\"device-frame-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"device-frame-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 device-frame-\\22 ]\"]"
     },
     "fleet.deviceCaption": {
       "testId": "[data-testid^=\"device-caption-\"]",
-      "selector": "[data-testid=\"[data-testid^=\"device-caption-\"]\"]"
+      "selector": "[data-testid=\"[data-testid^=\\22 device-caption-\\22 ]\"]"
     },
     "fleet.takeOver": {
       "testId": "device-frame-take-over",
@@ -690,11 +631,11 @@
     },
     "commercial.sourceProvenanceAligned": {
       "testId": "body[data-source-provenance-aligned=\"true\"]",
-      "selector": "[data-testid=\"body[data-source-provenance-aligned=\"true\"]\"]"
+      "selector": "[data-testid=\"body[data-source-provenance-aligned=\\22 true\\22 ]\"]"
     },
     "commercial.localVoiceRefusal": {
       "testId": "body[data-local-voice-refusal=\"false\"]",
-      "selector": "[data-testid=\"body[data-local-voice-refusal=\"false\"]\"]"
+      "selector": "[data-testid=\"body[data-local-voice-refusal=\\22 false\\22 ]\"]"
     },
     "provider.refresh": {
       "testId": "provider-refresh",
@@ -724,13 +665,145 @@
       "testId": "locale-switcher",
       "selector": "[data-testid=\"locale-switcher\"]"
     },
-    "messages.searchTrigger": {
-      "testId": "messages-search-btn",
-      "selector": "[data-testid=\"messages-search-btn\"]"
+    "messages.scrollContainer": {
+      "testId": "messages-scroll",
+      "selector": "[data-testid=\"messages-scroll\"]"
     },
-    "messages.navTrigger": {
-      "testId": "msg-jump-trigger",
-      "selector": "[data-testid=\"msg-jump-trigger\"]"
+    "messages.actionsInline": {
+      "testId": "msg-actions-inline",
+      "selector": "[data-testid=\"msg-actions-inline\"]"
+    },
+    "messages.actionSheet": {
+      "testId": "msg-action-sheet",
+      "selector": "[data-testid=\"msg-action-sheet\"]"
+    },
+    "messages.reader": {
+      "testId": "messages-reader",
+      "selector": "[data-testid=\"messages-reader\"]"
+    },
+    "messages.readerBody": {
+      "testId": "messages-reader-body",
+      "selector": "[data-testid=\"messages-reader-body\"]"
+    },
+    "messages.readerFindInput": {
+      "testId": "reader-find-input",
+      "selector": "[data-testid=\"reader-find-input\"]"
+    },
+    "messages.readerMatchCount": {
+      "testId": "reader-match-count",
+      "selector": "[data-testid=\"reader-match-count\"]"
+    },
+    "messages.readerFindPrev": {
+      "testId": "reader-find-prev",
+      "selector": "[data-testid=\"reader-find-prev\"]"
+    },
+    "messages.readerFindNext": {
+      "testId": "reader-find-next",
+      "selector": "[data-testid=\"reader-find-next\"]"
+    },
+    "messages.readerCopy": {
+      "testId": "reader-copy",
+      "selector": "[data-testid=\"reader-copy\"]"
+    },
+    "messages.readerPlay": {
+      "testId": "reader-play",
+      "selector": "[data-testid=\"reader-play\"]"
+    },
+    "messages.newMessagesPill": {
+      "testId": "msg-new-pill",
+      "selector": "[data-testid=\"msg-new-pill\"]"
+    },
+    "messages.jumpToBottom": {
+      "testId": "msg-jump-bottom",
+      "selector": "[data-testid=\"msg-jump-bottom\"]"
+    },
+    "messages.searchTrigger": {
+      "testId": "messages-search-field",
+      "selector": "[data-testid=\"messages-search-field\"]"
+    },
+    "messages.stateSlot": {
+      "testId": "messages-state-slot",
+      "selector": "[data-testid=\"messages-state-slot\"]"
+    },
+    "messages.stateSlotOpenTerminal": {
+      "testId": "state-slot-open-terminal",
+      "selector": "[data-testid=\"state-slot-open-terminal\"]"
+    },
+    "messages.stateSlotAnswerInTerminal": {
+      "testId": "state-slot-answer-in-terminal",
+      "selector": "[data-testid=\"state-slot-answer-in-terminal\"]"
+    },
+    "messages.echoRow": {
+      "testId": "msg-echo-row",
+      "selector": "[data-testid=\"msg-echo-row\"]"
+    },
+    "messages.echoEnter": {
+      "testId": "msg-echo-enter",
+      "selector": "[data-testid=\"msg-echo-enter\"]"
+    },
+    "messages.echoOpenTerminal": {
+      "testId": "msg-echo-open-terminal",
+      "selector": "[data-testid=\"msg-echo-open-terminal\"]"
+    },
+    "messages.composerStateChip": {
+      "testId": "composer-state-chip",
+      "selector": "[data-testid=\"composer-state-chip\"]"
+    },
+    "messages.sendAndEnter": {
+      "testId": "mobile-send-and-enter",
+      "selector": "[data-testid=\"mobile-send-and-enter\"]"
+    },
+    "messages.historyControl": {
+      "testId": "toolbar-history",
+      "selector": "[data-testid=\"toolbar-history\"]"
+    },
+    "messages.composerHistory": {
+      "testId": "composer-open-history",
+      "selector": "[data-testid=\"composer-open-history\"]"
+    },
+    "messages.historySheet": {
+      "testId": "sent-history-sheet",
+      "selector": "[data-testid=\"sent-history-sheet\"]"
+    },
+    "messages.historyFilter": {
+      "testId": "sent-history-filter",
+      "selector": "[data-testid=\"sent-history-filter\"]"
+    },
+    "messages.historyRow": {
+      "testId": "sent-history-row",
+      "selector": "[data-testid=\"sent-history-row\"]"
+    },
+    "messages.historyInsert": {
+      "testId": "sent-history-insert",
+      "selector": "[data-testid=\"sent-history-insert\"]"
+    },
+    "messages.historyResend": {
+      "testId": "sent-history-resend",
+      "selector": "[data-testid=\"sent-history-resend\"]"
+    },
+    "messages.historyClear": {
+      "testId": "sent-history-clear",
+      "selector": "[data-testid=\"sent-history-clear\"]"
+    },
+    "messages.searchMode": {
+      "testId": "msg-jump-mode",
+      "selector": "[data-testid=\"msg-jump-mode\"]"
+    },
+    "messages.searchCase": {
+      "testId": "msg-jump-case",
+      "selector": "[data-testid=\"msg-jump-case\"]"
+    },
+    "messages.searchWholeWord": {
+      "testId": "msg-jump-whole-word",
+      "selector": "[data-testid=\"msg-jump-whole-word\"]"
+    },
+    "messages.searchError": {
+      "testId": "msg-jump-error",
+      "selector": "[data-testid=\"msg-jump-error\"]"
+    },
+    "messages.searchTruncated": {
+      "testId": "msg-jump-truncated",
+      "selector": "[data-testid=\"msg-jump-truncated\"]"
     },
     "messages.navPanel": {
       "testId": "msg-jump-list",
@@ -752,9 +825,9 @@
       "testId": "msg-nav-count",
       "selector": "[data-testid=\"msg-nav-count\"]"
     },
-    "messages.moreFilters": {
-      "testId": "msg-nav-more",
-      "selector": "[data-testid=\"msg-nav-more\"]"
+    "messages.filtersToggle": {
+      "testId": "msg-jump-filters",
+      "selector": "[data-testid=\"msg-jump-filters\"]"
     },
     "messages.advancedPanel": {
       "testId": "msg-nav-advanced",
@@ -767,6 +840,158 @@
     "messages.chipUser": {
       "testId": "msg-nav-chip-user",
       "selector": "[data-testid=\"msg-nav-chip-user\"]"
+    },
+    "library.usevoiceinput.root": {
+      "testId": "usevoiceinput",
+      "selector": "[data-testid=\"usevoiceinput\"]"
+    },
+    "library.voiceinputbutton.voiceFixtureState": {
+      "testId": "voiceinputbutton.voice-fixture-state",
+      "selector": "[data-testid=\"voiceinputbutton.voice-fixture-state\"]"
+    },
+    "library.voiceinputbutton.root": {
+      "testId": "voiceinputbutton",
+      "selector": "[data-testid=\"voiceinputbutton\"]"
+    },
+    "library.foundations.visual-recipes.root": {
+      "testId": "foundations.visual-recipes",
+      "selector": "[data-testid=\"foundations.visual-recipes\"]"
+    },
+    "library.foundations.tokens.root": {
+      "testId": "foundations.tokens",
+      "selector": "[data-testid=\"foundations.tokens\"]"
+    },
+    "library.foundations.tokens.semanticCount": {
+      "testId": "foundations.tokens.semantic-count",
+      "selector": "[data-testid=\"foundations.tokens.semantic-count\"]"
+    },
+    "library.foundations.tokens.spaceCount": {
+      "testId": "foundations.tokens.space-count",
+      "selector": "[data-testid=\"foundations.tokens.space-count\"]"
+    },
+    "library.controls.pressable.root": {
+      "testId": "controls.pressable",
+      "selector": "[data-testid=\"controls.pressable\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.drawershell.root": {
+      "testId": "drawershell",
+      "selector": "[data-testid=\"drawershell\"]"
+    },
+    "library.controlbase.root": {
+      "testId": "controlbase",
+      "selector": "[data-testid=\"controlbase\"]"
+    },
+    "library.forms.color-picker.root": {
+      "testId": "forms.color-picker",
+      "selector": "[data-testid=\"forms.color-picker\"]"
+    },
+    "library.forms.color-picker.formsColorPickerColorPickerCustomInput": {
+      "testId": "forms.color-picker.forms.color-picker-color-picker-custom-input",
+      "selector": "[data-testid=\"forms.color-picker.forms.color-picker-color-picker-custom-input\"]"
+    },
+    "library.forms.color-picker.selectedColor": {
+      "testId": "forms.color-picker.selected-color",
+      "selector": "[data-testid=\"forms.color-picker.selected-color\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.overlays.full-page-drawer.close": {
+      "testId": "overlays.full-page-drawer.close",
+      "selector": "[data-testid=\"overlays.full-page-drawer.close\"]"
+    },
+    "library.overlays.full-page-drawer.grabber": {
+      "testId": "overlays.full-page-drawer.grabber",
+      "selector": "[data-testid=\"overlays.full-page-drawer.grabber\"]"
+    },
+    "library.overlays.full-page-drawer.subheader": {
+      "testId": "overlays.full-page-drawer.subheader",
+      "selector": "[data-testid=\"overlays.full-page-drawer.subheader\"]"
+    },
+    "library.overlays.full-page-drawer.root": {
+      "testId": "overlays.full-page-drawer",
+      "selector": "[data-testid=\"overlays.full-page-drawer\"]"
+    },
+    "library.overlays.responsive-dialog.subheader": {
+      "testId": "overlays.responsive-dialog.subheader",
+      "selector": "[data-testid=\"overlays.responsive-dialog.subheader\"]"
+    },
+    "library.overlays.responsive-dialog.root": {
+      "testId": "overlays.responsive-dialog",
+      "selector": "[data-testid=\"overlays.responsive-dialog\"]"
+    },
+    "library.navigation.tabs.links": {
+      "testId": "navigation.tabs.Links",
+      "selector": "[data-testid=\"navigation.tabs.Links\"]"
+    },
+    "library.navigation.tabs.settingsTabSessions": {
+      "testId": "navigation.tabs.settings-tab-sessions",
+      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.overlays.bottom-sheet.close": {
+      "testId": "overlays.bottom-sheet.close",
+      "selector": "[data-testid=\"overlays.bottom-sheet.close\"]"
+    },
+    "library.overlays.bottom-sheet.grabber": {
+      "testId": "overlays.bottom-sheet.grabber",
+      "selector": "[data-testid=\"overlays.bottom-sheet.grabber\"]"
+    },
+    "library.overlays.bottom-sheet.subheader": {
+      "testId": "overlays.bottom-sheet.subheader",
+      "selector": "[data-testid=\"overlays.bottom-sheet.subheader\"]"
+    },
+    "library.overlays.bottom-sheet.root": {
+      "testId": "overlays.bottom-sheet",
+      "selector": "[data-testid=\"overlays.bottom-sheet\"]"
+    },
+    "library.useviewportenvironment.root": {
+      "testId": "useviewportenvironment",
+      "selector": "[data-testid=\"useviewportenvironment\"]"
+    },
+    "library.hooks.use-viewport-environment.root": {
+      "testId": "hooks.use-viewport-environment",
+      "selector": "[data-testid=\"hooks.use-viewport-environment\"]"
+    },
+    "library.patterns.swipe-actions.root": {
+      "testId": "patterns.swipe-actions",
+      "selector": "[data-testid=\"patterns.swipe-actions\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadius": {
+      "testId": "patterns.swipe-actions.credential-blast-radius",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius\"]"
+    },
+    "library.patterns.swipe-actions.credentialBlastRadiusFace": {
+      "testId": "patterns.swipe-actions.credential-blast-radius.face",
+      "selector": "[data-testid=\"patterns.swipe-actions.credential-blast-radius.face\"]"
+    },
+    "library.patterns.swipe-actions.hostCleanupSweepActionClose": {
+      "testId": "patterns.swipe-actions.host-cleanup-sweep.action.close",
+      "selector": "[data-testid=\"patterns.swipe-actions.host-cleanup-sweep.action.close\"]"
+    },
+    "library.patterns.swipe-actions.lastAction": {
+      "testId": "patterns.swipe-actions.last-action",
+      "selector": "[data-testid=\"patterns.swipe-actions.last-action\"]"
     }
   },
   "dynamicSelectors": {
@@ -1271,6 +1496,61 @@
         }
       ]
     },
+    "messages.speaker": {
+      "description": "Speaker name in a message row header",
+      "selectorPattern": "[data-testid=\"msg-speaker-${eventId}\"]",
+      "testIdPattern": "msg-speaker-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.time": {
+      "description": "Time label in a message row header (sequence in its title)",
+      "selectorPattern": "[data-testid=\"msg-time-${eventId}\"]",
+      "testIdPattern": "msg-time-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.actionsMore": {
+      "description": "Overflow trigger in a revealed message action cluster",
+      "selectorPattern": "[data-testid=\"msg-actions-more-${eventId}\"]",
+      "testIdPattern": "msg-actions-more-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.actionsMenu": {
+      "description": "Full action list for a message (fine pointer)",
+      "selectorPattern": "[data-testid=\"msg-actions-menu-${eventId}\"]",
+      "testIdPattern": "msg-actions-menu-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.openReader": {
+      "description": "Outline footer that opens a long reply in the reader",
+      "selectorPattern": "[data-testid=\"msg-open-reader-${eventId}\"]",
+      "testIdPattern": "msg-open-reader-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
     "messages.speakFromHere": {
       "description": "Read from here button on a message card",
       "selectorPattern": "[data-testid=\"msg-speak-from-${eventId}\"]",
@@ -1406,5 +1686,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "61be4676c32200d51cb58a9654d88b471198336d28cb047c764fab598636a4d4",
+    "ui/src/consts/selectors.ts": "3f55496b4765a3d840ee4a0950b545fd3b1bf2a960c9507e752413b6c549dfec"
   }
 }

@@ -79,6 +79,23 @@ describe("MachinePicker", () => {
     expect(screen.getByTestId("launcher-machine-option-node-1")).toHaveTextContent("Bridge agent out of date");
   });
 
+  it("shows the headless operation refusal before a target can be selected", () => {
+    const targets = [
+      local,
+      remote({
+        id: "node-1",
+        label: "Offline device host",
+        available: false,
+        operation_readiness: [{ operation: "headless_execution", ready: false, state: "missing", detail: "device host is disconnected", recovery_action: "Reconnect the device host and refresh" }],
+      }),
+    ];
+    render(<MachinePicker targets={targets} selectedId="local" onSelect={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    expect(screen.getByTestId("launcher-machine-option-node-1")).toHaveTextContent("device host is disconnected");
+    expect(screen.getByTestId("launcher-machine-option-node-1")).toHaveTextContent("Reconnect the device host and refresh");
+  });
+
   it("shows the concrete grant as a chip on an unselected row", () => {
     const targets = [
       local,

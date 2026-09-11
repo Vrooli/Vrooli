@@ -1,11 +1,7 @@
 import { renderWithProviders as render } from "../test-utils";
 /**
- * Tests for the persistent TTS replay bar in Workspace.
- *
- * When auto-TTS is enabled and there is a previous response available,
- * the AudioPlayerBar should remain visible after playback ends so the
- * user can replay the last response with one tap instead of navigating
- * to the messages view.
+ * The playback pill in Workspace: when it shows, how it replays the last
+ * response, how dismissing stops playback, and how the toolbar restores it.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, act, waitFor } from "@testing-library/react";
@@ -89,6 +85,7 @@ const {
     captured: {
       onSpeakingEventChange: undefined as ((eventId: string | null) => void) | undefined,
       onTtsSpeakingChange: undefined as ((speaking: boolean) => void) | undefined,
+      toolbar: { ttsDismissed: false as boolean | undefined, onTtsRestore: undefined as (() => void) | undefined },
     },
     hookState: {
       panes: [{ session: { id: SESSION_ID, shell: "/bin/bash", created_at: "2026-01-01T00:00:00Z", cols: 80, rows: 24, policy: { mode: "never" as const } } }],
@@ -120,7 +117,6 @@ vi.mock("../hooks/useSessionManager", () => ({
     setTtsPlaybackRateOnPane: vi.fn(),
     setTtsVolumeOnPane: vi.fn(),
     setTtsMutedOnPane: vi.fn(),
-    getTtsStateOnPane: vi.fn().mockReturnValue(null),
   }),
 }));
 
@@ -145,8 +141,6 @@ vi.mock("../stores/useWorkspaceStore", () => ({
 vi.mock("../stores/useConversationStore", () => {
   const store = {
     sessions: mockConversationSessions,
-    viewModes: {} as Record<string, string>,
-    setViewMode: vi.fn(),
     clearSession: vi.fn(),
     hydrateSession: vi.fn(),
     appendEvent: vi.fn(),
@@ -173,7 +167,7 @@ vi.mock("../components/TerminalPane", () => ({
       control: { send: vi.fn().mockReturnValue(true), scroll: vi.fn(), focus: vi.fn() },
       selection: { copy: vi.fn().mockResolvedValue(true), paste: vi.fn().mockResolvedValue(true) },
       pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => []), discard: vi.fn(), discardAll: vi.fn(), flushNow: vi.fn() },
-      playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue(null) },
+      playback: { stop: vi.fn(), speak: vi.fn(), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(), setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn() },
     }));
     return <div data-testid={`mock-terminal-${sessionId}`}>Terminal {sessionId}</div>;
   }),
@@ -185,49 +179,16 @@ vi.mock("../components/TerminalHeader", () => ({
   )),
 }));
 
-vi.mock("../components/AudioPlayerBar", () => ({
-  default: vi.fn(({
-    onResume,
-    onDismiss,
-    isSummarized,
-    onToggleSummarized,
-    currentLevel,
-    currentMessageLabel,
-    hasQueuedNext,
-  }: {
-    onResume: () => void;
-    onDismiss?: () => void;
-    isSummarized?: boolean;
-    onToggleSummarized?: (useSummarized: boolean) => void;
-    currentLevel?: "light" | "moderate" | "heavy";
-    currentMessageLabel?: string | null;
-    hasQueuedNext?: boolean;
-  }) => (
-    <div data-testid="audio-player-bar">
-      <button data-testid="replay-resume" onClick={onResume}>Resume</button>
-      <span data-testid="tts-mode-control">
-        {isSummarized
-          ? (currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate")
-          : "Original"}
-      </span>
-      <button data-testid="tts-mode-option-original" onClick={() => onToggleSummarized?.(false)}>Original</button>
-      <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>
-        {currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate"}
-      </button>
-      {onDismiss && <button data-testid="tts-dismiss" onClick={onDismiss}>Close</button>}
-      <span data-testid="tts-current-message">{currentMessageLabel ?? ""}</span>
-      <span data-testid="tts-has-next">{String(hasQueuedNext ?? false)}</span>
-    </div>
-  )),
-}));
-
 vi.mock("../components/TabBar", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/GridSplitter", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/SettingsModal", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/WorkspaceMinimap", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/TerminalLauncher", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/MobileToolbar", () => ({
-  default: forwardRef(function MockMobileToolbar(_, _ref) { return null; }),
+  default: forwardRef(function MockMobileToolbar(props: { ttsDismissed?: boolean; onTtsRestore?: () => void }, _ref) {
+    captured.toolbar = { ttsDismissed: props.ttsDismissed, onTtsRestore: props.onTtsRestore };
+    return null;
+  }),
 }));
 vi.mock("../components/AiInput", () => ({ default: vi.fn(() => null) }));
 vi.mock("../components/FloatingToolbar", () => ({ default: vi.fn(() => null) }));
@@ -238,9 +199,6 @@ vi.mock("../hooks/useAppViewport", () => ({ useAppViewport: vi.fn() }));
 vi.mock("../hooks/useWakeLock", () => ({
   useWakeLock: vi.fn().mockReturnValue("released"),
   useWakeLockStatus: () => ({ setStatus: vi.fn() }),
-}));
-vi.mock("../audio-integration", () => ({
-  useScenarioVoiceInput: () => ({ supported: false, isRecording: false, startRecording: vi.fn(), stopRecording: vi.fn() }),
 }));
 vi.mock("../hooks/useConversationSession", () => ({
   useConversationSession: () => ({ events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, persistCursor: vi.fn() }),
@@ -280,7 +238,7 @@ const SESSION_ID = "sess-replay-001";
 const testEvent: ConversationEvent = {
   id: "evt-001",
   sessionId: SESSION_ID,
-  source: "claude",
+  source: "claude_hook",
   role: "assistant",
   text: "Hello, I can help you with that.",
   speechParagraphs: ["Hello, I can help you with that."],
@@ -292,10 +250,10 @@ const testEvent: ConversationEvent = {
   consumptionState: "unseen",
 };
 
-function setupPaneState() {
+function setupPaneState(events: ConversationEvent[] = [testEvent]) {
   mockStoreState.panes = [{ sessionId: SESSION_ID, name: "/bin/bash", headerColor: "transparent" }];
   mockStoreState.activePane = SESSION_ID;
-  mockConversationSessions[SESSION_ID] = { events: [testEvent] };
+  mockConversationSessions[SESSION_ID] = { events };
 }
 
 async function renderWorkspace() {
@@ -306,7 +264,20 @@ async function renderWorkspace() {
   });
 }
 
-describe("Workspace TTS replay bar", () => {
+function startSpeaking(eventId: string) {
+  act(() => {
+    captured.onTtsSpeakingChange?.(true);
+    captured.onSpeakingEventChange?.(eventId);
+  });
+}
+
+function stopSpeaking() {
+  act(() => {
+    captured.onTtsSpeakingChange?.(false);
+  });
+}
+
+describe("Workspace playback pill", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -319,123 +290,92 @@ describe("Workspace TTS replay bar", () => {
     mockStoreState.panes = [];
     captured.onSpeakingEventChange = undefined;
     captured.onTtsSpeakingChange = undefined;
+    captured.toolbar = { ttsDismissed: false, onTtsRestore: undefined };
     delete mockConversationSessions[SESSION_ID];
   });
 
-  it("does not show audio player bar when auto-TTS is off and not speaking", async () => {
+  it("[REQ:P0-017h] shows no pill and offers no restore when nothing is queued", async () => {
     setupPaneState();
-    mockStoreState.autoTtsEnabled = false;
-
     await renderWorkspace();
+    expect(screen.queryByTestId("playback-pill")).toBeNull();
+    expect(captured.toolbar.ttsDismissed).toBe(false);
+  });
+
+  it("[REQ:P0-017h] shows the pill while a message is speaking, collapsed", async () => {
+    setupPaneState();
+    mockStoreState.autoTtsEnabled = true;
+    await renderWorkspace();
+    startSpeaking(testEvent.id);
+    expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-state", "collapsed");
     expect(screen.queryByTestId("audio-player-bar")).toBeNull();
   });
 
-  it("shows audio player bar while TTS is actively speaking", async () => {
+  it("[REQ:P0-017h] tapping the pill expands it and tapping again collapses it", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
-
     await renderWorkspace();
-
-    // Simulate TTS starting
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-    });
-    act(() => {
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-
-    expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
+    startSpeaking(testEvent.id);
+    fireEvent.click(screen.getByTestId("pill-summary"));
+    expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-state", "expanded");
+    fireEvent.click(screen.getByTestId("pill-summary"));
+    expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-state", "collapsed");
   });
 
-  it("shows a dismissible audio player bar during manual playback when auto-TTS is disabled", async () => {
+  it("[REQ:P0-017h] closing the pill stops playback and hides it; the toolbar's restore brings it back", async () => {
+    setupPaneState();
+    mockStoreState.autoTtsEnabled = true;
+    await renderWorkspace();
+    startSpeaking(testEvent.id);
+    fireEvent.click(screen.getByTestId("pill-close"));
+    expect(mockStopActiveTts).toHaveBeenCalled();
+    stopSpeaking();
+    expect(screen.queryByTestId("playback-pill")).toBeNull();
+    expect(captured.toolbar.ttsDismissed).toBe(true);
+    act(() => { captured.toolbar.onTtsRestore?.(); });
+    expect(screen.getByTestId("playback-pill")).toBeInTheDocument();
+    expect(captured.toolbar.ttsDismissed).toBe(false);
+  });
+
+  it("a new message starting to speak brings a dismissed pill back", async () => {
+    const second = { ...testEvent, id: "evt-002", sequence: 2, text: "Second reply.", speechParagraphs: ["Second reply."] };
+    setupPaneState([testEvent, second]);
+    mockStoreState.autoTtsEnabled = true;
+    await renderWorkspace();
+    startSpeaking(testEvent.id);
+    fireEvent.click(screen.getByTestId("pill-close"));
+    stopSpeaking();
+    expect(screen.queryByTestId("playback-pill")).toBeNull();
+    startSpeaking(second.id);
+    expect(screen.getByTestId("playback-pill")).toBeInTheDocument();
+  });
+
+  it("keeps the pill for replay after TTS stops when auto-TTS is enabled", async () => {
+    setupPaneState();
+    mockStoreState.autoTtsEnabled = true;
+    await renderWorkspace();
+    startSpeaking(testEvent.id);
+    stopSpeaking();
+    expect(screen.getByTestId("playback-pill")).toBeInTheDocument();
+    expect(screen.queryByTestId("pill-equalizer")).toBeNull();
+  });
+
+  it("shows no pill after TTS stops when auto-TTS is disabled", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = false;
-
     await renderWorkspace();
-
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-
-    expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("tts-dismiss"));
-
-    expect(mockStopActiveTts).not.toHaveBeenCalled();
+    startSpeaking(testEvent.id);
+    expect(screen.getByTestId("playback-pill")).toBeInTheDocument();
+    stopSpeaking();
+    expect(screen.queryByTestId("playback-pill")).toBeNull();
   });
 
-  it("keeps audio player bar visible after TTS stops when auto-TTS is enabled", async () => {
+  it("the replay play button speaks the last event again", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
-
     await renderWorkspace();
-
-    // Simulate TTS starting then stopping
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-    act(() => {
-      captured.onTtsSpeakingChange?.(false);
-    });
-
-    // Bar should still be visible in replay mode
-    expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-  });
-
-  it("shows queue context for the current replay target", async () => {
-    setupPaneState();
-    mockStoreState.autoTtsEnabled = true;
-
-    await renderWorkspace();
-
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-    act(() => {
-      captured.onTtsSpeakingChange?.(false);
-    });
-
-    expect(screen.getByTestId("tts-current-message").textContent).toContain("#1");
-    expect(screen.getByTestId("tts-has-next").textContent).toBe("false");
-  });
-
-  it("does not show the replay bar after TTS stops when auto-TTS is disabled", async () => {
-    setupPaneState();
-    mockStoreState.autoTtsEnabled = false;
-
-    await renderWorkspace();
-
-    // Simulate TTS starting then stopping
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-    act(() => {
-      captured.onTtsSpeakingChange?.(false);
-    });
-
-    expect(screen.queryByTestId("audio-player-bar")).toBeNull();
-  });
-
-  it("replay resume button triggers speakTextOnPane with last event", async () => {
-    setupPaneState();
-    mockStoreState.autoTtsEnabled = true;
-
-    await renderWorkspace();
-
-    // Simulate TTS starting then stopping (enter replay mode)
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-    act(() => {
-      captured.onTtsSpeakingChange?.(false);
-    });
-
-    // Press the resume/play button in replay mode
-    fireEvent.click(screen.getByTestId("replay-resume"));
+    startSpeaking(testEvent.id);
+    stopSpeaking();
+    fireEvent.click(screen.getByTestId("pill-play-pause"));
     await waitFor(() => {
       expect(mockSpeakTextOnPane).toHaveBeenCalledWith(
         SESSION_ID,
@@ -446,8 +386,7 @@ describe("Workspace TTS replay bar", () => {
     });
   });
 
-  it("toggling to Original updates the bar label immediately and re-speaks the original text", async () => {
-    // Event that has been summarized and still has the original available.
+  it("choosing Original in the expanded pill re-speaks the original text", async () => {
     const summarizedEvent: ConversationEvent = {
       ...testEvent,
       id: "evt-002",
@@ -455,55 +394,18 @@ describe("Workspace TTS replay bar", () => {
       speechParagraphs: ["Short summary."],
       originalSpeechParagraphs: ["Original paragraph one.", "Original paragraph two."],
     };
-    mockStoreState.panes = [{ sessionId: SESSION_ID, name: "/bin/bash", headerColor: "transparent" }];
-    mockStoreState.activePane = SESSION_ID;
+    setupPaneState([summarizedEvent]);
     mockStoreState.autoTtsEnabled = true;
-    mockConversationSessions[SESSION_ID] = { events: [summarizedEvent] };
-
     await renderWorkspace();
-
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(summarizedEvent.id);
-    });
-
-    // The bar initially labels playback as the active summary level because a summary
-    // exists and the default playback version is active.
-    const modeBtn = screen.getByTestId("tts-mode-control");
-    expect(modeBtn.textContent).toMatch(/Moderate/);
-
-    // Open the dropdown and pick Original.
-    fireEvent.click(modeBtn);
-    fireEvent.click(screen.getByTestId("tts-mode-option-original"));
-
-    // Label must flip immediately instead of staying on the active summary level.
-    expect(screen.getByTestId("tts-mode-control").textContent).toMatch(/Original/);
-
-    // Re-speak must have been called with the original paragraphs + version.
+    startSpeaking(summarizedEvent.id);
+    fireEvent.click(screen.getByTestId("pill-summary"));
+    fireEvent.click(screen.getByTestId("pill-mode-control"));
+    fireEvent.click(screen.getByTestId("pill-mode-option-original"));
     expect(mockSpeakTextOnPane).toHaveBeenCalledWith(
       SESSION_ID,
       summarizedEvent.text,
       summarizedEvent.originalSpeechParagraphs,
       { eventId: summarizedEvent.id, version: "original", initiatedBy: "manual" },
     );
-  });
-
-  it("keeps the playback surface dismissible after auto-TTS stops", async () => {
-    setupPaneState();
-    mockStoreState.autoTtsEnabled = true;
-
-    await renderWorkspace();
-
-    // Simulate TTS starting then stopping (enter replay mode)
-    act(() => {
-      captured.onTtsSpeakingChange?.(true);
-      captured.onSpeakingEventChange?.(testEvent.id);
-    });
-    act(() => {
-      captured.onTtsSpeakingChange?.(false);
-    });
-
-    expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-    expect(screen.getByTestId("tts-dismiss")).toBeInTheDocument();
   });
 });

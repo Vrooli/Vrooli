@@ -33,6 +33,9 @@ export const BANNER_PRIORITY = {
   crashRecovery: 65,
   voiceRejection: 60,
   createError: 55,
+  // A close the server refused. Sits just under createError: both are a direct
+  // answer to something the operator just pressed, and only one can be current.
+  closeError: 54,
   summarizeError: 50,
   voiceError: 45,
   voiceStaleMic: 42,

@@ -16,6 +16,9 @@ const (
 	HubKindConversationOutOfSync   = "conversation_out_of_sync"
 	HubKindSessionStatus           = "session_status"
 	HubKindDeviceStatus            = "device_status"
+	// HubKindSessionActivity carries a session's activity (working, idle,
+	// waiting, unknown); see session_activity.go.
+	HubKindSessionActivity = "session_activity"
 )
 
 // hubRingSize bounds the in-memory replay buffer keyed by global id. A

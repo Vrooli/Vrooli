@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ErrorState } from "@vrooli/react-component-library/ErrorState/1";
 import { FormField } from "@vrooli/react-component-library/FormField/1";
@@ -25,6 +25,8 @@ import {
   type MachineConfigurationDetail,
 } from "../../api/machines";
 import type { CredentialGrant } from "@vrooli/proto-types/vrooli-bridge/v1/credentialgrant/credentialgrant_pb";
+import { ReadinessState, type GetReadinessResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/readiness/readiness_pb";
+import { ApplyRunState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
 
 /**
  * A machine's desired state — the panel formerly reached by `Configure`.
@@ -57,13 +59,27 @@ function driftLabel(name: string): string {
   return DRIFT_LABELS[name] ?? name;
 }
 
+function answerValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return value.toString();
+  }
+  return "";
+}
+
+function readinessStateName(state: ReadinessState): string {
+  return ReadinessState[state];
+}
+
 export function ConfigurationTab({ machine }: { machine: Machine }) {
   const { t } = useTranslation();
   const [questions, setQuestions] = useState<ConfigurationQuestion[]>([]);
   const [secretValues, setSecretValues] = useState<Record<string, string>>({});
   const [status, setStatus] = useState("");
   const [loadFailure, setLoadFailure] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [detail, setDetail] = useState<MachineConfigurationDetail | null>(null);
+  const [readiness, setReadiness] = useState<GetReadinessResponse | null>(null);
   const [grants, setGrants] = useState<CredentialGrant[]>([]);
   const [reapplying, setReapplying] = useState(false);
   const [addingCredential, setAddingCredential] = useState(false);
@@ -72,19 +88,34 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
   const [granting, setGranting] = useState(false);
 
   const issues = machineIssues(machine);
+  const targetOnboardingIncompatible = loadFailure.includes("target_onboarding_incompatible");
+
+  const loadConfiguration = useCallback(async () => {
+    try {
+      const [result, grantResult] = await Promise.all([
+        getConfiguration(machine.target.id),
+        listCredentialGrants(machine.target.id),
+      ]);
+      setQuestions(result.questions);
+      setDetail(result.detail);
+      setReadiness(result.readiness);
+      setGrants(grantResult.grants);
+      setLoadFailure("");
+    } catch (error: unknown) {
+      setLoadFailure(error instanceof Error ? error.message : String(error));
+    }
+  }, [machine.target.id]);
 
   useEffect(() => {
-    void Promise.all([getConfiguration(machine.target.id), listCredentialGrants(machine.target.id)])
-      .then(([result, grantResult]) => {
-        setQuestions(result.questions);
-        setDetail(result.detail);
-        setGrants(grantResult.grants);
-        setLoadFailure("");
-      })
-      .catch((error: unknown) => {
-        setLoadFailure(error instanceof Error ? error.message : String(error));
-      });
-  }, [machine.target.id]);
+    void loadConfiguration();
+  }, [loadConfiguration]);
+
+  const refresh = () => {
+    setRefreshing(true);
+    void loadConfiguration().finally(() => {
+      setRefreshing(false);
+    });
+  };
 
   const secrets = questions.filter((question) => question.kind === "secret");
   const regular = questions.filter((question) => question.kind !== "secret");
@@ -124,7 +155,8 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
       if (regular.length > 0) {
         await resolveConfiguration(
           machine.target.id,
-          regular.map((question) => ({ request_id: question.id, value: String(values[question.id] ?? "") })),
+          regular.map((question) => ({ request_id: question.id, value: answerValue(values[question.id]) })),
+          readiness?.configurationRevision ?? "",
         );
       }
       setSecretValues({});
@@ -137,13 +169,13 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
   const trackApply = async (runId: string) => {
     for (let attempt = 0; attempt < 180; attempt += 1) {
       const current = await getConfigurationApplyStatus(machine.target.id, runId);
-      const run = current.result as { status?: string; items?: Array<{ name?: string; outcome?: string }> };
-      setStatus(`Re-apply ${run.status ?? "running"}`);
-      if (run.status && !["pending", "applying"].includes(run.status)) {
+      const status = applyRunStateName(current.status);
+      setStatus(`Re-apply ${status}`);
+      if (![ApplyRunState.PENDING, ApplyRunState.APPLYING].includes(current.status)) {
         const refreshed = await getConfiguration(machine.target.id);
         setDetail(refreshed.detail);
         setQuestions(refreshed.questions);
-        setStatus(`Re-apply ${run.status}; configuration evidence refreshed.`);
+        setStatus(`Re-apply ${status}; configuration evidence refreshed.`);
         return;
       }
       await new Promise((resolve) => window.setTimeout(resolve, 1000));
@@ -156,35 +188,55 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
     setStatus("Re-applying the desired configuration…");
     void reapplyConfiguration(machine.target.id)
       .then(async (result) => {
-        const runId = (result.result as { run_id?: string })?.run_id;
+        const runId = result.result?.run?.runId;
         if (runId) await trackApply(runId);
         else setStatus("Re-apply returned no durable run id.");
       })
-      .catch((error: unknown) =>
-        setStatus(error instanceof Error ? error.message : "The configuration could not be re-applied."),
-      )
-      .finally(() => setReapplying(false));
+      .catch((error: unknown) => {
+        setStatus(error instanceof Error ? error.message : "The configuration could not be re-applied.");
+      })
+      .finally(() => {
+        setReapplying(false);
+      });
   };
+
+  function applyRunStateName(state: ApplyRunState): string {
+    return ApplyRunState[state].toLowerCase().replace(/_/g, " ");
+  }
 
   return (
     <div className="space-y-3" data-testid="machine-configuration-panel">
       {loadFailure && (
         <ErrorState
-          title={t(strings.machines.configUnavailableTitle)}
-          message="Its bridge agent could not answer. Re-apply the profile to bring it back into line."
+          title={targetOnboardingIncompatible ? t(strings.machines.configIncompatibleTitle) : t(strings.machines.configUnavailableTitle)}
+          message={targetOnboardingIncompatible
+            ? t(strings.machines.configIncompatibleBody)
+            : "The Bridge path could not retrieve configuration questions. Check the technical detail below and refresh after the target onboarding service is healthy; re-apply may not fix a missing backend route."}
           detail={loadFailure}
           detailLabel={t(strings.machines.technicalDetail)}
           actions={
-            <Button
-              size="sm"
-              variant="outline"
-              data-testid="machine-configuration-reapply"
-              pending={reapplying}
-              pendingLabel={t(strings.machines.reapplying)}
-              onClick={reapply}
-            >
-              {t(strings.machines.reapply)}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="machine-configuration-refresh"
+                pending={refreshing}
+                pendingLabel={t(strings.machines.refreshing)}
+                onClick={refresh}
+              >
+                {t(strings.machines.refresh)}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="machine-configuration-reapply"
+                pending={reapplying}
+                pendingLabel={t(strings.machines.reapplying)}
+                onClick={reapply}
+              >
+                {t(strings.machines.reapply)}
+              </Button>
+            </div>
           }
         />
       )}
@@ -222,13 +274,16 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
               {detail.machine?.appliedProfileVersion ? ` (${detail.machine.appliedProfileVersion})` : ""}
             </dd>
           </dl>
-          {detail.readiness && (
+          {readiness && (
             <div className="mt-3">
               <VerdictSummary
-                pass={detail.readiness.ready ? 1 : 0}
-                fail={detail.readiness.ready ? 0 : (detail.readiness.reasons?.length ?? 1)}
+                pass={readiness.status === ReadinessState.READY ? 1 : 0}
+                fail={readiness.status === ReadinessState.READY ? 0 : Math.max(1, readiness.blockers.length)}
                 unmeasured={0}
               />
+              <p className="mt-2 text-xs text-wc-text-faint">
+                {readiness.blockers[0]?.reason ?? readiness.degraded[0]?.reason ?? `Readiness state: ${readinessStateName(readiness.status)}`}
+              </p>
             </div>
           )}
         </section>
@@ -312,12 +367,14 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
                     aria-label={t(strings.machines.credentialRevoke, { name: `${grant.logicalId}:${grant.field}` })}
                     onClick={() => {
                       void revokeCredentialGrant(grant.id)
-                        .then(() => setGrants((current) => current.filter((item) => item.id !== grant.id)))
-                        .catch((error: unknown) =>
+                        .then(() => {
+                          setGrants((current) => current.filter((item) => item.id !== grant.id));
+                        })
+                        .catch((error: unknown) => {
                           setStatus(
                             error instanceof Error ? error.message : "The credential grant could not be revoked.",
-                          ),
-                        );
+                          );
+                        });
                     }}
                   >
                     {t(strings.machines.forget)}
@@ -348,10 +405,12 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
                   setAddingCredential(false);
                   setStatus("Grant created; Bridge will push the sealed value when the authority has it.");
                 })
-                .catch((error: unknown) =>
-                  setStatus(error instanceof Error ? error.message : "The credential grant could not be created."),
-                )
-                .finally(() => setGranting(false));
+                .catch((error: unknown) => {
+                  setStatus(error instanceof Error ? error.message : "The credential grant could not be created.");
+                })
+                .finally(() => {
+                  setGranting(false);
+                });
             }}
           >
             <div className="grid gap-3 sm:grid-cols-2">
@@ -363,7 +422,9 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
                     data-testid="machine-credential-identity"
                     placeholder="namespace/name"
                     value={grantIdentity}
-                    onChange={(event) => setGrantIdentity(event.target.value)}
+                    onChange={(event) => {
+                      setGrantIdentity(event.target.value);
+                    }}
                   />
                 }
               />
@@ -375,7 +436,9 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
                     data-testid="machine-credential-field"
                     placeholder="value"
                     value={grantField}
-                    onChange={(event) => setGrantField(event.target.value)}
+                    onChange={(event) => {
+                      setGrantField(event.target.value);
+                    }}
                   />
                 }
               />
@@ -420,9 +483,9 @@ export function ConfigurationTab({ machine }: { machine: Machine }) {
                 // to reveal it would promise something this surface cannot do.
                 revealable={false}
                 value={secretValues[question.id] ?? ""}
-                onValueChange={(value) =>
-                  setSecretValues((current) => ({ ...current, [question.id]: value }))
-                }
+                onValueChange={(value) => {
+                  setSecretValues((current) => ({ ...current, [question.id]: value }));
+                }}
               />
             ))}
             {regular.length > 0 && (

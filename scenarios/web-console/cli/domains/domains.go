@@ -3,6 +3,7 @@ package domains
 import (
 	"web-console/cli/domains/ai"
 	"web-console/cli/domains/capabilities"
+	"web-console/cli/domains/continuity"
 	"web-console/cli/domains/conversation"
 	"web-console/cli/domains/events"
 	filepreview "web-console/cli/domains/file_preview"
@@ -53,6 +54,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	conversationGroup, err := conversation.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	continuityGroup, err := continuity.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +123,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		shortcutsGroup,
 		aiGroup,
 		conversationGroup,
+		continuityGroup,
 		filePreviewGroup,
 		eventsGroup,
 		metricsGroup,

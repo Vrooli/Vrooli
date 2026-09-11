@@ -42,4 +42,5 @@ const (
 	RESTReasonThirdPartyShape = endpoints.RESTReasonThirdPartyShape
 	RESTReasonOpsProbe        = endpoints.RESTReasonOpsProbe
 	RESTReasonStreamUpgrade   = endpoints.RESTReasonStreamUpgrade
+	RESTReasonBrowserSurface  = endpoints.RESTReasonBrowserSurface
 )

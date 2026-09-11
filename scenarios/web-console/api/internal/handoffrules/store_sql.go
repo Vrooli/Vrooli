@@ -1,4 +1,4 @@
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/internal/SECURITY-POSTURE.md#sql-injection-prevention
 
 package handoffrules

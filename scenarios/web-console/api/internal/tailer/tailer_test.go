@@ -49,13 +49,14 @@ func TestEngineTailsCompleteLinesAndPersistsByteCursor(t *testing.T) {
 		Name:        "test-source",
 		Source:      testSource{},
 		Checkpoints: store,
-		Dispatch: func(event Event, sessionID string) {
+		Dispatch: func(event Event, sessionID string) bool {
 			if sessionID != "session-1" {
 				t.Errorf("session id = %q", sessionID)
 			}
 			mu.Lock()
 			got = append(got, event.Text)
 			mu.Unlock()
+			return true
 		},
 	})
 
@@ -72,6 +73,40 @@ func TestEngineTailsCompleteLinesAndPersistsByteCursor(t *testing.T) {
 	}
 	cp, ok, err := store.Get(context.Background(), "test-source", path)
 	if err != nil || !ok || cp.Cursor != "8" {
+		t.Fatalf("checkpoint = %+v, ok=%v, err=%v", cp, ok, err)
+	}
+}
+
+func TestEngineRetriesLineAfterDispatchFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "updates.jsonl")
+	if err := os.WriteFile(path, []byte("retry\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := &testCheckpointStore{cp: make(map[string]Checkpoint)}
+	accepted := false
+	var got []string
+	e := New(Config{
+		Name:         "retry-source",
+		Source:       singleFileSource{ref: FileRef{Path: path, SessionID: "session-1"}},
+		Checkpoints:  store,
+		TailInterval: time.Millisecond,
+		Dispatch: func(event Event, _ string) bool {
+			if !accepted {
+				return false
+			}
+			got = append(got, event.Text)
+			return true
+		},
+	})
+	e.Scan(context.Background())
+	accepted = true
+	e.Scan(context.Background())
+	e.Stop()
+
+	if len(got) != 1 || got[0] != "retry" {
+		t.Fatalf("expected failed line to be retried, got %v", got)
+	}
+	if cp, ok, err := store.Get(context.Background(), "retry-source", path); err != nil || !ok || cp.Cursor != "6" {
 		t.Fatalf("checkpoint = %+v, ok=%v, err=%v", cp, ok, err)
 	}
 }

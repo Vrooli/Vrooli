@@ -7,7 +7,7 @@
 // shippable — a wrong rule costs a dismissed chip, never a message delivered
 // to an agent — and it is why nothing in this package can reach the send path.
 //
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/internal/ROLES-AND-HANDOFFS-UX.md
 package handoffrules
 

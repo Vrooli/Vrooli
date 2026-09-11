@@ -2,12 +2,20 @@ import { useCallback, useEffect, useRef } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 
 const DEFAULT_LONG_PRESS_MS = 500;
-const DEFAULT_MOVE_THRESHOLD_PX = 8;
+/** How far a pointer may travel and still count as a tap. */
+export const PRESS_MOVE_THRESHOLD_PX = 8;
 const CLICK_SUPPRESSION_MS = 750;
 
 export interface PressGesturePoint {
   x: number;
   y: number;
+}
+
+/** Whether a pointer has travelled farther than `thresholdPx` from where it went down. */
+export function movedBeyond(start: PressGesturePoint, current: PressGesturePoint, thresholdPx: number): boolean {
+  const dx = current.x - start.x;
+  const dy = current.y - start.y;
+  return Math.sqrt(dx * dx + dy * dy) > thresholdPx;
 }
 
 export interface PressGestureMove<TId extends string> {
@@ -47,7 +55,7 @@ interface ActiveGesture<TId extends string> {
  */
 export function usePressGesture<TId extends string>({
   longPressMs = DEFAULT_LONG_PRESS_MS,
-  moveThresholdPx = DEFAULT_MOVE_THRESHOLD_PX,
+  moveThresholdPx = PRESS_MOVE_THRESHOLD_PX,
   onTap,
   onLongPress,
   onMoveThreshold,
@@ -133,9 +141,7 @@ export function usePressGesture<TId extends string>({
         active.current = { x: moveEvent.clientX, y: moveEvent.clientY };
         if (active.moved) return;
 
-        const dx = moveEvent.clientX - active.start.x;
-        const dy = moveEvent.clientY - active.start.y;
-        if (Math.sqrt(dx * dx + dy * dy) <= moveThresholdPx) return;
+        if (!movedBeyond(active.start, active.current, moveThresholdPx)) return;
 
         active.moved = true;
         active.longPressReady = false;

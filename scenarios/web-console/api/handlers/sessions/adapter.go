@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,12 +12,12 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
 	"web-console/internal/backend"
+	"web-console/internal/continuity"
 	"web-console/internal/events"
 	intmetrics "web-console/internal/metrics"
 	"web-console/internal/policy"
@@ -44,7 +45,7 @@ type SessionManager interface {
 // history onto its fresh replacement id so the messages view is not empty
 // after reattach.
 type ConversationsStore interface {
-	DeleteSession(ctx context.Context, id string)
+	DeleteSession(ctx context.Context, id string) error
 	CopySession(ctx context.Context, oldID, newID string) error
 	HasConversationAfter(ctx context.Context, sessionID string, after time.Time) bool
 	CountSessionEvents(ctx context.Context, sessionID string) int64
@@ -79,12 +80,12 @@ type Adapter struct {
 	RemoveAgentHomes    func(sessionID string) error
 	Now                 func() time.Time
 	Remote              RemoteService
-
-	// ArchiveGracePeriod is the server-owned undo window. Zero uses the
-	// product default; tests may set a negative duration for immediate finalization.
-	ArchiveGracePeriod time.Duration
-	archiveMu          sync.Mutex
-	archiveTimers      map[string]*time.Timer
+	LifecycleLedger     continuity.Ledger
+	ContinuityCatalog   interface {
+		EnqueueTombstone(context.Context, string) error
+		List(context.Context, string, int) ([]continuity.CatalogRecord, bool, error)
+		ListAll(context.Context, string) ([]continuity.CatalogRecord, error)
+	}
 }
 
 func (a *Adapter) logger() *log.Logger {
@@ -92,6 +93,183 @@ func (a *Adapter) logger() *log.Logger {
 		return a.Logger
 	}
 	return log.Default()
+}
+
+func (a *Adapter) updateCatalogLifecycle(ctx context.Context, sessionID string, state continuity.State) error {
+	if a.ContinuityCatalog == nil {
+		return nil
+	}
+	catalog, ok := a.ContinuityCatalog.(continuity.LifecycleCatalog)
+	if !ok {
+		return nil
+	}
+	if err := catalog.UpdateLifecycleState(ctx, sessionID, state); err != nil {
+		return fmt.Errorf("update continuity catalog for %s: %w", sanitizeID(sessionID), err)
+	}
+	return nil
+}
+
+func (a *Adapter) beginLifecycleReceipt(ctx context.Context, command, sessionID string, from, to continuity.State) (continuity.Receipt, bool, error) {
+	if err := continuity.ValidateState(from); err != nil {
+		return continuity.Receipt{}, false, fmt.Errorf("invalid lifecycle receipt prior state: %w", err)
+	}
+	if err := continuity.ValidateState(to); err != nil {
+		return continuity.Receipt{}, false, fmt.Errorf("invalid lifecycle receipt resulting state: %w", err)
+	}
+	if a.LifecycleLedger == nil {
+		return continuity.Receipt{}, false, nil
+	}
+	op := lifecycleOperationID(ctx, command, sessionID)
+	receipt, err := a.LifecycleLedger.Put(ctx, continuity.Receipt{OperationID: op, SessionID: sessionID, ActorKind: "operator", Command: command, FromState: from, ToState: to, ReasonCode: command, Status: "pending", CreatedAt: time.Now().UTC()})
+	if err != nil {
+		if a.Metrics != nil {
+			a.Metrics.ContinuityFailures.Add(1)
+		}
+		return continuity.Receipt{}, false, err
+	}
+	if a.Metrics != nil {
+		a.Metrics.ContinuityReceipts.Add(1)
+	}
+	// A recorded failure is not a verdict on every future attempt. The web UI
+	// derives this operation id from the session id alone, so replaying a
+	// failure here made the operator's Close button permanently dead for that
+	// session — one refusal, then the same refusal forever, with no way to ask
+	// again. Reopening lets this attempt run and record its own outcome, the
+	// way catalog reconciliation already retries its failed receipts.
+	if receipt.Status == "failed" {
+		retryable, ok := a.LifecycleLedger.(continuity.RetryableLedger)
+		if !ok {
+			return receipt, true, nil
+		}
+		reopened, reopenErr := retryable.Reopen(ctx, op)
+		if reopenErr != nil {
+			return continuity.Receipt{}, false, fmt.Errorf("reopen failed %s receipt %q: %w", command, op, reopenErr)
+		}
+		receipt = reopened
+	}
+	return receipt, receipt.Status != "pending", nil
+}
+
+func lifecycleOperationID(ctx context.Context, command, sessionID string) string {
+	op := OperationID(ctx)
+	if op == "" {
+		op = "web-console:" + command + ":" + sessionID
+	}
+	return op
+}
+
+func (a *Adapter) replayLifecycleReceipt(ctx context.Context, command, sessionID string) (bool, error) {
+	if a.LifecycleLedger == nil {
+		return false, nil
+	}
+	receipt, err := a.LifecycleLedger.Get(ctx, lifecycleOperationID(ctx, command, sessionID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return true, fmt.Errorf("read %s receipt: %v: %w", command, err, ErrInternal)
+	}
+	// Only a decided success short-circuits. A failed receipt falls through so
+	// the caller re-runs the command; beginLifecycleReceipt reopens the receipt
+	// so the retry records its own outcome rather than inheriting the old one.
+	if receipt.Status == "failed" {
+		return false, nil
+	}
+	return true, replayLifecycleResult(receipt, command)
+}
+
+func (a *Adapter) replayRecoverReceipt(ctx context.Context, oldID string) (RecoverResult, bool, error) {
+	if a.LifecycleLedger == nil {
+		return RecoverResult{}, false, nil
+	}
+	receipt, err := a.LifecycleLedger.Get(ctx, lifecycleOperationID(ctx, "recover", oldID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return RecoverResult{}, false, nil
+	}
+	if err != nil {
+		return RecoverResult{}, true, fmt.Errorf("read recover receipt: %v: %w", err, ErrInternal)
+	}
+	if receipt.Status != "succeeded" {
+		return RecoverResult{}, true, replayLifecycleResult(receipt, "recover")
+	}
+	if receipt.ActorID == "" {
+		return RecoverResult{}, true, fmt.Errorf("recover operation %q has no replacement session: %w", receipt.OperationID, ErrFailedPrecondition)
+	}
+	return RecoverResult{OldSessionID: oldID, NewSessionID: receipt.ActorID}, true, nil
+}
+
+func (a *Adapter) finishLifecycleReceipt(ctx context.Context, receipt continuity.Receipt, operationErr error) error {
+	if a.LifecycleLedger == nil || receipt.OperationID == "" {
+		return nil
+	}
+	status, code := "succeeded", ""
+	if operationErr != nil {
+		status, code = "failed", "lifecycle_operation_failed"
+	}
+	_, err := a.LifecycleLedger.Complete(ctx, receipt.OperationID, status, code, time.Now().UTC())
+	if a.Metrics != nil {
+		if err != nil || operationErr != nil {
+			a.Metrics.ContinuityFailures.Add(1)
+		}
+	}
+	return err
+}
+
+func (a *Adapter) finishLifecycleResult(ctx context.Context, receipt continuity.Receipt, operationErr error, command string) error {
+	if finishErr := a.finishLifecycleReceipt(ctx, receipt, operationErr); finishErr != nil {
+		completionErr := fmt.Errorf("complete %s receipt: %v: %w", command, finishErr, ErrInternal)
+		if operationErr != nil {
+			return errors.Join(operationErr, completionErr)
+		}
+		return completionErr
+	}
+	return operationErr
+}
+
+func replayLifecycleResult(receipt continuity.Receipt, command string) error {
+	switch receipt.Status {
+	case "succeeded":
+		return nil
+	case "failed":
+		message := fmt.Sprintf("%s operation %q previously failed", command, receipt.OperationID)
+		if receipt.ErrorCode != "" {
+			message += ": " + receipt.ErrorCode
+		}
+		return fmt.Errorf("%s: %w", message, ErrFailedPrecondition)
+	default:
+		return fmt.Errorf("%s operation %q has unresolved status %q: %w", command, receipt.OperationID, receipt.Status, ErrFailedPrecondition)
+	}
+}
+
+// recordLifecycleFailure makes a rejected lifecycle command observable too.
+// A failed precondition does not change the source state, but it still needs a
+// durable, idempotent result so an operator can distinguish a safe refusal
+// from an unrecorded or interrupted request.
+func (a *Adapter) recordLifecycleFailure(ctx context.Context, command, sessionID string, from, to continuity.State, operationErr error) error {
+	if a.LifecycleLedger == nil {
+		return operationErr
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, command, sessionID, from, to)
+	if err != nil {
+		return errors.Join(operationErr, fmt.Errorf("record %s refusal: %w", command, err))
+	}
+	if replay {
+		return operationErr
+	}
+	if err := a.finishLifecycleReceipt(ctx, receipt, operationErr); err != nil {
+		return errors.Join(operationErr, fmt.Errorf("complete %s refusal receipt: %w", command, err))
+	}
+	return operationErr
+}
+
+func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
+	if !meta.ArchivedAt.IsZero() {
+		return continuity.StateArchived
+	}
+	if meta.Status == sessionstore.StatusAwaitingRecovery {
+		return continuity.StateRecoverable
+	}
+	return continuity.StateLive
 }
 
 // -----------------------------------------------------------------------------
@@ -122,7 +300,9 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		}
 		if a.Store != nil && (in.LaunchCommand != "" || in.AgentType != "") {
 			agentType := intsessions.NormalizeAgentType(in.AgentType)
-			_ = a.Store.UpdateAgentInfo(ctx, created.ID, sessionstore.AgentInfo{AgentType: agentType, LaunchCommand: in.LaunchCommand})
+			if err := a.Store.UpdateAgentInfo(ctx, created.ID, sessionstore.AgentInfo{AgentType: agentType, LaunchCommand: in.LaunchCommand}); err != nil {
+				return Session{}, fmt.Errorf("persist remote session metadata for %q: %v: %w", sanitizeID(created.ID), err, ErrInternal)
+			}
 		}
 		if in.IdempotencyKey != "" && a.Idempotency != nil {
 			cached := handlerSessionToResponse(created)
@@ -157,12 +337,34 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		return Session{}, mapCreateError(err)
 	}
 
+	// The manager may already share this store and have persisted the base row
+	// during creation. Ensure the adapter-owned store has the row as well before
+	// applying enrichment: a provider can exit immediately after launch, and
+	// enrichment must remain attributable even when the runtime handle is gone.
+	if a.Store != nil {
+		if err := a.Store.Save(ctx, sessionstore.Metadata{
+			ID:       sess.ID,
+			Backend:  sess.Backend,
+			Shell:    sess.Shell,
+			Cols:     sess.Cols,
+			Rows:     sess.Rows,
+			Policy:   sess.GetPolicy(),
+			Created:  sess.CreatedAt,
+			Detached: sess.Backend == backend.Persistent,
+			CWD:      in.WorkingDir,
+		}); err != nil {
+			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
+		}
+	}
+
 	if a.Store != nil && (in.LaunchCommand != "" || in.AgentType != "") {
 		agentType := intsessions.NormalizeAgentType(in.AgentType)
-		_ = a.Store.UpdateAgentInfo(ctx, sess.ID, sessionstore.AgentInfo{
+		if err := a.Store.UpdateAgentInfo(ctx, sess.ID, sessionstore.AgentInfo{
 			AgentType:     agentType,
 			LaunchCommand: in.LaunchCommand,
-		})
+		}); err != nil {
+			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
+		}
 	}
 
 	// Provenance: an origin-less create can only be programmatic (every
@@ -176,7 +378,9 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		owner, displayLabel = testSessionOwner, testSessionLabel
 	}
 	if a.Store != nil {
-		_ = a.Store.SetProvenance(ctx, sess.ID, origin, owner, displayLabel)
+		if err := a.Store.SetProvenance(ctx, sess.ID, origin, owner, displayLabel); err != nil {
+			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
+		}
 	}
 
 	// Server-side launch execution: paste the launch command into the fresh
@@ -215,6 +419,25 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	return responseToHandlerSession(resp), nil
 }
 
+// failCreateAfterPersistenceError makes a partially persisted create
+// fail-closed. The runtime and its base metadata row were created before the
+// adapter could persist the richer identity fields; returning success here
+// would expose an untracked pane to recovery and reconciliation.
+func (a *Adapter) failCreateAfterPersistenceError(ctx context.Context, sessionID string, persistErr error) (Session, error) {
+	cleanupErrs := []error{fmt.Errorf("persist session metadata for %q: %v", sanitizeID(sessionID), persistErr)}
+	if a.Manager != nil {
+		if err := a.Manager.Delete(ctx, sessionID); err != nil {
+			cleanupErrs = append(cleanupErrs, fmt.Errorf("terminate partially created session %q: %w", sanitizeID(sessionID), err))
+		}
+	}
+	if a.Store != nil {
+		if err := a.Store.Delete(ctx, sessionID); err != nil {
+			cleanupErrs = append(cleanupErrs, fmt.Errorf("remove partially persisted session %q: %w", sanitizeID(sessionID), err))
+		}
+	}
+	return Session{}, fmt.Errorf("create session failed closed: %w", errors.Join(cleanupErrs...))
+}
+
 func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 	live := a.Manager.List()
 	// The store is the source of truth for provenance (origin/owner/label);
@@ -238,6 +461,9 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 		}
 		if recoveredAgents[s.ID] == sessionstore.AgentClaude && isClaudeTrackingDegraded(sess, a.Conversations) {
 			s.TrackingDegraded = true
+		}
+		if activity, ok := sess.Activity(); ok {
+			s.Activity = activityToProto(s.ID, activity)
 		}
 		out = append(out, s)
 	}
@@ -292,6 +518,33 @@ func (a *Adapter) ListArchived(ctx context.Context) ([]ArchivedSession, error) {
 		collapsed[newest.ID] = newest
 	}
 
+	// Catalog records are the recovery projection of durable conversation
+	// evidence. Include records that have no session-store row so a missing live
+	// projection cannot make an intact transcript disappear from the archive
+	// drawer. They are intentionally read-only here: without session metadata
+	// there is no safe process/recovery operation to expose.
+	if a.ContinuityCatalog != nil {
+		catalogRows, catalogErr := a.ContinuityCatalog.ListAll(ctx, "")
+		if catalogErr != nil {
+			return nil, fmt.Errorf("%w: list continuity catalog: %s", ErrInternal, catalogErr)
+		}
+		for _, record := range catalogRows {
+			if _, exists := collapsed[record.SessionID]; exists || record.LifecycleState == continuity.StateDeleted {
+				continue
+			}
+			collapsed[record.SessionID] = sessionstore.Metadata{
+				ID:             record.SessionID,
+				AgentType:      sessionstore.Agent(record.AgentType),
+				AgentSessionID: record.AgentSessionID,
+				CWD:            record.CWD,
+				Created:        record.CreatedAt,
+				LastActivityAt: record.LastActivityAt,
+				ArchivedAt:     record.LastActivityAt,
+				Status:         sessionstore.StatusDismissed,
+			}
+		}
+	}
+
 	result := make([]ArchivedSession, 0, len(collapsed))
 	for _, row := range collapsed {
 		messageCount := int64(0)
@@ -319,6 +572,10 @@ func (a *Adapter) ListArchived(ctx context.Context) ([]ArchivedSession, error) {
 			AwaitingRecovery: row.Status == sessionstore.StatusAwaitingRecovery,
 		}
 		entry.RestoreState, entry.RestoreStateReason = a.restoreState(row, messageCount)
+		if _, hasSessionRow := byID[row.ID]; !hasSessionRow {
+			entry.RestoreState = RestoreStateReadOnly
+			entry.RestoreStateReason = "session metadata is absent; transcript remains available for inspection, but process recovery requires a native session record"
+		}
 		if pane, ok := panes[row.ID]; ok {
 			entry.PaneName = pane.Name
 			entry.HeaderColor = pane.HeaderColor
@@ -428,6 +685,40 @@ func (a *Adapter) GetArchiveRetention(ctx context.Context) (ArchiveRetentionSnap
 	return ArchiveRetentionSnapshot{Policy: a.retentionPolicy(), Stats: stats}, nil
 }
 
+func (a *Adapter) pruneAgentHistoryWithReceipt(ctx context.Context, candidate retentionCandidate) (int64, error) {
+	if a.PruneAgentHistory == nil {
+		return 0, fmt.Errorf("%w: agent-history prune is unavailable", ErrInternal)
+	}
+	if a.LifecycleLedger == nil {
+		return a.PruneAgentHistory(candidate.meta)
+	}
+	receiptCtx := ctx
+	if operationID := OperationID(ctx); operationID != "" {
+		receiptCtx = WithOperationID(ctx, operationID+":agent-home:"+candidate.meta.ID)
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(receiptCtx, "retention_agent_home", candidate.meta.ID, continuity.StateArchived, continuity.StateArchived)
+	if err != nil {
+		return 0, fmt.Errorf("begin agent-history retention receipt: %w", err)
+	}
+	if replay {
+		if err := replayLifecycleResult(receipt, "retention_agent_home"); err != nil {
+			return 0, err
+		}
+		return candidate.homeBytes, nil
+	}
+	reclaimed, pruneErr := a.PruneAgentHistory(candidate.meta)
+	if finishErr := a.finishLifecycleReceipt(receiptCtx, receipt, pruneErr); finishErr != nil {
+		if pruneErr != nil {
+			return 0, errors.Join(pruneErr, finishErr)
+		}
+		return 0, fmt.Errorf("complete agent-history retention receipt: %w", finishErr)
+	}
+	if pruneErr != nil {
+		return 0, pruneErr
+	}
+	return reclaimed, nil
+}
+
 // PruneArchive is fail-safe by default: apply=false only reports the ordered
 // actions. Candidate membership is already constrained by the store's SQL
 // query to rows with a non-empty archived_at value.
@@ -453,10 +744,7 @@ func (a *Adapter) PruneArchive(ctx context.Context, apply bool) (ArchivePruneRes
 		if candidate.homeBytes > 0 && (homeDue || overSize || emptyDue) {
 			action := ArchivePruneAction{SessionID: candidate.meta.ID, Kind: PruneAgentHome, Bytes: candidate.homeBytes}
 			if apply {
-				if a.PruneAgentHistory == nil {
-					return ArchivePruneResult{}, fmt.Errorf("%w: agent-history prune is unavailable", ErrInternal)
-				}
-				reclaimed, pruneErr := a.PruneAgentHistory(candidate.meta)
+				reclaimed, pruneErr := a.pruneAgentHistoryWithReceipt(ctx, candidate)
 				if pruneErr != nil {
 					return ArchivePruneResult{}, fmt.Errorf("%w: prune agent history for %s: %s", ErrInternal, candidate.meta.ID, pruneErr)
 				}
@@ -471,7 +759,15 @@ func (a *Adapter) PruneArchive(ctx context.Context, apply bool) (ArchivePruneRes
 		if emptyDue {
 			action := ArchivePruneAction{SessionID: candidate.meta.ID, Kind: PruneTranscript, Bytes: candidate.transcriptBytes}
 			if apply {
-				if err := a.Delete(ctx, candidate.meta.ID); err != nil {
+				deleteCtx := ctx
+				if operationID := OperationID(ctx); operationID != "" {
+					// A prune request can contain multiple destructive child
+					// operations. Give each child its own durable receipt so one
+					// candidate cannot consume the parent idempotency key and
+					// accidentally suppress later deletions.
+					deleteCtx = WithOperationID(ctx, operationID+":delete:"+candidate.meta.ID)
+				}
+				if err := a.Delete(deleteCtx, candidate.meta.ID); err != nil {
 					return ArchivePruneResult{}, err
 				}
 				action.Applied = true
@@ -579,115 +875,194 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 }
 
 func (a *Adapter) Delete(ctx context.Context, id string) error {
-	a.cancelArchiveTimer(id)
-	_, managed := a.Manager.Get(id)
-	persisted := false
-	if a.Store != nil {
-		_, err := a.Store.Get(ctx, id)
-		persisted = err == nil
+	fromState := continuity.StateLive
+	managed := false
+	if a.Manager != nil {
+		_, managed = a.Manager.Get(id)
 	}
-	if !managed && !persisted {
+	if !managed && a.Store != nil {
+		if meta, getErr := a.Store.Get(ctx, id); getErr == nil {
+			fromState = lifecycleStateForMetadata(meta)
+		}
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, "delete", id, fromState, continuity.StateDeleted)
+	if err != nil {
+		return fmt.Errorf("begin delete receipt: %v: %w", err, ErrInternal)
+	}
+	if replay {
+		return replayLifecycleResult(receipt, "delete")
+	}
+	operationErr := func() error {
+		managed := false
+		if a.Manager != nil {
+			_, managed = a.Manager.Get(id)
+		}
+		persisted := false
+		if a.Store != nil {
+			_, err := a.Store.Get(ctx, id)
+			persisted = err == nil
+		}
+		if !managed && !persisted {
+			return nil
+		}
+		if a.ContinuityCatalog != nil {
+			if err := a.ContinuityCatalog.EnqueueTombstone(ctx, id); err != nil {
+				return fmt.Errorf("queue external search tombstone: %v: %w", err, ErrInternal)
+			}
+		}
+		if managed {
+			if err := a.Manager.Delete(ctx, id); err != nil {
+				return fmt.Errorf("delete live session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+			a.Metrics.ActiveSessions.Add(-1)
+		}
+		if a.Conversations != nil {
+			if err := a.Conversations.DeleteSession(ctx, id); err != nil {
+				return fmt.Errorf("delete conversation evidence for %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+		}
+		if a.CodexCheckpoints != nil {
+			if err := a.CodexCheckpoints.DeleteSession(ctx, id); err != nil {
+				return fmt.Errorf("delete Codex checkpoint for %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+		}
+		if a.AgentCheckpoints != nil {
+			if err := a.AgentCheckpoints.DeleteSession(ctx, id); err != nil {
+				return fmt.Errorf("delete agent checkpoint for %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+		}
+		if a.RemoveAgentHomes != nil {
+			if err := a.RemoveAgentHomes(id); err != nil {
+				return fmt.Errorf("delete agent homes for %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+		}
+		// Keep the metadata row until every durable evidence source has
+		// acknowledged deletion. If any earlier step fails, the row remains
+		// visible so the explicit delete can be retried instead of leaving a
+		// silent metadata orphan.
+		if persisted && a.Store != nil {
+			if err := a.Store.Delete(ctx, id); err != nil {
+				return fmt.Errorf("delete archived session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			}
+		}
+		a.Events.Emit(events.SessionDeleted, id, nil)
+		a.Metrics.SessionsDeleted.Add(1)
 		return nil
-	}
-	if managed {
-		if err := a.Manager.Delete(ctx, id); err != nil {
-			return fmt.Errorf("delete live session %q: %v: %w", sanitizeID(id), err, ErrInternal)
-		}
-		a.Metrics.ActiveSessions.Add(-1)
-	} else if err := a.Store.Delete(ctx, id); err != nil {
-		return fmt.Errorf("delete archived session %q: %v: %w", sanitizeID(id), err, ErrInternal)
-	}
-	if a.Conversations != nil {
-		a.Conversations.DeleteSession(ctx, id)
-	}
-	if a.CodexCheckpoints != nil {
-		_ = a.CodexCheckpoints.DeleteSession(ctx, id)
-	}
-	if a.AgentCheckpoints != nil {
-		_ = a.AgentCheckpoints.DeleteSession(ctx, id)
-	}
-	if a.RemoveAgentHomes != nil {
-		if err := a.RemoveAgentHomes(id); err != nil {
-			a.logger().Printf("delete-session[%s]: failed to clean agent homes: %v", sanitizeID(id), err)
-		}
-	}
-	a.Events.Emit(events.SessionDeleted, id, nil)
-	a.Metrics.SessionsDeleted.Add(1)
-	return nil
+	}()
+	return a.finishLifecycleResult(ctx, receipt, operationErr, "delete")
 }
 
 // Archive stops the live process while preserving every durable artifact. It
 // is intentionally separate from Delete, whose cascade remains the explicit
 // permanent-destruction path.
 func (a *Adapter) Archive(ctx context.Context, id string) error {
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, "archive", id, continuity.StateLive, continuity.StateArchived)
+	if err != nil {
+		return fmt.Errorf("begin archive receipt: %v: %w", err, ErrInternal)
+	}
+	if replay {
+		return replayLifecycleResult(receipt, "archive")
+	}
 	if a.Store == nil {
-		return fmt.Errorf("session store not configured: %w", ErrInternal)
+		operationErr := fmt.Errorf("session store not configured: %w", ErrInternal)
+		return a.finishLifecycleResult(ctx, receipt, operationErr, "archive")
 	}
+	// Archive has to be able to close anything List showed. A live session can
+	// outlive its metadata row — a routed test lease writes its rows to a
+	// database that is later discarded while the PTY keeps running — and
+	// refusing here left the operator looking at a row they could see, could
+	// not close, and whose failure the ledger then replayed forever. Delete
+	// already treats "managed OR persisted" as enough; Archive now agrees, and
+	// re-persists the row from the live session so the archive is real (it
+	// lands in the archive view and can be unarchived) rather than a silent
+	// stop with no durable trace.
 	if _, err := a.Store.Get(ctx, id); err != nil {
-		return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
-	}
-	if err := a.Store.MarkArchived(ctx, id, time.Now().UTC()); err != nil {
-		return fmt.Errorf("mark archived: %v: %w", err, ErrInternal)
-	}
-
-	a.archiveMu.Lock()
-	if a.archiveTimers == nil {
-		a.archiveTimers = make(map[string]*time.Timer)
-	}
-	if existing := a.archiveTimers[id]; existing != nil {
-		existing.Stop()
-	}
-	delay := a.ArchiveGracePeriod
-	if delay == 0 {
-		delay = 8 * time.Second
-	}
-	finalize := func() {
-		if err := a.Manager.Archive(context.Background(), id); err != nil {
-			a.logger().Printf("archive session %s: finalize: %v", sanitizeID(id), err)
-		} else {
-			a.Metrics.ActiveSessions.Add(-1)
+		if !a.persistLiveSessionRow(ctx, id) {
+			operationErr := fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
+			return a.finishLifecycleResult(ctx, receipt, operationErr, "archive")
 		}
-		a.archiveMu.Lock()
-		delete(a.archiveTimers, id)
-		a.archiveMu.Unlock()
 	}
-	if delay < 0 {
-		a.archiveMu.Unlock()
-		finalize()
-		return nil
+	var operationErr error
+	if err := a.Store.MarkArchived(ctx, id, time.Now().UTC()); err != nil {
+		operationErr = fmt.Errorf("mark archived: %v: %w", err, ErrInternal)
+	} else if err := a.updateCatalogLifecycle(ctx, id, continuity.StateArchived); err != nil {
+		operationErr = fmt.Errorf("mark continuity catalog archived: %v: %w", err, ErrInternal)
+	} else if a.Manager != nil {
+		if _, managed := a.Manager.Get(id); managed {
+			if err := a.Manager.Archive(ctx, id); err != nil {
+				operationErr = fmt.Errorf("stop archived session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+			} else {
+				a.Metrics.ActiveSessions.Add(-1)
+			}
+		}
 	}
-	a.archiveTimers[id] = time.AfterFunc(delay, finalize)
-	a.archiveMu.Unlock()
-	return nil
+	return a.finishLifecycleResult(ctx, receipt, operationErr, "archive")
+}
+
+// persistLiveSessionRow re-creates the metadata row for a session the manager
+// is still running but the store has no row for. It reports whether the row
+// now exists. The live session is the authority for everything the row needs
+// except provenance, which is genuinely unknown here and stays empty rather
+// than being invented.
+func (a *Adapter) persistLiveSessionRow(ctx context.Context, id string) bool {
+	if a.Manager == nil || a.Store == nil {
+		return false
+	}
+	sess, ok := a.Manager.Get(id)
+	if !ok {
+		return false
+	}
+	if err := a.Store.Save(ctx, sessionstore.Metadata{
+		ID:       sess.ID,
+		Backend:  sess.Backend,
+		Shell:    sess.Shell,
+		Cols:     sess.Cols,
+		Rows:     sess.Rows,
+		Policy:   sess.GetPolicy(),
+		Created:  sess.CreatedAt,
+		Detached: sess.Backend == backend.Persistent,
+	}); err != nil {
+		a.logger().Printf("archive[%s]: re-persist metadata for orphaned live session: %v", sanitizeID(id), err)
+		return false
+	}
+	return true
 }
 
 // Unarchive clears the archive marker for the short undo path. It does not
 // create a process or run an agent resume command.
 func (a *Adapter) Unarchive(ctx context.Context, id string) error {
+	if replay, err := a.replayLifecycleReceipt(ctx, "unarchive", id); replay {
+		return err
+	}
 	if a.Store == nil {
-		return fmt.Errorf("session store not configured: %w", ErrInternal)
+		return a.recordLifecycleFailure(ctx, "unarchive", id, continuity.StateArchived, continuity.StateLive,
+			fmt.Errorf("session store not configured: %w", ErrInternal))
 	}
-	a.archiveMu.Lock()
-	timer := a.archiveTimers[id]
-	if timer == nil || !timer.Stop() {
-		a.archiveMu.Unlock()
-		return fmt.Errorf("session %q archive undo window expired: %w", sanitizeID(id), ErrFailedPrecondition)
+	meta, err := a.Store.Get(ctx, id)
+	if err != nil {
+		return a.recordLifecycleFailure(ctx, "unarchive", id, continuity.StateArchived, continuity.StateLive,
+			fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound))
 	}
-	delete(a.archiveTimers, id)
-	a.archiveMu.Unlock()
+	if meta.ArchivedAt.IsZero() {
+		return a.recordLifecycleFailure(ctx, "unarchive", id, lifecycleStateForMetadata(meta), continuity.StateLive,
+			fmt.Errorf("session %q is not archived: %w", sanitizeID(id), ErrFailedPrecondition))
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, "unarchive", id, continuity.StateArchived, continuity.StateLive)
+	if err != nil {
+		return fmt.Errorf("begin unarchive receipt: %v: %w", err, ErrInternal)
+	}
+	if replay {
+		return replayLifecycleResult(receipt, "unarchive")
+	}
 	if err := a.Store.MarkUnarchived(ctx, id); err != nil {
-		return fmt.Errorf("unarchive session %q: %v: %w", sanitizeID(id), err, ErrNotFound)
+		opErr := fmt.Errorf("unarchive session %q: %v: %w", sanitizeID(id), err, ErrNotFound)
+		return a.finishLifecycleResult(ctx, receipt, opErr, "unarchive")
 	}
-	return nil
-}
-
-func (a *Adapter) cancelArchiveTimer(id string) {
-	a.archiveMu.Lock()
-	defer a.archiveMu.Unlock()
-	if timer := a.archiveTimers[id]; timer != nil {
-		timer.Stop()
-		delete(a.archiveTimers, id)
+	if err := a.updateCatalogLifecycle(ctx, id, continuity.StateLive); err != nil {
+		opErr := fmt.Errorf("unarchive continuity catalog %q: %v: %w", sanitizeID(id), err, ErrInternal)
+		return a.finishLifecycleResult(ctx, receipt, opErr, "unarchive")
 	}
+	return a.finishLifecycleResult(ctx, receipt, nil, "unarchive")
 }
 
 // -----------------------------------------------------------------------------
@@ -728,46 +1103,72 @@ func (a *Adapter) ListRecoverable(ctx context.Context) ([]RecoverableSession, er
 }
 
 func (a *Adapter) DismissRecoverable(ctx context.Context, id string) error {
+	if replay, err := a.replayLifecycleReceipt(ctx, "dismiss", id); replay {
+		return err
+	}
 	if a.Store == nil {
-		return fmt.Errorf("session store not configured: %w", ErrNotFound)
+		return a.recordLifecycleFailure(ctx, "dismiss", id, continuity.StateRecoverable, continuity.StateArchived,
+			fmt.Errorf("session store not configured: %w", ErrNotFound))
 	}
 	meta, err := a.Store.Get(ctx, id)
 	if err != nil {
-		return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
+		return a.recordLifecycleFailure(ctx, "dismiss", id, continuity.StateRecoverable, continuity.StateArchived,
+			fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound))
 	}
 	if meta.Status != sessionstore.StatusAwaitingRecovery {
-		return fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(id), meta.Status, ErrFailedPrecondition)
+		return a.recordLifecycleFailure(ctx, "dismiss", id, lifecycleStateForMetadata(meta), continuity.StateArchived,
+			fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(id), meta.Status, ErrFailedPrecondition))
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, "dismiss", id, continuity.StateRecoverable, continuity.StateArchived)
+	if err != nil {
+		return fmt.Errorf("begin dismiss receipt: %v: %w", err, ErrInternal)
+	}
+	if replay {
+		return replayLifecycleResult(receipt, "dismiss")
 	}
 	if err := a.Store.MarkDismissed(ctx, id, ""); err != nil {
-		return fmt.Errorf("mark dismissed: %v: %w", err, ErrInternal)
+		opErr := fmt.Errorf("mark dismissed: %v: %w", err, ErrInternal)
+		return a.finishLifecycleResult(ctx, receipt, opErr, "dismiss")
 	}
-	return nil
+	if err := a.updateCatalogLifecycle(ctx, id, continuity.StateArchived); err != nil {
+		opErr := fmt.Errorf("dismiss continuity catalog %q: %v: %w", sanitizeID(id), err, ErrInternal)
+		return a.finishLifecycleResult(ctx, receipt, opErr, "dismiss")
+	}
+	return a.finishLifecycleResult(ctx, receipt, nil, "dismiss")
 }
 
-func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, error) {
+func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (res RecoverResult, err error) {
 	oldID := in.ID
+	if replay, ok, replayErr := a.replayRecoverReceipt(ctx, oldID); ok {
+		return replay, replayErr
+	}
 	if a.Store == nil {
-		return RecoverResult{}, fmt.Errorf("session store not configured: %w", ErrNotFound)
+		failure := fmt.Errorf("session store not configured: %w", ErrNotFound)
+		return RecoverResult{}, a.recordLifecycleFailure(ctx, "recover", oldID, continuity.StateRecoverable, continuity.StateLive, failure)
 	}
 
 	if in.IdempotencyKey != "" {
-		if cached, ok := a.Idempotency.Get("recover:" + oldID + ":" + in.IdempotencyKey); ok {
-			return RecoverResult{
-				OldSessionID:    oldID,
-				NewSessionID:    cached.ID,
-				CodexHomeCopied: false,
-			}, nil
+		if a.Idempotency != nil {
+			if cached, ok := a.Idempotency.Get("recover:" + oldID + ":" + in.IdempotencyKey); ok {
+				return RecoverResult{
+					OldSessionID:    oldID,
+					NewSessionID:    cached.ID,
+					CodexHomeCopied: false,
+				}, nil
+			}
 		}
 	}
 
 	old, err := a.Store.Get(ctx, oldID)
 	if err != nil {
-		return RecoverResult{}, fmt.Errorf("no session row with id %q: %w", sanitizeID(oldID), ErrNotFound)
+		failure := fmt.Errorf("no session row with id %q: %w", sanitizeID(oldID), ErrNotFound)
+		return RecoverResult{}, a.recordLifecycleFailure(ctx, "recover", oldID, continuity.StateRecoverable, continuity.StateLive, failure)
 	}
 	isCrashRecovery := old.Status == sessionstore.StatusAwaitingRecovery
 	isArchived := !old.ArchivedAt.IsZero()
 	if !isCrashRecovery && !isArchived {
-		return RecoverResult{}, fmt.Errorf("session %q is neither awaiting_recovery nor archived: %w", sanitizeID(oldID), ErrFailedPrecondition)
+		failure := fmt.Errorf("session %q is neither awaiting_recovery nor archived: %w", sanitizeID(oldID), ErrFailedPrecondition)
+		return RecoverResult{}, a.recordLifecycleFailure(ctx, "recover", oldID, continuity.StateLive, continuity.StateLive, failure)
 	}
 	// Single source of truth for recoverability (and its precise refusal
 	// reasons) so every agent type — codex, claude, opencode, grok — is gated
@@ -778,11 +1179,35 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 			messageCount = a.Conversations.CountSessionEvents(ctx, old.ID)
 		}
 		if state, reason := a.restoreState(old, messageCount); state != RestoreStateReopenable {
-			return RecoverResult{}, fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
+			failure := fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
+			return RecoverResult{}, a.recordLifecycleFailure(ctx, "recover", oldID, continuity.StateArchived, continuity.StateLive, failure)
 		}
 	} else if ok, reason := intsessions.Recoverability(old); !ok {
-		return RecoverResult{}, fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
+		failure := fmt.Errorf("%s: %w", reason, ErrFailedPrecondition)
+		return RecoverResult{}, a.recordLifecycleFailure(ctx, "recover", oldID, continuity.StateRecoverable, continuity.StateLive, failure)
 	}
+	fromState := continuity.StateRecoverable
+	if isArchived {
+		fromState = continuity.StateArchived
+	}
+	receipt, replay, err := a.beginLifecycleReceipt(ctx, "recover", oldID, fromState, continuity.StateLive)
+	if err != nil {
+		return RecoverResult{}, fmt.Errorf("begin recover receipt: %v: %w", err, ErrInternal)
+	}
+	if replay {
+		return RecoverResult{}, fmt.Errorf("recovery operation %q is already recorded; retry with its original idempotency key: %w", receipt.OperationID, ErrFailedPrecondition)
+	}
+	defer func() {
+		if finishErr := a.finishLifecycleReceipt(ctx, receipt, err); finishErr != nil {
+			completionErr := fmt.Errorf("complete recover receipt: %v: %w", finishErr, ErrInternal)
+			res = RecoverResult{}
+			if err != nil {
+				err = errors.Join(err, completionErr)
+			} else {
+				err = completionErr
+			}
+		}
+	}()
 
 	cols := old.Cols
 	rows := old.Rows
@@ -820,15 +1245,19 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 		codexHomeCopied = true
 	}
 
-	_ = a.Store.UpdateAgentInfo(ctx, newSess.ID, sessionstore.AgentInfo{
+	if err := a.Store.UpdateAgentInfo(ctx, newSess.ID, sessionstore.AgentInfo{
 		AgentType:      old.AgentType,
 		AgentSessionID: old.AgentSessionID,
 		LaunchCommand:  old.LaunchCommand,
 		CWD:            old.CWD,
-	})
+	}); err != nil {
+		return RecoverResult{}, fmt.Errorf("persist recovered agent identity: %v: %w", err, ErrInternal)
+	}
 	// Carry provenance onto the recovered session so it keeps its original
 	// origin/owner/label in the sidebar.
-	_ = a.Store.SetProvenance(ctx, newSess.ID, old.Origin, old.Owner, old.DisplayLabel)
+	if err := a.Store.SetProvenance(ctx, newSess.ID, old.Origin, old.Owner, old.DisplayLabel); err != nil {
+		return RecoverResult{}, fmt.Errorf("persist recovered provenance: %v: %w", err, ErrInternal)
+	}
 	if a.Workspace != nil {
 		if err := a.Workspace.ReassignPane(ctx, oldID, newSess.ID); err != nil {
 			a.logger().Printf("recover[%s -> %s]: migrate workspace pane: %v", oldID, newSess.ID, err)
@@ -847,12 +1276,13 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 	}
 
 	// Carry the prior conversation history onto the new session id so the
-	// messages view is populated after reattach. Best-effort: a copy failure
-	// must not abort recovery — the agent resume is the critical path.
+	// messages view is populated after reattach. A recovery that claims success
+	// without preserving the transcript would make the durable evidence appear
+	// lost, so copy failure is fatal and the receipt records the failure.
 	messagesCopied := false
 	if a.Conversations != nil {
 		if err := a.Conversations.CopySession(ctx, oldID, newSess.ID); err != nil {
-			a.logger().Printf("recover[%s -> %s]: copy conversation history: %v", oldID, newSess.ID, err)
+			return RecoverResult{}, fmt.Errorf("copy conversation history: %v: %w", err, ErrInternal)
 		} else {
 			messagesCopied = true
 		}
@@ -865,12 +1295,15 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 	}
 
 	if err := a.Store.MarkDismissed(ctx, oldID, newSess.ID); err != nil {
-		a.logger().Printf("recover[%s -> %s]: MarkDismissed: %v", oldID, newSess.ID, err)
+		return RecoverResult{}, fmt.Errorf("mark recovered source dismissed: %v: %w", err, ErrInternal)
+	}
+	if err := a.updateCatalogLifecycle(ctx, oldID, continuity.StateArchived); err != nil {
+		return RecoverResult{}, fmt.Errorf("mark recovered source in continuity catalog: %v: %w", err, ErrInternal)
 	}
 
 	a.logger().Printf("recover[%s -> %s]: agent=%s codexHome=%t messages=%t", oldID, newSess.ID, old.AgentType, codexHomeCopied, messagesCopied)
 
-	res := RecoverResult{
+	res = RecoverResult{
 		OldSessionID:    oldID,
 		NewSessionID:    newSess.ID,
 		AgentType:       string(old.AgentType),
@@ -878,14 +1311,21 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, 
 		CodexHomeCopied: codexHomeCopied,
 		MessagesCopied:  messagesCopied,
 	}
+	if ledger, ok := a.LifecycleLedger.(continuity.ResultLedger); ok {
+		if _, err := ledger.SetActorID(ctx, receipt.OperationID, res.NewSessionID); err != nil {
+			return RecoverResult{}, fmt.Errorf("persist recovered session in receipt: %v: %w", err, ErrInternal)
+		}
+	}
 
 	if in.IdempotencyKey != "" {
-		a.Idempotency.Set("recover:"+oldID+":"+in.IdempotencyKey, intsessions.Response{
-			ID:              res.NewSessionID,
-			Backend:         backend.Persistent,
-			SurvivesRestart: true,
-			Recovered:       true,
-		})
+		if a.Idempotency != nil {
+			a.Idempotency.Set("recover:"+oldID+":"+in.IdempotencyKey, intsessions.Response{
+				ID:              res.NewSessionID,
+				Backend:         backend.Persistent,
+				SurvivesRestart: true,
+				Recovered:       true,
+			})
+		}
 	}
 	return res, nil
 }
@@ -912,10 +1352,12 @@ func (a *Adapter) UpdatePolicy(ctx context.Context, id string, in Policy) (Polic
 		return PolicyView{}, fmt.Errorf("%w: %s", ErrInvalidArgument, err.Error())
 	}
 	oldPolicy := sess.GetPolicy()
-	sess.SetPolicy(pol)
 	if a.Store != nil {
-		_ = a.Store.UpdatePolicy(ctx, sess.ID, pol)
+		if err := a.Store.UpdatePolicy(ctx, sess.ID, pol); err != nil {
+			return PolicyView{}, fmt.Errorf("persist policy for session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+		}
 	}
+	sess.SetPolicy(pol)
 	if oldPolicy.Mode != pol.Mode || oldPolicy.Duration != pol.Duration {
 		a.Events.Emit(events.SessionPolicyUpdate, sess.ID, map[string]string{
 			"mode":     in.Mode,

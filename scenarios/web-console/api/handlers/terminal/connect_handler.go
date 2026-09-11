@@ -34,6 +34,9 @@ type Service interface {
 	// WaitIdle blocks until the session has produced no output for
 	// quietWindow, or timeout elapses, or the session exits.
 	WaitIdle(ctx context.Context, sessionID string, quietWindow, timeout time.Duration) (WaitIdleResult, error)
+	// AnswerPrompt answers the prompt the session agent is showing, as the
+	// caller saw it; nothing is sent unless it is still that prompt.
+	AnswerPrompt(ctx context.Context, sessionID string, answer PromptAnswer) (PromptAnswerResult, error)
 }
 
 // Cell mirrors terminal.Cell in transport-neutral form.
@@ -207,6 +210,21 @@ func (h *connectHandler) SendInput(ctx context.Context, req *connect.Request[ter
 		return nil, h.classify(err, "terminal.SendInput")
 	}
 	return connect.NewResponse(&terminalv1.SendInputResponse{BytesWritten: int32(n)}), nil
+}
+
+func (h *connectHandler) AnswerPrompt(ctx context.Context, req *connect.Request[terminalv1.AnswerPromptRequest]) (*connect.Response[terminalv1.AnswerPromptResponse], error) {
+	id := strings.TrimSpace(req.Msg.GetSessionId())
+	if id == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id is required"))
+	}
+	if req.Msg.GetPromptHash() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt_hash is required"))
+	}
+	res, err := h.deps.Service.AnswerPrompt(ctx, id, PromptAnswer{OptionKey: req.Msg.GetOptionKey(), PromptHash: req.Msg.GetPromptHash(), Cancel: req.Msg.GetCancel()})
+	if err != nil {
+		return nil, h.classify(err, "terminal.AnswerPrompt")
+	}
+	return connect.NewResponse(&terminalv1.AnswerPromptResponse{Delivery: res.Delivery, Answer: res.Answer}), nil
 }
 
 func (h *connectHandler) WaitIdle(ctx context.Context, req *connect.Request[terminalv1.WaitIdleRequest]) (*connect.Response[terminalv1.WaitIdleResponse], error) {

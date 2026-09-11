@@ -7,8 +7,8 @@ receiver-owned role prompt and all ten prohibitions remain in force.
 
 Visual authority:
 
-- `/home/matthalloran8/Vrooli/scenarios/web-console/docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.html`
-- `/home/matthalloran8/Vrooli/scenarios/web-console/docs/internal/snippets-mockups/`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.html`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/snippets-mockups/`
 
 The HTML memo and six artboards own visual arrangement, control placement, and
 copy. This Markdown record owns mechanism. If they disagree about behaviour,
@@ -90,6 +90,9 @@ These are mechanical review tests.
 | D28 | Snippets are never suggested while typing. | Match draft text continuously. | Operators must open the picker. | Operators request suggestions after using the picker. |
 | D29 | Snippet colour reuses `HEADER_COLORS`. | Add a snippet-only palette. | The palette remains limited to eight. | The shared palette changes everywhere. |
 | D30 | Ordering is pinned, recent use, use count, then id. | Order by count or name alone. | A recent one-off can outrank an older staple. | Operators repeatedly lose staple snippets below recent noise. |
+| D31 | Message actions are hidden at rest and revealed on hover, focus, long-press, right-click, or `Enter`. | Keep an always-visible row of 44-pixel controls. | Actions take one gesture to reach. | Operators miss actions they used to see at rest. |
+| D32 | The `audio-settings` action and the per-message audio popover are removed. | Keep a per-message popover that also starts playback. | Volume, mute, and speed live with the playback pill, not the row. | A per-message audio setting is needed that the pill cannot hold. |
+| D33 | Long replies open in a reader (`open-in-reader`, and the outline footer on capped rows); there is no inline expand. | Expand the row in place. | One extra surface to open. | Operators ask for inline expansion on desktop after using the reader. |
 
 ## 6. Mechanism
 
@@ -102,10 +105,16 @@ Handoff text resolves per target in this order: explicit target edit, selected
 snippet, receiver role prompt, payload. Targets remain sequentially processed
 and retain distinct sent, queued, and failed outcomes.
 
-Message actions are filtered from one ordered registry. At most three primary
-controls render inline; all remaining applicable actions use the established
-`ContextMenu/1` overflow. Every interactive action affords a 44-by-44-pixel
-target while retaining the existing 14-pixel icon scale.
+Message actions are filtered from one ordered registry. They are hidden at
+rest. On a fine pointer, hovering or focusing a row reveals at most three inline
+controls (primary actions plus the overflow trigger), each a 44-by-44-pixel hit
+area around a 28-pixel glyph, overlaid on the row so revealing them never
+changes its height. The overflow trigger, right-click, and `Enter` on the
+focused row open the full list, primary actions first, in `ContextMenu/1`. On a
+coarse pointer nothing reveals on hover; a long-press opens the same list in
+`BottomSheet/1` with 44-pixel rows, and a touch that moves (a scroll) never
+opens it. `j`/`k` move focus between rows and `Escape` closes the list. See
+`docs/internal/MESSAGES-VIEW-PROJECTION-UX.md`.
 
 ## 7. Deliberate omissions
 
@@ -113,3 +122,16 @@ There is no typing-time suggestion, cross-machine synchronization, tag/folder
 taxonomy, automatic send, snippet-to-skill synchronization, role-held snippet
 identifier, or change to capture-rule matching. `renderHandoffPrompt` and its
 existing empty-payload behaviour remain untouched.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.html`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/snippets-mockups`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

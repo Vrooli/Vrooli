@@ -2,9 +2,49 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"web-console/internal/continuity"
 )
+
+type retentionPrunerStub struct {
+	removed int64
+	calls   int
+	err     error
+}
+
+func (p *retentionPrunerStub) PruneEvents(context.Context, time.Time, int) (int64, error) {
+	p.calls++
+	return p.removed, p.err
+}
+
+type retentionLedgerStub struct {
+	put       int
+	completed int
+	err       error
+}
+
+func (l *retentionLedgerStub) Put(_ context.Context, _ continuity.Receipt) (continuity.Receipt, error) {
+	l.put++
+	if l.err != nil {
+		return continuity.Receipt{}, l.err
+	}
+	return continuity.Receipt{Status: "pending"}, nil
+}
+
+func (l *retentionLedgerStub) Complete(_ context.Context, _, _, _ string, _ time.Time) (continuity.Receipt, error) {
+	l.completed++
+	if l.err != nil {
+		return continuity.Receipt{}, l.err
+	}
+	return continuity.Receipt{Status: "succeeded"}, nil
+}
+
+func (*retentionLedgerStub) Get(context.Context, string) (continuity.Receipt, error) {
+	return continuity.Receipt{}, errors.New("not implemented")
+}
 
 func TestSQLConversationRepositoryPruneEventsHonorsAgeAndPerSessionCap(t *testing.T) {
 	db := setupTestDB(t)
@@ -52,12 +92,12 @@ func TestSQLConversationRepositoryPruneEventsHonorsAgeAndPerSessionCap(t *testin
 	}
 
 	// The external-content FTS delete trigger must remove pruned text too.
-	matches, _, total, _, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{Query: "event", Limit: 20})
+	found, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{ConversationSearchQuery: ConversationSearchQuery{Query: "event", Limit: 20}})
 	if err != nil {
 		t.Fatalf("search after prune: %v", err)
 	}
-	if len(matches) != 2 || total != 2 {
-		t.Fatalf("FTS/index mismatch after prune: matches=%d total=%d", len(matches), total)
+	if len(found.Matches) != 2 || found.Total != 2 {
+		t.Fatalf("FTS/index mismatch after prune: matches=%d total=%d", len(found.Matches), found.Total)
 	}
 }
 
@@ -66,5 +106,40 @@ func TestConversationRetentionSweeperSkipsWhenUnbounded(t *testing.T) {
 	sweeper := newConversationRetentionSweeper(repo, func() int { return 0 }, func() int { return 0 })
 	if got := sweeper.sweep(); got != 0 {
 		t.Fatalf("unbounded sweep removed %d events", got)
+	}
+}
+
+func TestConversationRetentionSweeperRequiresDurableReceipt(t *testing.T) {
+	pruner := &retentionPrunerStub{removed: 7}
+	withoutLedger := newConversationRetentionSweeper(pruner, func() int { return 30 }, func() int { return 0 })
+	if got := withoutLedger.sweep(); got != 0 || pruner.calls != 0 {
+		t.Fatalf("unreceipted sweep removed %d events", got)
+	}
+
+	ledger := &retentionLedgerStub{}
+	withLedger := newConversationRetentionSweeper(pruner, func() int { return 30 }, func() int { return 0 }, ledger)
+	if got := withLedger.sweep(); got != 7 {
+		t.Fatalf("receipted sweep removed %d events, want 7", got)
+	}
+	if pruner.calls != 1 {
+		t.Fatalf("receipted sweep pruner calls = %d, want 1", pruner.calls)
+	}
+	if ledger.put != 1 || ledger.completed != 1 {
+		t.Fatalf("retention receipt calls = put:%d complete:%d, want 1/1", ledger.put, ledger.completed)
+	}
+}
+
+func TestConversationRetentionSweeperDoesNotPruneWhenReceiptCreationFails(t *testing.T) {
+	pruner := &retentionPrunerStub{removed: 7}
+	ledger := &retentionLedgerStub{err: errors.New("ledger unavailable")}
+	sweeper := newConversationRetentionSweeper(pruner, func() int { return 30 }, func() int { return 0 }, ledger)
+	if got := sweeper.sweep(); got != 0 {
+		t.Fatalf("failed-receipt sweep removed %d events", got)
+	}
+	if pruner.calls != 0 {
+		t.Fatalf("failed-receipt sweep called pruner %d times", pruner.calls)
+	}
+	if ledger.put != 1 || ledger.completed != 0 {
+		t.Fatalf("failed receipt calls = put:%d complete:%d, want 1/0", ledger.put, ledger.completed)
 	}
 }

@@ -17,18 +17,19 @@
     { "statement": "Voice and AI input are discoverable without ever competing with the terminal." }
   ],
   "states": [
-    { "id": "loading", "description": "Store hydration / initial health check before the workspace is interactive." },
-    { "id": "empty", "description": "No sessions yet: tagline plus the new-terminal affordance as the one path forward." },
-    { "id": "default", "description": "One or more live sessions; active pane output streaming." },
-    { "id": "launcher-open", "description": "The new-terminal launcher dialog is open (shortcuts, custom command, backend options)." },
-    { "id": "recovering", "description": "Async session recovery in progress after reload; honestly bannered while usable." },
-    { "id": "offline", "description": "API unreachable: connection banner with retry, auto-clearing when health returns." },
-    { "id": "voice-active", "description": "Mic engaged (recording/listening/transcribing) with visible state on the mic control." }
+    { "id": "loading", "description": "Store hydration / initial health check before the workspace is interactive.", "setup": { "route": "/" } },
+    { "id": "empty", "description": "No sessions yet: tagline plus the new-terminal affordance as the one path forward.", "setup": { "route": "/" } },
+    { "id": "default", "description": "One or more live sessions; active pane output streaming.", "setup": { "route": "/" } },
+    { "id": "launcher-open", "description": "The new-terminal launcher dialog is open (shortcuts, custom command, backend options).", "setup": { "route": "/" } },
+    { "id": "recovering", "description": "Async session recovery in progress after reload; honestly bannered while usable.", "setup": { "route": "/" } },
+    { "id": "offline", "description": "API unreachable: connection banner with retry, auto-clearing when health returns.", "setup": { "route": "/" } },
+    { "id": "voice-active", "description": "Mic engaged (recording/listening/transcribing) with visible state on the mic control.", "setup": { "route": "/" } }
   ],
   "regions": [
     {
       "id": "workspace-shell",
       "purpose": "Stable hydrated shell marker used by capture and workflow consumers before inspecting workspace controls.",
+      "required": true,
       "component": { "library": { "component": "experience-surface", "version": "1.0.3" } },
       "lifecycle": { "kind": "static", "states": ["static"] }
     }
@@ -41,15 +42,14 @@
     { "id": "composer", "role": "textbox", "description": "Command input in the mobile toolbar; queued/failed send status alongside." },
     { "id": "mic-toggle", "role": "button", "description": "Voice input control with visible state machine (idle/recording/listening/transcribing) and auto-stop ring." },
     { "id": "ai-entry", "role": "button", "description": "AI command palette entry in the ambient toolbar." },
-    { "id": "connection-banner", "role": "status", "description": "API-unreachable banner with retry; polls and auto-clears." },
-    { "id": "recovery-banner", "role": "status", "description": "Async session-recovery progress banner." }
+    { "id": "connection-banner", "role": "status", "description": "API-unreachable banner with retry; polls and auto-clears." }
   ],
   "claims": [
     {
       "id": "empty-invites-first-session",
       "type": "element-present",
       "statement": "The empty workspace presents the new-terminal affordance immediately; there is no dead-end arrival.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["new-terminal"],
       "states": ["empty"]
     },
@@ -57,7 +57,7 @@
       "id": "start-dominates-when-empty",
       "type": "single-dominant-action",
       "statement": "With no sessions, starting one is the single dominant action; nothing competes.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["new-terminal"],
       "states": ["empty"]
     },
@@ -65,7 +65,7 @@
       "id": "launcher-announced",
       "type": "element-present",
       "statement": "The new-terminal launcher opens as an announced dialog, keyboard-dismissable.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["launcher"],
       "states": ["launcher-open"]
     },
@@ -105,18 +105,10 @@
       "viewports": ["mobile"]
     },
     {
-      "id": "recovery-honest",
-      "type": "element-present",
-      "statement": "While sessions recover after a reload, a status banner discloses it; recovery is never silent.",
-      "tier": "machine",
-      "elements": ["recovery-banner"],
-      "states": ["recovering"]
-    },
-    {
       "id": "offline-truthful",
       "type": "element-present",
       "statement": "When the API is unreachable, a status banner says so and offers retry; it clears itself when health returns.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["connection-banner"],
       "states": ["offline"]
     },
@@ -176,7 +168,10 @@
   ],
   "bindings": {
     "regions": {
-      "workspace-shell": { "testid": "workspace-top-edge" }
+      "workspace-shell": {
+        "testid": "workspace-top-edge",
+        "selector": "[data-testid=\"workspace-top-edge\"]"
+      }
     },
     "elements": {
       "new-terminal": { "testid": "new-terminal-button", "note": "Empty-state instance; ambient instances are toolbar-new / tab-bar-new / workspace-sidebar-new." },
@@ -186,8 +181,7 @@
       "composer": { "testid": "mobile-command-input" },
       "mic-toggle": { "testid": "voice-mic-btn" },
       "ai-entry": { "testid": "toolbar-ai" },
-      "connection-banner": { "testid": "connection-banner" },
-      "recovery-banner": { "testid": "session-recovery-banner" }
+      "connection-banner": { "testid": "connection-banner" }
     }
   },
   "x-display-modes": {

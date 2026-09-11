@@ -1,6 +1,11 @@
 # Session Recovery
 
-Web-console persists every `backend=persistent` pane behind a tmux session. The persisted **DB row** is what makes recovery possible — once it is gone, the on-disk codex/claude history has no DB pointer back to the pane it belonged to.
+Web-console persists every `backend=persistent` pane behind a tmux session. The
+session row is the normal recovery pointer, but it is not the only continuity
+source: the conversation catalog, aliases, checkpoints, workspace panes, and
+native agent history can outlive that row. If metadata is missing, use the
+typed continuity audit and reconciliation surfaces; do not assume the history
+is lost or recreate it manually.
 
 There are three continuity modes:
 
@@ -26,6 +31,20 @@ recovery: recovered=2 awaiting_recovery=1 orphaned_tmux=0 (awaiting_recovery row
 
 `awaiting_recovery=N` is the count you can recover. If this prints `awaiting_recovery=0` after a crash you remember had agents in it, jump to the appendix.
 
+If the session row is absent, run the continuity surfaces before using the
+manual appendix:
+
+```bash
+web-console continuity integrity --json
+web-console continuity search --query "remembered text" --state any --json
+web-console continuity inspect --thread-id THREAD_ID --json
+web-console continuity reconcile --json
+```
+
+These commands include orphaned conversation evidence and are read-only by
+default. Apply reconciliation only after reviewing its generation, manifest,
+backup, and operation receipt.
+
 ## Recover Codex / Claude Panes
 
 ```bash
@@ -48,7 +67,7 @@ What `recover` does, in order:
 1. Validates the row is `awaiting_recovery` and has enough agent identity to reattach (codex requires nothing more; claude requires a non-empty `agent_session_id`).
 2. Creates a fresh `backend=persistent` pane inheriting `shell`, `cols`, `rows`, and `policy` from the orphan.
 3. For codex panes, only the session-owned rollout tree is copied into the new pane's path. Shared configuration and regenerable runtime state are recreated or linked by the agent launcher; recovery does not duplicate the whole home.
-4. Copies the orphan's conversation history (`conversation_sessions` cursor + all `conversation_events`) onto the new session id, preserving sequence numbers and per-event playback/consumption state so the **messages view is populated on reattach** instead of starting empty. Best-effort: a copy failure is logged but does not abort recovery.
+4. Copies the orphan's conversation history (`conversation_sessions` cursor + all `conversation_events`) onto the new session id, preserving sequence numbers and per-event playback/consumption state so the **messages view is populated on reattach** instead of starting empty. A copy failure aborts recovery and is recorded as a failed lifecycle receipt; the original source remains available for a retry.
 5. Pastes the appropriate resume command into the new pane:
    - `codex --yolo resume <agent_session_id>` (or `--last` if id is empty)
    - `claude --resume <agent_session_id> --dangerously-skip-permissions`
@@ -64,7 +83,7 @@ web-console session dismiss 8a10aa94-29d1-472d-a910-7a5548a7ca35
 
 ## Archive and recovery UI
 
-The session close control archives and offers Undo for approximately eight seconds. The sidebar's pinned Archive row opens a recent-session name filter. The full archive drawer searches message text across all archived lineages, opens the selected transcript read-only, exports it, and can stage a message into the active live composer.
+The session close control commits the archive immediately and offers Undo for approximately eight seconds as a convenience. The sidebar's pinned Archive row opens a recent-session name filter. The full archive drawer searches message text across all retained lineages, opens the selected transcript read-only, exports it, and can stage a message into the active live composer. Metadata orphans are surfaced as recoverable/degraded entries rather than omitted.
 
 Each entry declares one restore state before the operator acts:
 
@@ -116,6 +135,25 @@ Recovery moves the original workspace-pane record to the replacement session in 
 ## Retention
 
 Archive retention is unlimited by default. `web-console session archive-retention` reports the current policy and measured storage. `web-console session archive-prune` is a dry run; use `--apply` only after reviewing its actions.
+
+For a bounded continuity audit and repair preview, use:
+
+```bash
+web-console continuity integrity --json
+web-console continuity search --query "remembered text" --state any --json
+web-console continuity reconcile --json
+web-console continuity publish --json
+```
+
+Reconciliation is dry-run by default. Apply requires a reviewed generation,
+manifest hash, operation ID, and explicit confirmation; rollback restores only
+the catalog projection preimage and never edits native transcripts.
+
+Publication is a separate bounded operation. It imports native transcript
+sources into Agent Manager using stable Web Console/session provenance; an
+Agent Manager outage leaves local search and recovery available. Explicit
+permanent deletion queues a derived-index tombstone while the canonical local
+evidence remains governed by Web Console's lifecycle receipt.
 
 Configured retention prunes exact session-owned agent history before transcript rows. This preserves search and moves an entry from `Reopenable` to `Read-only`. It can permanently delete a transcript only when the entry has no messages, has an explicit `archived_at`, and exceeds `WC_ARCHIVE_MESSAGELESS_AGE_DAYS`. `WC_ARCHIVE_AGENT_HOME_AGE_DAYS` controls history age and `WC_ARCHIVE_MAX_BYTES` is a soft total-size ceiling; zero disables each limit.
 

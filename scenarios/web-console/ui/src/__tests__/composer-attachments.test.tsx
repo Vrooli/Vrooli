@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, fireEvent, screen, renderHook } from "@testing-library/react";
+import { act, fireEvent, screen, renderHook, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { useComposerDraft } from "../hooks/useComposerDraft";
@@ -100,6 +100,19 @@ describe("FullScreenComposer — staged attachments", () => {
     expect(screen.getByTestId("composer-attachment-tray")).toBeTruthy();
   });
 
+  it("opens a staged image in a full-size preview", async () => {
+    render(<AttachHarness />);
+    const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));
+
+    fireEvent.click(screen.getByTestId(/composer-attachment-preview-/));
+    expect(screen.getByTestId("composer-image-preview")).toBeTruthy();
+    expect(screen.getByTestId("composer-image-preview").querySelector("img")?.getAttribute("src")).toBe("blob:mock/1");
+
+    fireEvent.pointerDown(screen.getByTestId("composer-image-preview.backdrop"));
+    await waitFor(() => expect(screen.queryByTestId("composer-image-preview")).toBeNull());
+  });
+
   it("composes ONE payload = text + resolved paths in order, then clears on ok", async () => {
     const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const settlement = makeSettlement();
@@ -119,7 +132,7 @@ describe("FullScreenComposer — staged attachments", () => {
 
     act(() => settlement.fire(true));
     // Minimized + attachments cleared: reopen shows an empty tray.
-    expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("full-screen-composer")).toBeNull());
     fireEvent.click(screen.getByTestId("ext-open"));
     expect(screen.queryByTestId("composer-attachment-tray")).toBeNull();
   });
@@ -146,7 +159,7 @@ describe("FullScreenComposer — staged attachments", () => {
     expect((screen.getByTestId("composer-input") as HTMLTextAreaElement).value).toBe("with pic");
   });
 
-  it("prompts to discard when minimizing with staged images", () => {
+  it("prompts to discard when minimizing with staged images", async () => {
     render(<AttachHarness />);
     const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
     act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));
@@ -158,7 +171,7 @@ describe("FullScreenComposer — staged attachments", () => {
 
     // Keep editing dismisses the prompt, composer stays open.
     fireEvent.click(screen.getByTestId("composer-discard-cancel"));
-    expect(screen.queryByTestId("composer-discard-dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("composer-discard-dialog")).toBeNull());
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
 
     // Escape with the prompt open cancels the topmost surface (the prompt),
@@ -166,16 +179,16 @@ describe("FullScreenComposer — staged attachments", () => {
     act(() => fireEvent.keyDown(window, { key: "Escape" }));
     expect(screen.getByTestId("composer-discard-dialog")).toBeTruthy();
     act(() => fireEvent.keyDown(window, { key: "Escape" }));
-    expect(screen.queryByTestId("composer-discard-dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("composer-discard-dialog")).toBeNull());
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
 
     // Discard clears + closes.
     act(() => fireEvent.keyDown(window, { key: "Escape" }));
     fireEvent.click(screen.getByTestId("composer-discard-confirm"));
-    expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("full-screen-composer")).toBeNull());
   });
 
-  it("traps focus in the discard prompt (topmost trap wins over the drawer's)", () => {
+  it("traps focus in the discard prompt (topmost trap wins over the drawer's)", async () => {
     render(<AttachHarness />);
     const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
     act(() => fireEvent.change(input, { target: { files: [pngFile("a.png")] } }));
@@ -183,7 +196,7 @@ describe("FullScreenComposer — staged attachments", () => {
 
     const dialog = screen.getByTestId("composer-discard-dialog");
     // Cancel is auto-focused on open.
-    expect(document.activeElement).toBe(screen.getByTestId("composer-discard-cancel"));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("composer-discard-cancel")));
     // Tab from the confirm (last control) wraps inside the dialog, not into
     // the composer drawer behind it.
     screen.getByTestId("composer-discard-confirm").focus();

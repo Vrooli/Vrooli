@@ -17,9 +17,9 @@ interface AiSuggestBarProps {
 }
 
 /**
- * Inline AI suggestion bar for mobile. Sits above the MobileToolbar
- * (same visual pattern as AudioPlayerBar). Watches the textarea input
- * and shows 1–3 tappable command suggestions after a debounce.
+ * Inline AI suggestion bar for mobile. Sits above the MobileToolbar,
+ * watches the textarea input, and shows 1–3 tappable command suggestions
+ * after a debounce.
  */
 export default function AiSuggestBar({ inputText, onExecute, onClose: _onClose }: AiSuggestBarProps) {
   const { t } = useTranslation();

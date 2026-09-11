@@ -48,18 +48,6 @@ const baseProps = {
   onClearSummarizeError: vi.fn(),
   onToggleSummarized: vi.fn(),
   onChangeLevel: vi.fn(),
-  playbackState: {
-    currentTime: 0,
-    duration: null,
-    isPaused: true,
-    playbackRate: 1,
-    volume: 1,
-    isMuted: false,
-    capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-  },
-  onSetPlaybackRate: vi.fn(),
-  onSetVolume: vi.fn(),
-  onSetMuted: vi.fn(),
   playbackFocusRequest: null,
 };
 
@@ -72,7 +60,6 @@ function seed(events: ConversationEvent[]) {
         hydrated: true,
       }),
     },
-    viewModes: {},
   });
 }
 
@@ -88,7 +75,10 @@ describe("message snippet and handoff actions", () => {
     seed([message("user-1", 1, "user"), message("assistant-1", 2, "assistant")]);
     render(<MessagesPane {...baseProps} />);
 
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-user-1"));
     expect(screen.getByTestId("msg-save-snippet-user-1")).toHaveAttribute("data-message-action-inline");
+    fireEvent.mouseLeave(screen.getByTestId("msg-card-user-1"));
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-assistant-1"));
     expect(screen.queryByTestId("msg-save-snippet-assistant-1")).toBeNull();
     fireEvent.click(screen.getByTestId("msg-actions-more-assistant-1"));
     fireEvent.click(screen.getByTestId("msg-save-snippet-assistant-1"));
@@ -101,6 +91,7 @@ describe("message snippet and handoff actions", () => {
     seed([message("assistant-1", 1, "assistant")]);
     render(<MessagesPane {...baseProps} onHandoff={onHandoff} />);
 
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-assistant-1"));
     fireEvent.click(screen.getByTestId("msg-actions-more-assistant-1"));
     fireEvent.click(screen.getByTestId("msg-handoff-assistant-1"));
     expect(onHandoff).toHaveBeenCalledWith("session-1", "Useful assistant answer");
@@ -110,6 +101,7 @@ describe("message snippet and handoff actions", () => {
     seed([message("assistant-1", 1, "assistant")]);
     render(<MessagesPane {...baseProps} readOnly onSendToComposer={vi.fn()} />);
 
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-assistant-1"));
     fireEvent.click(screen.getByTestId("msg-actions-more-assistant-1"));
     expect(screen.getByTestId("msg-save-snippet-assistant-1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-send-to-composer-assistant-1")).toBeInTheDocument();

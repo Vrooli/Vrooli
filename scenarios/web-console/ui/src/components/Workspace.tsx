@@ -54,6 +54,7 @@ import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
 import type { MaybeBanner } from "./banners/types";
 import {
+  closeErrorBanner,
   createErrorBanner,
   enableAudioBanner,
   summarizeErrorBanner,
@@ -88,21 +89,13 @@ import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
 import SessionSidebar from "./SessionSidebar";
-import AudioPlayerBar from "./AudioPlayerBar";
+import { PlaybackPill, type PillState } from "./tts/PlaybackPill";
 import type { SummarizeErrorState } from "../types/summarize";
 import ArchiveDrawer from "./ArchiveDrawer";
 import TopSafeArea from "./TopSafeArea";
-import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
-import type { TTSPlaybackState } from "../audio-integration";
-
-const FALLBACK_TTS_PLAYBACK: Omit<TTSPlaybackState, "isMuted"> = {
-  currentTime: 0,
-  duration: null,
-  isPaused: false,
-  playbackRate: 1,
-  volume: 1,
-  capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-};
+import { useConversationStore } from "../stores/useConversationStore";
+import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
+import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { setupMediaSession } from "../domains/tts-playback/mediaSession";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
@@ -194,8 +187,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     isCreating,
     createError,
     hydrationError,
+    closeError,
     clearError,
     clearHydrationError,
+    clearCloseError,
     launchSession,
     removePane: removeSessionPane,
     undoArchive,
@@ -224,7 +219,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
     setTtsMutedOnPane,
-    getTtsStateOnPane,
   } = useSessionManager();
   // Keep the exact launch request that produced the current creation error.
   // Recovery must retry the same destination and command; falling back to an
@@ -291,18 +285,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const pendingRoleBySessionRef = useRef<Map<string, string>>(new Map());
   const conversationState = useConversationStore(useShallow((state) => ({
     sessions: state.sessions,
-    viewModes: state.viewModes,
-    setViewMode: state.setViewMode,
     clearSession: state.clearSession,
-    activeViewMode: workspace.activePane ? (state.viewModes[workspace.activePane] ?? "terminal") : "terminal",
   })));
   const {
     sessions: conversationSessions,
-    viewModes: conversationViewModes,
-    setViewMode: setConversationViewMode,
     clearSession: clearConversationSession,
-    activeViewMode,
   } = conversationState;
+  // Per-session view mode is persisted (useMessagesViewStore) so a reload
+  // returns each pane to the view it was in.
+  const conversationViewModes = useMessagesViewStore((state) => state.viewModes);
+  const setConversationViewMode = useMessagesViewStore((state) => state.setViewMode);
+  const activeViewMode = workspace.activePane ? (conversationViewModes[workspace.activePane] ?? "terminal") : "terminal";
 
   // Fetch available backends once on mount (they don't change at runtime)
   const [availableBackends, setAvailableBackends] = useState<BackendOption[]>();
@@ -376,15 +369,35 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setArchiveDrawerOpen(false);
   }, [stageMessageInComposer]);
 
+  /**
+   * Re-runs the reconciliation when a launch intent is registered.
+   *
+   * The launch intents below are recorded AFTER the create request resolves, but the
+   * pane can arrive before that: the server emits session.created onto the SSE
+   * stream before it writes the create response, so this client regularly
+   * merges its own brand-new session through the external-session path first.
+   * When that happened the pane was added un-activated and un-grouped, and the
+   * intents — only ever read at the moment a pane was added — were stranded
+   * with nothing left to apply them. That is the whole of "it started the
+   * session but left me on the old tab", and it is a race, so it happened on
+   * some launches and not others.
+   *
+   * Bumping this tick makes the intent itself a reason to reconcile, so the
+   * pane and its intent meet whichever of the two arrives second.
+   */
+  const [pendingIntentTick, setPendingIntentTick] = useState(0);
+  const markPendingIntents = useCallback(() => { setPendingIntentTick((tick) => tick + 1); }, []);
+
   const handleArchiveReopened = useCallback((result: RecoverResult) => {
     pendingActivePaneRef.current = result.new_session_id;
+    markPendingIntents();
     void getSession(result.new_session_id).then((session) => {
       mergeExternalSession(session, true);
     }).catch(() => {
       // The session.created event is the authoritative fallback. Keeping the
       // pending target makes that later merge focus the reopened pane.
     });
-  }, [mergeExternalSession]);
+  }, [markPendingIntents, mergeExternalSession]);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
   const [launcherInitialTarget, setLauncherInitialTarget] = useState<TerminalTarget>();
@@ -408,6 +421,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   useEffect(() => {
     if (launcherOpen) fetchDefaults();
   }, [launcherOpen, fetchDefaults]);
+  // The launch intents. Registered after a create resolves and applied by the
+  // reconciliation effect; markPendingIntents (above) is what makes a late
+  // registration reach a pane that already landed.
   const pendingActivePaneRef = useRef<string | null>(null);
   const pendingGroupBySessionRef = useRef<Map<string, string>>(new Map());
   // The launcher's destination lives in STATE, not a ref. As a ref it could
@@ -584,6 +600,32 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           pendingHandoffBySessionRef.current.delete(sp.session.id);
           submitToActiveTerminal(pendingText, "bulk_text", sp.session.id);
         }
+      } else {
+        // The pane arrived before its launch intent did (see
+        // pendingIntentTick). Everything the add path does with an intent is
+        // done here too, against the pane that is already in the store.
+        if (pendingActivePaneRef.current === sp.session.id) {
+          pendingActivePaneRef.current = null;
+          activatePane(sp.session.id);
+        }
+        const lateGroupId = pendingGroupBySessionRef.current.get(sp.session.id) ?? null;
+        if (lateGroupId) {
+          pendingGroupBySessionRef.current.delete(sp.session.id);
+          setWorkspacePaneGroup(sp.session.id, lateGroupId);
+          const { panes: afterGroup, activePane: activeAfterGroup } = useWorkspaceStore.getState();
+          syncPaneUpdate(sp.session.id, { group_id: lateGroupId });
+          syncPaneOrder(afterGroup.map((pane) => pane.sessionId), activeAfterGroup);
+        }
+        const lateRoleId = pendingRoleBySessionRef.current.get(sp.session.id);
+        if (lateRoleId) {
+          pendingRoleBySessionRef.current.delete(sp.session.id);
+          setRoleSession(lateRoleId, sp.session.id);
+        }
+        const lateText = pendingHandoffBySessionRef.current.get(sp.session.id);
+        if (lateText) {
+          pendingHandoffBySessionRef.current.delete(sp.session.id);
+          submitToActiveTerminal(lateText, "bulk_text", sp.session.id);
+        }
       }
     }
     // Remove deleted sessions from store (only after hydration)
@@ -606,9 +648,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       }
     }
   }, [
+    activatePane,
     addWorkspacePane,
     setWorkspacePaneGroup,
     isHydrated,
+    pendingIntentTick,
     removeWorkspacePane,
     sessionPanes,
     syncPaneOrder,
@@ -657,8 +701,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     // The role's group is the pane's group: a started role stays where it was.
     pendingGroupBySessionRef.current.set(session.id, role.groupId);
     pendingRoleBySessionRef.current.set(session.id, role.id);
+    markPendingIntents();
     return session.id;
-  }, [availableTargets, launchSession]);
+  }, [availableTargets, launchSession, markPendingIntents]);
 
   const openHandoff = useCallback((sourceSessionId: string, payload: string, initialSelection?: string[]) => {
     const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sourceSessionId);
@@ -704,6 +749,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           });
           if (!session) return null;
           if (options.groupId) pendingGroupBySessionRef.current.set(session.id, options.groupId);
+          markPendingIntents();
           return session.id;
         },
         queueForSession: (sessionId, text) => {
@@ -712,13 +758,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           const immediate = submitToActiveTerminal(text, "bulk_text", sessionId);
           if (immediate.status === "rejected") {
             pendingHandoffBySessionRef.current.set(sessionId, text);
+            markPendingIntents();
           }
         },
         attachRole: (roleId, sessionId) => {
           pendingRoleBySessionRef.current.set(sessionId, roleId);
+          markPendingIntents();
         },
       }),
-    [availableTargets, handoffState?.sourceSessionId, launchSession, submitToActiveTerminal],
+    [availableTargets, handoffState?.sourceSessionId, launchSession, markPendingIntents, submitToActiveTerminal],
   );
 
   // Creating a group from inside the launcher is server-first, like every
@@ -872,6 +920,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           if (pendingGroupId) {
             pendingGroupBySessionRef.current.set(session.id, pendingGroupId);
           }
+          markPendingIntents();
           setLauncherGroupId(null);
         } else {
           setLauncherGroupId(null);
@@ -881,7 +930,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         throw error;
       }
     },
-    [launchSession],
+    [launchSession, markPendingIntents],
   );
 
   const handleNewSessionInGroup = useCallback((groupId: string) => {
@@ -903,17 +952,26 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     (sessionId: string) => {
       removeWorkspacePane(sessionId);
       clearConversationSession(sessionId);
+      useMessagesViewStore.getState().forget(sessionId);
       exitedSessionsRef.current.delete(sessionId);
       try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
     [clearConversationSession, removeWorkspacePane],
   );
 
+  // The session the last close attempt was refused for, so the banner's Retry
+  // aims at that session rather than at whatever is focused when it is pressed.
+  const lastCloseTargetRef = useRef<string | null>(null);
+
   const handleRequestClose = useCallback(
     async (sessionId: string) => {
       const index = workspace.panes.findIndex((pane) => pane.sessionId === sessionId);
       const pane = workspace.panes[index];
+      lastCloseTargetRef.current = sessionId;
       const outcome = await removeSessionPane(sessionId);
+      // A refusal leaves the pane where it is — but it no longer leaves the
+      // operator without an answer: removeSessionPane records the server's
+      // reason and the close-error banner says it.
       if (outcome === "failed") return;
       releaseWorkspacePane(sessionId);
       if (outcome === "undoable" && pane) {
@@ -922,6 +980,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     },
     [releaseWorkspacePane, removeSessionPane, workspace.panes],
   );
+
+  const handleRetryClose = useCallback(() => {
+    const target = lastCloseTargetRef.current;
+    clearCloseError();
+    if (target) void handleRequestClose(target);
+  }, [clearCloseError, handleRequestClose]);
 
   useEffect(() => {
     if (!archiveUndo) return;
@@ -1016,14 +1080,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handleFocusTerminal = useCallback(() => {
     focusActiveTerminal(workspace.activePane ?? undefined);
   }, [focusActiveTerminal, workspace.activePane]);
-
-  // Switch the active pane from messages view back to terminal view.
-  // Used by MobileToolbar to auto-switch after sending a command.
-  const handleSwitchToTerminal = useCallback(() => {
-    if (workspace.activePane) {
-      setConversationViewMode(workspace.activePane, "terminal");
-    }
-  }, [setConversationViewMode, workspace.activePane]);
 
   // ── Stop TTS on the previous pane when switching tabs ──
   // Each TerminalPane manages its own TTS playback.  When the user switches
@@ -1163,10 +1219,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Track which panes are currently speaking so voice input can stop active TTS
   // before recording. Playback presentation belongs to the audio bar.
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
-  const [ttsBarDismissed, setTtsBarDismissed] = useState(false);
-  const [ttsBarExpanded, setTtsBarExpanded] = useState(false);
+  const [pillState, setPillState] = useState<PillState>("collapsed");
   const [ttsBackendReason, setTtsBackendReason] = useState("");
   const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
+  const ttsVoiceName = useWorkspaceStore((state) => (state.ttsBackendPreference === "browser" ? state.ttsVoice : state.kokoroVoice));
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
     setTtsSpeakingPanes(prev => {
       const has = prev.has(sessionId);
@@ -1183,48 +1239,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [workspace.activePane]);
   const isTtsSpeaking = workspace.activePane ? ttsSpeakingPanes.has(workspace.activePane) : false;
 
-  // ── TTS playback state polling for AudioPlayerBar ──
-  //
-  // IMPORTANT — why visibility is driven by `isTtsSpeaking` alone, NOT
-  // `isTtsSpeaking && ttsPlayback`:
-  //
-  // `isTtsSpeaking` flips to true synchronously via the React
-  // onTtsSpeakingChange callback the moment audio starts.  `ttsPlayback`
-  // is populated by *polling* the provider at 100 ms intervals.  The
-  // polling useEffect only starts running after React re-renders and
-  // paints (because `isTtsSpeaking` is in its dependency array), then
-  // the first setInterval tick fires 100 ms later — so there is always
-  // a 100–200 ms window where audio is audible but the bar is invisible.
-  // For very short TTS messages the audio can finish before the first
-  // poll ever fires, meaning the bar never appears at all.
-  //
-  // Fix: when auto-TTS is enabled, the AudioPlayerBar renders whenever
-  // `isTtsSpeaking` is true, using `FALLBACK_TTS_PLAYBACK` when the poll
-  // hasn't returned yet. The fallback has sensible defaults (not paused,
-  // no duration, playbackRate 1, volume 1) and exposes all capabilities
-  // so every control is visible — the real provider values replace it
-  // within the first poll tick.
-  const fallbackTtsPlayback = useMemo<TTSPlaybackState>(() => ({
-    ...FALLBACK_TTS_PLAYBACK,
-    isMuted: workspace.startMutedOnLoad,
-  }), [workspace.startMutedOnLoad]);
-  const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
+  // Only the pause flag reaches Workspace: the pill reads the pane's
+  // transport itself, so position updates never re-render the workspace.
+  const isTtsPaused = usePlaybackPaused(workspace.activePane);
+  // A message starting to speak brings a dismissed pill back.
   useEffect(() => {
-    if (!isTtsSpeaking || !workspace.activePane) {
-      setTtsPlayback(null);
-      return;
-    }
-    const activePane = workspace.activePane;
-    // Poll immediately on start — don't wait for the first interval tick.
-    // This closes the gap where audio is playing but the bar is invisible.
-    const poll = () => {
-      const state = getTtsStateOnPane(activePane);
-      if (state) setTtsPlayback(state);
-    };
-    poll();
-    const id = setInterval(poll, 100);
-    return () => { clearInterval(id); };
-  }, [isTtsSpeaking, workspace.activePane, getTtsStateOnPane]);
+    if (isTtsSpeaking) setPillState((state) => (state === "hidden" ? "collapsed" : state));
+  }, [isTtsSpeaking]);
 
   const handleTtsPause = useCallback(() => {
     if (workspace.activePane) pauseTtsOnPane(workspace.activePane);
@@ -1321,7 +1342,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     conversationSessions,
     activePaneId: workspace.activePane,
     autoTtsEnabled: workspace.autoTtsEnabled,
-    audioState: { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
+    audioState: { isSpeaking: isTtsSpeaking, isPaused: isTtsPaused },
     setViewMode: setConversationViewMode,
     speakText: (sessionId, text, paragraphs, opts) => {
       return speakTextOnPane(sessionId, text, paragraphs, opts);
@@ -1358,6 +1379,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     ttsPlaybackController.stopPlayback(workspace.activePane);
   }, [ttsPlaybackController, workspace.activePane]);
 
+  // Starting playback brings a dismissed pill back; it shows while the message loads.
+  const activePlaybackEventId = ttsPlaybackController.activeEventId;
+  useEffect(() => {
+    if (activePlaybackEventId) setPillState((state) => (state === "hidden" ? "collapsed" : state));
+  }, [activePlaybackEventId]);
+
   // Expose the active reply to lock-screen/headphone controls when the
   // browser provides Media Session. All calls are feature-detected because
   // desktop Safari and several embedded webviews omit this API.
@@ -1367,25 +1394,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     const sessionId = workspace.activePane;
     const eventId = ttsPlaybackController.activeEventId;
     const event = eventId ? conversationSessions[sessionId]?.events.find((candidate) => candidate.id === eventId) : undefined;
+    const transport = getTransport(sessionId);
     return setupMediaSession(mediaSession, {
       title: event?.text?.slice(0, 120) || "Assistant reply",
       artist: event?.source || "Vrooli",
       album: "Vrooli conversation",
-      isPaused: ttsPlayback?.isPaused ?? false,
-      duration: ttsPlayback?.duration ?? null,
-      currentTime: ttsPlayback?.currentTime ?? 0,
-      playbackRate: ttsPlayback?.playbackRate ?? 1,
+      isPaused: isTtsPaused,
+      duration: transport?.duration ?? null,
+      currentTime: transport?.currentTime ?? 0,
+      playbackRate: transport?.playbackRate ?? 1,
       handlers: {
         play: () => ttsPlaybackController.resumePlayback(sessionId),
         pause: () => ttsPlaybackController.pausePlayback(sessionId),
         stop: handleTtsStop,
-        seekbackward: () => handleTtsSeek(Math.max(0, (ttsPlayback?.currentTime ?? 0) - 10)),
-        seekforward: () => handleTtsSeek(Math.min(ttsPlayback?.duration ?? Infinity, (ttsPlayback?.currentTime ?? 0) + 10)),
+        // Seeks read the position when pressed, not when the session was set up.
+        seekbackward: () => { handleTtsSeek(Math.max(0, (getTransport(sessionId)?.currentTime ?? 0) - 10)); },
+        seekforward: () => {
+          const now = getTransport(sessionId);
+          handleTtsSeek(Math.min(now?.duration ?? Infinity, (now?.currentTime ?? 0) + 10));
+        },
         previoustrack: () => ttsPlaybackController.previousTrack(sessionId),
         nexttrack: () => ttsPlaybackController.nextTrack(sessionId),
       },
     });
-  }, [conversationSessions, handleTtsSeek, handleTtsStop, isTtsSpeaking, ttsPlayback, ttsPlaybackController, workspace.activePane]);
+  }, [conversationSessions, handleTtsSeek, handleTtsStop, isTtsPaused, isTtsSpeaking, ttsPlaybackController, workspace.activePane]);
 
   const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
@@ -1402,7 +1434,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     });
   }, []);
 
-  const renderViewToggleButton = useCallback(() => (
+  const viewToggleButton = useMemo(() => (
     <IconButton
       data-testid="workspace-toggle-view"
       data-view-mode={activeViewMode}
@@ -1413,7 +1445,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       swapIdentity="workspace-view-toggle"
       surface="soft"
       size="xs"
-      denseTapTarget
       onClick={() => {
         if (workspace.activePane) {
           handlePaneToggleView(workspace.activePane, activeViewMode);
@@ -1718,6 +1749,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onDismiss: clearError,
         onRetry: createError.retry ? handleRetry : undefined,
       }),
+    closeError &&
+      closeErrorBanner(t, closeError, {
+        onDismiss: clearCloseError,
+        onRetry: handleRetryClose,
+      }),
     activeSessionTrackingDegraded && activeViewMode === "messages" && trackingDegradedBanner(t),
   ];
 
@@ -1876,10 +1912,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onToggleSummarized={togglePanePlaybackVersion}
         onChangeLevel={changePaneSummarizeLevel}
         selectedVersionForEvent={getSelectedPlaybackVersion}
-        playbackState={ttsPlayback ?? fallbackTtsPlayback}
-        onSetPlaybackRate={handleTtsSetPlaybackRate}
-        onSetVolume={handleTtsSetVolume}
-        onSetMuted={handleTtsSetMuted}
         playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
         onActivate={activatePane}
         onRequestClose={handleRequestClose}
@@ -2177,7 +2209,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
            * obscure too much terminal content but is still easy to tap. */}
           {activeViewMode === "terminal" && workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
             <div className="absolute end-2 top-2.5 z-wc-chrome-raised">
-              {renderViewToggleButton()}
+              {viewToggleButton}
             </div>
           )}
             {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
@@ -2198,10 +2230,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onToggleSummarized={togglePanePlaybackVersion}
                   onChangeLevel={changePaneSummarizeLevel}
                   selectedVersionForEvent={getSelectedPlaybackVersion}
-                  playbackState={ttsPlayback ?? fallbackTtsPlayback}
-                  onSetPlaybackRate={handleTtsSetPlaybackRate}
-                  onSetVolume={handleTtsSetVolume}
-                  onSetMuted={handleTtsSetMuted}
                   playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
                   onActivate={activatePane}
                   onRequestClose={handleRequestClose}
@@ -2209,7 +2237,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onSendToComposer={stageMessageInComposer}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
-                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
+                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? viewToggleButton : undefined}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
                   onVoiceStart={voiceInput.startRecording}
@@ -2260,89 +2288,73 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       {/* Bottom bar */}
       <div className="relative z-wc-chrome shrink-0">
-        {/* TTS player bar — visible for active manual playback, or when
-         * auto-TTS is enabled and there is playback/replay context.
-         *
-         * When actively speaking, the bar shows live playback state (polled
-         * at 100 ms).  When idle with a replayable event, it shows a
-         * "stopped" state where the play button triggers a replay.
-         *
-         * Uses isTtsSpeaking plus controller context so the bar appears
-         * the instant eligible audio starts. ttsPlayback is
-         * populated by polling; if the first poll hasn't fired yet we
-         * fall back to FALLBACK_TTS_PLAYBACK (see comment above the
-         * polling effect). */}
+        {/* Playback pill: floats over the pane above the toolbar and takes no
+         * layout height. Workspace passes who is speaking; the pill reads the
+         * position from the pane's transport itself. */}
         {(() => {
-          const pb = isTtsSpeaking
-            ? (ttsPlayback ?? fallbackTtsPlayback)
-            : { ...(ttsPlayback ?? fallbackTtsPlayback), isPaused: true };
-          const context = ttsPlaybackController.buildBarContext(
+          if (pillState === "hidden") return null;
+          const context = ttsPlaybackController.buildPillContext(
             workspace.activePane,
             workspace.autoTtsEnabled,
-            { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
+            { isSpeaking: isTtsSpeaking, isPaused: isTtsPaused },
           );
           if (!context?.event || !context.sessionId) return null;
+          const sessionId = context.sessionId;
           const activeEvent = context.event;
-          const isReplayMode = !isTtsSpeaking;
           const hasOriginal = (activeEvent.originalSpeechParagraphs?.length ?? 0) > 0;
           const canRequestSummarize = activeEvent.role === "assistant";
-          const isPlayingSummarized = context.version === "active" && hasOriginal;
           return (
-            ttsBarDismissed ? null : <AudioPlayerBar
-              isPaused={pb.isPaused}
-              currentTime={pb.currentTime}
-              duration={pb.duration}
-              playbackRate={pb.playbackRate}
-              volume={pb.volume}
-              isMuted={pb.isMuted}
-              capabilities={pb.capabilities}
-              backendReason={ttsBackendPreference === "auto" ? ttsBackendReason : undefined}
-              isSummarized={isPlayingSummarized}
-              hasOriginalVersion={hasOriginal}
-              canSummarize={canRequestSummarize}
-              isSummarizing={ttsPlaybackController.summarizingEventId === activeEvent.id}
-              isLoading={ttsPlaybackController.loadingEventId === activeEvent.id}
-              currentLevel={ttsPlaybackController.summarizeLevel}
-              currentMessageLabel={context.queueLabel}
-              currentMessageId={activeEvent.id}
-              messageSelectorEvents={conversationSessions[context.sessionId]?.events ?? []}
-              hasQueuedNext={context.hasQueuedNext}
-              hasQueuedPrevious={context.hasQueuedPrevious}
-              isExpanded={ttsBarExpanded}
-              onExpand={() => setTtsBarExpanded(true)}
-              onPreviousMessage={() => ttsPlaybackController.previousTrack(context.sessionId)}
-              onNextMessage={() => ttsPlaybackController.nextTrack(context.sessionId)}
-              onPause={() => {
-                ttsPlaybackController.pausePlayback(context.sessionId);
-                handleTtsPause();
-              }}
-              onResume={isReplayMode ? () => {
-                ttsPlaybackController.resumePlayback(context.sessionId);
-              } : () => {
-                ttsPlaybackController.resumePlayback(context.sessionId);
-                handleTtsResume();
-              }}
-              onSeek={handleTtsSeek}
-              onSetPlaybackRate={handleTtsSetPlaybackRate}
-              onSetVolume={handleTtsSetVolume}
-              onSetMuted={handleTtsSetMuted}
-              onSelectMessage={(eventId) => {
-                ttsPlaybackController.playEvent(context.sessionId as string, eventId);
-              }}
-              onToggleSummarized={hasOriginal && activeEvent && workspace.activePane ? (useSummarized) => {
-                ttsPlaybackController.toggleVersion(context.sessionId as string, activeEvent.id, useSummarized);
-              } : undefined}
-              onChangeLevel={canRequestSummarize && activeEvent && workspace.activePane ? (level) => {
-                ttsPlaybackController.changeSummarizeLevel(context.sessionId as string, activeEvent.id, level);
-              } : undefined}
-              onDismiss={() => {
-                setTtsBarDismissed(true);
-                setTtsBarExpanded(false);
-                requestAnimationFrame(() => {
-                  document.querySelector<HTMLElement>('[data-testid="tts-restore"]')?.focus();
-                });
-              }}
-            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-full mb-3 flex justify-center px-4">
+              <PlaybackPill
+                sessionId={sessionId}
+                event={activeEvent}
+                expanded={pillState === "expanded"}
+                onExpandedChange={(expanded) => { setPillState(expanded ? "expanded" : "collapsed"); }}
+                isSpeaking={isTtsSpeaking}
+                isLoading={ttsPlaybackController.loadingEventId === activeEvent.id}
+                queuedAfter={Math.max(0, context.queueLength - context.queueIndex - 1)}
+                canPrevious={context.queueIndex > 0}
+                canNext={context.queueIndex < context.queueLength - 1}
+                voiceName={ttsVoiceName}
+                backendReason={ttsBackendPreference === "auto" ? ttsBackendReason : undefined}
+                summarize={{
+                  isSummarized: context.version === "active" && hasOriginal,
+                  hasOriginalVersion: hasOriginal,
+                  canSummarize: canRequestSummarize,
+                  isSummarizing: ttsPlaybackController.summarizingEventId === activeEvent.id,
+                  currentLevel: ttsPlaybackController.summarizeLevel,
+                  onToggleSummarized: hasOriginal
+                    ? (useSummarized) => { ttsPlaybackController.toggleVersion(sessionId, activeEvent.id, useSummarized); }
+                    : undefined,
+                  onChangeLevel: canRequestSummarize
+                    ? (level) => { ttsPlaybackController.changeSummarizeLevel(sessionId, activeEvent.id, level); }
+                    : undefined,
+                }}
+                onPause={() => {
+                  ttsPlaybackController.pausePlayback(sessionId);
+                  handleTtsPause();
+                }}
+                onResume={() => {
+                  ttsPlaybackController.resumePlayback(sessionId);
+                  // In replay nothing is loaded to resume; the controller starts it again.
+                  if (isTtsSpeaking) handleTtsResume();
+                }}
+                onSeek={handleTtsSeek}
+                onPrevious={() => { ttsPlaybackController.previousTrack(sessionId); }}
+                onNext={() => { ttsPlaybackController.nextTrack(sessionId); }}
+                onStop={() => {
+                  ttsPlaybackController.stopPlayback(sessionId);
+                  setPillState("hidden");
+                  requestAnimationFrame(() => {
+                    document.querySelector<HTMLElement>('[data-testid="tts-restore"]')?.focus();
+                  });
+                }}
+                onJumpToMessage={() => { ttsPlaybackController.focusCurrentEvent(workspace.activePane); }}
+                onSetPlaybackRate={handleTtsSetPlaybackRate}
+                onSetVolume={handleTtsSetVolume}
+                onSetMuted={handleTtsSetMuted}
+              />
+            </div>
           );
         })()}
         {/* Mobile toolbar */}
@@ -2393,13 +2405,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           }}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
-          ttsDismissed={ttsBarDismissed}
-          onTtsRestore={() => {
-            setTtsBarDismissed(false);
-            setTtsBarExpanded(false);
-          }}
+          ttsDismissed={pillState === "hidden" && ttsPlaybackController.buildPillContext(
+            workspace.activePane,
+            workspace.autoTtsEnabled,
+            { isSpeaking: isTtsSpeaking, isPaused: isTtsPaused },
+          ) !== null}
+          onTtsRestore={() => { setPillState("collapsed"); }}
           viewMode={activeViewMode}
-          onSwitchToTerminal={handleSwitchToTerminal}
         />
         <input
           ref={mobileFileInputRef}

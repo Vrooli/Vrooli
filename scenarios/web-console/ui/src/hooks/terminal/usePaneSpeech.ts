@@ -4,7 +4,7 @@ import { useConversationSession } from "../useConversationSession";
 import { useConversationStore } from "../../stores/useConversationStore";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../../api/conversation";
-import type { TTSPlaybackState } from "../../audio-integration";
+import { publishTransport } from "../../domains/tts-playback/transport";
 
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
@@ -27,7 +27,6 @@ export interface PaneSpeechPlaybackHandle {
   setPlaybackRate: (rate: number) => void;
   setVolume: (level: number) => void;
   setMuted: (next: boolean) => void;
-  getState: () => TTSPlaybackState | null;
   getBackendReason?: () => string;
 }
 
@@ -91,8 +90,16 @@ export function usePaneSpeech(options: {
   }), [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference]);
   const {
     speakParagraphs, prewarmParagraphs, stop, pause, resume, seek, setPlaybackRate, setVolume, setMuted,
-    getPlaybackState, backendReason, supported, isSpeaking, needsUnlock, unlockAudio,
+    backendReason, supported, isSpeaking, needsUnlock, unlockAudio,
+    currentTime, duration, isPaused, playbackRate, volume, isMuted, capabilities,
   } = useTextToSpeech(resolvedSettings, { source: "terminal_auto", sessionId });
+
+  // The provider's state changes on its own events (timeupdate, pause, rate,
+  // volume, mute); publishing it here is what the playback pill follows.
+  useEffect(() => {
+    publishTransport(sessionId, { currentTime, duration, isPaused, playbackRate, volume, isMuted, capabilities });
+  }, [sessionId, currentTime, duration, isPaused, playbackRate, volume, isMuted, capabilities]);
+  useEffect(() => () => { publishTransport(sessionId, null); }, [sessionId]);
 
   const onSpeakingEventChangeRef = useRef(onSpeakingEventChange);
   onSpeakingEventChangeRef.current = onSpeakingEventChange;
@@ -184,9 +191,8 @@ export function usePaneSpeech(options: {
     setPlaybackRate,
     setVolume,
     setMuted,
-    getState: getPlaybackState,
     getBackendReason: () => backendReason,
-  }), [backendReason, getPlaybackState, pause, resume, seek, setMuted, setPlaybackRate, setVolume, speak, stop]);
+  }), [backendReason, pause, resume, seek, setMuted, setPlaybackRate, setVolume, speak, stop]);
 
   return { supported, playback };
 }

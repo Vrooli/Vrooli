@@ -40,7 +40,7 @@ function BadgeProbe({ sessionId, onRender }: { sessionId: string; onRender: () =
 }
 
 beforeEach(() => {
-  useConversationStore.setState({ sessions: {}, viewModes: {} });
+  useConversationStore.setState({ sessions: {} });
 });
 
 describe("conversation store subscription isolation (Layer 0.1)", () => {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/targetmodel"
@@ -24,13 +25,22 @@ import (
 // shared provider-neutral target model.
 type targetConnection struct {
 	targetmodel.Target
-	BaseURL     string
-	OwnerToken  string
-	ReauthToken string
+	BaseURL         string
+	BaseURLExplicit bool
+	OwnerToken      string
+	ReauthToken     string
+}
+
+// resolveBridgeScenarioURL is the one Web Console → Bridge endpoint resolver.
+// Inter-scenario API calls must use api-core/discovery so lifecycle restarts,
+// shadow instances, and port changes are observed on the next operation.
+func resolveBridgeScenarioURL(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")
 }
 
 func configuredRemoteTarget() targetConnection {
 	ownerToken, reauthToken := resolveBridgeOwnerCredentials()
+	bridgeURL := strings.TrimSpace(config.Load().BridgeURL)
 	t := targetConnection{Target: targetmodel.Target{
 		ID:         "bridge-node:" + strings.TrimSpace(getEnvOrDefault("VROOLI_BRIDGE_NODE_ID", "")),
 		Ramp:       "bridge",
@@ -40,7 +50,7 @@ func configuredRemoteTarget() targetConnection {
 		NodeID:     strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID")),
 		Transport:  targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID"))},
 		Health:     targetmodel.TargetHealth{Status: "unconfigured"},
-	}, BaseURL: strings.TrimSpace(config.Load().BridgeURL), OwnerToken: ownerToken, ReauthToken: reauthToken}
+	}, BaseURL: bridgeURL, BaseURLExplicit: bridgeURL != "", OwnerToken: ownerToken, ReauthToken: reauthToken}
 	if strings.TrimSpace(t.OwnerToken) == "" ||
 		(!hasExplicitAuthScheme(t.OwnerToken, sharedsession.LocalSessionScheme) &&
 			strings.TrimSpace(t.ReauthToken) == "" && strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")) == "") {
@@ -131,6 +141,7 @@ func targetFromRegistryNode(base targetConnection, node *registryv1.Node) target
 	target.Readiness = readinessFactsForNode(node)
 	target.Transport = targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: node.GetDispatchable()}
 	target.Available, target.Reason = targetmodel.CanHostSession(target.Target)
+	target.OperationReadiness = targetmodel.EvaluateOperations(target.Target, time.Now().UTC())
 	target.Mode = targetStateForNode(node, target.Available)
 	if !target.Available {
 		if target.DeviceKind == "ssh" {
@@ -167,16 +178,23 @@ func bridgeNodeClient(ctx context.Context) (*nodereach.Client, targetConnection)
 		clientToken = ""
 		tokenProvider = resolveLocalOwnerToken
 	}
-	nodeClient := nodereach.New(nodereach.Config{
-		BridgeURL: base.BaseURL, Token: clientToken, ReauthToken: base.ReauthToken,
-		TokenProvider: tokenProvider,
-	})
+	nodeClient := newBridgeNodeClient(base, resolveBridgeScenarioURL, clientToken, tokenProvider)
 	if base.BaseURL == "" {
 		if resolved, resolveErr := nodeClient.ResolveURL(ctx); resolveErr == nil {
 			base.BaseURL = resolved
 		}
 	}
 	return nodeClient, base
+}
+
+func newBridgeNodeClient(base targetConnection, resolver func(context.Context) (string, error), token string, tokenProvider func(context.Context) (string, error)) *nodereach.Client {
+	return nodereach.New(nodereach.Config{
+		BridgeURL:        base.BaseURL,
+		ResolveBridgeURL: resolver,
+		Token:            token,
+		TokenProvider:    tokenProvider,
+		ReauthToken:      base.ReauthToken,
+	})
 }
 
 func configuredRemoteTargets() []targetConnection {

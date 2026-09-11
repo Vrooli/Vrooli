@@ -102,7 +102,10 @@ func (h *connectHandler) UpdatePane(ctx context.Context, req *connect.Request[wo
 }
 
 func (h *connectHandler) DeletePane(ctx context.Context, req *connect.Request[workspacev1.DeletePaneRequest]) (*connect.Response[workspacev1.DeletePaneResponse], error) {
-	h.deps.Service.DeletePane(ctx, req.Msg.GetSessionId())
+	if err := h.deps.Service.DeletePane(ctx, req.Msg.GetSessionId()); err != nil {
+		h.deps.Logger.Printf("workspace.DeletePane: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	return connect.NewResponse(&workspacev1.DeletePaneResponse{}), nil
 }
 
@@ -137,7 +140,10 @@ func (h *connectHandler) UpdateGroup(ctx context.Context, req *connect.Request[w
 }
 
 func (h *connectHandler) DeleteGroup(ctx context.Context, req *connect.Request[workspacev1.DeleteGroupRequest]) (*connect.Response[workspacev1.DeleteGroupResponse], error) {
-	h.deps.Service.DeleteGroup(ctx, req.Msg.GetId())
+	if err := h.deps.Service.DeleteGroup(ctx, req.Msg.GetId()); err != nil {
+		h.deps.Logger.Printf("workspace.DeleteGroup: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	return connect.NewResponse(&workspacev1.DeleteGroupResponse{}), nil
 }
 

@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Check, Copy, Loader2, RotateCw, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, RotateCw, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
 import { basename as pathBasename, pathCrumbs } from "../lib/paths";
-import { writeText } from "../lib/clipboard";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { FilePath } from "@vrooli/react-component-library/FilePath/1";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
 
@@ -42,17 +42,9 @@ export default function MessagesFileViewer({
 }: MessagesFileViewerProps) {
   const { t } = useTranslation();
   const { open, status, model, text, listing, error, requestedPath, stack, loadingMore } = state;
+  const [titleExpanded, setTitleExpanded] = useState(false);
 
   const displayPath = model?.resolvedPath ?? requestedPath ?? "";
-  const targetLine = model?.line ?? null;
-  const [copied, setCopied] = useState(false);
-  const copyPath = () => {
-    if (!displayPath) return;
-    void writeText(displayPath);
-    setCopied(true);
-    setTimeout(() => { setCopied(false); }, 2000);
-  };
-
   const basename = useMemo(() => {
     const fullPath = model?.resolvedPath ?? requestedPath ?? "";
     if (!fullPath) return t(strings.messagesFileViewer.filePreviewFallback);
@@ -75,6 +67,23 @@ export default function MessagesFileViewer({
   // there is nothing to hand over while the preview is still resolving, and a
   // directory listing is not a payload the operator meant to send.
   const canHandoff = Boolean(onHandoff && displayPath && model?.kind !== "directory");
+
+  const titleEl = (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={() => { setTitleExpanded((prev) => !prev); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setTitleExpanded((prev) => !prev);
+        }
+      }}
+      className={titleExpanded ? "block break-words" : "line-clamp-2"}
+    >
+      {basename}
+    </span>
+  );
 
   const headerActions = (canGoBack || canHandoff) ? (
     <div className="flex shrink-0 items-center gap-1.5">
@@ -137,32 +146,20 @@ export default function MessagesFileViewer({
           })}
         </nav>
       ) : (
-        <div className="mt-1 flex items-center gap-1.5">
-          <p className="min-w-0 flex-1 truncate text-xs text-wc-text-muted">
-            {displayPath || t(strings.messagesFileViewer.loadingFile)}
-          </p>
-          {displayPath && (
-            <IconButton
-              onClick={copyPath}
-              size="sm"
-              className="shrink-0"
-              aria-label={copied ? t(strings.messagesFileViewer.copied) : t(strings.messagesFileViewer.copyPath)}
-            >
-              {copied ? <Check className="text-green-400" /> : <Copy />}
-            </IconButton>
-          )}
-        </div>
-      )}
-      {(model?.resolutionBasis || model?.kind || targetLine) && (
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-wc-text-faint">
-          {model?.resolutionBasis && (
-            <span className="rounded-full border border-wc-default px-2 py-0.5">{model.resolutionBasis}</span>
-          )}
-          {model?.kind && <span className="rounded-full border border-wc-default px-2 py-0.5">{model.kind}</span>}
-          {targetLine && (
-            <span className="rounded-full border border-wc-default px-2 py-0.5">
-              {t(strings.messagesFileViewer.linePrefix, { line: targetLine })}
-            </span>
+        <div className="mt-1 w-full min-w-0">
+          {displayPath ? (
+            <FilePath
+              path={displayPath}
+              showCopyButton
+              copyLabel={t(strings.messagesFileViewer.copyPath)}
+              copiedLabel={t(strings.messagesFileViewer.copied)}
+              testId="file-preview-path"
+              className="w-full text-xs text-wc-text-muted"
+            />
+          ) : (
+            <p className="min-w-0 truncate text-xs text-wc-text-muted">
+              {t(strings.messagesFileViewer.loadingFile)}
+            </p>
           )}
         </div>
       )}
@@ -177,7 +174,7 @@ export default function MessagesFileViewer({
       open={open}
       onClose={onClose}
       closeLabel={t(strings.messagesFileViewer.closeAriaLabel)}
-      title={basename}
+      title={titleEl}
       headerActions={headerActions}
       headerExtra={headerExtra}
       testId="messages-file-viewer-panel"

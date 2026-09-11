@@ -2,7 +2,7 @@ package main
 
 import "context"
 
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/internal/SEAMS.md#session-metadata-store-seam-api
 
 // ShortcutStore abstracts shortcut profile storage. Implementations may be

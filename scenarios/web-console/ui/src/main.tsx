@@ -1,3 +1,4 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { i18n } from "./i18n";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
@@ -26,7 +27,8 @@ if (window.top !== window.self) {
 
 // Keep controller navigation available both standalone and when embedded in a
 // host frame. The bridge is process-wide and is disposed with the page.
-initSpatialNav();
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
 
 // Code-split routes use lazy(); after a rebuild the old hashed chunks are
 // gone, so a tab opened before the deploy would crash on its next
@@ -41,11 +43,13 @@ ReactDOM.createRoot(rootEl).render(
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <BaseStyles />
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <React.Profiler id="App" onRender={onProfilerRender}>
-        <App />
-      </React.Profiler>
-    </QueryClientProvider>
+    <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </QueryClientProvider>
+    </SpatialNavProvider>
   </React.StrictMode>
 
     </LibraryStringsProvider>

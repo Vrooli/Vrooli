@@ -1,7 +1,7 @@
 // Package snippets owns reusable message text the sender owns. Nothing in
 // this package knows about groups, roles, receivers, or payload semantics.
 //
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md
 package snippets
 

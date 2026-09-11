@@ -70,6 +70,34 @@ func TestBuildTmuxNewSessionArgs_NoEnvIsUnchanged(t *testing.T) {
 	}
 }
 
+func TestBuildTmuxNewSessionArgsWithEnvironmentCarriesBootstrapContext(t *testing.T) {
+	spec := pty.LaunchSpec{
+		SessionID: "sess-context",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+	}
+	got := buildTmuxNewSessionArgsWithEnvironment("wc-sess-context", "/workdir", spec, []string{
+		"PATH=/home/operator/.vrooli/bin:/usr/bin",
+		"VROOLI_SOURCE_ROOT=/home/operator/Vrooli",
+		"VROOLI_ROOT=/home/operator/Vrooli",
+	})
+	if !containsArgPair(got, "-e", "PATH=/home/operator/.vrooli/bin:/usr/bin") ||
+		!containsArgPair(got, "-e", "VROOLI_ROOT=/home/operator/Vrooli") ||
+		!containsArgPair(got, "-e", "VROOLI_SOURCE_ROOT=/home/operator/Vrooli") {
+		t.Fatalf("tmux args = %v, want bootstrap environment", got)
+	}
+}
+
+func containsArgPair(args []string, flag, value string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag && args[i+1] == value {
+			return true
+		}
+	}
+	return false
+}
+
 func TestTmuxPTYFactory_UsesLaunchSpecWorkingDir(t *testing.T) {
 	spec := pty.LaunchSpec{
 		SessionID:  "cwd-override",

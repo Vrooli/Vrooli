@@ -22,11 +22,12 @@ import {
   nextIntentAfterUserPlay,
   nextIntentAfterUserStop,
   shouldQueueIncomingEvent,
-  shouldShowPlaybackBar,
+  shouldShowPlayback,
 } from "./utils";
 import { updateConversationCursor } from "../../api/conversation";
 import { useConversationStore } from "../../stores/useConversationStore";
 import { useTtsPlaybackIntentStore } from "./store";
+import { subscribeTransport, type PlaybackTransport } from "./transport";
 import {
   buildPlayNextEvent,
   initialPlaybackTransportState,
@@ -418,7 +419,7 @@ export function useTtsPlaybackController({
   useEffect(() => {
     const prev = prevAudioRef.current;
     const isSpeaking = audioState.isSpeaking;
-    const isPaused = audioState.playback?.isPaused ?? false;
+    const isPaused = audioState.isPaused;
     prevAudioRef.current = { isSpeaking, isPaused };
 
     const current = smStateRef.current;
@@ -459,7 +460,7 @@ export function useTtsPlaybackController({
         }
       }
     }
-  }, [audioState.isSpeaking, audioState.playback?.isPaused, beginQueue, drainPendingAutoplay, getEvent, persistListened, setPersistedTarget, setPlaybackIntent, smDispatch]);
+  }, [audioState.isSpeaking, audioState.isPaused, beginQueue, drainPendingAutoplay, getEvent, persistListened, setPersistedTarget, setPlaybackIntent, smDispatch]);
 
   const toggleVersion = useCallback((sessionId: string, eventId: string, useSummarized: boolean) => {
     const event = getEvent(sessionId, eventId);
@@ -651,7 +652,7 @@ export function useTtsPlaybackController({
     }));
   }, [setViewMode]);
 
-  // Derive a synthetic SessionPlaybackControllerState for utils + bar context.
+  // Derive a synthetic SessionPlaybackControllerState for utils + pill context.
   const derivedState = useMemo<SessionPlaybackControllerState>(() => {
     const queueInfo = queueEntriesFromState(smState, conversationSessions, aux.selectedVersions, aux.preferredVersion);
     const target = smState.status === "idle"
@@ -673,30 +674,40 @@ export function useTtsPlaybackController({
     };
   }, [aux, conversationSessions, persistedTarget, smState]);
 
-  const barContext = useMemo<PlaybackEventContext | null>(() => {
+  const pillContext = useMemo<PlaybackEventContext | null>(() => {
     const target = derivedState.activeTarget ?? derivedState.replayTarget;
     return buildPlaybackContext(conversationSessions, derivedState, target, playbackIntent);
   }, [conversationSessions, derivedState, playbackIntent]);
 
-  const buildBarContextSelector = useCallback((
+  const buildPillContextSelector = useCallback((
     paneId: string | null,
     autoEnabled: boolean,
     currentAudioState: SessionPlaybackAudioState,
   ) => {
-    if (!shouldShowPlaybackBar({
+    if (!shouldShowPlayback({
       autoTtsEnabled: autoEnabled,
       activePaneId: paneId,
-      context: barContext,
+      context: pillContext,
       isSpeaking: currentAudioState.isSpeaking,
+      // Paused playback keeps its pill, so it can be resumed.
+      isActive: derivedState.activeTarget !== null || smState.status === "paused",
     })) return null;
-    return barContext;
-  }, [barContext]);
+    return pillContext;
+  }, [derivedState.activeTarget, pillContext, smState.status]);
 
   const activeEventId = smState.status === "playing" || smState.status === "loading"
     ? smState.eventId
     : null;
   const loadingEventId = smState.status === "loading" ? smState.eventId : null;
   const focusRequest: PlaybackFocusRequest | null = aux.focusRequest;
+
+  const activePaneIdRef = useRef(activePaneId);
+  activePaneIdRef.current = activePaneId;
+  const subscribeActiveTransport = useCallback((callback: (transport: PlaybackTransport | null) => void) => (
+    subscribeTransport((sessionId, transport) => {
+      if (sessionId === activePaneIdRef.current) callback(transport);
+    })
+  ), []);
 
   return {
     summarizeLevel: aux.summarizeLevel,
@@ -720,7 +731,8 @@ export function useTtsPlaybackController({
     stopPlayback: stopPlaybackWithIntent,
     nextTrack,
     previousTrack,
-    buildBarContext: buildBarContextSelector,
+    buildPillContext: buildPillContextSelector,
     focusCurrentEvent,
+    subscribeTransport: subscribeActiveTransport,
   };
 }

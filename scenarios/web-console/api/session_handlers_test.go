@@ -450,13 +450,12 @@ func TestArchivePreservesTranscriptAndUnarchiveRestoresVisibility(t *testing.T) 
 	}
 
 	h := sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
-		Manager:            srv.sessions,
-		Store:              store,
-		Idempotency:        srv.idempotency,
-		Events:             srv.events,
-		Metrics:            srv.metrics,
-		Conversations:      srv.conversations,
-		ArchiveGracePeriod: time.Hour,
+		Manager:       srv.sessions,
+		Store:         store,
+		Idempotency:   srv.idempotency,
+		Events:        srv.events,
+		Metrics:       srv.metrics,
+		Conversations: srv.conversations,
 	}})
 	if _, err := h.Archive(ctx, connect.NewRequest(&sessionsv1.ArchiveRequest{Id: sess.ID})); err != nil {
 		t.Fatalf("archive: %v", err)

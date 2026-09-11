@@ -1,4 +1,4 @@
-// DOC: docs/internal/COHERENCE-NOTES.md#styling-patterns
+// DOC: docs/concepts/ARCHITECTURE.md#code-organization-pattern
 import { forwardRef, type ReactNode } from "react";
 import {
   Button as LibraryButton,

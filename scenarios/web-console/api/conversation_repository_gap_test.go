@@ -87,8 +87,8 @@ func TestInMemoryConversationRepositoryLifecycleMethods(t *testing.T) {
 	if size, err := repo.SessionStorageBytes(ctx, "memory-session"); err != nil || size <= 0 {
 		t.Fatalf("storage size = %d, err=%v", size, err)
 	}
-	if matches, _, total, err := repo.SearchSession(ctx, "memory-session", "needle", 10); err != nil || len(matches) != 1 || total != 1 {
-		t.Fatalf("search=%+v total=%d err=%v", matches, total, err)
+	if result, err := repo.SearchSession(ctx, "memory-session", ConversationSearchQuery{Query: "needle", Limit: 10}); err != nil || len(result.Matches) != 1 || result.Total != 1 {
+		t.Fatalf("search=%+v err=%v", result, err)
 	}
 	if events, err := repo.ListSessionRange(ctx, "memory-session", event.Sequence, event.Sequence); err != nil || len(events) != 1 {
 		t.Fatalf("range=%+v err=%v", events, err)
@@ -121,8 +121,8 @@ func TestConversationStoreDelegatesRepositoryOperations(t *testing.T) {
 	if store.CountSessionEvents(ctx, "store-session") != 1 || store.SessionStorageBytes(ctx, "store-session") <= 0 {
 		t.Fatal("store count or storage size not delegated")
 	}
-	if matches, _, total, err := store.SearchSession(ctx, "store-session", "needle", 10); err != nil || len(matches) != 1 || total != 1 {
-		t.Fatalf("store search=%+v total=%d err=%v", matches, total, err)
+	if found, err := store.SearchSession(ctx, "store-session", ConversationSearchQuery{Query: "needle", Limit: 10}); err != nil || len(found.Matches) != 1 || found.Total != 1 {
+		t.Fatalf("store search=%+v err=%v", found, err)
 	}
 	if events, err := store.ListSessionRange(ctx, "store-session", 1, 1); err != nil || len(events) != 1 {
 		t.Fatalf("store range=%+v err=%v", events, err)
@@ -136,7 +136,9 @@ func TestConversationStoreDelegatesRepositoryOperations(t *testing.T) {
 	}
 	store.RecordPlaybackStage(ctx, "store-session", event.ID, "seen")
 	store.UpdateSpeechParagraphs(ctx, "store-session", event.ID, []string{"summarized store needle"})
-	store.DeleteSession(ctx, "store-session")
+	if err := store.DeleteSession(ctx, "store-session"); err != nil {
+		t.Fatalf("delete session: %v", err)
+	}
 	if store.CountSessionEvents(ctx, "store-session") != 0 {
 		t.Fatal("store delete did not remove session")
 	}
@@ -159,8 +161,8 @@ func TestConversationAdapterProjectsStoreOperations(t *testing.T) {
 	if err != nil || len(state.Events) != 1 || state.TotalCount != 1 || state.OldestSequence != 1 || state.NewestSequence != 1 {
 		t.Fatalf("get state=%+v err=%v", state, err)
 	}
-	if matches, _, total, err := adapter.Search(sess.ID, "needle", 10); err != nil || len(matches) != 1 || total != 1 {
-		t.Fatalf("search=%+v total=%d err=%v", matches, total, err)
+	if found, err := adapter.Search(sess.ID, conversationH.SearchQuery{Query: "needle", Limit: 10}); err != nil || len(found.Matches) != 1 || found.TotalMatches != 1 {
+		t.Fatalf("search=%+v err=%v", found, err)
 	}
 	if ranged, err := adapter.GetRange(sess.ID, 1, 1); err != nil || len(ranged.Events) != 1 {
 		t.Fatalf("range=%+v err=%v", ranged, err)
@@ -175,7 +177,7 @@ func TestConversationAdapterProjectsStoreOperations(t *testing.T) {
 	if _, err := adapter.SearchArchived(ctx, conversationH.ArchivedSearchFilter{CreatedAfter: "not-rfc3339"}); err == nil {
 		t.Fatal("invalid archive timestamp was accepted")
 	}
-	if _, err := adapter.SearchArchived(ctx, conversationH.ArchivedSearchFilter{Query: "needle"}); err != nil {
+	if _, err := adapter.SearchArchived(ctx, conversationH.ArchivedSearchFilter{SearchQuery: conversationH.SearchQuery{Query: "needle"}}); err != nil {
 		t.Fatal(err)
 	}
 }

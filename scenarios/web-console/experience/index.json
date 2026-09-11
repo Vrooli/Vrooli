@@ -14,6 +14,12 @@
       "path": "pages/workspace.json",
       "title": "Terminal Workspace",
       "status": "active"
+    },
+    {
+      "id": "account",
+      "path": "pages/account.json",
+      "title": "Account",
+      "status": "draft"
     }
   ],
   "components": [
@@ -21,7 +27,43 @@
       "id": "voice-input-button",
       "path": "components/voice-input-button.json",
       "title": "VoiceInputButton",
-      "status": "active"
+      "status": "draft"
+    },
+    {
+      "id": "generation-byok",
+      "path": "components/generation-byok.json",
+      "title": "BYOK generation provenance",
+      "status": "draft"
+    },
+    {
+      "id": "generation-local",
+      "path": "components/generation-local.json",
+      "title": "Local generation provenance",
+      "status": "draft"
+    },
+    {
+      "id": "generation-routed",
+      "path": "components/generation-routed.json",
+      "title": "Routed generation provenance",
+      "status": "draft"
+    },
+    {
+      "id": "local-voice",
+      "path": "components/local-voice.json",
+      "title": "Local voice availability",
+      "status": "draft"
+    },
+    {
+      "id": "subscription-summary",
+      "path": "components/subscription-summary.json",
+      "title": "Subscription summary",
+      "status": "draft"
+    },
+    {
+      "id": "tunnel-manager",
+      "path": "components/tunnel-manager.json",
+      "title": "Tunnel Manager awareness",
+      "status": "draft"
     }
   ],
   "x-spike": {

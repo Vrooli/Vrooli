@@ -27,7 +27,7 @@ func (f *fakeWorkspaceService) SaveLayout(context.Context, string, []string) err
 func (f *fakeWorkspaceService) UpdatePane(context.Context, UpdatePaneRequest) (Pane, error) {
 	return f.pane, f.err
 }
-func (f *fakeWorkspaceService) DeletePane(context.Context, string) {}
+func (f *fakeWorkspaceService) DeletePane(context.Context, string) error { return f.err }
 func (f *fakeWorkspaceService) CreateGroup(context.Context, string, string) (Group, error) {
 	return f.group, f.err
 }
@@ -35,7 +35,7 @@ func (f *fakeWorkspaceService) CreateGroup(context.Context, string, string) (Gro
 func (f *fakeWorkspaceService) UpdateGroup(context.Context, UpdateGroupRequest) (Group, error) {
 	return f.group, f.err
 }
-func (f *fakeWorkspaceService) DeleteGroup(context.Context, string) {}
+func (f *fakeWorkspaceService) DeleteGroup(context.Context, string) error { return f.err }
 
 func (f *fakeWorkspaceService) ListRoles(context.Context, string) ([]Role, error) {
 	return []Role{f.role}, f.roleErr
@@ -100,6 +100,14 @@ func TestConnectHandlerWorkspaceErrors(t *testing.T) {
 		},
 		func() error {
 			_, e := h.UpdateGroup(ctx, connect.NewRequest(&workspacev1.UpdateGroupRequest{}))
+			return e
+		},
+		func() error {
+			_, e := h.DeletePane(ctx, connect.NewRequest(&workspacev1.DeletePaneRequest{SessionId: "s1"}))
+			return e
+		},
+		func() error {
+			_, e := h.DeleteGroup(ctx, connect.NewRequest(&workspacev1.DeleteGroupRequest{Id: "g1"}))
 			return e
 		},
 	} {

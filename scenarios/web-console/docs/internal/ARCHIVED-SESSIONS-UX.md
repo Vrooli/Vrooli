@@ -6,7 +6,7 @@ web-console session archive. The plan
 rationale, the wireframes, the measured starting facts, and the decisions made
 during implementation.
 
-Visual companion: [`ARCHIVED-SESSIONS-UX.html`](./ARCHIVED-SESSIONS-UX.html) —
+Visual companion: `ARCHIVED-SESSIONS-UX.html` (preserved HTML) —
 open in a browser for the rendered wireframes in web-console's real palette.
 The ASCII wireframes below carry the same information and are authoritative if
 the two ever disagree.
@@ -381,3 +381,15 @@ actions, disabled reasons, and stable per-session idempotency keys.
 | `web-console-session-provenance-headless-launch-live-sidebar` | complete | Built the origin tab strip and `SessionOrigin`; D3 preserves its partition semantics |
 | `export-selected-web-console-messages-for-coding-agent` | complete | Built message export/handoff; `→ Send to composer` should reuse it, not duplicate it |
 | `web-console-overlay-consolidation-drawershell-as-the` | complete | Established `DrawerShell` as the standard overlay; the deep archive uses it |
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/ARCHIVED-SESSIONS-UX.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

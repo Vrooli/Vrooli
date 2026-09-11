@@ -91,7 +91,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -134,7 +134,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -172,7 +172,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -209,7 +209,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText: vi.fn().mockResolvedValue("browser"),
       stopPlayback: vi.fn(),
@@ -246,7 +246,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText: vi.fn().mockResolvedValue("browser"),
       stopPlayback: vi.fn(),
@@ -300,7 +300,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -341,7 +341,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -373,7 +373,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -411,7 +411,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -430,7 +430,7 @@ describe("useTtsPlaybackController", () => {
     ));
 
     // Audio actually starts.
-    rerender({ ...props, audioState: { playback: null, isSpeaking: true } });
+    rerender({ ...props, audioState: { isSpeaking: true, isPaused: false } });
 
     // A second message arrives WHILE the first is speaking. It must be queued,
     // not dropped — so speakText has not yet been called for it.
@@ -439,7 +439,7 @@ describe("useTtsPlaybackController", () => {
     expect(speakText).toHaveBeenCalledTimes(1);
 
     // The first track ends → the queued message is spoken.
-    rerender({ ...props, audioState: { playback: null, isSpeaking: false } });
+    rerender({ ...props, audioState: { isSpeaking: false, isPaused: false } });
     await waitFor(() => expect(speakText).toHaveBeenCalledWith(
       "sess-1", e2.text, e2.speechParagraphs, { eventId: "e2", version: "active", initiatedBy: "auto" },
     ));
@@ -455,7 +455,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),
@@ -470,12 +470,12 @@ describe("useTtsPlaybackController", () => {
     act(() => { result.current.handleIncomingEvent("sess-1", e1, vi.fn()); });
     await waitFor(() => expect(speakText).toHaveBeenCalledTimes(1));
 
-    rerender({ ...props, audioState: { playback: null, isSpeaking: true } });
+    rerender({ ...props, audioState: { isSpeaking: true, isPaused: false } });
     act(() => { result.current.handleIncomingEvent("sess-1", e2, vi.fn()); });
 
     // User stops: the queued message must be discarded.
     act(() => { result.current.stopPlayback("sess-1"); });
-    rerender({ ...props, audioState: { playback: null, isSpeaking: false } });
+    rerender({ ...props, audioState: { isSpeaking: false, isPaused: false } });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(speakText).toHaveBeenCalledTimes(1);
@@ -495,7 +495,7 @@ describe("useTtsPlaybackController", () => {
       conversationSessions: sessions,
       activePaneId: "other-pane",
       autoTtsEnabled: true,
-      audioState: { playback: null, isSpeaking: false },
+      audioState: { isSpeaking: false, isPaused: false },
       setViewMode: vi.fn(),
       speakText,
       stopPlayback: vi.fn(),

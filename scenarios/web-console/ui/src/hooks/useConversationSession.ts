@@ -28,11 +28,16 @@ export async function refreshConversationSession(sessionId: string): Promise<Ref
   const before = existing?.events.length ?? 0;
   state.beginLoad(sessionId);
   try {
+    // Only a session whose history has loaded can ask for "what is newer".
+    // An entry that exists because another load is in flight (or because a
+    // live event arrived first) holds no history yet: asking it for everything
+    // since 0 pulls the whole transcript and merges it ahead of the viewport.
+    const loaded = existing?.hydrated === true;
     const data = await getConversationSession(
       sessionId,
-      existing ? { sinceSequence: since } : { limit: PAGE_SIZE },
+      loaded ? { sinceSequence: since } : { limit: PAGE_SIZE },
     );
-    if (existing) {
+    if (loaded) {
       state.mergeEvents(sessionId, data.events, data.cursor, data.capture);
     } else {
       state.hydrateSession(sessionId, data.events, data.cursor, {

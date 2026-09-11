@@ -48,6 +48,38 @@ If conversation events are missing:
 
 For a recovered Claude pane, the Messages view shows a subtle warning only when it has emitted terminal output after recovery, two minutes have elapsed, and no new conversation event was recorded. This is a degraded-observability signal, not a claim that the agent stopped; check the transcript path and hook configuration before retrying anything.
 
+## Session activity
+
+Between messages, every session carries one activity — `working`, `idle`,
+`waiting` (the agent asked you something), or `unknown` — so the Messages view
+never guesses from message timing. The server owns it
+([CODE: api/session/activity.go]) and it reaches the UI two ways: the
+`session_activity` kind on `GET /api/v1/events/stream`, and `Session.activity`
+on the sessions list.
+
+| Evidence | Source label | Used for |
+|---|---|---|
+| Claude `Notification` hook (`permission_prompt`, `elicitation_dialog`) and `Stop` hook | Claude hook | waiting / idle, the moment Claude raises it |
+| OpenCode events (`permission.asked`, `question.asked`, `session.status`) | OpenCode | waiting with the prompt, working / idle |
+| The decoded terminal screen, read by the harness's detector | terminal scrape | prompt boxes, the in-progress marker, the input glyph |
+| Terminal output timing alone | output clock | working while output streams; never idle on its own |
+
+The harness is the session's agent type, or — for panes launched by other
+scenarios that record none — the agent named by the launch command. A reading
+below 0.6 confidence is reported as `unknown` and shows nothing.
+
+Messages shows the activity as one slot under the last row
+([CODE: ui/src/components/messages/SessionStateSlot.tsx]): a "Working · 1 m 12 s"
+strip while the agent works, or a card when it waits on you — "Claude is asking
+you something" with how it was detected and an "Open terminal" button, or the
+prompt text and its options when the prompt could be read. Idle and unknown show
+nothing. The Notification hook is registered with the Stop and UserPromptSubmit
+hooks (`web-console hooks register`); `hooks status` reports it missing as stale.
+
+## Echo rows
+
+A send from the Messages composer types the draft into the terminal and never presses Enter. Until the transcript records that text as a user message, Messages shows a dimmed echo row for it: sending, then "typed into the terminal, not submitted" with a Press Enter action when the text sits on the terminal screen unsubmitted, or "sent, not seen on screen" when a minute passes with no sign of it. The echo disappears when the matching user event arrives. An answer given from a prompt card shows the chosen option the same way. Details: [Messages view](../internal/MESSAGES-VIEW-PROJECTION-UX.md#echo-rows-and-history).
+
 ## Security & privacy
 
 - Conversation events carry user/assistant natural-language text only. Grok thought chunks and tool-call arguments, and OpenCode tool parts, are deliberately **not** appended.

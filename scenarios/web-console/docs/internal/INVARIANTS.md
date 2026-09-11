@@ -1,5 +1,22 @@
 # Replay / Idempotency Invariants
 
+## Conversation continuity invariants
+
+Session process state and evidence-retention state are separate concerns. A
+process exit, WebSocket disconnect, API restart, or workspace-pane removal
+MUST NOT delete a session row, conversation event, transcript checkpoint, or
+provider history. The only normal path allowed to physically remove those
+artifacts is an explicit permanent-delete operation after its receipt has been
+committed. Runtime cleanup therefore marks an exited standard session archived
+and leaves persistent-session metadata available for recovery.
+
+The provider-neutral lifecycle model is implemented in
+`api/internal/continuity/lifecycle.go`. Illegal transitions are rejected by the
+pure transition table, and `session_lifecycle_receipts` stores one immutable
+result per operation key. Raw provider transcripts remain read-only source
+evidence; reconciliation and indexing may only add or repair Web Console
+projections.
+
 This document records the idempotency and replay-safety status of all
 state-mutating operations in the web-console scenario.
 
@@ -25,7 +42,7 @@ state-mutating operations in the web-console scenario.
 | Operation | Location | Idempotent? | Notes |
 |-----------|----------|-------------|-------|
 | Session broadcast | `session.go:broadcast()` | N/A | Output fan-out is append-only to subscriber channels. |
-| Expiration sweep | `session_policy.go` | **Yes** | Re-running sweep on already-expired sessions is a no-op (session already deleted). |
+| Expiration sweep | `session_policy.go` | **Yes** | Re-running sweep on an already archived/expired session is a no-op; production expiry is routed through the continuity archive handler and remains receipt-backed. |
 | Offline buffer | `session.go:broadcast()` | Append-only | Buffer grows until cap. Not a mutation concern for replay. |
 
 ### UI Operations
@@ -57,6 +74,20 @@ The cache uses opportunistic eviction (triggered when size > 100 entries).
 - **POST /sessions without key**: NOT safe to retry blindly. Creates a new session each time.
 - **POST /ai/generate**: NOT safe to retry without user intent. Calls external APIs, emits events.
 - **TTS incoming assistant event**: Safe to receive again; duplicate events are ignored by `useConversationStore.appendEvent`, and playback is controlled by persisted intent plus current target state.
+
+## Messages Scroll Invariants
+
+The Messages list (`ui/src/components/MessagesPane.tsx`) uses one scroll model: a follow boolean and the prepend anchor. Design record: `docs/internal/MESSAGES-VIEW-PROJECTION-UX.md`.
+
+| Invariant | Enforcement | Location |
+|-----------|-------------|----------|
+| Only user intent writes follow | The scroll handler sets `followRef` from `remaining <= 200` only when no programmatic scroll is in flight; `scrollToBottom` sets it true; explicit jumps to a message set it false | `MessagesPane.tsx` (`setFollow`, scroll listener) |
+| A user gesture ends a programmatic scroll | `useReleaseOnElementInteraction` clears `programmaticScrollRef` on wheel, touch, pointer, or key input, so the user's scroll events decide follow | `MessagesPane.tsx`, `hooks/useKeyboardListeners.ts` |
+| New content moves the viewport only while follow is true | One layout effect keyed on events and `totalSize` scrolls to the end once per change while following; otherwise it only counts appended events for the new-messages pill | `MessagesPane.tsx` (follow rule effect) |
+| Exactly two anchors exist | The virtualizer's resize compensation (rows above the viewport) and the prepend anchor (older page inserted). Browser scroll anchoring is off (`overflow-anchor: none`) so no shift is corrected twice | `hooks/useVirtualList.ts`, `MessagesPane.tsx` |
+| Resize compensation lands in the same commit as the moved rows, and only for rows entirely above the viewport | `useVirtualList` applies the above-viewport delta in a layout effect on the size version, never in the measurement frame; the row straddling the top edge keeps its top fixed; rendered rows re-read their offsets on every size version | `hooks/useVirtualList.ts` |
+| Refresh never refetches history it has not loaded | A refresh asks for "what is newer" only for a hydrated session, and a paged window's start is not a gap, so mount, focus, and reconnect refreshes cannot merge older history ahead of the viewport | `hooks/useConversationSession.ts`, `stores/useConversationStore.ts` |
+| No retries, timers, or settle loops position the list | Enforced by review and by `messages-scroll-follow.test.tsx` (one write per change) | `ui/src/__tests__/messages-scroll-follow.test.tsx` |
 
 ## TTS Playback Intent Invariants
 

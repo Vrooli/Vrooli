@@ -199,14 +199,21 @@ func defaultPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		_ = windows.CloseHandle(outputRead)
 		return nil, fmt.Errorf("encode shell command: %w", err)
 	}
-	envBlock, err := windows.UTF16FromString(strings.Join(buildSessionEnv(spec), "\x00") + "\x00")
+	environment, workingDir, err := prepareSessionEnvironment(buildSessionEnv(spec), resolveLaunchDir(spec))
+	if err != nil {
+		windows.ClosePseudoConsole(console)
+		_ = windows.CloseHandle(inputWrite)
+		_ = windows.CloseHandle(outputRead)
+		return nil, fmt.Errorf("resolve ConPTY launch context: %w", err)
+	}
+	envBlock, err := windows.UTF16FromString(strings.Join(environment, "\x00") + "\x00")
 	if err != nil {
 		windows.ClosePseudoConsole(console)
 		_ = windows.CloseHandle(inputWrite)
 		_ = windows.CloseHandle(outputRead)
 		return nil, fmt.Errorf("encode shell environment: %w", err)
 	}
-	cwd := resolveLaunchDir(spec)
+	cwd := workingDir
 	cwdPtr, err := windows.UTF16PtrFromString(cwd)
 	if err != nil {
 		windows.ClosePseudoConsole(console)

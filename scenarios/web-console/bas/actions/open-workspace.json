@@ -72,7 +72,7 @@
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "@selector/workspace.topEdge",
+            "selector": "[data-testid=\"workspace-top-edge\"]",
             "failure_message": "Expected the workspace shell experience region"
           },
           "metadata": {

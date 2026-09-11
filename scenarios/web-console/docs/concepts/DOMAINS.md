@@ -244,6 +244,7 @@ are scheduled for the next extraction-prep pass — see PROBLEMS.md §10.
 |---|---|---|
 | `/api/v1/hooks/stop` | POST | `RESTException: webhook_receiver` — called by Claude Code CLI |
 | `/api/v1/hooks/prompt-submit` | POST | `RESTException: webhook_receiver` — same |
+| `/api/v1/hooks/notification` | POST | `RESTException: webhook_receiver` — same; feeds session activity |
 
 These are inbound webhooks from a CLI we do not control. They stay REST
 with the `webhook_receiver` tag and never become Connect.

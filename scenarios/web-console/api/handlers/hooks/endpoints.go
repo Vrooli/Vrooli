@@ -44,4 +44,21 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 	},
+	{
+		ID:          "hooks_notification",
+		Path:        "/api/v1/hooks/notification",
+		Method:      "POST",
+		Summary:     "Claude Code Notification hook receiver",
+		Description: "Inbound webhook from the Claude Code CLI fired when Claude raises a notification: a permission or question dialog (the session is waiting on the user) or the idle prompt (the turn is over). Feeds the session's activity detector, which publishes session_activity on the conversation hub. Authenticated by the X-Hook-Token header.",
+		Category:    "hooks",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonWebhookReceiver,
+			Note:   "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
+		},
+	},
 }

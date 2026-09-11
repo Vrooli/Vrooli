@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "ui",
-      "description": "Implement responsive CSS grid layout that renders 2-column panes on desktop (\u003e=768px) and single-column stacked panes on mobile (\u003c768px). Pane containers must support dynamic addition and removal without full re-render.",
+      "description": "Implement responsive CSS grid layout that renders 2-column panes on desktop (>=768px) and single-column stacked panes on mobile (<768px). Pane containers must support dynamic addition and removal without full re-render.",
       "children": [
         "REQ-P0-001b",
         "REQ-P0-001c"
@@ -147,7 +147,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "ui",
-      "description": "Messages open reliably for multi-thousand-event sessions with a bounded first render; scrolling is anchored and stable; whole-history search, jump, and export preserve access to events outside the loaded page while durable terminal sessions remain intact across a Web Console restart.",
+      "description": "Messages open reliably for multi-thousand-event sessions with a bounded first render; the list follows new content only while the user is within 200 pixels of the end (one follow boolean, set only by the user's own scrolling) and otherwise never moves; the per-session view mode and scroll position persist across reloads and restore by loading the page that contains the saved message; whole-history search, jump, and export preserve access to events outside the loaded page while durable terminal sessions remain intact across a Web Console restart.",
       "validation": [
         {
           "type": "test",
@@ -167,8 +167,8 @@
           "type": "test",
           "ref": "api/conversation_pagination_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Repository coverage verifies 2,500-event backward paging, oldest-history search, literal LIKE wildcard escaping, and legacy complete-history reads."
+          "status": "implemented",
+          "notes": "Repository coverage verifies 2,500-event backward paging, oldest-history search over the FTS5 mirror, literal punctuation (% and _) in text search, and legacy complete-history reads."
         }
       ]
     }

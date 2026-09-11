@@ -1,7 +1,7 @@
 import { renderWithProviders as render } from "../../test-utils";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, cleanup } from "@testing-library/react";
+import { screen, cleanup, fireEvent } from "@testing-library/react";
 import SessionSidebar from "../SessionSidebar";
 import { buildOriginBucketedNavigation, type OriginBucketNavigation } from "../../lib/workspaceNavigation";
 import { useWorkspaceStore, type PaneMetadata } from "../../stores/useWorkspaceStore";
@@ -99,6 +99,37 @@ describe("SessionSidebar origin tabs", () => {
     expect(screen.queryByTestId("sidebar-session-progB")).toBeNull();
     expect(screen.getByTestId("sidebar-origin-tab-ui").getAttribute("aria-selected")).toBe("true");
     expect(screen.getByTestId("sidebar-origin-tab-programmatic").getAttribute("aria-selected")).toBe("false");
+  });
+
+  // The strip was a local role="tablist" with its own buttons, so it carried
+  // none of what the shared component settles. These assert the adoption, not
+  // the markup: a re-hand-rolled strip fails them.
+  it("renders the library tab strip rather than a local copy of one", () => {
+    renderSidebar(buckets({ a: "ui", b: "programmatic" }));
+    expect(screen.getByTestId("sidebar-origin-tabs").hasAttribute("data-rcl-tabs")).toBe(true);
+    // Named, so it cannot collide with the launcher's strip when both are
+    // mounted — the library root id used to be hardcoded for every caller.
+    expect(screen.queryByTestId("navigation.tabs")).toBeNull();
+  });
+
+  it("counts each bucket's sessions in the tab badge", () => {
+    renderSidebar(buckets({ a: "ui", b: "programmatic", c: "programmatic" }));
+    const badgeText = (bucket: string) =>
+      screen.getByTestId(`sidebar-origin-tab-${bucket}`).querySelector("[data-rcl-tab-badge]")?.textContent;
+    expect(badgeText("programmatic")).toBe("2");
+    expect(badgeText("ui")).toBe("1");
+  });
+
+  it("moves between buckets with the arrow keys", () => {
+    // Keyboard selection is the clearest thing the hand-rolled strip lacked:
+    // every button was tabbable and no arrow key did anything.
+    renderSidebar(buckets({ a: "ui", b: "programmatic" }));
+    const ui = screen.getByTestId("sidebar-origin-tab-ui");
+    expect(ui.getAttribute("tabindex")).toBe("0");
+    expect(screen.getByTestId("sidebar-origin-tab-programmatic").getAttribute("tabindex")).toBe("-1");
+
+    fireEvent.keyDown(ui, { key: "ArrowRight" });
+    expect(useWorkspaceStore.getState().sidebarOriginTab).toBe("programmatic");
   });
 
   it("falls back to the first present bucket when the persisted tab's bucket is empty", () => {

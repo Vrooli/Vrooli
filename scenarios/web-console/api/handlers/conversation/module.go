@@ -24,23 +24,50 @@ type Service interface {
 	// its events, so callers can explain an empty transcript without a second
 	// round trip.
 	CaptureStatus(ctx context.Context, sessionID string) CaptureStatus
-	Search(sessionID, query string, limit int) ([]SearchMatch, bool, int64, error)
+	Search(sessionID string, query SearchQuery) (SearchResult, error)
 	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
 	GetRange(sessionID string, from, to int64) (SessionState, error)
 	UpdateCursor(sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
 }
+
+// SearchQuery is one conversation search. Mode is "text" | "regex" | "fuzzy".
+type SearchQuery struct {
+	Query         string
+	Mode          string
+	CaseSensitive bool
+	WholeWord     bool
+	Role          string
+	Limit         int
+}
+
+// TextRange is a match inside an excerpt, in UTF-16 code units.
+type TextRange struct {
+	Start int
+	End   int
+}
+
 type SearchMatch struct {
-	EventID  string
-	Sequence int64
-	Excerpt  string
+	EventID   string
+	Sequence  int64
+	Role      string
+	CreatedAt string
+	Excerpt   string
+	Ranges    []TextRange
+}
+
+// SearchResult carries Error for a query that cannot run as asked (an invalid
+// regular expression); that is an answer, not a transport failure.
+type SearchResult struct {
+	Matches      []SearchMatch
+	Truncated    bool
+	TotalMatches int64
+	Error        string
 }
 
 type ArchivedSearchFilter struct {
-	Query        string
-	Limit        int
+	SearchQuery
 	AgentType    string
-	Role         string
 	CreatedAfter string
 }
 
@@ -51,6 +78,7 @@ type ArchivedSearchMatch struct {
 	Role      string
 	CreatedAt string
 	Excerpt   string
+	Ranges    []TextRange
 }
 
 type ArchivedSearchResult struct {
@@ -58,6 +86,7 @@ type ArchivedSearchResult struct {
 	Truncated        bool
 	TotalMatches     int64
 	DistinctSessions int64
+	Error            string
 }
 
 // Event mirrors the legacy JSON shape of one stored conversation entry.

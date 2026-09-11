@@ -7,6 +7,7 @@ import { paneAccentStyle } from "../lib/paneColor";
 import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
 import type { PaneMetadata, RoleMeta, SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -392,36 +393,39 @@ export default function SessionSidebar({
         )}
       </div>
 
+      {/* The library's strip, not a local copy of one. This was a hand-rolled
+          role="tablist" with its own buttons, so it carried none of what the
+          shared component already settles — roving focus and arrow-key
+          selection, scrolling the selected tab back into view, and the badge's
+          own token pair.
+
+          Compact underline is the fleet's idiom for a strip like this;
+          git-control-tower's view-mode, changes-filter and search-mode strips
+          are all the same shape. At compact density the indicator and the
+          strip's own border drop away, leaving muted text that turns
+          accent-coloured when selected. The segmented variant would box it,
+          which is what the hand-rolled strip did — a reason to replace it
+          rather than a reason to imitate it.
+
+          The wrapper carries the sidebar's section chrome only: the rule under
+          the strip, its inset, and `select-none` because the row's press
+          gestures start here. */}
       {sidebarView === "list" && showOriginTabs && (
-        <div
-          role="tablist"
-          aria-label={t(strings.sessionSidebar.originTabsAria)}
-          data-testid="sidebar-origin-tabs"
-          className="flex select-none items-center gap-1 border-b border-wc-default px-2 py-1.5"
-        >
-          {buckets.map((bucket) => {
-            const count = bucket.items.reduce((sum, item) => sum + (item.kind === "pane" ? 1 : 0), 0);
-            const isActiveTab = bucket.bucket === activeBucket?.bucket;
-            return (
-              <button
-                key={bucket.bucket}
-                type="button"
-                role="tab"
-                aria-selected={isActiveTab}
-                data-testid={`sidebar-origin-tab-${bucket.bucket}`}
-                className={cn(
-                  "flex min-w-0 flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors",
-                  isActiveTab
-                    ? "bg-wc-surface-raised text-wc-text-primary"
-                    : "text-wc-text-muted hover:bg-wc-surface-raised/60 hover:text-wc-text-secondary",
-                )}
-                onClick={() => { setSidebarOriginTab(bucket.bucket); }}
-              >
-                <span className="truncate">{t(ORIGIN_TAB_LABEL[bucket.bucket])}</span>
-                <span className="shrink-0 rounded bg-wc-surface-input px-1 text-[10px]">{count}</span>
-              </button>
-            );
-          })}
+        <div className="select-none border-b border-wc-default px-2">
+          <Tabs
+            mode="controlled"
+            density="compact"
+            testId="sidebar-origin-tabs"
+            ariaLabel={t(strings.sessionSidebar.originTabsAria)}
+            active={activeBucket?.bucket}
+            onChange={(next) => { setSidebarOriginTab(next as SidebarOriginTab); }}
+            itemTestId={(id) => `sidebar-origin-tab-${id}`}
+            items={buckets.map((bucket) => ({
+              id: bucket.bucket,
+              label: t(ORIGIN_TAB_LABEL[bucket.bucket]),
+              badge: bucket.items.reduce((sum, item) => sum + (item.kind === "pane" ? 1 : 0), 0),
+            }))}
+          />
         </div>
       )}
 
@@ -672,6 +676,11 @@ export default function SessionSidebar({
               // its neighbours, and a flat `rounded` here would let the track
               // show through the corners the row does not actually round.
               actions={swipeActionsFor(pane)}
+              // Marks, not words. Three labelled slabs made the revealed track
+              // read as a paragraph the operator had to parse mid-gesture; each
+              // label is still its button's accessible name, so nothing is lost
+              // to a screen reader.
+              actionLabels="hidden"
               label={t(strings.sessionSidebar.swipeActionsAria, { name: pane.name })}
               open={swipeOpenPaneId === pane.sessionId}
               onOpenChange={(next) => {

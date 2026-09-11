@@ -1,7 +1,8 @@
 import { renderWithProviders as render } from "../../../test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 
+import { strings } from "../../../consts/strings";
 import { renderers, rendererForKind } from "../renderers";
 import type { PreviewKind, PreviewModel, PreviewRendererProps, PreviewTextContent } from "../types";
 
@@ -163,5 +164,40 @@ describe("unsupported renderer", () => {
     expect(screen.getByTestId("file-preview-unsupported")).toBeInTheDocument();
     expect(screen.getByTestId("file-preview-download")).toBeInTheDocument();
     expect(screen.getByTestId("file-preview-copy-path")).toBeInTheDocument();
+  });
+});
+
+
+describe("HTML text preview", () => {
+  it.each(["report.html", "REPORT.HTM"])("renders %s in an isolated frame and lets users inspect source", (basename) => {
+    const Renderer = renderers.code;
+    const content = "<!doctype html><style>h1 { color: red }</style><h1>Report</h1><script>document.title = 'Report'</script>";
+    render(<Renderer model={model({ kind: "code", basename, resolvedPath: `/tmp/${basename}` })} text={text(content, "code")} onError={() => {}} {...navProps} />);
+    const frame = screen.getByTitle(strings.messagesFileViewer.htmlPreview);
+    expect(frame).toHaveAttribute("sandbox", "allow-scripts");
+    expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(frame.getAttribute("srcdoc")).toContain(content);
+    expect(frame.getAttribute("srcdoc")).toContain("Content-Security-Policy");
+    expect(frame.getAttribute("srcdoc")).toContain('<base href="about:srcdoc">');
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlSource }));
+    expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
+    expect(screen.queryByTitle(strings.messagesFileViewer.htmlPreview)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlRendered }));
+    expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview)).toBeInTheDocument();
+  });
+
+  it("keeps line-linked and truncated HTML in source view initially", () => {
+    const Renderer = renderers.text;
+    render(<Renderer model={model({ kind: "text", basename: "report.htm", resolvedPath: "/tmp/report.htm", line: 1 })} text={{ ...text("<h1>Report</h1>", "text"), truncated: true }} onError={() => {}} {...navProps} />);
+    expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlRendered }));
+    expect(screen.getByTestId("file-preview-notice")).toHaveTextContent(/truncated/i);
+  });
+
+  it("keeps ordinary code as source", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("const markup = '<h1>Hello</h1>';", "code")} onError={() => {}} {...navProps} />);
+    expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: strings.messagesFileViewer.htmlRendered })).not.toBeInTheDocument();
   });
 });

@@ -76,3 +76,7 @@ func TestConnectHandlerTerminalValidationAndClassification(t *testing.T) {
 		_ = reason
 	}
 }
+
+func (f *fakeTerminalService) AnswerPrompt(_ context.Context, _ string, answer PromptAnswer) (PromptAnswerResult, error) {
+	return PromptAnswerResult{Delivery: DeliveryKeystrokes, Answer: answer.OptionKey}, nil
+}

@@ -179,7 +179,10 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	if len(newParagraphs) == 0 {
 		return
 	}
-	s.conversations.UpdateSpeechParagraphs(context.Background(), sessionID, event.ID, newParagraphs)
+	if err := s.conversations.UpdateSpeechParagraphs(context.Background(), sessionID, event.ID, newParagraphs); err != nil {
+		log.Printf("tts-summarize: failed to persist event update event=%s: %v", sanitizeID(event.ID), err)
+		return
+	}
 
 	event.OriginalSpeechParagraphs = event.SpeechParagraphs
 	event.SpeechParagraphs = newParagraphs

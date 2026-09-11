@@ -18,9 +18,9 @@ import (
 	"web-console/internal/policy"
 )
 
-// Status is the lifecycle status of a session row. Only Recover() and the
-// recovery endpoints transition status; everywhere else the row is
-// implicitly StatusLive.
+// Status is the lifecycle status of a session row. Runtime exit records
+// awaiting recovery; archive and recovery endpoints own deliberate policy
+// transitions.
 type Status string
 
 const (
@@ -141,11 +141,19 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		meta.AgentType = AgentNone
 	}
 	_, err := s.db.ExecContext(ctx, `
-		INSERT OR REPLACE INTO sessions (
+		INSERT INTO sessions (
 			id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
+			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
+			detached=excluded.detached, agent_type=excluded.agent_type,
+			launch_command=excluded.launch_command, agent_session_id=excluded.agent_session_id,
+			cwd=excluded.cwd, last_rollout_path=excluded.last_rollout_path,
+			last_activity_at=excluded.last_activity_at, origin=excluded.origin,
+			owner=excluded.owner, display_label=excluded.display_label`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -194,7 +202,7 @@ func (s *SQLStore) List(ctx context.Context) ([]Metadata, error) {
 func (s *SQLStore) ListDetached(ctx context.Context) ([]Metadata, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+selectColumns+`
 		FROM sessions
-		WHERE detached = 1 AND status = 'live'
+		WHERE detached = 1 AND status = 'live' AND archived_at = ''
 		ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -298,7 +306,7 @@ func (s *SQLStore) MarkOrphaned(ctx context.Context, id string, at time.Time) er
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
 		SET status = ?, orphaned_at = ?
-		WHERE id = ? AND detached = 1`,
+		WHERE id = ? AND archived_at = ''`,
 		string(StatusAwaitingRecovery),
 		at.UTC().Format(time.RFC3339),
 		id,
@@ -470,6 +478,14 @@ func (s *InMemoryStore) Save(_ context.Context, meta Metadata) error {
 	if meta.AgentType == "" {
 		meta.AgentType = AgentNone
 	}
+	if previous, exists := s.sessions[meta.ID]; exists {
+		// Lifecycle columns are owned by explicit transition methods. A late
+		// runtime save must not resurrect an archived or recovered row.
+		meta.Status = previous.Status
+		meta.OrphanedAt = previous.OrphanedAt
+		meta.RecoveredInto = previous.RecoveredInto
+		meta.ArchivedAt = previous.ArchivedAt
+	}
 	s.sessions[meta.ID] = meta
 	return nil
 }
@@ -499,7 +515,7 @@ func (s *InMemoryStore) ListDetached(_ context.Context) ([]Metadata, error) {
 	defer s.mu.Unlock()
 	var result []Metadata
 	for _, meta := range s.sessions {
-		if meta.Detached && meta.Status == StatusLive {
+		if meta.Detached && meta.Status == StatusLive && meta.ArchivedAt.IsZero() {
 			result = append(result, meta)
 		}
 	}
@@ -613,7 +629,7 @@ func (s *InMemoryStore) MarkOrphaned(_ context.Context, id string, at time.Time)
 	if !ok {
 		return fmt.Errorf("session %s not found", id)
 	}
-	if !meta.Detached {
+	if !meta.ArchivedAt.IsZero() {
 		return nil
 	}
 	meta.Status = StatusAwaitingRecovery

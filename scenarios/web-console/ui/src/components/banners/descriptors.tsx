@@ -165,6 +165,41 @@ export function createErrorBanner(
   };
 }
 
+/**
+ * A close the operator asked for and the server refused.
+ *
+ * Separate from createErrorBanner because it is a different question with a
+ * different retry: this one re-runs the close, and its absence is what made a
+ * refused Close indistinguishable from a dead button.
+ */
+export function closeErrorBanner(
+  t: TFunction,
+  error: ErrorInfo,
+  opts: { onDismiss: () => void; onRetry?: () => void },
+): BannerDescriptor {
+  return {
+    id: "close-error",
+    testId: "close-error-banner",
+    tone: "danger",
+    priority: BANNER_PRIORITY.closeError,
+    title: t(strings.banners.closeError.title),
+    description: error.recovery ? `${error.message} — ${error.recovery}` : error.message,
+    actions: opts.onRetry
+      ? [
+          {
+            id: "retry-button",
+            label: t(strings.errorBanner.retry),
+            onSelect: opts.onRetry,
+            primary: true,
+            icon: RotateCcw,
+          },
+        ]
+      : undefined,
+    onDismiss: opts.onDismiss,
+    dismissLabel: t(strings.errorBanner.dismiss),
+  };
+}
+
 export function summarizeErrorBanner(
   t: TFunction,
   state: SummarizeErrorState,

@@ -188,12 +188,112 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 	sess.emuMu.Unlock()
 
 	sweeper := NewExpirationSweeper(sm, events, metrics)
+	sweeper.SetArchiveHandler(sm.Archive)
 	sweeper.sweep() // Run one sweep cycle
 
 	_, ok := sm.Get(sess.ID)
 	if ok {
 		t.Error("expired session should have been removed by sweeper")
 	}
+}
+
+func TestExpirationSweeperUsesOwnedArchiveHandler(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
+	sess.emuMu.Unlock()
+
+	called := false
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	sweeper.SetArchiveHandler(func(ctx context.Context, id string) error {
+		called = true
+		return sm.Archive(ctx, id)
+	})
+	sweeper.sweep()
+	if !called {
+		t.Fatal("expiration bypassed the installed lifecycle archive handler")
+	}
+}
+
+func TestExpirationSweeperDoesNotDoubleCountOwnedArchiveMetrics(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
+	sess.emuMu.Unlock()
+
+	metrics := metrics.New()
+	metrics.ActiveSessions.Store(1)
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics)
+	sweeper.SetArchiveHandler(func(ctx context.Context, id string) error {
+		if err := sm.Archive(ctx, id); err != nil {
+			return err
+		}
+		metrics.ActiveSessions.Add(-1)
+		return nil
+	})
+	sweeper.sweep()
+
+	if got := metrics.ActiveSessions.Load(); got != 0 {
+		t.Fatalf("active sessions metric = %d, want 0 after owner transition", got)
+	}
+	if got := metrics.SessionsDeleted.Load(); got != 0 {
+		t.Fatalf("deleted sessions metric = %d, want 0 for expiration archive", got)
+	}
+}
+
+func TestExpirationSweeperReportsArchiveFailure(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
+	sess.emuMu.Unlock()
+
+	metrics := metrics.New()
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics)
+	sweeper.SetArchiveHandler(func(context.Context, string) error {
+		return context.Canceled
+	})
+	sweeper.sweep()
+	if got := metrics.ContinuityFailures.Load(); got != 1 {
+		t.Fatalf("continuity failures = %d, want 1", got)
+	}
+	if _, ok := sm.Get(sess.ID); !ok {
+		t.Fatal("failed expiration archive must preserve the live session")
+	}
+	_ = sm.Delete(context.Background(), sess.ID)
+}
+
+func TestExpirationSweeperSkipsWhenOwnedArchiveHandlerIsMissing(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Custom, Duration: "1m"})
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-2 * time.Minute)
+	sess.emuMu.Unlock()
+
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	sweeper.sweep()
+	if _, ok := sm.Get(sess.ID); !ok {
+		t.Fatal("expiration without the continuity owner must not terminate the session")
+	}
+	_ = sm.Delete(context.Background(), sess.ID)
 }
 
 func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
@@ -249,8 +349,9 @@ func TestExpirationSweeper_StartIdempotent(t *testing.T) {
 	}
 }
 
-// [REQ:P1-001a] Sweeper loop actually fires and removes expired sessions end-to-end
-func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
+// [REQ:P1-001a] Sweeper loop actually fires and archives expired sessions
+// end-to-end without misreporting durable evidence deletion.
+func TestExpirationSweeper_LoopFiresAndArchives(t *testing.T) {
 	sm := NewManagerWithFactory(ptyfake.NewFactory())
 	events := events.NewLogger(100)
 	metrics := metrics.New()
@@ -270,6 +371,7 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 		sessions: sm,
 		events:   events,
 		metrics:  metrics,
+		archive:  sm.Archive,
 		interval: 50 * time.Millisecond,
 		stopCh:   make(chan struct{}),
 	}
@@ -282,10 +384,10 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 
 	_, ok := sm.Get(sess.ID)
 	if ok {
-		t.Error("expired session should have been removed by sweeper loop")
+		t.Error("expired session should have been removed from the active manager by sweeper loop")
 	}
 
-	if metrics.SessionsDeleted.Load() != 1 {
-		t.Errorf("expected 1 deletion metric, got %d", metrics.SessionsDeleted.Load())
+	if metrics.SessionsDeleted.Load() != 0 {
+		t.Errorf("expected no deletion metric for expiration archive, got %d", metrics.SessionsDeleted.Load())
 	}
 }

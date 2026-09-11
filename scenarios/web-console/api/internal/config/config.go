@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // DefaultTerminalScrollbackLines is the one production scrollback depth used
@@ -132,7 +134,7 @@ type Config struct {
 func Default() Config {
 	shell, _ := resolveShell()
 	return Config{
-		BridgeURL:                        "",
+		BridgeURL:                       "",
 		TerminalScrollbackLines:         DefaultTerminalScrollbackLines,
 		MaxSnapshotBytes:                DefaultMaxSnapshotBytes,
 		PTYReadBuffer:                   4096,
@@ -322,16 +324,24 @@ func resolveWorkingDir() string {
 		return v
 	}
 	wd, err := os.Getwd()
-	if err != nil {
-		return "."
+	if err == nil && validDirectory(wd) {
+		if inferred := inferProjectRootFromScenarioPath(wd); inferred != "" {
+			return inferred
+		}
+		if scenarioDir := inferScenarioDirFromWD(wd); scenarioDir != "" {
+			return scenarioDir
+		}
+		return wd
 	}
-	if inferred := inferProjectRootFromScenarioPath(wd); inferred != "" {
-		return inferred
+
+	// A service can inherit an unusable cwd when it is started from a
+	// privileged directory and later drops identity. Reuse the shared native
+	// launch resolver instead of returning "." and repeating the failure in
+	// every PTY child.
+	if context, resolveErr := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{Environment: os.Environ()}); resolveErr == nil {
+		return context.WorkingDir
 	}
-	if scenarioDir := inferScenarioDirFromWD(wd); scenarioDir != "" {
-		return scenarioDir
-	}
-	return wd
+	return ""
 }
 
 // envInt reads an integer environment variable, clamping it to [min, max].

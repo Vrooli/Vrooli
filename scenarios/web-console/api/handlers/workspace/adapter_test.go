@@ -39,8 +39,12 @@ func TestAdapterCoversWorkspacePersistenceAndEvents(t *testing.T) {
 	if _, err := a.UpdateGroup(ctx, UpdateGroupRequest{ID: "missing"}); err != ErrGroupNotFound {
 		t.Fatalf("missing group error = %v", err)
 	}
-	a.DeletePane(ctx, "s1")
-	a.DeleteGroup(ctx, group.ID)
+	if err := a.DeletePane(ctx, "s1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.DeleteGroup(ctx, group.ID); err != nil {
+		t.Fatal(err)
+	}
 	if events.count < 4 {
 		t.Fatalf("event count = %d", events.count)
 	}

@@ -36,13 +36,13 @@ describe("Connect client wrappers", () => {
     const event = { id: "e1", sessionId: "s1", source: "agent", role: "assistant", text: "hi", speechParagraphs: ["hi"], originalSpeechParagraphs: [], summarized: false, createdAt: "now", sequence: 2n, deliveryState: "complete", ttsState: "none", consumptionState: "new" };
     vi.spyOn(conversation.conversationClient, "get").mockResolvedValue({ sessionId: "s1", events: [event], cursor: { lastSeenSequence: 1n, lastListenedSequence: 0n }, hasMore: true, oldestSequence: 1n, newestSequence: 2n, totalCount: 2n } as never);
     vi.spyOn(conversation.conversationClient, "updateCursor").mockResolvedValue({ cursor: { lastSeenSequence: 2n, lastListenedSequence: 1n } } as never);
-    vi.spyOn(conversation.conversationClient, "search").mockResolvedValue({ matches: [{ eventId: "e1", sequence: 2n, excerpt: "hi" }], truncated: false, totalMatches: 1n } as never);
+    vi.spyOn(conversation.conversationClient, "search").mockResolvedValue({ matches: [{ eventId: "e1", sequence: 2n, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1n, error: "" } as never);
     vi.spyOn(conversation.conversationClient, "searchArchived").mockResolvedValue({ matches: [], truncated: false, totalMatches: 0n, distinctSessions: 0n } as never);
     vi.spyOn(conversation.conversationClient, "getRange").mockResolvedValue({ sessionId: "s1", events: [], cursor: undefined } as never);
     vi.spyOn(conversation.conversationClient, "summarizeEvent").mockResolvedValue({ summarized: true, speechParagraphs: ["short"], error: "" } as never);
     await expect(conversation.getConversationSession("s1", { sinceSequence: 1, beforeSequence: 3 })).resolves.toMatchObject({ events: [{ sequence: 2, originalSpeechParagraphs: undefined }], cursor: { lastSeenSequence: 1 } });
     await expect(conversation.updateConversationCursor("s1", { lastSeenSequence: 2 })).resolves.toEqual({ lastSeenSequence: 2, lastListenedSequence: 1 });
-    await expect(conversation.searchConversation("s1", "hi")).resolves.toEqual({ matches: [{ eventId: "e1", sequence: 2, excerpt: "hi" }], truncated: false, totalMatches: 1 });
+    await expect(conversation.searchConversation("s1", "hi")).resolves.toEqual({ matches: [{ eventId: "e1", sequence: 2, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1 });
     await expect(conversation.searchArchivedConversations("x")).resolves.toMatchObject({ totalMatches: 0 });
     await expect(conversation.getConversationRange("s1", 1, 2)).resolves.toMatchObject({ sessionId: "s1", cursor: { lastSeenSequence: 0 } });
     await expect(conversation.summarizeEvent("s1", "e1")).resolves.toEqual({ summarized: true, speechParagraphs: ["short"], error: undefined });
@@ -166,11 +166,11 @@ describe("Connect client wrappers", () => {
   });
 
   it("decodes target catalogs and file preview pages", async () => {
-    const target = { id: "t", kind: "ssh", label: "Remote", os: "linux", arch: "amd64", nodeId: "n", revision: "r", status: "online", online: true, lastSeenAt: { seconds: 2n, nanos: 0 }, dispatchable: false, readiness: [{ key: "ssh", label: "SSH", passed: true, detail: "ok" }], failureRung: "credential", state: 99, recoveryAction: "fix", survivesRestart: true };
+    const target = { id: "t", kind: "ssh", label: "Remote", os: "linux", arch: "amd64", nodeId: "n", revision: "r", status: "online", online: true, lastSeenAt: { seconds: 2n, nanos: 0 }, dispatchable: false, readiness: [{ key: "ssh", label: "SSH", passed: true, detail: "ok" }], operationReadiness: [{ operation: "headless_execution", ready: false, state: "missing", reasonCode: "device_disconnected", detail: "device host is disconnected", recoveryAction: "Reconnect the device host", source: "target_projection" }], failureRung: "credential", state: 99, recoveryAction: "fix", survivesRestart: true };
     vi.spyOn(targets.targetCatalogClient, "list").mockResolvedValue({ state: CatalogState.READY, targets: [target], message: "ok", recoveryAction: "" } as never);
     vi.spyOn(targets.targetCatalogClient, "get").mockResolvedValue({ target } as never);
-    await expect(targets.listTargetCatalog()).resolves.toMatchObject({ status: "ready", targets: [{ kind: "ssh", state: "unconfigured", last_seen_at: "1970-01-01T00:00:02.000Z" }] });
-    await expect(targets.getTarget("t")).resolves.toMatchObject({ id: "t", available: false });
+    await expect(targets.listTargetCatalog()).resolves.toMatchObject({ status: "ready", targets: [{ kind: "ssh", state: "unconfigured", last_seen_at: "1970-01-01T00:00:02.000Z", operation_readiness: [{ operation: "headless_execution", reason_code: "device_disconnected", detail: "device host is disconnected" }] }] });
+    await expect(targets.getTarget("t")).resolves.toMatchObject({ id: "t", available: false, operation_readiness: [{ recovery_action: "Reconnect the device host" }] });
     expect(targets.decodeTarget({ ...target, kind: "unknown", dispatchable: true, state: 0, lastSeenAt: undefined } as never)).toMatchObject({ kind: "bridge-node", state: "dispatchable" });
 
     vi.spyOn(filePreview.filePreviewClient, "resolve").mockResolvedValue({ previewId: "p", inputPath: "x", resolvedPath: "/x", basename: "x", hasLine: true, line: 4, resolutionBasis: "path", previewKind: PreviewKind.MARKDOWN, mimeType: "text/markdown", sizeBytes: 3n, canPreview: true, canDownload: true, supportsRange: false, textContentAvailable: true, listingAvailable: false, blobUrl: "/blob", expiresUnixNano: 2_000_000_000n, warnings: [] } as never);

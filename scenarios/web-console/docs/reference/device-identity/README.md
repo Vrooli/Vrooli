@@ -2,13 +2,13 @@
 
 Durable records for the multi-device work in Web Console. Authored 2026-08-29 on
 branch `agi`. These are the source artifacts the implementation plan
-`web-console-device-identity-lease-and-fleet-surface` was written from.
+`web-console-device-identity-the-size-lease-and-the-devices` was written from.
 
 | File | What it holds |
 | --- | --- |
-| [`audit-2026-08-29.html`](./audit-2026-08-29.html) | Defect audit. How device identity, the size lease and follower presentation actually work today; six traced defects (D1-D6) with file:line evidence and a fix sketch each; the debt and test-topology findings. |
-| [`devices-and-machines-mockups.html`](./devices-and-machines-mockups.html) | Static render of all five design artboards: Today, Proposed, Device card states, Narrow, Layout alternatives. Opens offline in any browser. |
-| [`mockups/`](./mockups/) | Editable artboard sources (`*.dc.html`) plus `canvas.json`. One file per artboard. |
+| `audit-2026-08-29.html` (preserved HTML) | Defect audit. How device identity, the size lease and follower presentation actually work today; six traced defects (D1-D6) with file:line evidence and a fix sketch each; the debt and test-topology findings. |
+| `devices-and-machines-mockups.html` (preserved HTML) | Static render of all five design artboards: Today, Proposed, Device card states, Narrow, Layout alternatives. Opens offline in any browser. |
+| `mockups/` (preserved HTML) | Editable artboard sources (`*.dc.html`) plus `canvas.json`. One file per artboard. |
 
 Live editable canvas (same content as the static render):
 <https://claude.ai/code/artifact/ba410e76-bb10-4b63-9179-abab20e36fd5>
@@ -16,11 +16,11 @@ Live editable canvas (same content as the static render):
 Defect audit as a hosted page:
 <https://claude.ai/code/artifact/33edd54f-9468-4450-8fa4-eb72b4d39279>
 
-## The one-sentence finding
+## Historical audit finding (2026-08-29)
 
 Device identity is per device (a `localStorage` UUID). Control authority is per
-socket (`leaseOwner chan []byte`). Nothing reconciles the two, so a device can
-become its own remote.
+socket (`leaseOwner chan []byte`). At the audit revision, nothing reconciled the two, so a device could
+become its own remote. The shipped-state section below records the subsequent repair.
 
 ## Predecessor
 
@@ -63,3 +63,17 @@ disconnected by the service.
 - Deferred: persistence for devices that have no live connection. The roster is
   intentionally live-only; last-seen history would require a separate durable
   ownership decision.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/reference/device-identity/audit-2026-08-29.html`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/reference/device-identity/devices-and-machines-mockups.html`
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/reference/device-identity/mockups`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

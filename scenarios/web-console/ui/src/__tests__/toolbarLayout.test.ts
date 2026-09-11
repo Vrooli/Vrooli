@@ -28,6 +28,22 @@ function prefs(overrides: Partial<ToolbarPrefs> = {}): ToolbarPrefs {
   return { ...base, ...overrides, enabled: { ...base.enabled, ...(overrides.enabled ?? {}) } };
 }
 
+describe("toolbar controls — sent-message history", () => {
+  it("[REQ:P0-017f] registers history as an icon control that is not terminal-only", () => {
+    expect(TOOLBAR_CONTROLS.find((control) => control.id === "history")).toEqual({ id: "history", kind: "icon" });
+  });
+
+  it("[REQ:P0-017f] once turned on, seats history in both the terminal and the messages view", () => {
+    for (const view of ["terminal", "messages"] as const) {
+      expect(seatedIds(layoutToolbar(prefs({ enabled: { history: true } }), 768, { view }))).toContain("history");
+    }
+  });
+
+  it("[REQ:P0-017f] presets keep history in the More sheet so every preset still fits a phone", () => {
+    for (const preset of PRESETS) expect(TOOLBAR_PRESETS[preset].enabled.history).toBe(false);
+  });
+});
+
 describe("layoutToolbar — the row budget is a ceiling", () => {
   it("never uses more rows than the budget allows, at any width or density", () => {
     for (const maxRows of [1, 2, 3] as const) {
@@ -149,11 +165,11 @@ describe("layoutToolbar — priority order is respected", () => {
     }
   });
 
-  it("keeps the mic seated ahead of the lower-priority image button", () => {
+  it("keeps the mic seated instead of overflowing it for a lower-priority control", () => {
     // 360px with standard density and a D-pad cannot hold everything.
     const layout = layoutToolbar(prefs({ density: "standard", arrows: "dpad", maxRows: 2 }), 360);
     expect(seatedIds(layout)).toContain("mic");
-    expect(layout.overflow.map((s) => s.id)).toContain("image");
+    expect(layout.overflow.map((s) => s.id)).not.toContain("mic");
   });
 });
 

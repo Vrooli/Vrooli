@@ -1,10 +1,11 @@
 import { createClient } from "@connectrpc/connect";
-import { ArchiveRestoreState, SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
+import { ArchiveRestoreState, SessionsService, SessionOrigin, type SessionActivity } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
 import type { Target } from "@vrooli/proto-types/web-console/v1/shared/target_pb";
 import { buildWsUrl } from "@vrooli/api-base";
 
 import { API_BASE_WITH_SUFFIX, transport } from "./client";
 import { decodeTarget, type TerminalTarget } from "./targets";
+import { decodeActivityProto, type SessionActivityView } from "./sessionActivity";
 
 // sessionsClient is the Connect-Web client for SessionsService. Consumers
 // should prefer the typed wrappers below, which surface the snake_case
@@ -59,6 +60,8 @@ export interface SessionInfo {
   display_label: string;
   tracking_degraded?: boolean;
   target?: TerminalTarget;
+  /** What the session's agent is doing now (live sessions only). */
+  activity?: SessionActivityView;
 }
 
 export interface PolicyResponse {
@@ -158,6 +161,7 @@ type ProtoSession = {
   displayLabel?: string;
   trackingDegraded?: boolean;
   target?: Target;
+  activity?: SessionActivity;
 };
 
 type ProtoRecoverable = {
@@ -236,6 +240,7 @@ export function decodeSession(s: ProtoSession | undefined): SessionInfo {
     display_label: s?.displayLabel ?? "",
     ...(s?.trackingDegraded ? { tracking_degraded: true } : {}),
     ...(s?.target ? { target: decodeTarget(s.target) } : {}),
+    ...(s?.activity ? { activity: decodeActivityProto(s.activity) } : {}),
   };
 }
 
@@ -379,16 +384,16 @@ export async function getSession(id: string): Promise<SessionInfo> {
 }
 
 export async function deleteSession(id: string): Promise<void> {
-	await sessionsClient.delete({ id });
+	await sessionsClient.delete({ id }, { headers: { "X-Idempotency-Key": `delete:${id}` } });
 }
 
 export async function archiveSession(id: string): Promise<void> {
-  await sessionsClient.archive({ id });
+  await sessionsClient.archive({ id }, { headers: { "X-Idempotency-Key": `archive:${id}` } });
   window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
 }
 
 export async function unarchiveSession(id: string): Promise<void> {
-  await sessionsClient.unarchive({ id });
+  await sessionsClient.unarchive({ id }, { headers: { "X-Idempotency-Key": `unarchive:${id}` } });
   window.dispatchEvent(new CustomEvent("web-console:archive-changed"));
 }
 
@@ -466,7 +471,7 @@ export async function reopenSession(oldId: string, idempotencyKey: string): Prom
 }
 
 export async function dismissRecoverableSession(oldId: string): Promise<void> {
-  await sessionsClient.dismissRecoverable({ id: oldId });
+  await sessionsClient.dismissRecoverable({ id: oldId }, { headers: { "X-Idempotency-Key": `dismiss:${oldId}` } });
 }
 
 // [REQ:P1-001a] Session Policy API - client

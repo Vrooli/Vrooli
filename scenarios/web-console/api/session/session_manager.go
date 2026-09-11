@@ -44,14 +44,16 @@ var (
 // Manager tracks all active terminal sessions.
 // [REQ:P0-002a] PTY Session Backend
 type Manager struct {
-	mu           sync.RWMutex
-	sessions     map[string]*Session
-	ptyFactory   pty.Factory
-	cfgMu        sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
-	cfg          config.Config
-	registry     *backend.Registry
-	store        sessionstore.Store
-	shuttingDown bool // set by Shutdown(); prevents auto-remove from deleting persistent session metadata
+	mu         sync.RWMutex
+	sessions   map[string]*Session
+	ptyFactory pty.Factory
+	cfgMu      sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
+	cfg        config.Config
+	registry   *backend.Registry
+	// activityFactory builds each session's activity detector (nil: none).
+	activityFactory func(*Session) *ActivityDetector
+	store           sessionstore.Store
+	shuttingDown    bool // set by Shutdown(); prevents auto-remove from deleting persistent session metadata
 
 	// Seams for testability: injectable tmux operations. After Session moves
 	// to its own sub-package these break the dependency on tmux helpers that
@@ -75,6 +77,14 @@ type Manager struct {
 	// Observability: optional metrics and event logger for session lifecycle.
 	metrics *metrics.Metrics
 	events  *events.Logger
+
+	// processExitObserver updates derived continuity projections after the
+	// session store records an unexpected exit. It observes a runtime fact only;
+	// it cannot choose deletion or retention policy.
+	processExitObserver func(context.Context, string) error
+	// processRecoveryObserver updates derived continuity projections after an
+	// automatic reattach restores a provider-backed session to live.
+	processRecoveryObserver func(context.Context, string) error
 
 	// reattachStopCh signals the periodic re-attach watchdog to stop.
 	reattachStopCh chan struct{}
@@ -256,6 +266,41 @@ func (sm *Manager) SetMetrics(m *metrics.Metrics) {
 // SetEvents sets the event logger for structured session lifecycle events.
 func (sm *Manager) SetEvents(el *events.Logger) {
 	sm.events = el
+}
+
+// SetProcessExitObserver installs the projection callback used after an
+// unexpected process exit is recorded as recoverable.
+func (sm *Manager) SetProcessExitObserver(observer func(context.Context, string) error) {
+	sm.processExitObserver = observer
+}
+
+// SetProcessRecoveryObserver installs the projection callback used after an
+// automatic startup or watchdog reattach. It observes a runtime fact only;
+// explicit operator recovery remains owned by the continuity service.
+func (sm *Manager) SetProcessRecoveryObserver(observer func(context.Context, string) error) {
+	sm.processRecoveryObserver = observer
+}
+
+// observeProcessExit records the runtime fact in the continuity projection
+// after the session store has preserved the metadata. It deliberately has no
+// retention or deletion policy; callers use it for both live exits and
+// startup/watchdog recovery paths that discover an already-gone process.
+func (sm *Manager) observeProcessExit(sessionID string) {
+	if sm.processExitObserver == nil {
+		return
+	}
+	if err := sm.processExitObserver(sm.lifecycleCtx, sessionID); err != nil {
+		log.Printf("session %s: failed to update continuity projection after exit: %v", sessionID, err)
+	}
+}
+
+func (sm *Manager) observeProcessRecovery(sessionID string) {
+	if sm.processRecoveryObserver == nil {
+		return
+	}
+	if err := sm.processRecoveryObserver(sm.lifecycleCtx, sessionID); err != nil {
+		log.Printf("session %s: failed to update continuity projection after reattach: %v", sessionID, err)
+	}
 }
 
 // GetConfig returns a snapshot of the current configuration. Thread-safe.
@@ -474,11 +519,12 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	sm.mu.Lock()
 	sm.sessions[sess.ID] = sess
 	sm.mu.Unlock()
+	sm.attachActivity(sess)
 
 	// Persist metadata if store is configured
 	if sm.store != nil {
 		detached := bid == backend.Persistent
-		_ = sm.store.Save(ctx, sessionstore.Metadata{
+		if err := sm.store.Save(ctx, sessionstore.Metadata{
 			ID:       sess.ID,
 			Backend:  bid,
 			Shell:    shell,
@@ -488,7 +534,17 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 			Created:  sess.CreatedAt,
 			Detached: detached,
 			CWD:      launchDir,
-		})
+		}); err != nil {
+			// A live process without durable metadata cannot participate in
+			// restart recovery and is not a successful session creation. Tear
+			// down the process before returning the persistence failure so the
+			// caller never receives an untracked pane.
+			cleanupErr := sm.terminate(ctx, sess.ID, false)
+			if cleanupErr != nil {
+				return nil, fmt.Errorf("persist session metadata: %w (cleanup failed: %v)", err, cleanupErr)
+			}
+			return nil, fmt.Errorf("persist session metadata: %w", err)
+		}
 	}
 
 	// Wire server-side ANSI responder before readLoop starts so the
@@ -512,16 +568,15 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		sm.mu.Lock()
 		delete(sm.sessions, sess.ID)
 		sm.mu.Unlock()
-		// Persistent sessions: ALWAYS preserve metadata so recovery can
-		// re-attach on the next startup. The tmux session survives in its
-		// own systemd scope even when the attach process dies. Deleting
-		// metadata here would orphan the tmux session, causing recovery to
-		// kill it — permanently destroying a recoverable session.
-		//
-		// Standard sessions: always delete metadata (they cannot survive).
-		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(sm.lifecycleCtx, sess.ID)
+		// Process exit is not permission to destroy durable evidence. Preserve
+		// metadata for standard sessions as well; the continuity service decides
+		// when an operator has explicitly authorized permanent deletion.
+		if sm.store != nil {
+			if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sess.ID, time.Now().UTC()); err != nil {
+				log.Printf("session %s: failed to preserve exited metadata: %v", sess.ID, err)
+			}
 		}
+		sm.observeProcessExit(sess.ID)
 		// Clean up session upload directory
 		uploadDir := filepath.Join(sess.uploadRoot, sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
@@ -564,6 +619,8 @@ func (sm *Manager) Archive(ctx context.Context, id string) error {
 }
 
 func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bool) error {
+	_ = ctx
+	_ = preserveMetadata
 	sm.mu.Lock()
 	sess, ok := sm.sessions[id]
 	if !ok {
@@ -574,13 +631,17 @@ func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bo
 	sm.mu.Unlock()
 
 	p := sess.currentPTY()
-	_ = p.Kill()
-	sess.stopInputWriter()
-	_ = p.Close()
-	// Clean up persisted metadata
-	if sm.store != nil && !preserveMetadata {
-		_ = sm.store.Delete(ctx, id)
+	var cleanupErrs []error
+	if err := p.Kill(); err != nil {
+		cleanupErrs = append(cleanupErrs, fmt.Errorf("kill session process: %w", err))
 	}
+	sess.stopInputWriter()
+	if err := p.Close(); err != nil {
+		cleanupErrs = append(cleanupErrs, fmt.Errorf("close session process: %w", err))
+	}
+	// Persisted metadata is owned by the continuity/session service. Process
+	// management reports termination facts but never infers permission to
+	// destroy the conversation projection.
 	// Clean up session upload directory
 	uploadRoot := sess.uploadRoot
 	if uploadRoot == "" {
@@ -590,5 +651,40 @@ func (sm *Manager) terminate(ctx context.Context, id string, preserveMetadata bo
 	if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 		log.Printf("session %s: failed to clean up upload dir on delete: %v", id, err)
 	}
-	return nil
+	return errors.Join(cleanupErrs...)
+}
+
+// SetActivityFactory installs the builder for each session's activity
+// detector and attaches one to every session already registered (sessions
+// recovered at startup exist before the server that owns the factory).
+func (sm *Manager) SetActivityFactory(factory func(*Session) *ActivityDetector) {
+	sm.mu.Lock()
+	sm.activityFactory = factory
+	existing := make([]*Session, 0, len(sm.sessions))
+	for _, sess := range sm.sessions {
+		existing = append(existing, sess)
+	}
+	sm.mu.Unlock()
+	for _, sess := range existing {
+		sm.attachActivity(sess)
+	}
+}
+
+// attachActivity gives a registered session its activity detector, once, and
+// closes the detector when the session ends.
+func (sm *Manager) attachActivity(sess *Session) {
+	sm.mu.RLock()
+	factory := sm.activityFactory
+	sm.mu.RUnlock()
+	if factory == nil || sess.activity.Load() != nil {
+		return
+	}
+	d := factory(sess)
+	if d == nil || !sess.activity.CompareAndSwap(nil, d) {
+		return
+	}
+	go func() {
+		<-sess.Done()
+		d.Close()
+	}()
 }

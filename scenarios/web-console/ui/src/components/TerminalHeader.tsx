@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { GripVertical, MessageSquareText, TerminalSquare, Palette, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { PaneViewMode } from "../stores/useConversationStore";
+import type { PaneViewMode } from "../stores/useMessagesViewStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -173,8 +173,7 @@ export default function TerminalHeader({
           // rather than as six utility classes per call site.
           surface="soft"
           size="xs"
-          denseTapTarget
-          className="shrink-0"
+          className="min-h-11 min-w-11 shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onToggleView();
@@ -196,7 +195,7 @@ export default function TerminalHeader({
         <IconButton
           data-testid={`handoff-pane-header-${sessionId}`}
           size="sm"
-          className="shrink-0"
+          className="min-h-11 min-w-11 shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onHandoff(sessionId);
@@ -211,7 +210,7 @@ export default function TerminalHeader({
       <IconButton
         data-testid={`terminal-header-appearance-${sessionId}`}
         size="sm"
-        className="shrink-0"
+        className="min-h-11 min-w-11 shrink-0"
         onClick={(e) => {
           e.stopPropagation();
           setAppearanceModalPane(sessionId);
@@ -225,7 +224,7 @@ export default function TerminalHeader({
       <IconButton
         data-testid={`terminal-close-${sessionId}`}
         size="sm"
-        className="shrink-0"
+        className="min-h-11 min-w-11 shrink-0"
         onClick={(e) => {
           e.stopPropagation();
           onClose();

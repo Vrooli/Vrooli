@@ -49,6 +49,7 @@ import (
 	_ "modernc.org/sqlite"
 	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
+	internalContinuity "web-console/internal/continuity"
 
 	intsessions "web-console/internal/sessions"
 
@@ -70,15 +71,22 @@ import (
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).
 type Server struct {
-	db                    *database.RoutedDB
-	roots                 *filerouting.RoutedRoots
-	router                *mux.Router
-	sessions              *session.Manager
-	hub                   *ConversationHub
-	events                *events.Logger
-	metrics               *metrics.Metrics
-	backendRegistry       *backend.Registry
-	sessionStore          sessionstore.Store
+	db       *database.RoutedDB
+	roots    *filerouting.RoutedRoots
+	router   *mux.Router
+	sessions *session.Manager
+	hub      *ConversationHub
+	// agentTypes caches each session's agent harness for activity detection.
+	agentTypes agentTypeCache
+	// promptAnswering is the host policy for answering prompts from Messages.
+	promptAnswering promptAnswering
+	events          *events.Logger
+	metrics         *metrics.Metrics
+	backendRegistry *backend.Registry
+	sessionStore    sessionstore.Store
+	// lifecycleDelete is installed from the sessions transport adapter so
+	// retention cleanup cannot bypass the canonical lifecycle owner.
+	lifecycleDelete       func(context.Context, string) error
 	aiChain               *intai.Chain
 	shortcuts             ShortcutStore
 	aiConfig              intai.ConfigStore
@@ -256,6 +264,13 @@ func NewServer(db *database.RoutedDB) *Server {
 	sessions.SetStore(sessionStore)
 	sessions.SetMetrics(metrics)
 	sessions.SetEvents(eventLog)
+	continuityCatalog := internalContinuity.NewSQLCatalogStore(db)
+	sessions.SetProcessExitObserver(func(ctx context.Context, sessionID string) error {
+		return continuityCatalog.UpdateLifecycleState(ctx, sessionID, internalContinuity.StateRecoverable)
+	})
+	sessions.SetProcessRecoveryObserver(func(ctx context.Context, sessionID string) error {
+		return continuityCatalog.UpdateLifecycleState(ctx, sessionID, internalContinuity.StateLive)
+	})
 
 	// Resolve "auto" default backend now that the registry knows tmux availability.
 	if sessions.GetConfig().DefaultBackend == "auto" {
@@ -329,6 +344,7 @@ func NewServer(db *database.RoutedDB) *Server {
 			pruner,
 			func() int { return srv.sessions.GetConfig().ConversationRetentionDays },
 			func() int { return srv.sessions.GetConfig().ConversationMaxEventsPerSession },
+			internalContinuity.NewSQLLedger(db),
 		)
 	}
 	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
@@ -351,6 +367,16 @@ func NewServer(db *database.RoutedDB) *Server {
 	if srv.credentialClient != nil {
 		srv.aiChain = intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider(intai.NewCredentialKeyResolver(srv.credentialClient)), intai.NewMeteredProvider(os.Getenv("AI_GATEWAY_URL")))
 	}
+	// Every session (including those recovered before the server existed)
+	// gets an activity detector that publishes session_activity on the hub.
+	srv.agentTypes.server = srv
+	claudeVersion := localClaudeVersion()
+	srv.promptAnswering = newPromptAnswering(promptAnsweringSetting(os.Getenv(promptAnsweringEnv), filepath.Join(scenarioPrimaryPaths().DataDir, promptAnsweringFile)), claudeVersion)
+	if srv.promptAnswering.harnesses["claude"] {
+		// Read the version now, not under an activity detector lock later.
+		go claudeVersion()
+	}
+	srv.sessions.SetActivityFactory(srv.newActivityDetector)
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
 		srv.systemContext.OS, srv.systemContext.Arch,
@@ -393,7 +419,8 @@ func NewServer(db *database.RoutedDB) *Server {
 		"audio-tools": &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: audioProviderHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
 		"vrooli-bridge": &capabilities.BridgeChecker{
 			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
-			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
+			ResolveURL: resolveBridgeScenarioURL,
+			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
 	})
 	// Warm capability cache so the first /capabilities request returns instantly.
@@ -543,17 +570,18 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 		},
 		// Connected scenarios. Each DependencyScenario entry in
 		// capabilities.Known needs a checker so the integrations UI can
-		// render real status. These shell out to the Vrooli CLI rather than
-		// calling another scenario's API directly — see
-		// project_wrap_not_use_principle. audio-tools owns Whisper / Kokoro /
-		// speaker-verification end-to-end.
+		// render real status. Scenario-to-scenario calls use their owned
+		// API clients and api-core discovery; host capability checks may still
+		// use the control-plane CLI where no scenario API exists.
 		"audio-tools":                &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: providerHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
 		"session-backend-standard":   &capabilities.StaticChecker{Available: probeStandard},
 		"session-backend-persistent": &capabilities.StaticChecker{Available: backend.CheckTmuxAvailable},
 		"vrooli-bridge": &capabilities.BridgeChecker{
 			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
-			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
+			ResolveURL: resolveBridgeScenarioURL,
+			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
+		"integration-hub": &capabilities.ScenarioChecker{Slug: "integration-hub"},
 	}
 	for _, definition := range capabilityprobe.AITools {
 		checkers[definition.ID] = capabilities.HostCapabilityChecker{Definition: definition}
@@ -811,6 +839,15 @@ func (s *Server) getClaudeHookStatus() (bool, string, string, string) {
 				default:
 					return false, "hook_stale", "Claude Stop hook exists but uses an unsupported hook type", settingsPath
 				}
+				notificationRegistered := false
+				for _, notifyGroup := range doc.Hooks["Notification"] {
+					for _, notifyHook := range notifyGroup.Hooks {
+						notificationRegistered = notificationRegistered || notifyHook.ID == "web-console-activity"
+					}
+				}
+				if !notificationRegistered {
+					return false, "hook_stale", "Claude Stop hook is registered but the Notification hook (session activity) is not", settingsPath
+				}
 				return true, "hook_registered", "Claude Stop hook is registered", settingsPath
 			}
 		}
@@ -968,7 +1005,9 @@ func (s *Server) recordTTSAck(event TTSClientAck) {
 		At:     s.lastTTSAckAt,
 	}
 	if s.conversations != nil {
-		s.conversations.RecordPlaybackStage(context.Background(), event.SessionID, event.EventID, event.Stage)
+		if err := s.conversations.RecordPlaybackStage(context.Background(), event.SessionID, event.EventID, event.Stage); err != nil {
+			log.Printf("conversation playback: failed to persist stage session=%s event=%s stage=%s: %v", sanitizeID(event.SessionID), sanitizeID(event.EventID), event.Stage, err)
+		}
 	}
 	log.Printf("tts-ack: source=%s stage=%s backend=%s session=%s event=%s message=%s",
 		event.Source, event.Stage, event.Backend, sanitizeID(event.SessionID), sanitizeID(event.EventID), strings.TrimSpace(event.Message))
@@ -1065,11 +1104,13 @@ func main() {
 	}
 
 	srv := NewServer(db)
+	stopContinuityPublisher := srv.startContinuityPublisher()
 
 	if err := server.Run(server.Config{
 		Handler:      srv.Handler(),
 		WriteTimeout: httpWriteTimeout,
 		Cleanup: func(ctx context.Context) error {
+			stopContinuityPublisher()
 			srv.sweeper.Stop()
 			if srv.conversationRetention != nil {
 				srv.conversationRetention.Stop()

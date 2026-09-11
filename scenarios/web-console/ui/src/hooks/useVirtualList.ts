@@ -136,7 +136,9 @@ export function useVirtualList({
       geometry.totalSize = total;
       dirtyFromRef.current = null;
     }
-    return geometry;
+    // A fresh snapshot per recompute: consumers memoize on its identity, and
+    // the geometry object itself is mutated in place.
+    return { sizes: geometry.sizes, starts: geometry.starts, totalSize: geometry.totalSize };
   }, [count, estimateSize, sizeVersion]);
 
   const registerItem = useCallback((index: number, node: HTMLElement | null) => {
@@ -160,22 +162,19 @@ export function useVirtualList({
       const height = Math.ceil(rawHeight / SIZE_QUANTUM) * SIZE_QUANTUM;
       const geometry = geometryRef.current;
       const previous = measuredSizesRef.current.get(key) ?? geometry.sizes[index] ?? estimateSize(index);
-      if (previous === height) return;
       measuredSizesRef.current.set(key, height);
+      if (previous === height) return;
       dirtyFromRef.current = dirtyFromRef.current == null ? index : Math.min(dirtyFromRef.current, index);
       const element = scrollElementRef.current;
-      if (anchorOnResize && element && (geometry.starts[index] ?? 0) < element.scrollTop) {
+      // Compensate only rows entirely above the viewport. The row straddling
+      // the top edge keeps its top where it is (the reader is looking at it);
+      // compensating it would slide the viewport by its whole size correction.
+      if (anchorOnResize && element && (geometry.starts[index] ?? 0) + previous <= element.scrollTop) {
         pendingAboveDeltaRef.current += height - previous;
       }
       if (frameRef.current != null) return;
       frameRef.current = requestAnimationFrame(() => {
         frameRef.current = null;
-        const aboveDelta = pendingAboveDeltaRef.current;
-        pendingAboveDeltaRef.current = 0;
-        if (aboveDelta !== 0 && scrollElementRef.current) {
-          scrollElementRef.current.scrollTop += aboveDelta;
-          setScrollTop(scrollElementRef.current.scrollTop);
-        }
         setSizeVersion((version) => version + 1);
       });
     };
@@ -188,6 +187,20 @@ export function useVirtualList({
       itemObserversRef.current.set(index, observer);
     }
   }, [anchorOnResize, estimateSize, getItemKey, scrollElementRef]);
+
+  // Rows above the viewport that measured taller push the visible rows down.
+  // Compensate in the same commit that moves them, before paint: adjusting
+  // scrollTop a frame earlier (in the measurement frame) shows the content
+  // shifted by the delta for one frame, which reads as flicker.
+  useLayoutEffect(() => {
+    const aboveDelta = pendingAboveDeltaRef.current;
+    if (aboveDelta === 0) return;
+    pendingAboveDeltaRef.current = 0;
+    const el = scrollElementRef.current;
+    if (!el) return;
+    el.scrollTop += aboveDelta;
+    setScrollTop(el.scrollTop);
+  }, [sizeVersion, scrollElementRef]);
 
   const virtualItems = useMemo(() => {
     if (count === 0) return [] as VirtualItem[];
@@ -239,8 +252,17 @@ export function useVirtualList({
     el.scrollTo({ top: Math.max(0, top), behavior });
   }, [count, estimateSize, measurements.sizes, measurements.starts, scrollElementRef]);
 
+  const itemStart = useCallback((index: number) => measurements.starts[index] ?? 0, [measurements]);
+  /** True once the item's measured height is part of the geometry (not an estimate). */
+  const isMeasured = useCallback((index: number) => {
+    const measured = measuredSizesRef.current.get(getItemKey?.(index) ?? index);
+    return measured != null && measured === measurements.sizes[index];
+  }, [getItemKey, measurements]);
+
   return {
     registerItem,
+    itemStart,
+    isMeasured,
     scrollTop,
     totalSize: measurements.totalSize,
     viewportHeight,

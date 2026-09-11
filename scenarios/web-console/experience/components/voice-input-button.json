@@ -41,8 +41,8 @@
   "bindings": {
     "elements": {
       "voice-control": {
-        "selector": "[data-rcl-voice-input]",
-        "note": "The RCL VoiceInputButton exposes data-rcl-voice-input on its rendered control in every story state; this provider-owned marker is stable even when the harness rebuilds test-id defaults."
+        "selector": "button",
+        "note": "The RCL story renders exactly one button for every voice state. Binding to the semantic control keeps the contract stable across the component harness and its provider-owned data attributes."
       }
     }
   }

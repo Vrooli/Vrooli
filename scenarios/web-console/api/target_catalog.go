@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
@@ -78,10 +79,16 @@ func (s *Server) targetByID(id string) (targetConnection, bool) {
 	if id == "local" {
 		return targetConnection{Target: localTerminalTarget()}, true
 	}
-	for _, target := range s.remoteTargets() {
-		if target.ID == id {
-			return target, true
+	selection := targetmodel.SelectByID(targetmodel.Inventory{Targets: func() []targetmodel.Target {
+		remote := s.remoteTargets()
+		out := make([]targetmodel.Target, 0, len(remote))
+		for _, target := range remote {
+			out = append(out, target.Target)
 		}
+		return out
+	}()}, id)
+	if selection.Found && selection.Target.ID == id {
+		return targetConnection{Target: selection.Target}, true
 	}
 	return targetConnection{}, false
 }
@@ -91,9 +98,10 @@ func localTerminalTarget() targetmodel.Target {
 		ID: "local", Ramp: "local", Label: "This machine", Platform: "local",
 		OS: runtime.GOOS, Architecture: runtime.GOARCH, DeviceKind: "local",
 		Available: true, Mode: "dispatchable", SurvivesRestart: true,
-		Transport: targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true},
-		Health:    targetmodel.TargetHealth{Status: "LOCAL"},
-		Readiness: append([]targetmodel.ReadinessCheck{{Identity: "local_process", Label: "Web Console process", Passed: true, State: targetmodel.ReadinessReady, Detail: "This machine is available to the Web Console"}}, localCapabilityFacts()...),
+		Transport:          targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true},
+		Health:             targetmodel.TargetHealth{Status: "LOCAL"},
+		Readiness:          append([]targetmodel.ReadinessCheck{{Identity: "local_process", Label: "Web Console process", Passed: true, State: targetmodel.ReadinessReady, Detail: "This machine is available to the Web Console"}}, localCapabilityFacts()...),
+		OperationReadiness: targetmodel.EvaluateOperations(targetmodel.Target{ID: "local", Platform: "local", OS: runtime.GOOS, Architecture: runtime.GOARCH, DeviceKind: "local", Available: true, Mode: "dispatchable", SurvivesRestart: true, Transport: targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true}}, time.Now().UTC()),
 	}
 }
 
@@ -251,25 +259,37 @@ func targetToProto(target targetConnection) *sharedv1.Target {
 	for _, fact := range target.Readiness {
 		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Identity, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail, State: string(fact.State), Version: fact.Version, RecoveryAction: fact.RecoveryAction})
 	}
+	operations := make([]*sharedv1.OperationReadiness, 0, len(target.OperationReadiness))
+	for _, readiness := range target.OperationReadiness {
+		item := &sharedv1.OperationReadiness{Operation: readiness.Operation, Ready: readiness.Ready, State: string(readiness.State), ReasonCode: readiness.ReasonCode, Detail: readiness.Detail, RecoveryAction: readiness.RecoveryAction, Source: readiness.Source}
+		if !readiness.ObservedAt.IsZero() {
+			item.ObservedAt = timestamppb.New(readiness.ObservedAt)
+		}
+		if !readiness.FreshUntil.IsZero() {
+			item.FreshUntil = timestamppb.New(readiness.FreshUntil)
+		}
+		operations = append(operations, item)
+	}
 	var lastSeen *timestamppb.Timestamp
 	if !target.LastSeenAt.IsZero() {
 		lastSeen = timestamppb.New(target.LastSeenAt)
 	}
 	projected := &sharedv1.Target{
-		Id:              target.ID,
-		Kind:            target.DeviceKind,
-		Label:           target.Label,
-		Os:              target.OS,
-		Arch:            target.Architecture,
-		NodeId:          target.NodeID,
-		Revision:        target.Revision,
-		Status:          target.Health.Status,
-		Online:          target.BridgeTrust != nil && target.BridgeTrust.Online,
-		LastSeenAt:      lastSeen,
-		Readiness:       facts,
-		Dispatchable:    target.Available,
-		State:           targetProtoState(targetAvailability(target)),
-		SurvivesRestart: target.SurvivesRestart,
+		Id:                 target.ID,
+		Kind:               target.DeviceKind,
+		Label:              target.Label,
+		Os:                 target.OS,
+		Arch:               target.Architecture,
+		NodeId:             target.NodeID,
+		Revision:           target.Revision,
+		Status:             target.Health.Status,
+		Online:             target.BridgeTrust != nil && target.BridgeTrust.Online,
+		LastSeenAt:         lastSeen,
+		Readiness:          facts,
+		Dispatchable:       target.Available,
+		State:              targetProtoState(targetAvailability(target)),
+		SurvivesRestart:    target.SurvivesRestart,
+		OperationReadiness: operations,
 	}
 	setTargetText(projected, "failure_rung", target.Reason)
 	setTargetText(projected, "recovery_action", target.NextAction)

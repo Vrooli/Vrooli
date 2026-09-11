@@ -35,13 +35,64 @@ export function MarkdownPreview({ text }: PreviewRendererProps) {
 
 // CodePreview renders code/text/diff fallback content with line numbers,
 // syntax highlighting, font sizing, wrap toggle, and target-line scroll.
-export function CodePreview({ model, text }: PreviewRendererProps) {
+export function CodePreview(props: PreviewRendererProps) {
+  const { model } = props;
+  // HTML uses the existing bounded text transport. Keep API downloads inert;
+  // only this isolated renderer interprets the markup.
+  if (/\.html?$/i.test(model.resolvedPath) || model.mimeType.split(";")[0]?.trim().toLowerCase() === "text/html") {
+    return <HtmlPreview key={model.previewId} {...props} />;
+  }
+  return <SourcePreview {...props} />;
+}
+
+function SourcePreview({ model, text }: PreviewRendererProps) {
   const content = text?.content ?? "";
   if (content === "") {
     return <EmptyText />;
   }
   return (
     <CodeLinePreview content={content} path={model.resolvedPath} highlightLine={model.line ?? null} truncated={!!text?.truncated} />
+  );
+}
+
+// srcdoc receives an opaque origin (never allow-same-origin). The first base
+// prevents relative URLs from resolving against web-console's own URL. CSP
+// allows inline interactions and HTTPS presentation assets, but no API calls,
+// embedded pages, forms, or plugins. Keep these headers before supplied markup.
+const HTML_PREVIEW_PREFIX = `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https:; style-src 'unsafe-inline' https:; img-src data: blob: https:; font-src data: https:; media-src data: blob: https:; base-uri about:; form-action 'none'"><base href="about:srcdoc"><meta name="referrer" content="no-referrer">`;
+
+function HtmlPreview(props: PreviewRendererProps) {
+  const { model, text } = props;
+  const { t } = useTranslation();
+  const [source, setSource] = useState(!!model.line || !!text?.truncated);
+  if (!text?.content) return <EmptyText />;
+  return (
+    <div className="flex h-full min-h-0 flex-col" data-testid="file-preview-html">
+      <div className="flex shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-base px-3 py-2">
+        {[false, true].map((showSource) => (
+          <button
+            key={String(showSource)}
+            type="button"
+            aria-pressed={source === showSource}
+            onClick={() => { setSource(showSource); }}
+            className={cn("rounded px-3 py-1.5 text-sm text-wc-text-secondary hover:bg-wc-surface-input", source === showSource && "bg-wc-accent/15 text-wc-accent")}
+          >
+            {t(showSource ? strings.messagesFileViewer.htmlSource : strings.messagesFileViewer.htmlRendered)}
+          </button>
+        ))}
+      </div>
+      {source ? <div className="min-h-0 flex-1"><SourcePreview {...props} /></div> : <>
+        <p className="shrink-0 px-3 py-2 text-xs text-wc-text-muted">{t(strings.messagesFileViewer.htmlLimitations)}</p>
+        {text.truncated && <PreviewNotice message={t(strings.messagesFileViewer.truncatedNotice)} tone="info" />}
+        <iframe
+          title={t(strings.messagesFileViewer.htmlPreview, { name: model.basename })}
+          sandbox="allow-scripts"
+          referrerPolicy="no-referrer"
+          srcDoc={HTML_PREVIEW_PREFIX + text.content}
+          className="min-h-0 w-full flex-1 border-0 bg-white [color-scheme:light]"
+        />
+      </>}
+    </div>
   );
 }
 
@@ -101,11 +152,11 @@ export function CodeLinePreview({
     const raf = requestAnimationFrame(() => {
       node.scrollIntoView({ block: "center", behavior: "smooth" });
     });
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); };
   }, [highlightLine, highlighted, plainLines.length, wrap, fontSize]);
 
   const lineCount = highlighted?.length ?? plainLines.length;
-  const gutterWidth = `${String(lineCount).length}ch`;
+  const gutterWidth = `${String(String(lineCount).length)}ch`;
   const lines =
     highlighted ??
     plainLines.map((line, i) => ({
@@ -133,7 +184,7 @@ export function CodeLinePreview({
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => adjustFont(-1)}
+            onClick={() => { adjustFont(-1); }}
             className="rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-40"
             aria-label={t(strings.messagesFileViewer.decreaseFontSize)}
             title={t(strings.messagesFileViewer.decreaseFontSize)}
@@ -144,7 +195,7 @@ export function CodeLinePreview({
           <span className="tabular-nums text-[11px]">{fontSize}px</span>
           <button
             type="button"
-            onClick={() => adjustFont(1)}
+            onClick={() => { adjustFont(1); }}
             className="rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-40"
             aria-label={t(strings.messagesFileViewer.increaseFontSize)}
             title={t(strings.messagesFileViewer.increaseFontSize)}
@@ -154,7 +205,7 @@ export function CodeLinePreview({
           </button>
           <button
             type="button"
-            onClick={() => setWrap((prev) => !prev)}
+            onClick={() => { setWrap((prev) => !prev); }}
             className={cn(
               "ms-1 flex items-center gap-1 rounded px-1.5 py-1 text-[11px] transition hover:bg-wc-surface-input hover:text-wc-text-primary",
               wrap && "bg-wc-accent/15 text-wc-accent hover:bg-wc-accent/20 hover:text-wc-accent",
@@ -171,7 +222,7 @@ export function CodeLinePreview({
       <div
         ref={scrollerRef}
         className="min-h-0 flex-1 overflow-auto font-mono leading-[1.55]"
-        style={{ fontSize: `${fontSize}px` }}
+        style={{ fontSize: `${String(fontSize)}px` }}
       >
         {lines.map((line) => {
           const lineNumber = line.lineNumber;
@@ -189,7 +240,7 @@ export function CodeLinePreview({
                   "shrink-0 select-none text-end text-wc-text-faint/70 tabular-nums",
                   isHighlighted && "text-wc-accent",
                 )}
-                style={{ minWidth: gutterWidth, fontSize: `${Math.max(10, fontSize - 1)}px` }}
+                style={{ minWidth: gutterWidth, fontSize: `${String(Math.max(10, fontSize - 1))}px` }}
               >
                 {lineNumber}
               </span>

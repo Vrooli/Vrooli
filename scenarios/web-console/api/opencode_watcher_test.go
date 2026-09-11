@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -9,6 +10,18 @@ import (
 	"web-console/backends/opencode"
 	"web-console/internal/sessionstore"
 )
+
+type failingConversationRepository struct {
+	ConversationRepository
+	failAppend *bool
+}
+
+func (r *failingConversationRepository) AppendEvent(ctx context.Context, event ConversationEvent) (ConversationEvent, error) {
+	if *r.failAppend {
+		return ConversationEvent{}, errors.New("injected conversation append failure")
+	}
+	return r.ConversationRepository.AppendEvent(ctx, event)
+}
 
 // fakeOpenCodeClient is a programmable opencode.Client for watcher tests.
 type fakeOpenCodeClient struct {
@@ -19,6 +32,14 @@ type fakeOpenCodeClient struct {
 	eventsFn   func(ctx context.Context, onEvent func(opencode.Event)) error
 	listCalls  int
 	eventCalls int
+	replies    []string // "requestID:reply" per ReplyPermission call
+}
+
+func (f *fakeOpenCodeClient) ReplyPermission(_ context.Context, requestID, reply string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.replies = append(f.replies, requestID+":"+reply)
+	return nil
 }
 
 func (f *fakeOpenCodeClient) ListSessions(_ context.Context) ([]opencode.Session, error) {
@@ -136,6 +157,43 @@ func TestOpenCodeWatcher_ReconcileIsIdempotent(t *testing.T) {
 	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 {
 		t.Fatalf("re-running reconciliation must not duplicate; got %d: %+v", len(state.Events), state.Events)
+	}
+}
+
+func TestOpenCodeWatcher_DoesNotAdvanceCursorWhenProjectionAppendFails(t *testing.T) {
+	srv, w, paneID := newOpenCodeWatcherTest(t)
+	failAppend := true
+	srv.conversations = NewConversationStoreWithRepository(&failingConversationRepository{
+		ConversationRepository: NewInMemoryConversationRepository(),
+		failAppend:             &failAppend,
+	})
+	client := &fakeOpenCodeClient{
+		sessions: []opencode.Session{ocSession("ses_a", "/work")},
+		messages: map[string][]opencode.MessageWithParts{
+			"ses_a": {ocUser(10, "retry me")},
+		},
+	}
+
+	w.reconcileAll(context.Background(), client)
+	if state := srv.conversations.ListSession(context.Background(), paneID); len(state.Events) != 0 {
+		t.Fatalf("failed projection must not create a conversation event: %+v", state.Events)
+	}
+	if _, ok, err := srv.agentCheckpointStore.Get(context.Background(), opencodeSource, "ses_a"); err != nil {
+		t.Fatalf("read checkpoint: %v", err)
+	} else if ok {
+		t.Fatal("failed projection must leave the native cursor behind for retry")
+	}
+
+	failAppend = false
+	w.reconcileAll(context.Background(), client)
+	state := srv.conversations.ListSession(context.Background(), paneID)
+	if len(state.Events) != 1 || state.Events[0].Text != "retry me" {
+		t.Fatalf("retry should recover the previously failed projection: %+v", state.Events)
+	}
+	if _, ok, err := srv.agentCheckpointStore.Get(context.Background(), opencodeSource, "ses_a"); err != nil {
+		t.Fatalf("read retry checkpoint: %v", err)
+	} else if !ok {
+		t.Fatal("successful retry must advance the native cursor")
 	}
 }
 

@@ -101,16 +101,46 @@ func captureToProto(c CaptureStatus) *conversationv1.MessageCaptureStatus {
 	}
 }
 
+// searchModeName maps the wire mode onto the service's mode names.
+func searchModeName(mode conversationv1.ConversationSearchMode) string {
+	switch mode {
+	case conversationv1.ConversationSearchMode_CONVERSATION_SEARCH_MODE_REGEX:
+		return "regex"
+	case conversationv1.ConversationSearchMode_CONVERSATION_SEARCH_MODE_FUZZY:
+		return "fuzzy"
+	default:
+		return "text"
+	}
+}
+
+func rangesToProto(ranges []TextRange) []*conversationv1.TextRange {
+	out := make([]*conversationv1.TextRange, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, &conversationv1.TextRange{Start: int32(r.Start), End: int32(r.End)})
+	}
+	return out
+}
+
 func (h *connectHandler) Search(_ context.Context, req *connect.Request[conversationv1.SearchRequest]) (*connect.Response[conversationv1.SearchResponse], error) {
-	matches, truncated, total, err := h.deps.Service.Search(strings.TrimSpace(req.Msg.GetSessionId()), req.Msg.GetQuery(), int(req.Msg.GetLimit()))
+	result, err := h.deps.Service.Search(strings.TrimSpace(req.Msg.GetSessionId()), SearchQuery{
+		Query:         req.Msg.GetQuery(),
+		Mode:          searchModeName(req.Msg.GetMode()),
+		CaseSensitive: req.Msg.GetCaseSensitive(),
+		WholeWord:     req.Msg.GetWholeWord(),
+		Role:          req.Msg.GetRoleFilter(),
+		Limit:         int(req.Msg.GetLimit()),
+	})
 	if err != nil {
 		return nil, h.classify(err, "conversation.Search")
 	}
-	out := make([]*conversationv1.SearchMatch, 0, len(matches))
-	for _, match := range matches {
-		out = append(out, &conversationv1.SearchMatch{EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt})
+	out := make([]*conversationv1.SearchMatch, 0, len(result.Matches))
+	for _, match := range result.Matches {
+		out = append(out, &conversationv1.SearchMatch{
+			EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
+			Role: match.Role, CreatedAt: match.CreatedAt,
+		})
 	}
-	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: truncated, TotalMatches: total}), nil
+	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error}), nil
 }
 
 func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Request[conversationv1.SearchArchivedRequest]) (*connect.Response[conversationv1.SearchArchivedResponse], error) {
@@ -118,8 +148,16 @@ func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Reques
 		return connect.NewResponse(&conversationv1.SearchArchivedResponse{}), nil
 	}
 	result, err := h.deps.Service.SearchArchived(ctx, ArchivedSearchFilter{
-		Query: req.Msg.GetQuery(), Limit: int(req.Msg.GetLimit()), AgentType: req.Msg.GetAgentType(),
-		Role: req.Msg.GetRole(), CreatedAfter: req.Msg.GetCreatedAfter(),
+		SearchQuery: SearchQuery{
+			Query:         req.Msg.GetQuery(),
+			Mode:          searchModeName(req.Msg.GetMode()),
+			CaseSensitive: req.Msg.GetCaseSensitive(),
+			WholeWord:     req.Msg.GetWholeWord(),
+			Role:          req.Msg.GetRole(),
+			Limit:         int(req.Msg.GetLimit()),
+		},
+		AgentType:    req.Msg.GetAgentType(),
+		CreatedAfter: req.Msg.GetCreatedAfter(),
 	})
 	if err != nil {
 		return nil, h.classify(err, "conversation.SearchArchived")
@@ -128,12 +166,12 @@ func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Reques
 	for _, match := range result.Matches {
 		matches = append(matches, &conversationv1.ArchivedSearchMatch{
 			EventId: match.EventID, SessionId: match.SessionID, Sequence: match.Sequence,
-			Role: match.Role, CreatedAt: match.CreatedAt, Excerpt: match.Excerpt,
+			Role: match.Role, CreatedAt: match.CreatedAt, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
 		})
 	}
 	return connect.NewResponse(&conversationv1.SearchArchivedResponse{
 		Matches: matches, Truncated: result.Truncated, TotalMatches: result.TotalMatches,
-		DistinctSessions: result.DistinctSessions,
+		DistinctSessions: result.DistinctSessions, Error: result.Error,
 	}), nil
 }
 

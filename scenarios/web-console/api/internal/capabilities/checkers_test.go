@@ -162,6 +162,31 @@ func TestBridgeChecker_ProbeOutcomes(t *testing.T) {
 	}
 }
 
+func TestBridgeCheckerDiscoversMissingBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Fatalf("health path = %q, want /health", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	called := false
+	result := (&BridgeChecker{
+		OwnerToken: "owner", ReauthToken: "reauth", Probe: true,
+		ResolveURL: func(context.Context) (string, error) {
+			called = true
+			return server.URL, nil
+		},
+	}).CheckResult(context.Background())
+	if !called {
+		t.Fatal("Bridge checker did not use its discovery resolver")
+	}
+	if result.Status != StatusAvailable {
+		t.Fatalf("discovered Bridge status = %s (%s), want available", result.Status, result.Message)
+	}
+}
+
 func TestResourceChecker_Healthy(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -187,7 +212,7 @@ func TestResourceChecker_Redirect(t *testing.T) {
 
 	checker := &ResourceChecker{
 		URL:    srv.URL,
-		Client: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		Client: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	status, msg := checker.Check(context.Background())
 

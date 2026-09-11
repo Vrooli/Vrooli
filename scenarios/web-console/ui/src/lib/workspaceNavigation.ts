@@ -1,7 +1,7 @@
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
 import type { SessionOriginName } from "../api/sessions";
 import { formatRelativeTime, stripMarkdown } from "../components/MessageJumpList.helpers";
-import type { PaneViewMode } from "../stores/useConversationStore";
+import type { PaneViewMode } from "../stores/useMessagesViewStore";
 import type { PaneMetadata, RoleMeta, SidebarOriginTab, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
 
 type ConversationSessionSnapshot = {

@@ -6,10 +6,10 @@ import { useTranslation } from "react-i18next";
 
 import {
   getConversationRange,
-  searchArchivedConversations,
   type ArchivedConversationSearchMatch,
   type ConversationEvent,
 } from "../api/conversation";
+import { getContinuityReceipt, searchLocalContinuity, type ContinuityReceipt, type ContinuitySearchMatch } from "../api/continuity";
 import {
   deleteSession,
   dismissRecoverableSession,
@@ -22,7 +22,7 @@ import {
   type RecoverableSession,
   type RecoverResult,
 } from "../api/sessions";
-import type { TTSPlaybackState } from "../audio-integration";
+import { getContinuityIntegrity } from "../api/continuity";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
@@ -41,16 +41,6 @@ interface ArchiveDrawerProps {
   preferOrphans?: boolean;
 }
 
-const READ_ONLY_PLAYBACK: TTSPlaybackState = {
-  currentTime: 0,
-  duration: null,
-  isPaused: true,
-  playbackRate: 1,
-  volume: 1,
-  isMuted: false,
-  capabilities: { canPause: false, canSeek: false, canAdjustSpeed: false, canAdjustVolume: false },
-};
-
 const noop = () => undefined;
 const noError = () => null;
 const activeVersion = () => "active" as const;
@@ -59,6 +49,8 @@ const RESTORE_STATE_LABEL = {
   read_only: strings.archiveDrawer.state_read_only,
   nothing_to_restore: strings.archiveDrawer.state_nothing_to_restore,
 } as const;
+
+type ArchiveMatch = ArchivedConversationSearchMatch | ContinuitySearchMatch;
 
 function createdAfterFor(range: string): string | undefined {
   if (range === "any") return undefined;
@@ -94,7 +86,8 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   const [agentType, setAgentType] = useState<"all" | AgentType>("all");
   const [timeRange, setTimeRange] = useState("any");
   const [myMessages, setMyMessages] = useState(false);
-  const [matches, setMatches] = useState<ArchivedConversationSearchMatch[]>([]);
+  const [allStates, setAllStates] = useState(false);
+  const [matches, setMatches] = useState<ArchiveMatch[]>([]);
   const [totalMatches, setTotalMatches] = useState(0);
   const [distinctSessions, setDistinctSessions] = useState(0);
   const [selected, setSelected] = useState<ArchivedConversationSearchMatch | null>(null);
@@ -105,6 +98,9 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   const [exportOpen, setExportOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ArchivedSession | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
+  const [continuityWarning, setContinuityWarning] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<ContinuityReceipt | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const archiveById = useMemo(() => new Map(archive.map((row) => [row.id, row])), [archive]);
   const recoverableById = useMemo(() => new Map(recoverable.map((row) => [row.id, row])), [recoverable]);
@@ -116,7 +112,17 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
       .filter((row) => agentType === "all" || row.agent_type === agentType)
       .filter((row) => Date.parse(row.archived_at) >= afterTimestamp);
   }, [agentType, archive, timeRange]);
-  const selectedSession = archiveById.get(selected?.sessionId ?? selectedArchiveId ?? "");
+  const selectedSession = archiveById.get(selected?.sessionId ?? selectedArchiveId ?? "") ?? (selected ? {
+    id: selected.sessionId,
+    archived_at: selected.createdAt,
+    created_at: selected.createdAt,
+    agent_type: "none" as AgentType,
+    pane_name: selected.sessionId.slice(0, 8),
+    message_count: 1,
+    restore_state: "read_only" as const,
+    awaiting_recovery: false,
+  } : undefined);
+  const selectedIsArchived = selectedSession ? archiveById.has(selectedSession.id) : false;
 
   const refreshArchive = useCallback(async () => {
     const [result, recoverableRows] = await Promise.all([listArchivedSessions(), listRecoverableSessions()]);
@@ -143,10 +149,21 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
       return;
     }
     setError(null);
+    setContinuityWarning(null);
+    setReceipt(null);
     void refreshArchive().catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+    let cancelled = false;
+    void getContinuityIntegrity().then((report) => {
+      if (cancelled) return;
+      // Catalog-only conversations are a distinct drift class. Include them
+      // without double-counting rows already represented by the legacy orphan
+      // conversation count.
+      const orphanCount = Math.max(report.orphanConversations, report.uncatalogedConversations) + report.orphanCheckpoints + report.orphanWorkspacePanes;
+      if (orphanCount > 0) setContinuityWarning(t(strings.archiveDrawer.continuityWarning, { count: orphanCount }));
+    }).catch(() => undefined);
     const frame = requestAnimationFrame(() => searchRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [open, refreshArchive]);
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+  }, [open, refreshArchive, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -163,13 +180,19 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     const timer = window.setTimeout(() => {
       setLoading(true);
       setError(null);
-      void searchArchivedConversations(trimmed, {
+      // Local continuity search is the archive authority too. The legacy
+      // archive endpoint joins through the live session projection and can
+      // therefore hide catalog-only orphan evidence. Keep the role filter in
+      // the presentation layer until it is part of the shared continuity
+      // contract.
+      const search = searchLocalContinuity(trimmed, {
         agentType: agentType === "all" ? undefined : agentType,
-        role: myMessages ? "user" : undefined,
-        createdAfter: createdAfterFor(timeRange),
-      }).then((result) => {
+        after: createdAfterFor(timeRange),
+        state: allStates ? "any" : "archived",
+      });
+      void search.then((result) => {
         if (cancelled) return;
-        const visible = result.matches.filter((match) => archiveById.has(match.sessionId));
+        const visible = result.matches.filter((match) => !myMessages || match.role === "user");
         setMatches(visible);
         setTotalMatches(result.totalMatches);
         setDistinctSessions(result.distinctSessions);
@@ -188,7 +211,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [agentType, archiveById, myMessages, open, orphansOnly, query, timeRange]);
+  }, [agentType, allStates, archiveById, myMessages, open, orphansOnly, query, timeRange]);
 
   const displayedMessageCount = query.trim()
     ? totalMatches
@@ -288,6 +311,21 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     for (const row of recoverable) await dismissOne(row.id);
   }, [dismissOne, recoverable]);
 
+  const inspectReceipt = useCallback(async () => {
+    if (!selectedSession) return;
+    setReceiptLoading(true);
+    setError(null);
+    try {
+      const command = selectedSession.awaiting_recovery ? "dismiss" : "archive";
+      setReceipt(await getContinuityReceipt(`${command}:${selectedSession.id}`));
+    } catch (cause) {
+      setReceipt(null);
+      setError(cause instanceof Error ? cause.message : t(strings.archiveDrawer.receiptNotFound));
+    } finally {
+      setReceiptLoading(false);
+    }
+  }, [selectedSession, t]);
+
   return (
     <>
       <FullPageDrawer
@@ -325,10 +363,12 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
               <select data-testid="archive-time-filter" value={timeRange} onChange={(event) => setTimeRange(event.target.value)} className="rounded-full border border-wc-default bg-wc-surface-input px-3 py-1 text-wc-text-secondary">
                 <option value="any">{t(strings.archiveDrawer.anyTime)}</option><option value="7d">{t(strings.archiveDrawer.last7Days)}</option><option value="30d">{t(strings.archiveDrawer.last30Days)}</option><option value="365d">{t(strings.archiveDrawer.lastYear)}</option>
               </select>
-              <label className="inline-flex items-center gap-1.5 rounded-full border border-wc-default px-3 py-1 text-wc-text-secondary"><input data-testid="archive-my-messages" type="checkbox" checked={myMessages} onChange={(event) => setMyMessages(event.target.checked)} />{t(strings.archiveDrawer.myMessages)}</label>
+              <label className="inline-flex items-center gap-1.5 rounded-full border border-wc-default px-3 py-1 text-wc-text-secondary"><input data-testid="archive-my-messages" type="checkbox" checked={myMessages} disabled={allStates} onChange={(event) => setMyMessages(event.target.checked)} />{t(strings.archiveDrawer.myMessages)}</label>
+              <label className="inline-flex items-center gap-1.5 rounded-full border border-wc-default px-3 py-1 text-wc-text-secondary"><input data-testid="archive-all-states" type="checkbox" checked={allStates} onChange={(event) => { setAllStates(event.target.checked); if (event.target.checked) setMyMessages(false); }} />{t(strings.archiveDrawer.allStates)}</label>
               {orphanRows.length > 0 && <button type="button" data-testid="archive-orphans-filter" aria-pressed={orphansOnly} onClick={() => { setOrphansOnly((value) => !value); setSelected(null); setSelectedArchiveId(orphanRows[0]?.id ?? null); }} className={cn("rounded-full border px-3 py-1", orphansOnly ? "border-amber-400/60 bg-amber-500/15 text-amber-100" : "border-wc-default text-wc-text-secondary")}>{t(strings.archiveDrawer.crashOrphans, { count: orphanRows.length })}</button>}
             </div>
             {error && <div role="alert" className="rounded bg-red-500/10 px-3 py-1.5 text-xs text-red-300">{error}</div>}
+            {continuityWarning && <div role="status" data-testid="archive-continuity-warning" className="rounded bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">{continuityWarning}</div>}
           </div>
         }
       >
@@ -459,9 +499,14 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                     >
                       {reopeningId === selectedSession.id ? t(strings.archiveDrawer.reopening) : t(strings.archiveDrawer.reopen)}
                     </button>}
-                    <button type="button" onClick={() => void openExport()} className="inline-flex items-center gap-1 rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary"><Download className="h-3 w-3" />{t(strings.archiveDrawer.export)}</button>
-                    <button type="button" onClick={() => setDeleteTarget(selectedSession)} className="inline-flex items-center gap-1 rounded border border-red-500/40 px-2 py-1 text-xs text-red-300"><Trash2 className="h-3 w-3" />{t(strings.archiveDrawer.delete)}</button>
+                    {selectedIsArchived && <button type="button" onClick={() => void openExport()} className="inline-flex items-center gap-1 rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary"><Download className="h-3 w-3" />{t(strings.archiveDrawer.export)}</button>}
+                    {selectedIsArchived && <button type="button" onClick={() => void inspectReceipt()} disabled={receiptLoading} className="rounded border border-wc-default px-2 py-1 text-xs text-wc-text-secondary disabled:opacity-60">{receiptLoading ? t(strings.archiveDrawer.receiptLoading) : t(strings.archiveDrawer.receipt)}</button>}
+                    {selectedIsArchived && <button type="button" onClick={() => setDeleteTarget(selectedSession)} className="inline-flex items-center gap-1 rounded border border-red-500/40 px-2 py-1 text-xs text-red-300"><Trash2 className="h-3 w-3" />{t(strings.archiveDrawer.delete)}</button>}
                   </div>
+                  {receipt && <div data-testid="archive-receipt" className="mt-2 rounded border border-wc-default/70 bg-wc-surface-input px-2 py-1.5 text-[11px] text-wc-text-muted">
+                    <span className="font-medium text-wc-text-secondary">{receipt.status}</span> · {receipt.command} · {receipt.fromState} → {receipt.toState}
+                    {receipt.errorCode && ` · ${receipt.errorCode}`}
+                  </div>}
                 </header>
                 <div className="min-h-0 flex-1">
                   <MessagesPane
@@ -482,10 +527,6 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                     onClearSummarizeError={noop}
                     onToggleSummarized={noop}
                     onChangeLevel={noop}
-                    playbackState={READ_ONLY_PLAYBACK}
-                    onSetPlaybackRate={noop}
-                    onSetVolume={noop}
-                    onSetMuted={noop}
                     playbackFocusRequest={null}
                   />
                 </div>

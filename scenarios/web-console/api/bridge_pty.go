@@ -32,10 +32,11 @@ func bridgePTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		tokenProvider = resolveLocalOwnerToken
 	}
 	client := nodereach.New(nodereach.Config{
-		BridgeURL:     baseRemoteURL(spec.RemoteURL),
-		Token:         token,
-		TokenProvider: tokenProvider,
-		ReauthToken:   spec.RemoteReauthToken,
+		BridgeURL:        baseRemoteURL(spec.RemoteURL),
+		ResolveBridgeURL: resolveBridgeScenarioURL,
+		Token:            token,
+		TokenProvider:    tokenProvider,
+		ReauthToken:      spec.RemoteReauthToken,
 	})
 	session, err := client.Open(context.Background(), nodereach.OpenRequest{
 		NodeID: spec.RemoteNodeID, SessionID: spec.SessionID, Shell: spec.Shell,

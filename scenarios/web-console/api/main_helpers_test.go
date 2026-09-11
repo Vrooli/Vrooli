@@ -36,6 +36,10 @@ func TestProductionCapabilityCheckersCoverCatalogue(t *testing.T) {
 			t.Fatalf("catalogue capability %q has no production checker", id)
 		}
 	}
+	bridge, ok := checkers["vrooli-bridge"].(*capabilities.BridgeChecker)
+	if !ok || bridge.ResolveURL == nil {
+		t.Fatal("production Bridge checker must resolve its endpoint through api-core discovery")
+	}
 }
 
 func TestParseCleanupMaxBytesAcceptsHumanAndRawValues(t *testing.T) {
@@ -66,7 +70,15 @@ func TestServerPolicyHookStatusAndDiagnostics(t *testing.T) {
 	if ok, code, _, _ := srv.getClaudeHookStatus(); ok || code != "hook_missing_file" {
 		t.Fatalf("missing hook status = %v/%s", ok, code)
 	}
-	settings := `{"hooks":{"Stop":[{"hooks":[{"_id":"web-console-tts","type":"http","url":"http://localhost:9911/api/v1/hooks/stop","headers":{"X-Hook-Token":"secret-token"}}]}]}}`
+	stopOnly := `{"hooks":{"Stop":[{"hooks":[{"_id":"web-console-tts","type":"http","url":"http://localhost:9911/api/v1/hooks/stop","headers":{"X-Hook-Token":"secret-token"}}]}]}}`
+	if err := os.WriteFile(os.Getenv("CLAUDE_PROJECT_SETTINGS"), []byte(stopOnly), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Without the Notification hook, session activity cannot see prompts.
+	if ok, code, _, _ := srv.getClaudeHookStatus(); ok || code != "hook_stale" {
+		t.Fatalf("stop-only hook status = %v/%s, want hook_stale", ok, code)
+	}
+	settings := `{"hooks":{"Stop":[{"hooks":[{"_id":"web-console-tts","type":"http","url":"http://localhost:9911/api/v1/hooks/stop","headers":{"X-Hook-Token":"secret-token"}}]}],"Notification":[{"hooks":[{"_id":"web-console-activity","type":"command","command":"web-console hooks dispatch --event 'Notification'"}]}]}}`
 	if err := os.WriteFile(os.Getenv("CLAUDE_PROJECT_SETTINGS"), []byte(settings), 0o600); err != nil {
 		t.Fatal(err)
 	}

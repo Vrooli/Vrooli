@@ -1,7 +1,7 @@
 # Web Console — Glossary
 
 ## Last Updated
-2026-08-18
+2026-09-11
 
 ## Core Terms
 
@@ -30,3 +30,9 @@
 | **api-base** | `@vrooli/api-base` library providing proxy-correct HTTP/WebSocket URL resolution for parent-embedded scenarios. | [CODE: ui/src/lib/api.ts] |
 | **Error Catalog** | Server-side registry mapping error codes to structured error responses with category, recovery hints, and retry guidance. | [CODE: api/errors.go] |
 | **Metrics** | Operational counters tracking session lifecycle events, WebSocket connections, AI generation attempts, and provider health. | [CODE: api/metrics.go] |
+| **Projection** | The Messages view: a read-only projection of what the agent and the user said, with the session's activity underneath. It shows state; it never chooses where typed text goes. See [the projection doc](../internal/MESSAGES-VIEW-PROJECTION-UX.md). | [CODE: ui/src/components/MessagesPane.tsx] |
+| **Session activity** | What a session's agent is doing (working, waiting, idle, unknown), with its evidence (harness event, hook, screen, output clock), confidence, and the prompt it is waiting on. Pushed over the event stream as `session_activity`. | [CODE: api/session/activity.go], [CODE: ui/src/stores/useSessionActivityStore.ts] |
+| **State slot** | The one presentation of the session activity under the last message: a working strip, or a card at level 1 (detected), 2 (prompt read), or 3 (answerable). | [CODE: ui/src/components/messages/SessionStateSlot.tsx] |
+| **Echo row** | A dimmed row for a send (or an answer) that Messages shows until the transcript or the terminal screen confirms it; it says when the text was typed but not submitted, or not seen. | [CODE: ui/src/components/messages/EchoRow.tsx] |
+| **Pill** | The one playback surface: a floating pill that shows what is speaking and expands into the full controls; dismissing it stops playback. | [CODE: ui/src/components/tts/PlaybackPill.tsx] |
+| **Reader** | A full-height view of one long message with its own scroll, find, copy, and play; the list stays mounted and unmoved underneath. | [CODE: ui/src/components/messages/MessagesReader.tsx] |

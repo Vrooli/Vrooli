@@ -1,30 +1,23 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type RefObject,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
-import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Search, Square, X } from "lucide-react";
+import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Search, SlidersHorizontal, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ConversationEvent } from "../api/conversation";
+import type { ConversationEvent, ConversationSearchMatch, ConversationSearchModeName } from "../api/conversation";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { buildMessageExport, DEFAULT_MESSAGE_EXPORT_FORMAT } from "../lib/messageExport";
-import { getScrubClasses } from "./tts/scrubStyles";
+import { timeLabel } from "./messages/speaker";
 import {
   assistantRoleLabelKey,
   availableSources,
   buildResults,
-  formatRelativeTime,
+  buildSearchResults,
+  estimateNavRowHeight,
   groupResults,
   noResultReason,
   statusGlyphFor,
@@ -39,13 +32,6 @@ import {
   type StatusFilter,
   type StatusGlyph,
 } from "./MessageJumpList.helpers";
-
-/**
- * Whether the navigator jumps to a message (Messages view) or selects a
- * playback start (AudioPlayerBar). Drives copy and which surface is emphasized
- * so the same component never silently means two different things.
- */
-export type MessageNavigatorMode = "jump" | "playback-select";
 
 /**
  * Export-selection contract. Selected IDs live in MessagesPane (the single
@@ -64,38 +50,53 @@ export interface MessageExportSelection {
   onContinue: () => void;
 }
 
+/** How the server reads a query; role narrows it to one speaker. */
+export interface SearchOptionsState {
+  mode: ConversationSearchModeName;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  role?: "user" | "assistant";
+}
+
+/** Whole-history server search, owned by MessagesPane. */
+export interface NavigatorSearch {
+  /** Server hits in sequence order; null while a search is in flight. */
+  hits: ConversationSearchMatch[] | null;
+  truncated: boolean;
+  /** The server's reason a query could not run (e.g. an invalid regex). */
+  error?: string;
+  options: SearchOptionsState;
+  onOptionsChange: (next: SearchOptionsState) => void;
+}
+
+const SEARCH_MODES: ConversationSearchModeName[] = ["text", "regex", "fuzzy"];
+const SEARCH_MODE_LABEL_KEY = {
+  text: strings.messageJumpList.modeText,
+  regex: strings.messageJumpList.modeRegex,
+  fuzzy: strings.messageJumpList.modeFuzzy,
+} satisfies Record<ConversationSearchModeName, string>;
+
 interface MessageJumpListProps {
   events: ConversationEvent[];
   focusedEventId: string | null;
   onSelect: (eventId: string) => void;
   onClose: () => void;
-  mode?: MessageNavigatorMode;
-  /** Where focus lands on open. Defaults to search for jump, list for playback. */
+  /** Where focus lands on open. Without it, desktop focuses the search field when there is one. */
   initialFocus?: "search" | "list";
   /** Controlled search query — lifted by MessagesPane so dimming/nav persist. */
   query?: string;
   onQueryChange?: (query: string) => void;
-  /** Whole-session server search metadata; local events remain the rendered window. */
-  searchMatchCount?: number;
-  searchTruncated?: boolean;
+  /**
+   * The server search the owner runs over the whole history. Without it the
+   * navigator is a picker over the given events and has no search field.
+   */
+  search?: NavigatorSearch;
   /** Desktop anchor: when set, the panel positions itself against this
    *  element via the shared anchored-floating math (above, end-aligned). */
   desktopAnchorRef?: RefObject<HTMLElement | null>;
-  /** Mini playback header — playback state from the parent AudioPlayerBar. */
-  currentTime?: number;
-  duration?: number | null;
-  isPaused?: boolean;
-  /** Whether the currently playing event is the summarized version. */
-  isSummarized?: boolean;
-  onPause?: () => void;
-  onResume?: () => void;
-  onSeek?: (seconds: number) => void;
-  /** Whether the next event is queued and will auto-play after the current one. */
-  hasQueuedNext?: boolean;
   /**
-   * Enables the Export header action (jump mode only). Activating it switches
-   * the navigator into an explicit selection mode where rows toggle instead of
-   * jumping; normal jump and playback-select semantics are unchanged.
+   * Enables the Export header action. Activating it switches the navigator
+   * into an explicit selection mode where rows toggle instead of jumping.
    */
   exportSelection?: MessageExportSelection;
 }
@@ -124,11 +125,10 @@ const CONTENT_LABEL_KEY = {
   long: strings.messageJumpList.contentLong,
 } satisfies Record<ContentFilter, string>;
 
-const SORT_OPTIONS: SortMode[] = ["oldest", "newest", "relevance"];
+const SORT_OPTIONS: SortMode[] = ["oldest", "newest"];
 const SORT_LABEL_KEY = {
   oldest: strings.messageJumpList.sortOldest,
   newest: strings.messageJumpList.sortNewest,
-  relevance: strings.messageJumpList.sortRelevance,
 } satisfies Record<SortMode, string>;
 
 const GROUP_OPTIONS: GroupMode[] = ["turn", "flat", "role"];
@@ -170,94 +170,6 @@ function StatusIcon({ glyph, className }: { glyph: StatusGlyph; className?: stri
     <span aria-hidden="true" className={cn("inline-flex h-3 w-3 items-center justify-center text-wc-text-faint/70", className)}>
       ○
     </span>
-  );
-}
-
-function NowPlayingHeader({
-  event,
-  currentTime,
-  duration,
-  isPaused,
-  isSummarized,
-  onPause,
-  onResume,
-  onSeek,
-  now,
-  onJumpToCurrent,
-}: {
-  event: ConversationEvent | null;
-  currentTime: number;
-  duration: number | null;
-  isPaused: boolean;
-  isSummarized: boolean;
-  onPause?: () => void;
-  onResume?: () => void;
-  onSeek?: (seconds: number) => void;
-  now: Date;
-  onJumpToCurrent: () => void;
-}) {
-  const { t } = useTranslation();
-  const handleScrub = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      onSeek?.(Number(e.target.value));
-    },
-    [onSeek],
-  );
-
-  if (!event || duration === null) {
-    return (
-      <div data-testid="msg-jump-now-playing" data-state="idle" className="px-3 py-2 text-[11px] text-wc-text-faint">
-        {t(strings.messageJumpList.noActivePlayback)}
-      </div>
-    );
-  }
-
-  const desc = statusGlyphFor(event);
-  const roleLabel = event.role === "user"
-    ? t(strings.messageJumpList.roleYou)
-    : t(assistantRoleLabelKey(event.source));
-  const seekable = duration > 0 && !!onSeek;
-
-  return (
-    <div data-testid="msg-jump-now-playing" data-state="playing" className="border-b border-wc-default/60 px-3 pt-2 pb-2">
-      <div className="mb-1.5 flex items-center gap-2">
-        <button
-          type="button"
-          data-testid="msg-jump-now-playpause"
-          onClick={() => (isPaused ? onResume?.() : onPause?.())}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wc-surface-input text-wc-text-primary transition hover:bg-wc-accent/20"
-          aria-label={isPaused ? t(strings.messageJumpList.resume) : t(strings.messageJumpList.pause)}
-        >
-          {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-        </button>
-        <button
-          type="button"
-          data-testid="msg-jump-now-jump"
-          onClick={onJumpToCurrent}
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1 py-0.5 text-start transition hover:bg-wc-surface-input/60"
-          aria-label={t(strings.messageJumpList.scrollToCurrent)}
-        >
-          <StatusIcon glyph={desc.glyph} />
-          <span className="font-mono text-[11px] text-wc-text-faint">#{event.sequence}</span>
-          <span className="text-[11px] font-medium text-wc-text-primary">{roleLabel}</span>
-          <span className="ml-auto shrink-0 ps-1 text-[10px] text-wc-text-faint">
-            {formatRelativeTime(event.createdAt, now)}
-          </span>
-        </button>
-      </div>
-      <input
-        data-testid="msg-jump-now-scrub"
-        type="range"
-        min={0}
-        max={seekable ? duration : 0}
-        value={Math.min(currentTime, duration)}
-        step={0.1}
-        disabled={!seekable}
-        onChange={handleScrub}
-        aria-label={t(strings.messageJumpList.seekCurrent)}
-        className={getScrubClasses({ isSummarized, enabled: seekable, extra: "w-full" })}
-      />
-    </div>
   );
 }
 
@@ -305,7 +217,6 @@ function NavRow({
   result,
   isFocused,
   isActive,
-  isNext,
   onSelect,
   now,
   selectMode = false,
@@ -314,7 +225,6 @@ function NavRow({
   result: NavigatorResult;
   isFocused: boolean;
   isActive: boolean;
-  isNext: boolean;
   onSelect: () => void;
   now: Date;
   /** Export-selection mode: the row toggles a checkbox instead of jumping. */
@@ -364,9 +274,8 @@ function NavRow({
           </span>
         )}
         {!isUser && <StatusIcon glyph={desc.glyph} />}
-        <span className="font-mono text-wc-text-faint">#{event.sequence}</span>
-        <span className={cn("font-medium", isUser && "text-wc-text-primary")}>{roleLabel}</span>
-        <span className="text-wc-text-faint">· {formatRelativeTime(event.createdAt, now)}</span>
+        <span data-testid={`msg-jump-speaker-${event.id}`} className={cn("font-medium", isUser ? "text-wc-text-primary" : "text-wc-text-secondary")}>{roleLabel}</span>
+        <span data-testid={`msg-jump-time-${event.id}`} title={`#${String(event.sequence)}`} className="text-wc-text-faint">· {timeLabel(event.createdAt, now)}</span>
         <Badges result={result} />
         {event.summarized && (
           <span
@@ -375,14 +284,6 @@ function NavRow({
             title={t(strings.messageJumpList.summarizedBadge)}
           >
             S
-          </span>
-        )}
-        {isNext && (
-          <span
-            data-testid={`msg-jump-next-${event.id}`}
-            className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-300"
-          >
-            {t(strings.messageJumpList.nextBadge)}
           </span>
         )}
       </span>
@@ -474,26 +375,20 @@ export default function MessageJumpList({
   focusedEventId,
   onSelect,
   onClose,
-  mode = "jump",
   initialFocus,
   query,
   onQueryChange,
-  searchMatchCount,
-  searchTruncated = false,
+  search,
   desktopAnchorRef,
-  currentTime = 0,
-  duration = null,
-  isPaused = true,
-  isSummarized = false,
-  onPause,
-  onResume,
-  onSeek,
-  hasQueuedNext = false,
   exportSelection,
 }: MessageJumpListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const listRef = useRef<HTMLDivElement>(null);
+  // The scroller mounts after this component's first commit (inside the
+  // sheet's portal, or once results exist); holding it in state hands the
+  // virtual list a new ref when it does, so it binds to the element it scrolls.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  const listRef = useMemo(() => ({ current: listEl }), [listEl]);
   const searchRef = useRef<HTMLInputElement>(null);
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const anchoredStyle = useAnchoredPopoverPosition(
@@ -523,7 +418,7 @@ export default function MessageJumpList({
 
   // Export selection is only reachable from normal jump mode; the selected-ID
   // set itself lives in MessagesPane so it survives filter changes and close.
-  const canExport = mode === "jump" && exportSelection !== undefined;
+  const canExport = exportSelection !== undefined;
   const [isExportSelecting, setIsExportSelecting] = useState(false);
   const exportActive = canExport && isExportSelecting;
 
@@ -532,7 +427,10 @@ export default function MessageJumpList({
     [q, role, status, content, sort, groupMode],
   );
 
-  const results = useMemo(() => buildResults(events, navState), [events, navState]);
+  const results = useMemo(
+    () => (q.trim() && search ? buildSearchResults(search.hits ?? [], events, navState) : buildResults(events, navState)),
+    [events, navState, q, search],
+  );
   const groups = useMemo(() => groupResults(results, groupMode), [results, groupMode]);
   const navigatorRows = useMemo(() => groups.flatMap((group) => {
     const rows: Array<{ type: "header"; id: string; label: "user" | "assistant" } | { type: "event"; result: NavigatorResult }> = [];
@@ -546,7 +444,11 @@ export default function MessageJumpList({
   ), [navigatorRows]);
   const { registerItem: registerNavigatorItem, totalSize: navigatorTotalSize, virtualItems: navigatorVirtualItems, scrollToIndex: scrollNavigatorToIndex } = useVirtualList({
     count: navigatorRows.length,
-    estimateSize: (index) => navigatorRows[index]?.type === "header" ? 26 : 64,
+    estimateSize: (index) => {
+      const row = navigatorRows[index];
+      if (!row) return 44;
+      return row.type === "header" ? 26 : estimateNavRowHeight(row.result);
+    },
     overscan: 6,
     scrollElementRef: listRef,
     enabled: navigatorRows.length > 40,
@@ -570,24 +472,12 @@ export default function MessageJumpList({
   const safeActive = results.length === 0 ? -1 : Math.min(activeIndex, results.length - 1);
   const activeId = safeActive >= 0 ? results[safeActive]?.event.id ?? null : null;
 
-  const focusedEvent = useMemo(() => {
-    if (!focusedEventId) return null;
-    return events.find((e) => e.id === focusedEventId) ?? null;
-  }, [events, focusedEventId]);
-
-  const nextEventId = useMemo<string | null>(() => {
-    if (!hasQueuedNext || !focusedEventId) return null;
-    const idx = events.findIndex((e) => e.id === focusedEventId);
-    if (idx < 0 || idx >= events.length - 1) return null;
-    return events[idx + 1]?.id ?? null;
-  }, [events, focusedEventId, hasQueuedNext]);
-
   // Scroll the active row into view by adjusting ONLY the navigator's own
   // scroll container — never scrollIntoView, which can scroll the host
   // document/window in iframe/proxy embeddings (spatial-navigation hazard).
-  const scrollToEvent = useCallback((eventId: string, smooth: boolean) => {
+  const scrollToEvent = useCallback((eventId: string) => {
     const index = navigatorIndexByEventId.get(eventId);
-    if (index != null) scrollNavigatorToIndex(index, smooth ? "smooth" : "auto", "center");
+    if (index != null) scrollNavigatorToIndex(index, "auto", "center");
   }, [navigatorIndexByEventId, scrollNavigatorToIndex]);
 
   // Scroll focused event into view when it changes (not on every render).
@@ -596,22 +486,23 @@ export default function MessageJumpList({
     if (focusedEventId && focusedEventId !== lastScrolledId.current) {
       lastScrolledId.current = focusedEventId;
       const id = focusedEventId;
-      requestAnimationFrame(() => scrollToEvent(id, false));
+      requestAnimationFrame(() => { scrollToEvent(id); });
     }
   }, [focusedEventId, scrollToEvent, results]);
 
-  // Auto-focus the search input on open (desktop only — on mobile the virtual
-  // keyboard would cover results before the user has chosen to search).
-  const wantsSearchFocus = (initialFocus ?? (mode === "playback-select" ? "list" : "search")) === "search";
+  // Opened to search (the search field, Cmd/Ctrl+K): focus the input at once,
+  // inside the opening gesture, so a phone raises its keyboard. Opened without
+  // saying: desktop only, since on mobile the keyboard would cover the results
+  // before the user has chosen to search.
+  useLayoutEffect(() => {
+    if (initialFocus === "search") searchRef.current?.focus();
+  }, [initialFocus]);
+  const wantsSearchFocus = initialFocus == null && search !== undefined;
   useEffect(() => {
     if (!wantsSearchFocus || isMobile) return;
     const id = setTimeout(() => searchRef.current?.focus(), 50);
     return () => clearTimeout(id);
   }, [wantsSearchFocus, isMobile]);
-
-  const jumpToCurrent = useCallback(() => {
-    if (focusedEventId) scrollToEvent(focusedEventId, true);
-  }, [focusedEventId, scrollToEvent]);
 
   const handleSelect = useCallback(
     (eventId: string) => {
@@ -658,7 +549,7 @@ export default function MessageJumpList({
       if (next > results.length - 1) next = 0;
       setActiveIndex(next);
       const targetId = results[next]?.event.id;
-      if (targetId) scrollToEvent(targetId, false);
+      if (targetId) scrollToEvent(targetId);
     },
     [results, safeActive, scrollToEvent],
   );
@@ -702,7 +593,7 @@ export default function MessageJumpList({
         if (results.length > 0) {
           setActiveIndex(0);
           const id = results[0]?.event.id;
-          if (id) scrollToEvent(id, false);
+          if (id) scrollToEvent(id);
           listRef.current?.focus();
         }
         return;
@@ -725,18 +616,29 @@ export default function MessageJumpList({
     [results, safeActive, scrollToEvent, handleSelect, q, setQuery, onClose, exportActive, exitExportSelection],
   );
 
+  // The speaker also narrows the server search; a runtime (source) filter
+  // implies the assistant there and narrows further here.
+  const applyRole = useCallback((next: RoleFilter) => {
+    setRole(next);
+    if (!search || next === role) return;
+    const serverRole = next === "all" ? undefined : next === "user" ? "user" : "assistant";
+    const { role: _previous, ...rest } = search.options;
+    search.onOptionsChange(serverRole ? { ...rest, role: serverRole } : rest);
+  }, [role, search]);
+
   const resetPrimaryFilters = useCallback(() => {
-    setRole("all");
+    applyRole("all");
     setStatus("all");
     setContent("all");
-  }, []);
+  }, [applyRole]);
 
   const allActive = role === "all" && status === "all" && content === "all";
+  // Filters in effect behind the folded button (a runtime filter counts).
+  const foldedFilterCount = (role.startsWith("source:") ? 1 : 0) + (status !== "all" ? 1 : 0) + (content !== "all" ? 1 : 0)
+    + (sort !== "oldest" ? 1 : 0) + (groupMode !== "turn" ? 1 : 0);
   const title = exportActive
     ? t(strings.messageExport.selectionTitle)
-    : mode === "playback-select"
-      ? t(strings.messageJumpList.titlePlayback)
-      : t(strings.messageJumpList.titleJump);
+    : t(strings.messageJumpList.titleJump);
 
   const renderRow = (result: NavigatorResult, index: number) => (
     <div key={result.event.id} ref={(node) => registerNavigatorItem(index, node)}>
@@ -744,7 +646,6 @@ export default function MessageJumpList({
         result={result}
         isFocused={!exportActive && result.event.id === focusedEventId}
         isActive={result.event.id === activeId}
-        isNext={!exportActive && result.event.id === nextEventId}
         onSelect={() => handleSelect(result.event.id)}
         now={now}
         selectMode={exportActive}
@@ -770,23 +671,8 @@ export default function MessageJumpList({
 
   const body_node = (
     <>
-
-      {(mode === "playback-select" || duration !== null) && !exportActive && (
-        <NowPlayingHeader
-          event={focusedEvent}
-          currentTime={currentTime}
-          duration={duration}
-          isPaused={isPaused}
-          isSummarized={isSummarized}
-          onPause={onPause}
-          onResume={onResume}
-          onSeek={onSeek}
-          now={now}
-          onJumpToCurrent={jumpToCurrent}
-        />
-      )}
-
-      {/* Search */}
+      {/* Search: only where the owner runs the server search */}
+      {search && (
       <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1.5">
         <Search className="h-4 w-4 shrink-0 text-wc-text-muted" aria-hidden="true" />
         <input
@@ -820,36 +706,93 @@ export default function MessageJumpList({
           </button>
         )}
       </div>
+      )}
+      {search && (
+        <div className="flex shrink-0 flex-wrap items-center gap-1 px-3 pb-1.5">
+          <div
+            data-testid="msg-jump-mode"
+            role="group"
+            aria-label={t(strings.messageJumpList.modeLabel)}
+            className="inline-flex overflow-hidden rounded-full border border-wc-default"
+          >
+            {SEARCH_MODES.map((searchMode) => (
+              <button
+                key={searchMode}
+                type="button"
+                data-mode={searchMode}
+                aria-pressed={search.options.mode === searchMode}
+                onClick={() => { search.onOptionsChange({ ...search.options, mode: searchMode }); }}
+                className={cn(
+                  "min-h-8 px-2.5 text-[11px] font-medium transition",
+                  search.options.mode === searchMode ? "bg-wc-accent/25 text-wc-text-primary" : "text-wc-text-muted hover:bg-wc-surface-input",
+                )}
+              >
+                {t(SEARCH_MODE_LABEL_KEY[searchMode])}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            data-testid="msg-jump-case"
+            aria-pressed={search.options.caseSensitive}
+            aria-label={t(strings.messageJumpList.matchCase)}
+            title={t(strings.messageJumpList.matchCase)}
+            onClick={() => { search.onOptionsChange({ ...search.options, caseSensitive: !search.options.caseSensitive }); }}
+            className={cn(
+              "min-h-8 rounded-full px-2.5 text-[11px] font-semibold transition",
+              search.options.caseSensitive ? "bg-wc-accent/25 text-wc-text-primary" : "bg-wc-surface-input/40 text-wc-text-muted hover:bg-wc-surface-input",
+            )}
+          >
+            Aa
+          </button>
+          <button
+            type="button"
+            data-testid="msg-jump-whole-word"
+            aria-pressed={search.options.wholeWord}
+            onClick={() => { search.onOptionsChange({ ...search.options, wholeWord: !search.options.wholeWord }); }}
+            className={cn(
+              "min-h-8 rounded-full px-2.5 text-[11px] font-medium transition",
+              search.options.wholeWord ? "bg-wc-accent/25 text-wc-text-primary" : "bg-wc-surface-input/40 text-wc-text-muted hover:bg-wc-surface-input",
+            )}
+          >
+            {t(strings.messageJumpList.wholeWord)}
+          </button>
+        </div>
+      )}
+      {q && search?.error && (
+        <div data-testid="msg-jump-error" role="alert" className="shrink-0 px-3 pb-1 text-[11px] text-red-400">
+          {search.error}
+        </div>
+      )}
 
       {/* Result count */}
       <div data-testid="msg-nav-count" className="shrink-0 px-3 pb-1 text-[10px] text-wc-text-faint">
         {t(strings.messageJumpList.resultCount, { count: results.length })}
       </div>
 
-      {/* Primary chips */}
+      {/* Role, and one Filters button; everything else folds behind it */}
       <div
-        data-testid="msg-jump-filters"
         role="group"
         aria-label={t(strings.messageJumpList.filterAriaLabel)}
         className="flex shrink-0 flex-wrap items-center gap-1 px-3 pb-2"
       >
         <FilterChip id="all" label={t(strings.messageJumpList.filterAll)} active={allActive} onClick={resetPrimaryFilters} />
-        <FilterChip id="user" label={t(strings.messageJumpList.filterUser)} active={role === "user"} onClick={() => setRole(role === "user" ? "all" : "user")} />
-        <FilterChip id="assistant" label={t(strings.messageJumpList.filterAssistant)} active={role === "assistant"} onClick={() => setRole(role === "assistant" ? "all" : "assistant")} />
-        <FilterChip id="failed" label={t(strings.messageJumpList.filterFailed)} active={status === "failed"} onClick={() => setStatus(status === "failed" ? "all" : "failed")} />
-        <FilterChip id="unheard" label={t(strings.messageJumpList.filterUnheard)} active={status === "unheard"} onClick={() => setStatus(status === "unheard" ? "all" : "unheard")} />
+        <FilterChip id="user" label={t(strings.messageJumpList.filterUser)} active={role === "user"} onClick={() => { applyRole(role === "user" ? "all" : "user"); }} />
+        <FilterChip id="assistant" label={t(strings.messageJumpList.filterAssistant)} active={role === "assistant"} onClick={() => { applyRole(role === "assistant" ? "all" : "assistant"); }} />
         <button
           type="button"
-          data-testid="msg-nav-more"
-          data-active={showAdvanced}
+          data-testid="msg-jump-filters"
+          data-active={showAdvanced || foldedFilterCount > 0}
           aria-expanded={showAdvanced}
-          onClick={() => setShowAdvanced((v) => !v)}
+          onClick={() => { setShowAdvanced((v) => !v); }}
           className={cn(
-            "rounded-full px-3 py-1 text-[11px] font-medium transition",
-            showAdvanced ? "bg-wc-accent/25 text-wc-text-primary" : "bg-wc-surface-input/40 text-wc-text-muted hover:bg-wc-surface-input hover:text-wc-text-primary",
+            "ms-auto inline-flex min-h-8 items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium transition",
+            showAdvanced || foldedFilterCount > 0 ? "bg-wc-accent/25 text-wc-text-primary" : "bg-wc-surface-input/40 text-wc-text-muted hover:bg-wc-surface-input hover:text-wc-text-primary",
           )}
         >
-          {showAdvanced ? t(strings.messageJumpList.filterLess) : t(strings.messageJumpList.filterMore)}
+          <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+          {t(strings.messageJumpList.filtersToggle)}
+          {foldedFilterCount > 0 && <span data-testid="msg-jump-filters-count">· {foldedFilterCount}</span>}
         </button>
       </div>
 
@@ -871,7 +814,7 @@ export default function MessageJumpList({
                       testId={`msg-nav-source-${src}`}
                       label={t(SOURCE_LABEL_KEY[src])}
                       active={role === value}
-                      onClick={() => setRole(role === value ? "all" : value)}
+                      onClick={() => { applyRole(role === value ? "all" : value); }}
                     />
                   );
                 })}
@@ -906,7 +849,6 @@ export default function MessageJumpList({
                   testId={`msg-nav-sort-${opt}`}
                   label={t(SORT_LABEL_KEY[opt])}
                   active={sort === opt}
-                  disabled={opt === "relevance" && !q}
                   onClick={() => setSort(opt)}
                 />
               ))}
@@ -930,10 +872,10 @@ export default function MessageJumpList({
         </div>
       ) : (
         <div
-          ref={listRef}
+          ref={setListEl}
           data-testid="msg-jump-scroll"
           tabIndex={-1}
-          className="flex-1 space-y-1 overflow-y-auto px-2 pb-[max(0.5rem,var(--wc-safe-bottom,0px))] pt-1 outline-none"
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-2 pt-1 outline-none"
         >
           <div style={{ height: navigatorTotalSize, position: "relative" }}>
             {navigatorVirtualItems.map((item) => {
@@ -950,13 +892,12 @@ export default function MessageJumpList({
               );
             })}
           </div>
-          <div data-testid="msg-jump-safe-spacer" aria-hidden="true" style={{ height: "var(--wc-safe-bottom, 0px)" }} />
         </div>
       )}
 
-      {q && searchMatchCount !== undefined && (
-        <div data-testid="msg-nav-server-search-count" className="shrink-0 border-t border-wc-default/60 px-3 py-1 text-[10px] text-wc-text-faint">
-          {searchMatchCount} {searchTruncated ? "+" : ""} {t(strings.messageJumpList.noSearchResults)}
+      {q && search?.truncated && (
+        <div data-testid="msg-jump-truncated" className="shrink-0 border-t border-wc-default/60 px-3 py-1 text-[10px] text-wc-text-faint">
+          {t(strings.messageJumpList.truncated)}
         </div>
       )}
 
@@ -1043,8 +984,14 @@ export default function MessageJumpList({
         closeLabel={t(strings.messageJumpList.closeAriaLabel)}
         testId="msg-jump-list"
         avoidKeyboard
+        // Opened to search: the sheet's own open-focus lands in the search box.
+        initialFocusRef={initialFocus === "search" ? searchRef : undefined}
+        // The virtualized result list is the one scroller; the sheet's content
+        // box becomes the column it shrinks inside, so the footer stays put.
+        contentClassName="flex flex-col"
       >
-        <div tabIndex={0} onKeyDown={handleKeyDown} className="flex flex-col">
+        {/* A shrinking column: the list gives up height so the footer stays on screen. */}
+        <div tabIndex={0} onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 flex-col">
           {body_node}
         </div>
       </BottomSheet>
@@ -1058,7 +1005,7 @@ export default function MessageJumpList({
       data-testid="msg-jump-list"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="wc-stable-theme flex max-h-[32rem] w-[22rem] flex-col overflow-hidden rounded-xl border border-wc-default bg-wc-surface-raised shadow-2xl"
+      className="wc-stable-theme flex max-h-[32rem] min-h-0 w-[22rem] flex-col overflow-hidden rounded-xl border border-wc-default bg-wc-surface-raised shadow-2xl"
     >
       {/* Title + export + close */}
       <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-1 pb-1">

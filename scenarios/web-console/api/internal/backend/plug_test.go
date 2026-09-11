@@ -11,9 +11,6 @@ func TestDescriptor_PlugPointsNilByDefault(t *testing.T) {
 	if d.KeyMap != nil {
 		t.Errorf("KeyMap default should be nil, got %T", d.KeyMap)
 	}
-	if d.PromptDetector != nil {
-		t.Errorf("PromptDetector default should be nil, got %T", d.PromptDetector)
-	}
 	if d.IdleHeuristic != nil {
 		t.Errorf("IdleHeuristic default should be nil, got %T", d.IdleHeuristic)
 	}

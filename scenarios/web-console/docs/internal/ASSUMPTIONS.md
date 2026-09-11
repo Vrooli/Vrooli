@@ -1,7 +1,7 @@
 # Documented Assumptions
 
 ## Last Updated
-2026-02-19
+2026-09-11
 
 ## Data Shape Assumptions
 - **PTY output is binary-safe**: WebSocket framing preserves arbitrary byte sequences from PTY stdout. If a program emits raw binary (e.g., `cat /dev/urandom`), the output loop must not corrupt it. Made in [CODE: api/terminal_ws.go] and [CODE: ui/src/hooks/useTerminalSocket.ts].
@@ -12,6 +12,11 @@
 - **Single operator per server**: No concurrent multi-user access. Session isolation, RBAC, and resource quotas are out of scope. This assumption is documented in the PRD and permeates the API (no auth middleware).
 - **Parent scenario handles authentication**: Web console trusts that the embedding parent has already authenticated the user. No token validation occurs in [CODE: api/main.go].
 - **Ollama is locally available**: AI generation assumes Ollama runs on `localhost:11434`. If unavailable, it falls back to OpenRouter (if configured). Made in [CODE: api/ai_generate.go].
+
+- **Claude Code prompt boxes keep their captured layout per version**: the screen parser reads questions and permissions against fixtures captured from live Claude Code 2.1.x screens; a box it cannot place (a new layout, or one still being drawn) is reported as "asking you something" (level 1), never guessed. Answering by keystrokes is allowed only for versions listed in [CODE: api/backends/claude/answerable_versions.go]. Made in [CODE: api/backends/claude/prompt_box.go].
+- **Local sessions run this host's Claude Code**: the version that gates answering is read from the host's `claude --version`; a session on a remote target is judged by the local version. Made in [CODE: api/prompt_answering.go].
+- **Claude's Notification hook names permission waits in its message**: "needs your permission" or "waiting for your input" marks a waiting session when the screen has no parsable box. Made in [CODE: api/hook_notification_handler.go].
+- **OpenCode permission events carry their request id**: an answer replies to the `id` of the `permission.asked` event the pane is waiting on. Made in [CODE: api/opencode_activity.go].
 
 ## Timing Assumptions
 - **WebSocket keepalive interval < proxy timeout**: The 30-second ping interval must be shorter than any reverse proxy's idle timeout (typically 60s). Made in [CODE: api/terminal_ws.go].

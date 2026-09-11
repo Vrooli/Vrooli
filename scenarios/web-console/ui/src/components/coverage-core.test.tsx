@@ -13,10 +13,9 @@ import type { SessionPlaybackControllerState } from "../domains/tts-playback/typ
 import {
   buildPlaybackContext,
   buildPlaybackQueue,
-  buildQueueLabel,
   resolvePlaybackParagraphs,
   shouldAutoPlayIncomingEvent,
-  shouldShowPlaybackBar,
+  shouldShowPlayback,
 } from "../domains/tts-playback/utils";
 
 const { generateAISuggestions } = vi.hoisted(() => ({ generateAISuggestions: vi.fn() }));
@@ -136,11 +135,11 @@ describe("small interactive UI surfaces", () => {
     };
     expect(resolvePlaybackParagraphs(event, "original")).toEqual(["original hello"]);
     expect(buildPlaybackQueue("session-1", [event], {}, "active")).toHaveLength(1);
-    expect(buildQueueLabel(state, event)).toBe("#4");
     const context = buildPlaybackContext({ "session-1": { events: [event] } }, state, { sessionId: "session-1", eventId: "event-1" }, "continuous");
     expect(context?.version).toBe("original");
+    expect(context).toMatchObject({ queueIndex: 0, queueLength: 1 });
     expect(shouldAutoPlayIncomingEvent({ autoTtsEnabled: true, playbackIntent: "continuous", activePaneId: "session-1", sessionId: "session-1", event, isSpeaking: false })).toBe(true);
-    expect(shouldShowPlaybackBar({ autoTtsEnabled: true, activePaneId: "session-1", context, isSpeaking: false })).toBe(true);
+    expect(shouldShowPlayback({ autoTtsEnabled: true, activePaneId: "session-1", context, isSpeaking: false, isActive: false })).toBe(true);
     useTtsPlaybackIntentStore.getState().setPlaybackIntent("paused");
     useTtsPlaybackIntentStore.getState().setSelectedTarget({ sessionId: "session-1", eventId: "event-1" });
     expect(useTtsPlaybackIntentStore.getState().playbackIntent).toBe("paused");

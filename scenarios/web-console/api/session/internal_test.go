@@ -2,10 +2,42 @@ package session
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"web-console/internal/ptyfake"
 )
+
+type cleanupFailingPTY struct {
+	*ptyfake.FakePTY
+	killErr  error
+	closeErr error
+}
+
+func (p *cleanupFailingPTY) Kill() error { return p.killErr }
+func (p *cleanupFailingPTY) Close() error {
+	return errors.Join(p.closeErr, p.FakePTY.Close())
+}
+
+func TestManagerDeleteSurfacesProcessCleanupFailure(t *testing.T) {
+	killErr := errors.New("kill failed")
+	closeErr := errors.New("close failed")
+	base := ptyfake.NewFakePTYWithOutput()
+	pty := &cleanupFailingPTY{FakePTY: &base.FakePTY, killErr: killErr, closeErr: closeErr}
+	sm := NewManagerWithFactory(ptyfake.Factory(pty))
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	err = sm.Delete(context.Background(), sess.ID)
+	if !errors.Is(err, killErr) || !errors.Is(err, closeErr) {
+		t.Fatalf("Delete error = %v, want kill and close failures", err)
+	}
+	if _, ok := sm.Get(sess.ID); ok {
+		t.Fatal("failed process cleanup must still remove the runtime handle")
+	}
+}
 
 // Tests that touch private Manager methods/fields live in the same package
 // so they can exercise the seams without forcing them onto the public API.

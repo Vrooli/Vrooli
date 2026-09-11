@@ -46,6 +46,13 @@ func (a *Adapter) Snapshot(_ context.Context) Snapshot {
 		AIGenerations:              r.AIGenerations,
 		AISuggestions:              r.AISuggestions,
 		VoiceSkipVerificationTotal: r.VoiceSkipVerificationTotal,
-		Uptime:                     r.Uptime,
+		Continuity: ContinuityMetrics{
+			Receipts:            r.Continuity.Receipts,
+			Failures:            r.Continuity.Failures,
+			Orphans:             r.Continuity.Orphans,
+			PublicationPending:  r.Continuity.PublicationPending,
+			PublicationFailures: r.Continuity.PublicationFailures,
+		},
+		Uptime: r.Uptime,
 	}
 }

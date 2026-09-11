@@ -14,7 +14,7 @@ vi.mock("../api/conversation", () => ({
 describe("useConversationHydration", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
     mockGetConversationSession.mockReset();
     vi.spyOn(console, "warn").mockImplementation(() => {});
   });

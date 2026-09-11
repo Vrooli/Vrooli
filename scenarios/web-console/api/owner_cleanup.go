@@ -17,6 +17,7 @@ import (
 	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/storage"
 	platform "github.com/vrooli/platform-go"
+	"web-console/internal/continuity"
 	"web-console/internal/sessionstore"
 )
 
@@ -69,12 +70,13 @@ type ownerOrphanReport struct {
 type webConsoleCleanup struct {
 	server           *Server
 	recoveryLockPath string
+	retentionLedger  continuity.Ledger
 	mu               sync.Mutex
 	done             map[string]ownerCleanupResult
 }
 
 func (s *Server) registerOwnerCleanupRoutes() {
-	h := &webConsoleCleanup{server: s, recoveryLockPath: webConsoleRecoveryLockPath(), done: make(map[string]ownerCleanupResult)}
+	h := &webConsoleCleanup{server: s, recoveryLockPath: webConsoleRecoveryLockPath(), retentionLedger: continuity.NewSQLLedger(s.db), done: make(map[string]ownerCleanupResult)}
 	s.router.HandleFunc("/api/v1/cleanup/estimate", h.estimate).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/cleanup/preview", h.preview).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/cleanup/apply", h.apply).Methods(http.MethodPost)
@@ -270,7 +272,31 @@ func (h *webConsoleCleanup) autoSweep(ctx context.Context, seconds int64, keep i
 	defer release()
 	rows := h.candidateRows(ctx, seconds, maxBytes, keep)
 	items := h.items(rows, maxBytes, keep)
+	if len(items) == 0 {
+		return
+	}
+	if h.retentionLedger == nil {
+		log.Printf("web-console automatic retention deferred: continuity receipt ledger is unavailable")
+		return
+	}
+	operationID := fmt.Sprintf("web-console:owner-retention:%d", time.Now().UTC().UnixNano())
+	if _, err := h.retentionLedger.Put(ctx, continuity.Receipt{
+		OperationID: operationID,
+		SessionID:   "owner-retention",
+		ActorKind:   "system",
+		ActorID:     "owner-retention",
+		Command:     "retention",
+		FromState:   continuity.StateArchived,
+		ToState:     continuity.StateArchived,
+		ReasonCode:  "configured_owner_retention_policy",
+		Status:      "pending",
+		CreatedAt:   time.Now().UTC(),
+	}); err != nil {
+		log.Printf("web-console automatic retention deferred: create receipt: %v", err)
+		return
+	}
 	byID := make(map[string]sessionstore.Metadata, len(rows))
+	failed := false
 	for _, row := range rows {
 		byID[row.ID] = row
 	}
@@ -279,10 +305,24 @@ func (h *webConsoleCleanup) autoSweep(ctx context.Context, seconds int64, keep i
 		if !ok || h.isProtected(row.ID) {
 			continue
 		}
+		// Agent history is the only native recovery copy for sessions without
+		// durable conversation events. Automatic retention must not remove that
+		// copy merely because the row is archived and inactive.
+		if h.server.conversations != nil && h.server.conversations.CountSessionEvents(ctx, row.ID) == 0 {
+			continue
+		}
 		if _, err := pruneArchivedAgentHistory(row); err != nil {
+			failed = true
 			log.Printf("web-console automatic retention: prune %s: %v", row.ID, err)
 			continue
 		}
+	}
+	status, code := "succeeded", ""
+	if failed {
+		status, code = "failed", "retention_prune_failed"
+	}
+	if _, err := h.retentionLedger.Complete(ctx, operationID, status, code, time.Now().UTC()); err != nil {
+		log.Printf("web-console automatic retention: complete receipt: %v", err)
 	}
 }
 
@@ -381,18 +421,20 @@ func (h *webConsoleCleanup) apply(w http.ResponseWriter, r *http.Request) {
 			result.Warnings = append(result.Warnings, "durable transcript protected: "+item.ID)
 			continue
 		}
-		bytes, err := pruneArchivedAgentHistory(row)
-		if err != nil {
+		if h.server.lifecycleDelete == nil {
+			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
+			result.Warnings = append(result.Warnings, "canonical lifecycle owner is unavailable")
+			continue
+		}
+		if err := h.server.lifecycleDelete(r.Context(), row.ID); err != nil {
 			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
 			result.Warnings = append(result.Warnings, err.Error())
 			continue
 		}
-		if err := h.server.sessionStore.Delete(r.Context(), row.ID); err != nil {
-			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
-			result.Warnings = append(result.Warnings, err.Error())
-			continue
-		}
-		result.ReclaimedBytes += bytes
+		// lifecycleDelete owns the complete artifact cascade, including native
+		// agent history. Count the reviewed estimate only after that owner has
+		// acknowledged success; cleanup must not destroy evidence ahead of it.
+		result.ReclaimedBytes += item.Bytes
 		result.RemovedItemIDs = append(result.RemovedItemIDs, item.ID)
 	}
 	h.mu.Lock()

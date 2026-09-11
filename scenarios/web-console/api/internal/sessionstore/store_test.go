@@ -153,6 +153,28 @@ func TestSQLStore_ArchiveRoundTrip(t *testing.T) { // [REQ:REQ-P0-003c]
 	}
 }
 
+func TestSQLStore_SaveCannotResurrectArchivedMetadata(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	s := newSQLStore(t)
+	if err := s.Save(ctx, Metadata{ID: "preserve", Shell: "/bin/bash"}); err != nil {
+		t.Fatal(err)
+	}
+	archivedAt := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	if err := s.MarkArchived(ctx, "preserve", archivedAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Save(ctx, Metadata{ID: "preserve", Shell: "/bin/zsh", AgentType: AgentCodex}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(ctx, "preserve")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.ArchivedAt.Equal(archivedAt) {
+		t.Fatalf("late save cleared archive marker: %+v", got)
+	}
+}
+
 func TestSQLStore_MarkDismissedAfterReopenClearsArchiveAtomically(t *testing.T) {
 	ctx := context.Background()
 	s := newSQLStore(t)

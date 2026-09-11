@@ -2,10 +2,12 @@ package opencode
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -19,6 +21,9 @@ type Client interface {
 	// ctx is cancelled or the stream terminates, returning the terminating
 	// error (nil on a clean EOF).
 	Events(ctx context.Context, onEvent func(Event)) error
+	// ReplyPermission answers a pending permission request with "once",
+	// "always", or "reject".
+	ReplyPermission(ctx context.Context, requestID, reply string) error
 }
 
 // HTTPClient talks to an `opencode serve` instance over loopback HTTP.
@@ -78,9 +83,9 @@ func (c *HTTPClient) Events(ctx context.Context, onEvent func(Event)) error {
 		return err
 	}
 	req.Header.Set("Accept", "text/event-stream")
-	// No timeout on the streaming client: the stream is long-lived and bounded
-	// only by ctx cancellation.
-	streamClient := &http.Client{}
+	// The stream is intentionally long-lived. An explicit zero timeout documents
+	// that cancellation is owned by ctx rather than an implicit default client.
+	streamClient := &http.Client{Timeout: 0}
 	resp, err := streamClient.Do(req)
 	if err != nil {
 		return err
@@ -113,4 +118,28 @@ func (c *HTTPClient) Events(ctx context.Context, onEvent func(Event)) error {
 		onEvent(ev)
 	}
 	return scanner.Err()
+}
+
+// ReplyPermission answers a pending permission request: POST
+// /permission/{requestID}/reply with {"reply": "once" | "always" | "reject"}.
+func (c *HTTPClient) ReplyPermission(ctx context.Context, requestID, reply string) error {
+	body, err := json.Marshal(map[string]string{"reply": reply})
+	if err != nil {
+		return err
+	}
+	path := "/permission/" + url.PathEscape(requestID) + "/reply"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("opencode %s: status %d", path, resp.StatusCode)
+	}
+	return nil
 }

@@ -3,7 +3,10 @@ import type { ConversationEvent } from "../api/conversation";
 import { API_BASE_WITH_SUFFIX } from "../api/client";
 import { coerceOriginName, type BackendID, type SessionInfo } from "../api/sessions";
 import { useConversationStore } from "../stores/useConversationStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import { useLiveStreamStore } from "../stores/useLiveStreamStore";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
+import { decodeActivityPayload, type SessionActivityPayload } from "../api/sessionActivity";
 import { refreshConversationSession } from "./useConversationSession";
 
 /**
@@ -44,6 +47,10 @@ type GlobalEventEnvelope =
   | (GlobalEventEnvelopeBase & {
       kind: "device_status";
       payload: DeviceStatusPayload;
+    })
+  | (GlobalEventEnvelopeBase & {
+      kind: "session_activity";
+      payload: SessionActivityPayload;
     });
 
 interface ConversationEventPayload {
@@ -194,12 +201,24 @@ export function dispatchGlobalEvent(
         const supportsMessagesView = Boolean(p.agent) && p.agent !== "none";
         lifecycle?.onSessionCreated?.(sessionFromStatusPayload(sessionId, p), supportsMessagesView);
       } else if (p.action === "deleted" || p.action === "terminated") {
+        if (p.action === "deleted") {
+          // A deleted session has nothing left to show or return to.
+          useConversationStore.getState().clearSession(sessionId);
+          useMessagesViewStore.getState().forget(sessionId);
+          useSessionActivityStore.getState().forget(sessionId);
+        }
         lifecycle?.onSessionEnded?.(sessionId, p.action);
       }
       break;
     }
     case "device_status":
       deviceLifecycle?.onDeviceStatus?.(sessionId, envelope.payload);
+      break;
+    case "session_activity":
+      // What the session's agent is doing between messages (working, idle,
+      // waiting on the user). The server's detector owns it; see
+      // api/session_activity.go.
+      if (sessionId) useSessionActivityStore.getState().apply(sessionId, decodeActivityPayload(envelope.payload));
       break;
   }
 }
@@ -279,6 +298,7 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       "conversation_out_of_sync",
       "session_status",
       "device_status",
+      "session_activity",
     ] as const;
 
     let source: EventSource | null = null;

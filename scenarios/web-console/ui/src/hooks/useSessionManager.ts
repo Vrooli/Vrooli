@@ -5,6 +5,7 @@ import { roleFromDTO } from "./useRoleActions";
 import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
 import type { TerminalTarget } from "../api/targets";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
@@ -77,6 +78,9 @@ export function useSessionManager() {
   const [panes, setPanes] = useState<PaneState[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<ErrorInfo | null>(null);
+  // A close the server refused. Kept separate from createError so a stale
+  // launch failure and a live close failure can never overwrite each other.
+  const [closeError, setCloseError] = useState<ErrorInfo | null>(null);
   const [hydrationError, setHydrationError] = useState<ErrorInfo | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const terminalRefs = useRef<Map<string, TerminalPaneHandle>>(new Map());
@@ -113,6 +117,8 @@ export function useSessionManager() {
         const layout = layoutResult.status === "fulfilled" ? layoutResult.value : null;
 
         if (canceled) return;
+        // Activity arrives by push afterwards; the list seeds what is true now.
+        useSessionActivityStore.getState().hydrate(sessions);
 
         // Surface per-call failures. Logging always (so a single-call
         // regression is visible without devtools-on-mobile); the UI banner
@@ -290,6 +296,10 @@ export function useSessionManager() {
     setHydrationError(null);
   }, []);
 
+  const clearCloseError = useCallback(() => {
+    setCloseError(null);
+  }, []);
+
   // Guard against concurrent creation requests (e.g., rapid double-click).
   // The `isCreating` state flag drives the UI (button disable), while
   // `createInFlight` prevents the handler itself from executing twice.
@@ -358,15 +368,22 @@ export function useSessionManager() {
     ttsPlaybackRegistry.stop(sessionId);
   }, []);
 
+  // A refused close used to be swallowed here: the caller saw only "failed",
+  // and its caller returned without a word, so pressing Close did nothing
+  // visible and left the operator with no way to tell a refusal from a
+  // no-op. The reason the server gave is kept so the surface can say it.
   const removePane = useCallback(async (sessionId: string): Promise<"undoable" | "removed" | "failed"> => {
     const pane = panesRef.current.find((candidate) => candidate.session.id === sessionId);
     if (!pane) return "failed";
     try {
       await archiveSession(sessionId);
+      setCloseError(null);
       releasePaneLocally(sessionId);
       archivedUndoRef.current.set(sessionId, pane);
       return "undoable";
-    } catch {
+    } catch (err) {
+      console.error("Failed to close session:", err);
+      setCloseError(toErrorInfo(err));
       return "failed";
     }
   }, [releasePaneLocally]);
@@ -619,21 +636,16 @@ export function useSessionManager() {
     [],
   );
 
-  const getTtsStateOnPane = useCallback(
-    (sessionId: string) => {
-      return terminalRefs.current.get(sessionId)?.playback.getState() ?? null;
-    },
-    [],
-  );
-
   return {
     panes,
     isHydrated,
     isCreating,
     createError,
     hydrationError,
+    closeError,
     clearError,
     clearHydrationError,
+    clearCloseError,
     launchSession,
     removePane,
     undoArchive,
@@ -662,6 +674,5 @@ export function useSessionManager() {
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
     setTtsMutedOnPane,
-    getTtsStateOnPane,
   };
 }

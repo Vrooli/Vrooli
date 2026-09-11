@@ -79,8 +79,13 @@ func defaultPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// Filter Claude Code env vars first, then ensure TERM is set.
 	// This prevents nested session detection when users run `claude` in
 	// web-console terminals, even if the server was started from Claude Code.
-	cmd.Env = applySessionEnv(ensureTermEnv(filterServiceEnv(claude.FilterEnv(os.Environ()))), spec.Env)
-	cmd.Dir = resolveLaunchDir(spec)
+	baseEnvironment := applySessionEnv(ensureTermEnv(filterServiceEnv(claude.FilterEnv(os.Environ()))), spec.Env)
+	environment, workingDir, err := prepareSessionEnvironment(baseEnvironment, resolveLaunchDir(spec))
+	if err != nil {
+		return nil, fmt.Errorf("resolve PTY launch context: %w", err)
+	}
+	cmd.Env = environment
+	cmd.Dir = workingDir
 	ptmx, err := creackpty.StartWithSize(cmd, &creackpty.Winsize{Rows: spec.Rows, Cols: spec.Cols})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start PTY: %w", err)

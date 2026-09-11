@@ -101,7 +101,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "ui",
-      "description": "Every message action is declared in one model, no more than three controls render inline, all action targets are at least 44 pixels, existing selectors remain valid, and remaining actions are reachable through overflow.",
+      "description": "Every message action is declared in one model; actions are hidden at rest and revealed on hover, focus, long-press, or right-click; no more than three controls render inline, all action targets are at least 44 pixels, existing selectors remain valid, and remaining actions are reachable through overflow.",
       "validation": [
         {
           "type": "test",

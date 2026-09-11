@@ -10,7 +10,7 @@ The web-console persists workspace and conversation state in a single-file SQLit
 | SQLite (workspace metadata, conversation, AI config) | Persistent (cross-device sync) | [CODE: api/internal/<domain>/schema.sql] |
 | On-disk rollouts / shell history | Persistent (filesystem) | Codex rollout files, claude-code session storage |
 
-Storage posture and migration roadmap: [STORAGE_AUDIT](../internal/STORAGE_AUDIT.md).
+Storage ownership and persistence boundaries: [SEAMS](../internal/SEAMS.md#storage-ownership-and-persistence-boundaries).
 
 ## In-memory entities
 
@@ -19,7 +19,10 @@ Storage posture and migration roadmap: [STORAGE_AUDIT](../internal/STORAGE_AUDIT
 
 Per-PTY state owned by `SessionManager`. Holds the PTY file descriptor, output broadcast channels, expiration policy, agent metadata, and `exitCh`. Lifecycle and concurrency invariants: [Architecture — Session Lifecycle](../concepts/ARCHITECTURE.md#data-flow), [SEAMS](../internal/SEAMS.md#3-domain--session-lifecycle), [INVARIANTS](../internal/INVARIANTS.md).
 
-A subset of session metadata is mirrored into the persistent `sessions` table so that orphaned PTYs can be recovered after a restart; see [Session Recovery](../guides/SESSION_RECOVERY.md).
+A subset of session metadata is mirrored into the persistent `sessions` table
+so that surviving PTYs can be recovered after a restart. The continuity
+catalog and conversation projections separately preserve searchable evidence
+when that process-bound row is missing; see [Session Recovery](../guides/SESSION_RECOVERY.md).
 
 ## Persistent tables
 
@@ -38,7 +41,7 @@ One row per session that has a semantic message history. Tracks `last_sequence` 
 ### `conversation_events`
 Append-only event log scoped to a `conversation_sessions.session_id`. Each row is one assistant or user turn with `text`, `speech_paragraphs`, optional `original_speech_paragraphs` (pre-summarization), per-event `delivery_state`, `tts_state`, `consumption_state`, and a monotonic `sequence`. Uniqueness is `(session_id, sequence)`. Source-of-truth for the messages pane and TTS replay; see [Conversation Tracking guide](../guides/CONVERSATION_TRACKING.md).
 
-The `conversation_events_fts` FTS5 virtual table indexes `text` for cross-session archive search. Insert, update, and delete triggers keep it synchronized with `conversation_events`; startup reconciliation backfills missing index rows. Archive search joins through `sessions`, excludes live lineages, and returns message hits rather than scanning every transcript with `LIKE`.
+The `conversation_events_fts` FTS5 virtual table indexes `text` for cross-session continuity search. Insert, update, and delete triggers keep it synchronized with `conversation_events`; startup reconciliation backfills missing index rows. Continuity search uses left-joined catalog evidence, includes live, archived, recoverable, and orphaned records, and returns message hits rather than scanning every transcript with `LIKE`.
 
 ## Archive retention
 

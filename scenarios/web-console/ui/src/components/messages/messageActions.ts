@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,
+  BookOpen,
   BookmarkPlus,
   Check,
   Copy,
@@ -8,21 +9,14 @@ import {
   Forward,
   ListMusic,
   Play,
-  Volume2,
   type LucideIcon,
 } from "lucide-react";
 import type { ConversationEvent } from "../../api/conversation";
-import type { TTSPlaybackState } from "../../audio-integration";
 import type { PlaybackVersion } from "../../domains/tts-playback/types";
 import type { SummarizationLevel } from "../tts/PlaybackModeControl";
 import { strings } from "../../consts/strings";
 
 // DOC: docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md
-
-export type MessageAudioSettings = Pick<
-  TTSPlaybackState,
-  "volume" | "isMuted" | "playbackRate" | "capabilities"
->;
 
 export interface MessageActionContext {
   event: ConversationEvent;
@@ -40,23 +34,19 @@ export interface MessageActionContext {
   onClearSummarizeError: (eventId: string) => void;
   onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
   onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
-  audioSettings: MessageAudioSettings;
-  onSetPlaybackRate: (rate: number) => void;
-  onSetVolume: (level: number) => void;
-  onSetMuted: (next: boolean) => void;
-  isMobile: boolean;
   onCopy: (eventId: string, text: string) => void;
   onPlayFromHere: (eventId: string) => void;
-  onPlayEvent: (eventId: string) => void;
   onToggleRenderMode: (eventId: string) => void;
+  /** The row is taller than the collapse threshold and ends in the reader footer. */
+  isTall?: boolean;
+  /** Present only where the surface has a reader. */
+  onOpenReader?: (eventId: string) => void;
   /** Present only where the surface can reach a composer. */
   onSendToComposer?: (text: string) => void;
   onSaveAsSnippet?: (text: string) => void;
   onHandoff?: (sessionId: string, payload: string) => void;
   onOpenPlaybackMode?: () => void;
-  onOpenAudio?: () => void;
   renderPlaybackAction?: () => ReactNode;
-  renderAudioAction?: () => ReactNode;
 }
 
 export interface MessageAction {
@@ -65,7 +55,7 @@ export interface MessageAction {
   /** Existing i18n key used for the control label. */
   labelKey: string | ((ctx: MessageActionContext) => string);
   icon: (ctx: MessageActionContext) => LucideIcon;
-  /** Primary actions render inline; the rest render in the overflow menu. */
+  /** Primary actions render inline (on reveal); every action renders in the action list. */
   placement: "primary" | "overflow";
   placementFor?: (ctx: MessageActionContext) => "primary" | "overflow";
   appliesTo: (ctx: MessageActionContext) => boolean;
@@ -89,6 +79,13 @@ export function actionIcon(action: MessageAction, ctx: MessageActionContext): Lu
   return action.icon(ctx);
 }
 
+/** The actions that apply to a message, primary ones first, in registry order. */
+export function orderedActions(ctx: MessageActionContext): MessageAction[] {
+  const applicable = MESSAGE_ACTIONS.filter((action) => action.appliesTo(ctx));
+  const primary = applicable.filter((action) => actionPlacement(action, ctx) === "primary");
+  return [...primary, ...applicable.filter((action) => !primary.includes(action))];
+}
+
 export const MESSAGE_ACTIONS: readonly MessageAction[] = [
   {
     id: "copy",
@@ -108,6 +105,17 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     run: (ctx) => { ctx.onPlayFromHere(ctx.event.id); },
     testId: (ctx) => `msg-speak-from-${ctx.event.id}`,
     disabled: (ctx) => ctx.isAudioLoading,
+  },
+  {
+    id: "open-in-reader",
+    labelKey: strings.messageActions.openInReader,
+    icon: () => BookOpen,
+    placement: "overflow",
+    // A collapsed row's first job is reading it in full.
+    placementFor: (ctx) => (ctx.isTall ? "primary" : "overflow"),
+    appliesTo: (ctx) => ctx.onOpenReader != null,
+    run: (ctx) => { ctx.onOpenReader?.(ctx.event.id); },
+    testId: (ctx) => `msg-open-in-reader-${ctx.event.id}`,
   },
   {
     id: "save-as-snippet",
@@ -158,16 +166,5 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     run: (ctx) => { ctx.onOpenPlaybackMode?.(); },
     testId: (ctx) => `msg-${ctx.event.id}-mode-control`,
     render: (ctx) => ctx.renderPlaybackAction?.(),
-  },
-  {
-    id: "audio-settings",
-    labelKey: strings.messageActions.audioSettings,
-    icon: () => Volume2,
-    placement: "overflow",
-    appliesTo: (ctx) => !ctx.readOnly && ctx.event.role !== "user",
-    run: (ctx) => { ctx.onOpenAudio?.(); },
-    testId: (ctx) => `msg-audio-${ctx.event.id}`,
-    disabled: (ctx) => ctx.isAudioLoading,
-    render: (ctx) => ctx.renderAudioAction?.(),
   },
 ] as const;

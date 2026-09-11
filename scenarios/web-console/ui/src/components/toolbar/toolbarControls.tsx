@@ -17,6 +17,7 @@ import {
   ArrowLeft as ArrowLeftIcon,
   ArrowRight as ArrowRightIcon,
   ArrowUp as ArrowUpIcon,
+  History,
   Image,
   Library,
   MoreHorizontal,
@@ -65,6 +66,8 @@ export interface ToolbarControlContext {
   onUploadImage?: () => void;
   /** Open the sender-owned snippet picker. */
   onOpenSnippets?: () => void;
+  /** Open this device's sent-message history. */
+  onOpenHistory?: () => void;
   /** Rendered in the `more` slot. Owns its own sheet. */
   moreTrigger?: (props: { className: string; style: CSSProperties; label: string }) => ReactNode;
   voice?: Omit<VoiceMicButtonProps, "size" | "className" | "buttonClassName">;
@@ -379,6 +382,19 @@ export function renderToolbarControl(
           label={label}
           icon={Library}
           onClick={ctx.onOpenSnippets}
+          width={slot.width}
+          m={m}
+          inert={inert}
+        />
+      );
+
+    case "history":
+      return (
+        <IconControl
+          testId={tid("toolbar-history")}
+          label={label}
+          icon={History}
+          onClick={ctx.onOpenHistory}
           width={slot.width}
           m={m}
           inert={inert}

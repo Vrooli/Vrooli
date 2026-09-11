@@ -58,14 +58,6 @@ export function findConversationEvent(
   return session?.events.find((event) => event.id === target.eventId) ?? null;
 }
 
-export function buildQueueLabel(state: SessionPlaybackControllerState, event: ConversationEvent | null): string | null {
-  if (!event) return null;
-  if (state.queueEntries.length > 1 && state.queueIndex >= 0 && state.queueIndex < state.queueEntries.length) {
-    return `${state.queueIndex + 1}/${state.queueEntries.length}`;
-  }
-  return `#${event.sequence}`;
-}
-
 export function buildPlaybackContext(
   sessions: Record<string, { events: ConversationEvent[] } | undefined>,
   state: SessionPlaybackControllerState,
@@ -79,9 +71,8 @@ export function buildPlaybackContext(
     event,
     sessionId: currentTarget.sessionId,
     version,
-    queueLabel: buildQueueLabel(state, event),
-    hasQueuedNext: state.queueEntries.length > 0 && state.queueIndex < state.queueEntries.length - 1,
-    hasQueuedPrevious: state.queueEntries.length > 0 && state.queueIndex > 0,
+    queueIndex: state.queueIndex,
+    queueLength: state.queueEntries.length,
     intent,
   };
 }
@@ -117,14 +108,16 @@ export function shouldAutoPlayIncomingEvent(args: {
   return shouldQueueIncomingEvent(args) && !args.isSpeaking;
 }
 
-export function shouldShowPlaybackBar(args: {
+export function shouldShowPlayback(args: {
   autoTtsEnabled: boolean;
   activePaneId: string | null;
   context: PlaybackEventContext | null;
   isSpeaking: boolean;
+  /** Playback the user started is loading or playing, before audio is heard. */
+  isActive: boolean;
 }): boolean {
   return Boolean(
-    (args.autoTtsEnabled || args.isSpeaking)
+    (args.autoTtsEnabled || args.isSpeaking || args.isActive)
     && args.context?.event
     && args.context.sessionId
     && args.activePaneId === args.context.sessionId,

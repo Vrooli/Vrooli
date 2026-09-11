@@ -22,6 +22,8 @@ const (
 	stopID          = "web-console-tts"
 	promptEvent     = "UserPromptSubmit"
 	promptID        = "web-console-prompt"
+	notifyEvent     = "Notification"
+	notifyID        = "web-console-activity"
 	hookScope       = "project"
 	defaultAttempts = 5
 	// hookTokenFileName matches resolveHookTokenPath in the API.
@@ -66,8 +68,8 @@ func Register() cliapp.SubcommandGroup {
 		Name:        "hooks",
 		Description: "Reconcile Web Console's Claude Code project hooks",
 		Subcommands: []cliapp.Command{
-			{Name: "register", Description: "Register the Stop and UserPromptSubmit hooks", Run: r.register},
-			{Name: "remove", Description: "Remove the Stop and UserPromptSubmit hooks", Run: r.remove},
+			{Name: "register", Description: "Register the Stop, UserPromptSubmit, and Notification hooks", Run: r.register},
+			{Name: "remove", Description: "Remove the Stop, UserPromptSubmit, and Notification hooks", Run: r.remove},
 			{Name: "dispatch", Description: "Dispatch a Claude hook payload to Web Console", Run: dispatch},
 		},
 	}
@@ -139,7 +141,18 @@ func (r *registrar) register(args []string) error {
 		"--url", shellQuote("http://localhost:" + strconv.Itoa(apiPort) + "/api/v1/hooks/prompt-submit"),
 		"--token", shellQuote(hookToken),
 	}, " ")
-	return r.reconcile(resourceCLI, promptEvent, promptID, promptCommand, 10, "UserPromptSubmit", apiPort)
+	if err := r.reconcile(resourceCLI, promptEvent, promptID, promptCommand, 10, "UserPromptSubmit", apiPort); err != nil {
+		return err
+	}
+
+	// Notification reports permission and question dialogs, so a session
+	// reads as waiting on the user the moment Claude asks.
+	notifyCommand := strings.Join([]string{
+		"web-console", "hooks", "dispatch", "--event", shellQuote(notifyEvent),
+		"--url", shellQuote("http://localhost:" + strconv.Itoa(apiPort) + "/api/v1/hooks/notification"),
+		"--token", shellQuote(hookToken),
+	}, " ")
+	return r.reconcile(resourceCLI, notifyEvent, notifyID, notifyCommand, 10, "Notification", apiPort)
 }
 
 func (r *registrar) remove(args []string) error {
@@ -156,6 +169,7 @@ func (r *registrar) remove(args []string) error {
 	for _, hook := range []struct{ event, id, label string }{
 		{stopEvent, stopID, "Stop"},
 		{promptEvent, promptID, "UserPromptSubmit"},
+		{notifyEvent, notifyID, "Notification"},
 	} {
 		if _, err := r.run(context.Background(), resourceCLI, "hooks", "remove", "--event", hook.event, "--id", hook.id, "--scope", hookScope); err != nil {
 			return fmt.Errorf("tts-hook: deregister %s hook: %w", hook.label, err)

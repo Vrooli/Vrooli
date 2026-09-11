@@ -1,6 +1,6 @@
 import type { ConversationEvent } from "../../api/conversation";
 import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
-import type { TTSPlaybackState } from "../../audio-integration";
+import type { PlaybackTransport } from "./transport";
 
 export type PlaybackVersion = "active" | "original";
 export type PlaybackIntent = "continuous" | "paused" | "stopped";
@@ -25,15 +25,15 @@ export interface PlaybackEventContext {
   event: ConversationEvent | null;
   sessionId: string | null;
   version: PlaybackVersion;
-  queueLabel: string | null;
-  hasQueuedNext: boolean;
-  hasQueuedPrevious?: boolean;
+  /** The event's place in the play queue, and the queue's length. */
+  queueIndex: number;
+  queueLength: number;
   intent: PlaybackIntent;
 }
 
 export interface SessionPlaybackAudioState {
-  playback: TTSPlaybackState | null;
   isSpeaking: boolean;
+  isPaused: boolean;
 }
 
 export interface SessionPlaybackControllerState {
@@ -76,10 +76,12 @@ export interface SessionPlaybackController {
   stopPlayback: (sessionId: string | null) => void;
   nextTrack: (sessionId: string | null) => void;
   previousTrack: (sessionId: string | null) => void;
-  buildBarContext: (
+  buildPillContext: (
     activePaneId: string | null,
     autoTtsEnabled: boolean,
     audioState: SessionPlaybackAudioState,
   ) => PlaybackEventContext | null;
   focusCurrentEvent: (activePaneId: string | null) => void;
+  /** The active pane's transport, delivered on each provider event. */
+  subscribeTransport: (callback: (transport: PlaybackTransport | null) => void) => () => void;
 }

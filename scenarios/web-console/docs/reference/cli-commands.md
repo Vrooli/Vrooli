@@ -69,6 +69,22 @@ Use `--json` with target commands for the lossless proto JSON projection. It con
 | `recover` | Recover an orphaned persistent session into a fresh pane |
 | `dismiss` | Permanently dismiss an orphaned session row (preserves on-disk state) |
 
+## `web-console continuity`
+[CODE: cli/domains/continuity/register.go]
+
+| Subcommand | Description |
+|---|---|
+| `integrity` | Read-only counts, orphan classes, and privacy-safe conservation hashes |
+| `catalog` | List canonical records and source aliases |
+| `search` | Search local retained evidence across lifecycle states |
+| `inspect` | Inspect retained evidence by `--session-id` or native `--thread-id` |
+| `receipt` | Inspect a durable lifecycle or reconciliation receipt |
+| `reconcile` | Preview reconciliation; `--apply` requires a reviewed manifest and explicit confirmation |
+| `rollback` | Restore a catalog projection preimage with a manifest hash and receipt ID |
+
+`reconcile` is dry-run by default. It never edits native transcript files;
+apply and rollback mutate only the Web Console catalog projection.
+
 ## `web-console workspace`
 [CODE: cli/domains/workspace/register.go]
 

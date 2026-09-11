@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestRegisterReconcilesBothHooks(t *testing.T) {
+func TestRegisterReconcilesEveryHook(t *testing.T) {
 	var calls [][]string
 	stdout := &bytes.Buffer{}
 	r := &registrar{
@@ -44,14 +44,20 @@ func TestRegisterReconcilesBothHooks(t *testing.T) {
 	if err := r.register(nil); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if len(calls) != 2 {
-		t.Fatalf("calls = %d, want 2", len(calls))
+	if len(calls) != 3 {
+		t.Fatalf("calls = %d, want 3", len(calls))
 	}
 	if got := calls[0][1:7]; !reflect.DeepEqual(got, []string{"hooks", "reconcile", "--event", stopEvent, "--id", stopID}) {
 		t.Fatalf("stop call prefix = %#v", got)
 	}
 	if got := calls[1][1:7]; !reflect.DeepEqual(got, []string{"hooks", "reconcile", "--event", promptEvent, "--id", promptID}) {
 		t.Fatalf("prompt call prefix = %#v", got)
+	}
+	if got := calls[2][1:7]; !reflect.DeepEqual(got, []string{"hooks", "reconcile", "--event", notifyEvent, "--id", notifyID}) {
+		t.Fatalf("notification call prefix = %#v", got)
+	}
+	if command := strings.Join(calls[2], " "); !strings.Contains(command, "/api/v1/hooks/notification") {
+		t.Fatalf("notification hook does not target the notification endpoint: %s", command)
 	}
 	for _, call := range calls {
 		payloadIndex := indexOf(call, "--hook-json")

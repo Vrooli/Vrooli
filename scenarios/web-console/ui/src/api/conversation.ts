@@ -1,5 +1,5 @@
 import { createClient } from "@connectrpc/connect";
-import { ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
+import { ConversationSearchMode, ConversationService } from "@vrooli/proto-types/web-console/v1/conversation/conversation_pb";
 
 import { transport } from "./client";
 import { decodeCaptureStatus, type MessageCaptureStatus } from "./messageCapture";
@@ -151,12 +151,66 @@ export async function updateConversationCursor(
   return decodeConversationCursor(resp.cursor);
 }
 
-export interface ConversationSearchMatch { eventId: string; sequence: number; excerpt: string }
-export interface ConversationSearchResponse { matches: ConversationSearchMatch[]; truncated: boolean; totalMatches: number }
+/** A match inside an excerpt, in UTF-16 code units (JS string indices), end exclusive. */
+export interface SearchTextRange { start: number; end: number }
+export interface ConversationSearchMatch {
+  eventId: string;
+  sequence: number;
+  excerpt: string;
+  ranges: SearchTextRange[];
+  /** Who wrote it and when, so a hit outside the loaded window lists honestly. */
+  role: "user" | "assistant";
+  createdAt: string;
+}
+export interface ConversationSearchResponse {
+  matches: ConversationSearchMatch[];
+  truncated: boolean;
+  totalMatches: number;
+  /** Set when the query cannot run as asked (an invalid regular expression). */
+  error?: string;
+}
 
-export async function searchConversation(sessionId: string, query: string, limit = 500): Promise<ConversationSearchResponse> {
-  const response = await conversationClient.search({ sessionId, query, limit });
-  return { matches: response.matches.map((match) => ({ eventId: match.eventId, sequence: Number(match.sequence), excerpt: match.excerpt })), truncated: response.truncated, totalMatches: Number(response.totalMatches) };
+export type ConversationSearchModeName = "text" | "regex" | "fuzzy";
+
+export interface ConversationSearchOptions {
+  mode?: ConversationSearchModeName;
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  /** "user" | "assistant"; omitted for both. */
+  role?: "user" | "assistant";
+  limit?: number;
+}
+
+const SEARCH_MODES: Readonly<Record<ConversationSearchModeName, ConversationSearchMode>> = {
+  text: ConversationSearchMode.TEXT,
+  regex: ConversationSearchMode.REGEX,
+  fuzzy: ConversationSearchMode.FUZZY,
+};
+
+/** Searches the session's whole history on the server (one path, three modes). */
+export async function searchConversation(sessionId: string, query: string, options: ConversationSearchOptions = {}): Promise<ConversationSearchResponse> {
+  const response = await conversationClient.search({
+    sessionId,
+    query,
+    limit: options.limit ?? 500,
+    mode: SEARCH_MODES[options.mode ?? "text"],
+    caseSensitive: options.caseSensitive ?? false,
+    wholeWord: options.wholeWord ?? false,
+    roleFilter: options.role ?? "",
+  });
+  return {
+    matches: response.matches.map((match) => ({
+      eventId: match.eventId,
+      sequence: Number(match.sequence),
+      excerpt: match.excerpt,
+      ranges: match.ranges.map((range) => ({ start: range.start, end: range.end })),
+      role: match.role === "user" ? "user" as const : "assistant" as const,
+      createdAt: match.createdAt,
+    })),
+    truncated: response.truncated,
+    totalMatches: Number(response.totalMatches),
+    ...(response.error ? { error: response.error } : {}),
+  };
 }
 
 export interface ArchivedConversationSearchMatch {

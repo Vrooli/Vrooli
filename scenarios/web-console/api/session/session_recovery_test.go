@@ -90,6 +90,11 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 
 	reg := backend.New()
 	sm := NewManagerWithFactory(nil)
+	observed := make(chan string, 1)
+	sm.SetProcessExitObserver(func(_ context.Context, id string) error {
+		observed <- id
+		return nil
+	})
 
 	report := sm.Recover(context.Background(), store, reg)
 
@@ -115,6 +120,14 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	}
 	if got.AgentSessionID != "codex-uuid-123" {
 		t.Errorf("agent_session_id was clobbered: %q", got.AgentSessionID)
+	}
+	select {
+	case id := <-observed:
+		if id != "dead-session" {
+			t.Fatalf("process-exit observer saw %q, want dead-session", id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("startup recovery did not report the missing provider to the continuity projection")
 	}
 }
 
@@ -157,6 +170,11 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 
 	sm := NewManagerWithFactory(nil)
 	setupRealTmuxHooks(t, sm)
+	recovered := make(chan string, 1)
+	sm.SetProcessRecoveryObserver(func(_ context.Context, id string) error {
+		recovered <- id
+		return nil
+	})
 	report := sm.Recover(context.Background(), store, backend.New())
 
 	if report.Recovered != 1 {
@@ -168,6 +186,14 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	}
 	if !got.OrphanedAt.IsZero() {
 		t.Errorf("expected orphaned_at to be cleared")
+	}
+	select {
+	case observed := <-recovered:
+		if observed != id {
+			t.Fatalf("recovery observer saw %q, want %q", observed, id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("automatic reattach did not report the live continuity projection")
 	}
 }
 
@@ -640,7 +666,7 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 	}
 }
 
-func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
+func TestSessionManager_Shutdown_PreservesStandardMetadata(t *testing.T) {
 	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
@@ -668,15 +694,16 @@ func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 		t.Fatal("session did not exit after Shutdown")
 	}
 
-	// The auto-remove goroutine races with sess.Done(); give it time to run.
+	// The runtime exit is recorded as awaiting recovery; lifecycle policy does
+	// not silently convert process termination into archive or deletion.
 	deadline := time.After(2 * time.Second)
 	for {
-		if _, err := store.Get(context.Background(), sessID); err != nil {
-			return // metadata deleted as expected
+		if meta, err := store.Get(context.Background(), sessID); err == nil && meta.Status == sessionstore.StatusAwaitingRecovery {
+			return
 		}
 		select {
 		case <-deadline:
-			t.Fatal("standard session metadata was not deleted during shutdown within timeout")
+			t.Fatal("standard session metadata was not preserved during shutdown within timeout")
 			return
 		case <-time.After(10 * time.Millisecond):
 		}
@@ -1062,9 +1089,9 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 	}
 }
 
-func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T) {
-	// Standard sessions should still have their metadata deleted when
-	// the readLoop exits, since they cannot be recovered.
+func TestAutoRemove_PreservesMetadata_StandardSession_NormalOperation(t *testing.T) {
+	// A standard process cannot be reattached, but its conversation and
+	// catalog identity remain valuable after an exit.
 	store := sessionstore.NewInMemory()
 	reg := backend.New()
 	reg.Register(backend.Descriptor{
@@ -1077,6 +1104,11 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
+	exited := make(chan string, 1)
+	sm.SetProcessExitObserver(func(_ context.Context, id string) error {
+		exited <- id
+		return nil
+	})
 
 	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Standard, nil)
 	if err != nil {
@@ -1093,15 +1125,25 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 		t.Fatal("session did not exit")
 	}
 
-	// Wait for auto-remove goroutine
+	// Wait for the auto-remove goroutine to record the runtime exit. Process
+	// exit is not an archive command: the canonical lifecycle maps it to an
+	// explicitly recoverable state and leaves archive policy to the service.
 	deadline := time.After(2 * time.Second)
 	for {
-		if _, err := store.Get(context.Background(), sessID); err != nil {
-			return // metadata deleted as expected
+		if meta, err := store.Get(context.Background(), sessID); err == nil && meta.Status == sessionstore.StatusAwaitingRecovery && !meta.OrphanedAt.IsZero() {
+			select {
+			case observed := <-exited:
+				if observed != sessID {
+					t.Fatalf("process-exit observer saw %q, want %q", observed, sessID)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("process-exit observer was not called")
+			}
+			return // metadata preserved and marked recoverable
 		}
 		select {
 		case <-deadline:
-			t.Fatal("standard session metadata was not deleted within timeout")
+			t.Fatal("standard session metadata was not preserved within timeout")
 			return
 		case <-time.After(10 * time.Millisecond):
 		}
@@ -1150,9 +1192,9 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	_ = sm.Delete(context.Background(), "watchdog-test")
 }
 
-func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
+func TestReattachWatchdog_PreservesWhenTmuxGone(t *testing.T) {
 	// When the tmux session is gone (attach fails), the watchdog should
-	// clean up the stale metadata.
+	// preserve the stale metadata for transcript recovery.
 	store := sessionstore.NewInMemory()
 	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "gone-session",
@@ -1166,6 +1208,11 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 
 	sm := NewManagerWithFactory(nil)
 	sm.SetStore(store)
+	observed := make(chan string, 1)
+	sm.SetProcessExitObserver(func(_ context.Context, id string) error {
+		observed <- id
+		return nil
+	})
 	sm.tmuxAttachFunc = func(sessionName string) (pty.PTY, error) {
 		return nil, fmt.Errorf("tmux session gone")
 	}
@@ -1177,9 +1224,18 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 		t.Error("session should not be active when tmux session is gone")
 	}
 
-	// Metadata should be cleaned up
-	if _, err := store.Get(context.Background(), "gone-session"); err == nil {
-		t.Error("stale metadata should be deleted when tmux session is gone")
+	// Metadata remains discoverable and is marked recoverable. A missing tmux
+	// provider is not an operator archive request.
+	if meta, err := store.Get(context.Background(), "gone-session"); err != nil || meta.Status != sessionstore.StatusAwaitingRecovery || meta.OrphanedAt.IsZero() {
+		t.Errorf("stale metadata should be preserved and recoverable when tmux session is gone: meta=%+v err=%v", meta, err)
+	}
+	select {
+	case id := <-observed:
+		if id != "gone-session" {
+			t.Fatalf("watchdog observer saw %q, want gone-session", id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("watchdog did not report the missing provider to the continuity projection")
 	}
 }
 

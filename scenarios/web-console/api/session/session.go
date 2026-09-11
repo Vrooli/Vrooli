@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"web-console/internal/backend"
@@ -201,6 +202,10 @@ type Session struct {
 	// out to in-flight callers. Each WaitIdle owns one buffered
 	// channel; markFrame does a non-blocking send to every waiter.
 	idleWaiters []chan struct{}
+
+	// activity derives what the session's agent is doing (session/activity.go).
+	// Set by the Manager after registration; read on the PTY read path.
+	activity atomic.Pointer[ActivityDetector]
 }
 
 type queuedInput struct {
@@ -645,6 +650,9 @@ func (s *Session) PlainText(includeScrollback bool) string {
 // timer.
 func (s *Session) markFrame() {
 	s.lastFrameAt = time.Now()
+	if d := s.activity.Load(); d != nil {
+		d.OnFrame()
+	}
 	// Non-blocking nudge to any single waiter. Multiple concurrent
 	// WaitIdle callers each have their own buffered channel; we use a
 	// fan-out slice to wake them all.
@@ -1009,3 +1017,40 @@ func (s *Session) Recovered() bool {
 	defer s.emuMu.Unlock()
 	return s.recovered
 }
+
+// Activity returns what the session's agent is doing, when a detector is attached.
+func (s *Session) Activity() (Activity, bool) {
+	d := s.activity.Load()
+	if d == nil {
+		return Activity{}, false
+	}
+	return d.Current(), true
+}
+
+// ActivityDetector returns the session's activity detector, or nil.
+func (s *Session) ActivityDetector() *ActivityDetector { return s.activity.Load() }
+
+// NoteInput records that the user's input reached the terminal.
+func (s *Session) NoteInput() {
+	if d := s.activity.Load(); d != nil {
+		d.OnInput()
+	}
+}
+
+// ActivityScreen reads the decoded screen for prompt detection.
+func (s *Session) ActivityScreen() backend.ScreenView {
+	view, text := s.ScreenWithText(false)
+	return activityScreenView{view: view, text: text}
+}
+
+// activityScreenView adapts the emulator's screen to backend.ScreenView.
+type activityScreenView struct {
+	view terminal.ScreenView
+	text string
+}
+
+func (v activityScreenView) Cols() int         { return v.view.Cols }
+func (v activityScreenView) Rows() int         { return v.view.Rows }
+func (v activityScreenView) CursorRow() int    { return v.view.Cursor.Y }
+func (v activityScreenView) CursorCol() int    { return v.view.Cursor.X }
+func (v activityScreenView) PlainText() string { return v.text }

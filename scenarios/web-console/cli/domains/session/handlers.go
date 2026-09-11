@@ -280,9 +280,16 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 	if id == "" {
 		return fmt.Errorf("usage: session delete <session-id>")
 	}
+	confirmation := strings.TrimSpace(ctx.Flag("confirm"))
+	if confirmation == "" {
+		return fmt.Errorf("permanent deletion requires --confirm %q", "DELETE:"+id)
+	}
 
-	if _, err := h.client.Delete(context.Background(),
-		connect.NewRequest(&sessionsv1.DeleteRequest{Id: id})); err != nil {
+	req := connect.NewRequest(&sessionsv1.DeleteRequest{Id: id, Confirmation: confirmation})
+	if key := strings.TrimSpace(ctx.Flag("operation-id")); key != "" {
+		req.Header().Set("X-Idempotency-Key", key)
+	}
+	if _, err := h.client.Delete(context.Background(), req); err != nil {
 		return cliapp.WrapAPIError("session delete", err, nil)
 	}
 
@@ -294,6 +301,64 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 		return cliapp.PrintReportJSON(ctx.Stdout(), report)
 	}
 	return cliapp.RenderMutationReport(ctx.Stdout(), report)
+}
+
+func (h *handlers) archive(ctx cliapp.RunContext) error {
+	id := ctx.Positional("session-id")
+	if id == "" {
+		return fmt.Errorf("usage: session archive <session-id>")
+	}
+	req := connect.NewRequest(&sessionsv1.ArchiveRequest{Id: id})
+	if key := strings.TrimSpace(ctx.Flag("operation-id")); key != "" {
+		req.Header().Set("X-Idempotency-Key", key)
+	}
+	if _, err := h.client.Archive(context.Background(), req); err != nil {
+		return cliapp.WrapAPIError("session archive", err, nil)
+	}
+	r := cliapp.MutationReport{Result: []string{fmt.Sprintf("Archived session %s", id)}, NextCommand: []string{fmt.Sprintf("%s session list-archived", support.CLIName)}}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), r)
+	}
+	return cliapp.RenderMutationReport(ctx.Stdout(), r)
+}
+
+func (h *handlers) unarchive(ctx cliapp.RunContext) error {
+	id := ctx.Positional("session-id")
+	if id == "" {
+		return fmt.Errorf("usage: session unarchive <session-id>")
+	}
+	req := connect.NewRequest(&sessionsv1.UnarchiveRequest{Id: id})
+	if key := strings.TrimSpace(ctx.Flag("operation-id")); key != "" {
+		req.Header().Set("X-Idempotency-Key", key)
+	}
+	if _, err := h.client.Unarchive(context.Background(), req); err != nil {
+		return cliapp.WrapAPIError("session unarchive", err, nil)
+	}
+	r := cliapp.MutationReport{Result: []string{fmt.Sprintf("Removed archive marker from session %s", id)}, NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, id)}}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), r)
+	}
+	return cliapp.RenderMutationReport(ctx.Stdout(), r)
+}
+
+func (h *handlers) reopen(ctx cliapp.RunContext) error {
+	id := ctx.Positional("session-id")
+	if id == "" {
+		return fmt.Errorf("usage: session reopen <session-id>")
+	}
+	req := connect.NewRequest(&sessionsv1.ReopenRequest{Id: id})
+	if key := strings.TrimSpace(ctx.Flag("operation-id")); key != "" {
+		req.Header().Set("X-Idempotency-Key", key)
+	}
+	resp, err := h.client.Reopen(context.Background(), req)
+	if err != nil {
+		return cliapp.WrapAPIError("session reopen", err, nil)
+	}
+	r := cliapp.MutationReport{Result: []string{fmt.Sprintf("Reopened session %s as %s", id, resp.Msg.GetNewSessionId())}, NextCommand: []string{fmt.Sprintf("%s session get %s", support.CLIName, resp.Msg.GetNewSessionId())}}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), r)
+	}
+	return cliapp.RenderMutationReport(ctx.Stdout(), r)
 }
 
 // -----------------------------------------------------------------------------

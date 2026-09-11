@@ -55,7 +55,12 @@ type Metrics struct {
 	// `skip_speaker_verification=true` query parameter. User-initiated
 	// "Transcribe anyway" retries drive this counter; non-zero values are
 	// expected during normal operation when users override false rejections.
-	VoiceSkipVerificationTotal atomic.Int64
+	VoiceSkipVerificationTotal    atomic.Int64
+	ContinuityReceipts            atomic.Int64
+	ContinuityFailures            atomic.Int64
+	ContinuityOrphans             atomic.Int64
+	ContinuityPublicationPending  atomic.Int64
+	ContinuityPublicationFailures atomic.Int64
 
 	// StartTime records when the server started for uptime calculation.
 	StartTime time.Time
@@ -80,7 +85,16 @@ type Response struct {
 	AIGenerations              int64             `json:"ai_generations"`
 	AISuggestions              int64             `json:"ai_suggestions"`
 	VoiceSkipVerificationTotal int64             `json:"voice_skip_verification_total"`
+	Continuity                 ContinuityMetrics `json:"continuity"`
 	Uptime                     string            `json:"uptime"`
+}
+
+type ContinuityMetrics struct {
+	Receipts            int64 `json:"receipts"`
+	Failures            int64 `json:"failures"`
+	Orphans             int64 `json:"orphans"`
+	PublicationPending  int64 `json:"publication_pending"`
+	PublicationFailures int64 `json:"publication_failures"`
 }
 
 // SessionMetrics tracks session lifecycle counts.
@@ -151,6 +165,13 @@ func (m *Metrics) Snapshot() Response {
 		AIGenerations:              m.AIGenerations.Load(),
 		AISuggestions:              m.AISuggestions.Load(),
 		VoiceSkipVerificationTotal: m.VoiceSkipVerificationTotal.Load(),
-		Uptime:                     time.Since(m.StartTime).Truncate(time.Second).String(),
+		Continuity: ContinuityMetrics{
+			Receipts:            m.ContinuityReceipts.Load(),
+			Failures:            m.ContinuityFailures.Load(),
+			Orphans:             m.ContinuityOrphans.Load(),
+			PublicationPending:  m.ContinuityPublicationPending.Load(),
+			PublicationFailures: m.ContinuityPublicationFailures.Load(),
+		},
+		Uptime: time.Since(m.StartTime).Truncate(time.Second).String(),
 	}
 }

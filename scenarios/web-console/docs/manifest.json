@@ -746,6 +746,18 @@
           ],
           "maturity": "active",
           "completion": "optional"
+        },
+        {
+          "path": "reference/component-library-gaps.md",
+          "docType": "reference",
+          "title": "Component Library Gaps",
+          "description": "Scenario-local components and shell ejections kept outside the React Component Library, each with the reason it stays local",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional"
         }
       ]
     },
@@ -767,7 +779,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1077,10 +1089,10 @@
           "completion": "optional"
         },
         {
-          "path": "internal/INTEROP_AUDIT.md",
-          "docType": "integration-audit",
-          "title": "Interop Audit",
-          "description": "Integration boundary findings and follow-up notes",
+          "path": "internal/MESSAGES-VIEW-PROJECTION-UX.md",
+          "docType": "design-note",
+          "title": "Messages View Projection UX",
+          "description": "Design record for the Messages view: projection principle, session activity contract, state slot, row and action reveal, reader, echo rows, one search, the playback pill, and scroll invariants",
           "audience": [
             "developers",
             "agents"
@@ -1115,50 +1127,6 @@
           "docType": "invariants",
           "title": "Replay & Idempotency Invariants",
           "description": "State-mutating operations, idempotency status, safe/unsafe retry patterns, and event emission guards",
-          "audience": [
-            "developers"
-          ],
-          "maturity": "active",
-          "completion": "optional"
-        },
-        {
-          "path": "internal/STORAGE_AUDIT.md",
-          "docType": "data",
-          "title": "Storage Audit",
-          "description": "Storage posture analysis: in-memory vs persistent, migration roadmap. Will fold into concepts/DATA.md in the doc-health batch.",
-          "audience": [
-            "developers"
-          ],
-          "maturity": "active",
-          "completion": "optional"
-        },
-        {
-          "path": "internal/COHERENCE-NOTES.md",
-          "docType": "audit",
-          "title": "React Coherence Notes",
-          "description": "React state patterns, styling consistency, and component organization audit",
-          "audience": [
-            "developers"
-          ],
-          "maturity": "active",
-          "completion": "optional"
-        },
-        {
-          "path": "internal/UTILS_UNIFICATION_NOTES.md",
-          "docType": "audit",
-          "title": "Utils Unification Notes",
-          "description": "Patterns and decisions from consolidating utility functions",
-          "audience": [
-            "developers"
-          ],
-          "maturity": "active",
-          "completion": "optional"
-        },
-        {
-          "path": "internal/EXPERIENCE-AUDIT.md",
-          "docType": "audit",
-          "title": "Experience Audit",
-          "description": "Persona mapping, UX friction analysis, and navigation assessment",
           "audience": [
             "developers"
           ],
@@ -1208,6 +1176,16 @@
           ],
           "maturity": "active",
           "completion": "optional"
+        },
+        {
+          "path": "internal/plans/README.md",
+          "docType": "historical-plan-index",
+          "title": "Historical plan sources",
+          "description": "Plan Manager and preserved historical source locations",
+          "maturity": "active",
+          "requiredBy": [],
+          "completion": "optional",
+          "internal": true
         }
       ]
     }

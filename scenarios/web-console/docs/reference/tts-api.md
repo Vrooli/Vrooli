@@ -233,6 +233,10 @@ The canonical Claude project hook file is `.claude/settings.json` in the reposit
 
 ---
 
+### POST /api/v1/hooks/notification
+
+Receives Claude Code `Notification` hook events. `web-console hooks` registers these Claude hooks against the running API: `web-console-tts` (Stop, which also drives auto-TTS), `web-console-prompt` (UserPromptSubmit), and `web-console-activity` (Notification). A notification whose message says Claude needs permission or approval, or is waiting for input, marks the session waiting in its activity ([CODE: api/hook_notification_handler.go]); it never starts playback.
+
 ## Conversation Endpoints
 
 ### GET /api/v1/sessions/{id}/conversation
@@ -351,3 +355,44 @@ All error responses use the standard `ErrorResponse` shape:
 [CODE: api/tts_synthesize.go] — Synthesis endpoint and `TTSSynthesizer` interface.
 [CODE: api/tts_voices.go] — Voice listing endpoint and `TTSVoiceLister` interface.
 [CODE: api/tts_config.go] — Config endpoints and persistence.
+
+## Playback in the UI
+
+### Playback transport
+
+Each terminal pane publishes its TTS provider's state — `currentTime`,
+`duration`, `playbackRate`, `volume`, `isMuted`, `isPaused`, and
+`capabilities` — to the transport store in
+`ui/src/domains/tts-playback/transport.ts` whenever the provider reports a
+change. Kokoro reports position from the audio element's `timeupdate` event
+(about 4 Hz) and settings from pause, rate, volume, and mute calls. Browser
+speech synthesis reports no position, so its duration stays unknown and the
+scrub is disabled.
+
+Nothing in the UI polls. `useTtsPlaybackController().subscribeTransport(cb)`
+delivers the active pane's transport on each change and nothing on a timer.
+Workspace subscribes only to the pause flag (`usePlaybackPaused`), so position
+updates re-render the pill alone. Lock-screen seek controls read the position
+when pressed.
+
+### The playback pill
+
+`ui/src/components/tts/PlaybackPill.tsx` is the one playback surface. It floats
+over the pane, above the toolbar, and takes no layout height. It shows while
+playback is loading, playing, or paused (so a paused message can be resumed,
+with auto-TTS on or off) and hides when playback ends or is dismissed.
+
+- Collapsed: play/pause, an equalizer while audio plays, "speaker · time", the
+  elapsed and total time, close, and a progress hairline.
+- Expanded (tap the pill): a header with the queue count, settings, and close;
+  a scrub; previous, play/pause, and next; chips for speed, the summarize mode,
+  the voice, and Jump to message. Settings opens the volume, mute, and speed
+  controls in a dialog.
+- Gestures (`usePillGestures.ts`): a tap under 8 px toggles; a drag of 48 px or
+  more down dismisses; on the collapsed pill a sideways drag of 64 px or more
+  plays the next (left) or previous (right) message, and a drag along the
+  progress hairline seeks. A drag keeps the axis it started on.
+- Close and swipe-down stop playback; there is no background playback. The
+  toolbar's restore button (`tts-restore`) shows while a queue exists and the
+  pill is hidden, and a message starting to speak brings the pill back.
+

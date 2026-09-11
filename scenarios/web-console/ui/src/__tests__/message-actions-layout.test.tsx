@@ -47,18 +47,6 @@ const props = {
   onClearSummarizeError: vi.fn(),
   onToggleSummarized: vi.fn(),
   onChangeLevel: vi.fn(),
-  playbackState: {
-    currentTime: 0,
-    duration: null,
-    isPaused: true,
-    playbackRate: 1,
-    volume: 1,
-    isMuted: false,
-    capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-  },
-  onSetPlaybackRate: vi.fn(),
-  onSetVolume: vi.fn(),
-  onSetMuted: vi.fn(),
   playbackFocusRequest: null,
   onSendToComposer: vi.fn(),
 };
@@ -76,7 +64,6 @@ describe("message action layout", () => {
           hydrated: true,
         }),
       },
-      viewModes: {},
     });
   });
 
@@ -84,6 +71,8 @@ describe("message action layout", () => {
     render(<MessagesPane {...props} />);
 
     const card = screen.getByTestId("msg-card-assistant-1");
+    expect(card.querySelectorAll("[data-message-action-inline]")).toHaveLength(0);
+    fireEvent.mouseEnter(card);
     const inline = card.querySelectorAll<HTMLElement>("[data-message-action-inline]");
     expect(inline).toHaveLength(3);
     for (const control of inline) {
@@ -92,20 +81,22 @@ describe("message action layout", () => {
     }
   });
 
-  it("renders inapplicable actions nowhere and every overflow action in ContextMenu/1", () => {
+  it("renders inapplicable actions nowhere and every applicable action in ContextMenu/1", () => {
     render(<MessagesPane {...props} />);
 
     expect(screen.queryByTestId("msg-save-snippet-assistant-1")).toBeNull();
     expect(screen.queryByTestId("msg-handoff-assistant-1")).toBeNull();
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-assistant-1"));
     fireEvent.click(screen.getByTestId("msg-actions-more-assistant-1"));
 
     const menu = screen.getByTestId("msg-actions-menu-assistant-1");
     expect(menu.closest("[data-rcl-context-menu]")).not.toBeNull();
     for (const testId of [
+      "msg-copy-assistant-1",
+      "msg-speak-from-assistant-1",
       "msg-send-to-composer-assistant-1",
       "msg-render-toggle-assistant-1",
       "msg-assistant-1-mode-control",
-      "msg-audio-assistant-1",
     ]) {
       const action = screen.getByTestId(testId).closest("button");
       expect(action).not.toBeNull();

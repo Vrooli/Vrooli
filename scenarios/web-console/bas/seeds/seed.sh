@@ -130,6 +130,15 @@ seed_message_navigator_conversation() {
     -d "{\"last_assistant_message\":\"NAVIGATOR_SEED deploying now — see src/pipeline.ts for the steps.\",\"session_id\":\"seed-agent-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
     -o /dev/null || true
 
+  # A long, newest assistant reply for the voice cases: they read the latest
+  # assistant row aloud and need it still playing when they pause and close
+  # the pill (the short reply above ends in about three seconds).
+  local voice_reply="Here is where the release stands. The build finished and every unit test passed, so the next step is the staging deploy. I will run the migration first, then roll the new version to one instance, watch its health for a few minutes, and only then move the rest of the fleet across. If anything looks wrong I will stop, roll back to the previous version, and write down what I saw so we can decide together what to change before trying again. Nothing in this plan touches production until staging has been quiet for at least an hour."
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"last_assistant_message\":\"${voice_reply}\",\"session_id\":\"seed-agent-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
+    -o /dev/null || true
+
   echo "[seed] message-navigator conversation seeded for session ${session_id}."
 }
 
@@ -214,5 +223,50 @@ seed_file_preview_conversation() {
 }
 
 seed_file_preview_conversation || true
+
+# ---------------------------------------------------------------------------
+# Continuity recovery seed — the continuity archive workflows run against a
+# routed test database, not the operator's live database. Provision the exact
+# incident fixture in that isolated database so the workflows prove the UI
+# recovery path instead of depending on whatever happens to exist on the
+# host. The fixture deliberately has a pane, checkpoint, catalog record, and
+# 88-event transcript but no sessions row: that is the production drift shape
+# this plan is required to recover.
+seed_continuity_recovery_conversation() {
+	# Prefer the routed DSN. The path variable can identify the primary
+	# database while the live API is correctly serving the leased test pool.
+	local db_target="${PLAYBOOKS_SQLITE_DSN:-${PLAYBOOKS_SQLITE_PATH:-}}"
+	if [[ -z "${db_target}" ]]; then
+		echo "[seed] routed SQLite DSN not available; skipping continuity recovery fixture." >&2
+		return 0
+	fi
+
+  local pane_id="a7e71c3c-e422-4c89-916a-03f92906fb89"
+  local thread_id="01a06a6b-88da-7422-b391-bb59c5f5e5e0"
+  {
+    printf '%s\n' 'BEGIN IMMEDIATE;'
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_sessions(session_id,last_sequence,last_seen_sequence,last_listened_sequence,created_at,updated_at) VALUES ('${pane_id}',88,88,88,'2026-09-03T23:17:07Z','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO workspace_panes(session_id,name,header_color,theme_id,font_size,sort_order,is_active,supports_messages_view,manually_unread,created_at,updated_at) VALUES ('${pane_id}','Codex','transparent','default',14,0,0,1,0,'2026-09-03T23:17:07Z','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO agent_transcript_checkpoints(source,source_key,web_console_session_id,cursor,updated_at) VALUES ('codex','${thread_id}','${pane_id}','88','2026-09-03T23:17:07Z');"
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_catalog(session_id,lifecycle_state,lifecycle_version,backend,agent_type,agent_session_id,original_title,current_title,topic_summary,cwd,created_at,last_activity_at,archived_at,source_fingerprint) VALUES ('${pane_id}','recoverable',1,'codex','codex','${thread_id}','Web Console continuity incident','Web Console continuity incident','validation-intent receipt contract','/tmp/bas-continuity','2026-09-03T23:17:07Z','2026-09-03T23:17:07Z','2026-09-04T00:00:00Z','sha256:bas-continuity-incident');"
+    printf '%s\n' "INSERT OR IGNORE INTO conversation_aliases(session_id,alias_kind,alias_value,observed_at) VALUES ('${pane_id}','agent_session','${thread_id}','2026-09-03T23:17:07Z'),('${pane_id}','pane','${pane_id}','2026-09-03T23:17:07Z');"
+    local i role text
+    for i in $(seq 1 88); do
+      if (( i % 2 == 0 )); then role="assistant"; else role="user"; fi
+      text="validation-intent receipt contract incident event ${i}"
+      printf "INSERT OR IGNORE INTO conversation_events(id,session_id,source,role,text,speech_paragraphs,original_speech_paragraphs,summarized,created_at,sequence,delivery_state,tts_state,consumption_state) VALUES ('bas-continuity-event-%03d','%s','codex_rollout','%s','%s','[]',NULL,0,'2026-09-03T23:17:07Z',%d,'received','idle','seen');\n" "${i}" "${pane_id}" "${role}" "${text}" "${i}"
+    done
+	if [[ "$(sqlite3 "${db_target}" "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversation_events_fts';")" == "1" ]]; then
+		printf '%s\n' "INSERT INTO conversation_events_fts(conversation_events_fts) VALUES ('rebuild');"
+	fi
+    printf '%s\n' 'COMMIT;'
+	} | sqlite3 "${db_target}" || {
+		echo "[seed] failed to install continuity recovery fixture in ${db_target}." >&2
+    return 0
+  }
+  echo "[seed] exact continuity recovery fixture seeded (${pane_id}, ${thread_id}, 88 events, no sessions row)."
+}
+
+seed_continuity_recovery_conversation || true
 
 echo "[seed] Seeding complete."

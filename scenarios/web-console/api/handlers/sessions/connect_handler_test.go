@@ -79,11 +79,14 @@ func TestConnectHandlerOperations(t *testing.T) {
 	if resp, err := h.Get(ctx, request(&sessionsv1.GetRequest{Id: "s1"})); err != nil || resp.Msg.Session.Origin != sessionsv1.SessionOrigin_SESSION_ORIGIN_REMOTE {
 		t.Fatalf("get: %#v %v", resp, err)
 	}
-	if _, err := h.Delete(ctx, request(&sessionsv1.DeleteRequest{Id: "s1"})); err != nil {
+	if _, err := h.Delete(ctx, request(&sessionsv1.DeleteRequest{Id: "s1", Confirmation: "DELETE:s1"})); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := h.Archive(ctx, request(&sessionsv1.ArchiveRequest{Id: "s1"})); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := h.Delete(context.Background(), request(&sessionsv1.DeleteRequest{Id: "s1", Confirmation: "wrong"})); err == nil {
+		t.Fatal("delete without the exact destructive confirmation succeeded")
 	}
 	if _, err := h.Unarchive(ctx, request(&sessionsv1.UnarchiveRequest{Id: "s1"})); err != nil {
 		t.Fatal(err)

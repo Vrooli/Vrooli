@@ -213,22 +213,22 @@ func TestSQLSearchArchivedUsesFTSAndExcludesLiveSessions(t *testing.T) { // [REQ
 		}
 	}
 
-	matches, truncated, total, distinct, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{Query: "archive needle", Limit: 20})
+	archived, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{ConversationSearchQuery: ConversationSearchQuery{Query: "archive needle", Limit: 20}})
 	if err != nil {
 		t.Fatalf("search archived: %v", err)
 	}
-	if truncated || total != 2 || distinct != 2 || len(matches) != 2 {
-		t.Fatalf("search result matches=%d total=%d distinct=%d truncated=%v", len(matches), total, distinct, truncated)
+	if archived.Truncated || archived.Total != 2 || archived.DistinctSessions != 2 || len(archived.Matches) != 2 {
+		t.Fatalf("search result matches=%d total=%d distinct=%d truncated=%v", len(archived.Matches), archived.Total, archived.DistinctSessions, archived.Truncated)
 	}
-	for _, match := range matches {
+	for _, match := range archived.Matches {
 		if match.SessionID == "live" {
 			t.Fatalf("live session leaked into archive search: %+v", match)
 		}
 	}
 
-	perSession, _, perTotal, err := repo.SearchSession(ctx, "live", "archive needle", 20)
-	if err != nil || len(perSession) != 1 || perTotal != 1 {
-		t.Fatalf("existing per-session search changed: matches=%+v total=%d err=%v", perSession, perTotal, err)
+	perSession, err := repo.SearchSession(ctx, "live", ConversationSearchQuery{Query: "archive needle", Limit: 20})
+	if err != nil || len(perSession.Matches) != 1 || perSession.Total != 1 {
+		t.Fatalf("existing per-session search changed: %+v err=%v", perSession, err)
 	}
 
 	rows, err := db.Query(`EXPLAIN QUERY PLAN SELECT e.id FROM conversation_events_fts
@@ -254,6 +254,31 @@ func TestSQLSearchArchivedUsesFTSAndExcludesLiveSessions(t *testing.T) { // [REQ
 	}
 }
 
+func TestSQLSearchArchivedFindsTranscriptWhenSessionMetadataIsMissing(t *testing.T) { // [REQ:REQ-P0-003c]
+	ctx := context.Background()
+	db := setupTestDB(t)
+	if err := ensureConversationFTS(ctx, db); err != nil {
+		t.Fatalf("ensure FTS: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO sessions(id, archived_at) VALUES ('orphan', '2026-09-04T17:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLConversationRepository(db)
+	if _, err := repo.AppendEvent(ctx, ConversationEvent{ID: "orphan-event", SessionID: "orphan", Source: "codex_tailer", Role: ConversationRoleAssistant, Text: "plan-manager continuity evidence", CreatedAt: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`DELETE FROM sessions WHERE id = 'orphan'`); err != nil {
+		t.Fatal(err)
+	}
+	found, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{ConversationSearchQuery: ConversationSearchQuery{Query: "plan-manager continuity"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Total != 1 || found.DistinctSessions != 1 || len(found.Matches) != 1 || found.Matches[0].SessionID != "orphan" {
+		t.Fatalf("orphan search = %+v", found)
+	}
+}
+
 func TestEnsureConversationFTSBackfillsOnceAndIndexesNewAppends(t *testing.T) { // [REQ:REQ-P0-003a]
 	ctx := context.Background()
 	db := setupTestDB(t)
@@ -274,9 +299,9 @@ func TestEnsureConversationFTSBackfillsOnceAndIndexesNewAppends(t *testing.T) { 
 		t.Fatal(err)
 	}
 	for _, query := range []string{"backfill sentinel", "fresh sentinel"} {
-		matches, _, total, _, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{Query: query})
-		if err != nil || total != 1 || len(matches) != 1 {
-			t.Fatalf("query %q: matches=%+v total=%d err=%v", query, matches, total, err)
+		found, err := repo.SearchArchived(ctx, ArchivedConversationSearchFilter{ConversationSearchQuery: ConversationSearchQuery{Query: query}})
+		if err != nil || found.Total != 1 || len(found.Matches) != 1 {
+			t.Fatalf("query %q: %+v err=%v", query, found, err)
 		}
 	}
 }

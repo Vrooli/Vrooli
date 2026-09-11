@@ -81,7 +81,7 @@ Browsers require a user interaction (click, keypress) before audio can play. Set
 
 If `backend=auto` and Kokoro fails at runtime, the frontend attempts a browser fallback and updates the backend reason accordingly. If both fail, a transient amber error banner appears in the terminal pane for 5 seconds.
 
-When browser speech is active, the playback surface also shows a visible notice:
+When browser speech is active, the expanded playback pill also shows a visible notice:
 `Kokoro is unavailable, so browser speech synthesis is active`. This is an
 intentional fallback, not a claim that Kokoro is healthy. To restore Kokoro,
 check the capability message and run the displayed operator command (usually
@@ -101,6 +101,15 @@ This plays a short sample through the current runtime backend decision and is th
 - browser audio lockout
 - strict `kokoro` mode with Kokoro down
 - browser-only playback issues
+
+## "The playback pill does not move"
+
+The pill follows the provider's own events; nothing polls. Kokoro moves it about
+four times a second through the audio element's `timeupdate`. Browser speech
+synthesis reports no position: with that backend the pill shows `--:--` for the
+length and the scrub stays disabled, which is expected. If Kokoro audio plays
+and the time stays at `0:00`, the pane is not publishing its transport — reload
+the page and check the browser console for errors from `usePaneSpeech`.
 
 ## "TTS plays but sounds wrong"
 

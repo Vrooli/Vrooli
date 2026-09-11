@@ -129,7 +129,7 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     mockIsSpeaking = false;
     storeState.autoTtsEnabled = true;
     // Reset conversation store
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
 
     if (typeof globalThis.ResizeObserver === "undefined") {
       globalThis.ResizeObserver = class {

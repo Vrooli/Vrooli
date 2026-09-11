@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
 	"web-console/internal/sessionstore"
+	"web-console/session"
 )
 
 // hookStopRequest mirrors the Claude Code CLI Stop-hook payload. Both the
@@ -40,6 +42,10 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	// Stop ends the turn whether or not it carried text: the agent is idle.
+	if detector := s.activityDetector(req.WebConsoleSessionID); detector != nil {
+		detector.OnHook(session.HookIdle)
+	}
 	assistantText := req.assistantText()
 	if assistantText == "" {
 		writeCatalogError(w, "tts_input_required", "Hook payload did not include assistant response text")
@@ -50,12 +56,14 @@ func (s *Server) handleHookStop(w http.ResponseWriter, r *http.Request) {
 	// later issue `claude --resume <agent_session_id>` against the right
 	// project. The payload's session_id is Claude's own session UUID.
 	if result.Appended && req.WebConsoleSessionID != "" && req.SessionIDSnake != "" && s.sessionStore != nil {
-		_ = s.sessionStore.UpdateAgentInfo(context.Background(), req.WebConsoleSessionID, sessionstore.AgentInfo{
+		if err := s.sessionStore.UpdateAgentInfo(context.Background(), req.WebConsoleSessionID, sessionstore.AgentInfo{
 			AgentType:      sessionstore.AgentClaude,
 			AgentSessionID: req.SessionIDSnake,
 			CWD:            req.CWD,
 			LastActivityAt: time.Now(),
-		})
+		}); err != nil {
+			log.Printf("claude hook: persist agent identity for %s: %v", req.WebConsoleSessionID, err)
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "routing": result, "routed": result.Appended})
 }

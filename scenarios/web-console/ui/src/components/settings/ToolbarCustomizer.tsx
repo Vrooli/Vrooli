@@ -96,6 +96,7 @@ export default function ToolbarCustomizer() {
     image: t(strings.mobileToolbar.uploadImageTitle),
     ai: t(strings.mobileToolbar.aiCommandTitle),
     snippets: t(strings.snippets.picker.title),
+    history: t(strings.sentHistory.control),
   }), [t]);
 
   /**

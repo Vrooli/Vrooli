@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -21,7 +22,7 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { retu
 
 func TestOpenRouterProvider_ResolvesCredentialPerRequest(t *testing.T) {
 	var gotKey string
-	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	client := &http.Client{Timeout: 30 * time.Second, Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		gotKey = r.Header.Get("Authorization")
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":"echo ok"}}]}`)), Header: make(http.Header)}, nil
 	})}

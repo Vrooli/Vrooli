@@ -53,9 +53,9 @@ func TestHandlersRenderSuccessfulResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := &handlers{client: sessionTestClient{}}
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "apply"}, {Name: "body-file"}}, Positionals: []cliapp.Positional{{Name: "session-id"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "apply"}, {Name: "body-file"}, {Name: "operation-id"}, {Name: "confirm"}}, Positionals: []cliapp.Positional{{Name: "session-id"}}}
 	ctx := func() cliapp.RunContext {
-		return cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: schema, Flags: map[string]string{"apply": "false", "body-file": body}, Positionals: map[string]string{"session-id": "s1"}, JSON: true})
+		return cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Schema: schema, Flags: map[string]string{"apply": "false", "body-file": body, "confirm": "DELETE:s1"}, Positionals: map[string]string{"session-id": "s1"}, JSON: true})
 	}
 	for _, call := range []func(cliapp.RunContext) error{h.list, h.archiveRetention, h.archivePrune, h.get, h.delete, h.policyGet, h.policySet, h.listRecoverable, h.recover, h.dismiss} {
 		if err := call(ctx()); err != nil {

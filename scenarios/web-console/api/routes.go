@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	aiH "web-console/handlers/ai"
 	audioAdminH "web-console/handlers/audio_admin"
 	audioRuntimeH "web-console/handlers/audio_runtime"
 	capabilitiesH "web-console/handlers/capabilities"
+	continuityH "web-console/handlers/continuity"
 	conversationH "web-console/handlers/conversation"
 	eventsH "web-console/handlers/events"
 	filePreviewH "web-console/handlers/file_preview"
@@ -21,6 +25,7 @@ import (
 	snippetsH "web-console/handlers/snippets"
 	terminalH "web-console/handlers/terminal"
 	workspaceH "web-console/handlers/workspace"
+	internalContinuity "web-console/internal/continuity"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
@@ -38,14 +43,29 @@ func (s *Server) setupRoutes() {
 	// header onto Request.Host, where connect.Request.Header() cannot see it.
 	s.router.Use(discovery.ExternalHostMiddleware)
 
-	healthBuilder := health.New().Version("1.0.0")
+	healthBuilder := health.New().Version("1.0.0").BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY"))
 	if s.db != nil {
 		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
+		healthBuilder = healthBuilder.Functional(func(ctx context.Context) health.FunctionalStatus {
+			report, err := s.Integrity(ctx)
+			if err != nil {
+				return health.FunctionalStatus{Healthy: false, Reason: "continuity integrity is unavailable: " + err.Error()}
+			}
+			if report.UncatalogedConversations > 0 {
+				return health.FunctionalStatus{Healthy: false, Reason: fmt.Sprintf("%d conversation projections have no continuity catalog", report.UncatalogedConversations)}
+			}
+			return health.FunctionalStatus{Healthy: true}
+		})
 	}
 	healthHandler := healthBuilder.Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-	s.registerOwnerCleanupRoutes()
+	// Read-only continuity audit. Reconciliation and permanent deletion are
+	// separate explicit workflows and are never triggered by this endpoint.
+	s.router.HandleFunc("/api/v1/conversations/integrity", s.handleConversationIntegrity).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/conversations/publish", s.handleConversationPublish).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/conversations/catalog", s.handleConversationCatalog).Methods(http.MethodGet, http.MethodPost)
+	continuityH.Module(continuityH.ModuleDeps{Service: s}).Mount(s.router)
 	if session := s.subscriptionSessionModule(); session != nil {
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
@@ -63,7 +83,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/integrations/connections", s.connectionsHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/commercial-context", s.commercialContextHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
-	sessionsH.Module(&sessionsH.Adapter{
+	sessionAdapter := &sessionsH.Adapter{
 		Manager:             s.sessions,
 		Store:               s.sessionStore,
 		Idempotency:         s.idempotency,
@@ -86,13 +106,21 @@ func (s *Server) setupRoutes() {
 		},
 		AgentHistorySize:  archivedAgentHistorySize,
 		PruneAgentHistory: pruneArchivedAgentHistory,
+		LifecycleLedger:   internalContinuity.NewSQLLedger(s.db),
+		ContinuityCatalog: internalContinuity.NewSQLCatalogStore(s.db),
 		Remote:            s,
-	}, nil).Mount(s.router)
+	}
+	s.lifecycleDelete = sessionAdapter.Delete
+	if s.sweeper != nil {
+		s.sweeper.SetArchiveHandler(sessionAdapter.Archive)
+	}
+	sessionsH.Module(sessionAdapter, nil).Mount(s.router)
+	s.registerOwnerCleanupRoutes()
 	s.mountTargetCatalog()
 	s.mountMachines()
 	s.mountDevices()
 
-	terminalH.Module(&terminalH.Adapter{Manager: s.sessions}, terminalH.LegacyDeps{
+	terminalH.Module(&terminalH.Adapter{Manager: s.sessions, Replier: opencodeReplier{server: s}}, terminalH.LegacyDeps{
 		Upload: s.handleUpload,
 		WS:     s.handleTerminalWS,
 	}, nil).Mount(s.router)
@@ -138,6 +166,6 @@ func (s *Server) setupRoutes() {
 		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
 	}
 	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
-	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit}).Mount(s.router)
+	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit, Notification: s.handleHookNotification}).Mount(s.router)
 	s.registerTTSHookRoutes()
 }

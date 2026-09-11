@@ -104,10 +104,8 @@ func (a *Adapter) UpdatePane(ctx context.Context, req UpdatePaneRequest) (Pane, 
 	return pane, nil
 }
 
-func (a *Adapter) DeletePane(ctx context.Context, sessionID string) {
-	if err := a.Store.DeletePane(ctx, sessionID); err != nil {
-		a.logger().Printf("workspace.DeletePane: %v", err)
-	}
+func (a *Adapter) DeletePane(ctx context.Context, sessionID string) error {
+	return a.Store.DeletePane(ctx, sessionID)
 }
 
 func (a *Adapter) CreateGroup(ctx context.Context, name, color string) (Group, error) {
@@ -149,16 +147,17 @@ func (a *Adapter) UpdateGroup(ctx context.Context, req UpdateGroupRequest) (Grou
 	return g, nil
 }
 
-func (a *Adapter) DeleteGroup(ctx context.Context, id string) {
+func (a *Adapter) DeleteGroup(ctx context.Context, id string) error {
 	removed, err := a.Store.DeleteGroup(ctx, id)
 	if err != nil {
-		a.logger().Printf("workspace.DeleteGroup: %v", err)
+		return err
 	}
 	if removed {
 		a.Events.Emit(events.TabGroupDeleted, "", map[string]string{
 			"group_id": id,
 		})
 	}
+	return nil
 }
 
 // Roles delegate straight to the store. Unlike panes and groups they emit no

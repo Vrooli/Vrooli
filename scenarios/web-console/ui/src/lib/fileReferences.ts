@@ -135,3 +135,30 @@ export function matchProseFilePaths(text: string): ProsePathMatch[] {
   }
   return matches;
 }
+
+/**
+ * A fenced or indented code block whose every line is a file reference is not
+ * code — it is a quoted path (or a short list of them), the shape agents
+ * produce when they put a path on its own line:
+ *
+ * ```
+ * /the/path/example.md
+ * ```
+ *
+ * Returns the trimmed paths in order, or null when the block holds anything
+ * else, in which case it must stay an ordinary code block. Each line is held
+ * to the same bar as a backticked chip, so `make start`, `vrooli.com`, and
+ * `foo.bar()` never qualify.
+ */
+export function matchFileReferenceBlockLines(code: string): string[] | null {
+  const lines = code
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0 || lines.length > MAX_FILE_REFERENCE_BLOCK_LINES) return null;
+  return lines.every(looksLikeInlineFileReference) ? lines : null;
+}
+
+// Beyond this a block is output being quoted (a listing, a diff, a log), not a
+// path an operator means to click.
+const MAX_FILE_REFERENCE_BLOCK_LINES = 50;

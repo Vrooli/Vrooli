@@ -5,6 +5,7 @@ import { remarkProsePaths } from "./utils/remarkProsePaths";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
+import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 import { isExternalHref } from "../../lib/fileReferences";
 
 interface MarkdownErrorBoundaryProps {
@@ -46,7 +47,7 @@ interface MarkdownRendererProps {
   content: string;
   className?: string;
   onLinkClick?: (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
-  /** Open a file in the preview dialog when an inline-code chip looks like a path. */
+  /** Open a file in the preview dialog when an inline-code chip, or a fenced block holding only paths, looks like a path. */
   onFileReferenceClick?: (path: string) => void;
   /** Open a Mermaid diagram in the full-screen zoomable viewer. */
   onMermaidOpen?: (code: string) => void;
@@ -73,7 +74,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
         if (isInline) return <InlineCode onFileReferenceClick={onFileReferenceClick}>{children}</InlineCode>;
         if (codeClassName === "language-mermaid") return <MermaidDiagram code={codeContent} onOpenFullscreen={onMermaidOpen} />;
-        return <CodeBlock code={codeContent} className={codeClassName} {...props} />;
+        return <CodeBlock code={codeContent} className={codeClassName} onFileReferenceClick={onFileReferenceClick} {...props} />;
       },
 
       pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
@@ -139,15 +140,13 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
       hr: () => <hr className="my-6 border-wc-default" />,
 
       table: ({ children }: { children?: ReactNode }) => (
-        <div className="overflow-x-auto my-4">
-          <table className="w-auto border-collapse border border-wc-default">{children}</table>
-        </div>
+        <ResizableMarkdownTable>{children}</ResizableMarkdownTable>
       ),
       thead: ({ children }: { children?: ReactNode }) => (
         <thead className="bg-wc-surface-raised">{children}</thead>
       ),
-      th: ({ children }: { children?: ReactNode }) => (
-        <th className="border border-wc-default px-4 py-2 text-start font-semibold align-top min-w-[8rem]">{children}</th>
+      th: ({ children, ...props }: ComponentPropsWithoutRef<"th"> & { children?: ReactNode }) => (
+        <th {...props} className="border border-wc-default px-4 py-2 text-start font-semibold align-top min-w-[8rem]">{children}</th>
       ),
       td: ({ children }: { children?: ReactNode }) => (
         <td className="border border-wc-default px-4 py-2 align-top min-w-[8rem] [overflow-wrap:anywhere]">{children}</td>

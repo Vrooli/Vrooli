@@ -1,7 +1,6 @@
-// The screens this contract serves are specified in the repository-level design
-// proposal `docs/reference/cross-platform-effort/machine-linking-ux-2026-08-26.html`.
-// It is not a `DOC:` marker because that reference kind resolves inside this
-// scenario's own docs tree, and the proposal spans several scenarios.
+// Cross-scenario reach and configuration ownership is documented in the
+// repository's docs/concepts/REACH-AND-CONFIGURATION.md. Historical machine-linking
+// proposals are recoverable through docs/internal/PROGRESS.md.
 import { createClient } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import {
@@ -14,6 +13,12 @@ import type {
   PermissionPreset as PresetMessage,
 } from "@vrooli/proto-types/web-console/v1/machines/machines_pb";
 import type { PreflightOnboardingResponse, StartOnboardingResponse, GetOnboardingResponse, WaitOnboardingResponse } from "@vrooli/proto-types/vrooli-bridge/v1/onboard/onboard_pb";
+import { AnswerSchema, type ResolveOperatorInputsResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorinputs/operatorinputs_pb";
+import type { Answer } from "@vrooli/proto-types/vrooli-onboarding/v1/operatorinputs/operatorinputs_pb";
+import type { GetReadinessResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/readiness/readiness_pb";
+import type { GetApplyRunResponse, StartApplyResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
+import type { GetMachineResponse } from "@vrooli/proto-types/vrooli-bridge/v1/machines/machines_pb";
+import { OperatorInputKind, type OperatorInputRequest } from "@vrooli/proto-types/setup/v1/operator_input_pb";
 import { AnswerSecretRequestSchema, CreateGrantRequestSchema, RevokeGrantRequestSchema, type CredentialGrant, type ListGrantsResponse, type CreateGrantRequest, type RevokeGrantRequest } from "@vrooli/proto-types/vrooli-bridge/v1/credentialgrant/credentialgrant_pb";
 
 import { transport } from "./client";
@@ -26,14 +31,14 @@ type OnboardingClient = {
   startOnboarding(request: { machineId: string; host: string; port: number; user: string; sshPassword: string; nodeName: string; setupPreset: string }): Promise<StartOnboardingResponse>;
   getOnboarding(request: { onboardingOpId: string }): Promise<GetOnboardingResponse>;
   waitOnboarding(request: { onboardingOpId: string; timeoutSeconds: number }): Promise<WaitOnboardingResponse>;
-  getConfiguration(request: { machineId: string }): Promise<{ targetId: string; questionsJson: Uint8Array; readinessJson: Uint8Array; machineDetailJson: Uint8Array }>;
-  resolveConfiguration(request: { machineId: string; answersJson: Uint8Array }): Promise<{ targetId: string; resultJson: Uint8Array }>;
+  getConfiguration(request: { machineId: string }): Promise<{ targetId: string; questions?: { requests: OperatorInputRequest[] }; readiness?: GetReadinessResponse; machineDetail?: GetMachineResponse }>;
+  resolveConfiguration(request: { machineId: string; expectedRevision?: string; answers: Answer[] }): Promise<{ targetId: string; result?: ResolveOperatorInputsResponse }>;
   listCredentialGrants(request: { machineId: string }): Promise<ListGrantsResponse>;
   createCredentialGrant(request: CreateGrantRequest): Promise<CredentialGrant>;
   revokeCredentialGrant(request: RevokeGrantRequest): Promise<CredentialGrant>;
   answerSecret(request: { nodeId: string; logicalId: string; field: string; value: string }): Promise<CredentialGrant>;
-  reapplyConfiguration(request: { machineId: string }): Promise<{ targetId: string; resultJson: Uint8Array }>;
-  getConfigurationApplyStatus(request: { machineId: string; runId: string }): Promise<{ targetId: string; resultJson: Uint8Array }>;
+  reapplyConfiguration(request: { machineId: string }): Promise<{ targetId: string; result?: StartApplyResponse }>;
+  getConfigurationApplyStatus(request: { machineId: string; runId: string }): Promise<GetApplyRunResponse>;
 };
 const onboardingClient = machineClient as typeof machineClient & OnboardingClient;
 
@@ -73,25 +78,50 @@ export interface ConfigurationQuestion {
   }>;
 }
 
-export interface MachineConfigurationDetail {
-  machine?: { desiredProfileId?: string; desiredProfileVersion?: string; desiredSelectionJson?: string; appliedProfileId?: string; appliedProfileVersion?: string; appliedSelectionJson?: string; appliedAt?: string };
-  auditEvents?: Array<{ actor?: string; action?: string; detail?: string; createdAt?: string }>;
-  drift?: Array<{ kind?: string; name?: string; reason?: string }>;
-  readiness?: { ready?: boolean; reasons?: string[] };
-  effectivePolicy?: unknown;
-}
+export type MachineConfigurationDetail = GetMachineResponse;
 
-export async function getConfiguration(machineId: string): Promise<{ targetId: string; questions: ConfigurationQuestion[]; readiness: unknown; detail: MachineConfigurationDetail | null }> {
+export async function getConfiguration(machineId: string): Promise<{ targetId: string; questions: ConfigurationQuestion[]; readiness: GetReadinessResponse | null; detail: MachineConfigurationDetail | null }> {
   const response = await onboardingClient.getConfiguration({ machineId });
-  const decode = (value: Uint8Array) => JSON.parse(new TextDecoder().decode(value)) as unknown;
-  const questions = decode(response.questionsJson) as { requests?: ConfigurationQuestion[] };
-  const detail = response.machineDetailJson.length ? decode(response.machineDetailJson) as MachineConfigurationDetail : null;
-  return { targetId: response.targetId, questions: questions.requests ?? [], readiness: decode(response.readinessJson), detail };
+  const detail = response.machineDetail ?? null;
+  return { targetId: response.targetId, questions: (response.questions?.requests ?? []).map(questionToConfigurationQuestion), readiness: response.readiness ?? null, detail };
 }
 
-export async function resolveConfiguration(machineId: string, answers: Array<{ request_id: string; value: string }>): Promise<{ targetId: string; result: unknown }> {
-  const response = await onboardingClient.resolveConfiguration({ machineId, answersJson: new TextEncoder().encode(JSON.stringify(answers)) });
-  return { targetId: response.targetId, result: JSON.parse(new TextDecoder().decode(response.resultJson)) as unknown };
+export async function resolveConfiguration(machineId: string, answers: Array<{ request_id: string; value: string }>, expectedRevision = ""): Promise<{ targetId: string; result: unknown }> {
+  const typedAnswers: Answer[] = answers.map((answer) => create(AnswerSchema, { requestId: answer.request_id, value: answer.value }));
+  const request: { machineId: string; expectedRevision?: string; answers: Answer[] } = { machineId, answers: typedAnswers };
+  if (expectedRevision.trim() !== "") request.expectedRevision = expectedRevision.trim();
+  const response = await onboardingClient.resolveConfiguration(request);
+  return { targetId: response.targetId, result: response.result ?? null };
+}
+
+function questionToConfigurationQuestion(question: OperatorInputRequest): ConfigurationQuestion {
+  return {
+    id: question.id,
+    kind: inputKindName(question.kind),
+    title: question.title,
+    description: question.description,
+    default: question.defaultValue,
+    options: question.options,
+    required: question.required,
+    validation: question.validation,
+    owner: question.owner,
+    input_id: question.inputId,
+    candidates: question.candidates.map((candidate) => ({ id: candidate.id, label: candidate.label, status: candidate.status, risk: candidate.risk, remediation: candidate.remediation })),
+  };
+}
+
+function inputKindName(kind: OperatorInputKind): ConfigurationQuestion["kind"] {
+  switch (kind) {
+    case OperatorInputKind.SECRET: return "secret";
+    case OperatorInputKind.CHOICE: return "choice";
+    case OperatorInputKind.CONFIRM: return "confirm";
+    case OperatorInputKind.PATH: return "path";
+    case OperatorInputKind.ENUM: return "enum";
+    case OperatorInputKind.BOOLEAN: return "boolean";
+    case OperatorInputKind.DURATION: return "duration";
+    case OperatorInputKind.CONFIRMATION: return "confirmation";
+    default: return "choice";
+  }
 }
 
 export function listCredentialGrants(machineId: string): Promise<ListGrantsResponse> {
@@ -110,14 +140,14 @@ export function answerSecret(request: { nodeId: string; logicalId: string; field
   return onboardingClient.answerSecret(create(AnswerSecretRequestSchema, { nodeId: request.nodeId, logicalId: request.logicalId, field: request.field, value: request.value, class: "user_prompt", retention: "durable" }));
 }
 
-export async function reapplyConfiguration(machineId: string): Promise<{ targetId: string; result: unknown }> {
+export async function reapplyConfiguration(machineId: string): Promise<{ targetId: string; result?: StartApplyResponse }> {
   const response = await onboardingClient.reapplyConfiguration({ machineId });
-  return { targetId: response.targetId, result: JSON.parse(new TextDecoder().decode(response.resultJson)) as unknown };
+  return { targetId: response.targetId, result: response.result };
 }
 
-export async function getConfigurationApplyStatus(machineId: string, runId: string): Promise<{ targetId: string; result: unknown }> {
+export async function getConfigurationApplyStatus(machineId: string, runId: string): Promise<GetApplyRunResponse> {
   const response = await onboardingClient.getConfigurationApplyStatus({ machineId, runId });
-  return { targetId: response.targetId, result: JSON.parse(new TextDecoder().decode(response.resultJson)) as unknown };
+  return response;
 }
 
 export type FleetStatus = "ready" | "empty" | "unenrolled" | "unreachable";

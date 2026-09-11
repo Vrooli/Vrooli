@@ -613,7 +613,7 @@ func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read remote session response: %v", err)
 	}
-	if lower := strings.ToLower(string(createPayload)); strings.Contains(lower, "token") || strings.Contains(lower, "credential") || strings.Contains(lower, "reauth") || strings.Contains(lower, "secret") {
+	if livePayloadContainsSensitiveField(createPayload) {
 		t.Fatalf("remote session response leaked a credential field: %s", createPayload)
 	}
 	var created struct {
@@ -629,7 +629,8 @@ func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
 	}
 	sessionID := created.Session.ID
 	t.Cleanup(func() {
-		req, reqErr := http.NewRequest(http.MethodPost, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Delete", strings.NewReader(fmt.Sprintf(`{"id":%q}`, sessionID)))
+		deleteBody := fmt.Sprintf(`{"id":%q,"confirmation":%q}`, sessionID, "DELETE:"+sessionID)
+		req, reqErr := http.NewRequest(http.MethodPost, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Delete", strings.NewReader(deleteBody))
 		if reqErr != nil {
 			t.Errorf("build remote session cleanup request: %v", reqErr)
 			return
@@ -667,7 +668,7 @@ func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
 		if readErr != nil {
 			t.Fatalf("read %s: %v", label, readErr)
 		}
-		if lower := strings.ToLower(string(payload)); strings.Contains(lower, "token") || strings.Contains(lower, "credential") || strings.Contains(lower, "reauth") || strings.Contains(lower, "secret") {
+		if livePayloadContainsSensitiveField(payload) {
 			t.Fatalf("terminal payload leaked a credential field: %s", payload)
 		}
 		var message TerminalMessage
@@ -732,6 +733,36 @@ func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
 		}
 	}
 	t.Logf("remote transcript assertions: uname -a contained Darwin; resize reported 100x30; stty size reported 30 100; output=%q", output.String())
+}
+
+func livePayloadContainsSensitiveField(payload []byte) bool {
+	var value any
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return false
+	}
+	return liveValueContainsSensitiveField(value)
+}
+
+func liveValueContainsSensitiveField(value any) bool {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			lowerKey := strings.ToLower(key)
+			if strings.Contains(lowerKey, "token") || strings.Contains(lowerKey, "credential") || strings.Contains(lowerKey, "reauth") || strings.Contains(lowerKey, "secret") {
+				return true
+			}
+			if liveValueContainsSensitiveField(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if liveValueContainsSensitiveField(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestHandleTerminalWS_ConnectionRelativeOffsetStartsAtZero(t *testing.T) {

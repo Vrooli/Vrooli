@@ -189,7 +189,7 @@ func capabilityDefinition(id string) (capabilities.Def, bool) {
 }
 
 func authenticatedHTTPClient(ownerToken, reauthToken string) *http.Client {
-	return &http.Client{Transport: authTransport{base: http.DefaultTransport, owner: ownerToken, reauth: reauthToken}}
+	return &http.Client{Timeout: 30 * time.Second, Transport: authTransport{base: http.DefaultTransport, owner: ownerToken, reauth: reauthToken}}
 }
 
 type authTransport struct {

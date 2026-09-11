@@ -76,19 +76,37 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit i
 	return result, nil
 }
 
-func (a *conversationAdapter) Search(sessionID, query string, limit int) ([]conversationH.SearchMatch, bool, int64, error) {
+func repoSearchQuery(q conversationH.SearchQuery) ConversationSearchQuery {
+	return ConversationSearchQuery{
+		Query: q.Query, Mode: ConversationSearchMode(q.Mode), CaseSensitive: q.CaseSensitive,
+		WholeWord: q.WholeWord, Role: q.Role, Limit: q.Limit,
+	}
+}
+
+func handlerRanges(ranges []TextRange) []conversationH.TextRange {
+	out := make([]conversationH.TextRange, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, conversationH.TextRange{Start: r.Start, End: r.End})
+	}
+	return out
+}
+
+func (a *conversationAdapter) Search(sessionID string, query conversationH.SearchQuery) (conversationH.SearchResult, error) {
 	if !a.canReadSession(sessionID) {
-		return nil, false, 0, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+		return conversationH.SearchResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	matches, truncated, total, err := a.srv.conversations.SearchSession(context.Background(), sessionID, query, limit)
+	result, err := a.srv.conversations.SearchSession(context.Background(), sessionID, repoSearchQuery(query))
 	if err != nil {
-		return nil, false, 0, err
+		return conversationH.SearchResult{}, err
 	}
-	out := make([]conversationH.SearchMatch, 0, len(matches))
-	for _, match := range matches {
-		out = append(out, conversationH.SearchMatch{EventID: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt})
+	out := conversationH.SearchResult{Truncated: result.Truncated, TotalMatches: result.Total, Error: result.Error, Matches: make([]conversationH.SearchMatch, 0, len(result.Matches))}
+	for _, match := range result.Matches {
+		out.Matches = append(out.Matches, conversationH.SearchMatch{
+			EventID: match.EventID, Sequence: match.Sequence, Role: match.Role,
+			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
+		})
 	}
-	return out, truncated, total, nil
+	return out, nil
 }
 
 func (a *conversationAdapter) SearchArchived(ctx context.Context, filter conversationH.ArchivedSearchFilter) (conversationH.ArchivedSearchResult, error) {
@@ -100,18 +118,18 @@ func (a *conversationAdapter) SearchArchived(ctx context.Context, filter convers
 		}
 		createdAfter = parsed
 	}
-	matches, truncated, total, distinct, err := a.srv.conversations.SearchArchived(ctx, ArchivedConversationSearchFilter{
-		Query: filter.Query, Limit: filter.Limit, AgentType: filter.AgentType, Role: filter.Role, CreatedAfter: createdAfter,
+	found, err := a.srv.conversations.SearchArchived(ctx, ArchivedConversationSearchFilter{
+		ConversationSearchQuery: repoSearchQuery(filter.SearchQuery), AgentType: filter.AgentType, CreatedAfter: createdAfter,
 	})
 	if err != nil {
 		return conversationH.ArchivedSearchResult{}, err
 	}
-	result := conversationH.ArchivedSearchResult{Truncated: truncated, TotalMatches: total, DistinctSessions: distinct}
-	result.Matches = make([]conversationH.ArchivedSearchMatch, 0, len(matches))
-	for _, match := range matches {
+	result := conversationH.ArchivedSearchResult{Truncated: found.Truncated, TotalMatches: found.Total, DistinctSessions: found.DistinctSessions, Error: found.Error}
+	result.Matches = make([]conversationH.ArchivedSearchMatch, 0, len(found.Matches))
+	for _, match := range found.Matches {
 		result.Matches = append(result.Matches, conversationH.ArchivedSearchMatch{
 			EventID: match.EventID, SessionID: match.SessionID, Sequence: match.Sequence, Role: match.Role,
-			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), Excerpt: match.Excerpt,
+			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
 		})
 	}
 	return result, nil
@@ -207,7 +225,9 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 			Error: "Summarization returned empty content",
 		}, nil
 	}
-	a.srv.conversations.UpdateSpeechParagraphs(ctx, sessionID, eventID, newParagraphs)
+	if err := a.srv.conversations.UpdateSpeechParagraphs(ctx, sessionID, eventID, newParagraphs); err != nil {
+		return conversationH.SummarizeResult{Error: "Summarization completed, but the result could not be persisted"}, nil
+	}
 
 	return conversationH.SummarizeResult{
 		Summarized:       true,

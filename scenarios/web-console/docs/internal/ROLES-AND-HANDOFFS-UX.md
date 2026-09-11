@@ -6,7 +6,7 @@ The plan `web-console-roles-and-handoffs-group-first-sessions-waiting`
 implemented this design; this document holds the rationale, the measured
 starting facts, the vocabulary, the generalization rules, and the decisions.
 
-Visual companion: [`ROLES-AND-HANDOFFS-UX.html`](./ROLES-AND-HANDOFFS-UX.html) —
+Visual companion: `ROLES-AND-HANDOFFS-UX.html` (preserved HTML) —
 open in a browser for rendered mockups of every new and changed surface, in
 web-console's real palette, across ten sections. **The HTML file is the authority on visual
 arrangement, control placement, and copy.** This document is the authority on
@@ -313,3 +313,15 @@ implementer starts and receives `Implement the plan at <path>`. When the
 operator closes both sessions, the group closes itself and offers an undo.
 
 Nine manual steps become three. No copy-paste. No leftover group.
+
+## Preserved visual sources
+
+Historical HTML and editable canvas sources live beneath the protected
+control-plane runtime home (`~/.vrooli` for the invoking user).
+These are dated evidence or design supplements; this relocation does not
+change plan status or establish release readiness.
+
+- `plan-artifacts/docs-html-progress-20260908/scenarios/web-console/docs/internal/ROLES-AND-HANDOFFS-UX.html`
+
+The originating installation must retain these artifacts with its durable backups.
+Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

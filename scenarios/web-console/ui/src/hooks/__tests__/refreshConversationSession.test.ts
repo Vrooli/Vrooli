@@ -36,7 +36,26 @@ const CAPTURING: MessageCaptureStatus = {
 
 describe("refreshConversationSession", () => {
   beforeEach(() => {
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
+  });
+
+  it("[REQ:P0-017b] a refresh while the first load is still in flight asks for a page, not the whole history", async () => {
+    // Another caller has started the first load: the entry exists but holds no history yet.
+    useConversationStore.getState().beginLoad("s1");
+    const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
+      sessionId: "s1",
+      capture: CAPTURING,
+      events: [makeEvent("e743", 743), makeEvent("e744", 744)],
+      cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+      oldestSequence: 743,
+      hasMore: true,
+      totalCount: 744,
+    });
+
+    await refreshConversationSession("s1");
+
+    expect(spy).toHaveBeenCalledWith("s1", { limit: 500 });
+    spy.mockRestore();
   });
 
   it("requests since_sequence=<max local sequence> when the local store is gap-free and merges only missing events", async () => {

@@ -3,8 +3,10 @@ import type { ConversationEvent } from "../../api/conversation";
 import {
   MESSAGE_ACTIONS,
   actionPlacement,
+  orderedActions,
   type MessageActionContext,
 } from "./messageActions";
+import en from "../../i18n/locales/en.json";
 
 function event(role: ConversationEvent["role"]): ConversationEvent {
   return {
@@ -40,19 +42,8 @@ function context(role: ConversationEvent["role"], overrides: Partial<MessageActi
     onClearSummarizeError: vi.fn(),
     onToggleSummarized: vi.fn(),
     onChangeLevel: vi.fn(),
-    audioSettings: {
-      volume: 1,
-      isMuted: false,
-      playbackRate: 1,
-      capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
-    },
-    onSetPlaybackRate: vi.fn(),
-    onSetVolume: vi.fn(),
-    onSetMuted: vi.fn(),
-    isMobile: false,
     onCopy: vi.fn(),
     onPlayFromHere: vi.fn(),
-    onPlayEvent: vi.fn(),
     onToggleRenderMode: vi.fn(),
     ...overrides,
   };
@@ -69,12 +60,12 @@ describe("MESSAGE_ACTIONS", () => {
     expect(MESSAGE_ACTIONS.map(({ id }) => id)).toEqual([
       "copy",
       "read-from-here",
+      "open-in-reader",
       "save-as-snippet",
       "handoff",
       "send-to-composer",
       "render-mode",
       "playback-mode",
-      "audio-settings",
     ]);
   });
 
@@ -85,7 +76,7 @@ describe("MESSAGE_ACTIONS", () => {
   });
 
   it("limits TTS actions to writable non-user messages", () => {
-    for (const id of ["read-from-here", "playback-mode", "audio-settings"]) {
+    for (const id of ["read-from-here", "playback-mode"]) {
       expect(action(id).appliesTo(context("assistant"))).toBe(true);
       expect(action(id).appliesTo(context("user"))).toBe(false);
       expect(action(id).appliesTo(context("assistant", { readOnly: true }))).toBe(false);
@@ -114,5 +105,27 @@ describe("MESSAGE_ACTIONS", () => {
     action("render-mode").run(ctx);
     expect(ctx.onCopy).toHaveBeenCalledWith("event-1", "Reusable message");
     expect(ctx.onToggleRenderMode).toHaveBeenCalledWith("event-1");
+  });
+
+  it("[REQ:P0-017c] has no audio-settings action and labels playback mode 'Summarize'", () => {
+    expect(MESSAGE_ACTIONS.some(({ id }) => id === "audio-settings")).toBe(false);
+    expect(en.messageActions.playbackMode).toBe("Summarize");
+  });
+
+  it("[REQ:P0-017c] offers open-in-reader where a reader exists, inline on collapsed rows", () => {
+    const reader = action("open-in-reader");
+    expect(reader.appliesTo(context("assistant"))).toBe(false);
+    const ctx = context("assistant", { onOpenReader: vi.fn() });
+    expect(reader.appliesTo(ctx)).toBe(true);
+    expect(actionPlacement(reader, ctx)).toBe("overflow");
+    expect(actionPlacement(reader, { ...ctx, isTall: true })).toBe("primary");
+    reader.run(ctx);
+    expect(ctx.onOpenReader).toHaveBeenCalledWith("event-1");
+  });
+
+  it("[REQ:P0-017c] orders the full action list primary first", () => {
+    const ids = orderedActions(context("assistant", { onOpenReader: vi.fn(), isTall: true, onSendToComposer: vi.fn() })).map(({ id }) => id);
+    expect(ids.slice(0, 3)).toEqual(["copy", "read-from-here", "open-in-reader"]);
+    expect(ids).toContain("send-to-composer");
   });
 });

@@ -1,9 +1,10 @@
-import { renderWithProviders as render } from "../test-utils";
+import { renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../test-utils";
 import { useState } from "react";
+import { strings } from "../consts/strings";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, within, createEvent } from "@testing-library/react";
-import MessageJumpList, { type MessageExportSelection } from "../components/MessageJumpList";
-import type { ConversationEvent } from "../api/conversation";
+import MessageJumpList, { type MessageExportSelection, type NavigatorSearch } from "../components/MessageJumpList";
+import type { ConversationEvent, ConversationSearchMatch } from "../api/conversation";
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
   return {
@@ -21,12 +22,33 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
   };
 }
 
+function hit(event: ConversationEvent, match: string): ConversationSearchMatch {
+  const start = event.text.indexOf(match);
+  return {
+    eventId: event.id, sequence: event.sequence, excerpt: event.text,
+    ranges: start >= 0 ? [{ start, end: start + match.length }] : [],
+    role: event.role, createdAt: event.createdAt,
+  };
+}
+
+/** Server search as MessagesPane provides it; hits default to none. */
+function search(overrides: Partial<NavigatorSearch> = {}): NavigatorSearch {
+  return {
+    hits: [],
+    truncated: false,
+    options: { mode: "text", caseSensitive: false, wholeWord: false },
+    onOptionsChange: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe("MessageJumpList navigator", () => {
   const onSelect = vi.fn();
   const onClose = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setDesktopViewport();
     vi.stubGlobal(
       "ResizeObserver",
       vi.fn().mockImplementation(() => ({ observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn() })),
@@ -70,21 +92,66 @@ describe("MessageJumpList navigator", () => {
     expect(item.getAttribute("data-glyph")).toBe("playing");
   });
 
-  it("summarized events render an S badge; next badge appears on the queued-next event", () => {
+  it("summarized events render an S badge", () => {
     const events = [
       makeEvent({ id: "a", sequence: 1, summarized: true }),
       makeEvent({ id: "b", sequence: 2 }),
     ];
-    render(<MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} hasQueuedNext />);
+    render(<MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} />);
     expect(screen.getByTestId("msg-jump-summarized-a")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-jump-next-b")).toBeInTheDocument();
   });
 
-  it("renders safe-area spacer and reserves safe-bottom on the scroll area", () => {
+  it("[REQ:P0-017g] keeps one bottom padding: no spacer, no safe-area padding on the scroller, a body that shrinks", () => {
+    setMobileViewport();
     const events = [makeEvent({ id: "e1", sequence: 1 })];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    expect(screen.getByTestId("msg-jump-safe-spacer").getAttribute("style") ?? "").toContain("safe-bottom");
-    expect(screen.getByTestId("msg-jump-scroll").className).toContain("safe-bottom");
+    expect(screen.queryByTestId("msg-jump-safe-spacer")).toBeNull();
+    const scroller = screen.getByTestId("msg-jump-scroll");
+    expect(scroller.className).not.toContain("safe-bottom");
+    // The sheet body is a shrinking column, so the scroller gives up height
+    // and anything below it (the export footer) stays on screen.
+    expect(scroller.closest(".min-h-0.flex-col")).not.toBeNull();
+  });
+
+  it("[REQ:P0-017g] a long list renders a window, and reaching its last row renders that row", () => {
+    const events = Array.from({ length: 300 }, (_, index) => makeEvent({
+      id: `e${String(index + 1)}`,
+      sequence: index + 1,
+      text: index % 3 === 0 ? `Message ${String(index + 1)} ${"with a much longer preview ".repeat(6)}` : `Message ${String(index + 1)}`,
+    }));
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    // The first commit renders a window of rows, not all 300.
+    expect(screen.getAllByTestId(/^msg-jump-item-/).length).toBeLessThan(100);
+    // Scrolled to its end, the list renders its last row.
+    const scroller = screen.getByTestId("msg-jump-scroll");
+    scroller.scrollTop = 1_000_000;
+    fireEvent.scroll(scroller);
+    expect(screen.getByTestId("msg-jump-item-e300")).toBeInTheDocument();
+  });
+
+  it("[REQ:P0-017g] a list that arrives after an empty state still follows scrolling", () => {
+    // A search opens empty and fills when results land; the list must track
+    // scrolling from then on, not only when it was there from the start.
+    const { rerender } = render(<MessageJumpList events={[]} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    const events = Array.from({ length: 300 }, (_, index) => makeEvent({ id: `e${String(index + 1)}`, sequence: index + 1, text: `Message ${String(index + 1)}` }));
+    rerender(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    const scroller = screen.getByTestId("msg-jump-scroll");
+    scroller.scrollTop = 1_000_000;
+    fireEvent.scroll(scroller);
+    expect(screen.getByTestId("msg-jump-item-e300")).toBeInTheDocument();
+  });
+
+  it("[REQ:P0-017g] rows read as speaker · time, like the message rows", () => {
+    const events = [
+      makeEvent({ id: "u", sequence: 7, role: "user", text: "Question" }),
+      makeEvent({ id: "a", sequence: 8, source: "claude_hook", text: "Answer" }),
+    ];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    expect(screen.getByTestId("msg-jump-speaker-u")).toHaveTextContent(strings.messageJumpList.roleYou);
+    expect(screen.getByTestId("msg-jump-speaker-a")).toHaveTextContent(strings.messageJumpList.roleClaude);
+    // The sequence number lives in the time's tooltip, not in the row.
+    expect(screen.getByTestId("msg-jump-time-a")).toHaveAttribute("title", "#8");
+    expect(screen.getByTestId("msg-jump-item-a")).not.toHaveTextContent("#8");
   });
 
   it("assistant rows keep a 44px min tap target; user rows 48px", () => {
@@ -101,29 +168,53 @@ describe("MessageJumpList navigator", () => {
 
   it("renders search input and result count", () => {
     const events = [makeEvent({ id: "e1", sequence: 1 })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     expect(screen.getByTestId("msg-nav-search")).toBeInTheDocument();
     expect(screen.getByTestId("msg-nav-count")).toBeInTheDocument();
   });
 
-  it("typing a query filters rows and highlights matched text", () => {
+  it("[REQ:P0-017g] a query lists the server's hits with the server's highlights", () => {
     const events = [
       makeEvent({ id: "a", sequence: 1, text: "deploy the service" }),
       makeEvent({ id: "b", sequence: 2, text: "unrelated content" }),
     ];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "deploy" } });
+    const hits = [hit(events[0] as ConversationEvent, "deploy")];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="deploy" onQueryChange={vi.fn()} search={search({ hits })} />);
     expect(screen.getByTestId("msg-jump-item-a")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-jump-item-b")).not.toBeInTheDocument();
     const highlight = within(screen.getByTestId("msg-jump-item-a")).getByText("deploy", { selector: '[data-match="true"]' });
     expect(highlight).toBeInTheDocument();
   });
 
+  it("[REQ:P0-017g] offers Text, Regex, and Fuzzy modes with case and whole-word chips", () => {
+    const onOptionsChange = vi.fn();
+    render(<MessageJumpList events={[makeEvent({ id: "a", sequence: 1 })]} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search({ onOptionsChange })} />);
+    const modes = screen.getByTestId("msg-jump-mode");
+    expect(within(modes).getAllByRole("button").map((b) => b.getAttribute("data-mode"))).toEqual(["text", "regex", "fuzzy"]);
+    fireEvent.click(within(modes).getByRole("button", { name: /regex/i }));
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ mode: "regex", caseSensitive: false, wholeWord: false });
+    fireEvent.click(screen.getByTestId("msg-jump-case"));
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ mode: "text", caseSensitive: true, wholeWord: false });
+    fireEvent.click(screen.getByTestId("msg-jump-whole-word"));
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ mode: "text", caseSensitive: false, wholeWord: true });
+  });
+
+  it("[REQ:P0-017g] shows the server's error for a query it cannot run", () => {
+    render(<MessageJumpList events={[makeEvent({ id: "a", sequence: 1 })]} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="(" onQueryChange={vi.fn()} search={search({ error: "invalid regular expression: missing closing )" })} />);
+    expect(screen.getByTestId("msg-jump-error")).toHaveTextContent("invalid regular expression: missing closing )");
+  });
+
+  it("[REQ:P0-017g] says when the server stopped short", () => {
+    const events = [makeEvent({ id: "a", sequence: 1, text: "needle" })];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="needle" onQueryChange={vi.fn()} search={search({ hits: [hit(events[0] as ConversationEvent, "needle")], truncated: true })} />);
+    expect(screen.getByTestId("msg-jump-truncated")).toBeInTheDocument();
+  });
+
   it("does not prevent the search input's mousedown default (so clicking focuses it)", () => {
     // The overlay wrapper preventDefaults mousedown to protect host focus; the
     // input must opt out or it can never be focused by click.
     const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     const input = screen.getByTestId("msg-nav-search");
     const ev = createEvent.mouseDown(input);
     fireEvent(input, ev);
@@ -132,7 +223,7 @@ describe("MessageJumpList navigator", () => {
 
   it("clear button appears with a query and resets it", () => {
     const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     expect(screen.queryByTestId("msg-nav-clear")).toBeNull();
     fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "hello" } });
     expect(screen.getByTestId("msg-nav-clear")).toBeInTheDocument();
@@ -144,7 +235,7 @@ describe("MessageJumpList navigator", () => {
     const onQueryChange = vi.fn();
     const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
     render(
-      <MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="hel" onQueryChange={onQueryChange} />,
+      <MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="hel" onQueryChange={onQueryChange} search={search()} />,
     );
     expect((screen.getByTestId("msg-nav-search") as HTMLInputElement).value).toBe("hel");
     fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "hello" } });
@@ -168,14 +259,15 @@ describe("MessageJumpList navigator", () => {
     expect(screen.getByTestId("msg-jump-item-a")).toBeInTheDocument();
   });
 
-  it("Failed chip shows only failed/rejected; All resets", () => {
+  it("Failed status shows only failed/rejected; All resets", () => {
     const events = [
       makeEvent({ id: "a", sequence: 1, ttsState: "played" }),
       makeEvent({ id: "b", sequence: 2, ttsState: "failed" }),
       makeEvent({ id: "c", sequence: 3, ttsState: "rejected" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-chip-failed"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
+    fireEvent.click(screen.getByTestId("msg-nav-status-failed"));
     expect(screen.queryByTestId("msg-jump-item-a")).not.toBeInTheDocument();
     expect(screen.getByTestId("msg-jump-item-b")).toBeInTheDocument();
     expect(screen.getByTestId("msg-jump-item-c")).toBeInTheDocument();
@@ -186,14 +278,19 @@ describe("MessageJumpList navigator", () => {
 
   // ── Advanced panel ─────────────────────────────────────────────────────────
 
-  it("More toggles the advanced panel with source/status/content/sort/group controls", () => {
+  it("[REQ:P0-017g] filters stay folded behind one Filters button; the role control stays out", () => {
     const events = [
       makeEvent({ id: "a", sequence: 1, source: "claude_hook" }),
       makeEvent({ id: "b", sequence: 2, source: "grok_tailer" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
     expect(screen.queryByTestId("msg-nav-advanced")).toBeNull();
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
+    expect(screen.queryByTestId("msg-nav-status-failed")).toBeNull();
+    expect(screen.queryByTestId("msg-nav-chip-failed")).toBeNull();
+    expect(screen.getByTestId("msg-nav-chip-user")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-jump-filters")).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
+    expect(screen.getByTestId("msg-jump-filters")).toHaveAttribute("aria-expanded", "true");
     const panel = screen.getByTestId("msg-nav-advanced");
     expect(panel).toBeInTheDocument();
     // Source chips only for present sources.
@@ -212,7 +309,7 @@ describe("MessageJumpList navigator", () => {
       makeEvent({ id: "b", sequence: 2, source: "grok_tailer" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
     fireEvent.click(screen.getByTestId("msg-nav-source-grok"));
     expect(screen.queryByTestId("msg-jump-item-a")).not.toBeInTheDocument();
     expect(screen.getByTestId("msg-jump-item-b")).toBeInTheDocument();
@@ -224,7 +321,7 @@ describe("MessageJumpList navigator", () => {
       makeEvent({ id: "b", sequence: 2, text: "plain prose" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
     fireEvent.click(screen.getByTestId("msg-nav-content-code"));
     expect(screen.getByTestId("msg-jump-item-a")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-jump-item-b")).not.toBeInTheDocument();
@@ -237,7 +334,7 @@ describe("MessageJumpList navigator", () => {
       makeEvent({ id: "c", sequence: 3 }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
     fireEvent.click(screen.getByTestId("msg-nav-group-flat"));
     fireEvent.click(screen.getByTestId("msg-nav-sort-newest"));
     const rows = screen.getAllByTestId(/^msg-jump-item-/);
@@ -248,13 +345,11 @@ describe("MessageJumpList navigator", () => {
     ]);
   });
 
-  it("relevance sort is disabled until a query exists", () => {
-    const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
-    expect(screen.getByTestId("msg-nav-sort-relevance")).toBeDisabled();
-    fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "hello" } });
-    expect(screen.getByTestId("msg-nav-sort-relevance")).not.toBeDisabled();
+  it("[REQ:P0-017g] the User chip also narrows the server search", () => {
+    const onOptionsChange = vi.fn();
+    render(<MessageJumpList events={[makeEvent({ id: "a", sequence: 1 })]} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search({ onOptionsChange })} />);
+    fireEvent.click(screen.getByTestId("msg-nav-chip-user"));
+    expect(onOptionsChange).toHaveBeenLastCalledWith({ mode: "text", caseSensitive: false, wholeWord: false, role: "user" });
   });
 
   it("by-role grouping renders rows under role headings without losing identity", () => {
@@ -263,7 +358,7 @@ describe("MessageJumpList navigator", () => {
       makeEvent({ id: "a1", sequence: 2, text: "A1" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-more"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
     fireEvent.click(screen.getByTestId("msg-nav-group-role"));
     expect(screen.getByTestId("msg-jump-item-u1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-jump-item-a1")).toBeInTheDocument();
@@ -278,7 +373,8 @@ describe("MessageJumpList navigator", () => {
       makeEvent({ id: "c", sequence: 3, ttsState: "rejected" }),
     ];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    fireEvent.click(screen.getByTestId("msg-nav-chip-failed"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
+    fireEvent.click(screen.getByTestId("msg-nav-status-failed"));
     const list = screen.getByTestId("msg-jump-list");
     fireEvent.keyDown(list, { key: "ArrowDown" });
     fireEvent.keyDown(list, { key: "Enter" });
@@ -294,7 +390,7 @@ describe("MessageJumpList navigator", () => {
 
   it("ArrowDown in the search input moves into the results", () => {
     const events = [makeEvent({ id: "a", sequence: 1 }), makeEvent({ id: "b", sequence: 2 })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     const input = screen.getByTestId("msg-nav-search");
     fireEvent.keyDown(input, { key: "ArrowDown" });
     const list = screen.getByTestId("msg-jump-list");
@@ -304,7 +400,7 @@ describe("MessageJumpList navigator", () => {
 
   it("Escape in the search input clears a query before closing", () => {
     const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
-    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     const input = screen.getByTestId("msg-nav-search");
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.keyDown(input, { key: "Escape" });
@@ -321,64 +417,14 @@ describe("MessageJumpList navigator", () => {
     expect(screen.getByTestId("msg-nav-empty").getAttribute("data-reason")).toBe("noMessages");
 
     const events = [makeEvent({ id: "a", sequence: 1, text: "hello" })];
-    rerender(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
+    rerender(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} search={search()} />);
     fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "zzz-no-match" } });
     expect(screen.getByTestId("msg-nav-empty").getAttribute("data-reason")).toBe("noSearchResults");
 
     fireEvent.click(screen.getByTestId("msg-nav-clear"));
-    fireEvent.click(screen.getByTestId("msg-nav-chip-failed"));
+    fireEvent.click(screen.getByTestId("msg-jump-filters"));
+    fireEvent.click(screen.getByTestId("msg-nav-status-failed"));
     expect(screen.getByTestId("msg-nav-empty").getAttribute("data-reason")).toBe("noFilterResults");
-  });
-
-  // ── Mode-specific copy + now-playing ───────────────────────────────────────
-
-  it("uses jump-mode title by default and playback title in playback-select mode", () => {
-    const events = [makeEvent({ id: "a", sequence: 1 })];
-    const { rerender } = render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} />);
-    expect(screen.getByText("messageJumpList.titleJump")).toBeInTheDocument();
-    rerender(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} mode="playback-select" />);
-    expect(screen.getByText("messageJumpList.titlePlayback")).toBeInTheDocument();
-  });
-
-  it("hides the now-playing header in jump mode without active playback", () => {
-    const events = [makeEvent({ id: "a", sequence: 1 })];
-    render(<MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} />);
-    expect(screen.queryByTestId("msg-jump-now-playing")).toBeNull();
-  });
-
-  it("shows the now-playing header (idle) in playback-select mode", () => {
-    const events = [makeEvent({ id: "a", sequence: 1 })];
-    render(<MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} mode="playback-select" />);
-    expect(screen.getByTestId("msg-jump-now-playing").getAttribute("data-state")).toBe("idle");
-  });
-
-  it("now-playing header shows scrub and play/pause when duration is set", () => {
-    const onPause = vi.fn();
-    const events = [makeEvent({ id: "a", sequence: 1, text: "Now playing" })];
-    render(
-      <MessageJumpList
-        events={events}
-        focusedEventId="a"
-        onSelect={onSelect}
-        onClose={onClose}
-        currentTime={5}
-        duration={20}
-        isPaused={false}
-        onPause={onPause}
-      />,
-    );
-    expect(screen.getByTestId("msg-jump-now-playing").getAttribute("data-state")).toBe("playing");
-    expect(screen.getByTestId("msg-jump-now-scrub")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("msg-jump-now-playpause"));
-    expect(onPause).toHaveBeenCalled();
-  });
-
-  it("scrub bar uses summarized accent when isSummarized=true", () => {
-    const events = [makeEvent({ id: "a", sequence: 1 })];
-    render(
-      <MessageJumpList events={events} focusedEventId="a" onSelect={onSelect} onClose={onClose} currentTime={1} duration={10} isPaused={false} isSummarized />,
-    );
-    expect(screen.getByTestId("msg-jump-now-scrub").className).toMatch(/amber-400/);
   });
 });
 
@@ -417,6 +463,10 @@ describe("MessageJumpList export selection", () => {
       onClear: () => setSelectedIds(new Set()),
       onContinue,
     };
+    // Like MessagesPane, the harness owns the query and answers it the way the
+    // server does (whole-history hits with ranges).
+    const [query, setQuery] = useState("");
+    const hits = query ? events.filter((e) => e.text.includes(query)).map((e) => hit(e, query)) : [];
     return (
       <MessageJumpList
         events={events}
@@ -424,6 +474,9 @@ describe("MessageJumpList export selection", () => {
         onSelect={onSelect}
         onClose={onClose}
         exportSelection={exportSelection}
+        query={query}
+        onQueryChange={setQuery}
+        search={search({ hits })}
       />
     );
   }
@@ -439,28 +492,6 @@ describe("MessageJumpList export selection", () => {
     const enter = screen.getByTestId("msg-export-enter");
     expect(enter).toBeInTheDocument();
     expect(enter.textContent).toContain("messageExport.exportAction");
-  });
-
-  it("hides the Export action in playback-select mode", () => {
-    const events = threeEvents();
-    render(
-      <MessageJumpList
-        events={events}
-        focusedEventId={null}
-        onSelect={onSelect}
-        onClose={onClose}
-        mode="playback-select"
-        exportSelection={{
-          selectedIds: new Set(),
-          onToggle: vi.fn(),
-          onSelectAll: vi.fn(),
-          onSelectVisible: vi.fn(),
-          onClear: vi.fn(),
-          onContinue,
-        }}
-      />,
-    );
-    expect(screen.queryByTestId("msg-export-enter")).toBeNull();
   });
 
   it("activating Export enters selection mode without closing the navigator", () => {

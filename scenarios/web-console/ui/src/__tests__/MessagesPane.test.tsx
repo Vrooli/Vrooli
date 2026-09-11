@@ -6,7 +6,6 @@ import { strings } from "../consts/strings";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../api/conversation";
-import type { TTSPlaybackState } from "../audio-integration";
 import { makeConversationEvents } from "./fixtures/conversationFixture";
 
 const { mockLoadOlderConversationPage, mockLoadConversationPageContaining, mockRefreshConversationSession } = vi.hoisted(() => ({
@@ -58,6 +57,20 @@ function makeModel(overrides: Record<string, unknown>) {
 }
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
+// Search runs on the server only; this stands in for it the way the server
+// answers (whole-history hits with ranges), after the pane's 200 ms debounce.
+vi.mock("../api/conversation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/conversation")>();
+  return {
+    ...actual,
+    searchConversation: vi.fn((_sessionId: string, query: string) => Promise.resolve(
+      query === "Hello"
+        ? { matches: [{ eventId: "e1", sequence: 1, excerpt: "Hello world", ranges: [{ start: 0, end: 5 }], role: "assistant" as const, createdAt: "2026-09-11T08:00:00Z" }], truncated: false, totalMatches: 1 }
+        : { matches: [], truncated: false, totalMatches: 0 },
+    )),
+  };
+});
+
 vi.mock("../components/markdown", () => ({
   MarkdownRenderer: ({
     content,
@@ -108,21 +121,6 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
   };
 }
 
-const defaultPlaybackState: TTSPlaybackState = {
-  currentTime: 0,
-  duration: null,
-  isPaused: true,
-  playbackRate: 1,
-  volume: 1,
-  isMuted: false,
-  capabilities: {
-    canPause: true,
-    canSeek: false,
-    canAdjustSpeed: true,
-    canAdjustVolume: true,
-  },
-};
-
 const defaultProps = {
   sessionId: "sess-1",
   onPlayFromHere: vi.fn(),
@@ -136,16 +134,20 @@ const defaultProps = {
   onClearSummarizeError: vi.fn(),
   onToggleSummarized: vi.fn(),
   onChangeLevel: vi.fn(),
-  playbackState: defaultPlaybackState,
-  onSetPlaybackRate: vi.fn(),
-  onSetVolume: vi.fn(),
-  onSetMuted: vi.fn(),
   playbackFocusRequest: null,
 };
 
+/** Actions are hidden at rest: hovering (fine pointer) reveals the inline cluster. */
+function inlineAction(eventId: string, testId: string): HTMLElement {
+  fireEvent.mouseEnter(screen.getByTestId(`msg-card-${eventId}`));
+  return screen.getByTestId(testId);
+}
+
+/** Every applicable action is in the row's action list, opened from the ⋯ control. */
 function overflowAction(eventId: string, testId: string): HTMLElement {
   const existing = screen.queryByTestId(testId);
-  if (existing) return existing;
+  if (existing && !existing.closest("[data-testid='msg-actions-inline']")) return existing;
+  fireEvent.mouseEnter(screen.getByTestId(`msg-card-${eventId}`));
   fireEvent.click(screen.getByTestId(`msg-actions-more-${eventId}`));
   return screen.getByTestId(testId);
 }
@@ -155,7 +157,7 @@ describe("MessagesPane", () => {
     vi.clearAllMocks();
     mockLoadOlderConversationPage.mockResolvedValue(false);
     mockLoadConversationPageContaining.mockResolvedValue(false);
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
     globalThis.fetch = vi.fn() as typeof fetch;
     // Mock IntersectionObserver for auto-scroll sentinel
     const mockObserver = vi.fn().mockImplementation(() => ({
@@ -193,17 +195,18 @@ describe("MessagesPane", () => {
     expect(screen.getAllByTestId(/^msg-card-/).length).toBeLessThanOrEqual(60);
   });
 
-  it("renders play and audio icons on each assistant message", () => {
+  it("offers read-from-here on each assistant message and no per-message audio settings", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1 }),
       makeEvent({ id: "e2", sequence: 2 }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.getByTestId("msg-speak-from-e1")).toBeInTheDocument();
-    expect(overflowAction("e1", "msg-audio-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
-    expect(overflowAction("e2", "msg-audio-e2")).toBeInTheDocument();
+    expect(inlineAction("e1", "msg-speak-from-e1")).toBeInTheDocument();
+    expect(inlineAction("e2", "msg-speak-from-e2")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("msg-actions-more-e2"));
+    expect(screen.queryByTestId("msg-audio-e2")).toBeNull();
+    expect(screen.queryByTestId(/^audio-popover-/)).toBeNull();
   });
 
   it("read-only mode hides transcript-mutating controls and can stage a message", () => {
@@ -211,11 +214,10 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Reusable context" })]);
     render(<MessagesPane {...defaultProps} readOnly onSendToComposer={onSendToComposer} />);
 
+    expect(inlineAction("e1", "msg-copy-e1")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-speak-from-e1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("msg-audio-e1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("msg-copy-e1")).toBeInTheDocument();
     expect(overflowAction("e1", "msg-render-toggle-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-field")).toBeInTheDocument();
 
     fireEvent.click(overflowAction("e1", "msg-send-to-composer-e1"));
     expect(onSendToComposer).toHaveBeenCalledWith("Reusable context");
@@ -235,26 +237,16 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-speak-from-e1"));
+    fireEvent.click(inlineAction("e1", "msg-speak-from-e1"));
     expect(defaultProps.onPlayFromHere).toHaveBeenCalledWith("e1");
-  });
-
-  it("clicking audio button calls onPlayEvent and opens popover", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
-    expect(defaultProps.onPlayEvent).toHaveBeenCalledWith("e1");
-    expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
 
   it("shows loading feedback on the active message audio control", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
     render(<MessagesPane {...defaultProps} loadingEventId="e1" />);
 
-    expect(overflowAction("e1", "msg-audio-loading-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-audio-e1")).toBeDisabled();
-    expect(screen.getByTestId("msg-speak-from-e1")).toBeDisabled();
+    expect(inlineAction("e1", "msg-speak-from-e1")).toBeDisabled();
+    expect(screen.getByTestId("msg-audio-loading-e1")).toBeInTheDocument();
   });
 
   it("active speaking event shows TTS accent border", () => {
@@ -288,51 +280,6 @@ describe("MessagesPane", () => {
     expect(screen.getByText(strings.messagesPane.state.emptyTitle)).toBeInTheDocument();
   });
 
-  describe("refresh feedback", () => {
-    // The complaint this answers: pressing refresh appeared to do nothing.
-    // The request was firing; the pane simply never said what came back, so a
-    // successful no-op and an outright failure both looked like a dead button.
-    beforeEach(() => {
-      mockRefreshConversationSession.mockReset();
-      mockRefreshConversationSession.mockResolvedValue({ ok: true, addedEvents: 0 });
-    });
-
-    it("says it is up to date when a refresh returns nothing new", async () => {
-      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
-      render(<MessagesPane {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
-
-      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
-      expect(screen.getByTestId("messages-status-line")).toHaveTextContent(strings.messagesPane.refreshUpToDate);
-    });
-
-    it("reports how many messages a refresh brought in", async () => {
-      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
-      mockRefreshConversationSession.mockResolvedValue({ ok: true, addedEvents: 3 });
-      render(<MessagesPane {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
-
-      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
-      expect(screen.getByTestId("messages-status-line")).toHaveTextContent(strings.messagesPane.refreshAdded);
-    });
-
-    it("surfaces a failed refresh instead of stopping the spinner silently", async () => {
-      seedEvents([makeEvent({ id: "e1", sequence: 1, text: "hi" })]);
-      mockRefreshConversationSession.mockResolvedValue({
-        ok: false,
-        error: { message: "Web Console couldn't reach the server.", code: "unavailable", retryable: true },
-      });
-      render(<MessagesPane {...defaultProps} />);
-
-      fireEvent.click(screen.getByTestId("messages-refresh-btn"));
-
-      await waitFor(() => expect(screen.getByTestId("messages-status-line")).toBeInTheDocument());
-      expect(screen.getByTestId("messages-status-line")).toHaveTextContent("Web Console couldn't reach the server.");
-    });
-  });
-
   it("user messages have no TTS controls", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, role: "user", text: "My question" }),
@@ -340,31 +287,24 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
+    fireEvent.mouseEnter(screen.getByTestId("msg-card-e1"));
     expect(screen.queryByTestId("msg-speak-from-e1")).toBeNull();
-    expect(screen.queryByTestId("msg-audio-e1")).toBeNull();
-    expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
-    expect(overflowAction("e2", "msg-audio-e2")).toBeInTheDocument();
+    expect(inlineAction("e2", "msg-speak-from-e2")).toBeInTheDocument();
   });
 
-  // --- Layout: full-width accent bars ---
+  // --- Layout: speaker and time, no role colour bars ---
 
-  it("messages use accent bar layout with role-based colors", () => {
+  it("names the speaker on every row instead of colour-coding roles", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, role: "user", text: "User" }),
       makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "Assistant" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    const userCard = screen.getByTestId("msg-card-e1");
-    const assistantCard = screen.getByTestId("msg-card-e2");
-
-    // Both have 3px left border
-    expect(userCard.className).toContain("border-l-[3px]");
-    expect(assistantCard.className).toContain("border-l-[3px]");
-
-    // Different colors
-    expect(userCard.className).toContain("border-l-sky");
-    expect(assistantCard.className).toContain("border-l-emerald");
+    expect(screen.getByTestId("msg-speaker-e1")).toHaveTextContent(strings.messagesPane.speaker.you);
+    expect(screen.getByTestId("msg-speaker-e2")).toHaveTextContent(strings.messagesPane.speaker.claude);
+    expect(screen.getByTestId("msg-card-e1").className).not.toContain("border-l-sky");
+    expect(screen.getByTestId("msg-card-e2").className).not.toContain("border-l-emerald");
   });
 
   it("focused message gets accent background highlight", () => {
@@ -457,7 +397,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     fireEvent.change(screen.getByTestId("msg-nav-search"), {
       target: { value: "world" },
     });
@@ -549,15 +489,13 @@ describe("MessagesPane", () => {
 
   // --- Control strip ---
 
-  it("renders control strip with search, jump, and nav buttons", () => {
+  it("renders the control strip with one search field", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.getByTestId("messages-control-strip")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-jump-trigger")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-nav-up")).toBeInTheDocument();
-    expect(screen.getByTestId("messages-nav-down")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-field")).toBeInTheDocument();
+    expect(screen.queryByTestId("msg-jump-trigger")).toBeNull();
   });
 
   it("renders an optional trailing action in the control strip", () => {
@@ -574,78 +512,52 @@ describe("MessagesPane", () => {
     );
   });
 
-  it("clicking search button opens the navigator focused on search", () => {
+  it("the search field opens the navigator focused on search", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.queryByTestId("msg-jump-list")).toBeNull();
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
     expect(screen.getByTestId("msg-nav-search")).toBeInTheDocument();
   });
 
-  it("disables nav chevrons when no events exist", () => {
-    seedEvents([]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByTestId("messages-nav-up")).toBeDisabled();
-    expect(screen.getByTestId("messages-nav-down")).toBeDisabled();
-  });
-
-  it("enables nav chevrons when events exist", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1, role: "assistant", text: "Answer" })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByTestId("messages-nav-up")).not.toBeDisabled();
-    expect(screen.getByTestId("messages-nav-down")).not.toBeDisabled();
-  });
-
-  it("down chevron navigates to next message", () => {
-    const scrollToMock = vi.fn();
-    Element.prototype.scrollTo = scrollToMock;
-
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, text: "First" }),
-      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    fireEvent.click(screen.getByTestId("messages-nav-down"));
-    expect(scrollToMock).toHaveBeenCalled();
-  });
-
   // --- Search ---
 
-  it("non-matching messages are dimmed during search", () => {
+  it("[REQ:P0-017g] non-matching messages are dimmed once the server answers", async () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
       makeEvent({ id: "e2", sequence: 2, text: "Goodbye" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     fireEvent.change(screen.getByTestId("msg-nav-search"), {
       target: { value: "Hello" },
     });
+    // Nothing is dimmed while the search is in flight: no row is judged
+    // before the server has answered.
+    expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
+    expect(screen.getByTestId("msg-card-e2").className).not.toContain("opacity-40");
 
-    // e1 matches, e2 does not — dimming applies to the message cards behind
-    // the navigator overlay.
-    expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40");
+    // e1 is a server hit, e2 is not — dimming applies to the message cards
+    // behind the navigator overlay.
+    await waitFor(() => { expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40"); });
     expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
   });
 
-  it("clearing the navigator search removes message dimming", () => {
+  it("clearing the navigator search removes message dimming", async () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
       makeEvent({ id: "e2", sequence: 2, text: "Goodbye" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-btn"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     fireEvent.change(screen.getByTestId("msg-nav-search"), {
       target: { value: "Hello" },
     });
-    expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40");
+    await waitFor(() => { expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40"); });
 
     // The navigator's clear button resets the lifted query.
     fireEvent.click(screen.getByTestId("msg-nav-clear"));
@@ -654,23 +566,12 @@ describe("MessagesPane", () => {
 
   // --- Jump list ---
 
-  it("jump trigger shows message count", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1 }),
-      makeEvent({ id: "e2", sequence: 2 }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    const trigger = screen.getByTestId("msg-jump-trigger");
-    expect(trigger.textContent).toContain("2");
-  });
-
-  it("clicking jump trigger opens jump list", () => {
+  it("the search field opens the navigator list", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.queryByTestId("msg-jump-list")).toBeNull();
-    fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
   });
 
@@ -681,16 +582,9 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+    fireEvent.click(screen.getByTestId("messages-search-field"));
     expect(screen.getByTestId("msg-jump-item-e1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-jump-item-e2")).toBeInTheDocument();
-  });
-
-  it("jump trigger is disabled when no events", () => {
-    seedEvents([]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByTestId("msg-jump-trigger")).toBeDisabled();
   });
 
   // --- Summarization ---
@@ -743,7 +637,6 @@ describe("MessagesPane", () => {
       />,
     );
 
-    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
       expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
@@ -761,7 +654,6 @@ describe("MessagesPane", () => {
       />,
     );
 
-    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
     });
@@ -797,8 +689,8 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.getByTestId("msg-copy-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-copy-e2")).toBeInTheDocument();
+    expect(inlineAction("e1", "msg-copy-e1")).toBeInTheDocument();
+    expect(inlineAction("e2", "msg-copy-e2")).toBeInTheDocument();
   });
 
   it("clicking copy writes message text to clipboard", () => {
@@ -808,7 +700,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Copy me" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-copy-e1"));
+    fireEvent.click(inlineAction("e1", "msg-copy-e1"));
     expect(writeTextMock).toHaveBeenCalledWith("Copy me");
   });
 
@@ -819,7 +711,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Copy me" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-copy-e1"));
+    fireEvent.click(inlineAction("e1", "msg-copy-e1"));
 
     const btn = screen.getByTestId("msg-copy-e1");
     const svg = btn.querySelector("svg");
@@ -828,60 +720,14 @@ describe("MessagesPane", () => {
 
   // --- Scroll restore + jump-to-bottom ---
 
-  describe("scroll restore + jump-to-bottom", () => {
-    beforeEach(() => {
-      sessionStorage.clear();
-    });
-
+  describe("scroll follow + jump-to-bottom", () => {
     function seedManyEvents(n: number) {
       const events = Array.from({ length: n }, (_, i) => makeEvent({ id: `e${i + 1}`, sequence: i + 1 }));
       seedEvents(events);
       return events;
     }
 
-    it("restores scroll to bottom when snapshot says atBottom (re-pins on totalSize change)", () => {
-      const scrollToMock = vi.fn();
-      Element.prototype.scrollTo = scrollToMock;
-      // Make scrollHeight large so scrollTo({ top: scrollHeight }) is meaningful.
-      Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
-        configurable: true,
-        get() { return 5000; },
-      });
-
-      sessionStorage.setItem(
-        "wc.messagesScroll.sess-1",
-        JSON.stringify({ atBottom: true, topEventId: null }),
-      );
-      seedManyEvents(120);
-
-      render(<MessagesPane {...defaultProps} />);
-
-      // At least one of the scrollTo calls should target the bottom.
-      const wantedBottom = scrollToMock.mock.calls.some(
-        ([arg]) => typeof arg === "object" && arg !== null && (arg as { top?: number }).top === 5000,
-      );
-      expect(wantedBottom).toBe(true);
-    });
-
-    it("restores scroll to a specific event when snapshot says not at bottom", () => {
-      const scrollToMock = vi.fn();
-      Element.prototype.scrollTo = scrollToMock;
-
-      sessionStorage.setItem(
-        "wc.messagesScroll.sess-1",
-        JSON.stringify({ atBottom: false, topEventId: "e50" }),
-      );
-      seedManyEvents(120);
-
-      render(<MessagesPane {...defaultProps} />);
-
-      // scrollToIndex(50, "auto", "start") translates to a scrollTo({ top: <start of index 50> }).
-      // We just assert it was called with some non-zero top — the bottom-pin would also do this.
-      // To distinguish, check that at least one call has top !== scrollHeight (5000 by default jsdom is 0).
-      expect(scrollToMock).toHaveBeenCalled();
-    });
-
-    it("with no snapshot, lands at bottom on fresh open", () => {
+    it("lands at the bottom on a fresh open", () => {
       const scrollToMock = vi.fn();
       Element.prototype.scrollTo = scrollToMock;
       Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
@@ -907,107 +753,12 @@ describe("MessagesPane", () => {
       seedManyEvents(40);
       render(<MessagesPane {...defaultProps} />);
 
-      // Fire a scroll event on the scroll container so the listener flips isNearBottom to false.
-      const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto");
-      expect(container).not.toBeNull();
-      fireEvent.scroll(container as Element);
+      // A user gesture (wheel, then scroll) away from the bottom stops following.
+      const container = screen.getByTestId("messages-scroll");
+      fireEvent.wheel(container, { deltaY: -100 });
+      fireEvent.scroll(container);
 
       expect(screen.getByTestId("msg-jump-bottom")).toBeInTheDocument();
-    });
-
-    it("saves a not-at-bottom snapshot with the topmost visible event on unmount", () => {
-      // Geometry: 5000 scrollHeight, 500 viewport, scrollTop=2000 → remaining=2500 > 200 → not near bottom.
-      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
-      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
-      Object.defineProperty(HTMLElement.prototype, "scrollTop", { configurable: true, get() { return 2000; }, set() {} });
-
-      // Make getBoundingClientRect on the scroll container return top=0, and rows return increasing bottoms so
-      // the first row with bottom > 0 (containerTop) is "e3".
-      const rowBottoms = new Map<string, number>([
-        ["e1", -50],
-        ["e2", -10],
-        ["e3", 30],
-        ["e4", 70],
-      ]);
-      const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
-        const id = (this as HTMLElement).dataset?.eventId;
-        if (id && rowBottoms.has(id)) {
-          const bottom = rowBottoms.get(id) ?? 0;
-          return { top: bottom - 40, bottom, left: 0, right: 0, width: 0, height: 40, x: 0, y: bottom - 40, toJSON: () => ({}) } as DOMRect;
-        }
-        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-      };
-
-      try {
-        seedManyEvents(20);
-        const { unmount } = render(<MessagesPane {...defaultProps} />);
-        // No scroll event needed: save reads live geometry, not the ref.
-        unmount();
-
-        const raw = sessionStorage.getItem("wc.messagesScroll.sess-1");
-        expect(raw).not.toBeNull();
-        const snap = JSON.parse(raw as string) as { atBottom: boolean; topEventId: string | null };
-        expect(snap.atBottom).toBe(false);
-        expect(snap.topEventId).toBe("e3");
-      } finally {
-        Element.prototype.getBoundingClientRect = origGetBCR;
-      }
-    });
-
-    it("under StrictMode-style double-mount, mid-list snapshot survives the first unmount/remount cycle", async () => {
-      const { StrictMode } = await import("react");
-
-      // Browser-realistic geometry: scrollTo synchronously updates scrollTop.
-      let scrollTop = 0;
-      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return 5000; } });
-      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
-      Object.defineProperty(HTMLElement.prototype, "scrollTop", {
-        configurable: true,
-        get() { return scrollTop; },
-        set(v: number) { scrollTop = v; },
-      });
-      Element.prototype.scrollTo = function (this: HTMLElement, ...args: unknown[]) {
-        const opt = args[0] as { top?: number } | number;
-        const top = typeof opt === "object" && opt !== null ? opt.top ?? 0 : (opt as number) ?? 0;
-        scrollTop = top;
-      } as Element["scrollTo"];
-
-      // Pretend the user had previously left mid-list at e3.
-      const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
-        const id = (this as HTMLElement).dataset?.eventId;
-        if (id === "e3") {
-          return { top: 10, bottom: 50, left: 0, right: 0, width: 0, height: 40, x: 0, y: 10, toJSON: () => ({}) } as DOMRect;
-        }
-        if (id) {
-          return { top: -100, bottom: -60, left: 0, right: 0, width: 0, height: 40, x: 0, y: -100, toJSON: () => ({}) } as DOMRect;
-        }
-        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-      };
-
-      sessionStorage.setItem(
-        "wc.messagesScroll.sess-1",
-        JSON.stringify({ atBottom: false, topEventId: "e3" }),
-      );
-
-      try {
-        seedManyEvents(20);
-        // StrictMode triggers an extra mount → unmount → mount in dev.
-        render(
-          <StrictMode>
-            <MessagesPane {...defaultProps} />
-          </StrictMode>,
-        );
-
-        const raw = sessionStorage.getItem("wc.messagesScroll.sess-1");
-        const snap = JSON.parse(raw as string) as { atBottom: boolean; topEventId: string | null };
-        // After the double-mount, snapshot must still point at e3 (not got reset to atBottom).
-        expect(snap.atBottom).toBe(false);
-        expect(snap.topEventId).toBe("e3");
-      } finally {
-        Element.prototype.getBoundingClientRect = origGetBCR;
-      }
     });
 
     it("jump-to-bottom button scrolls to bottom on click and disappears once near bottom", () => {
@@ -1025,7 +776,8 @@ describe("MessagesPane", () => {
       seedManyEvents(40);
       render(<MessagesPane {...defaultProps} />);
 
-      const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto") as Element;
+      const container = screen.getByTestId("messages-scroll");
+      fireEvent.wheel(container, { deltaY: -100 });
       fireEvent.scroll(container);
 
       const btn = screen.getByTestId("msg-jump-bottom");
@@ -1034,7 +786,7 @@ describe("MessagesPane", () => {
       expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 5000 }));
     });
 
-    it("does not re-pin to bottom after a user scroll event moves away from bottom", () => {
+    it("does not follow new content after a user scroll moves away from the bottom", () => {
       const originalRaf = window.requestAnimationFrame;
       window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
         cb(0);
@@ -1057,17 +809,14 @@ describe("MessagesPane", () => {
       });
 
       try {
-        sessionStorage.setItem(
-          "wc.messagesScroll.sess-1",
-          JSON.stringify({ atBottom: true, topEventId: null }),
-        );
         seedManyEvents(80);
         render(<MessagesPane {...defaultProps} />);
         expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 5000 }));
 
         scrollToMock.mockClear();
         currentScrollTop = 100;
-        const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto") as Element;
+        const container = screen.getByTestId("messages-scroll");
+        fireEvent.wheel(container, { deltaY: -100 });
         fireEvent.scroll(container);
 
         currentScrollHeight = 7000;
@@ -1136,7 +885,7 @@ describe("MessagesPane", () => {
 
   describe("export selection flow", () => {
     function openExportSelection() {
-      fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+      fireEvent.click(screen.getByTestId("messages-search-field"));
       fireEvent.click(screen.getByTestId("msg-export-enter"));
     }
 
@@ -1211,7 +960,7 @@ describe("MessagesPane", () => {
         makeEvent({ id: "e2", sequence: 2, text: "other" }),
       ]);
       render(<MessagesPane {...defaultProps} />);
-      fireEvent.click(screen.getByTestId("msg-jump-trigger"));
+      fireEvent.click(screen.getByTestId("messages-search-field"));
       expect(screen.getByTestId("msg-export-enter")).toBeInTheDocument();
       fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
       // Jump closes the navigator without entering selection mode.

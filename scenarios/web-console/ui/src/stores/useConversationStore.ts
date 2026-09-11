@@ -2,8 +2,7 @@ import { create } from "zustand";
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
 import type { MessageCaptureStatus } from "../api/messageCapture";
 import { UNKNOWN_CAPTURE } from "../api/messageCapture";
-
-export type PaneViewMode = "terminal" | "messages";
+import { echoMatches, type SentEcho } from "../lib/echoMatch";
 
 /**
  * How the last attempt to load this session's history ended. The Messages view
@@ -42,7 +41,12 @@ export type SessionConversationState = {
 
 interface ConversationStoreState {
   sessions: Record<string, SessionConversationState>;
-  viewModes: Record<string, PaneViewMode>;
+  /**
+   * Sends acknowledged but not yet recorded by the harness, per session.
+   * Transient and local: never persisted, never part of `events`; a matching
+   * user event removes one (see lib/echoMatch).
+   */
+  echoes: Record<string, SentEcho[]>;
 }
 
 /** Paging metadata that accompanies a windowed fetch. */
@@ -73,8 +77,11 @@ interface ConversationStoreActions {
   /** Merge updated fields (e.g. summarization) into an existing event by ID. */
   updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
-  setViewMode: (sessionId: string, mode: PaneViewMode) => void;
   clearSession: (sessionId: string) => void;
+  /** Shows an acknowledged send in Messages until the harness records it. Returns its id. */
+  addEcho: (sessionId: string, text: string) => string;
+  /** Drops an echo that was never matched. */
+  expireEcho: (sessionId: string, echoId: string) => void;
 }
 
 const defaultCursor = (): ConversationCursor => ({
@@ -104,7 +111,13 @@ const blankSession = (): SessionConversationState => ({
 // unrelated store update.
 const EMPTY_EVENTS: readonly ConversationEvent[] = Object.freeze([]);
 
-function sessionMetadata(events: ConversationEvent[], cursor: ConversationCursor) {
+/**
+ * Derived bookkeeping for a session's loaded events. `windowOldestSequence` is
+ * where the server said the loaded page starts: history before it is known to
+ * exist but is not a gap to refetch. Without it, events that do not start at
+ * sequence 1 are treated as a prefix gap.
+ */
+function sessionMetadata(events: ConversationEvent[], cursor: ConversationCursor, windowOldestSequence?: number) {
   const knownEventIds = new Set(events.map((event) => event.id));
   let maxSequence = 0;
   let previous = 0;
@@ -120,13 +133,31 @@ function sessionMetadata(events: ConversationEvent[], cursor: ConversationCursor
     previous = event.sequence;
     if (event.role === "assistant" && event.sequence > cursor.lastSeenSequence) unreadCount += 1;
   }
-  if ((events[0]?.sequence ?? 1) > 1) refetchSinceSequence = 0;
-  return { knownEventIds, unreadCount, maxSequence, hasSequenceGap: hasSequenceGap || (events[0]?.sequence ?? 1) > 1, refetchSinceSequence };
+  const prefixGap = !startsAtWindow(events[0]?.sequence ?? 1, windowOldestSequence);
+  if (prefixGap) refetchSinceSequence = 0;
+  return { knownEventIds, unreadCount, maxSequence, hasSequenceGap: hasSequenceGap || prefixGap, refetchSinceSequence };
+}
+
+/** True when nothing is missing before `firstSequence`: it is sequence 1, or where the loaded page starts. */
+function startsAtWindow(firstSequence: number, windowOldestSequence?: number): boolean {
+  if (firstSequence <= 1) return true;
+  return windowOldestSequence != null && windowOldestSequence > 0 && firstSequence <= windowOldestSequence;
+}
+
+let nextEchoSequence = 0;
+
+/** Removes the first echo a newly recorded user turn matches, if any. */
+function withoutMatchedEcho(echoes: Record<string, SentEcho[]>, event: ConversationEvent): Record<string, SentEcho[]> {
+  const pending = echoes[event.sessionId];
+  if (!pending || event.role !== "user") return echoes;
+  const index = pending.findIndex((echo) => echoMatches(echo, event));
+  if (index < 0) return echoes;
+  return { ...echoes, [event.sessionId]: pending.filter((_, position) => position !== index) };
 }
 
 export const useConversationStore = create<ConversationStoreState & ConversationStoreActions>((set) => ({
   sessions: {},
-  viewModes: {},
+  echoes: {},
 
   hydrateSession: (sessionId, events, cursor, page) => set((state) => {
     // Merge with anything appendEvent already added while the GET was in
@@ -140,7 +171,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
+          [sessionId]: { events, cursor, hydrated: true, ...sessionMetadata(events, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
         },
       };
     }
@@ -152,7 +183,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     return {
       sessions: {
         ...state.sessions,
-        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
+        [sessionId]: { events: merged, cursor, hydrated: true, ...sessionMetadata(merged, cursor, page?.oldestSequence), windowOldestSequence: page?.oldestSequence, hasOlder: page?.hasOlder, totalCount: page?.totalCount, capture, status: "loaded", error: undefined },
       },
     };
   }),
@@ -197,7 +228,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         events,
         cursor,
         hydrated: true,
-        ...sessionMetadata(events, cursor),
+        ...sessionMetadata(events, cursor, page.oldestSequence),
         windowOldestSequence: page.oldestSequence,
         hasOlder: page.hasOlder,
         totalCount: page.totalCount,
@@ -213,7 +244,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
     const known = existing.knownEventIds ?? new Set(existing.events.map((event) => event.id));
     const added = incoming.filter((event) => !known.has(event.id));
     const events = added.length > 0 ? [...added, ...existing.events].sort((a, b) => a.sequence - b.sequence) : existing.events;
-    return { sessions: { ...state.sessions, [sessionId]: { ...existing, events, ...sessionMetadata(events, existing.cursor), windowOldestSequence: page.oldestSequence, hasOlder: page.hasOlder, totalCount: page.totalCount } } };
+    return { sessions: { ...state.sessions, [sessionId]: { ...existing, events, ...sessionMetadata(events, existing.cursor, page.oldestSequence), windowOldestSequence: page.oldestSequence, hasOlder: page.hasOlder, totalCount: page.totalCount } } };
   }),
 
   appendEvent: (event) => set((state) => {
@@ -223,9 +254,18 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       return state;
     }
     const nextKnownEventIds = new Set(knownEventIds).add(event.id);
-    const hasSequenceGap = (existing.hasSequenceGap ?? false) || ((existing.maxSequence ?? 0) > 0 && event.sequence !== (existing.maxSequence ?? 0) + 1);
+    // A first event with nothing loaded before it leaves the whole prefix
+    // missing; a later out-of-order event opens a gap after the current end.
+    const opensPrefixGap = existing.events.length === 0 && !startsAtWindow(event.sequence, existing.windowOldestSequence);
+    const opensGap = (existing.maxSequence ?? 0) > 0 && event.sequence !== (existing.maxSequence ?? 0) + 1;
+    const hasSequenceGap = (existing.hasSequenceGap ?? false) || opensGap || opensPrefixGap;
+    // The first gap decides where a refetch starts: just before it.
+    const refetchSinceSequence = existing.hasSequenceGap
+      ? existing.refetchSinceSequence
+      : opensPrefixGap ? 0 : opensGap ? existing.maxSequence : existing.refetchSinceSequence;
     const unreadCount = (existing.unreadCount ?? getSessionUnreadCount(state, event.sessionId)) + (event.role === "assistant" && event.sequence > existing.cursor.lastSeenSequence ? 1 : 0);
     return {
+      echoes: withoutMatchedEcho(state.echoes, event),
       sessions: {
         ...state.sessions,
         [event.sessionId]: {
@@ -235,6 +275,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
           unreadCount,
           maxSequence: Math.max(existing.maxSequence ?? 0, event.sequence),
           hasSequenceGap,
+          refetchSinceSequence,
         },
       },
     };
@@ -258,6 +299,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
       ? [...existing.events, ...added].sort((a, b) => a.sequence - b.sequence)
       : existing.events;
     return {
+      echoes: added.reduce(withoutMatchedEcho, state.echoes),
       sessions: {
         ...state.sessions,
         // Spreading `existing` is load-bearing, not tidiness. Rebuilding the
@@ -273,7 +315,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
           status: "loaded",
           error: undefined,
           capture: capture ?? existing.capture,
-          ...sessionMetadata(merged, cursor ?? existing.cursor),
+          ...sessionMetadata(merged, cursor ?? existing.cursor, existing.windowOldestSequence),
         },
       },
     };
@@ -313,26 +355,33 @@ export const useConversationStore = create<ConversationStoreState & Conversation
           ...sessionMetadata(existing.events, {
             lastSeenSequence: cursor.lastSeenSequence ?? existing.cursor.lastSeenSequence,
             lastListenedSequence: cursor.lastListenedSequence ?? existing.cursor.lastListenedSequence,
-          }),
+          }, existing.windowOldestSequence),
         },
       },
     };
   }),
 
-  setViewMode: (sessionId, mode) => set((state) => ({
-    viewModes: {
-      ...state.viewModes,
-      [sessionId]: mode,
-    },
-  })),
-
   clearSession: (sessionId) => set((state) => {
     const sessions = { ...state.sessions };
-    const viewModes = { ...state.viewModes };
     delete sessions[sessionId];
-    delete viewModes[sessionId];
-    return { sessions, viewModes };
+    const { [sessionId]: _dropped, ...echoes } = state.echoes;
+    return { sessions, echoes };
   }),
+
+  addEcho: (sessionId, text) => {
+    nextEchoSequence += 1;
+    const echo: SentEcho = { id: `echo-${String(Date.now())}-${String(nextEchoSequence)}`, sessionId, text, sentAt: Date.now() };
+    set((state) => ({ echoes: { ...state.echoes, [sessionId]: [...(state.echoes[sessionId] ?? []), echo] } }));
+    return echo.id;
+  },
+
+  expireEcho: (sessionId, echoId) => {
+    set((state) => {
+      const pending = state.echoes[sessionId];
+      if (!pending?.some((echo) => echo.id === echoId)) return state;
+      return { echoes: { ...state.echoes, [sessionId]: pending.filter((echo) => echo.id !== echoId) } };
+    });
+  },
 }));
 
 export function getSessionConversationEvents(state: ConversationStoreState, sessionId: string): ConversationEvent[] {
@@ -412,10 +461,6 @@ export function getSessionUnlistenedEvents(state: ConversationStoreState, sessio
   return session.events.filter((event) => event.role === "assistant" && event.sequence > session.cursor.lastListenedSequence);
 }
 
-export function getSessionViewMode(state: ConversationStoreState, sessionId: string): PaneViewMode {
-  return state.viewModes[sessionId] ?? "terminal";
-}
-
 /**
  * Returns the `since_sequence` value to use for a refetch that will both pull
  * any new tail events AND backfill any gap in the local sequence. Strategy:
@@ -433,7 +478,7 @@ export function getSessionRefetchSinceSequence(state: ConversationStoreState, se
   }
   const sorted = [...events].sort((a, b) => a.sequence - b.sequence);
   const first = sorted[0];
-  if (!first || first.sequence > 1) return 0;
+  if (!first || !startsAtWindow(first.sequence, session?.windowOldestSequence)) return 0;
   for (let i = 1; i < sorted.length; i++) {
     const prev = sorted[i - 1];
     const cur = sorted[i];

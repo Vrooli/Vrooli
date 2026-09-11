@@ -236,11 +236,11 @@ func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 		Checkpoints:  transcriptCheckpointAdapter{store: ct.checkpoints},
 		PollInterval: claudeTailerPollInterval,
 		TailInterval: 500 * time.Millisecond,
-		Dispatch: func(event tailer.Event, sessionID string) {
+		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				ct.server.AppendUser(event.Text, sessionID, claudeTailerSource)
+				return ct.server.AppendUser(event.Text, sessionID, claudeTailerSource).Appended
 			} else {
-				ct.server.AppendAssistant(event.Text, sessionID, claudeTailerSource)
+				return ct.server.AppendAssistant(event.Text, sessionID, claudeTailerSource).Appended
 			}
 		},
 	})
@@ -254,11 +254,11 @@ func newCodexTranscriptEngine(ct *CodexTailer) *tailer.Engine {
 		PollInterval: codexPollInterval,
 		TailInterval: codexTailInterval,
 		StaleTimeout: codexStaleTimeout,
-		Dispatch: func(event tailer.Event, sessionID string) {
+		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				ct.server.AppendUser(event.Text, sessionID, codexTailerSource)
+				return ct.server.AppendUser(event.Text, sessionID, codexTailerSource).Appended
 			} else {
-				ct.server.AppendAssistant(event.Text, sessionID, codexTailerSource)
+				return ct.server.AppendAssistant(event.Text, sessionID, codexTailerSource).Appended
 			}
 		},
 	})
@@ -273,11 +273,15 @@ func newGrokTranscriptEngine(gt *GrokTailer) *tailer.Engine {
 		PollInterval: grokPollInterval,
 		TailInterval: grokTailInterval,
 		StaleTimeout: grokStaleTimeout,
-		Dispatch: func(event tailer.Event, sessionID string) {
+		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				logGrokAppend("user", sessionID, gt.server.AppendUser(event.Text, sessionID, grokSource))
+				result := gt.server.AppendUser(event.Text, sessionID, grokSource)
+				logGrokAppend("user", sessionID, result)
+				return result.Appended
 			} else {
-				logGrokAppend("assistant", sessionID, gt.server.AppendAssistant(event.Text, sessionID, grokSource))
+				result := gt.server.AppendAssistant(event.Text, sessionID, grokSource)
+				logGrokAppend("assistant", sessionID, result)
+				return result.Appended
 			}
 		},
 	})

@@ -1,6 +1,6 @@
 // Package hooks owns the /api/v1/hooks/* HTTP surface. These are
-// inbound webhooks called by the Claude Code CLI on the Stop and
-// UserPromptSubmit lifecycle events — a tool we do not control, so the
+// inbound webhooks called by the Claude Code CLI on the Stop,
+// UserPromptSubmit, and Notification lifecycle events — a tool we do not control, so the
 // request shape is dictated externally and the endpoints stay REST
 // under RESTReasonWebhookReceiver (see endpoints.go).
 //
@@ -26,15 +26,17 @@ import (
 type Deps struct {
 	Stop         http.HandlerFunc
 	PromptSubmit http.HandlerFunc
+	Notification http.HandlerFunc
 }
 
-// Module wires both hook handlers into the API router.
+// Module wires the hook handlers into the API router.
 func Module(deps Deps) module.Module {
 	return module.Module{
 		Name: "hooks",
 		Mount: func(r *mux.Router) {
 			r.HandleFunc("/api/v1/hooks/stop", deps.Stop).Methods("POST")
 			r.HandleFunc("/api/v1/hooks/prompt-submit", deps.PromptSubmit).Methods("POST")
+			r.HandleFunc("/api/v1/hooks/notification", deps.Notification).Methods("POST")
 		},
 		Endpoints: Endpoints,
 	}

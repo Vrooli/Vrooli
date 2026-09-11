@@ -174,6 +174,7 @@ func (sm *Manager) Recover(ctx context.Context, store sessionstore.Store, regist
 			if err := store.MarkOrphaned(ctx, id, time.Now()); err != nil {
 				log.Printf("recovery: failed to mark orphan %s: %v", id, err)
 			}
+			sm.observeProcessExit(id)
 			report.AwaitingRecovery++
 			report.OrphanedMetadata++
 			sm.bumpRecovery(0, 1, 0)
@@ -321,6 +322,7 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 	sm.mu.Lock()
 	sm.sessions[id] = sess
 	sm.mu.Unlock()
+	sm.attachActivity(sess)
 
 	sess.startAnsiResponder()
 	go sess.readLoop()
@@ -330,11 +332,16 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		sm.mu.Lock()
 		delete(sm.sessions, sessID)
 		sm.mu.Unlock()
-		// Persistent sessions: preserve metadata for future recovery.
-		// Standard sessions: delete metadata (they cannot survive).
-		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(sm.lifecycleCtx, sessID)
+		// Process exit is a runtime fact, never a retention decision.  Keep the
+		// catalog row for both backends so conversation events, checkpoints and
+		// provider history remain attributable after a crash or disconnect.
+		// Explicit permanent deletion is owned by the API lifecycle service.
+		if sm.store != nil {
+			if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sessID, time.Now().UTC()); err != nil {
+				log.Printf("session %s: failed to preserve exited metadata: %v", sessID, err)
+			}
 		}
+		sm.observeProcessExit(sessID)
 		uploadDir := filepath.Join(sess.uploadRoot, sessID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
@@ -346,6 +353,8 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 	// restarted the wc-tmux-server scope by hand).
 	if err := store.MarkLive(ctx, id); err != nil {
 		log.Printf("recovery: failed to mark session %s live: %v", id, err)
+	} else {
+		sm.observeProcessRecovery(id)
 	}
 	return true
 }
@@ -420,9 +429,15 @@ func (sm *Manager) reattachOrphanedSessions() {
 		sessionName := sm.tmuxSessionPrefix + meta.ID
 		p, attachErr := sm.tmuxAttachFunc(sessionName)
 		if attachErr != nil {
-			// tmux session is gone — clean up stale metadata
-			_ = sm.store.Delete(sm.lifecycleCtx, meta.ID)
-			log.Printf("reattach-watchdog: session %s tmux session gone, cleaned up metadata", meta.ID)
+			// The provider process is gone, but the catalog and transcript may
+			// still be valuable. Mark it archived instead of deleting the only
+			// Web Console pointer to durable evidence.
+			if err := sm.store.MarkOrphaned(sm.lifecycleCtx, meta.ID, time.Now().UTC()); err != nil {
+				log.Printf("reattach-watchdog: session %s: preserve metadata: %v", meta.ID, err)
+			} else {
+				log.Printf("reattach-watchdog: session %s provider gone; preserved metadata", meta.ID)
+			}
+			sm.observeProcessExit(meta.ID)
 			continue
 		}
 
@@ -460,6 +475,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 		}
 		sm.sessions[meta.ID] = sess
 		sm.mu.Unlock()
+		sm.attachActivity(sess)
 
 		sess.startAnsiResponder()
 		go sess.readLoop()
@@ -469,9 +485,12 @@ func (sm *Manager) reattachOrphanedSessions() {
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
-			if sm.store != nil && bid != backend.Persistent {
-				_ = sm.store.Delete(sm.lifecycleCtx, sessID)
+			if sm.store != nil {
+				if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sessID, time.Now().UTC()); err != nil {
+					log.Printf("session %s: failed to preserve reattached metadata: %v", sessID, err)
+				}
 			}
+			sm.observeProcessExit(sessID)
 			uploadDir := filepath.Join(sess.uploadRoot, sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
@@ -479,6 +498,11 @@ func (sm *Manager) reattachOrphanedSessions() {
 		}(meta.ID, meta.Backend)
 
 		log.Printf("reattach-watchdog: re-attached session %s", meta.ID)
+		if err := sm.store.MarkLive(sm.lifecycleCtx, meta.ID); err != nil {
+			log.Printf("reattach-watchdog: failed to mark session %s live: %v", meta.ID, err)
+		} else {
+			sm.observeProcessRecovery(meta.ID)
+		}
 		if sm.events != nil {
 			sm.events.Emit("session.reattach_watchdog", meta.ID, map[string]string{
 				"backend": string(meta.Backend),

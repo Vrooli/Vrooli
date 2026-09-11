@@ -38,7 +38,16 @@ type Snapshot struct {
 	AIGenerations              int64
 	AISuggestions              int64
 	VoiceSkipVerificationTotal int64
+	Continuity                 ContinuityMetrics
 	Uptime                     string
+}
+
+type ContinuityMetrics struct {
+	Receipts            int64
+	Failures            int64
+	Orphans             int64
+	PublicationPending  int64
+	PublicationFailures int64
 }
 
 type SessionMetrics struct {

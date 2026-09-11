@@ -19,8 +19,8 @@ func (f fakeConversationService) CaptureStatus(context.Context, string) CaptureS
 	return CaptureStatus{State: CaptureCapturing, Summary: "Messages are being captured."}
 }
 
-func (f fakeConversationService) Search(string, string, int) ([]SearchMatch, bool, int64, error) {
-	return []SearchMatch{{EventID: "e1", Sequence: 2, Excerpt: "hello"}}, true, 1, f.err
+func (f fakeConversationService) Search(string, SearchQuery) (SearchResult, error) {
+	return SearchResult{Matches: []SearchMatch{{EventID: "e1", Sequence: 2, Excerpt: "hello"}}, Truncated: true, TotalMatches: 1}, f.err
 }
 
 func (f fakeConversationService) SearchArchived(context.Context, ArchivedSearchFilter) (ArchivedSearchResult, error) {

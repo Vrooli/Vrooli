@@ -345,6 +345,29 @@ describe("useSessionManager", () => {
     });
     expect(outcome).toBe("failed");
     expect(result.current.panes).toHaveLength(1);
+    // The refusal used to stop here, so pressing Close did nothing visible and
+    // the operator could not tell a refused close from a dead button. The
+    // server's own words are what the close-error banner says.
+    expect(result.current.closeError?.message).toContain("session already dead");
+  });
+
+  it("clears a stale close failure once a close succeeds", async () => {
+    const first = { id: "sess-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
+    const second = { id: "sess-2", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
+    mockCreateSession.mockResolvedValueOnce(first);
+    mockCreateSession.mockResolvedValueOnce(second);
+    mockArchiveSession.mockRejectedValueOnce(new Error("session already dead"));
+    mockArchiveSession.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() => useSessionManager());
+    await act(async () => { await result.current.launchSession(); });
+    await act(async () => { await result.current.launchSession(); });
+
+    await act(async () => { await result.current.removePane("sess-1"); });
+    expect(result.current.closeError).not.toBeNull();
+
+    await act(async () => { await result.current.removePane("sess-2"); });
+    expect(result.current.closeError).toBeNull();
   });
 
   it("removePane removes pane from list", async () => {
@@ -596,7 +619,6 @@ const handle = {
     result.current.setTtsPlaybackRateOnPane("missing", 1.25);
     result.current.setTtsVolumeOnPane("missing", 0.5);
     result.current.setTtsMutedOnPane("missing", true);
-    expect(result.current.getTtsStateOnPane("missing")).toBeNull();
 
     // An explicit but stale pane id must be a safe no-op for every facade. This
     // is the path used after a pane closes while an async toolbar action is
@@ -626,7 +648,7 @@ const handle = {
       pendingInput: { subscribe: vi.fn(() => () => {}), snapshot: vi.fn(() => [{ data: "x", addedAt: 1, intent: "typing" as const }]), discard: vi.fn(), discardAll: vi.fn(), flushNow: vi.fn() },
       playback: {
         stop: vi.fn(), speak: vi.fn().mockResolvedValue("ok"), pause: vi.fn(), resume: vi.fn(), seek: vi.fn(),
-        setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(), getState: vi.fn().mockReturnValue({ playing: true }),
+        setPlaybackRate: vi.fn(), setVolume: vi.fn(), setMuted: vi.fn(),
       },
     };
     act(() => result.current.registerTerminalRef("facade", handle));
@@ -644,7 +666,6 @@ const handle = {
     result.current.setTtsPlaybackRateOnPane("facade", 1.5);
     result.current.setTtsVolumeOnPane("facade", 0.75);
     result.current.setTtsMutedOnPane("facade", false);
-    expect(result.current.getTtsStateOnPane("facade")).toEqual({ playing: true });
     expect(handle.control.scroll).toHaveBeenCalledWith(2);
     expect(handle.control.focus).toHaveBeenCalled();
 

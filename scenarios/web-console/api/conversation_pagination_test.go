@@ -20,7 +20,7 @@ func seedConversationEvents(t *testing.T, repo ConversationRepository, sessionID
 }
 
 func TestSQLConversationRepositoryPagesAndSearchesWholeHistory(t *testing.T) {
-	repo := NewSQLConversationRepository(setupTestDB(t))
+	repo := searchTestRepo(t)
 	const sessionID = "large-history"
 	seedConversationEvents(t, repo, sessionID, 2500)
 
@@ -51,12 +51,12 @@ func TestSQLConversationRepositoryPagesAndSearchesWholeHistory(t *testing.T) {
 		t.Fatalf("backward paging saw %d events; first=%v last=%v", len(seen), seen[1], seen[2500])
 	}
 
-	matches, truncated, total, err := repo.SearchSession(context.Background(), sessionID, "oldest-only needle", 500)
-	if err != nil || truncated || total != 100 || len(matches) != 100 {
-		t.Fatalf("search = %d matches total=%d truncated=%v err=%v", len(matches), total, truncated, err)
+	result, err := repo.SearchSession(context.Background(), sessionID, ConversationSearchQuery{Query: "oldest-only needle", Limit: 500})
+	if err != nil || result.Truncated || result.Total != 100 || len(result.Matches) != 100 {
+		t.Fatalf("search = %d matches total=%d truncated=%v err=%v", len(result.Matches), result.Total, result.Truncated, err)
 	}
-	if matches[0].Sequence != 1 {
-		t.Fatalf("first search result sequence = %d, want 1", matches[0].Sequence)
+	if result.Matches[0].Sequence != 1 {
+		t.Fatalf("first search result sequence = %d, want 1", result.Matches[0].Sequence)
 	}
 	whole, err := repo.ListSession(context.Background(), sessionID)
 	if err != nil || len(whole.Events) != 2500 {
@@ -65,14 +65,14 @@ func TestSQLConversationRepositoryPagesAndSearchesWholeHistory(t *testing.T) {
 }
 
 func TestSQLConversationSearchEscapesLikeWildcards(t *testing.T) {
-	repo := NewSQLConversationRepository(setupTestDB(t))
+	repo := searchTestRepo(t)
 	const sessionID = "literal-wildcards"
 	seedConversationEvents(t, repo, sessionID, 1)
 	if _, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "literal", SessionID: sessionID, Role: ConversationRoleAssistant, Text: "literal 100%_done"}); err != nil {
 		t.Fatal(err)
 	}
-	matches, _, _, err := repo.SearchSession(context.Background(), sessionID, "100%_done", 10)
-	if err != nil || len(matches) != 1 || matches[0].EventID != "literal" {
-		t.Fatalf("literal wildcard search matched %#v, err=%v", matches, err)
+	result, err := repo.SearchSession(context.Background(), sessionID, ConversationSearchQuery{Query: "100%_done", Limit: 10})
+	if err != nil || len(result.Matches) != 1 || result.Matches[0].EventID != "literal" {
+		t.Fatalf("literal wildcard search matched %#v, err=%v", result.Matches, err)
 	}
 }

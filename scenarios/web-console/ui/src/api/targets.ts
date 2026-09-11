@@ -22,6 +22,18 @@ export interface TargetReadinessFact {
   recovery_action?: string;
 }
 
+export interface TargetOperationReadiness {
+  operation: string;
+  ready: boolean;
+  state: "ready" | "missing" | "not_applicable" | "unknown";
+  reason_code?: string;
+  detail?: string;
+  recovery_action?: string;
+  observed_at?: string;
+  fresh_until?: string;
+  source?: string;
+}
+
 export interface TerminalTarget {
   id: string;
   kind: "local" | "bridge-node" | "ssh" | "attached";
@@ -35,6 +47,7 @@ export interface TerminalTarget {
   last_seen_at?: string;
   available: boolean;
   readiness?: TargetReadinessFact[];
+  operation_readiness?: TargetOperationReadiness[];
   failure_rung?: string;
   state?: TerminalTargetState;
   recovery_action?: string;
@@ -92,6 +105,35 @@ function timestampString(timestamp: Target["lastSeenAt"]): string | undefined {
   return new Date(seconds * 1000).toISOString();
 }
 
+function operationReadiness(target: Target): TargetOperationReadiness[] {
+  // The checked-in generated source contains this field, while an installed
+  // file: package can lag until its package link is refreshed. Keep the
+  // decoder tolerant at that boundary without dropping the wire data when it
+  // is present.
+  const operations = (target as Target & { operationReadiness?: Array<{
+    operation: string;
+    ready: boolean;
+    state: string;
+    reasonCode: string;
+    detail: string;
+    recoveryAction: string;
+    observedAt?: Target["lastSeenAt"];
+    freshUntil?: Target["lastSeenAt"];
+    source: string;
+  }>}).operationReadiness ?? [];
+  return operations.map((operation) => ({
+    operation: operation.operation,
+    ready: operation.ready,
+    state: operation.state as TargetOperationReadiness["state"],
+    reason_code: operation.reasonCode || undefined,
+    detail: operation.detail || undefined,
+    recovery_action: operation.recoveryAction || undefined,
+    observed_at: timestampString(operation.observedAt),
+    fresh_until: timestampString(operation.freshUntil),
+    source: operation.source || undefined,
+  }));
+}
+
 export function decodeTarget(target: Target): TerminalTarget {
   return {
     id: target.id,
@@ -117,6 +159,7 @@ export function decodeTarget(target: Target): TerminalTarget {
       version: (fact as typeof fact & { version?: string }).version || undefined,
       recovery_action: (fact as typeof fact & { recoveryAction?: string }).recoveryAction || undefined,
     })),
+    operation_readiness: operationReadiness(target),
     failure_rung: target.failureRung || undefined,
     state: targetState(target),
     recovery_action: target.recoveryAction || undefined,

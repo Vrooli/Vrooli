@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"web-console/backends/claude"
 	"web-console/internal/config"
 	"web-console/internal/pty"
@@ -473,6 +474,10 @@ func (p *tmuxPTY) ExitCode() int {
 // reliable way to get per-session env on a long-lived tmux server — the
 // server's own environment is frozen at first-session creation time.
 func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec) []string {
+	return buildTmuxNewSessionArgsWithEnvironment(sessionName, workingDir, spec, nil)
+}
+
+func buildTmuxNewSessionArgsWithEnvironment(sessionName, workingDir string, spec pty.LaunchSpec, environment []string) []string {
 	args := []string{
 		"new-session", "-d",
 		"-s", sessionName,
@@ -480,13 +485,22 @@ func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec
 		"-x", strconv.Itoa(int(spec.Cols)),
 		"-y", strconv.Itoa(int(spec.Rows)),
 	}
-	keys := make([]string, 0, len(spec.Env))
-	for k := range spec.Env {
+	sessionEnv := make(map[string]string, len(spec.Env)+3)
+	for k, v := range spec.Env {
+		sessionEnv[k] = v
+	}
+	for _, key := range []string{"PATH", cliutil.LaunchSourceRootEnv, cliutil.LaunchRepoRootEnv} {
+		if value := sessionEnvironmentValue(environment, key); value != "" {
+			sessionEnv[key] = value
+		}
+	}
+	keys := make([]string, 0, len(sessionEnv))
+	for k := range sessionEnv {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		args = append(args, "-e", k+"="+spec.Env[k])
+		args = append(args, "-e", k+"="+sessionEnv[k])
 	}
 	args = append(args, spec.Shell)
 	return args
@@ -495,6 +509,16 @@ func buildTmuxNewSessionArgs(sessionName, workingDir string, spec pty.LaunchSpec
 // buildSessionEnv constructs the filtered environment for a new session.
 // Used by both defaultPTYFactory and tmuxPTYFactory.
 func buildSessionEnv(spec pty.LaunchSpec) []string {
+	base := buildBaseSessionEnv(spec)
+	prepared, _, err := prepareSessionEnvironment(base, resolveLaunchDir(spec))
+	if err != nil {
+		log.Printf("web-console: resolve tmux launch context: %v", err)
+		return base
+	}
+	return prepared
+}
+
+func buildBaseSessionEnv(spec pty.LaunchSpec) []string {
 	return applySessionEnv(
 		ensureTermEnv(
 			filterServiceEnv(
@@ -599,7 +623,11 @@ func (p *tmuxPTY) tmuxOutput(ctx context.Context, args ...string) (string, error
 // tmuxPTYFactory creates a tmux-backed PTY for persistent sessions.
 func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	sessionName := tmuxSessionPrefix + spec.SessionID
-	workingDir := resolveLaunchDir(spec)
+	baseEnvironment := buildBaseSessionEnv(spec)
+	environment, workingDir, err := prepareSessionEnvironment(baseEnvironment, resolveLaunchDir(spec))
+	if err != nil {
+		return nil, fmt.Errorf("resolve tmux launch context: %w", err)
+	}
 
 	// 1. Create detached tmux session with the target shell.
 	// We use systemd-run --scope to launch the tmux new-session command in
@@ -623,11 +651,11 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	// agent starts. Without the per-session identity, later panes on the same
 	// tmux server would inherit the first session's attribution and break
 	// conversation tracking.
-	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
+	sessionArgs := buildTmuxNewSessionArgsWithEnvironment(sessionName, workingDir, spec, environment)
 	socketName := resolveTmuxSocket()
 	if systemdRunUsable() {
 		var output bytes.Buffer
-		contained, err := platform.ContainedCommand(tmuxContainedSpec(socketName, sessionArgs, buildSessionEnv(spec), &output))
+		contained, err := platform.ContainedCommand(tmuxContainedSpec(socketName, sessionArgs, environment, &output))
 		if err == nil {
 			_ = platform.ConfigureCommand(contained.Cmd, platform.ProcessOptions{Detached: true})
 			if err = contained.Start(); err == nil {
@@ -646,7 +674,7 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 	{
 		fallbackCmd := tmuxCmd(sessionArgs...)
 		_ = platform.ConfigureCommand(fallbackCmd, platform.ProcessOptions{Detached: true})
-		fallbackCmd.Env = buildSessionEnv(spec)
+		fallbackCmd.Env = environment
 		if output, err := fallbackCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("tmux new-session: %w (%s)", err, strings.TrimSpace(string(output)))
 		}

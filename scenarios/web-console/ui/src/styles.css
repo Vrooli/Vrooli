@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Rich markdown labels belong to their link: inline-code chips and bold text
+ * otherwise override the anchor's accent color with ordinary body text. */
+.markdown-content a span,
+.markdown-content a code,
+.markdown-content a strong,
+.markdown-content a em {
+  color: inherit;
+}
+
+
 /* The voice control keeps a short amplitude history in the host component and
  * paints it as button background layers. The icon and the control chrome stay
  * in the component library; this only supplies the mobile-friendly activity
@@ -278,14 +288,6 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
  * converge as soon as the resize listener runs; this CSS guard prevents an
  * intrinsic xterm width from escaping horizontally during that handoff. */
 @media (max-width: 767px) {
-  /* Every mobile-toolbar button is a touch target, including the compact
-   * key strip and optional actions whose intrinsic icon/text size is smaller
-   * than the mobile interaction minimum. */
-  [data-testid="mobile-toolbar"] button {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
   [data-testid="pane-grid"] {
     grid-template-columns: minmax(0, 1fr) !important;
     width: 100%;

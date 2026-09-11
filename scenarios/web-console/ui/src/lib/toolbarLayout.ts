@@ -23,6 +23,7 @@
 export type KnownToolbarControlId =
   | "more"
   | "snippets"
+  | "history"
   | "modifiers"
   | "special"
   | "arrows"
@@ -91,6 +92,7 @@ export const TOOLBAR_CONTROLS: readonly ToolbarControlSpec[] = [
   { id: "mic", kind: "fill" },
   { id: "image", kind: "icon" },
   { id: "ai", kind: "icon" },
+  { id: "history", kind: "icon" },
 ];
 
 export function toolbarControlSpec(id: ToolbarControlId): ToolbarControlSpec | undefined {
@@ -412,21 +414,21 @@ export const TOOLBAR_PRESETS: Record<Exclude<ToolbarPresetId, "custom">, Omit<To
     arrows: "inline",
     maxRows: 2,
     overflow: "strip",
-    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false, history: false },
   },
   balanced: {
     density: "standard",
     arrows: "dpad",
     maxRows: 2,
     overflow: "strip",
-    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false, history: false },
   },
   essential: {
     density: "large",
     arrows: "dpad",
     maxRows: 2,
     overflow: "more",
-    enabled: { more: true, snippets: true, modifiers: true, special: false, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: false, arrows: true, mic: true, image: true, ai: false, history: false },
   },
 };
 

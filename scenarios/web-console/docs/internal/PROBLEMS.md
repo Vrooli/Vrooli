@@ -673,3 +673,131 @@ server was cleared so new sessions inherit color-capable defaults.
 - Evidence: The named-goal W0 search returns only archived `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicts this speech-stack work. The provider-feature capability contract, generic TTS gate, focused UI tests, live capability RPC, and production build pass; the full scenario suite remains outside the bounded validation scope.
 - Blocker: None for targeted implementation; full-suite comparison remains unproven.
 - Measured: 2026-08-31.
+
+- Rung: W3 (implementation)
+- Evidence: The named-goal W0 search found no goal explicitly naming web-console; the
+  active Plan Manager execution `9790f7b1-de4e-4b83-9bd1-ad7716ca02ad` is the
+  authoritative work directive. Existing implementation had process-exit,
+  watchdog, and expiry paths deleting session metadata, and archive undo depended
+  on an in-memory timer. Targeted changes preserve exited metadata and add a
+  provider-neutral lifecycle transition table plus durable receipt repository.
+- Blocker: Requirements validation is currently blocked by a missing `go.sum`
+  entry in the unrelated `business-health` CLI; Web Console targeted tests pass.
+- Measured: 2026-09-05.
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Web Console starts through the managed lifecycle and exposes honest
+  degraded health for the live orphan corpus. The typed continuity CLI returned
+  a read-only inventory of 332 sessions, 428 conversation identities, 142,623
+  events, 338 checkpoints, and 1,431 panes, with 123/104/1,352 orphan classes.
+  A live dry-run observed 1,685 records with zero mutations and manifest
+  `sha256:ee7ee3e9cdd22c3d57f106d26c4dd11c4c7d32d3bc7b4ac42091d3a41e89cb9f`.
+  The incident thread identity query returned a match. The governed audit
+  program ran successfully in both hash and hashless modes; program phase
+  validation passed. `cli-health validate scenario web-console` passed, and
+  targeted API/CLI/UI checks passed.
+- Remaining validation caveat: comprehensive Test Genie run
+  `20260906-001445-071e7267` is terminally failed on broad existing CLI/UI,
+  dependency, docs, storage, security, and other maturity findings. The
+  follow-up scoped run `20260906-004339-0f6fc58d` remained queued past its wait
+  window with no terminal verdict. Cross-scenario Agent Manager/Search Hub
+  publication and real BAS restart/recovery evidence remain open; no live
+  reconciliation apply was attempted because the disposable-copy backup and
+  restore gate is not yet proven.
+- Blocker: None for further implementation; the remaining gaps are evidence or
+  diagnosable repository debt, not missing authority.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `vrooli scenario requirements validate web-console --json` remains structurally passing, while targeted Test Genie experience run `20260906-100500-81708c63` still reports three `experience.capture_bindings_unjoined` errors and seven deterministic-setup warnings. The authored `workspace-shell` readiness region now has an explicit required binding and the Experience Manager profile returns it, but direct BAS readiness diagnostics still fall back to generic navigation and capture a transient five-node `Loading...` tree. Focused continuity, CLI, and race tests remain passing; storage validation still reports scenario-wide filesystem ownership findings and an unrelated autoheal path.
+- Blocker: The remaining experience errors are at the BAS/Experience Manager capture boundary, not proven Web Console selector failures; broad storage/readiness debt remains open. Continue with targeted implementation and evidence repair; do not weaken active bindings or claim the experience gate is green.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Test Genie run `20260906-040729-4fd8c864` reached terminal status but failed solely on `test_genie.phase_timeout` after its durable provider run exceeded the 15-minute workflow deadline; the workflow artifact reported no scenario blockers/errors/warnings apart from that timeout observation. Requirements and business-health validation pass; the governed continuity audit succeeds with typed projection-drift evidence. Managed restart is healthy, and focused/race lifecycle tests plus vet pass after degraded-manager archive hardening.
+- Blocker: Broad completion evidence remains open because the workflow provider timed out and storage validation reports scenario-wide ownership findings; BAS, baseline, generation-promotion, and final DoD evidence are not terminal.
+- Measured: 2026-09-06.
+
+## Work ladder
+
+- Rung: W3 (implementation/evidence)
+- Evidence: The named-goal W0 comparison remains aligned: `hosted-cloud-tier-foundation`
+  and `portal-front-door` mention Web Console without directing this continuity
+  capability to be removed or contradicted. `business-health validate scenario
+  web-console` and `vrooli scenario requirements validate web-console --json`
+  both pass; the latter reports only the known stale comprehensive-suite
+  advisory. The implementation has fresh focused Go and UI evidence, managed
+  restart evidence, and a durable failed recovery-receipt regression. The
+  authoritative Test Genie run `20260906-040729-4fd8c864` reached terminal
+  status but failed on the workflow provider timeout, so it is not passing
+  broad W3 evidence.
+- Blocker: None for further implementation. Full plan completion remains open
+  pending Test Genie, baseline collection, cross-scenario generation promotion,
+  BAS lifecycle/restart interaction evidence, and the remaining DoD audit.
+- Measured: 2026-09-06.
+
+## HTML file rendering and formatted-link colors (2026-09-07, scoped W3 repair)
+
+- Scope: HTML file previews and markdown link-label colors. W0–W2 were not re-audited.
+- Expected/actual: Opening an HTML artifact should offer a rendered view; the code/text renderer previously showed only source.
+- Cause/fix: HTML now specializes the existing bounded text transport with Preview/Source controls. An opaque-origin iframe renders styles and scripts. A leading CSP blocks API requests, embedded pages, and form submissions; an `about:srcdoc` base preserves fragment links without resolving local assets against web-console. Line targets and truncated content initially show source. Local supporting files remain unavailable.
+- Link hypotheses: A missing accent token would affect plain links too; descendant color overrides would affect formatted labels only. Chromium showed cyan plain links (`rgb(34, 211, 238)`) but white bold/code labels (`rgb(248, 250, 252)`), confirming the latter. Scenario CSS now makes formatted labels inherit the link color. No RCL release was edited.
+- Evidence: 48 focused renderer/markdown tests pass, including failing-before/passing-after regressions. Scoped ESLint, TypeScript, and the production build pass. Chromium checks confirm inline CSS, an interactive counter, standards mode, parent-document isolation, and matching plain/bold/code link colors. Browser reproduction and results: `/tmp/wc-preview-browser-check.cjs`, `/tmp/wc-browser-before.html`, `/tmp/wc-browser-after.html`.
+- Broader limitation: Test Genie unit run `20260907-235545-1ab76aee` failed with API/CLI/UI command failures and configuration/architecture findings. The shared worktree changed during that run; it is not exact-final-input evidence. Final focused checks supersede intermediate local assertions, not the broader failed verdict.
+- Separate defect: Locale-parity tests fail on unrelated catalog keys/interpolation. Reported as Scenario QA `knw-1788825510125479292`. The new HTML strings exist in English, Arabic, and Japanese.
+
+## Experience follow-ups
+
+- Add a keyboard shortcut or visible help for toggling AI input.
+- Add short explanatory copy for session expiration policies and countdowns.
+- Consider swipe gestures for mobile pane switching after the current
+  single-column flow has stronger device evidence.
+
+### 2026-09-10 — Fleet configuration exposes target route incompatibility
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `ConfigurationTab` now renders the remote failure detail and warns
+  that re-apply may not fix a missing backend route. Focused Vitest coverage
+  passes for the Bridge 502/target 404 case. Live `GetConfiguration` for
+  `bridge-node:25c7e426-c76c-421a-8351-aaf964589802` now returns Web Console
+  Connect `failed_precondition` with `target_onboarding_incompatible`; the
+  target still returns HTTP 404 for `ListOperatorInputs`, while local Web
+  Console and Bridge services remain healthy.
+- Blocker: The target-side onboarding deployment requires an authorized
+  refresh/redeployment before the semantic configuration journey can pass.
+- Measured: 2026-09-10.
+
+### 2026-09-10 — Target onboarding contract and proxy errors are typed
+
+- Rung: W3 (implementation/evidence)
+- Evidence: `vrooli-onboarding` now returns `contract_version=1` with
+  `ListOperatorInputs`; Web Console rejects an absent or unsupported marker as
+  `target_onboarding_incompatible`. `vrooli-bridge` maps target HTTP 404,
+  timeout, authorization, contract, and 5xx outcomes to distinct Connect
+  classifications. The live minimouse request now returns Connect
+  `failed_precondition` with an actionable onboarding incompatibility message,
+  rather than a generic HTTP 502/503.
+- Result: Reachability and API compatibility are now separate signals. The
+  target still needs an authorized onboarding refresh because its current
+  route is absent; no remote mutation was performed.
+- Measured: 2026-09-10.
+
+### 2026-09-10 — Bridge endpoint selection now uses API Core discovery
+
+- Rung: W3 (implementation/evidence)
+- Evidence: Web Console previously allowed its `nodereach` clients to fall
+  back to the CLI port detector when `WC_BRIDGE_URL` was empty. The Bridge
+  client, remote PTY client, and Bridge capability probe now use
+  `api-core/discovery.ResolveScenarioURLDefault("vrooli-bridge")`; focused Go
+  regressions pass. Normal remote PTY sessions no longer pin the discovered
+  URL into their launch spec; only an explicit `WC_BRIDGE_URL` is pinned. The
+  managed Web Console restart is healthy.
+- Result: The Web Console-to-Bridge seam no longer captures a sibling API port
+  through a separate resolver. The live minimouse request still returns 503
+  because the target-side onboarding route returns 404, so this repair does
+  not yet close the remote target compatibility defect above.
+- Measured: 2026-09-10.

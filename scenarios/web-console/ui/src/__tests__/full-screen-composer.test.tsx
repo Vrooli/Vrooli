@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { composeComposerPayload } from "../lib/composerPayload";
@@ -82,7 +82,7 @@ describe("FullScreenComposer", () => {
     expect(screen.queryByTestId(/toolbar-key-/)).toBeNull();
   });
 
-  it("round-trips the draft across minimize/expand (Escape)", () => {
+  it("round-trips the draft across minimize/expand (Escape)", async () => {
     render(<Harness />);
     const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: "a long multi-line prompt" } });
@@ -91,7 +91,7 @@ describe("FullScreenComposer", () => {
     act(() => {
       fireEvent.keyDown(window, { key: "Escape" });
     });
-    expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("full-screen-composer")).toBeNull());
 
     // Re-open shows the same text.
     fireEvent.click(screen.getByTestId("ext-open"));
@@ -99,19 +99,19 @@ describe("FullScreenComposer", () => {
     expect(reopened.value).toBe("a long multi-line prompt");
   });
 
-  it("preserves draft when the backdrop is clicked", () => {
+  it("preserves draft when the backdrop is clicked", async () => {
     const { container } = render(<Harness />);
     const input = screen.getByTestId("composer-input") as HTMLTextAreaElement;
     fireEvent.change(input, { target: { value: "keep me" } });
-    const backdrop = container.querySelector(".bg-wc-backdrop") as HTMLElement;
+    const backdrop = screen.getByTestId("full-screen-composer.backdrop");
     expect(backdrop).toBeTruthy();
-    act(() => fireEvent.click(backdrop));
-    expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+    act(() => fireEvent.pointerDown(backdrop));
+    await waitFor(() => expect(screen.queryByTestId("full-screen-composer")).toBeNull());
     fireEvent.click(screen.getByTestId("ext-open"));
     expect((screen.getByTestId("composer-input") as HTMLTextAreaElement).value).toBe("keep me");
   });
 
-  it("sends through onInput and clears+minimizes only on ok settlement", () => {
+  it("sends through onInput and clears+minimizes only on ok settlement", async () => {
     const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const settlement = makeSettlement();
     render(<Harness onInput={onInput} subscribe={settlement.subscribe} />);
@@ -127,7 +127,7 @@ describe("FullScreenComposer", () => {
 
     act(() => settlement.fire(true));
     // Auto-minimized after ok; draft cleared (reopen shows empty).
-    expect(screen.queryByTestId("full-screen-composer")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("full-screen-composer")).toBeNull());
     fireEvent.click(screen.getByTestId("ext-open"));
     expect((screen.getByTestId("composer-input") as HTMLTextAreaElement).value).toBe("");
   });

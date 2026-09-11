@@ -156,7 +156,7 @@ describe("TerminalPane auto-TTS (store-driven)", () => {
     vi.clearAllMocks();
     storeState.autoTtsEnabled = true;
     storeState.activePane = "tts-test";
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
     if (typeof globalThis.ResizeObserver === "undefined") {
       globalThis.ResizeObserver = class {
         observe() {}

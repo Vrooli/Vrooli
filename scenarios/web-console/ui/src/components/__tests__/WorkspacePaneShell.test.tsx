@@ -1,12 +1,11 @@
 import { renderWithProviders as render } from "../../test-utils";
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { forwardRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const view = vi.hoisted(() => ({ mode: "terminal" as "terminal" | "messages" }));
 vi.mock("../../stores/useConversationStore", () => ({
   useConversationStore: (selector: (state: unknown) => unknown) => selector({
-    viewModes: { s1: view.mode }, sessions: { s1: { events: [], cursor: { lastSeenSequence: 0 } } },
+    sessions: { s1: { events: [], cursor: { lastSeenSequence: 0 } } },
   }),
 }));
 vi.mock("../TerminalPane", () => ({
@@ -24,6 +23,11 @@ vi.mock("../MessagesPane", () => ({ default: () => <div data-testid="mock-messag
 vi.mock("../ErrorBoundary", () => ({ default: ({ children }: { children: React.ReactNode }) => <>{children}</> }));
 
 import WorkspacePaneShell from "../WorkspacePaneShell";
+import { useMessagesViewStore } from "../../stores/useMessagesViewStore";
+
+function setMode(mode: "terminal" | "messages") {
+  useMessagesViewStore.setState({ viewModes: { s1: mode }, positions: {} });
+}
 
 const paneMeta = {
   sessionId: "s1", name: "Terminal", headerColor: "#123456", themeId: "slate-ocean", fontSize: 14,
@@ -36,11 +40,7 @@ function shell() {
     isTtsSpeaking={false} activeSpeakingEventId={null} loadingEventId={null}
     summarizeLevel="moderate" summarizingEventId={null} getSummarizeError={() => null}
     onClearSummarizeError={vi.fn()} onToggleSummarized={vi.fn()} onChangeLevel={vi.fn()}
-    selectedVersionForEvent={vi.fn()} playbackState={{
-      currentTime: 0, duration: null, isPaused: true, playbackRate: 1, volume: 1, isMuted: false,
-      capabilities: { canPause: false, canSeek: false, canAdjustSpeed: false, canAdjustVolume: false },
-    }}
-    onSetPlaybackRate={vi.fn()} onSetVolume={vi.fn()} onSetMuted={vi.fn()}
+    selectedVersionForEvent={vi.fn()}
     playbackFocusRequest={null} onActivate={vi.fn()} onRequestClose={vi.fn()}
     onHandoff={vi.fn()} onToggleView={vi.fn()} onTerminalExit={vi.fn()}
     onTerminalRef={vi.fn()} onTtsSpeakingChange={vi.fn()} onSpeakingEventChange={vi.fn()}
@@ -50,10 +50,10 @@ function shell() {
 }
 
 describe("WorkspacePaneShell stacking and view gates", () => {
-  beforeEach(() => { view.mode = "terminal"; });
+  beforeEach(() => { setMode("terminal"); });
 
   it("does not paint terminal chrome over the messages view", () => {
-    view.mode = "messages";
+    setMode("messages");
     render(shell());
     expect(screen.getByTestId("mock-terminal")).toHaveAttribute("data-view-mode", "messages");
     expect(screen.queryByTestId("device-caption-full")).toBeNull();
@@ -61,19 +61,18 @@ describe("WorkspacePaneShell stacking and view gates", () => {
   });
 
   it("keeps the terminal view mounted while the messages overlay is selected", () => {
-    view.mode = "messages";
+    setMode("messages");
     const { getByTestId } = render(shell());
     expect(getByTestId("terminal-pane-container").className).toContain("overflow-hidden");
     expect(getByTestId("mock-terminal")).toHaveAttribute("data-view-mode", "messages");
   });
 
   it("restores the follower frame when the view returns to terminal", () => {
-    view.mode = "messages";
-    const rendered = render(shell());
+    setMode("messages");
+    render(shell());
     expect(screen.getByTestId("mock-messages")).toBeInTheDocument();
 
-    view.mode = "terminal";
-    rendered.rerender(shell());
+    act(() => { setMode("terminal"); });
     expect(screen.queryByTestId("mock-messages")).toBeNull();
     expect(screen.getByTestId("mock-terminal")).toHaveAttribute("data-view-mode", "terminal");
     expect(screen.getByTestId("device-caption-full")).toBeInTheDocument();

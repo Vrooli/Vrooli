@@ -50,7 +50,7 @@ class FakeEventSource {
 beforeEach(() => {
   FakeEventSource.instances = [];
   mockRefresh.mockClear();
-  useConversationStore.setState({ sessions: {}, viewModes: {} });
+  useConversationStore.setState({ sessions: {} });
   useLiveStreamStore.setState({ status: "connecting", connectedGeneration: 0 });
   vi.useFakeTimers();
 });
@@ -63,7 +63,7 @@ const createEventSource = (url: string) => new FakeEventSource(url) as unknown a
 
 describe("live stream reconnection", () => {
   it("reports open and resyncs tracked sessions once connected", () => {
-    useConversationStore.setState({ sessions: { s1: { events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true, capture: { state: "unknown", reasonCode: "", summary: "", detail: "", remediation: "", transcriptPath: "", lastCapturedAt: "" }, status: "loaded" } }, viewModes: {} });
+    useConversationStore.setState({ sessions: { s1: { events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, hydrated: true, capture: { state: "unknown", reasonCode: "", summary: "", detail: "", remediation: "", transcriptPath: "", lastCapturedAt: "" }, status: "loaded" } } });
     renderHook(() => { useGlobalEventStream({ createEventSource }); });
 
     act(() => { FakeEventSource.instances[0]?.open(); });

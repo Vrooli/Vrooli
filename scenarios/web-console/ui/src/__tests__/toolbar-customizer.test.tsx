@@ -119,4 +119,13 @@ describe("ToolbarCustomizer", () => {
     }
     expect(within(surface).queryByTestId(`toolbar-row-${String(expected.rowCount)}`)).toBeNull();
   });
+  it("[REQ:P0-017f] offers the sent-history control as a checkbox that toggles", () => {
+    openPanel();
+    const history = screen.getByTestId("toolbar-control-history");
+    const before = (history as HTMLInputElement).checked;
+    fireEvent.click(history);
+    expect((screen.getByTestId("toolbar-control-history") as HTMLInputElement).checked).toBe(!before);
+    fireEvent.click(screen.getByTestId("toolbar-control-history"));
+    expect((screen.getByTestId("toolbar-control-history") as HTMLInputElement).checked).toBe(before);
+  });
 });

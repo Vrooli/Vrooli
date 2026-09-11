@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   listRecoverableSessions: vi.fn(),
   recoverSession: vi.fn(),
   dismissRecoverableSession: vi.fn(),
+  getContinuityIntegrity: vi.fn(),
+  searchLocalContinuity: vi.fn(),
+  getContinuityReceipt: vi.fn(),
 }));
 
 vi.mock("../api/sessions", () => ({
@@ -27,6 +30,12 @@ vi.mock("../api/sessions", () => ({
 vi.mock("../api/conversation", () => ({
   searchArchivedConversations: mocks.searchArchivedConversations,
   getConversationRange: mocks.getConversationRange,
+}));
+
+vi.mock("../api/continuity", () => ({
+  getContinuityIntegrity: mocks.getContinuityIntegrity,
+  searchLocalContinuity: mocks.searchLocalContinuity,
+  getContinuityReceipt: mocks.getContinuityReceipt,
 }));
 
 vi.mock("../components/MessagesPane", () => ({
@@ -48,6 +57,7 @@ vi.mock("../components/MessageExportDrawer", () => ({ default: () => null }));
 describe("ArchiveDrawer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
     mocks.listRecoverableSessions.mockResolvedValue([]);
     mocks.listArchivedSessions.mockResolvedValue({
       total: 1,
@@ -69,6 +79,32 @@ describe("ArchiveDrawer", () => {
       totalMatches: 1,
       distinctSessions: 1,
     });
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "event-42", sessionId: "archive-1", sequence: 42, role: "user", createdAt: "2026-08-17T12:10:00Z", excerpt: "receipt signing key", lifecycleState: "archived" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    mocks.getContinuityReceipt.mockResolvedValue({
+      operationId: "archive:archive-1", sessionId: "archive-1", command: "archive",
+      fromState: "live", toState: "archived", status: "succeeded", errorCode: "",
+      createdAt: "2026-08-17T12:00:00Z",
+    });
+  });
+
+  it("surfaces integrity drift without hiding the archive", async () => {
+    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 2, orphanCheckpoints: 1, orphanWorkspacePanes: 0, uncatalogedConversations: 0 });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    expect(await screen.findByTestId("archive-continuity-warning")).toHaveTextContent("archiveDrawer.continuityWarning");
+    expect(screen.getByTestId("archive-session-archive-1")).toBeInTheDocument();
+  });
+
+  it("surfaces catalog-only continuity drift", async () => {
+    mocks.getContinuityIntegrity.mockResolvedValue({ orphanConversations: 0, orphanCheckpoints: 0, orphanWorkspacePanes: 0, uncatalogedConversations: 2 });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    expect(await screen.findByTestId("archive-continuity-warning")).toHaveTextContent("archiveDrawer.continuityWarning");
   });
 
   it("searches messages, opens the selected transcript read-only, and stages into only the active composer", async () => {
@@ -78,7 +114,7 @@ describe("ArchiveDrawer", () => {
     const input = await screen.findByTestId("archive-search-input");
     fireEvent.change(input, { target: { value: "receipt signing" } });
 
-    await waitFor(() => expect(mocks.searchArchivedConversations).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.searchLocalContinuity).toHaveBeenCalled());
     const reader = await screen.findByTestId("archive-reader-props");
     expect(reader).toHaveAttribute("data-session", "archive-1");
     expect(reader).toHaveAttribute("data-read-only", "true");
@@ -87,6 +123,38 @@ describe("ArchiveDrawer", () => {
 
     fireEvent.click(screen.getByTestId("reader-send"));
     expect(onSendToComposer).toHaveBeenCalledWith("selected archived message");
+  });
+
+  it("offers an explicit all-lifecycle-state search and keeps live results non-destructive", async () => {
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "live-event", sessionId: "live-session", sequence: 1, role: "user", createdAt: "2026-08-17T12:10:00Z", excerpt: "live continuity", lifecycleState: "live" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("archive-all-states"));
+    fireEvent.change(screen.getByTestId("archive-search-input"), { target: { value: "live continuity" } });
+
+    await waitFor(() => expect(mocks.searchLocalContinuity).toHaveBeenCalled());
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "live-session");
+    expect(screen.queryByRole("button", { name: "archiveDrawer.delete" })).toBeNull();
+  });
+
+  it("shows catalog-only orphan matches in the normal archive search", async () => {
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "orphan-event", sessionId: "orphan-pane", sequence: 88, role: "assistant", createdAt: "2026-08-17T12:10:00Z", excerpt: "recovered plan-manager discussion", lifecycleState: "archived" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "plan-manager" } });
+
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "orphan-pane");
+    expect(reader).toHaveAttribute("data-read-only", "true");
   });
 
   it("lists all archived sessions before a search and opens one read-only", async () => {
@@ -116,11 +184,19 @@ describe("ArchiveDrawer", () => {
     fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
     expect(screen.getByTestId("archive-delete-dialog")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("archive-delete-cancel"));
-    expect(screen.queryByTestId("archive-delete-dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("archive-delete-dialog")).toBeNull());
     fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.delete" }));
     fireEvent.click(screen.getByTestId("archive-delete-confirm"));
     await waitFor(() => expect(mocks.deleteSession).toHaveBeenCalledWith("archive-1"));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("inspects the durable archive receipt without leaving the drawer", async () => {
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("archive-session-archive-1"));
+    fireEvent.click(screen.getByRole("button", { name: "archiveDrawer.receipt" }));
+    expect(await screen.findByTestId("archive-receipt")).toHaveTextContent("succeeded");
+    expect(mocks.getContinuityReceipt).toHaveBeenCalledWith("archive:archive-1");
   });
 
   it("honors an archive selected from the sidebar", async () => {

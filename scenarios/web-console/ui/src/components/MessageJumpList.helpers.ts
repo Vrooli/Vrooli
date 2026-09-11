@@ -1,4 +1,4 @@
-import type { ConversationEvent } from "../api/conversation";
+import type { ConversationEvent, ConversationSearchMatch, SearchTextRange } from "../api/conversation";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { strings } from "../consts/strings";
 
@@ -110,7 +110,7 @@ export function sourceIdFor(source: string): SourceId {
 export type RoleFilter = "all" | "user" | "assistant" | `source:${SourceId}`;
 export type StatusFilter = "all" | "unheard" | "played" | "failed" | "summarized";
 export type ContentFilter = "all" | "code" | "fileReference" | "long";
-export type SortMode = "oldest" | "newest" | "relevance";
+export type SortMode = "oldest" | "newest";
 export type GroupMode = "turn" | "flat" | "role";
 
 export interface NavigatorState {
@@ -135,9 +135,7 @@ export type ContentBadge = "code" | "fileReference" | "long";
 
 export interface DerivedEvent {
   preview: string;
-  previewLower: string;
   badges: ContentBadge[];
-  metaLower: string;
 }
 
 const derivedEvents = new WeakMap<ConversationEvent, DerivedEvent>();
@@ -148,9 +146,7 @@ export function getDerived(event: ConversationEvent): DerivedEvent {
   const preview = normalizePreview(event.text);
   const derived = {
     preview,
-    previewLower: preview.toLowerCase(),
     badges: detectBadges(event),
-    metaLower: metaTokens(event),
   };
   derivedEvents.set(event, derived);
   return derived;
@@ -172,11 +168,9 @@ export interface NavigatorResult {
   event: ConversationEvent;
   /** Markdown-stripped, whitespace-collapsed preview (original case preserved). */
   preview: string;
-  /** Excerpt centered on the first query match, split into highlight segments. */
+  /** The row's excerpt as segments; server search marks its matches. */
   excerpt: MatchSegment[];
   badges: ContentBadge[];
-  /** Number of query matches in the preview. 0 when no query. */
-  score: number;
 }
 
 export type NoResultReason =
@@ -221,70 +215,30 @@ export function detectBadges(event: ConversationEvent): ContentBadge[] {
 // --- Excerpt + matching -----------------------------------------------------
 
 const EXCERPT_MAX = 160;
-const EXCERPT_LEAD = 32;
+
+/** The leading slice of a preview, as one plain segment. */
+export function previewSegments(preview: string): MatchSegment[] {
+  const head = preview.length > EXCERPT_MAX ? preview.slice(0, EXCERPT_MAX) + "…" : preview;
+  return head ? [{ text: head, match: false }] : [];
+}
 
 /**
- * Produces a highlight-segment excerpt centered on the first occurrence of
- * `query` within `preview`. With no query (or no match) it returns a leading
- * slice as a single non-match segment. Never emits HTML — callers render each
- * segment as a span.
+ * Splits a server excerpt at the server's match ranges (UTF-16 offsets, the
+ * units JS strings index by). A range that runs past the excerpt, overlaps an
+ * earlier one, or is empty is dropped: the navigator never re-matches a query
+ * itself.
  */
-export function computeExcerpt(preview: string, query: string): MatchSegment[] {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) {
-    const head = preview.length > EXCERPT_MAX ? preview.slice(0, EXCERPT_MAX) + "…" : preview;
-    return head ? [{ text: head, match: false }] : [];
-  }
-
-  const lowerPreview = preview.toLowerCase();
-  const lowerQuery = trimmedQuery.toLowerCase();
-  const first = lowerPreview.indexOf(lowerQuery);
-  if (first < 0) {
-    const head = preview.length > EXCERPT_MAX ? preview.slice(0, EXCERPT_MAX) + "…" : preview;
-    return head ? [{ text: head, match: false }] : [];
-  }
-
-  const windowStart = Math.max(0, first - EXCERPT_LEAD);
-  const windowEnd = Math.min(preview.length, windowStart + EXCERPT_MAX);
-  const slice = preview.slice(windowStart, windowEnd);
-  const sliceLower = slice.toLowerCase();
-
+export function excerptSegments(excerpt: string, ranges: readonly SearchTextRange[]): MatchSegment[] {
   const segments: MatchSegment[] = [];
-  if (windowStart > 0) segments.push({ text: "…", match: false });
-
   let cursor = 0;
-  let idx = sliceLower.indexOf(lowerQuery);
-  while (idx >= 0) {
-    if (idx > cursor) segments.push({ text: slice.slice(cursor, idx), match: false });
-    segments.push({ text: slice.slice(idx, idx + lowerQuery.length), match: true });
-    cursor = idx + lowerQuery.length;
-    idx = sliceLower.indexOf(lowerQuery, cursor);
+  for (const range of [...ranges].sort((a, b) => a.start - b.start)) {
+    if (range.start < cursor || range.end > excerpt.length || range.start >= range.end) continue;
+    if (range.start > cursor) segments.push({ text: excerpt.slice(cursor, range.start), match: false });
+    segments.push({ text: excerpt.slice(range.start, range.end), match: true });
+    cursor = range.end;
   }
-  if (cursor < slice.length) segments.push({ text: slice.slice(cursor), match: false });
-  if (windowEnd < preview.length) segments.push({ text: "…", match: false });
-
+  if (cursor < excerpt.length) segments.push({ text: excerpt.slice(cursor), match: false });
   return segments;
-}
-
-function countOccurrences(haystack: string, needle: string): number {
-  if (!needle) return 0;
-  let count = 0;
-  let idx = haystack.indexOf(needle);
-  while (idx >= 0) {
-    count += 1;
-    idx = haystack.indexOf(needle, idx + needle.length);
-  }
-  return count;
-}
-
-/**
- * Lowercased search tokens for an event's metadata: role words, source label,
- * and sequence number. Locale-independent on purpose — these are stable
- * identifiers, not display copy.
- */
-function metaTokens(event: ConversationEvent): string {
-  if (event.role === "user") return `user you #${event.sequence} ${event.sequence}`;
-  return `assistant ${sourceIdFor(event.source)} #${event.sequence} ${event.sequence}`;
 }
 
 // --- Filters ----------------------------------------------------------------
@@ -336,67 +290,77 @@ export function availableSources(events: ConversationEvent[]): SourceId[] {
 // --- The one pure derivation -------------------------------------------------
 
 /**
- * Applies query, role/status/content filters, and sort to produce the flat,
- * ordered result list. Grouping is a presentation concern handled separately
- * by groupResults so keyboard indexing always refers to this flat list.
+ * The loaded events under the role, status, and content filters, sorted. A
+ * query is not applied here: search runs on the server over the whole history
+ * (buildSearchResults lists its hits). Grouping is a presentation concern
+ * handled by groupResults so keyboard indexing always refers to this flat list.
  */
 export function buildResults(
   events: ConversationEvent[],
   state: NavigatorState,
 ): NavigatorResult[] {
-  const query = state.query.trim().toLowerCase();
-
   const filtered: NavigatorResult[] = [];
-  for (let i = 0; i < events.length; i += 1) {
-    const event = events[i];
-    if (!event) continue;
+  for (const event of events) {
     if (!matchesRole(event, state.role)) continue;
     if (!matchesStatus(event, state.status)) continue;
-
-    const { badges, preview, previewLower, metaLower } = getDerived(event);
+    const { badges, preview } = getDerived(event);
     if (!matchesContent(badges, state.content)) continue;
-
-    let score = 0;
-    if (query) {
-      const haystack = `${previewLower} ${metaLower}`;
-      score = countOccurrences(haystack, query);
-      if (score === 0) continue; // query present but no match anywhere
-    }
-
-    filtered.push({
-      event,
-      preview,
-      excerpt: computeExcerpt(preview, state.query),
-      badges,
-      score,
-    });
+    filtered.push({ event, preview, excerpt: previewSegments(preview), badges });
   }
-
-  return sortResults(filtered, state.sort, Boolean(query));
+  return sortResults(filtered, state.sort);
 }
 
-function sortResults(
-  results: NavigatorResult[],
-  sort: SortMode,
-  hasQuery: boolean,
+/** A hit outside the loaded window, listed from what the server reported. */
+function eventFromHit(hit: ConversationSearchMatch, assistantSource: string): ConversationEvent {
+  return {
+    id: hit.eventId,
+    sessionId: "",
+    source: hit.role === "user" ? "" : assistantSource,
+    role: hit.role,
+    text: hit.excerpt,
+    speechParagraphs: [hit.excerpt],
+    summarized: false,
+    createdAt: hit.createdAt,
+    sequence: hit.sequence,
+    deliveryState: "received",
+    ttsState: "idle",
+    consumptionState: "seen",
+  };
+}
+
+/**
+ * The server's search hits as navigator rows, in sequence order, highlighted
+ * with the server's ranges. A hit that is loaded is shown as its event; one
+ * outside the loaded window keeps the server's role and time. Status and
+ * content filters need the event itself, so they keep loaded hits only.
+ */
+export function buildSearchResults(
+  hits: readonly ConversationSearchMatch[],
+  events: readonly ConversationEvent[],
+  state: NavigatorState,
 ): NavigatorResult[] {
-  // Relevance has no meaning without a query — fall back to conversation order.
-  const effective: SortMode = sort === "relevance" && !hasQuery ? "oldest" : sort;
-  const sorted = [...results];
-  switch (effective) {
-    case "newest":
-      sorted.sort((a, b) => b.event.sequence - a.event.sequence);
-      break;
-    case "relevance":
-      sorted.sort(
-        (a, b) => b.score - a.score || a.event.sequence - b.event.sequence,
-      );
-      break;
-    case "oldest":
-    default:
-      sorted.sort((a, b) => a.event.sequence - b.event.sequence);
-      break;
+  const loaded = new Map(events.map((event) => [event.id, event]));
+  const assistantSource = events.find((event) => event.role === "assistant")?.source ?? "";
+  const needsEvent = state.status !== "all" || state.content !== "all";
+  const results: NavigatorResult[] = [];
+  for (const hit of hits) {
+    const known = loaded.get(hit.eventId);
+    if (!known && needsEvent) continue;
+    const event = known ?? eventFromHit(hit, assistantSource);
+    if (!matchesRole(event, state.role)) continue;
+    if (known && !matchesStatus(known, state.status)) continue;
+    const badges = known ? getDerived(known).badges : [];
+    if (known && !matchesContent(badges, state.content)) continue;
+    results.push({ event, preview: hit.excerpt, excerpt: excerptSegments(hit.excerpt, hit.ranges), badges });
   }
+  return sortResults(results, state.sort);
+}
+
+function sortResults(results: NavigatorResult[], sort: SortMode): NavigatorResult[] {
+  const sorted = [...results];
+  sorted.sort(sort === "newest"
+    ? (a, b) => b.event.sequence - a.event.sequence
+    : (a, b) => a.event.sequence - b.event.sequence);
   return sorted;
 }
 
@@ -479,4 +443,14 @@ export function groupResults(
   }
   if (current) groups.push(current);
   return groups;
+}
+
+/**
+ * A navigator row's expected height before it is measured: the header line
+ * plus one or two clamped preview lines. The virtualizer replaces it with the
+ * measured height as soon as the row renders.
+ */
+export function estimateNavRowHeight(result: NavigatorResult): number {
+  const lines = result.preview.length > 48 ? 2 : 1;
+  return (result.event.role === "user" ? 30 : 26) + lines * 17;
 }

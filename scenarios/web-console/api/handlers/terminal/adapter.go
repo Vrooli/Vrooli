@@ -20,6 +20,8 @@ type SessionManager interface {
 // passed to Module.
 type Adapter struct {
 	Manager SessionManager
+	// Replier answers prompts through a harness API (OpenCode permissions).
+	Replier PromptReplier
 }
 
 func (a *Adapter) lookup(id string) (*session.Session, error) {

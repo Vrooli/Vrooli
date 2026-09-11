@@ -84,15 +84,16 @@ function metaFor(
     ? agentsReady(capabilityFacts.filter((fact) => fact.state === "ready").length, capabilityFacts.length)
     : undefined;
   const transportFailure = target.readiness?.find((fact) => !fact.passed && !fact.key.startsWith("capability:"));
+  const headlessFailure = target.operation_readiness?.find((operation) => operation.operation === "headless_execution" && !operation.ready);
   // The first capability that is NOT ready. It used to be appended as a bare
   // label, so a row reading "1/5 agents ready · Claude Code" named the one
   // agent that is missing in the position a reader takes for the one that is
   // present. A problem has to be phrased as a problem.
   const capabilityFailure = capabilityFacts.find((fact) => fact.state !== "ready");
   if (target.kind === "local" && !capabilityFacts.length) return "Web Console host";
-  if (transportFailure || capabilityFailure) {
+  if (transportFailure || capabilityFailure || headlessFailure) {
     const missing = capabilityFailure ? capabilityMissing(capabilityFailure.label || capabilityFailure.key.slice("capability:".length)) : undefined;
-    return [platform, capabilitySummary, transportFailure?.label, missing].filter(Boolean).join(" · ");
+    return [platform, capabilitySummary, transportFailure?.label, missing, headlessFailure?.detail, headlessFailure?.recovery_action].filter(Boolean).join(" · ");
   }
   if (!target.available) {
     return [platform, capabilitySummary, target.recovery_action ?? target.failure_rung ?? neverSeen].filter(Boolean).join(" · ");

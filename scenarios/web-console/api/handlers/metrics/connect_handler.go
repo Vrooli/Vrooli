@@ -60,6 +60,13 @@ func (h *connectHandler) Get(ctx context.Context, _ *connect.Request[metricsv1.G
 		AiGenerations:              snap.AIGenerations,
 		AiSuggestions:              snap.AISuggestions,
 		VoiceSkipVerificationTotal: snap.VoiceSkipVerificationTotal,
-		Uptime:                     snap.Uptime,
+		Continuity: &metricsv1.ContinuityMetrics{
+			Receipts:            snap.Continuity.Receipts,
+			Failures:            snap.Continuity.Failures,
+			Orphans:             snap.Continuity.Orphans,
+			PublicationPending:  snap.Continuity.PublicationPending,
+			PublicationFailures: snap.Continuity.PublicationFailures,
+		},
+		Uptime: snap.Uptime,
 	}), nil
 }

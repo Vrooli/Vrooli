@@ -49,6 +49,21 @@ These Connect-RPC methods are defined by `SessionsService` and `ConversationServ
 
 `SessionsService.Delete` remains the explicit permanent-delete operation. UI callers expose it only through a destructive confirmation.
 
+### Continuity RPCs
+
+The `ContinuityService` is the read-model and reconciliation surface for
+retained conversation evidence:
+
+| Method | Behavior |
+|---|---|
+| `Integrity` | Returns source counts, orphan classes, an opaque generation, and a privacy-safe event-content hash. |
+| `Search` | Searches local evidence across lifecycle states, including records missing session metadata. |
+| `ListCatalog` | Lists canonical records and stable source aliases for local recovery and downstream import. |
+| `Reconcile` | Plans by default; guarded apply requires a generation, manifest hash, operation ID, and explicit operator confirmation. |
+| `GetReceipt` | Reads the durable status and next outcome of a lifecycle or reconciliation operation. |
+| `Rollback` | Restores the catalog projection preimage for a manifest without modifying raw evidence. |
+| `Publish` | Drains a bounded durable queue to Agent Manager; failures remain queued for retry and local recovery is independent of the remote service. |
+
 **Create provenance, target, and launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance, target selection, working directory, and launch intent alongside the shell/backend fields:
 
 - `origin` (`SessionOrigin`): who opened the session. The taxonomy is `SESSION_ORIGIN_UI` (human-opened browser tab), `SESSION_ORIGIN_PROGRAMMATIC` (agent/CLI caller), and `SESSION_ORIGIN_REMOTE`. `SESSION_ORIGIN_UNSPECIFIED` is **normalized to `SESSION_ORIGIN_PROGRAMMATIC`** on create — every first-party UI client sets `UI` explicitly, so an origin-less create can only have come from a programmatic caller. Persisted to `sessions.origin`.
@@ -83,6 +98,25 @@ Rows that predate these columns are backfilled to `origin='ui'` by an additive `
 
 Message protocol: see [Architecture — Terminal I/O](../concepts/ARCHITECTURE.md#terminal-io) and [Error Semantics — WebSocket](../internal/ERROR_SEMANTICS.md#websocket-error-protocol).
 
+## Prompt answering (Connect)
+
+[CODE: api/handlers/terminal/answer.go], [CODE: api/handlers/terminal/connect_handler.go]
+
+| Method | Path | Handler |
+|---|---|---|
+| POST | `/vrooli.web_console.v1.terminal.TerminalService/AnswerPrompt` | `AnswerPrompt` |
+
+Answers the prompt a session's agent is showing (level 3). The request names the session, the option (`option_key`, a `PromptOption.key`), and `prompt_hash` (the `PendingPrompt.hash` the caller saw); `cancel: true` dismisses the prompt instead. The response says how the answer was delivered (`keystrokes` or `harness_api`) and which option it chose.
+
+Nothing is sent unless the session is waiting on that same prompt, the prompt is answerable, and the option is on it:
+
+| Refusal | Code |
+|---|---|
+| Missing `session_id` or `prompt_hash`, an option not on the prompt, or a cancel the prompt does not offer | `INVALID_ARGUMENT` |
+| The session is not waiting, the prompt changed since it was shown, or answering is off for its harness or version | `FAILED_PRECONDITION` |
+
+Answering is off unless the host turns it on: `WEB_CONSOLE_PROMPT_ANSWERING` (a comma-separated list of harnesses, e.g. `claude,opencode`), or the same list in a `prompt-answering` file in the scenario's data directory (the variable wins). There is no CLI command for it: the Messages view shows the prompt being answered and sends its hash, and scripts use `terminal send-text` and `send-keys`. See [Messages view: answering](../internal/MESSAGES-VIEW-PROJECTION-UX.md#answering-level-3).
+
 ## Conversation & Files
 
 [CODE: api/conversation_handlers.go], [CODE: api/conversation_summarize_handler.go], [CODE: api/file_reference_handlers.go]
@@ -94,6 +128,8 @@ Message protocol: see [Architecture — Terminal I/O](../concepts/ARCHITECTURE.m
 | POST | `/api/v1/sessions/{id}/conversation/{eventId}/summarize` | `handleSummarizeEvent` |
 
 User-facing contract for the messages feed: [Conversation Tracking guide](../guides/CONVERSATION_TRACKING.md).
+
+Search is one Connect call over the full history: `/vrooli.web_console.v1.conversation.ConversationService/Search`, and `SearchArchived` across archived sessions, both backed by the FTS5 mirror `conversation_events_fts` ([CODE: api/conversation_search.go]). The `mode` is `text` (word prefixes), `regex` (Go RE2; candidates are narrowed by the pattern literal words, otherwise the newest 20,000 rows are scanned and the result is marked truncated), or `fuzzy`; the flags `case_sensitive`, `whole_word`, and `role_filter` narrow it. Each match carries its excerpt, highlight `ranges` (UTF-16 offsets into the excerpt), role, and time; an invalid pattern returns its reason in `error` instead of failing the call. Design record: [Messages view](../internal/MESSAGES-VIEW-PROJECTION-UX.md).
 
 ## File Preview
 
@@ -223,12 +259,19 @@ Streaming pipeline and segment-final timing: [Temporal Flows — Voice](../inter
 
 ## Hooks
 
-[CODE: api/tts_hook_handler.go], [CODE: api/hook_prompt_submit_handler.go]
+[CODE: api/hook_stop_handler.go], [CODE: api/hook_prompt_submit_handler.go], [CODE: api/hook_notification_handler.go]
 
 | Method | Path | Handler |
 |---|---|---|
 | POST | `/api/v1/hooks/stop` | `handleHookStop` |
 | POST | `/api/v1/hooks/prompt-submit` | `handleHookPromptSubmit` |
+| POST | `/api/v1/hooks/notification` | `handleHookNotification` |
+
+Stop and Notification also feed the session's activity detector: Stop marks
+the turn over (idle); a `permission_prompt` or `elicitation_dialog`
+notification marks the session waiting on the user. Activity reaches clients
+as `session_activity` on the conversation event stream and as
+`Session.activity` on `ListSessions`.
 
 ## TTS
 

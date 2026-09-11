@@ -86,8 +86,10 @@ type Config struct {
 	PollInterval time.Duration
 	TailInterval time.Duration
 	StaleTimeout time.Duration
-	Dispatch     func(Event, string)
-	Logger       *log.Logger
+	// Dispatch returns whether a durable projection accepted the event. A
+	// rejected event keeps the source cursor behind so a later scan can retry it.
+	Dispatch func(Event, string) bool
+	Logger   *log.Logger
 }
 
 // Engine owns discovery, watcher lifecycle, byte-offset reads, and durable
@@ -99,7 +101,7 @@ type Engine struct {
 	pollInterval time.Duration
 	tailInterval time.Duration
 	staleTimeout time.Duration
-	dispatch     func(Event, string)
+	dispatch     func(Event, string) bool
 	logger       *log.Logger
 
 	stopOnce  sync.Once
@@ -289,6 +291,7 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 	process := func() bool {
 		processed := false
 		for {
+			lineStart := currentOffset
 			line, readErr := reader.ReadBytes('\n')
 			if readErr != nil {
 				if !errors.Is(readErr, io.EOF) {
@@ -306,16 +309,30 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 				continue
 			}
 			commit := len(events) == 0
+			projectionOK := true
 			for _, event := range events {
 				if event.Commit {
 					commit = true
 				}
 				if !event.Ignored && e.dispatch != nil && event.Text != "" {
-					e.dispatch(event, ref.SessionID)
+					if !e.dispatch(event, ref.SessionID) {
+						projectionOK = false
+					}
 				}
 			}
-			if commit {
+			if commit && projectionOK {
 				e.save(key, ref.SessionID, currentOffset)
+			} else if !projectionOK {
+				// Dispatch consumed the decoded line but did not durably project
+				// it. Rewind both the file and buffered reader so a refresh can
+				// retry the same line without requiring a process restart.
+				if _, seekErr := f.Seek(lineStart, io.SeekStart); seekErr != nil {
+					e.printf("rewind %s after dispatch failure: %v", ref.Path, seekErr)
+					return processed
+				}
+				reader = bufio.NewReader(f)
+				currentOffset = lineStart
+				return processed
 			}
 		}
 	}

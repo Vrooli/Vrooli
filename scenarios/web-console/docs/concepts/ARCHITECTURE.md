@@ -400,7 +400,7 @@ This section maps each PRD operational target to its implementing code and docum
 | OT-P0-004 | Proxy-Correct Networking via api-base | [CODE: ui/src/api/client.ts], `@vrooli/api-base` integration | [DOC: docs/reference/configuration.md] |
 | OT-P0-005 | AI Input with Provider Fallback | [CODE: api/internal/ai/service.go] (provider chain, fallback), [CODE: ui/src/components/AiInput.tsx] | [DOC: docs/internal/ASSUMPTIONS.md#behavioral-assumptions] |
 | OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | [CODE: ui/src/components/TerminalLauncher.tsx], [CODE: ui/src/consts/shortcuts.ts], [CODE: api/shortcut_profiles.go] | [DOC: docs/concepts/GLOSSARY.md#shortcut] |
-| OT-P0-007 | Mobile Terminal Usability Toolbar | [CODE: ui/src/components/MobileToolbar.tsx], [CODE: ui/src/consts/toolbar-keys.ts] | [DOC: docs/internal/EXPERIENCE-AUDIT.md] |
+| OT-P0-007 | Mobile Terminal Usability Toolbar | [CODE: ui/src/components/MobileToolbar.tsx], [CODE: ui/src/consts/toolbar-keys.ts] | [DOC: docs/internal/PROBLEMS.md#experience-follow-ups] |
 | OT-P0-008 | Sidebar/Drawer Controls Surface | [CODE: ui/src/components/SettingsModal.tsx], [CODE: ui/src/components/settings/SessionManagementSection.tsx] | [DOC: docs/internal/SEAMS.md#1-entry--presentation] |
 
 ### P1 – Should Have
@@ -408,8 +408,8 @@ This section maps each PRD operational target to its implementing code and docum
 | Target | Description | Implementation | Docs |
 |--------|-------------|----------------|------|
 | OT-P1-001 | Session Policy Controls | [CODE: api/session/session_policy.go], [CODE: ui/src/consts/policy-options.ts], [CODE: ui/src/hooks/useCountdown.ts] | [DOC: docs/concepts/GLOSSARY.md#policy] |
-| OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_sql.go], [CODE: ui/src/components/settings/ShortcutProfilesSection.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
-| OT-P1-003 | AI Provider Policy Controls | [CODE: api/internal/ai/config_store_mem.go], [CODE: api/internal/ai/config_store_sql.go], [CODE: ui/src/components/IntegrationsPanel.tsx] | [DOC: docs/internal/STORAGE_AUDIT.md] |
+| OT-P1-002 | Shortcut Profile Management | [CODE: api/shortcut_profiles.go], [CODE: api/shortcut_profiles_sql.go], [CODE: ui/src/components/settings/ShortcutProfilesSection.tsx] | [DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries] |
+| OT-P1-003 | AI Provider Policy Controls | [CODE: api/internal/ai/config_store_mem.go], [CODE: api/internal/ai/config_store_sql.go], [CODE: ui/src/components/IntegrationsPanel.tsx] | [DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries] |
 | OT-P1-004 | Operational Observability Coverage | [CODE: api/internal/metrics/metrics.go], [CODE: api/internal/events/events.go] | [DOC: docs/internal/SEAMS.md#6-cross-cutting] |
 
 ### P2 – Future

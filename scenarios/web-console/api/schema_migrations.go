@@ -239,6 +239,52 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
 		`CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
+		`CREATE TABLE IF NOT EXISTS session_lifecycle_receipts (
+			operation_id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			actor_kind TEXT NOT NULL,
+			actor_id TEXT NOT NULL DEFAULT '',
+			command TEXT NOT NULL,
+			from_state TEXT NOT NULL,
+			to_state TEXT NOT NULL,
+			reason_code TEXT NOT NULL,
+			status TEXT NOT NULL,
+			error_code TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			completed_at TEXT
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_session_lifecycle_receipts_session ON session_lifecycle_receipts(session_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS conversation_catalog (
+			session_id TEXT PRIMARY KEY, lifecycle_state TEXT NOT NULL,
+			lifecycle_version INTEGER NOT NULL DEFAULT 1, backend TEXT NOT NULL DEFAULT '',
+			agent_type TEXT NOT NULL DEFAULT '', agent_session_id TEXT NOT NULL DEFAULT '',
+			agent_home_ref TEXT NOT NULL DEFAULT '', rollout_ref TEXT NOT NULL DEFAULT '',
+			original_title TEXT NOT NULL DEFAULT '', current_title TEXT NOT NULL DEFAULT '',
+			topic_summary TEXT NOT NULL DEFAULT '', cwd TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL, last_activity_at TEXT NOT NULL, archived_at TEXT,
+			deleted_at TEXT, recovered_into TEXT NOT NULL DEFAULT '', source_fingerprint TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS conversation_aliases (
+			session_id TEXT NOT NULL REFERENCES conversation_catalog(session_id) ON DELETE CASCADE,
+			alias_kind TEXT NOT NULL, alias_value TEXT NOT NULL, observed_at TEXT NOT NULL,
+			PRIMARY KEY (alias_kind, alias_value)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversation_catalog_state ON conversation_catalog(lifecycle_state)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversation_aliases_session ON conversation_aliases(session_id)`,
+		`CREATE TABLE IF NOT EXISTS continuity_reconciliation_manifests (hash TEXT PRIMARY KEY, generation TEXT NOT NULL, items_json TEXT NOT NULL, previous_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS continuity_reconciliation_progress (
+			operation_id TEXT PRIMARY KEY, manifest_hash TEXT NOT NULL, actor_id TEXT NOT NULL,
+			next_offset INTEGER NOT NULL DEFAULT 0, total_items INTEGER NOT NULL,
+			status TEXT NOT NULL, updated_at TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS continuity_reconciliation_item_receipts (
+			operation_id TEXT NOT NULL, item_index INTEGER NOT NULL, manifest_hash TEXT NOT NULL,
+			session_id TEXT NOT NULL, action TEXT NOT NULL, status TEXT NOT NULL,
+			error_code TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, completed_at TEXT,
+			PRIMARY KEY (operation_id, item_index)
+		)`,
+		`CREATE TABLE IF NOT EXISTS continuity_publication_queue (session_id TEXT PRIMARY KEY, lifecycle_state TEXT NOT NULL, source_fingerprint TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', published_fingerprint TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`,
+		`ALTER TABLE continuity_reconciliation_manifests ADD COLUMN previous_json TEXT NOT NULL DEFAULT '{}'`,
 	}
 	for _, m := range migrations {
 		if _, err := db.ExecContext(ctx, m); err != nil {

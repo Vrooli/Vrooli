@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#file-map
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/concepts/GLOSSARY.md#core-terms
 
 package main

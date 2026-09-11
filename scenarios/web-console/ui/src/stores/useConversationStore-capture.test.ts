@@ -32,7 +32,7 @@ const CAPTURING = capture({ state: "capturing", summary: "Messages are being cap
 
 describe("conversation view state", () => {
   beforeEach(() => {
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
   });
 
   it("shows loading, not emptiness, before the first load resolves", () => {
@@ -105,7 +105,7 @@ describe("conversation view state", () => {
 
 describe("mergeEvents paging preservation", () => {
   beforeEach(() => {
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
   });
 
   it("keeps paging metadata across a refresh", () => {

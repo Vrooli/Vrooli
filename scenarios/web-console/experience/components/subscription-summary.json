@@ -1,0 +1,22 @@
+{
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "subscription-summary",
+    "title": "Subscription summary",
+    "purpose": "Draft coverage contract for signed-out and connected account metadata shown by the subscription BAS case.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.1/story.json"
+  },
+  "states": [{ "id": "visible", "example": "idle", "description": "Account plan, credit, and pending-sync metadata are rendered." }],
+  "elements": [
+    { "id": "account-plan", "role": "status", "description": "Current plan and subscription status." },
+    { "id": "account-credits", "role": "status", "description": "Current AI credit metadata." },
+    { "id": "account-pending-sync", "role": "status", "description": "Pending usage synchronization metadata." }
+  ],
+  "claims": [],
+  "bindings": { "elements": {
+    "account-plan": { "testid": "account-plan" },
+    "account-credits": { "testid": "account-credits" },
+    "account-pending-sync": { "testid": "account-pending-sync" }
+  } }
+}

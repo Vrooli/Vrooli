@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -95,6 +96,27 @@ func TestHandler_HealthEndpoint(t *testing.T) {
 	// Health may return 200 or 503 depending on DB, but should not panic
 	if rec.Code != http.StatusOK && rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("expected 200 or 503, got %d", rec.Code)
+	}
+}
+
+func TestHandler_HealthReportsLifecycleBuildIdentity(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-web-console-build")
+	srv := newFakeTestServer()
+	srv.setupRoutes()
+	handler := srv.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var got struct {
+		BuildIdentity string `json:"build_identity"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode health response: %v; body=%s", err, rec.Body.String())
+	}
+	if got.BuildIdentity != "sha256:test-web-console-build" {
+		t.Fatalf("build_identity = %q, want sha256:test-web-console-build", got.BuildIdentity)
 	}
 }
 

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import { toolbarPrefsFromPreset } from "../lib/toolbarLayout";
 
 const baseProps = {
@@ -25,7 +26,6 @@ const baseProps = {
   onUploadImage: vi.fn(),
   isTtsSpeaking: false,
   onTtsStop: vi.fn(),
-  onSwitchToTerminal: vi.fn(),
 };
 
 describe("MobileToolbar viewMode", () => {
@@ -96,37 +96,27 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.getByTestId("toolbar-mod-ctrl")).toBeInTheDocument();
   });
 
-  // --- Feature 3: Auto-switch to terminal on send ---
+  // --- Sending from Messages stays in Messages (the send shows as an echo row) ---
 
-  it("calls onSwitchToTerminal when submitting text in messages mode", () => {
+  it("[REQ:P0-017f] a send from Messages keeps the pane in Messages", () => {
+    useMessagesViewStore.getState().setViewMode("sess-1", "messages");
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.change(screen.getByTestId("mobile-command-input"), { target: { value: "hello" } });
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
     expect(baseProps.onInput).toHaveBeenCalledWith("hello", "bulk_text");
-    expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
+    expect(useMessagesViewStore.getState().viewModes["sess-1"]).toBe("messages");
   });
 
-  it("calls onSwitchToTerminal when submitting empty input (Enter) in messages mode", () => {
+  it("[REQ:P0-017f] an empty Send in Messages presses Enter and stays in Messages", () => {
+    useMessagesViewStore.getState().setViewMode("sess-1", "messages");
     render(<MobileToolbar {...baseProps} viewMode="messages" />);
 
-    // Empty input — acts as Enter key
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
-    expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
-  });
-
-  it("does NOT call onSwitchToTerminal when submitting in terminal mode", () => {
-    render(<MobileToolbar {...baseProps} viewMode="terminal" />);
-
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
-    fireEvent.click(screen.getByTestId("mobile-command-submit"));
-
-    expect(baseProps.onInput).toHaveBeenCalled();
-    expect(baseProps.onSwitchToTerminal).not.toHaveBeenCalled();
+    expect(baseProps.onInput).toHaveBeenCalledWith("\r", "typing");
+    expect(useMessagesViewStore.getState().viewModes["sess-1"]).toBe("messages");
   });
 
   // --- Full-screen composer entry (corner expand icon) ---
@@ -154,18 +144,6 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId("expand-toggle")).toBeNull();
   });
 
-  it("does not error when onSwitchToTerminal is undefined in messages mode", () => {
-    const propsWithoutSwitch = { ...baseProps, onSwitchToTerminal: undefined };
-    render(<MobileToolbar {...propsWithoutSwitch} viewMode="messages" />);
-
-    const input = screen.getByTestId("mobile-command-input");
-    fireEvent.change(input, { target: { value: "hello" } });
-
-    // Should not throw
-    expect(() => {
-      fireEvent.click(screen.getByTestId("mobile-command-submit"));
-    }).not.toThrow();
-  });
 
   it("shows voice command suggestions and routes confirm or dismiss", () => {
     const onCommandConfirm = vi.fn();

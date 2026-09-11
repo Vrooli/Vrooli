@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BookmarkPlus, ImagePlus, Library, Loader2, SendHorizontal } from "lucide-react";
+import { BookmarkPlus, History, ImagePlus, Library, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
 import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
@@ -13,6 +14,10 @@ import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { SnippetPicker } from "./snippets/SnippetPicker";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
+import { ComposerStateChip } from "./toolbar/ComposerStateChip";
+import { SentHistorySheet } from "./composer/SentHistorySheet";
+import { useConversationStore } from "../stores/useConversationStore";
+import { useCommandHistory } from "../hooks/useCommandHistory";
 
 type ComposerSendStatus = "idle" | "uploading" | "sending" | "queued" | "failed";
 
@@ -93,6 +98,9 @@ export default function FullScreenComposer({
   const [showDiscardPrompt, setShowDiscardPrompt] = useState(false);
   const [showSnippetPicker, setShowSnippetPicker] = useState(false);
   const [showSnippetSave, setShowSnippetSave] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  // This device's sends (localStorage, never synced), shared with the toolbar.
+  const { entries: historyEntries, push: pushHistory, clear: clearHistory } = useCommandHistory();
   const settlementUnsubRef = useRef<(() => void) | null>(null);
 
   // Bind the uncontrolled textarea to the shared draft: reseed on peer changes
@@ -227,6 +235,10 @@ export default function FullScreenComposer({
     setStatus("sending");
     const finalizeSuccess = () => {
       draft.reset(sentFrom);
+      // Messages shows the send until the harness records it; this device
+      // keeps it in history.
+      if (sentFrom) useConversationStore.getState().addEcho(sentFrom, payload);
+      pushHistory(payload);
       onClearAttachments?.();
       setStatus("idle");
       onClose();
@@ -262,6 +274,32 @@ export default function FullScreenComposer({
 
   const isBusy = status === "sending" || status === "uploading";
   const canSend = true; // empty+no-attachments is guarded inside handleSend
+  const expandedHeaderActions = (
+    <div className="composer-expanded-header-actions flex items-center gap-1">
+      <IconButton
+        type="button"
+        data-testid="composer-open-snippets-expanded"
+        surface="soft"
+        size="sm"
+        aria-label={t(strings.snippets.picker.title)}
+        title={t(strings.snippets.picker.title)}
+        onClick={() => setShowSnippetPicker(true)}
+      >
+        <Library />
+      </IconButton>
+      <IconButton
+        type="button"
+        data-testid="composer-save-snippet-expanded"
+        surface="soft"
+        size="sm"
+        aria-label={t(strings.messageActions.saveAsSnippet)}
+        title={t(strings.messageActions.saveAsSnippet)}
+        onClick={() => setShowSnippetSave(true)}
+      >
+        <BookmarkPlus />
+      </IconButton>
+    </div>
+  );
 
   return (
     <FullPageDrawer
@@ -269,13 +307,21 @@ export default function FullScreenComposer({
       onClose={requestClose}
       closeLabel={t(strings.composer.closeAriaLabel)}
       title={t(strings.composer.title)}
+      headerActions={expandedHeaderActions}
       testId="full-screen-composer"
       avoidKeyboard
     >
+      <style>{`
+        [data-rcl-full-page-drawer][data-expanded="false"] .composer-expanded-header-actions { display: none; }
+        [data-rcl-full-page-drawer][data-expanded="true"] .composer-normal-actions { display: none; }
+        [data-rcl-full-page-drawer][data-expanded="true"] [data-testid="composer-attachment-tray"] button[data-testid^="composer-attachment-preview-"] { width: 3.5rem; height: 3.5rem; }
+      `}</style>
       <div className="relative flex h-full flex-col">
-        <div className="flex min-h-11 items-center gap-1 border-b border-wc-default px-3">
+        <div className="composer-normal-actions flex min-h-11 items-center gap-1 border-b border-wc-default px-3">
           <button type="button" data-testid="composer-open-snippets" onClick={() => setShowSnippetPicker(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><Library className="h-4 w-4" />{t(strings.snippets.picker.title)}</button>
           <button type="button" data-testid="composer-save-snippet" onClick={() => setShowSnippetSave(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><BookmarkPlus className="h-4 w-4" />{t(strings.messageActions.saveAsSnippet)}</button>
+          <button type="button" data-testid="composer-open-history" onClick={() => { setShowHistory(true); }} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><History className="h-4 w-4" />{t(strings.sentHistory.control)}</button>
+          <ComposerStateChip sessionId={draft.getSessionId()} className="ms-auto" />
         </div>
         {/* The overlay is absolutely positioned against this box, so its
             metrics must match the textarea's exactly — same padding, same
@@ -332,6 +378,9 @@ export default function FullScreenComposer({
               attachments={attachments}
               onRemove={onRemoveAttachment}
               removeAriaLabel={t(strings.composer.removeAttachmentAriaLabel)}
+              viewAriaLabel={(name) => t(strings.composer.viewAttachmentAriaLabel, { name })}
+              previewTitle={t(strings.messagesFileViewer.imagePreview)}
+              closePreviewLabel={t(strings.messagesFileViewer.closeAriaLabel)}
             />
           </div>
         )}
@@ -393,6 +442,27 @@ export default function FullScreenComposer({
           onCancel={() => setShowDiscardPrompt(false)}
           onConfirm={confirmDiscard}
           testIdPrefix="composer-discard"
+        />
+        <SentHistorySheet
+          open={showHistory}
+          entries={historyEntries}
+          onClose={() => { setShowHistory(false); }}
+          onInsert={(text) => { draft.appendAtCaret(text); }}
+          onSend={(text) => {
+            // Resend types the text through the same lane as Send (no Enter)
+            // and, once acknowledged, shows its echo and records it again.
+            const sentFrom = draft.getSessionId();
+            const result = onInput(text, "bulk_text");
+            if (result.status !== "sent") return;
+            const record = (ok: boolean) => {
+              if (!ok) return;
+              if (sentFrom) useConversationStore.getState().addEcho(sentFrom, text);
+              pushHistory(text);
+            };
+            if (awaitOffset) awaitOffset(result.offset, record);
+            else record(true);
+          }}
+          onClear={clearHistory}
         />
         {showSnippetPicker && <SnippetPicker
           open={showSnippetPicker}

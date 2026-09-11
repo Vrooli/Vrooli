@@ -1,40 +1,26 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
-import {
-  ArrowDown,
-  ChevronDown,
-  ChevronUp,
-  ChevronsUpDown,
-  Loader2,
-  MoreHorizontal,
-  RotateCw,
-  Search,
-} from "lucide-react";
+import { ArrowDown, Search } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
+import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
+import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
-import { useMediaQuery } from "../hooks/useMediaQuery";
-import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/useFloatingPosition";
 import { writeText } from "../lib/clipboard";
 import { getConversationRange, searchConversation, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { looksLikeFileReference } from "../lib/fileReferences";
-import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
-import MessageJumpList, { type MessageExportSelection } from "./MessageJumpList";
-import { getDerived } from "./MessageJumpList.helpers";
+import MessageJumpList, { type MessageExportSelection, type SearchOptionsState } from "./MessageJumpList";
 import MessageExportDrawer from "./MessageExportDrawer";
-import { AudioSettingsContent } from "./tts/AudioSettingsContent";
-import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
-import type { TTSPlaybackState } from "../audio-integration";
+import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import MessagesFileViewer from "./MessagesFileViewer";
 import HandoffSuggestionChip from "./handoff/HandoffSuggestionChip";
@@ -44,15 +30,17 @@ import MessagesPaneState from "./MessagesPaneState";
 import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
-import {
-  MESSAGE_ACTIONS,
-  actionIcon,
-  actionLabelKey,
-  actionPlacement,
-  type MessageAction,
-  type MessageActionContext,
-  type MessageAudioSettings,
-} from "./messages/messageActions";
+import { MessageRow, type PressHandlers } from "./messages/MessageRow";
+import { MessagesReader } from "./messages/MessagesReader";
+import type { ActionsOrigin } from "./messages/MessageActionList";
+import { usePressGesture } from "../hooks/usePressGesture";
+import { useTouchControls } from "../hooks/useTouchControls";
+import { SessionStateSlot } from "./messages/SessionStateSlot";
+import { resolveStateSlot } from "./messages/resolveStateSlot";
+import { answerPrompt } from "../api/promptAnswer";
+import { useSessionActivityStore } from "../stores/useSessionActivityStore";
+import { EchoRow } from "./messages/EchoRow";
+import type { SentEcho } from "../lib/echoMatch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,10 +66,6 @@ interface MessagesPaneProps {
   onClearSummarizeError: (eventId: string) => void;
   onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
   onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
-  playbackState: TTSPlaybackState;
-  onSetPlaybackRate: (rate: number) => void;
-  onSetVolume: (level: number) => void;
-  onSetMuted: (next: boolean) => void;
   playbackFocusRequest: PlaybackFocusRequest | null;
   toolbarTrailingAction?: ReactNode;
   /** Removes every transcript-mutating affordance while preserving navigation,
@@ -92,424 +76,34 @@ interface MessagesPaneProps {
   focusSequence?: number | null;
   /** Stages a message in the operator-selected live session composer. */
   onSendToComposer?: (text: string) => void;
+  /** Switches this pane to its terminal (the state slot's "Open terminal"). */
+  onOpenTerminal?: () => void;
+  /** This session's current terminal screen as text (read from the server), or null. */
+  getTerminalText?: () => Promise<string | null>;
+  /** Presses Enter in this pane's terminal (an echo row's "Press Enter"). */
+  onPressEnter?: () => void;
 }
 
 // ---------------------------------------------------------------------------
-// Collapse threshold (px of rendered content before collapsing)
+// Scroll model (docs/internal/INVARIANTS.md "Messages scroll"): one follow
+// boolean plus the prepend anchor. The virtualizer's resize compensation is
+// the only other thing allowed to move the viewport.
 // ---------------------------------------------------------------------------
-const COLLAPSE_THRESHOLD_PX = 400;
-
-// ---------------------------------------------------------------------------
-// Scroll snapshot persistence — keeps a per-session record of where the user
-// left the messages pane so re-mounting after a view switch restores their
-// position instead of dumping them somewhere in the middle.
-// ---------------------------------------------------------------------------
-interface ScrollSnapshot {
-  atBottom: boolean;
-  topEventId: string | null;
-}
+/** The list follows new content while the viewport bottom is this close to the end. */
+const FOLLOW_THRESHOLD_PX = 200;
+/** The reader's place is saved at most this often while scrolling (and on unmount). */
+const POSITION_SAVE_THROTTLE_MS = 250;
 
 interface PrependScrollAnchor {
   eventId: string;
   offsetFromViewportTop: number;
 }
 
-const scrollSnapshotKey = (sessionId: string) => `wc.messagesScroll.${sessionId}`;
-
-function readScrollSnapshot(sessionId: string): ScrollSnapshot | null {
-  try {
-    const raw = sessionStorage.getItem(scrollSnapshotKey(sessionId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<ScrollSnapshot>;
-    if (typeof parsed.atBottom !== "boolean") return null;
-    return {
-      atBottom: parsed.atBottom,
-      topEventId: typeof parsed.topEventId === "string" ? parsed.topEventId : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function writeScrollSnapshot(sessionId: string, snapshot: ScrollSnapshot): void {
-  try {
-    sessionStorage.setItem(scrollSnapshotKey(sessionId), JSON.stringify(snapshot));
-  } catch {
-    // Ignore — sessionStorage may be unavailable in some embeddings.
-  }
-}
-
 // ---------------------------------------------------------------------------
 // MessagesPane
 // ---------------------------------------------------------------------------
 
-interface MessageRowProps {
-  actionContext: MessageActionContext;
-  index: number;
-  registerItem: (index: number, node: HTMLElement | null) => void;
-  fontSize: number;
-  isFocused: boolean;
-  isSearchFocused: boolean;
-  isDimmed: boolean;
-  isExpanded: boolean;
-  onToggleExpanded: (eventId: string) => void;
-  onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
-  onFileReferenceClick: (path: string) => void;
-  onMermaidOpen: (code: string) => void;
-}
-
-/** Anchored placement order for popovers opening below their trigger. */
-const BELOW_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["bottom-end", "bottom-start", "top-end", "top-start"];
-
-const MessageRow = memo(function MessageRow({
-  actionContext,
-  index,
-  registerItem,
-  fontSize,
-  isFocused,
-  isSearchFocused,
-  isDimmed,
-  isExpanded,
-  onToggleExpanded,
-  onLinkClick,
-  onFileReferenceClick,
-  onMermaidOpen,
-}: MessageRowProps) {
-  const {
-    event,
-    isTtsSpeaking,
-    activeSpeakingEventId,
-    isAudioLoading,
-    summarizeLevel,
-    selectedVersion,
-    summarizingEventId,
-    getSummarizeError,
-    onClearSummarizeError,
-    onToggleSummarized,
-    onChangeLevel,
-    audioSettings,
-    onSetPlaybackRate,
-    onSetVolume,
-    onSetMuted,
-    isMobile,
-    isPlaintext,
-    onPlayEvent,
-  } = actionContext;
-  const { t } = useTranslation();
-  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const [playbackModeOpen, setPlaybackModeOpen] = useState(false);
-  const [isTall, setIsTall] = useState(false);
-  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  // Desktop audio popover anchors below the per-message audio button,
-  // end-aligned, via the shared anchored-floating math.
-  const audioPopoverRef = useRef<HTMLDivElement | null>(null);
-  const audioPopoverStyle = useAnchoredPopoverPosition(
-    openPopoverId === event.id && !isMobile,
-    moreButtonRef,
-    audioPopoverRef,
-    BELOW_ANCHOR_PLACEMENTS,
-  );
-
-  useEffect(() => {
-    const node = contentRef.current;
-    if (!node) return;
-
-    const measure = () => { setIsTall(node.scrollHeight > COLLAPSE_THRESHOLD_PX); };
-    measure();
-
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => { measure(); });
-    observer.observe(node);
-    return () => { observer.disconnect(); };
-  }, [event.text, isExpanded, isPlaintext]);
-
-  const isUser = event.role === "user";
-  const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
-  const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
-  const useSummarized = selectedVersion === "active" && hasSummary;
-  const isPopoverOpen = openPopoverId === event.id;
-  const isCollapsed = isTall && !isExpanded;
-  const resolvedActionContext: MessageActionContext = {
-    ...actionContext,
-    onOpenPlaybackMode: () => { setPlaybackModeOpen(true); },
-    onOpenAudio: () => {
-      onPlayEvent(event.id);
-      setOpenPopoverId(isPopoverOpen ? null : event.id);
-    },
-    renderPlaybackAction: () => (
-      <PlaybackModeControl
-        testIdPrefix={`msg-${event.id}`}
-        isSummarized={useSummarized && hasSummary}
-        hasOriginalVersion={hasSummary}
-        canSummarize
-        isSummarizing={summarizingEventId === event.id}
-        currentLevel={summarizeLevel}
-        onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
-        onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
-        open={playbackModeOpen}
-        onOpenChange={setPlaybackModeOpen}
-        hideTrigger
-        anchorRef={moreButtonRef}
-      />
-    ),
-  };
-  const applicableActions = MESSAGE_ACTIONS.filter((action) => action.appliesTo(resolvedActionContext));
-  const inlineActions = applicableActions.filter((action) => actionPlacement(action, resolvedActionContext) === "primary").slice(0, 3);
-  const inlineIds = new Set(inlineActions.map((action) => action.id));
-  const overflowActions = applicableActions.filter((action) => !inlineIds.has(action.id));
-  const overflowItems: ContextMenuItem[] = overflowActions.map((action) => {
-    const ActionIcon = actionIcon(action, resolvedActionContext);
-    return {
-      id: action.id,
-      label: t(actionLabelKey(action, resolvedActionContext) as never),
-      icon: action.id === "render-mode"
-        ? (
-          <span
-            data-testid={action.testId(resolvedActionContext)}
-            aria-pressed={action.pressed?.(resolvedActionContext)}
-          >
-            <ActionIcon className="h-3.5 w-3.5" />
-          </span>
-        )
-        : action.id === "audio-settings" && isAudioLoading
-        ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
-        : <ActionIcon className="h-3.5 w-3.5" />,
-      testId: action.id === "render-mode" ? undefined : action.testId(resolvedActionContext),
-      disabled: action.disabled?.(resolvedActionContext),
-      pressed: action.pressed?.(resolvedActionContext),
-      onSelect: () => { action.run(resolvedActionContext); },
-    };
-  });
-  const accentColor = isTtsActive
-    ? "border-l-wc-accent"
-    : isUser
-      ? "border-l-sky-500/60"
-      : "border-l-emerald-500/60";
-
-  return (
-    <article
-      ref={(node) => { registerItem(index, node); }}
-      data-testid={`msg-card-${event.id}`}
-      className={cn(
-        "border-b border-wc-default border-l-[3px] py-3 ps-3 pe-1 transition-colors",
-        accentColor,
-        isFocused && "bg-wc-accent/5",
-        isSearchFocused && "ring-1 ring-wc-accent/50 rounded-r-lg",
-        isDimmed && "opacity-40",
-      )}
-    >
-      <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-        {inlineActions.map((action) => {
-          const ActionIcon = actionIcon(action, resolvedActionContext);
-          return (
-            <button
-              key={action.id}
-              data-message-action-inline
-              data-testid={action.testId(resolvedActionContext)}
-              onClick={() => { action.run(resolvedActionContext); }}
-              disabled={action.disabled?.(resolvedActionContext)}
-              aria-pressed={action.pressed?.(resolvedActionContext)}
-              className={cn(
-                "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary",
-                action.pressed?.(resolvedActionContext) && "text-wc-accent",
-                action.disabled?.(resolvedActionContext) && "cursor-wait opacity-60",
-              )}
-              title={t(actionLabelKey(action, resolvedActionContext) as never)}
-              aria-label={t(actionLabelKey(action, resolvedActionContext) as never)}
-              type="button"
-            >
-              {action.id === "audio-settings" && isAudioLoading
-                ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
-                : <ActionIcon className={cn("h-3.5 w-3.5", action.id === "copy" && actionContext.copied && "text-green-400")} />}
-            </button>
-          );
-        })}
-
-        {overflowActions.length > 0 && (
-          <>
-            <button
-              ref={moreButtonRef}
-              data-message-action-inline
-              data-testid={`msg-actions-more-${event.id}`}
-              type="button"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
-              aria-label={t(strings.messageActions.more)}
-              aria-haspopup="menu"
-              aria-expanded={overflowOpen}
-              onClick={() => { setOverflowOpen((open) => !open); }}
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-            <ContextMenu
-              open={overflowOpen}
-              onOpenChange={setOverflowOpen}
-              anchorRef={moreButtonRef}
-              placement="bottom-end"
-              title={t(strings.messageActions.more)}
-              closeLabel={t(strings.handoff.close)}
-              testId={`msg-actions-menu-${event.id}`}
-              items={overflowItems}
-            />
-          </>
-        )}
-
-        {MESSAGE_ACTIONS.filter((action) => action.render && action.appliesTo(resolvedActionContext)).map((action) => (
-          <span key={`${action.id}-composite`}>{action.render?.(resolvedActionContext)}</span>
-        ))}
-
-        {isPopoverOpen && createPortal(
-              isMobile ? (
-                <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => { e.preventDefault(); }}>
-                  <div className="absolute inset-0 bg-wc-backdrop" onClick={() => { setOpenPopoverId(null); }} />
-                  <div
-                    data-testid={`audio-popover-${event.id}`}
-                    className="wc-stable-theme absolute bottom-0 left-0 right-0 z-wc-popover rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
-                  >
-                    <div className="mb-3 flex justify-center">
-                      <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
-                    </div>
-                    <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.messagesPane.audioSettingsHeading)}</h3>
-                    <AudioSettingsContent
-                      testIdPrefix={`msg-${event.id}`}
-                      volume={audioSettings.volume}
-                      isMuted={audioSettings.isMuted}
-                      playbackRate={audioSettings.playbackRate}
-                      isSummarized={useSummarized && hasSummary}
-                      capabilities={audioSettings.capabilities}
-                      onVolumeChange={onSetVolume}
-                      onSetMuted={onSetMuted}
-                      onSetPlaybackRate={onSetPlaybackRate}
-                    />
-                    {isAudioLoading && (
-                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
-                        <span>{t(strings.app.loading)}</span>
-                      </div>
-                    )}
-                    {getSummarizeError(event.id) && (
-                      <div
-                        data-testid={`msg-summarize-error-${event.id}`}
-                        className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
-                      >
-                        {getSummarizeError(event.id)}
-                      </div>
-                    )}
-                    {getSummarizeError(event.id) && (
-                      <button
-                        data-testid={`msg-clear-summarize-error-${event.id}`}
-                        className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
-                        onClick={() => { onClearSummarizeError(event.id); }}
-                      >
-                        {t(strings.messagesPane.dismissError)}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="fixed inset-0 z-wc-popover-backdrop" onClick={() => { setOpenPopoverId(null); }} />
-                  <div
-                    ref={audioPopoverRef}
-                    data-testid={`audio-popover-${event.id}`}
-                    className="wc-stable-theme z-wc-popover w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
-                    style={audioPopoverStyle}
-                  >
-                    <AudioSettingsContent
-                      testIdPrefix={`msg-${event.id}`}
-                      volume={audioSettings.volume}
-                      isMuted={audioSettings.isMuted}
-                      playbackRate={audioSettings.playbackRate}
-                      isSummarized={useSummarized && hasSummary}
-                      capabilities={audioSettings.capabilities}
-                      onVolumeChange={onSetVolume}
-                      onSetMuted={onSetMuted}
-                      onSetPlaybackRate={onSetPlaybackRate}
-                    />
-                    {isAudioLoading && (
-                      <div data-testid={`audio-popover-loading-${event.id}`} className="mt-3 flex items-center gap-2 rounded-lg bg-wc-surface-base px-3 py-2 text-xs text-wc-text-muted">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" />
-                        <span>{t(strings.app.loading)}</span>
-                      </div>
-                    )}
-                    {getSummarizeError(event.id) && (
-                      <div
-                        data-testid={`msg-summarize-error-${event.id}`}
-                        className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
-                      >
-                        {getSummarizeError(event.id)}
-                      </div>
-                    )}
-                    {getSummarizeError(event.id) && (
-                      <button
-                        data-testid={`msg-clear-summarize-error-${event.id}`}
-                        className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
-                        onClick={() => { onClearSummarizeError(event.id); }}
-                      >
-                        {t(strings.messagesPane.dismissError)}
-                      </button>
-                    )}
-                  </div>
-                </>
-              ),
-              document.body,
-            )}
-
-        <span className="flex-1" />
-        <span>#{event.sequence}</span>
-      </div>
-
-      <div className={cn("relative", isCollapsed && "max-h-[400px] overflow-hidden")}>
-        <div
-          ref={contentRef}
-          data-testid={`msg-markdown-${event.id}`}
-          style={{ fontSize: `${fontSize}px` }}
-          className="text-wc-text-primary"
-        >
-          {isPlaintext ? (
-            <pre
-              data-testid={`msg-plaintext-${event.id}`}
-              className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono"
-            >
-              {event.text}
-            </pre>
-          ) : (
-            <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
-          )}
-        </div>
-
-        {isCollapsed && (
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-wc-surface-base to-transparent pointer-events-none" />
-        )}
-      </div>
-
-      {isTall && (
-        <button
-          data-testid={`msg-collapse-${event.id}`}
-          onClick={() => { onToggleExpanded(event.id); }}
-          className="mt-1 text-xs text-wc-accent hover:text-wc-accent/80 transition-colors"
-          type="button"
-        >
-          {isExpanded ? t(strings.messagesPane.showLess) : t(strings.messagesPane.showMore)}
-        </button>
-      )}
-    </article>
-  );
-}, (prevProps, nextProps) => (
-  Object.keys(prevProps.actionContext).length === Object.keys(nextProps.actionContext).length &&
-  Object.entries(prevProps.actionContext).every(([key, value]) => (
-    value === (nextProps.actionContext as unknown as Record<string, unknown>)[key]
-  )) &&
-  prevProps.fontSize === nextProps.fontSize &&
-  prevProps.isFocused === nextProps.isFocused &&
-  prevProps.isSearchFocused === nextProps.isSearchFocused &&
-  prevProps.isDimmed === nextProps.isDimmed &&
-  prevProps.isExpanded === nextProps.isExpanded &&
-  prevProps.onLinkClick === nextProps.onLinkClick &&
-  prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
-  prevProps.onMermaidOpen === nextProps.onMermaidOpen
-));
+const NO_ECHOES: readonly SentEcho[] = [];
 
 export default function MessagesPane({
   sessionId,
@@ -526,16 +120,15 @@ export default function MessagesPane({
   onClearSummarizeError,
   onToggleSummarized,
   onChangeLevel,
-  playbackState,
-  onSetPlaybackRate,
-  onSetVolume,
-  onSetMuted,
   playbackFocusRequest,
   toolbarTrailingAction,
   readOnly = false,
   focusEventId = null,
   focusSequence = null,
   onSendToComposer,
+  onOpenTerminal,
+  getTerminalText,
+  onPressEnter,
 }: MessagesPaneProps) {
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
@@ -548,20 +141,7 @@ export default function MessagesPane({
   // Only after the interruption outlives its grace period; most drops recover
   // faster than the sentence can be read.
   const liveInterrupted = useLiveStreamNotice();
-  const isMobile = useMediaQuery("(max-width: 767px)");
 
-  // Stable subset of playbackState for the per-message audio popover. Keeping
-  // its identity stable across the player's ~10 Hz time polls is what stops
-  // every visible row from re-rendering during TTS playback.
-  const audioSettings = useMemo<MessageAudioSettings>(
-    () => ({
-      volume: playbackState.volume,
-      isMuted: playbackState.isMuted,
-      playbackRate: playbackState.playbackRate,
-      capabilities: playbackState.capabilities,
-    }),
-    [playbackState.volume, playbackState.isMuted, playbackState.playbackRate, playbackState.capabilities],
-  );
   const fontSize = useWorkspaceStore(
     useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
   );
@@ -584,6 +164,8 @@ export default function MessagesPane({
   const [serverSearchMatches, setServerSearchMatches] = useState<ConversationSearchMatch[]>([]);
   const [serverSearchReady, setServerSearchReady] = useState(false);
   const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+  const [searchOptions, setSearchOptions] = useState<SearchOptionsState>({ mode: "text", caseSensitive: false, wholeWord: false });
 
   // --- Navigator panel ---
   const [navOpen, setNavOpen] = useState(false);
@@ -596,9 +178,6 @@ export default function MessagesPane({
     setSearchQuery(q);
     setFocusedEventId(null);
   }, []);
-
-  // --- Collapse ---
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // --- Render mode (markdown by default; ids in this set show plain text) ---
   const [plaintextIds, setPlaintextIds] = useState<Set<string>>(new Set());
@@ -622,63 +201,80 @@ export default function MessagesPane({
   // Rules only ever offer. Nothing on this path can send.
   const handoffSuggestions = useHandoffSuggestions(sessionId);
 
-  // --- Auto-scroll ---
+  // --- Scroll: follow + prepend anchor ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isNearBottomRef = useRef(true);
-  const [isNearBottom, setIsNearBottom] = useState(true);
+  // Where this session's list was left (persisted across reloads). An archive
+  // hit being revealed takes precedence over it.
+  const [savedPosition] = useState(() => (
+    focusEventId ? null : useMessagesViewStore.getState().positions[sessionId] ?? null
+  ));
+  // True while the user is within FOLLOW_THRESHOLD_PX of the end. Only user
+  // intent writes it: the user's own scrolling, jump-to-bottom, and explicit
+  // jumps to a message. `following` mirrors it for rendering.
+  const followRef = useRef(savedPosition ? savedPosition.follow : true);
+  const [following, setFollowing] = useState(followRef.current);
+  // A saved place still to be shown. Restore pages it in, scrolls to it once,
+  // and clears it.
+  const [restoreTarget, setRestoreTarget] = useState(savedPosition && !savedPosition.follow ? savedPosition : null);
   const [newMessageCount, setNewMessageCount] = useState(0);
-  const prevEventCountRef = useRef(events.length);
-  // While true, the totalSize-change effect re-pins the scroll position to the
-  // bottom. Cleared once the user scrolls away from the bottom.
-  const pinToBottomRef = useRef(true);
-  // While set, the totalSize-change effect re-scrolls to this event id until
-  // the row's measured size is stable. Cleared after restore completes or the
-  // user manually scrolls.
-  const pinToEventIdRef = useRef<string | null>(null);
+  // Last event id seen by the follow rule, so appended events are counted and
+  // a prepended older page is not mistaken for new messages.
+  const lastEventIdRef = useRef<string | null>(null);
   const programmaticScrollRef = useRef(false);
-  const pinSettleCountRef = useRef(0);
-  const pinTargetRef = useRef<string | null>(null);
-  const programmaticTimeoutRef = useRef<number | null>(null);
-  const restoreAppliedRef = useRef(false);
-  // Pagination inserts older rows before the visible window. Keep a DOM
-  // anchor through that insertion so loading another page feels like normal
-  // continuous upward scrolling rather than a jump or a captured wheel.
+  // Pagination inserts older rows before the visible window. This is the only
+  // anchor besides the virtualizer's resize compensation: it keeps the visible
+  // row fixed through the insertion so paging reads as continuous scrolling.
   const prependScrollAnchorRef = useRef<PrependScrollAnchor | null>(null);
 
+  // --- Session activity: the one slot under the last row ---
+  const activity = useSessionActivityStore((state) => state.activities[sessionId]);
+  const stateSlot = useMemo(() => resolveStateSlot(activity), [activity]);
+  // Answers the prompt the state slot shows, by its hash; the chosen option
+  // shows as an echo row until the transcript or the screen confirms it.
+  const answerSlotPrompt = useCallback(async (optionKey: string | null) => {
+    if (stateSlot?.kind !== "waiting-answerable") return;
+    const promptHash = stateSlot.prompt.hash ?? "";
+    const result = await answerPrompt(sessionId, optionKey === null ? { promptHash, cancel: true } : { optionKey, promptHash, cancel: false });
+    if (result.answer) useConversationStore.getState().addEcho(sessionId, result.answer);
+  }, [sessionId, stateSlot]);
+  // Changes when the slot appears, goes, or changes shape — the follow rule
+  // treats that like new content.
+  const stateSlotKey = stateSlot
+    ? `${stateSlot.kind}:${"prompt" in stateSlot ? `${String(stateSlot.prompt.text.length)}/${String(stateSlot.prompt.options.length)}` : ""}`
+    : "";
+  // Sends the harness has not recorded yet, shown after the last row.
+  const echoes = useConversationStore((state) => state.echoes[sessionId] ?? NO_ECHOES);
+  const expireEcho = useCallback((echoId: string) => {
+    useConversationStore.getState().expireEcho(sessionId, echoId);
+  }, [sessionId]);
+
+  const setFollow = useCallback((next: boolean) => {
+    followRef.current = next;
+    setFollowing(next);
+    if (next) setNewMessageCount(0);
+  }, []);
+
+  // Records the reader's place: the top visible message, its offset, and
+  // follow. Never mid programmatic scroll, which would record a transit row.
+  const persistPosition = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el || programmaticScrollRef.current) return;
+    const top = captureTopPosition(el);
+    if (top) useMessagesViewStore.getState().savePosition(sessionId, { ...top, follow: followRef.current });
+  }, [sessionId]);
+  const schedulePositionSave = useTrailingThrottle(persistPosition, POSITION_SAVE_THROTTLE_MS);
+
+  // Marks the list as positioned by code. Only a user gesture (wheel, touch,
+  // pointer, key — see useReleaseOnElementInteraction below) clears the mark,
+  // never a timer: scroll events caused by layout (row measurement, resize
+  // compensation, a page merge) must not decide follow, and a timer cannot
+  // tell them apart from the user.
   const runProgrammaticScroll = useCallback((scroll: () => void) => {
     programmaticScrollRef.current = true;
-    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
     scroll();
-    const el = scrollContainerRef.current;
-    if (el && "onscrollend" in el) {
-      el.addEventListener("scrollend", () => {
-        programmaticScrollRef.current = false;
-      }, { once: true });
-    }
-    let previous = el?.scrollTop ?? 0;
-    let settledFrames = 0;
-    const settle = () => {
-      const current = el?.scrollTop ?? 0;
-      settledFrames = current === previous ? settledFrames + 1 : 0;
-      previous = current;
-      if (settledFrames >= 2) {
-        programmaticScrollRef.current = false;
-        return;
-      }
-      requestAnimationFrame(settle);
-    };
-    requestAnimationFrame(settle);
-    programmaticTimeoutRef.current = window.setTimeout(() => {
-      programmaticScrollRef.current = false;
-    }, 1200);
   }, []);
 
-  useEffect(() => () => {
-    if (programmaticTimeoutRef.current != null) window.clearTimeout(programmaticTimeoutRef.current);
-  }, []);
-
-  // --- Refresh: on mount, on browser tab focus, and via manual button ---
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // --- Refresh: on mount, on browser tab focus, and as the error state's retry ---
   // What the last manual refresh did. A spinner that stops is not feedback:
   // "fetched successfully, nothing new" and "the request failed" previously
   // looked identical, which is why refresh appeared to do nothing at all.
@@ -700,20 +296,15 @@ export default function MessagesPane({
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      const outcome = await refreshConversationSession(sessionId);
-      if (!outcome.ok) {
-        setRefreshError(outcome.error.message);
-        setTransientNotice(null);
-      } else {
-        setRefreshError(null);
-        showTransientNotice(outcome.addedEvents > 0
-          ? t(strings.messagesPane.refreshAdded, { count: outcome.addedEvents })
-          : t(strings.messagesPane.refreshUpToDate));
-      }
-    } finally {
-      setIsRefreshing(false);
+    const outcome = await refreshConversationSession(sessionId);
+    if (!outcome.ok) {
+      setRefreshError(outcome.error.message);
+      setTransientNotice(null);
+    } else {
+      setRefreshError(null);
+      showTransientNotice(outcome.addedEvents > 0
+        ? t(strings.messagesPane.refreshAdded, { count: outcome.addedEvents })
+        : t(strings.messagesPane.refreshUpToDate));
     }
   }, [sessionId, showTransientNotice, t]);
 
@@ -741,17 +332,14 @@ export default function MessagesPane({
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    const updateNearBottom = (allowPagination = true) => {
-      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
-      const nearBottom = remaining <= 200;
-      isNearBottomRef.current = nearBottom;
-      setIsNearBottom(nearBottom);
-      if (nearBottom) setNewMessageCount(0);
-      if (!nearBottom && !programmaticScrollRef.current) {
-        pinToBottomRef.current = false;
-        pinToEventIdRef.current = null;
+    const onScroll = () => {
+      // A programmatic scroll never decides follow; the user's scrolling does.
+      if (!programmaticScrollRef.current) {
+        const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
+        setFollow(remaining <= FOLLOW_THRESHOLD_PX);
+        schedulePositionSave();
       }
-      if (allowPagination && el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
+      if (el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
         const containerTop = el.getBoundingClientRect().top;
         const anchor = [...el.querySelectorAll<HTMLElement>("[data-event-id]")]
           .find((row) => row.getBoundingClientRect().bottom > containerTop);
@@ -769,52 +357,28 @@ export default function MessagesPane({
       }
     };
 
-    updateNearBottom(false);
-    const onScroll = () => { updateNearBottom(true); };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => { el.removeEventListener("scroll", onScroll); };
-  }, [sessionId]);
+  }, [sessionId, setFollow, schedulePositionSave]);
 
-  // Release the bottom-pin or event-pin as soon as the user scrolls away from
-  // it. We do this from a wheel/touchstart listener so synthetic re-scrolls
-  // from the totalSize-change effect don't release the pin.
+  // A user gesture ends any programmatic scroll in flight, so the scroll
+  // events it produces are the user's and decide follow. Without this, a user
+  // who scrolls during a programmatic scroll would be ignored and pulled back.
   useReleaseOnElementInteraction(scrollContainerRef, () => {
-    pinToBottomRef.current = false;
-    pinToEventIdRef.current = null;
+    programmaticScrollRef.current = false;
+    // The user has taken over: a saved place still waiting to fit is dropped.
+    setRestoreTarget(null);
   });
 
-  // Auto-scroll on new events (when near bottom) or show pill
-  useEffect(() => {
-    const newCount = events.length - prevEventCountRef.current;
-    prevEventCountRef.current = events.length;
-
-    if (newCount <= 0) return;
-
-    if (isNearBottomRef.current) {
-      requestAnimationFrame(() => {
-        runProgrammaticScroll(() => {
-          scrollContainerRef.current?.scrollTo({
-            top: scrollContainerRef.current.scrollHeight,
-            behavior: "auto",
-          });
-        });
-      });
-    } else {
-      setNewMessageCount((prev) => prev + newCount);
-    }
-  }, [events.length, runProgrammaticScroll]);
-
   const scrollToBottom = useCallback(() => {
-    pinToBottomRef.current = true;
-    pinToEventIdRef.current = null;
+    setFollow(true);
     runProgrammaticScroll(() => {
       scrollContainerRef.current?.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
         behavior: "smooth",
       });
     });
-    setNewMessageCount(0);
-  }, [runProgrammaticScroll]);
+  }, [runProgrammaticScroll, setFollow]);
 
   // Search the entire session, rather than only the currently loaded window.
   // Highlighting still uses the returned ids against the bounded local window.
@@ -824,20 +388,23 @@ export default function MessagesPane({
       setServerSearchMatches([]);
       setServerSearchReady(false);
       setSearchTruncated(false);
+      setSearchError(undefined);
       return;
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void searchConversation(sessionId, query).then((response) => {
+      void searchConversation(sessionId, query, searchOptions).then((response) => {
         if (!cancelled) {
           setServerSearchMatches(response.matches);
           setSearchTruncated(response.truncated);
+          setSearchError(response.error);
           setServerSearchReady(true);
         }
       }).catch(() => {
         if (!cancelled) {
           setServerSearchMatches([]);
           setSearchTruncated(false);
+          setSearchError(undefined);
           setServerSearchReady(false);
         }
       });
@@ -846,14 +413,13 @@ export default function MessagesPane({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [searchQuery, sessionId]);
+  }, [searchQuery, searchOptions, sessionId]);
 
   const searchMatchIds = useMemo(() => {
-    if (!searchQuery) return [];
-    if (serverSearchReady) return serverSearchMatches.map((match) => match.eventId);
-    const query = searchQuery.toLowerCase();
-    return events.filter((event) => getDerived(event).previewLower.includes(query)).map((event) => event.id);
-  }, [events, searchQuery, serverSearchMatches, serverSearchReady]);
+    // One search path: the server's hits. Nothing is matched client-side.
+    if (!searchQuery || !serverSearchReady) return [];
+    return serverSearchMatches.map((match) => match.eventId);
+  }, [searchQuery, serverSearchMatches, serverSearchReady]);
   const searchMatchById = useMemo(
     () => new Map(serverSearchMatches.map((match) => [match.eventId, match])),
     [serverSearchMatches],
@@ -869,21 +435,6 @@ export default function MessagesPane({
     [searchMatchIds],
   );
 
-  const navIds = useMemo(
-    () => (searchQuery ? searchMatchIds : eventIds),
-    [searchQuery, searchMatchIds, eventIds],
-  );
-
-  const focusedNavIndex = useMemo(
-    () => {
-      if (!focusedEventId) return -1;
-      return searchQuery
-        ? (searchMatchIndexById.get(focusedEventId) ?? -1)
-        : (eventIndexById.get(focusedEventId) ?? -1);
-    },
-    [eventIndexById, focusedEventId, searchMatchIndexById, searchQuery],
-  );
-
   const currentMatchIndex = useMemo(
     () => (focusedEventId ? (searchMatchIndexById.get(focusedEventId) ?? -1) : -1),
     [focusedEventId, searchMatchIndexById],
@@ -896,7 +447,7 @@ export default function MessagesPane({
     return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
   }, [events]);
   const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
-  const { registerItem, totalSize, virtualItems, scrollToIndex } = useVirtualList({
+  const { registerItem, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex } = useVirtualList({
     count: events.length,
     estimateSize: estimateMessageHeight,
     getItemKey: getMessageKey,
@@ -921,6 +472,71 @@ export default function MessagesPane({
     prependScrollAnchorRef.current = null;
   }, [events, scrollToIndex]);
 
+  // Restore, step 1: a saved place outside the loaded window is paged in
+  // before anything scrolls. A place that cannot be found is reported and the
+  // list goes to the end once — never silently.
+  useEffect(() => {
+    if (!restoreTarget || viewState.kind !== "messages") return;
+    const isLoaded = () => useConversationStore.getState().sessions[sessionId]?.events
+      .some((event) => event.id === restoreTarget.topEventId) ?? false;
+    if (isLoaded()) return;
+    let cancelled = false;
+    void loadConversationPageContaining(sessionId, restoreTarget.topSequence).then((loaded) => {
+      if (cancelled || (loaded && isLoaded())) return;
+      setRestoreTarget(null);
+      showTransientNotice(t(strings.messagesPane.restoreFailed));
+      setFollow(true);
+      const el = scrollContainerRef.current;
+      if (el) runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
+    });
+    return () => { cancelled = true; };
+  }, [restoreTarget, runProgrammaticScroll, sessionId, setFollow, showTransientNotice, t, viewState.kind]);
+
+  // Restore, step 2: once the saved message is in the list, put it back where
+  // it was, before paint. Until its row is rendered it is placed from the
+  // virtualizer's (estimated) geometry; once rendered it is corrected from where
+  // the row actually is, and once more in the commit that applies the row's
+  // measured height, so estimate errors cannot shift the place. A place near
+  // the end can be cut short while rows below it still carry estimates. The
+  // place stays pending until all of that holds, or the user takes over.
+  useLayoutEffect(() => {
+    if (!restoreTarget) return;
+    const index = eventIndexById.get(restoreTarget.topEventId);
+    const el = scrollContainerRef.current;
+    if (index == null || !el) return;
+    const row = el.querySelector<HTMLElement>(`[data-event-id="${restoreTarget.topEventId}"]`);
+    const wanted = row
+      ? el.scrollTop + (row.getBoundingClientRect().top - el.getBoundingClientRect().top) + restoreTarget.offsetPx
+      : itemStart(index) + restoreTarget.offsetPx;
+    if (Math.abs(el.scrollTop - wanted) > 1) runProgrammaticScroll(() => { el.scrollTop = wanted; });
+    if (row && isMeasured(index) && el.scrollTop >= wanted - 1) setRestoreTarget(null);
+  }, [eventIndexById, isMeasured, itemStart, restoreTarget, runProgrammaticScroll, totalSize, virtualItems]);
+
+  // The follow rule. New content — an appended event, rows measuring taller,
+  // or the state slot appearing or changing — moves the viewport only while
+  // following, and then only to the end, once per change. While not following, appended events are counted
+  // for the new-messages pill and the viewport is left alone.
+  useLayoutEffect(() => {
+    const lastId = events[events.length - 1]?.id ?? null;
+    const previousLastId = lastEventIdRef.current;
+    lastEventIdRef.current = lastId;
+    let appended = 0;
+    if (previousLastId != null && lastId !== previousLastId) {
+      const previousIndex = eventIndexById.get(previousLastId);
+      appended = previousIndex == null ? 0 : events.length - 1 - previousIndex;
+    }
+
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    if (followRef.current) {
+      if (el.scrollHeight - el.clientHeight - el.scrollTop > 1) {
+        runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
+      }
+    } else if (appended > 0) {
+      setNewMessageCount((count) => count + appended);
+    }
+  }, [events, eventIndexById, totalSize, stateSlotKey, echoes.length, runProgrammaticScroll]);
+
   const scrollToEvent = useCallback(async (eventId: string) => {
     const index = eventIndexById.get(eventId);
     if (index == null) {
@@ -930,100 +546,13 @@ export default function MessagesPane({
         const loadedIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
         if (loadedIndex >= 0) runProgrammaticScroll(() => { scrollToIndex(loadedIndex, "auto", "center"); });
       });
+      setFollow(false);
       return;
     }
-    pinToBottomRef.current = false;
-    pinToEventIdRef.current = null;
+    // Jumping to a message is the user choosing where to read: stop following.
+    setFollow(false);
     runProgrammaticScroll(() => { scrollToIndex(index, "smooth", "center"); });
-  }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId]);
-
-  // Restore scroll position on mount: read the snapshot saved when the pane
-  // last unmounted and pin to the appropriate target. The pin is held until
-  // the virtualizer's measured sizes stabilize (handled by the totalSize
-  // effect below).
-  useEffect(() => {
-    if (restoreAppliedRef.current) return;
-    if (events.length === 0) return;
-    const snapshot = readScrollSnapshot(sessionId);
-    if (!snapshot || snapshot.atBottom) {
-      pinToBottomRef.current = true;
-      pinToEventIdRef.current = null;
-    } else if (snapshot.topEventId && eventIndexById.has(snapshot.topEventId)) {
-      pinToBottomRef.current = false;
-      pinToEventIdRef.current = snapshot.topEventId;
-    } else {
-      pinToBottomRef.current = true;
-      pinToEventIdRef.current = null;
-    }
-    restoreAppliedRef.current = true;
-    // Trigger an immediate apply; the totalSize effect will keep re-applying
-    // as measurements settle.
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    if (pinToBottomRef.current) {
-      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
-    } else if (pinToEventIdRef.current) {
-      const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
-    }
-  }, [events.length, sessionId, eventIndexById, runProgrammaticScroll, scrollToIndex]);
-
-  // Re-apply the active pin whenever the virtualizer's totalSize changes.
-  // This is what fixes the "lands in the middle" bug: estimated sizes are
-  // smaller than actual, so the initial scrollTo lands too high; once rows
-  // measure their real heights totalSize grows and we re-scroll.
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-    const target = pinToBottomRef.current ? "bottom" : pinToEventIdRef.current;
-    if (!target) return;
-    pinSettleCountRef.current = pinTargetRef.current === target ? pinSettleCountRef.current + 1 : 0;
-    pinTargetRef.current = target;
-    if (pinSettleCountRef.current >= 8) {
-      pinToBottomRef.current = false;
-      pinToEventIdRef.current = null;
-      pinTargetRef.current = null;
-      return;
-    }
-    if (pinToBottomRef.current) {
-      runProgrammaticScroll(() => { el.scrollTo({ top: el.scrollHeight }); });
-    } else if (pinToEventIdRef.current) {
-      const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) runProgrammaticScroll(() => { scrollToIndex(index, "auto", "start"); });
-    }
-  }, [totalSize, eventIndexById, runProgrammaticScroll, scrollToIndex]);
-
-  // Save snapshot on unmount and whenever sessionId changes. We compute
-  // `atBottom` directly from the live DOM instead of trusting
-  // isNearBottomRef.current — under React StrictMode the dev-only second
-  // mount unmounts synchronously, before the (async/passive) scroll listener
-  // has had a chance to observe the restore's programmatic scrollTo, so the
-  // ref can be stale (`true` from its initial value). Reading geometry here
-  // is the source of truth.
-  useEffect(() => {
-    const containerEl = scrollContainerRef.current;
-    return () => {
-      const el = containerEl;
-      if (!el) return;
-      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
-      const atBottom = remaining <= 200;
-      let topEventId: string | null = null;
-      if (!atBottom) {
-        const containerTop = el.getBoundingClientRect().top;
-        const rows = el.querySelectorAll<HTMLElement>("[data-event-id]");
-        for (const row of rows) {
-          if (row.getBoundingClientRect().bottom - containerTop > 0) {
-            topEventId = row.dataset.eventId ?? null;
-            break;
-          }
-        }
-      }
-      // Skip writing if we have nothing actionable: it'd just overwrite a
-      // previously-saved good snapshot with a default `atBottom: true`.
-      if (!atBottom && !topEventId) return;
-      writeScrollSnapshot(sessionId, { atBottom, topEventId });
-    };
-  }, [sessionId]);
+  }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId, setFollow]);
 
   // Normalize the export selection whenever the conversation refreshes so it
   // never references events that no longer exist in the session.
@@ -1073,12 +602,8 @@ export default function MessagesPane({
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
-    scrollToEvent(eventId);
-    // Auto-expand if collapsed and a search match
-    if (searchQuery) {
-      setExpandedIds((prev) => new Set(prev).add(eventId));
-    }
-  }, [scrollToEvent, searchQuery]);
+    void scrollToEvent(eventId);
+  }, [scrollToEvent]);
 
   useEffect(() => {
     if (!focusEventId || !focusSequence) return;
@@ -1091,35 +616,6 @@ export default function MessagesPane({
     void reveal();
     return () => { cancelled = true; };
   }, [focusEventId, focusSequence, focusAndScroll, sessionId]);
-
-  const handleNavUp = useCallback(() => {
-    if (navIds.length === 0) return;
-    const prev = focusedNavIndex <= 0 ? navIds.length - 1 : focusedNavIndex - 1;
-    const targetId = navIds[prev];
-    if (targetId) focusAndScroll(targetId);
-  }, [navIds, focusedNavIndex, focusAndScroll]);
-
-  const handleNavDown = useCallback(() => {
-    if (navIds.length === 0) return;
-    const next = focusedNavIndex < 0 ? 0 : (focusedNavIndex + 1) % navIds.length;
-    const targetId = navIds[next];
-    if (targetId) focusAndScroll(targetId);
-  }, [navIds, focusedNavIndex, focusAndScroll]);
-
-  // --- Current message position for jump trigger ---
-  const focusedEventIndex = focusedEventId ? (eventIndexById.get(focusedEventId) ?? -1) : -1;
-  const jumpLabel = focusedEventIndex >= 0
-    ? `${focusedEventIndex + 1} / ${totalCount}`
-    : `${events.length}`;
-
-  const toggleExpanded = useCallback((eventId: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(eventId)) next.delete(eventId);
-      else next.add(eventId);
-      return next;
-    });
-  }, []);
 
   useEffect(() => {
     if (!playbackFocusRequest) return;
@@ -1143,77 +639,99 @@ export default function MessagesPane({
   }, []);
   const closeMermaidViewer = useCallback(() => { setMermaidViewer(null); }, []);
 
+  // --- Reader: a long reply in full, over the list, which stays mounted ---
+  const [readerEvent, setReaderEvent] = useState<ConversationEvent | null>(null);
+  const openReader = useCallback((eventId: string) => {
+    const index = eventIndexById.get(eventId);
+    const target = index == null ? undefined : events[index];
+    if (target) setReaderEvent(target);
+  }, [eventIndexById, events]);
+  const closeReader = useCallback(() => {
+    const eventId = readerEvent?.id;
+    setReaderEvent(null);
+    // Return focus to the row the reader opened from; the list did not move.
+    if (eventId) {
+      requestAnimationFrame(() => {
+        scrollContainerRef.current
+          ?.querySelector<HTMLElement>(`[data-testid="msg-card-${eventId}"]`)
+          ?.focus({ preventScroll: true });
+      });
+    }
+  }, [readerEvent]);
+
+  // --- Message actions: the pane owns which row's list is open (one at a time) ---
+  const coarsePointer = useTouchControls();
+  const [actionsTarget, setActionsTarget] = useState<{ eventId: string; origin: ActionsOrigin | null } | null>(null);
+  const openActions = useCallback((eventId: string, origin: ActionsOrigin | null) => {
+    setActionsTarget({ eventId, origin });
+  }, []);
+  const closeActions = useCallback(() => { setActionsTarget(null); }, []);
+  const ignoreTap = useCallback(() => undefined, []);
+  // Long-press on touch opens the row's action sheet; movement past the
+  // gesture threshold cancels it, so scrolling never opens a sheet.
+  const { getGestureHandlers } = usePressGesture<string>({ onTap: ignoreTap, onLongPress: openActions });
+  const getPressHandlers: (eventId: string) => PressHandlers = getGestureHandlers;
+
+  // Keyboard: j/k move between messages, Enter opens the focused message's
+  // actions, Escape closes them. Typing in a field inside the pane is left alone.
+  const handleListKeyDown = useCallback((keyEvent: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = keyEvent.target as HTMLElement;
+    if (target.closest("input, textarea, select, [contenteditable='true'], [role='menu']")) return;
+    // Cmd/Ctrl+K: search this session.
+    if ((keyEvent.metaKey || keyEvent.ctrlKey) && !keyEvent.altKey && keyEvent.key.toLowerCase() === "k") {
+      keyEvent.preventDefault();
+      openNavigator("search");
+      return;
+    }
+    if (keyEvent.metaKey || keyEvent.ctrlKey || keyEvent.altKey) return;
+    if (keyEvent.key === "Escape" && actionsTarget) {
+      closeActions();
+      return;
+    }
+    if (keyEvent.key === "Enter" && focusedEventId) {
+      const row = scrollContainerRef.current?.querySelector<HTMLElement>(`[data-testid="msg-card-${focusedEventId}"]`);
+      const rect = row?.getBoundingClientRect();
+      keyEvent.preventDefault();
+      openActions(focusedEventId, rect ? { x: rect.right, y: rect.top } : null);
+      return;
+    }
+    if (keyEvent.key !== "j" && keyEvent.key !== "k") return;
+    const el = scrollContainerRef.current;
+    const fromId = focusedEventId ?? (el ? captureTopPosition(el)?.topEventId : undefined);
+    const from = fromId ? (eventIndexById.get(fromId) ?? -1) : -1;
+    // With nothing focused yet, j lands on the top visible message itself.
+    const step = keyEvent.key === "j" ? (focusedEventId ? 1 : 0) : -1;
+    const nextId = events[Math.min(events.length - 1, Math.max(0, from + step))]?.id;
+    if (!nextId) return;
+    keyEvent.preventDefault();
+    focusAndScroll(nextId);
+  }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator]);
+
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
       aria-readonly={readOnly}
+      onKeyDown={handleListKeyDown}
       className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 pt-1 select-text"
     >
       <div
         data-testid="messages-control-strip"
         className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
       >
-        <IconButton
-          data-testid="messages-search-btn"
-          onClick={() => { openNavigator("search"); }}
-          selected={!!searchQuery}
-          surface="soft"
-          size="xs"
-          denseTapTarget
-          className={cn(searchQuery && "ring-1 ring-wc-accent/50")}
-          aria-label={t(strings.messagesPane.searchMessagesTitle)}
-        >
-          <Search />
-        </IconButton>
-
         <button
-          data-testid="msg-jump-trigger"
-          onClick={() => { navOpen ? setNavOpen(false) : openNavigator("list"); }}
-          disabled={events.length === 0}
-          className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title={t(strings.messagesPane.jumpToMessageTitle)}
           type="button"
+          data-testid="messages-search-field"
+          data-count={totalCount}
+          onClick={() => { openNavigator("search"); }}
+          className={cn(
+            "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-faint transition hover:border-wc-accent/40",
+            searchQuery && "text-wc-text-primary ring-1 ring-wc-accent/40",
+          )}
         >
-          <ChevronsUpDown className="h-3.5 w-3.5" />
-          <span className="font-mono">{jumpLabel}</span>
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{searchQuery || t(strings.messagesPane.searchField, { count: totalCount })}</span>
+          <kbd className="ms-auto hidden font-mono text-[10px] text-wc-text-faint sm:inline">⌘K</kbd>
         </button>
-
-        <IconButton
-          data-testid="messages-nav-up"
-          onClick={handleNavUp}
-          disabled={navIds.length === 0}
-          surface="soft"
-          size="xs"
-          denseTapTarget
-          aria-label={searchQuery ? t(strings.messagesPane.prevMatchTitle) : t(strings.messagesPane.prevMessageTitle)}
-        >
-          <ChevronUp />
-        </IconButton>
-        <IconButton
-          data-testid="messages-nav-down"
-          onClick={handleNavDown}
-          disabled={navIds.length === 0}
-          surface="soft"
-          size="xs"
-          denseTapTarget
-          aria-label={searchQuery ? t(strings.messagesPane.nextMatchTitle) : t(strings.messagesPane.nextMessageTitle)}
-        >
-          <ChevronDown />
-        </IconButton>
-        <IconButton
-          data-testid="messages-refresh-btn"
-          onClick={handleRefresh}
-          // The control owns the busy affordance, so the spin is no longer a
-          // class the call site has to remember to add and remove.
-          pending={isRefreshing}
-          pendingLabel={t(strings.messagesPane.refreshTitle)}
-          surface="soft"
-          size="xs"
-          denseTapTarget
-          aria-label={t(strings.messagesPane.refreshTitle)}
-        >
-          <RotateCw />
-        </IconButton>
         {toolbarTrailingAction && (
           <div data-testid="messages-control-trailing" className="ms-auto flex items-center">
             {toolbarTrailingAction}
@@ -1227,12 +745,16 @@ export default function MessagesPane({
           focusedEventId={focusedEventId}
           onSelect={focusAndScroll}
           onClose={() => { setNavOpen(false); }}
-          mode="jump"
           initialFocus={navInitialFocus}
           query={searchQuery}
           onQueryChange={handleNavQueryChange}
-          searchMatchCount={searchQuery ? serverSearchMatches.length : undefined}
-          searchTruncated={searchTruncated}
+          search={{
+            hits: serverSearchReady ? serverSearchMatches : null,
+            truncated: searchTruncated,
+            ...(searchError ? { error: searchError } : {}),
+            options: searchOptions,
+            onOptionsChange: setSearchOptions,
+          }}
           exportSelection={exportSelection}
         />
       )}
@@ -1253,16 +775,36 @@ export default function MessagesPane({
         })}
       />
 
-      <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-auto">
+      <div
+        ref={scrollContainerRef}
+        data-testid="messages-scroll"
+        data-follow={String(following)}
+        tabIndex={0}
+        aria-label={t(strings.messagesPane.listLabel)}
+        // Browser scroll anchoring is off: the virtualizer's resize
+        // compensation is the single mechanism that keeps rows still, and two
+        // mechanisms would each correct the same shift.
+        className="relative min-h-0 flex-1 overflow-auto [overflow-anchor:none]"
+      >
         {viewState.kind !== "messages" ? (
           <MessagesPaneState view={viewState} onRetry={() => void handleRefresh()} />
         ) : (
-          <div className="relative" style={{ height: `${totalSize}px` }}>
+          <div className="relative" style={{ height: `${String(totalSize)}px` }}>
             {virtualItems.map(({ index, start }) => {
               const event = events[index];
               if (!event) return null;
               return (
-                <div key={event.id} data-event-id={event.id} className="absolute left-0 right-0" style={{ top: `${start}px` }}>
+                // The wrapper, not the article, is measured: it also holds the
+                // row's handoff chips, and a slot sized without them lets the
+                // next row overlap this one.
+                <div
+                  key={event.id}
+                  ref={(node) => { registerItem(index, node); }}
+                  data-event-id={event.id}
+                  data-sequence={event.sequence}
+                  className="absolute left-0 right-0"
+                  style={{ top: `${String(start)}px` }}
+                >
                   <MessageRow
                     actionContext={{
                       event,
@@ -1280,14 +822,9 @@ export default function MessagesPane({
                       onClearSummarizeError,
                       onToggleSummarized,
                       onChangeLevel,
-                      audioSettings,
-                      onSetPlaybackRate,
-                      onSetVolume,
-                      onSetMuted,
-                      isMobile,
                       onCopy: handleCopy,
                       onPlayFromHere,
-                      onPlayEvent,
+                      onOpenReader: openReader,
                       onToggleRenderMode: toggleRenderMode,
                       onSendToComposer,
                       onSaveAsSnippet: (text) => {
@@ -1298,14 +835,16 @@ export default function MessagesPane({
                       },
                       onHandoff: readOnly ? undefined : onHandoff,
                     }}
-                    index={index}
-                    registerItem={registerItem}
                     fontSize={fontSize}
                     isFocused={focusedEventId === event.id}
                     isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
-                    isDimmed={!!searchQuery && !searchMatchSet.has(event.id)}
-                    isExpanded={expandedIds.has(event.id)}
-                    onToggleExpanded={toggleExpanded}
+                    isDimmed={!!searchQuery && serverSearchReady && !searchMatchSet.has(event.id)}
+                    coarsePointer={coarsePointer}
+                    actionsOpen={actionsTarget?.eventId === event.id}
+                    actionsOrigin={actionsTarget?.eventId === event.id ? actionsTarget.origin : null}
+                    onOpenActions={openActions}
+                    onCloseActions={closeActions}
+                    getPressHandlers={getPressHandlers}
                     onLinkClick={handleMarkdownLinkClick}
                     onFileReferenceClick={handleInlineCodeFileClick}
                     onMermaidOpen={handleMermaidOpen}
@@ -1326,11 +865,25 @@ export default function MessagesPane({
             })}
           </div>
         )}
+        {/* Outside the virtual list: the slot is live state, not a message,
+            and it never takes part in row measurement or compensation. */}
+        {echoes.map((echo) => (
+          <EchoRow
+            key={echo.id}
+            echo={echo}
+            getTerminalText={getTerminalText}
+            onPressEnter={onPressEnter}
+            onOpenTerminal={onOpenTerminal}
+            onExpire={expireEcho}
+          />
+        ))}
+        <SessionStateSlot slot={stateSlot} onOpenTerminal={onOpenTerminal} onAnswer={answerSlotPrompt} />
       </div>
 
       {newMessageCount > 0 && (
         <button
           data-testid="msg-new-pill"
+          data-count={newMessageCount}
           onClick={scrollToBottom}
           className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised px-4 py-2 text-xs font-medium text-wc-text-primary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input"
           type="button"
@@ -1340,7 +893,7 @@ export default function MessagesPane({
         </button>
       )}
 
-      {newMessageCount === 0 && !isNearBottom && events.length > 0 && (
+      {newMessageCount === 0 && !following && events.length > 0 && (
         <IconButton
           data-testid="msg-jump-bottom"
           aria-label={t(strings.messagesPane.jumpToBottomAria)}
@@ -1363,6 +916,20 @@ export default function MessagesPane({
         onLoadMore={filePreview.loadMore}
         onListOptionsChange={filePreview.setListOptions}
       />
+
+      {readerEvent && (
+        <MessagesReader
+          event={readerEvent}
+          fontSize={fontSize}
+          isPlaintext={plaintextIds.has(readerEvent.id)}
+          onClose={closeReader}
+          onCopy={handleCopy}
+          onPlay={readOnly ? undefined : onPlayEvent}
+          onLinkClick={handleMarkdownLinkClick}
+          onFileReferenceClick={handleInlineCodeFileClick}
+          onMermaidOpen={handleMermaidOpen}
+        />
+      )}
 
       <MessagesMermaidViewer
         open={mermaidViewer !== null}

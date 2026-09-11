@@ -18,8 +18,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
 		Category:    "ai",
 		RESTException: &module.RESTException{
-			Reason: "payment_required_semantics",
+			Reason: module.RESTReasonBrowserSurface,
 			Note:   "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
 		},
 		Request: &module.Schema{Type: "object", Properties: map[string]string{"prompt": "string", "context": "string"}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"command": "string", "provider": "string"}},

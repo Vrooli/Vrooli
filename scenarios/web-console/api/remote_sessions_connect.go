@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/targetmodel"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
@@ -26,8 +28,12 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 	if target.DeviceKind == "local" {
 		return sessionsH.Session{}, fmt.Errorf("%w: local target must use the local session backend", sessionsH.ErrTargetUnavailable)
 	}
-	if !target.Available {
-		reason := target.Reason
+	decision := targetmodel.EvaluateOperationReadiness(target.Target, targetmodel.OperationHeadlessExecution, time.Now().UTC())
+	if !decision.Ready {
+		reason := decision.Detail
+		if reason == "" {
+			reason = target.Reason
+		}
 		if reason == "" {
 			reason = "target is not dispatchable"
 		}
@@ -53,8 +59,12 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 	if in.HasPolicy {
 		sessionPolicy = &policy.Policy{Mode: policy.Mode(in.Policy.Mode), Duration: in.Policy.Duration}
 	}
+	baseURL := ""
+	if target.BaseURLExplicit {
+		baseURL = target.BaseURL
+	}
 	created, err := s.sessions.CreateRemote(ctx, session.RemoteLaunch{
-		BaseURL: target.BaseURL, NodeID: target.NodeID, OwnerToken: target.OwnerToken,
+		BaseURL: baseURL, NodeID: target.NodeID, OwnerToken: target.OwnerToken,
 		ReauthToken: target.ReauthToken,
 		Cols:        uint16(cols), Rows: uint16(rows), LaunchCommand: in.LaunchCommand,
 		ExecuteLaunchCommand: in.ExecuteLaunchCommand,
@@ -62,15 +72,20 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 	if err != nil {
 		return sessionsH.Session{}, err
 	}
+	trackingDegraded := false
 	if s.sessionStore != nil {
-		_ = s.sessionStore.SetProvenance(ctx, created.ID, "remote", "target:"+target.ID, target.Label)
+		if err := s.sessionStore.SetProvenance(ctx, created.ID, "remote", "target:"+target.ID, target.Label); err != nil {
+			trackingDegraded = true
+			log.Printf("remote session %s: persist provenance: %v", created.ID, err)
+		}
 	}
 	response := intSessions.FromSession(created)
 	return sessionsH.Session{
 		ID: response.ID, Shell: response.Shell, CreatedAt: response.CreatedAt,
 		Cols: response.Cols, Rows: response.Rows, Backend: string(response.Backend),
 		SurvivesRestart: true, Policy: sessionsH.Policy{Mode: string(response.Policy.Mode), Duration: response.Policy.Duration},
-		Origin: "remote", Owner: "target:" + target.ID, DisplayLabel: target.Label,
+		TrackingDegraded: trackingDegraded,
+		Origin:           "remote", Owner: "target:" + target.ID, DisplayLabel: target.Label,
 		Target: targetToProto(target),
 	}, nil
 }
@@ -188,17 +203,6 @@ func (s *Server) Get(ctx context.Context, id string) (sessionsH.Session, error) 
 		return sessionsH.Session{}, fmt.Errorf("%w: %s", sessionsH.ErrNotFound, id)
 	}
 	return s.managerRemoteSession(ctx, current), nil
-}
-
-func (s *Server) Delete(ctx context.Context, id string) error {
-	if s.sessions == nil {
-		return fmt.Errorf("%w: remote session manager is not configured", sessionsH.ErrRemoteUnavailable)
-	}
-	current, ok := s.sessions.Get(id)
-	if !ok || current.Backend != backend.Remote {
-		return fmt.Errorf("%w: %s", sessionsH.ErrNotFound, id)
-	}
-	return s.sessions.Delete(ctx, id)
 }
 
 func (s *Server) managerRemoteSession(ctx context.Context, current *session.Session) sessionsH.Session {

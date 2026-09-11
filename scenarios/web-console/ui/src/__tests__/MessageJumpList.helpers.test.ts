@@ -3,7 +3,8 @@ import {
   assistantRoleLabelKey,
   availableSources,
   buildResults,
-  computeExcerpt,
+  buildSearchResults,
+  excerptSegments,
   DEFAULT_NAVIGATOR_STATE,
   detectBadges,
   formatRelativeTime,
@@ -14,7 +15,7 @@ import {
   statusGlyphFor,
   type NavigatorState,
 } from "../components/MessageJumpList.helpers";
-import type { ConversationEvent } from "../api/conversation";
+import type { ConversationEvent, ConversationSearchMatch } from "../api/conversation";
 
 function makeEvent(
   overrides: Partial<ConversationEvent> & { id: string; sequence: number },
@@ -139,34 +140,24 @@ describe("detectBadges", () => {
   });
 });
 
-describe("computeExcerpt", () => {
-  it("returns a single non-match segment when no query", () => {
-    const seg = computeExcerpt("hello world", "");
-    expect(seg).toEqual([{ text: "hello world", match: false }]);
+describe("excerptSegments", () => {
+  it("[REQ:P0-017g] splits a server excerpt at its ranges", () => {
+    expect(excerptSegments("run the settle loop now", [{ start: 8, end: 19 }])).toEqual([
+      { text: "run the ", match: false },
+      { text: "settle loop", match: true },
+      { text: " now", match: false },
+    ]);
   });
 
-  it("highlights a match at the beginning", () => {
-    const seg = computeExcerpt("hello world", "hello");
-    expect(seg[0]).toEqual({ text: "hello", match: true });
-    expect(seg.map((s) => s.text).join("")).toBe("hello world");
+  it("[REQ:P0-017g] returns the excerpt as one plain segment without ranges", () => {
+    expect(excerptSegments("hello world", [])).toEqual([{ text: "hello world", match: false }]);
   });
 
-  it("highlights a match in the middle and adds leading ellipsis when windowed", () => {
-    const preview = "a".repeat(80) + " needle " + "b".repeat(80);
-    const seg = computeExcerpt(preview, "needle");
-    expect(seg[0]?.text).toBe("…");
-    expect(seg.some((s) => s.match && s.text === "needle")).toBe(true);
-  });
-
-  it("highlights a match at the end", () => {
-    const seg = computeExcerpt("find the needle", "needle");
-    expect(seg.some((s) => s.match && s.text === "needle")).toBe(true);
-    expect(seg.map((s) => s.text).join("")).toContain("find the needle");
-  });
-
-  it("returns a leading slice when the query does not match the preview", () => {
-    const seg = computeExcerpt("hello world", "zzz");
-    expect(seg).toEqual([{ text: "hello world", match: false }]);
+  it("[REQ:P0-017g] ignores ranges that fall outside the excerpt", () => {
+    expect(excerptSegments("short", [{ start: 3, end: 40 }, { start: 0, end: 2 }])).toEqual([
+      { text: "sh", match: true },
+      { text: "ort", match: false },
+    ]);
   });
 });
 
@@ -234,41 +225,53 @@ describe("buildResults — filters", () => {
     const ids = buildResults(events, state({ content: "fileReference" })).map((r) => r.event.id);
     expect(ids).toEqual(["a1"]);
   });
-
-  it("combines query and filters (AND)", () => {
-    const ids = buildResults(events, state({ query: "deploy", role: "user" })).map((r) => r.event.id);
-    expect(ids).toEqual(["u1"]);
-  });
 });
 
-describe("buildResults — query + relevance", () => {
+describe("buildResults — the loaded list never scores substrings", () => {
   const events = [
     makeEvent({ id: "a", sequence: 1, text: "alpha beta" }),
     makeEvent({ id: "b", sequence: 2, text: "beta beta beta" }),
     makeEvent({ id: "c", sequence: 3, text: "gamma" }),
   ];
 
-  it("drops non-matching events when a query is set", () => {
-    const ids = buildResults(events, state({ query: "beta" })).map((r) => r.event.id);
-    expect(ids.sort()).toEqual(["a", "b"]);
+  it("[REQ:P0-017g] a query does not filter the loaded list (the server searches)", () => {
+    expect(buildResults(events, state({ query: "beta" })).map((r) => r.event.id)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("buildSearchResults", () => {
+  const loaded = [
+    makeEvent({ id: "a", sequence: 5, text: "alpha beta", ttsState: "failed" }),
+    makeEvent({ id: "b", sequence: 9, text: "beta" }),
+  ];
+  const hits: ConversationSearchMatch[] = [
+    { eventId: "old", sequence: 1, excerpt: "beta from the start", ranges: [{ start: 0, end: 4 }], role: "user", createdAt: "2026-09-10T00:00:00Z" },
+    { eventId: "a", sequence: 5, excerpt: "alpha beta", ranges: [{ start: 6, end: 10 }], role: "assistant", createdAt: "2026-09-10T00:01:00Z" },
+    { eventId: "b", sequence: 9, excerpt: "beta", ranges: [{ start: 0, end: 4 }], role: "assistant", createdAt: "2026-09-10T00:02:00Z" },
+  ];
+
+  it("[REQ:P0-017g] lists the server's hits in sequence order, loaded or not", () => {
+    expect(buildSearchResults(hits, loaded, state({ query: "beta" })).map((r) => r.event.id)).toEqual(["old", "a", "b"]);
   });
 
-  it("matches metadata like sequence number and role", () => {
-    const ids = buildResults(events, state({ query: "#2" })).map((r) => r.event.id);
-    expect(ids).toEqual(["b"]);
+  it("[REQ:P0-017g] highlights the server's ranges", () => {
+    const [first] = buildSearchResults(hits, loaded, state({ query: "beta" }));
+    expect(first?.excerpt).toEqual([{ text: "beta", match: true }, { text: " from the start", match: false }]);
   });
 
-  it("relevance sort ranks more matches first; without query falls back to oldest", () => {
-    const byRelevance = buildResults(events, state({ query: "beta", sort: "relevance" })).map((r) => r.event.id);
-    expect(byRelevance).toEqual(["b", "a"]);
-
-    const noQuery = buildResults(events, state({ sort: "relevance" })).map((r) => r.event.id);
-    expect(noQuery).toEqual(["a", "b", "c"]);
+  it("[REQ:P0-017g] a hit outside the loaded window keeps its role and time", () => {
+    const [first] = buildSearchResults(hits, loaded, state({ query: "beta" }));
+    expect(first?.event.role).toBe("user");
+    expect(first?.event.createdAt).toBe("2026-09-10T00:00:00Z");
+    expect(first?.event.sequence).toBe(1);
   });
 
-  it("populates excerpt highlight segments for matches", () => {
-    const result = buildResults(events, state({ query: "alpha" }))[0];
-    expect(result?.excerpt.some((s) => s.match)).toBe(true);
+  it("[REQ:P0-017g] status filters apply to loaded hits only", () => {
+    expect(buildSearchResults(hits, loaded, state({ query: "beta", status: "failed" })).map((r) => r.event.id)).toEqual(["a"]);
+  });
+
+  it("[REQ:P0-017g] newest sort reverses the hits", () => {
+    expect(buildSearchResults(hits, loaded, state({ query: "beta", sort: "newest" })).map((r) => r.event.id)).toEqual(["b", "a", "old"]);
   });
 });
 

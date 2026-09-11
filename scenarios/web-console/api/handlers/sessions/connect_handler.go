@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -153,6 +154,10 @@ func (h *connectHandler) Delete(ctx context.Context, req *connect.Request[sessio
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	if got, want := strings.TrimSpace(req.Msg.GetConfirmation()), "DELETE:"+id; got != want {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("permanent deletion requires confirmation %q", want))
+	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.Delete(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.Delete")
 	}
@@ -164,6 +169,7 @@ func (h *connectHandler) Archive(ctx context.Context, req *connect.Request[sessi
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.Archive(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.Archive")
 	}
@@ -175,6 +181,7 @@ func (h *connectHandler) Unarchive(ctx context.Context, req *connect.Request[ses
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.Unarchive(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.Unarchive")
 	}
@@ -198,6 +205,7 @@ func (h *connectHandler) DismissRecoverable(ctx context.Context, req *connect.Re
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.DismissRecoverable(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.DismissRecoverable")
 	}
@@ -209,6 +217,7 @@ func (h *connectHandler) Recover(ctx context.Context, req *connect.Request[sessi
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	res, err := h.deps.Service.Recover(ctx, RecoverInput{
 		ID:             id,
 		IdempotencyKey: req.Header().Get(idempotencyHeader),
@@ -230,6 +239,7 @@ func (h *connectHandler) Reopen(ctx context.Context, req *connect.Request[sessio
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	res, err := h.deps.Service.Recover(ctx, RecoverInput{
 		ID:             id,
 		IdempotencyKey: req.Header().Get(idempotencyHeader),
@@ -377,6 +387,7 @@ func sessionToProto(s Session) *sessionsv1.Session {
 		DisplayLabel:     s.DisplayLabel,
 		TrackingDegraded: s.TrackingDegraded,
 		Target:           s.Target,
+		Activity:         s.Activity,
 	}
 }
 

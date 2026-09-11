@@ -80,7 +80,7 @@ func callCreate(t *testing.T, srv *Server, cols, rows int, idempotencyKey string
 func callDelete(t *testing.T, srv *Server, id string) error {
 	t.Helper()
 	_, err := newSessionsConnectHandlerForServer(srv).Delete(context.Background(),
-		connect.NewRequest(&sessionsv1.DeleteRequest{Id: id}))
+		connect.NewRequest(&sessionsv1.DeleteRequest{Id: id, Confirmation: "DELETE:" + id}))
 	return err
 }
 

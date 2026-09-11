@@ -210,6 +210,7 @@ func (c *StaticChecker) Check(context.Context) (Status, string) {
 // remote-terminal failures into a generic unavailable state.
 type BridgeChecker struct {
 	BaseURL     string
+	ResolveURL  func(context.Context) (string, error)
 	OwnerToken  string
 	ReauthToken string
 	Client      *http.Client
@@ -229,6 +230,15 @@ func (c *BridgeChecker) CheckResult(ctx context.Context) CheckResult {
 		OperatorCommand: "vrooli scenario start vrooli-bridge --json",
 	}
 	base := strings.TrimRight(strings.TrimSpace(c.BaseURL), "/")
+	if base == "" && c.ResolveURL != nil {
+		resolved, resolveErr := c.ResolveURL(ctx)
+		if resolveErr != nil {
+			start.Message = "Bridge could not be discovered"
+			start.ReasonCode = "bridge_unreachable"
+			return start
+		}
+		base = strings.TrimRight(strings.TrimSpace(resolved), "/")
+	}
 	if base == "" {
 		start.Message = "Bridge URL is not configured"
 		start.ReasonCode = "bridge_url_missing"
@@ -397,7 +407,11 @@ func (c *ScenarioChecker) CheckResult(ctx context.Context) CheckResult {
 	run := c.Run
 	if run == nil {
 		run = func(ctx context.Context, name string, a ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, name, a...).Output()
+			cmd := exec.CommandContext(ctx, name, a...)
+			if err := prepareWorkspaceCommand(cmd); err != nil {
+				return nil, err
+			}
+			return cmd.Output()
 		}
 	}
 

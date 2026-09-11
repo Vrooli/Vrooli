@@ -289,6 +289,20 @@ func TestControlPlaneErrorExplainsAConfirmationMismatch(t *testing.T) {
 	}
 }
 
+func TestControlPlaneErrorPreservesTargetCompatibilityClassification(t *testing.T) {
+	wire := connect.NewError(connect.CodeFailedPrecondition, errors.New("target scenario is missing a procedure"))
+	wire.Meta().Set("X-Vrooli-Error-Code", "target_incompatible")
+
+	err := controlPlaneError("read target configuration questions", wire)
+	var connectErr *connect.Error
+	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeFailedPrecondition {
+		t.Fatalf("target incompatibility reported as %v, want failed_precondition", err)
+	}
+	if !strings.HasPrefix(connectErr.Message(), "target_onboarding_incompatible:") {
+		t.Fatalf("classification was not surfaced: %s", connectErr.Message())
+	}
+}
+
 // The handoff to the control plane's own interface is the one link on this
 // surface that leaves the app, and it is the one that was wrong: it carried the
 // Bridge API base, which answers a browser with 404 and names loopback on the

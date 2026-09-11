@@ -6,7 +6,7 @@
 // capability working. There is deliberately no built-in marker anywhere in
 // this package — shipped content is data, not behaviour.
 //
-// DOC: docs/internal/STORAGE_AUDIT.md
+// DOC: docs/internal/SEAMS.md#storage-ownership-and-persistence-boundaries
 // DOC: docs/internal/ROLES-AND-HANDOFFS-UX.md
 package grouptemplates
 

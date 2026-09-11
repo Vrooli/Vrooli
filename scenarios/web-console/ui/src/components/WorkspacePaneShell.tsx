@@ -1,11 +1,13 @@
-import { memo, useCallback, useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
+import { memo, useCallback, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useConversationStore } from "../stores/useConversationStore";
+import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
-import type { TTSPlaybackState } from "../audio-integration";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import type { ConversationEvent } from "../api/conversation";
 import type { TerminalPaneHandle } from "./TerminalPane";
+import { ENTER_KEY } from "../consts/toolbar-keys";
+import { getScreenText } from "../api/terminalScreen";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
 import TerminalHeader from "./TerminalHeader";
@@ -32,10 +34,6 @@ interface WorkspacePaneShellProps {
   onToggleSummarized: (sessionId: string, eventId: string, useSummarized: boolean) => void;
   onChangeLevel: (sessionId: string, eventId: string, level: SummarizationLevel) => void;
   selectedVersionForEvent: (sessionId: string, event: ConversationEvent) => PlaybackVersion;
-  playbackState: TTSPlaybackState;
-  onSetPlaybackRate: (rate: number) => void;
-  onSetVolume: (level: number) => void;
-  onSetMuted: (next: boolean) => void;
   playbackFocusRequest: PlaybackFocusRequest | null;
   onActivate: (sessionId: string) => void;
   onRequestClose: (sessionId: string) => void;
@@ -86,10 +84,6 @@ function WorkspacePaneShell({
   onToggleSummarized,
   onChangeLevel,
   selectedVersionForEvent,
-  playbackState,
-  onSetPlaybackRate,
-  onSetVolume,
-  onSetMuted,
   playbackFocusRequest,
   onActivate,
   onRequestClose,
@@ -113,7 +107,7 @@ function WorkspacePaneShell({
 }: WorkspacePaneShellProps) {
   const { sessionId, name, headerColor, supportsMessagesView } = paneMeta;
 
-  const viewMode = useConversationStore(
+  const viewMode = useMessagesViewStore(
     useCallback(
       (state) => (
         supportsMessagesView ? (state.viewModes[sessionId] ?? "terminal") : "terminal"
@@ -144,6 +138,15 @@ function WorkspacePaneShell({
   const handleToggleView = useCallback(() => {
     onToggleView(sessionId, viewMode);
   }, [onToggleView, sessionId, viewMode]);
+
+  // For Messages' echo rows: the on-screen check reads the server's decoded
+  // screen (a pane opened in Messages may never have filled its xterm), and
+  // "Press Enter" goes through this pane's typing lane, like the Enter key.
+  const terminalHandleRef = useRef<TerminalPaneHandle | null>(null);
+  const getTerminalText = useCallback(() => getScreenText(sessionId), [sessionId]);
+  const pressEnter = useCallback(() => {
+    terminalHandleRef.current?.input.submit(ENTER_KEY.input, "typing");
+  }, []);
 
   const handlePlayFromHere = useCallback((eventId: string) => {
     onPlayFromHere(sessionId, eventId);
@@ -214,7 +217,10 @@ function WorkspacePaneShell({
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}
 			viewMode={viewMode}
-            ref={(handle) => { onTerminalRef(sessionId, handle); }}
+            ref={(handle) => {
+              terminalHandleRef.current = handle;
+              onTerminalRef(sessionId, handle);
+            }}
           />
         </ErrorBoundary>
         {supportsMessagesView && isVisible && viewMode === "messages" && (
@@ -235,12 +241,11 @@ function WorkspacePaneShell({
               onClearSummarizeError={onClearSummarizeError}
               onToggleSummarized={handleToggleSummarized}
               onChangeLevel={handleChangeLevel}
-              playbackState={playbackState}
-              onSetPlaybackRate={onSetPlaybackRate}
-              onSetVolume={onSetVolume}
-              onSetMuted={onSetMuted}
               playbackFocusRequest={playbackFocusRequest}
               toolbarTrailingAction={messagesToolbarTrailingAction}
+              onOpenTerminal={handleToggleView}
+              getTerminalText={getTerminalText}
+              onPressEnter={pressEnter}
             />
           </div>
         )}
@@ -264,7 +269,6 @@ export default memo(WorkspacePaneShell, (prev, next) => (
   && prev.loadingEventId === next.loadingEventId
   && prev.summarizeLevel === next.summarizeLevel
   && prev.summarizingEventId === next.summarizingEventId
-  && prev.playbackState === next.playbackState
   && prev.playbackFocusRequest === next.playbackFocusRequest
   // In tabs mode the return-to-terminal affordance is passed through the
   // Messages toolbar.  It must participate in memo comparison: the Zustand

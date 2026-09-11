@@ -11,11 +11,23 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 
 	"web-console/internal/module"
 )
+
+type operationIDContextKey struct{}
+
+func WithOperationID(ctx context.Context, operationID string) context.Context {
+	return context.WithValue(ctx, operationIDContextKey{}, operationID)
+}
+
+func OperationID(ctx context.Context) string {
+	value, _ := ctx.Value(operationIDContextKey{}).(string)
+	return value
+}
 
 // Service is the seam the Connect handler depends on. The concrete
 // implementation lives in package main and adapts SessionManager,
@@ -48,7 +60,6 @@ type RemoteService interface {
 	Create(ctx context.Context, in CreateInput) (Session, error)
 	List(ctx context.Context) ([]Session, error)
 	Get(ctx context.Context, id string) (Session, error)
-	Delete(ctx context.Context, id string) error
 }
 
 // Policy is the transport-neutral expiration policy.
@@ -87,6 +98,9 @@ type Session struct {
 	DisplayLabel     string
 	TrackingDegraded bool
 	Target           *sharedv1.Target
+	// Activity is what the session's agent is doing now; live sessions only.
+	// Deliberately absent from the idempotency cache: it is never replayable.
+	Activity *sessionsv1.SessionActivity
 }
 
 type RestoreState string

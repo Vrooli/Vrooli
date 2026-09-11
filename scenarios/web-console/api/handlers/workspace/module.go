@@ -24,10 +24,10 @@ type Service interface {
 	GetLayout(ctx context.Context) (Layout, error)
 	SaveLayout(ctx context.Context, activePane string, paneOrder []string) error
 	UpdatePane(ctx context.Context, req UpdatePaneRequest) (Pane, error)
-	DeletePane(ctx context.Context, sessionID string)
+	DeletePane(ctx context.Context, sessionID string) error
 	CreateGroup(ctx context.Context, name, color string) (Group, error)
 	UpdateGroup(ctx context.Context, req UpdateGroupRequest) (Group, error)
-	DeleteGroup(ctx context.Context, id string)
+	DeleteGroup(ctx context.Context, id string) error
 
 	// Roles are named positions inside a group. They are additive: a group
 	// with no roles behaves exactly as it did before roles existed, so a

@@ -3,6 +3,8 @@
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
 import { Loader2, Maximize2, SendHorizontal, Volume2 } from "lucide-react";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
+import { usePressGesture } from "../hooks/usePressGesture";
 import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { useTranslation } from "react-i18next";
@@ -11,6 +13,10 @@ import { strings } from "../consts/strings";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useConversationStore } from "../stores/useConversationStore";
+import { ComposerStateChip } from "./toolbar/ComposerStateChip";
+import { SentHistorySheet } from "./composer/SentHistorySheet";
+import { useCommandHistory } from "../hooks/useCommandHistory";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
@@ -189,8 +195,6 @@ interface MobileToolbarProps {
   ttsDismissed?: boolean;
   /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
   viewMode?: "terminal" | "messages";
-  /** Auto-switch to terminal view after sending a command while in messages mode. */
-  onSwitchToTerminal?: () => void;
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -216,7 +220,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onTtsRestore,
   ttsDismissed = false,
   viewMode = "terminal",
-  onSwitchToTerminal,
 }, ref) {
   const { t } = useTranslation();
   const aiSuggestActive = useWorkspaceStore((state) => state.aiSuggestActive);
@@ -415,18 +418,21 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
    * The subscription auto-unsubscribes after it fires once — subsequent
    * acks from other senders (e.g. xterm direct keystrokes) are ignored.
    */
-  const submitCommand = useCallback(() => {
+  // This device's sends, for the History control (localStorage, never synced).
+  const { entries: historyEntries, push: pushHistory, clear: clearHistory } = useCommandHistory();
+
+  const sendDraft = useCallback((pressEnter: boolean, resendText?: string) => {
     // When the text box is exactly empty (length 0, NOT whitespace-only),
     // act as an Enter key press. This lets mobile users tap Send twice to
     // type a command and then confirm it with Enter — a very common pattern
     // when using interactive CLI tools like Claude Code. Whitespace-only
     // input is intentionally NOT treated as empty so it can still be
     // submitted verbatim (some programs interpret whitespace input).
-    const draftText = draft.getValue();
+    // A resend from history types that text and leaves the draft alone.
+    const fromDraft = resendText === undefined;
+    const draftText = resendText ?? draft.getValue();
     if (draftText.length === 0) {
       onInput(ENTER_KEY.input, "typing");
-      // Auto-switch to terminal so the user sees the result of pressing Enter
-      if (viewMode === "messages") onSwitchToTerminal?.();
       onFocusTerminal?.();
       return;
     }
@@ -452,7 +458,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // Snapshot the draft so we can restore it on ack failure. The draft
     // is kept visible during "sending" state; the ack resolution path
     // (below) decides whether to clear it.
-    pendingSendRef.current = { draft: draftText };
+    pendingSendRef.current = fromDraft ? { draft: draftText } : null;
     // Snapshot the session too: the ack can settle after the user switches
     // sessions, and the clear below must target the session we sent from.
     const sentFrom = draft.getSessionId();
@@ -466,6 +472,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       pendingSendRef.current = null;
       return;
     }
+
+    // "Send and press Enter", the explicit long-press gesture: Enter follows
+    // the text on the same ordered lane. A plain Send never presses Enter.
+    if (pressEnter) onInput(ENTER_KEY.input, "typing");
 
     if (result.status === "queued") {
       // The input was not sent immediately. Reason tells us why:
@@ -487,9 +497,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 
     const finalizeSuccess = () => {
       pendingSendRef.current = null;
-      draft.reset(sentFrom);
+      if (fromDraft) draft.reset(sentFrom);
       showStatus("sent");
-      if (viewMode === "messages") onSwitchToTerminal?.();
+      // Messages shows the send until the harness records it, and this device
+      // keeps it in history. A modifier combo is a keystroke, not a message.
+      if (!hasModifier) {
+        if (sentFrom) useConversationStore.getState().addEcho(sentFrom, draftText);
+        pushHistory(draftText);
+      }
     };
 
     const finalizeFailure = () => {
@@ -515,7 +530,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, awaitOffset]);
+  }, [onInput, draft, showStatus, onFocusTerminal, clearModifiers, awaitOffset, pushHistory]);
+
+  const submitCommand = useCallback(() => { sendDraft(false); }, [sendDraft]);
+
+  // Long-press (or right-click) on Send offers "Send and press Enter". A touch
+  // tap sends through onTap and the click that follows it is dropped; mouse and
+  // keyboard activation send through the click.
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const sendButtonRef = useRef<HTMLButtonElement>(null);
+  const openSendMenu = useCallback(() => { setSendMenuOpen(true); }, []);
+  const sendPress = usePressGesture<"send">({ onTap: submitCommand, onLongPress: openSendMenu });
+  const sendGesture = sendPress.getGestureHandlers("send");
+  const { shouldSuppressClick: shouldSuppressSendClick } = sendPress;
+  const handleSendClick = useCallback(() => {
+    if (shouldSuppressSendClick("send")) return;
+    submitCommand();
+  }, [shouldSuppressSendClick, submitCommand]);
 
   // ── Toolbar composition ────────────────────────────────────────────────
   // The arrangement is computed, not written. `layoutToolbar` decides which
@@ -551,6 +583,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     image: t(strings.mobileToolbar.uploadImageTitle),
     ai: t(strings.mobileToolbar.aiCommandTitle),
     snippets: t(strings.snippets.picker.title),
+    history: t(strings.sentHistory.control),
   }), [t]);
 
   const voiceProps = useMemo(() => (voiceAvailable && onVoiceStart && onVoiceStop ? {
@@ -602,6 +635,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     aiSuggestActive,
     onUploadImage,
     onOpenSnippets: () => { setSnippetPickerOpen(true); },
+    onOpenHistory: () => { setHistoryOpen(true); },
     voice: voiceProps,
     labels: controlLabels,
   }), [handleKey, modifiers, toggleModifier, onOpenAi, aiSuggestActive, onUploadImage, voiceProps, controlLabels]);
@@ -844,6 +878,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 would signal "nothing to do" about a control that does. */}
             <InputGroup.Action align="end" testId="mobile-command-submit-slot">
               <IconButton
+                ref={sendButtonRef}
                 type="button"
                 data-testid="mobile-command-submit"
                 aria-label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
@@ -852,8 +887,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 shape="circle"
                 surface="solid"
                 size="sm"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={submitCommand}
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  sendGesture.onPointerDown(e);
+                }}
+                onPointerCancel={sendGesture.onPointerCancel}
+                onContextMenu={sendGesture.onContextMenu}
+                onClick={handleSendClick}
               >
                 {/* "sending" renders as an inline spinner in the button itself
                     rather than a label below the textarea — the label changed
@@ -867,6 +907,27 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               </IconButton>
             </InputGroup.Action>
           </InputGroup>
+          <ContextMenu
+            open={sendMenuOpen}
+            onOpenChange={setSendMenuOpen}
+            anchorRef={sendButtonRef}
+            placement="bottom-end"
+            title={t(strings.sendMenu.title)}
+            closeLabel={t(strings.handoff.close)}
+            testId="mobile-send-menu"
+            items={[{
+              id: "send-and-enter",
+              label: t(strings.sendMenu.sendAndEnter),
+              testId: "mobile-send-and-enter",
+              onSelect: () => {
+                setSendMenuOpen(false);
+                sendDraft(true);
+              },
+            }]}
+          />
+          {/* In Messages the session's state sits under the field; the
+              terminal shows it itself, so terminal mode keeps its height. */}
+          {viewMode === "messages" && <ComposerStateChip sessionId={activeSessionId ?? null} className="px-1" />}
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
               {t(strings.mobileToolbar.statusQueued)}
@@ -897,6 +958,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         />
       </div>
       {snippetPickerOpen && <SnippetPicker open onClose={() => setSnippetPickerOpen(false)} autoValues={snippetAutoValues} onInsert={async (text) => { draft.appendAtCaret(text); }} />}
+      <SentHistorySheet
+        open={historyOpen}
+        entries={historyEntries}
+        onClose={() => { setHistoryOpen(false); }}
+        onInsert={(text) => { draft.appendAtCaret(text); }}
+        onSend={(text) => { sendDraft(false, text); }}
+        onClear={clearHistory}
+      />
     </div>
   );
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, matchProseFilePaths } from "../lib/fileReferences";
+import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, matchFileReferenceBlockLines, matchProseFilePaths } from "../lib/fileReferences";
 
 describe("fileReferences", () => {
   it("detects external hrefs", () => {
@@ -130,5 +130,27 @@ describe("looksLikeInlineFileReference", () => {
     expect(looksLikeInlineFileReference("onLinkClick")).toBe(false);
     expect(looksLikeInlineFileReference("two words.md")).toBe(false);
     expect(looksLikeInlineFileReference("https://example.com/a.md")).toBe(false);
+  });
+});
+
+describe("matchFileReferenceBlockLines", () => {
+  it("accepts a block that is nothing but paths", () => {
+    expect(matchFileReferenceBlockLines("/the/path/example.md\n")).toEqual(["/the/path/example.md"]);
+    expect(matchFileReferenceBlockLines("  docs/plan.md  \n\nREADME.md\n")).toEqual(["docs/plan.md", "README.md"]);
+    expect(matchFileReferenceBlockLines("scenarios/web-console/bas/\n")).toEqual(["scenarios/web-console/bas/"]);
+  });
+
+  it("rejects a block with any non-path line", () => {
+    expect(matchFileReferenceBlockLines("/the/path/example.md\nmake start\n")).toBeNull();
+    expect(matchFileReferenceBlockLines("const x = 1;\n")).toBeNull();
+    expect(matchFileReferenceBlockLines("vrooli.com\n")).toBeNull();
+    expect(matchFileReferenceBlockLines("")).toBeNull();
+  });
+
+  it("rejects a long block, which is quoted output rather than a path list", () => {
+    const many = Array.from({ length: 51 }, (_, i) => `docs/file-${String(i)}.md`).join("\n");
+    expect(matchFileReferenceBlockLines(many)).toBeNull();
+    const fifty = Array.from({ length: 50 }, (_, i) => `docs/file-${String(i)}.md`).join("\n");
+    expect(matchFileReferenceBlockLines(fifty)).toHaveLength(50);
   });
 });

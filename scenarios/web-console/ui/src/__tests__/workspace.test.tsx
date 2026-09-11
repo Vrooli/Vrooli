@@ -27,6 +27,7 @@ function statusFill(): string {
 import type { SessionInfo } from "../api/sessions";
 import type { ConversationEvent } from "../api/conversation";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
+import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
@@ -362,7 +363,8 @@ describe("Workspace", () => {
     mockStoreState.defaultThemeId = "default";
     mockStoreState.defaultFontSize = 14;
     mockStoreState.tabContextMenu = null;
-    useConversationStore.setState({ sessions: {}, viewModes: {} });
+    useConversationStore.setState({ sessions: {} });
+    useMessagesViewStore.setState({ viewModes: {}, positions: {} });
     mockLaunchSession = vi.fn().mockResolvedValue(mockSession);
     mockRemovePane = vi.fn();
     mockClearError = vi.fn();
@@ -580,9 +582,10 @@ describe("Workspace", () => {
     const toggleShell = screen.getByTitle(strings.workspace.switchToMessagesTitle).parentElement;
     expect(toggleShell?.className).toContain("end-2");
     expect(toggleShell?.className).toContain("top-2.5");
+    expect(screen.getByTestId("workspace-toggle-view")).toHaveAttribute("data-rcl-tap-target", "comfortable");
 
     fireEvent.click(screen.getByTestId("workspace-toggle-view"));
-    expect(useConversationStore.getState().viewModes[mockSession.id]).toBe("messages");
+    expect(useMessagesViewStore.getState().viewModes[mockSession.id]).toBe("messages");
   });
 
   it("responds to a viewport resize while panes are mounted", () => {
@@ -932,7 +935,6 @@ describe("Workspace", () => {
           hydrated: true,
         }),
       },
-      viewModes: {},
     });
 
     render(<Workspace />);

@@ -164,7 +164,7 @@ func TestTargetCatalogProjectsCapabilityInventory(t *testing.T) {
 		RegistryRecordPresent: true,
 		CapabilityInventory: []*bridgeSharedv1.CapabilityObservation{{
 			Capability: "ai-cli", Id: "codex", Label: "Codex",
-			State:  bridgeSharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING,
+			State:   bridgeSharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING,
 			Version: "1.2.3", Detail: "codex is not installed",
 		}},
 	}
@@ -184,6 +184,31 @@ func TestTargetCatalogProjectsCapabilityInventory(t *testing.T) {
 		if fact.GetKey() == "capability:codex" && fact.GetState() != "missing" {
 			t.Fatalf("projected capability state = %q", fact.GetState())
 		}
+	}
+}
+
+func TestTargetCatalogProjectsOperationReadinessWithFreshnessEnvelope(t *testing.T) {
+	now := time.Date(2026, 9, 9, 23, 0, 0, 0, time.UTC)
+	readiness := targetmodel.EvaluateOperationReadiness(targetmodel.Target{
+		ID: "mac", OS: "darwin", DeviceKind: "bridge-node", LastSeenAt: now,
+		Transport:   targetmodel.Transport{Kind: targetmodel.TransportBridge, Available: true},
+		BridgeTrust: &targetmodel.BridgeTrust{Registered: true, Online: true},
+		Scopes:      []string{"vrooli-bridge:write"}, Readiness: []targetmodel.ReadinessCheck{
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessRegistry, true, ""),
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessHeartbeat, true, ""),
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessChannel, true, ""),
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessProtocol, true, ""),
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessDispatch, true, ""),
+			targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, true, ""),
+		},
+	}, targetmodel.OperationHeadlessExecution, now)
+	projected := targetToProto(targetConnection{Target: targetmodel.Target{OperationReadiness: []targetmodel.OperationReadiness{readiness}}})
+	if len(projected.GetOperationReadiness()) != 1 || !projected.GetOperationReadiness()[0].GetReady() {
+		t.Fatalf("operation readiness projection = %v", projected.GetOperationReadiness())
+	}
+	item := projected.GetOperationReadiness()[0]
+	if item.GetOperation() != targetmodel.OperationHeadlessExecution || item.GetSource() != "target_projection" || item.GetFreshUntil().AsTime() != now.Add(targetmodel.DefaultReadinessStaleAfter) {
+		t.Fatalf("operation readiness metadata = %v", item)
 	}
 }
 
