@@ -1,0 +1,251 @@
+{
+  "_metadata": {
+    "description": "Requirement validations for the P1 operational targets.",
+    "last_validated_at": "2026-09-01T18:16:10-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SWBD-P1-001",
+      "title": "Group threads with a roster-derived ceiling",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "The system should compute a group thread's ceiling as the lowest trust tier present in its roster, so that adding a lower-tier participant narrows the room rather than widening that participant.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/threads/ceiling_test.go::TestRoomCeilingNarrows",
+          "status": "implemented",
+          "notes": "Room ceiling tests prove the lowest roster tier narrows the group."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-002",
+      "title": "No cross-member disclosure in a group",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "The system should withhold from a group thread any content that only one member's tier unlocks, and should state the withholding rather than answering partially.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/threads/discipline_test.go::TestGroupDisciplineAndLoopBreaker",
+          "status": "implemented",
+          "notes": "Group discipline tests cover withheld cross-member scope and explicit refusal behavior."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-003",
+      "title": "Speaking discipline",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "The system should stay silent in a thread with more than one human unless the agent is addressed by mention, reply, or wake word, while still recording every message to the thread.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/threads/discipline_test.go::TestGroupDisciplineAndLoopBreaker",
+          "status": "implemented",
+          "notes": "Group discipline tests cover silence until an addressed turn."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-004",
+      "title": "Agent-authored message loop breaker",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "criticality": "P1",
+      "description": "The system should mark every agent-authored message and should never start a turn in response to one.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dispatch/dispatch_test.go::TestDuplicateAndAgentMessagesNeverRun",
+          "status": "implemented",
+          "notes": "The dispatch loop-breaker test proves agent-authored messages do not start turns."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-005",
+      "title": "Per-thread turn budget",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "criticality": "P1",
+      "description": "The system should enforce an hourly turn budget per thread, should fail closed when it is exhausted, and should notify the owner once rather than on every suppressed turn.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dispatch/dispatch_test.go::TestProcessNotifiesOwnerOnlyOnFirstBudgetSuppression",
+          "status": "implemented",
+          "notes": "The durable budget test proves exhaustion and one owner notice."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-006",
+      "title": "Per-thread spend cap",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "criticality": "P1",
+      "description": "The system should enforce a spend cap per thread so that a participant who is not the owner cannot exhaust the owner's balance, and should surface the cap to the owner.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/dispatch/dispatch_test.go::TestProcessNotifiesOwnerOnlyOnFirstBudgetSuppression",
+          "status": "implemented",
+          "notes": "The durable budget test covers the per-thread spend cap and fail-closed suppression."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-007",
+      "title": "Capability grant on the agent descriptor",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "criticality": "P1",
+      "description": "The system should read a capability grant from the agent descriptor that names existing agent-manager scopes and program-runtime bindings, and should never define a second policy vocabulary.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/agents/grant_test.go::TestParseGrantReadsExistingScopeAndProgramBindingNames",
+          "status": "implemented",
+          "notes": "Grant parsing deduplicates and preserves agent-manager scopes and program-runtime bindings, and fails closed when absent."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-008",
+      "title": "Assisted agent authoring",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "description": "The system should draft a complete agent descriptor from a plain-language description, should present it for confirmation before writing, and should write it through a typed action rather than a free-form model write.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestDraftDoesNotWriteUntilConfirmed;api/internal/authoring/authoring_test.go::TestManualPathFailsClearlyWhenWriterUnavailable",
+          "status": "implemented",
+          "notes": "Typed authoring draft remains inert until confirmation; the default draft contains read only and no owner-only scopes."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-009",
+      "title": "Approval gate with expiry",
+      "status": "complete",
+      "prd_ref": "OT-P1-009",
+      "criticality": "P1",
+      "description": "The system should let an agent request a scope it lacks, should route that request to the owner only, and should expire an unanswered request rather than leaving the thread pending.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/gates/gates_test.go::TestGateRoutesOnlyToOwnerAndExpires;api/internal/gates/store_test.go::TestStorePersistsOwnerOnlyGateAndExpiresAcrossReads;api/handlers/channels/module_test.go::TestGateRESTPersistsAndEnforcesOwner;ui/src/features/conversations/CapabilityGate.test.tsx::does not render grant controls for a non-owner",
+          "status": "implemented",
+          "notes": "Capability gates are owner-only, expire with an injected clock, and grant once by default; the UI omits controls for non-owners."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-010",
+      "title": "iMessage adapter through a Mac fleet node",
+      "status": "complete",
+      "prd_ref": "OT-P1-010",
+      "criticality": "P1",
+      "description": "The system should send and receive iMessage through a Mac in the owner's fleet reached by vrooli-bridge, and should report a stated unavailable reason when no Mac is reachable.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/adapters/imessage/imessage_test.go::TestAdapterReportsUnavailableOnNonMacHost;api/internal/channels/adapters/imessage/imessage_test.go::TestAdapterConnectsMessagesEventsThroughInjectedMacRunner",
+          "status": "implemented",
+          "notes": "The iMessage adapter test proves a stated unavailable result on a non-Mac host."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-011",
+      "title": "Slack adapter",
+      "status": "complete",
+      "prd_ref": "OT-P1-011",
+      "criticality": "P1",
+      "description": "The system should send and receive text, images, files, and threaded replies on Slack, using the same adapter contract as every other channel.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/adapters/slack/slack_test.go::TestAdapterSendsThreadedTextThroughWebAPI;api/internal/channels/adapters/slack/slack_test.go::TestNormalizeSlackMessage",
+          "status": "implemented",
+          "notes": "Slack adapter tests prove normalized ingress and threaded Web API egress."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-012",
+      "title": "Channel availability computed from host facts",
+      "status": "complete",
+      "prd_ref": "OT-P1-012",
+      "criticality": "P1",
+      "description": "The system should evaluate each descriptor's requirements against the facts vrooli-bridge and tunnel-manager already hold, and should present an unavailable channel as a prompt to satisfy the requirement rather than as a selectable option.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/registry_test.go::TestLoadAndAvailabilityFailClosed",
+          "status": "implemented",
+          "notes": "Registry tests prove availability is computed from host facts and fails closed."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-013",
+      "title": "Attach catalogue ordered by declared friction",
+      "status": "complete",
+      "prd_ref": "OT-P1-013",
+      "criticality": "P1",
+      "description": "The system should present available channels ordered by the setup friction each descriptor declares, so that the least-effort path is first without any maintained ordering.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/channels/registry_test.go::TestLoadAndAvailabilityFailClosed",
+          "status": "implemented",
+          "notes": "Registry tests prove descriptor-driven attach ordering by declared friction."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-014",
+      "title": "Metered inference through the business suite",
+      "status": "complete",
+      "prd_ref": "OT-P1-014",
+      "criticality": "P1",
+      "description": "The system should charge cost-bearing inference and hosted speech through landing-page-business-suite, and should fall through to an operator-supplied provider key with no charge when one is configured.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/metering/meter_test.go::TestHostedReserveExecuteAndFinalize;api/internal/metering/meter_test.go::TestBYOKDoesNotCharge",
+          "status": "implemented",
+          "notes": "Metering tests prove hosted reserve, execute, finalize and BYOK no-charge behavior."
+        }
+      ]
+    },
+    {
+      "id": "SWBD-P1-015",
+      "title": "Notification hub shares the adapter registry",
+      "status": "complete",
+      "prd_ref": "OT-P1-015",
+      "criticality": "P1",
+      "description": "The system should let notification-hub deliver one-shot notifications through the same conversational adapters, so that one channel is never implemented twice.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../notification-hub/api/internal/hub/switchboard_test.go::TestDeliverTargetUsesSharedRegistryForConversationalChannel",
+          "status": "implemented",
+          "notes": "Notification-hub tests prove conversational delivery uses the shared Switchboard registry."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "wireguard",
+  "display_name": "WireGuard",
+  "category": "networking",
+  "summary": "Modern VPN capability for secure network overlays and remote access.",
+  "why_it_matters": "WireGuard can unlock secure connectivity scenarios, but its host networking requirements make it a poor candidate for speculative cross-platform support without a concrete deployment target.",
+  "when_to_use": [
+    "A deployment needs private network overlays between machines or sites.",
+    "You need secure remote access into a Vrooli-managed environment.",
+    "A scenario is explicitly networking- or infrastructure-focused."
+  ],
+  "example_scenarios": [
+    "Secure homelab access",
+    "Remote edge node connectivity",
+    "Private service mesh bootstrap"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "The underlying technology is cross-platform, but install and routing semantics are highly host-specific and should fail honestly unless a target platform is explicitly supported.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Administrative networking permissions",
+    "Peer key management",
+    "Explicit routing and firewall decisions"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Model this as a manual or heavily platform-gated resource if promoted.",
+    "Do not imply identical behavior across OSes.",
+    "Document peer config ownership and secret handling from the start."
+  ],
+  "operational_notes": [
+    "Network routing and firewall state are critical.",
+    "Validation should detect platform support clearly rather than silently degrade.",
+    "Key rotation and peer revocation need first-class guidance."
+  ],
+  "risks": [
+    "Host-specific networking assumptions are brittle.",
+    "A misleadingly simple wrapper would create support debt quickly."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "wireguard"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/wireguard"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

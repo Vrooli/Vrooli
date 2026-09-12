@@ -34,9 +34,10 @@ describe("useCompletion - approval, reset, and errors", () => {
         auto_continued: false,
       };
       vi.mocked(api.approveToolCall).mockResolvedValue(mockResult);
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         options?.onEvent?.({ type: "tool_pending_approval", tool_call_id: "call_123", tool_name: "run-agent", arguments: "{}" });
         options?.onEvent?.({ type: "awaiting_approvals" });
+        return Promise.resolve();
       });
       const { result } = renderHook(() => useCompletion());
       await act(async () => { await result.current.runCompletion("chat-123"); });
@@ -74,9 +75,10 @@ describe("useCompletion - approval, reset, and errors", () => {
     it("calls API and updates state on rejection", async () => {
       vi.useRealTimers();
       vi.mocked(api.rejectToolCall).mockResolvedValue(undefined);
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         options?.onEvent?.({ type: "tool_pending_approval", tool_call_id: "call_456", tool_name: "dangerous-tool", arguments: "{}" });
         options?.onEvent?.({ type: "awaiting_approvals" });
+        return Promise.resolve();
       });
       const { result } = renderHook(() => useCompletion());
       await act(async () => { await result.current.runCompletion("chat-123"); });
@@ -101,7 +103,7 @@ describe("useCompletion - approval, reset, and errors", () => {
         await new Promise<void>(resolve => { resolveCompletion = resolve; });
       });
       const { result } = renderHook(() => useCompletion());
-      act(() => { result.current.runCompletion("chat-123"); });
+      act(() => { void result.current.runCompletion("chat-123"); });
       await waitFor(() => { expect(result.current.isGenerating).toBe(true); });
       act(() => { result.current.resetCompletion(); });
       expect(result.current.isGenerating).toBe(false);
@@ -126,7 +128,7 @@ describe("useCompletion - approval, reset, and errors", () => {
         });
       });
       const { result, unmount } = renderHook(() => useCompletion());
-      act(() => { result.current.runCompletion("chat-123"); });
+      act(() => { void result.current.runCompletion("chat-123"); });
       unmount();
       await new Promise(resolve => setTimeout(resolve, 10));
       expect(wasAborted).toBe(true);
@@ -163,7 +165,7 @@ describe("useCompletion - approval, reset, and errors", () => {
   });
 
   describe("return value stability", () => {
-    it("returns memoized object to prevent unnecessary re-renders", async () => {
+    it("returns memoized object to prevent unnecessary re-renders", () => {
       vi.useRealTimers();
       vi.mocked(api.completeChat).mockResolvedValue(undefined);
       const { result, rerender } = renderHook(() => useCompletion());

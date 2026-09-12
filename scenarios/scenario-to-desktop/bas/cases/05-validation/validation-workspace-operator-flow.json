@@ -1,0 +1,36 @@
+{
+  "metadata": {
+    "name": "validation-workspace-operator-flow",
+    "description": "Given an operator opens the desktop validation workspace, when they discover provider-owned journeys, then the immutable selection controls, target inventory, profiles, and matrix controls are visible without reading logs or editing scenario files.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"STD-E2E-GENERATION\"]",
+      "purpose": "validation-workspace-operator-flow",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=validation&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open the desktop validation workspace"}}},
+    {"id":"assert-root","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.root","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Validation workspace is visible"}}},
+    {"id":"assert-deployment","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.deploymentMode","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Deployment mode selection is visible"}}},
+    {"id":"assert-profile","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.releaseProfile","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Release profile selection is visible"}}},
+    {"id":"assert-target","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.targetCard","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Target inventory is visible"}}},
+    {"id":"discover","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/validation.discoverCatalog"},"metadata":{"label":"Discover provider-owned validation journeys"}}},
+    {"id":"assert-catalog","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.catalogJourney","mode":"ASSERTION_MODE_EXISTS","timeout_ms":15000},"metadata":{"label":"Provider-owned journey catalog is visible"}}},
+    {"id":"assert-create","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/validation.createMatrix","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Immutable matrix creation is available"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture validation workspace operator evidence"}}}
+  ],
+  "edges":[
+    {"id":"e1","source":"navigate","target":"assert-root"},
+    {"id":"e2","source":"assert-root","target":"assert-deployment"},
+    {"id":"e3","source":"assert-deployment","target":"assert-profile"},
+    {"id":"e4","source":"assert-profile","target":"assert-target"},
+    {"id":"e5","source":"assert-target","target":"discover"},
+    {"id":"e6","source":"discover","target":"assert-catalog"},
+    {"id":"e7","source":"assert-catalog","target":"assert-create"},
+    {"id":"e8","source":"assert-create","target":"capture"}
+  ]
+}

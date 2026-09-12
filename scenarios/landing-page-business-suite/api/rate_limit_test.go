@@ -431,12 +431,9 @@ func TestStartCleanup_CancelStops(t *testing.T) {
 	// Wait a bit to ensure goroutine has time to stop
 	time.Sleep(50 * time.Millisecond)
 
-	// If cancel works, we shouldn't have any race conditions or panics
-	// The bucket should still exist since we cancelled before it could clean up
 	count := limiter.BucketCount()
 	if count != 1 {
-		// This is acceptable - cleanup may have run once before cancel
-		t.Logf("Bucket count after cancel: %d (may have been cleaned once)", count)
+		t.Fatalf("bucket count after cancellation = %d, want 1", count)
 	}
 }
 

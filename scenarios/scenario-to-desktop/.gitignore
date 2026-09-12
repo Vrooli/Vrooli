@@ -4,3 +4,13 @@ cli/browser-automation-studio-linux.AppImage
 cli/cli
 git-control-tower-linux.AppImage
 api/scenario-to-desktop
+api/scenario-to-desktop-api
+cli/scenario-to-desktop
+api/bin/
+api/coverage.out
+runtime/coverage.out
+ui.backup/
+test/artifacts/
+logs/*.lifecycle.log
+data/
+.vrooli/service.json.backup*

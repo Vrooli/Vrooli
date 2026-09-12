@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "landing-page-business-suite",
+  "description": "Experience contract for the public subscription landing page. The primary route is active because its asynchronous configuration state is now exposed as a terminal readiness surface for browser automation and UI validation.",
+  "pages": [
+    {
+      "id": "public-landing",
+      "path": "pages/public-landing.json",
+      "title": "Public Landing",
+      "status": "active"
+    },
+    {
+      "id": "admin-login",
+      "path": "pages/admin-login.json",
+      "title": "Admin Login",
+      "status": "active"
+    }
+  ]
+}

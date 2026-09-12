@@ -1,12 +1,21 @@
+import { renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import TerminalContextMenu from "../components/TerminalContextMenu";
+import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
+
+type PasteResult = { status: "ok" } | { status: "failed"; reason: string };
 
 const defaultProps = () => ({
   position: { x: 200, y: 300 },
   hasSelection: false,
   onCopy: vi.fn(),
-  onPaste: vi.fn(),
+  // Default onPaste resolves to {status: "ok"} — tests override for
+  // failure / pending scenarios.
+  onPaste: vi.fn(
+    (_text: string): Promise<PasteResult> => Promise.resolve({ status: "ok" }),
+  ),
   onSelectAll: vi.fn(),
   onClear: vi.fn(),
   onUploadImage: vi.fn(),
@@ -52,19 +61,75 @@ describe("TerminalContextMenu", () => {
     expect(props.onCopy).toHaveBeenCalledOnce();
   });
 
-  it("reads clipboard and calls onPaste on Paste click", async () => {
+  it("reads clipboard, calls onPaste, shows 'Pasting…' then 'Pasted' and auto-closes", async () => {
+    vi.useFakeTimers();
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
     await act(async () => {
       fireEvent.click(screen.getByTestId("ctx-paste"));
+      // Let the clipboard + onPaste promises resolve.
+      await Promise.resolve();
+      await Promise.resolve();
     });
-    expect(navigator.clipboard.readText).toHaveBeenCalled();
+    expect(navigator["clipboard"].readText).toHaveBeenCalled();
     expect(props.onPaste).toHaveBeenCalledWith("pasted text");
+    // After settle, the button transitions to "Pasted" before close.
+    expect(screen.getByTestId("ctx-paste").textContent).toBe(strings.terminalContextMenu.pasted);
+    // Advance through the success-flash window; onClose fires.
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
     expect(props.onClose).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("shows typed failure reason when onPaste resolves to failed", async () => {
+    // Opt into the real `en` locale so the {{reason}} token in the
+    // pasteFailed string actually gets interpolated. cimode would
+    // otherwise return the raw key path.
+    await i18n.changeLanguage("en");
+    vi.useFakeTimers();
+    const props = defaultProps();
+    props.onPaste = vi.fn().mockResolvedValue({
+      status: "failed",
+      reason: "tmux_write_failed",
+    });
+    render(<TerminalContextMenu {...props} />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("ctx-paste").textContent).toBe(
+      "Paste failed: tmux_write_failed",
+    );
+    // Menu stays open for the failure-hold window, then closes.
+    await act(async () => {
+      vi.advanceTimersByTime(3100);
+    });
+    expect(props.onClose).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("marks the paste button as disabled while pending", async () => {
+    // Never-resolving onPaste — keeps the pending state visible.
+    const props = defaultProps();
+    props.onPaste = vi.fn().mockReturnValue(new Promise(() => {}));
+    render(<TerminalContextMenu {...props} />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const btn = screen.getByTestId("ctx-paste");
+    expect(btn.textContent).toBe(strings.terminalContextMenu.pasting);
+    expect(btn).toBeDisabled();
+    // The library renders an item's `state` as `data-state` on its button.
+    expect(btn.getAttribute("data-state")).toBe("pending");
   });
 
   it("shows fallback text when clipboard read fails", async () => {
-    vi.spyOn(navigator.clipboard, "readText").mockRejectedValue(
+    vi.spyOn(navigator["clipboard"], "readText").mockRejectedValue(
       new DOMException("denied"),
     );
     const props = defaultProps();
@@ -74,7 +139,7 @@ describe("TerminalContextMenu", () => {
     });
     expect(props.onPaste).not.toHaveBeenCalled();
     expect(screen.getByTestId("ctx-paste").textContent).toBe(
-      "Use Ctrl+V to paste",
+      strings.terminalContextMenu.useCtrlVHint,
     );
   });
 
@@ -99,10 +164,12 @@ describe("TerminalContextMenu", () => {
     expect(props.onClose).toHaveBeenCalledOnce();
   });
 
-  it("dismisses on backdrop click", () => {
+  it("dismisses on backdrop press", () => {
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
-    fireEvent.click(screen.getByTestId("ctx-backdrop"));
+    // The sheet presentation dismisses on press, not click, and the backdrop
+    // is rooted at the surface's own test id.
+    fireEvent.pointerDown(screen.getByTestId("terminal-context-menu.backdrop"));
     expect(props.onClose).toHaveBeenCalledOnce();
   });
 
@@ -115,22 +182,34 @@ describe("TerminalContextMenu", () => {
   });
 
   it("does not call onPaste when clipboard returns empty string", async () => {
-    vi.spyOn(navigator.clipboard, "readText").mockResolvedValue("");
+    vi.spyOn(navigator["clipboard"], "readText").mockResolvedValue("");
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
     await act(async () => {
       fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
     });
     expect(props.onPaste).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("positions the menu at the given coordinates", () => {
+  it("positions the menu at the given coordinates on a large viewport", () => {
+    // Coordinates only apply to the anchored presentation. Below the medium
+    // breakpoint the menu is a full-width sheet, and pinning it to a pointer
+    // position there would put it somewhere the finger is not.
+    setDesktopViewport();
     render(<TerminalContextMenu {...defaultProps()} />);
     const menu = screen.getByTestId("terminal-context-menu");
-    // Before measurement, menu renders at position with opacity 0
     expect(menu.style.left).toBe("200px");
     expect(menu.style.top).toBe("300px");
+  });
+
+  it("spans the sheet on a small viewport instead of following the pointer", () => {
+    setMobileViewport();
+    render(<TerminalContextMenu {...defaultProps()} />);
+    const menu = screen.getByTestId("terminal-context-menu");
+    expect(menu.style.left).toBe("");
+    expect(screen.getByTestId("terminal-context-menu.grabber")).toBeInTheDocument();
   });
 
   it("renders Upload Image button when onUploadImage is provided", () => {

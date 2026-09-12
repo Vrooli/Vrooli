@@ -46,7 +46,7 @@ func TestSkipDir_SourceDirsNotSkipped(t *testing.T) {
 	t.Parallel()
 
 	names := []string{
-		"api", "ui", "cli", "bas", "docs", "initialization",
+		"api", "ui", "cli", "bas", "docs",
 		"requirements", "test", "tests", "prompts", "scripts",
 		"chore", "execute", "fix", "ideas", "research", "captures",
 		"src", "sidecar", "schemas", "config", "support-agent-docs",

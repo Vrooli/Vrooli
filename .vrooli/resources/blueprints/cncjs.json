@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "cncjs",
+  "display_name": "CNCjs",
+  "category": "manufacturing",
+  "summary": "Web-based CNC machine control interface for G-code streaming, monitoring, and operator workflows.",
+  "why_it_matters": "CNCjs captures useful machine-control capability knowledge for fabrication scenarios, but hardware coupling and zero current usage make it a blueprint rather than an actively maintained resource.",
+  "when_to_use": [
+    "A future scenario needs browser-based CNC control and job execution.",
+    "Operators need machine status, G-code streaming, or manufacturing automation.",
+    "The workflow depends on integrating hobby or light industrial CNC controllers."
+  ],
+  "example_scenarios": [
+    "Digital fabrication dashboards",
+    "CNC job orchestration",
+    "Workshop automation"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The web app can run in containers across platforms, but useful operation depends on USB or serial access to host-connected CNC hardware.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "unsupported"
+  },
+  "prerequisites": [
+    "Supported CNC controller hardware",
+    "USB or serial pass-through strategy",
+    "Clear operator safety and machine ownership model"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Keep any future support narrow and hardware-tested.",
+    "Promotion should define how machine profiles and macros are stored.",
+    "Treat machine control and job planning as separate concerns."
+  ],
+  "operational_notes": [
+    "Hardware access and permissions are the main support constraint.",
+    "Recovery behavior after controller disconnects must be explicit.",
+    "Health checks should validate connectivity to the controller, not only the web UI."
+  ],
+  "risks": [
+    "Machine-control integrations have real safety consequences.",
+    "A generic wrapper would overpromise portability and reliability."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "cncjs"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/cncjs"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -9,13 +9,17 @@ Set these in `.env` or export them before starting the scenario.
 | `API_PORT` | `8080` | API server port |
 | `UI_PORT` | `3003` | UI dashboard port |
 | `DATABASE_URL` | `postgres://vrooli@localhost:5433/...` | PostgreSQL connection string |
-| `QUESTDB_URL` | `http://localhost:9009` | QuestDB HTTP endpoint |
 | `REDIS_URL` | `redis://localhost:6380` | Redis connection string |
 | `ENABLE_CLAUDE_INVESTIGATIONS` | `true` | Enable AI-driven investigations via agent-manager |
 | `CPU_WARNING_THRESHOLD` | `70` | CPU usage warning threshold (%) |
 | `CPU_CRITICAL_THRESHOLD` | `90` | CPU usage critical threshold (%) |
 | `MEMORY_WARNING_THRESHOLD` | `80` | Memory usage warning threshold (%) |
 | `MEMORY_CRITICAL_THRESHOLD` | `95` | Memory usage critical threshold (%) |
+| `SYSTEM_MONITOR_PROC_SAMPLE_INTERVAL` | `20s` | Cadence of the per-process `/proc` sampler that feeds the attribution timeline. Go duration string. |
+| `SYSTEM_MONITOR_PROC_SAMPLE_TOP_N` | `50` | Top-N processes retained independently by CPU, RSS, and GPU VRAM per sampling cycle; the bounded union is at most 3N rows. Dropped processes are logged, never silently capped. |
+| `SYSTEM_MONITOR_RAW_RETENTION` | `6h` | How long raw per-process rows are kept before they are downsampled into per-minute rollups. Go duration string. |
+| `SYSTEM_MONITOR_ROLLUP_RETENTION` | `720h` | How long per-owner/per-minute rollups are kept (default 30 days). Go duration string. |
+| `SYSTEM_MONITOR_SOCKET_ATTRIBUTION_THRESHOLD` | `5000` | Established-TCP-connection count at or above which the network collector walks `/proc/<pid>/fd` to name the processes holding those sockets. Below it, only the aggregate count is collected. Set to `0` to disable attribution entirely. |
 
 `[CODE: api/internal/config/config.go]`
 
@@ -40,7 +44,7 @@ curl -X PUT http://localhost:8080/api/v1/settings \
 
 ## Investigation Triggers
 
-Auto-fix triggers are configured in `initialization/configuration/investigation-triggers.json`:
+Auto-fix triggers are configured in `api/internal/<domain>/configuration/investigation-triggers.json`:
 
 | Trigger | Threshold | Sustained Duration |
 |---------|-----------|-------------------|
@@ -62,39 +66,153 @@ curl -X PUT http://localhost:8080/api/v1/investigations/triggers/{id}/threshold 
   -d '{"threshold": 80}'
 ```
 
-`[CODE: initialization/configuration/investigation-triggers.json]`
+`[CODE: api/internal/<domain>/configuration/investigation-triggers.json]`
 
-## Agent-Manager Settings
+## Agent-Manager integration
 
-Agent configuration controls how AI investigation agents are spawned:
-
-| Setting | Description |
-|---------|-------------|
-| `runner` | Agent runner type (e.g., claude-code, codex) |
-| `model` | AI model to use |
-| `max_turns` | Maximum conversation turns |
-| `timeout` | Agent execution timeout |
-| `tools` | Enabled tools list |
-| `skip_permissions` | Skip permission prompts |
-| `requires_sandbox` | Run in sandbox mode |
-| `requires_approval` | Require human approval before actions |
-
-Manage via the API:
+System Monitor's portable investigation profile is owned by
+`.vrooli/agent-profiles/default.json`; it declares `roleRef` and runner-neutral
+execution controls. System Monitor does not expose a runner/model/profile
+editor. Reconcile the declared profile through Agent Manager and use Agent
+Manager's role-policy and desired-permission surfaces for operator changes.
 
 ```bash
-# Get current agent config
-curl http://localhost:8080/api/v1/agent/config
-
-# Update agent config
-curl -X PUT http://localhost:8080/api/v1/agent/config \
-  -H "Content-Type: application/json" \
-  -d '{"runner": "claude-code", "model": "claude-sonnet-4-6"}'
+agent-manager profiles reconcile-scenario --scenario system-monitor --dry-run
 ```
 
 ## Storage Backend
 
-The API defaults to **in-memory storage** for simplicity. Data is lost on restart.
+The API uses durable SQLite storage by default. Set
+`SYSTEM_MONITOR_STORAGE_MODE=memory` only for tests or explicit local
+development. Memory mode loses history on restart and is rejected in
+production. If SQLite cannot start, the API fails startup instead of silently
+falling back to an unbounded in-memory history.
 
-To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `initialization/postgres/schema.sql`.
+## Metrics Retention & Compaction
 
-QuestDB can be configured via `QUESTDB_URL` for time-series metrics, but the API currently falls back to in-memory storage regardless.
+The metrics history is the dominant consumer of database size. Retention and
+compaction settings bound that growth. They live in the settings file
+(`api/internal/<domain>/configuration/system-monitor-settings.json`, canonical
+`{version, metadata, settings}` shape) and are editable via the Settings API/CLI.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `metrics_retention_days` | `30` | Metrics older than this are pruned by scheduled retention. |
+| `retention_check_interval_seconds` | `3600` | Interval between scheduled retention runs (min 60). |
+| `retention_run_on_startup` | `true` | Run retention once at startup so stale data is pruned without waiting a full interval. |
+| `compact_after_retention` | `false` | When true, a scheduled retention prune is followed by database compaction. |
+
+`RETENTION_DAYS` (env) only seeds the default when no settings file exists yet;
+once the settings file is present, the settings values own behavior.
+
+Retention runs on a settings-driven scheduler (not the storage layer). Changes
+to the interval, window, or compaction policy take effect on the next cycle
+without restarting the scenario. Scheduled retention runs regardless of the
+monitor's active/inactive state because it is housekeeping, not collection.
+
+## Collection Intervals and Thresholds
+
+These live in the same settings file and are read live on each cycle.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `metric_collection_interval` | `20` | Seconds between metric collection cycles. |
+| `anomaly_detection_interval` | `30` | Seconds between anomaly detection passes. |
+| `threshold_check_interval` | `20` | Seconds between disk-pressure evaluations (min 5). |
+| `cooldown_period_seconds` | `300` | Minimum gap between investigations of the same condition. |
+| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated. |
+| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated. |
+
+## Disk Pressure Escalation
+
+Disk usage is measured the way `df` measures it — `used / (used + available)`,
+not `used / total`. The difference is the superuser reserve, which was 93 GB on
+the host during the 2026-07-31 incident: reading free blocks reported 87 percent
+while `df` reported 93, keeping every safeguard below its critical threshold
+while the filesystem was unwritable for the runtime supervisor.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `disk_threshold` | `80.0` | The **warning** band boundary: usage at which pressure starts being recorded. There is deliberately no separate `disk_warning_percent`; two settings for one boundary is how a configuration surface drifts from the code reading it. |
+| `disk_high_percent` | `90.0` | The **high** band: start bounded storage-manager recovery. |
+| `disk_critical_percent` | `95.0` | The **critical** band: storage-manager applies safe/regenerable providers with no operator present. |
+| `disk_escalation_cooldown_seconds` | `1800` | Minimum gap between two records for the same band. Without it a disk parked above a boundary alerts every tick. |
+| `disk_escalation_debounce_ticks` | `2` | Consecutive observations a new band needs before it takes effect, so one noisy sample cannot escalate. |
+| `disk_fast_fill_jump_percent` | `5.0` | A rise of at least this many points in one evaluation escalates immediately, bounding the delay debounce introduces. |
+
+The three band boundaries must ascend
+(`disk_threshold` < `disk_high_percent` < `disk_critical_percent`). The Settings
+API rejects a write that does not, so an operator learns immediately rather than
+believing bands are in force that are not. A settings *file* that violates the
+order is repaired to defaults on load instead, because refusing to load would
+take the service down.
+
+De-escalation is not debounced and resets the cooldown: dropping below a
+boundary is good news, and holding a stale high band would keep remediation
+armed after the pressure is gone.
+
+Read current pressure, the active band, the last violation, and the last
+remediation result with:
+
+```bash
+curl -s http://localhost:16914/api/v1/disk-pressure
+```
+
+Escalation flows to storage-manager, which runs only `safe`-tier providers
+unattended. See
+[../operations/RUNBOOK.md](../operations/RUNBOOK.md#disk-pressure-detection-and-escalation).
+
+## Per-Process Attribution Timeline
+
+A single `/proc` walk per sampling cycle captures pid/ppid/cmdline/cwd/CPU%/RSS
+for every live process, attributes each to its owning scenario (by matching
+`.../scenarios/<name>/` in the working directory, parsing a `<scenario>-api`
+binary name, and walking the parent chain so children inherit their launcher's
+owner), and persists the bounded CPU/RSS top-N union to a `process_samples` table. Host
+processes that belong to no scenario are bucketed as `unknown` (a first-class
+result, not an error). This replaces the opaque `bash -c "ps | sort | head"`
+pipelines with one cheap pass and turns the manual "top consumers by scenario"
+forensic into a standing query.
+
+Raw rows are kept for `SYSTEM_MONITOR_RAW_RETENTION`, then downsampled into
+per-owner/per-minute rollups kept for `SYSTEM_MONITOR_ROLLUP_RETENTION`. Both
+windows run on the same settings-driven scheduler as metrics retention.
+
+Query the ranked timeline over a window, grouped by source scenario:
+
+```bash
+# REST
+curl 'http://localhost:8080/api/v1/metrics/processes/timeline?window=5m&top=20'
+curl 'http://localhost:8080/api/v1/metrics/processes/timeline?window=1h&owner=security-health'
+curl 'http://localhost:8080/api/v1/metrics/pressure'
+curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=rss&top=20'
+curl 'http://localhost:8080/api/v1/forensics/processes?window=1h&rank=gpu&top=20'
+curl 'http://localhost:8080/api/v1/forensics/gpu?window=1h'
+curl 'http://localhost:8080/api/v1/forensics/pressure?window=1h'
+
+# CLI
+system-monitor metrics processes --json
+```
+
+### Manual maintenance
+
+Retention deletes rows; compaction (`VACUUM`) reclaims the freed file space and
+is serialized against metric writes. Both expose a read-only preview and a
+destructive apply that requires explicit confirmation:
+
+```bash
+# Preview how many rows / bytes a 30-day window would prune
+system-monitor maintenance retention preview --days 30
+
+# Apply the prune (confirmation required)
+system-monitor maintenance retention apply --days 30 --confirm
+
+# Preview reclaimable space, then compact
+system-monitor maintenance compact preview
+system-monitor maintenance compact apply --confirm
+```
+
+See [operations/RUNBOOK.md](../operations/RUNBOOK.md) for the full safe workflow
+and backup posture.
+
+`[CODE: api/internal/services/maintenance.go, api/internal/services/retention_scheduler.go]`

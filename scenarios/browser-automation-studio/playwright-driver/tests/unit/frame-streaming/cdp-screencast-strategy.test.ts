@@ -218,4 +218,51 @@ describe('CdpScreencastStrategy', () => {
 
     await handle.stop();
   });
+
+  it('stops cleanly when a queued page probe outlives its session', async () => {
+    jest.useFakeTimers();
+    try {
+      const strategy = new CdpScreencastStrategy();
+      const { session: cdpSession, send, detach } = createCdpSession();
+      const page = {
+        context: () => ({ newCDPSession: jest.fn().mockResolvedValue(cdpSession) }),
+        viewportSize: () => ({ width: 1280, height: 720 }),
+      } as unknown as Page;
+      const pageProvider = jest.fn<() => Page>()
+        .mockReturnValueOnce(page)
+        .mockImplementation(() => {
+          throw new Error('Session not found: closed-session');
+        });
+      const wsProvider: WebSocketProvider = {
+        isReady: () => true,
+        getWebSocket: () => ({ readyState: 1, send: jest.fn() }),
+      };
+      const statsReporter: FrameStatsReporter = {
+        onFrameSent: jest.fn(),
+        onFrameSkipped: jest.fn(),
+      };
+
+      const handle = await strategy.start(
+        pageProvider,
+        {
+          sessionId: 'closed-session',
+          quality: 80,
+          targetFps: 30,
+          scale: 'css',
+          includePerfHeaders: false,
+          cdp: { pageCheckIntervalMs: 25 },
+        },
+        wsProvider,
+        statsReporter
+      );
+
+      await jest.advanceTimersByTimeAsync(25);
+
+      expect(handle.isActive()).toBe(false);
+      expect(send).toHaveBeenCalledWith('Page.stopScreencast');
+      expect(detach).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

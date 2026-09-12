@@ -3,6 +3,7 @@ package userconfig
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -13,8 +14,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected version 1.0, got %s", cfg.Version)
 	}
 
-	if cfg.Global.GracePeriodSeconds != 60 {
-		t.Errorf("expected grace period 60, got %d", cfg.Global.GracePeriodSeconds)
+	if cfg.Global.GracePeriodSeconds != 600 {
+		t.Errorf("expected grace period 600, got %d", cfg.Global.GracePeriodSeconds)
 	}
 
 	if cfg.Global.TickIntervalSeconds != 60 {
@@ -23,6 +24,10 @@ func TestDefaultConfig(t *testing.T) {
 
 	if cfg.UI.Theme != "system" {
 		t.Errorf("expected theme system, got %s", cfg.UI.Theme)
+	}
+
+	if len(cfg.Monitoring.Scenarios) != 0 || len(cfg.Monitoring.Resources) != 0 {
+		t.Fatalf("built-in monitoring must be empty; canonical membership comes from supervision-set: %+v", cfg.Monitoring)
 	}
 }
 
@@ -38,7 +43,9 @@ func TestGetCheckDefaults(t *testing.T) {
 		{"resource-postgres", true, true, "critical"},
 		{"infra-display", true, true, "critical"},
 		{"os-watchdog", true, true, "critical"},
-		{"unknown-check", true, false, "critical"}, // Generic defaults
+		{"scenario-vrooli-events", true, true, "critical"},
+		{"scenario-new-capability", true, true, "critical"}, // Generic scenario checks are healable by default.
+		{"unknown-check", true, false, "critical"},          // Generic defaults
 	}
 
 	for _, tc := range tests {
@@ -54,6 +61,61 @@ func TestGetCheckDefaults(t *testing.T) {
 				t.Errorf("check %s: expected autoHealOn=%q, got %q", tc.checkID, tc.expectedPolicy, defaults.AutoHealOn)
 			}
 		})
+	}
+}
+
+func TestManagerComputedSupervisionFloorOverridesStaleCheckConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+	if err := os.WriteFile(configPath, []byte(`{
+		"version":"1.0",
+		"checks":{"scenario-vrooli-events":{"enabled":false,"autoHeal":false}},
+		"monitoring":{"scenarios":{"vrooli-events":{"critical":false}}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	mgr.SetSupervisedChecks(map[string]string{"scenario-vrooli-events": "must_start"})
+	if !mgr.IsCheckEnabled("scenario-vrooli-events") || !mgr.IsAutoHealEnabled("scenario-vrooli-events") {
+		t.Fatal("computed supervision floor must remain enabled and auto-healable")
+	}
+
+	if err := mgr.SetCheckEnabled("scenario-vrooli-events", false); err != nil {
+		t.Fatalf("SetCheckEnabled() error = %v", err)
+	}
+	if err := mgr.SetCheckAutoHeal("scenario-vrooli-events", false); err != nil {
+		t.Fatalf("SetCheckAutoHeal() error = %v", err)
+	}
+	if got := mgr.Get().Checks["scenario-vrooli-events"]; got.Enabled == nil || !*got.Enabled || got.AutoHeal == nil || !*got.AutoHeal {
+		t.Fatalf("protected config was not normalized: %+v", got)
+	}
+	if got := mgr.ProtectedChecks()["scenario-vrooli-events"]; got != "must_start" {
+		t.Fatalf("protected check reason = %q, want must_start", got)
+	}
+}
+
+func TestManagerBulkUpdatesPreserveSupervisionFloor(t *testing.T) {
+	mgr := NewManager(filepath.Join(t.TempDir(), "config.json"), filepath.Join(t.TempDir(), "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	mgr.SetSupervisedChecks(map[string]string{"scenario-agent-manager": "must_start"})
+
+	if err := mgr.SetAllEnabled(false); err != nil {
+		t.Fatalf("SetAllEnabled() error = %v", err)
+	}
+	if err := mgr.SetAllAutoHeal(false); err != nil {
+		t.Fatalf("SetAllAutoHeal() error = %v", err)
+	}
+	if got := mgr.GetCheck("scenario-agent-manager"); !got.Enabled || !got.AutoHeal {
+		t.Fatalf("bulk update disabled protected check: %+v", got)
+	}
+	if got := mgr.GetCheck("resource-postgres"); got.Enabled || got.AutoHeal {
+		t.Fatalf("bulk update did not remain effective for optional check: %+v", got)
 	}
 }
 
@@ -99,6 +161,145 @@ func TestManagerLoadSave(t *testing.T) {
 	}
 }
 
+func TestManagerConcurrentSavesAreSerialized(t *testing.T) {
+	tmpDir := t.TempDir()
+	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	checks := []string{
+		"infra-network",
+		"infra-dns",
+		"infra-cloudflared",
+		"resource-cloudflared",
+		"resource-opencode",
+		"scenario-agent-manager",
+		"scenario-prompt-manager",
+		"scenario-web-console",
+	}
+	var wg sync.WaitGroup
+	for _, checkID := range checks {
+		wg.Add(1)
+		go func(checkID string) {
+			defer wg.Done()
+			if err := mgr.SetCheckAutoHeal(checkID, true); err != nil {
+				t.Errorf("SetCheckAutoHeal(%q) failed: %v", checkID, err)
+			}
+		}(checkID)
+	}
+	wg.Wait()
+
+	loaded := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
+	if err := loaded.Load(); err != nil {
+		t.Fatalf("Load after concurrent saves failed: %v", err)
+	}
+	for _, checkID := range checks {
+		if !loaded.IsAutoHealEnabled(checkID) {
+			t.Errorf("%s autoHeal was lost during concurrent saves", checkID)
+		}
+	}
+}
+
+func TestManagerLoadDoesNotInventDefaultResources(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	if err := os.WriteFile(configPath, []byte(`{
+		"version": "1.0",
+		"monitoring": {
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng"]
+		}
+	}`), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	resources := mgr.GetMonitoring().Resources
+	if containsString(resources, "whisper") {
+		t.Fatalf("saved overrides must not acquire a hardcoded resource, got %v", resources)
+	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestManagerLoadHonorsExplicitDisabledDefaultResource(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	if err := os.WriteFile(configPath, []byte(`{
+		"version": "1.0",
+		"checks": {
+			"resource-whisper": {"enabled": false}
+		},
+		"monitoring": {
+			"resources": ["postgres", "redis", "ollama", "qdrant", "searxng"]
+		}
+	}`), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	resources := mgr.GetMonitoring().Resources
+	if containsString(resources, "whisper") {
+		t.Fatalf("explicitly disabled resource whisper should stay out of monitoring, got %v", resources)
+	}
+}
+
+func TestManagerRemoveResourcePersistsExplicitDisable(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+	schemaPath := filepath.Join(tmpDir, "schema.json")
+
+	mgr := NewManager(configPath, schemaPath)
+	if err := mgr.Load(); err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if err := mgr.RemoveResource("whisper"); err != nil {
+		t.Fatalf("RemoveResource failed: %v", err)
+	}
+
+	mgr2 := NewManager(configPath, schemaPath)
+	if err := mgr2.Load(); err != nil {
+		t.Fatalf("Load after save failed: %v", err)
+	}
+
+	resources := mgr2.GetMonitoring().Resources
+	if containsString(resources, "whisper") {
+		t.Fatalf("removed resource whisper should stay out of monitoring after reload, got %v", resources)
+	}
+	if mgr2.IsCheckEnabled("resource-whisper") {
+		t.Fatal("removed resource whisper should have an explicit disabled check override")
+	}
+
+	if err := mgr2.AddResource("whisper"); err != nil {
+		t.Fatalf("AddResource failed: %v", err)
+	}
+	if !containsString(mgr2.GetMonitoring().Resources, "whisper") {
+		t.Fatalf("added resource whisper should return to monitoring, got %v", mgr2.GetMonitoring().Resources)
+	}
+	if !mgr2.IsCheckEnabled("resource-whisper") {
+		t.Fatal("added resource whisper should clear the explicit disabled state")
+	}
+}
+
 func TestManagerValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	mgr := NewManager(filepath.Join(tmpDir, "config.json"), filepath.Join(tmpDir, "schema.json"))
@@ -113,12 +314,15 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:     60,
-					TickIntervalSeconds:    60,
-					VerifyDelaySeconds:     30,
-					MaxRestartAttempts:     3,
-					RestartCooldownSeconds: 300,
-					HistoryRetentionHours:  24,
+					GracePeriodSeconds:          600,
+					TickIntervalSeconds:         60,
+					VerifyDelaySeconds:          30,
+					MaxRestartAttempts:          3,
+					RestartCooldownSeconds:      300,
+					HistoryRetentionHours:       24,
+					ActionTimeoutFastSeconds:    30,
+					ActionTimeoutRestartSeconds: 300,
+					TimeoutRetrySeconds:         30,
 				},
 				UI: UIConfig{
 					AutoRefreshSeconds: 30,
@@ -156,12 +360,15 @@ func TestManagerValidation(t *testing.T) {
 			config: Config{
 				Version: "1.0",
 				Global: GlobalConfig{
-					GracePeriodSeconds:     60,
-					TickIntervalSeconds:    5, // Too low
-					VerifyDelaySeconds:     30,
-					MaxRestartAttempts:     3,
-					RestartCooldownSeconds: 300,
-					HistoryRetentionHours:  24,
+					GracePeriodSeconds:          600,
+					TickIntervalSeconds:         5, // Too low
+					VerifyDelaySeconds:          30,
+					MaxRestartAttempts:          3,
+					RestartCooldownSeconds:      300,
+					HistoryRetentionHours:       24,
+					ActionTimeoutFastSeconds:    30,
+					ActionTimeoutRestartSeconds: 300,
+					TimeoutRetrySeconds:         30,
 				},
 				UI: DefaultUI(),
 			},

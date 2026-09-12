@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"time"
 
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 // Status represents the current state of a service.
@@ -216,7 +216,7 @@ func parseHealthBody(body io.Reader) bool {
 	if payload.Readiness != nil && !*payload.Readiness {
 		return false
 	}
-	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" {
+	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" && payload.Status != "ok" {
 		return false
 	}
 	return true

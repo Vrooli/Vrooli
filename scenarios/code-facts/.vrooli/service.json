@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "3GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "code-facts",
+    "displayName": "Code Facts",
+    "description": "Target-aware code evidence service for Vrooli scenarios and generic code roots",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-12T17:29:39Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "272509dbdab473ba64f0f07fa3d2fba054ac93ee6ab8789c22eed0ad5affe83d"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "code-facts",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "code-facts"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "architecture-cartographer": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts can query Architecture Cartographer for file-domain facts when a target needs domain partitioning beyond local source discovery.",
+        "degraded_behavior": "File-domain facts fall back to local source and import evidence when Architecture Cartographer is unavailable."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts registers its code and contract search leaves with Search Hub when the local gateway is available.",
+        "degraded_behavior": "Code Facts remains queryable directly when Search Hub is unavailable; registration retries on the next lifecycle start."
+      },
+      "go-code-graph": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts uses Go Code Graph as the analyzer backend for Go source graph extraction.",
+        "degraded_behavior": "Go graph fact families are unavailable for targets that require Go analyzer execution."
+      },
+      "typescript-code-graph": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts uses TypeScript Code Graph as the analyzer backend for TypeScript source graph extraction.",
+        "degraded_behavior": "TypeScript graph fact families are unavailable for targets that require TypeScript analyzer execution."
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

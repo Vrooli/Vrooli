@@ -4,37 +4,40 @@ One canonical reference for configuring the browser-automation-studio scenario (
 
 ## Required Variables
 
-- `API_PORT` – API server port (20000-24999)
-- `UI_PORT` – UI server port (40000-44999)
-- `WS_PORT` – WebSocket port (25000-29999)
-- `DATABASE_URL` – PostgreSQL connection string (or SQLite file URL)
-- `BAS_DB_BACKEND` – `postgres` (default) or `sqlite`
+- `API_PORT` – API server port (15000-19999)
+- `UI_PORT` – UI server port (20000-24999)
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
-- `BROWSERLESS_PORT`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
+- `BAS_SESSION_STORE_KEY` – base64 raw 32-byte operator-managed key used to encrypt persisted browser session state
+
+## Protected Session Storage
+
+Session-profile metadata is stored separately from protected browser state.
+Cookies, local storage, proxy passwords, history, and restored-tab state are
+encrypted with `BAS_SESSION_STORE_KEY` and are never returned in profile metadata.
+Changing the key invalidates existing protected session state; operators must
+explicitly retire those profiles and sign in again. BAS performs no implicit
+relocation, backfill, or key-rotation logic.
 
 ## Optional Overrides
 
-- Hosts: `API_HOST`, `UI_HOST`, `WS_HOST`, `MINIO_HOST`, `BROWSERLESS_HOST` (default: `localhost`)
+- Hosts: `API_HOST`, `UI_HOST`, `MINIO_HOST` (default: `localhost`)
 - CORS: `CORS_ALLOWED_ORIGINS` (or legacy `ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGIN`)
 - Screenshot defaults: `SCREENSHOT_DEFAULT_WIDTH`, `SCREENSHOT_DEFAULT_HEIGHT`
-- Full URLs: `BROWSERLESS_URL`, `MINIO_ENDPOINT`, `BROWSER_AUTOMATION_API_URL`, `BAS_EXPORT_PAGE_URL`, `BAS_UI_BASE_URL`, `UI_SCHEME`, `UI_HOST`, `UI_PORT`, `BAS_EXPORT_PAGE_PATH` (default `/export/composer.html`)
+- Full URLs: `PLAYWRIGHT_DRIVER_URL`, `MINIO_ENDPOINT`, `BROWSER_AUTOMATION_API_URL`, `BAS_EXPORT_PAGE_URL`, `BAS_UI_BASE_URL`, `UI_SCHEME`, `UI_HOST`, `UI_PORT`, `BAS_EXPORT_PAGE_PATH` (default `/export/composer.html`)
 
 ## Database Configuration
 
+Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `api/internal/<domain>/storage/sqlite/schemas/` is applied idempotently at startup.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BAS_DB_BACKEND` | Backend selector (`postgres` or `sqlite`) | `postgres` |
-| `DATABASE_URL` | Full connection URL (Postgres or SQLite) | — |
-| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres parts | `browser_automation_studio` (DB name) |
-| `BAS_SQLITE_PATH` | Absolute SQLite path (desktop/electron) | `~/.vrooli/data/browser-automation-studio/bas.sqlite` |
-| `SQLITE_DATABASE_PATH` | Override sqlite resource default root | `~/.vrooli/data/sqlite/databases` |
-| `BAS_DB_MAX_OPEN_CONNS` | Max open connections | `25` |
-| `BAS_DB_MAX_IDLE_CONNS` | Max idle connections | `5` |
-| `BAS_DB_CONN_MAX_LIFETIME_MS` | Conn lifetime | `300000` |
+| `BAS_SQLITE_PATH` | Absolute SQLite file path | resolved via `api-core/storage` |
+| ~~`DATABASE_URL`~~ | Not honored. A generic variable cannot be scoped to one scenario; use `BAS_SQLITE_PATH`, or `VROOLI_STORAGE_ROOT` to redirect the whole class tree. | — |
+| `BAS_DB_CONN_MAX_LIFETIME_MS` | Connection lifetime | `300000` |
 | `BAS_DB_MAX_RETRIES` / `BAS_DB_BASE_RETRY_DELAY_MS` / `BAS_DB_MAX_RETRY_DELAY_MS` / `BAS_DB_RETRY_JITTER_FACTOR` | Retry tuning | `10` / `1000` / `30000` / `0.25` |
 
-SQLite defaults to `~/.vrooli/data/sqlite/databases/browser-automation-studio.db` with WAL mode and tuned pragmas.
+SQLite defaults to `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` (Linux; `ProfileAuto` picks the OS-appropriate data dir on macOS/Windows) with WAL mode and tuned pragmas. The connection pool is fixed at 1 open connection because SQLite supports a single writer.
 
 ## Timeout Hierarchy
 
@@ -77,8 +80,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | `BAS_EXECUTION_DEFAULT_RETRY_DELAY_MS` / `BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR` | Retry/backoff | `750` / `1.5` |
 | `BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS` | Completion poll | `250` |
 | `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` | Mid-step heartbeat cadence (ms, `0` disables) | `2000` |
-
-`BROWSERLESS_HEARTBEAT_INTERVAL` (Go duration string, e.g. `2s`) is also accepted for backward compatibility.
 
 ## WebSocket & Recording
 
@@ -136,7 +137,7 @@ Keep inner timeouts smaller than outers to get actionable errors.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `PLAYWRIGHT_DRIVER_URL` | Driver HTTP URL | `http://127.0.0.1:39400` |
+| `PLAYWRIGHT_DRIVER_URL` | Driver HTTP URL | `http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}` (port allocated from 24400-24499) |
 
 ## Entitlement Configuration (optional)
 
@@ -148,7 +149,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | `BAS_ENTITLEMENT_CACHE_TTL_MS` | Cache TTL | `300000` |
 | `BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS` | Request timeout | `5000` |
 | `BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS` | Offline grace period | `86400000` |
-| `BAS_ENTITLEMENT_TIER_LIMITS_JSON` | Monthly execution limits JSON | `{"free":50,"solo":200,"pro":-1,"studio":-1,"business":-1}` |
 | `BAS_ENTITLEMENT_WATERMARK_TIERS` | Watermarked tiers | `free,solo` |
 | `BAS_ENTITLEMENT_AI_TIERS` | AI access tiers | `pro,studio,business` |
 | `BAS_ENTITLEMENT_RECORDING_TIERS` | Recording access tiers | `solo,pro,studio,business` |
@@ -166,18 +166,17 @@ Set automatically by Vrooli lifecycle:
 # Core (set by lifecycle)
 export API_PORT=20100
 export UI_PORT=40100
-export WS_PORT=25100
-export DATABASE_URL="postgresql://user:pass@localhost:5432/browser_automation"
 export MINIO_PORT=9000
 export MINIO_ACCESS_KEY="minioadmin"
 export MINIO_SECRET_KEY="minioadmin"
 export MINIO_BUCKET_NAME="browser-automation-screenshots"
-export BROWSERLESS_PORT=3000
 export VROOLI_LIFECYCLE_MANAGED=true
+
+# Optional: override the SQLite file location (defaults via api-core/storage)
+export BAS_SQLITE_PATH=/var/lib/browser-automation-studio/db.sqlite
 
 # Optional tuning
 export BAS_TIMEOUT_AI_REQUEST_MS=90000
-export BAS_DB_MAX_OPEN_CONNS=50
 export CORS_ALLOWED_ORIGINS="https://app.example.com,https://dashboard.example.com"
 ```
 

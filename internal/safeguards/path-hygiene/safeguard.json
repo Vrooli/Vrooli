@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "path_hygiene",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard creates no files of its own. It rewrites a marked region inside the invoking user's pre-existing shell startup files, which the operator owns and which are not Vrooli state."
+  },
+  "description": "Keep ~/.vrooli/bin on the interactive PATH exactly once and first, and report duplicate PATH entries or a shadowing vrooli binary",
+  "handler": "path_hygiene",
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "control",
+  "notes": "Retired per-scenario CLI installers appended an unguarded PATH line to ~/.bashrc each time they ran; one host accumulated 105 such lines across eight installers, yielding a 236-entry PATH with 17 unique directories. The managed block is delimited by markers so a rewrite replaces it instead of appending another copy, and it strips-then-prepends so ~/.vrooli/bin stays ahead of a stale `go install` copy regardless of what later startup files prepend.",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "not_implemented",
+      "evidence": "The Windows path-hygiene provider is not wired into this safeguard yet; the host mechanism is Windows path normalization and drive semantics.",
+      "mechanism": "windows_path_normalization",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

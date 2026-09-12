@@ -16,14 +16,21 @@ mkdir -p "$PHASE_DIR"
 # --- Count Go tests (root module) ---
 go_api_count=0
 go_cli_count=0
+cli_module_dir=""
 
 if [ -f "${SCENARIO_ROOT}/go.mod" ]; then
     go_api_count=$(cd "${SCENARIO_ROOT}" && GOWORK=off go test ./... -v -count=1 -timeout 120s 2>&1 | grep -c '^--- PASS' || true)
     go_api_count=$(echo "$go_api_count" | tr -d '[:space:]')
     [ -z "$go_api_count" ] && go_api_count=0
 fi
-if [ -f "${SCENARIO_ROOT}/cli/go.mod" ]; then
-    go_cli_count=$(cd "${SCENARIO_ROOT}/cli" && GOWORK=off go test ./... -v -count=1 -timeout 60s 2>&1 | grep -c '^--- PASS' || true)
+if [ -f "${SCENARIO_ROOT}/.vrooli/service.json" ]; then
+    cli_module_dir="$(jq -r '
+        select(.cli.enabled == true and .cli.adapter.kind == "go_module")
+        | .cli.adapter.module_dir // empty
+    ' "${SCENARIO_ROOT}/.vrooli/service.json" 2>/dev/null || true)"
+fi
+if [ -n "${cli_module_dir}" ] && [ -f "${SCENARIO_ROOT}/${cli_module_dir}/go.mod" ]; then
+    go_cli_count=$(cd "${SCENARIO_ROOT}/${cli_module_dir}" && GOWORK=off go test ./... -v -count=1 -timeout 60s 2>&1 | grep -c '^--- PASS' || true)
     go_cli_count=$(echo "$go_cli_count" | tr -d '[:space:]')
     [ -z "$go_cli_count" ] && go_cli_count=0
 fi

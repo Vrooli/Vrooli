@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -520,7 +521,7 @@ func TestErrorRecoveryWorkflow(t *testing.T) {
 		}
 
 		healthW := makeHTTPRequest(t, testApp.App, healthReq)
-		assertJSONResponse(t, healthW, 200, &map[string]interface{}{})
+		assertJSONResponse(t, healthW, http.StatusServiceUnavailable, &map[string]interface{}{})
 	})
 
 	// Test 2: Missing required fields should be handled gracefully

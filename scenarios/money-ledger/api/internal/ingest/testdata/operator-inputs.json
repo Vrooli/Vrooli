@@ -1,0 +1,21 @@
+{
+  "cash": {"value": 1000, "status": "current"},
+  "monthlyBurn": {
+    "aiApi": {"value": 10, "status": "current"},
+    "infrastructure": {"value": 20, "status": "current"},
+    "saas": {"value": null, "status": "pending-operator"},
+    "tooling": {"value": 40, "status": "current"}
+  },
+  "timeAllocation": {
+    "product": {"value": 50, "status": "current"},
+    "services": {"value": 60, "status": "current"},
+    "ops": {"value": 70, "status": "current"}
+  },
+  "servicesRevenue": {
+    "leadGen": {"value": 80, "status": "current"},
+    "doneForYou": {"value": 90, "status": "current"},
+    "consulting": {"value": 100, "status": "current"}
+  },
+  "servicesTime": {"hoursThisWindow": {"value": 110, "status": "current"}},
+  "subscriptions": {"mrr": {"value": 120, "status": "current"}}
+}

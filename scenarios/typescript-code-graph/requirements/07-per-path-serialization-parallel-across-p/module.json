@@ -1,0 +1,93 @@
+{
+  "description": "Two concurrent `Extract` calls for the same `project_path` serialize through an in-process queue (additionally enforced at the Node sidecar layer because `ts-morph` Project state is not safe to share across parallel invocations). Calls for different paths run in parallel.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-009"
+      ],
+      "description": "Concurrent Extract calls targeting the same project_path must serialize through an in-process mutex/queue on the Go API layer, preventing concurrent ts-morph Project state access for the same project. Concurrent Extract calls targeting different project_paths must execute in parallel without artificial serialization. The per-path serialization must be implemented at both the Go API layer (mutex keyed by canonical path) and enforced within the Node sidecar (ts-morph Project state is not thread-safe). The queuing mechanism must not deadlock, must not leak goroutines, and must respect context cancellation.",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Per-Path Serialization with Cross-Path Parallelism",
+      "validation": [
+        {
+          "notes": "Test that two goroutines calling Extract on the same path are serialized (second waits for first to complete)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that two goroutines calling Extract on different paths execute concurrently (wall time \u003c sum of sequential times)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that a cancelled context releases the per-path lock without blocking subsequent callers",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the per-path queue does not deadlock under 100 concurrent same-path requests",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that goroutine count does not grow unboundedly under repeated concurrent Extract calls",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-CONCURRENCY-SAME-PATH: Launch 10 concurrent Extract goroutines against the same fixture path; assert all return identical byte-for-byte results and no data races (run with -race)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-CONCURRENCY-DIFF-PATH: Launch 10 concurrent Extract goroutines across 5 different fixture paths; assert wall time is significantly less than sequential total",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-SIDECAR-SERIALIZATION: Verify Node sidecar processes same-path requests sequentially via IPC channel inspection",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "10 concurrent same-path Extract calls complete within 2x the time of a single sequential call (serialized overhead bound)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No data corruption or inconsistent graph output observed under concurrent load in a 10-minute soak test",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Per-Path Serialization, Parallel Across Paths"
+}

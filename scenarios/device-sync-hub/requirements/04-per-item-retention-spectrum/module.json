@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:26:32-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-007",
+      "title": "Per-Item Retention Policy: Live, Held, and Pinned",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "description": "Every item (file or text) carries a retention policy assigned at upload time: Live (deliver to currently connected devices then purge from server immediately after delivery or after a short grace window), Held (auto-purge after a configurable duration defaulting to 24 hours from upload time), or Pinned (retained until explicit owner deletion). The retention policy is stored in item metadata and enforced by a server-side purge scheduler. The scheduler must use injected clock and TTL seams to enable deterministic unit testing.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: Live item is scheduled for purge immediately after relay delivery is acknowledged, using mock clock seam"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: Held item purge fires exactly at upload_time + configured_ttl using injected clock; default TTL is 24 hours"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: Pinned item purge scheduler skips the item and does not enqueue it for deletion"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: purge handler deletes both the blobstore object and the metadata record in a single atomic operation"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: retention policy defaults to the owner's global default when not explicitly set on upload"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: upload a Live item; assert it is delivered to Device B; assert metadata record and blob are deleted after delivery grace window"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: upload a Held item with 1-minute TTL override; assert item exists at T+30s and is purged at T+65s"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: upload a Pinned item; assert it persists after 25 hours with no scheduler deletion"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: owner changes global default from Held to Pinned; next uploaded item without explicit policy is Pinned"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Purge scheduler processes 1000 expired items per minute without impacting relay delivery latency"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: upload items with each policy type; confirm correct policy badge renders in Receive pane"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: confirm that Held item disappears from Receive pane after TTL elapses without manual deletion"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-008",
+      "title": "Global Owner-Configurable Retention Default",
+      "status": "pending",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "description": "The owner can configure a global default retention policy (Live, Held with custom TTL, or Pinned) in Settings. This default is applied at upload time to any item that does not carry an explicit per-item policy override. The default is stored in the owner's profile in the relational metadata store and is enforced server-side at ingest, not client-side, to prevent bypass. Changes to the default do not retroactively alter existing items.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: ingest handler reads the owner's global default when item payload omits explicit retention policy"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: ingest handler uses the explicitly provided item-level policy when present, ignoring the global default"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: global default update does not trigger a batch update on existing item retention policies"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: owner sets global default to Pinned via Settings API; upload item without policy; assert item.retention == Pinned"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: owner sets global default to Held(2h); upload item; assert purge fires at upload_time + 2h"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: existing items uploaded before default change retain their original retention policy after the change"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Playbook: navigate to Settings; change global default; upload a new item; confirm correct policy badge without explicit selection"
+        }
+      ]
+    }
+  ]
+}

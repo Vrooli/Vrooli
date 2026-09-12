@@ -55,6 +55,7 @@ class ArtifactType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ARTIFACT_TYPE_DOM_SNAPSHOT: _ClassVar[ArtifactType]
     ARTIFACT_TYPE_TRACE: _ClassVar[ArtifactType]
     ARTIFACT_TYPE_CUSTOM: _ClassVar[ArtifactType]
+    ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT: _ClassVar[ArtifactType]
 
 class ExportStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -175,6 +176,7 @@ ARTIFACT_TYPE_SCREENSHOT: ArtifactType
 ARTIFACT_TYPE_DOM_SNAPSHOT: ArtifactType
 ARTIFACT_TYPE_TRACE: ArtifactType
 ARTIFACT_TYPE_CUSTOM: ArtifactType
+ARTIFACT_TYPE_ACCESSIBILITY_SNAPSHOT: ArtifactType
 EXPORT_STATUS_UNSPECIFIED: ExportStatus
 EXPORT_STATUS_READY: ExportStatus
 EXPORT_STATUS_PENDING: ExportStatus

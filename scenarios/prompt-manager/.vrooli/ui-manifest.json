@@ -1,0 +1,7 @@
+{
+  "files": {
+    "selectorRegistry": {
+      "path": "ui/src/constants/selectors.ts"
+    }
+  }
+}

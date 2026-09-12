@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.settlement;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement;settlement_v1";
+
+enum ChargeOutcome {
+  CHARGE_OUTCOME_UNSPECIFIED = 0;
+  CHARGE_OUTCOME_READY = 1;
+  CHARGE_OUTCOME_CALLING = 2;
+  CHARGE_OUTCOME_SETTLED = 3;
+  CHARGE_OUTCOME_FAILED = 4;
+  CHARGE_OUTCOME_UNKNOWN = 5;
+  CHARGE_OUTCOME_ABANDONED = 6;
+}
+
+message Charge {
+  string id = 1;
+  string authorization_id = 2;
+  string mandate_id = 3;
+  string rail = 4;
+  string idempotency_key = 5;
+  int64 amount_minor = 6;
+  string currency = 7;
+  string counterparty = 8;
+  ChargeOutcome outcome = 9;
+  string external_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp settled_at = 12;
+  string receipt_reference = 13;
+  string basis = 14;
+  string detail = 15;
+  google.protobuf.Timestamp occurred_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  google.protobuf.Timestamp retain_until = 18;
+  string instrument_id = 19;
+}
+
+message ManualAttestation {
+  string external_reference = 1;
+  string receipt_reference = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+}

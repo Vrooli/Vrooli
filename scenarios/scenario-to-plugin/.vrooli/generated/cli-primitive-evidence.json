@@ -1,0 +1,40 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-plugin",
+  "generator": "v1.0.0",
+  "manifest_hash": "478e072df20a855a38e562e044421dc9b994203f6817bd7d46185ef6bb9bc5df",
+  "commands": [
+    {
+      "path": "distribution report",
+      "group": "distribution",
+      "command": "report",
+      "binding": "."
+    },
+    {
+      "path": "package compose",
+      "group": "package",
+      "command": "compose",
+      "binding": "."
+    },
+    {
+      "path": "package show",
+      "group": "package",
+      "command": "show",
+      "binding": "."
+    },
+    {
+      "path": "publish run",
+      "group": "publish",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "readiness list",
+      "group": "readiness",
+      "command": "list",
+      "binding": "."
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "description": "Implement `Extract(ExtractRequest{module_path}) → Graph` against `golang.org/x/tools/go/packages` using a fixed load mode that returns files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), and import edges plus intra-package symbol references; byte-stable serialization for identical inputs.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-004",
+        "REQ-P0-005"
+      ],
+      "description": "Implement the Extract(ExtractRequest{module_path}) → Graph operation using golang.org/x/tools/go/packages with a fixed load mode (NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps). The operation must return all files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), import edges, and intra-package symbol references. Output serialization must be byte-stable: identical inputs must always produce byte-for-byte identical output regardless of execution order or timing.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Deterministic Graph Extraction via golang.org/x/tools/go/packages",
+      "validation": [
+        {
+          "notes": "Table-driven tests for each declaration kind (type, func, var, const, interface, method) to verify correct node creation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the fixed load mode flags (NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps) are always applied and never overridable by callers",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test byte-stable serialization: run Extract twice on the same fixture, assert JSON output is byte-for-byte identical",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that import edges are correctly extracted and deduplicated",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that intra-package symbol references are captured and represented as edges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end Extract call against go-cycles fixture returns expected nodes and edges matching expected-graph.json byte-for-byte",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end Extract call against go-mislocated fixture returns expected nodes and edges matching expected-graph.json byte-for-byte",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent Extract calls on the same path return identical graphs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract on a module with 200 files completes within 5 seconds end-to-end including Connect-RPC transport",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract completes in \u003c5 seconds for scenarios with ≤200 source files, measured end-to-end including Connect-RPC transport",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Extract completes in \u003c30 seconds for scenarios with ≤2000 source files, measured end-to-end including Connect-RPC transport",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Golden-fixture extraction reproduced from a clean clone produces byte-for-byte identical output to the committed expected-graph.json",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI gate fails if any fixture's extracted graph diverges from the expected file",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic Graph Extraction"
+}

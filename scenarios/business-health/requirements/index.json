@@ -1,0 +1,16 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements. auto_sync disabled until validations carry real refs (plan phases 3-7): the syncer flips refless test-typed validations to implemented on comprehensive runs, which would fake completion for unbuilt domains.",
+    "auto_sync_enabled": false,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-contract-validation/module.json",
+    "02-evidence-traceability/module.json",
+    "03-scaffolding-wizard/module.json",
+    "04-fleet-and-autofix/module.json",
+    "05-search/module.json",
+    "06-provider-integration/module.json",
+    "07-ux/module.json"
+  ]
+}

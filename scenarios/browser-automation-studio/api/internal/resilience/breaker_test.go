@@ -112,7 +112,26 @@ func TestDefaultBreakerConfig(t *testing.T) {
 	assert.Equal(t, 30*time.Second, cfg.Timeout)
 	assert.Equal(t, uint32(5), cfg.FailureThreshold)
 	assert.Equal(t, 0.6, cfg.FailureRatio)
+	assert.Equal(t, time.Minute, cfg.Interval)
 }
+
+func TestBreakerTreatsHTTP429AsBackpressure(t *testing.T) {
+	cfg := DefaultBreakerConfig("test-backpressure")
+	cfg.FailureThreshold = 2
+	b := NewBreaker(cfg)
+	backpressure := &httpStatusError{status: 429}
+	for i := 0; i < 5; i++ {
+		_, err := b.Execute(func() (any, error) { return nil, backpressure })
+		require.Error(t, err)
+	}
+	assert.Equal(t, StateClosed, b.State())
+	assert.Equal(t, uint32(0), b.Counts().TotalFailures)
+}
+
+type httpStatusError struct{ status int }
+
+func (e *httpStatusError) Error() string       { return "driver backpressure" }
+func (e *httpStatusError) HTTPStatusCode() int { return e.status }
 
 func TestConfigFromEnv(t *testing.T) {
 	// Set test environment variables
@@ -120,6 +139,7 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("TEST_CB_FAILURE_THRESHOLD", "10")
 	t.Setenv("TEST_CB_FAILURE_RATIO", "0.8")
 	t.Setenv("TEST_CB_MAX_REQUESTS", "3")
+	t.Setenv("TEST_CB_INTERVAL", "2m")
 
 	cfg := ConfigFromEnv("TEST", "test-env")
 
@@ -128,6 +148,7 @@ func TestConfigFromEnv(t *testing.T) {
 	assert.Equal(t, uint32(10), cfg.FailureThreshold)
 	assert.Equal(t, 0.8, cfg.FailureRatio)
 	assert.Equal(t, uint32(3), cfg.MaxRequests)
+	assert.Equal(t, 2*time.Minute, cfg.Interval)
 }
 
 func TestConfigFromEnvDefaults(t *testing.T) {

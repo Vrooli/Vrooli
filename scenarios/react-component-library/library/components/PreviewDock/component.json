@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "react-component-library:PreviewDock",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:PreviewDock"
+}

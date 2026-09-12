@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package workspace_sandbox.v1.workspace;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace;workspace";
+
+// WorkspaceSandboxService is the typed, governed change-path contract for
+// workspace-sandbox. It wraps the existing domain service; it does not create
+// a second persistence or lifecycle implementation.
+service WorkspaceSandboxService {
+  // ResolveWorkspace returns the host workspace root for an active sandbox.
+  rpc ResolveWorkspace(ResolveWorkspaceRequest) returns (ResolveWorkspaceResponse);
+
+  // CreateSandbox creates an isolated copy-on-write workspace.
+  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+
+  // GetSandboxDiff returns a bounded, reviewable diff for a sandbox.
+  rpc GetSandboxDiff(GetSandboxDiffRequest) returns (GetSandboxDiffResponse);
+
+  // PromoteSandbox applies an explicitly confirmed approved change set.
+  rpc PromoteSandbox(PromoteSandboxRequest) returns (PromoteSandboxResponse);
+}
+
+message ResolveWorkspaceRequest {
+  string sandbox_id = 1;
+}
+
+message ResolveWorkspaceResponse {
+  bool success = 1;
+  string sandbox_id = 2;
+  string workspace_root = 3;
+  string isolation_mode = 4;
+}
+
+message CreateSandboxRequest {
+  string name = 1;
+  string scope_path = 2;
+  string project_root = 3;
+  string owner = 4;
+  repeated string reserved_paths = 5;
+  string idempotency_key = 6;
+}
+
+message SandboxSummary {
+  string sandbox_id = 1;
+  string status = 2;
+  string workspace_root = 3;
+  string isolation_mode = 4;
+  string scope_path = 5;
+  string project_root = 6;
+}
+
+message CreateSandboxResponse {
+  bool success = 1;
+  SandboxSummary sandbox = 2;
+}
+
+message GetSandboxDiffRequest {
+  string sandbox_id = 1;
+}
+
+message DiffFile {
+  string path = 1;
+  string change_type = 2;
+  int64 size = 3;
+  string approval_status = 4;
+}
+
+message DiffStats {
+  int32 files_changed = 1;
+  int32 files_added = 2;
+  int32 files_modified = 3;
+  int32 files_deleted = 4;
+  int32 lines_added = 5;
+  int32 lines_removed = 6;
+  int64 total_bytes = 7;
+}
+
+message GetSandboxDiffResponse {
+  bool success = 1;
+  string sandbox_id = 2;
+  repeated DiffFile files = 3;
+  string unified_diff = 4;
+  DiffStats stats = 5;
+  string archive_state = 6;
+}
+
+message PromoteSandboxRequest {
+  string sandbox_id = 1;
+  string mode = 2;
+  string actor = 3;
+  string commit_message = 4;
+  bool create_commit = 5;
+  bool force = 6;
+  bool override_acceptance = 7;
+  bool confirm = 8;
+}
+
+message PromoteSandboxResponse {
+  bool success = 1;
+  string sandbox_id = 2;
+  int32 applied = 3;
+  int32 failed = 4;
+  int32 remaining = 5;
+  bool is_partial = 6;
+  string commit_hash = 7;
+  string error = 8;
+  string diff_path = 9;
+}

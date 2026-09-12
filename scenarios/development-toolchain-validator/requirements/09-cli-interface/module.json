@@ -1,0 +1,40 @@
+{
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "title": "CLI Interface",
+  "description": "Connect-RPC client commands covering the full P0 surface area. Default human-readable output (per feedback_cli_default_human_output); --json available for scripting.",
+  "requirements": [
+    {
+      "id": "REQ-P0-017",
+      "prd_ref": "OT-P0-009",
+      "title": "Command tree",
+      "description": "Top-level command groups: `goldens` (list, get, register, regenerate), `skills` (sync, list, get), `manifests` (list, get, create, update, delete), `validate` (skill <skill_id> <golden_id>, tool <tool_id> <golden_id>, all <golden_id>), `verdicts` (latest, history), `stale` (list, clear). Stale tuples require --force or --yes on validate commands.",
+      "category": "cli",
+      "status": "done",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCommandGroups",
+          "status": "passing",
+          "notes": "Top-level command groups (goldens, skill-catalog, manifest, validation, record, report, staleness) registered."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "cli/domains/manifest/manifest_manifest_test.go::TestManifestManifestCoversManifestService",
+          "status": "passing",
+          "notes": "CLI manifest coverage guard forces a binding per service RPC (anti-drift)."
+        },
+        {
+          "type": "e2e",
+          "phase": "integration",
+          "ref": "development-toolchain-validator goldens|skill-catalog|manifest|validation|staleness|record|report",
+          "status": "passing",
+          "notes": "Full CLI surface exercised live 2026-05-29 (sync, register, manifest upsert, validation start --wait, staleness list, record list)."
+        }
+      ]
+    }
+  ]
+}

@@ -130,10 +130,15 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 
 	session := &Session{
 		id:             resp.SessionID,
+		executionID:    spec.ExecutionID.String(),
+		leaseID:        resp.LeaseID,
 		mode:           spec.Mode,
 		client:         m.client,
 		actualViewport: resp.ActualViewport,
 		recording:      spec.Recording,
+	}
+	session.onTerminal = func() {
+		m.forget(session.id, session)
 	}
 
 	m.mu.Lock()
@@ -189,9 +194,11 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 			Width:  spec.ViewportWidth,
 			Height: spec.ViewportHeight,
 		},
-		ReuseMode:      spec.ReuseMode,
-		Labels:         spec.Labels,
-		BrowserProfile: spec.BrowserProfile,
+		ReuseMode:         spec.ReuseMode,
+		Labels:            spec.Labels,
+		BrowserProfile:    spec.BrowserProfile,
+		AppTarget:         spec.AppTarget,
+		ValidationContext: spec.ValidationContext,
 	}
 
 	// Frame streaming (all modes support live preview)
@@ -219,17 +226,22 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 
 		if !spec.Capabilities.IsEmpty() {
 			req.RequiredCapabilities = &driver.CapabilityRequest{
-				Tabs:      spec.Capabilities.NeedsParallelTabs,
-				Iframes:   spec.Capabilities.NeedsIframes,
-				Uploads:   spec.Capabilities.NeedsFileUploads,
-				Downloads: spec.Capabilities.NeedsDownloads,
-				HAR:       spec.Capabilities.NeedsHAR,
-				Video:     spec.Capabilities.NeedsVideo,
-				Tracing:   spec.Capabilities.NeedsTracing,
+				Tabs:          spec.Capabilities.NeedsParallelTabs,
+				Iframes:       spec.Capabilities.NeedsIframes,
+				Uploads:       spec.Capabilities.NeedsFileUploads,
+				Downloads:     spec.Capabilities.NeedsDownloads,
+				HAR:           spec.Capabilities.NeedsHAR,
+				Video:         spec.Capabilities.NeedsVideo,
+				Tracing:       spec.Capabilities.NeedsTracing,
+				PerfTrace:     spec.Capabilities.NeedsPerfTrace,
+				Accessibility: spec.Capabilities.NeedsAccessibility,
 			}
 		}
 		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
 			req.ArtifactPaths = paths
+		}
+		if spec.FakeMicrophoneWav != "" {
+			req.FakeMedia = &driver.FakeMediaConfig{MicrophoneWav: spec.FakeMicrophoneWav}
 		}
 	}
 
@@ -257,8 +269,16 @@ func (m *Manager) buildArtifactPaths(spec Spec, caps *driver.CapabilityRequest) 
 	if caps.Tracing {
 		paths.TracePath = filepath.Join(artifactRoot, "traces", fmt.Sprintf("execution-%s.zip", execID))
 	}
+	if caps.PerfTrace {
+		paths.PerfDir = filepath.Join(artifactRoot, "performance")
+	}
+	if caps.Accessibility {
+		paths.AccessibilityDir = filepath.Join(artifactRoot, "accessibility")
+	}
 
-	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" && strings.TrimSpace(paths.TracePath) == "" {
+	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" &&
+		strings.TrimSpace(paths.TracePath) == "" && strings.TrimSpace(paths.PerfDir) == "" &&
+		strings.TrimSpace(paths.AccessibilityDir) == "" {
 		return nil
 	}
 
@@ -289,12 +309,9 @@ func (m *Manager) Get(sessionID string) (*Session, bool) {
 
 // Close closes a session by ID.
 func (m *Manager) Close(ctx context.Context, sessionID string) error {
-	m.mu.Lock()
+	m.mu.RLock()
 	session, ok := m.sessions[sessionID]
-	if ok {
-		delete(m.sessions, sessionID)
-	}
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	if !ok {
 		return nil
@@ -305,18 +322,27 @@ func (m *Manager) Close(ctx context.Context, sessionID string) error {
 
 // CloseAll closes all active sessions.
 func (m *Manager) CloseAll(ctx context.Context) {
-	m.mu.Lock()
+	m.mu.RLock()
 	sessions := make([]*Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
 	}
-	m.sessions = make(map[string]*Session)
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	for _, s := range sessions {
 		if err := s.Close(ctx); err != nil {
 			m.log.WithError(err).WithField("session_id", s.id).Warn("Failed to close session")
 		}
+	}
+}
+
+// forget removes a terminal session while protecting against a future
+// replacement that happens to reuse the same driver-generated id.
+func (m *Manager) forget(sessionID string, expected *Session) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if current, ok := m.sessions[sessionID]; ok && current == expected {
+		delete(m.sessions, sessionID)
 	}
 }
 

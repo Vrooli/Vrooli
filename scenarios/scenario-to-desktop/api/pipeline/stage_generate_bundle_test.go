@@ -86,7 +86,7 @@ func TestGenerateStage_BundledMode_SetsScenarioPathToBundle(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled", // Bundled mode
 			Platforms:      []string{"linux"},
@@ -146,7 +146,7 @@ func TestGenerateStage_NonBundledMode_PreservesSourcePath(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "external-server", // Non-bundled mode
 			Platforms:      []string{"linux"},
@@ -206,7 +206,7 @@ func TestGenerateStage_BundledMode_ExtractsBundleIPC(t *testing.T) {
 	}
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled",
 			Platforms:      []string{"linux"},
@@ -285,7 +285,7 @@ func TestGenerateStage_BundledMode_NilManifestContent(t *testing.T) {
 	)
 
 	input := &StageInput{
-		Config: &Config{
+		Config: &PipelineConfig{
 			ScenarioName:   "test-app",
 			DeploymentMode: "bundled",
 			Platforms:      []string{"linux"},

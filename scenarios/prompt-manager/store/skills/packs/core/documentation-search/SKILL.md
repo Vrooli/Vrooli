@@ -1,3 +1,26 @@
+---
+name: "documentation-search"
+description: "Deep documentation discovery workflow for contextual search, reference following, and relevance ranking."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["search","documentation"]
+  tags: ["skill"]
+  icon: "search"
+  status: "active"
+  revision: 43
+  createdAt: "2026-01-26T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
+
+For agent task knowledge, documentation consolidation, and source applicability review, load `prompt-manager skill read knowledge-observatory`. Its scenario-owned usage skill owns the recall/capture loop for those operations; do not run a second learning loop from this skill. Use `knowledge-observatory-improve` to improve retrieval and maintenance outcomes.
+
 # Documentation Search Skill
 
 ## Purpose

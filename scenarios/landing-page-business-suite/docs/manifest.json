@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Landing Page Business Suite Documentation",
   "description": "Complete documentation for SaaS landing pages with A/B testing, analytics, and Stripe payments",
   "defaultDocument": "QUICKSTART.md",
@@ -10,18 +10,69 @@
       "icon": "rocket",
       "documents": [
         {
+          "path": "../README.md",
+          "title": "Scenario Overview",
+          "description": "Scenario entrypoint, lifecycle commands, and documentation map",
+          "audience": [
+            "users",
+            "developers",
+            "agents"
+          ],
+          "docType": "readme",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "../PRD.md",
+          "title": "Product Requirements",
+          "description": "Authoritative product scope and operational targets",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "prd",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "manifest.json",
+          "title": "Documentation Manifest",
+          "description": "Scenario documentation contract and registry",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "docs-manifest",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "QUICKSTART.md",
           "title": "Quick Start",
           "description": "Get your first landing page running in 5 minutes",
-          "audience": ["users", "developers"]
-        },
-        {
-          "path": "FAQ.md",
-          "title": "FAQ",
-          "description": "Frequently asked questions",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "docType": "quickstart",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
-      ]
+      ],
+      "description": "Getting Started",
+      "purpose": "Documentation for getting started."
     },
     {
       "id": "guides",
@@ -32,33 +83,94 @@
           "path": "guides/ADMIN_GUIDE.md",
           "title": "Admin Guide",
           "description": "How to use the admin portal to manage content and A/B tests",
-          "audience": ["users", "marketers"]
+          "audience": [
+            "users",
+            "marketers"
+          ],
+          "docType": "guides-admin-guide",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "guides/CONTENT_GUIDE.md",
           "title": "Content Guide",
           "description": "How to write effective landing page copy that converts",
-          "audience": ["users", "marketers"]
+          "audience": [
+            "users",
+            "marketers"
+          ],
+          "docType": "guides-content-guide",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "guides/CONFIGURATION_GUIDE.md",
           "title": "Configuration Guide",
           "description": "All .vrooli/ config files explained",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "guides-configuration-guide",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "guides/DEPLOYMENT.md",
           "title": "Deployment Guide",
           "description": "How to deploy your landing page to production",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "docType": "guides-deployment",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "guides/TROUBLESHOOTING.md",
           "title": "Troubleshooting",
           "description": "Solutions for common issues",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "docType": "guides-troubleshooting",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "guides/faq.md",
+          "title": "FAQ",
+          "description": "Frequently asked questions",
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "docType": "guides-faq",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
-      ]
+      ],
+      "description": "Guides",
+      "purpose": "Documentation for guides."
     },
     {
       "id": "concepts",
@@ -69,27 +181,78 @@
           "path": "concepts/CONCEPTS.md",
           "title": "Core Concepts",
           "description": "Understanding A/B testing, sections, payments, and data flow",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "docType": "concepts-concepts",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
-        {
-          "path": "concepts/ARCHITECTURE.md",
-          "title": "Architecture",
+    {
+      "path": "concepts/ARCHITECTURE.md",
+      "title": "Architecture",
           "description": "System design, components, and deployment topology",
-          "audience": ["developers"]
-        },
-        {
-          "path": "concepts/DESIGN_SYSTEM.md",
+          "audience": [
+            "developers"
+          ],
+          "docType": "concepts-architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+      "completion": "optional"
+    },
+    {
+      "path": "concepts/DOMAINS.md",
+      "title": "Domains",
+      "description": "Product capability ownership and transitional source layout",
+      "audience": [
+        "developers"
+      ],
+      "docType": "concepts-domains",
+      "maturity": "active",
+      "requiredBy": [
+        "validated"
+      ],
+      "completion": "optional"
+    },
+    {
+      "path": "concepts/DESIGN_SYSTEM.md",
           "title": "Design System",
           "description": "Visual design tokens and styling guidelines",
-          "audience": ["developers", "designers"]
+          "audience": [
+            "developers",
+            "designers"
+          ],
+          "docType": "concepts-design-system",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Domain vocabulary and terminology",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "docType": "concepts-glossary",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
-      ]
+      ],
+      "description": "Concepts",
+      "purpose": "Documentation for concepts."
     },
     {
       "id": "reference",
@@ -97,72 +260,210 @@
       "icon": "book",
       "documents": [
         {
-          "path": "reference/api/README.md",
+          "path": "reference/api/OVERVIEW.md",
           "title": "API Overview",
           "description": "REST API introduction and common patterns",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-readme",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/landing.md",
           "title": "Landing Endpoints",
           "description": "Public page configuration APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-landing",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/variants.md",
           "title": "Variant Endpoints",
           "description": "A/B testing management APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-variants",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/sections.md",
           "title": "Section Endpoints",
           "description": "Content section CRUD APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-sections",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/metrics.md",
           "title": "Metrics Endpoints",
           "description": "Analytics and event tracking APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-metrics",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/payments.md",
           "title": "Payment Endpoints",
           "description": "Stripe integration APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-payments",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/api/admin.md",
           "title": "Admin Endpoints",
           "description": "Admin portal management APIs",
-          "audience": ["developers"]
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-api-admin",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/SECURITY.md",
           "title": "Security",
           "description": "Authentication, sessions, CORS, and production security",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "docType": "reference-security",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/STRIPE_WEBHOOKS.md",
           "title": "Stripe Webhooks",
           "description": "Configure webhook endpoint and signing secret",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "docType": "reference-stripe-webhooks",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "reference/STRIPE_RESTRICTED_KEYS.md",
           "title": "Stripe Restricted Keys",
           "description": "Use restricted Stripe keys safely",
-          "audience": ["developers", "operators"]
+          "audience": [
+            "developers",
+            "operators"
+          ],
+          "docType": "reference-stripe-restricted-keys",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
-          "path": "reference/AI_GATEWAY.md",
-          "title": "AI Gateway",
-          "description": "AI gateway integration documentation",
-          "audience": ["developers"]
+          "path": "reference/METERED_INFERENCE.md",
+          "title": "Metered Inference",
+          "description": "metered inference integration documentation",
+          "audience": [
+            "developers"
+          ],
+          "docType": "reference-metered-inference",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
-      ]
+      ],
+      "description": "Reference",
+      "purpose": "Documentation for reference."
+    },
+    {
+      "id": "integrations",
+      "title": "Integrations",
+      "icon": "link",
+      "documents": [
+        {
+          "path": "integrations/subscription-entitlements-system.md",
+          "title": "Subscription Entitlements",
+          "description": "How subscription entitlements integrate with downloads + metered inference",
+          "audience": [
+            "developers"
+          ],
+          "docType": "integrations-subscription-entitlements-system",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        }
+      ],
+      "description": "Integrations",
+      "purpose": "Documentation for integrations."
+    },
+    {
+      "id": "perf",
+      "title": "Performance",
+      "icon": "activity",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "perf/2026-05-04-user-facing-views.md",
+          "title": "User-Facing Views Perf Audit",
+          "description": "Profile-mode landing page and public route performance findings",
+          "internal": true,
+          "docType": "perf-2026-05-04-user-facing-views",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        }
+      ],
+      "description": "Performance",
+      "purpose": "Documentation for performance."
     },
     {
       "id": "internal",
@@ -171,48 +472,212 @@
       "visibility": "developers-only",
       "documents": [
         {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Operating assumptions the implementation relies on",
+          "internal": true,
+          "docType": "internal-assumptions",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "description": "Where the codebase + docs are intentionally out of step, and why",
+          "internal": true,
+          "docType": "internal-coherence-notes",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "How the API signals failure modes to clients and operators",
+          "internal": true,
+          "docType": "internal-error-semantics",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Properties that must hold across every state transition",
+          "internal": true,
+          "docType": "internal-invariants",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Authentication, authorization, secrets, and abuse-resistance posture",
+          "internal": true,
+          "docType": "internal-security-posture",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Time-ordered behaviors: startup, lifecycle, recurring jobs, async paths",
+          "internal": true,
+          "docType": "internal-temporal-flows",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "internal/SEAMS.md",
           "title": "Seams & Testability",
           "description": "Testability boundaries and code organization",
-          "internal": true
+          "internal": true,
+          "docType": "internal-seams",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/PROBLEMS.md",
           "title": "Known Issues",
           "description": "Known problems and limitations",
-          "internal": true
+          "internal": true,
+          "docType": "internal-problems",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
           "path": "internal/PROGRESS.md",
           "title": "Progress",
           "description": "Implementation progress tracking",
-          "internal": true
-        }
-      ]
-    },
-    {
-      "id": "plans",
-      "title": "Plans",
-      "icon": "map",
-      "visibility": "developers-only",
-      "documents": [
-        {
-          "path": "plans/IMPLEMENTATION_PLAN.md",
-          "title": "Implementation Plan",
-          "description": "Feature implementation roadmap",
-          "internal": true
+          "internal": true,
+          "docType": "internal-progress",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         },
         {
-          "path": "plans/EXPERIENCE_AUDIT.md",
+          "path": "internal/API_NOTES.md",
+          "title": "API Notes",
+          "description": "Per-domain implementation notes for the API",
+          "internal": true,
+          "docType": "internal-api-notes",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/CLI_AUDIT.md",
+          "title": "CLI Audit",
+          "description": "Operator CLI audit notes",
+          "internal": true,
+          "docType": "internal-cli-audit",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
           "title": "Experience Audit",
-          "description": "UX/experience audit documentation",
-          "internal": true
+          "description": "UX/experience audit findings",
+          "internal": true,
+          "docType": "internal-experience-audit",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "How the per-domain unit tests are organized",
+          "internal": true,
+          "docType": "internal-unit-test-architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Architecture",
+          "description": "Schema ownership, persistence seams, and deployment migration posture",
+          "internal": true,
+          "docType": "internal-storage-architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
         }
-      ]
+      ],
+      "description": "Internal",
+      "purpose": "Documentation for internal."
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "guides", "concepts", "reference"],
-    "secondary": ["internal", "plans"]
+    "primary": [
+      "getting-started",
+      "guides",
+      "concepts",
+      "reference",
+      "integrations"
+    ],
+    "secondary": [
+      "perf",
+      "internal"
+    ]
+  },
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "landing-page-react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Every durable scenario document must be registered here and carry its contract metadata."
   }
 }

@@ -16,7 +16,7 @@
 ## Runtime Behavior
 
 1. The automation compiler forwards key/event/modifier/focus/timeout params as-is; validation occurs in the workflow validator.
-2. Browserless focuses the optional selector, then dispatches the requested key event through CDP’s `Input.dispatchKeyEvent` with the correct modifier state.
+2. The Playwright driver focuses the optional selector, then dispatches the requested key event through CDP’s `Input.dispatchKeyEvent` with the correct modifier state.
 3. Execution artifacts capture the key/event/modifiers for debugging.
 
 ## Example

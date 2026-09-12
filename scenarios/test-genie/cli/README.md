@@ -90,10 +90,9 @@ cli/
 ├── main.go                      # Entry point
 ├── app.go                       # App struct & command registration
 │
-├── generate/                    # DOMAIN: Test Suite Generation
-│   ├── command.go              # Generate command implementation
-│   ├── client.go               # API client for suite requests
-│   └── types.go                # Request/Response types
+├── remediate/                   # DOMAIN: Findings-first remediation
+│   ├── command.go              # Remediation job command implementation
+│   └── client.go               # Remediation API client
 │
 ├── execute/                     # DOMAIN: Test Suite Execution
 │   ├── command.go              # Execute command implementation
@@ -118,11 +117,6 @@ cli/
 │   ├── client.go               # API client
 │   └── types.go                # Request/Response types
 │
-├── storage/                    # DOMAIN: Storage Migration & Maintenance
-│   ├── command.go              # Storage command dispatcher
-│   ├── import_postgres.go      # Legacy Postgres -> SQLite importer
-│   └── import_postgres_test.go # Import contract tests
-│
 ├── status/                      # DOMAIN: Health & Status
 │   ├── command.go              # Status command
 │   ├── client.go               # Health API client
@@ -136,20 +130,12 @@ cli/
 
 ## Commands
 
-### Generate Test Suites
+### Remediate Execution Findings
 
-Queue AI-driven test suite generation for a scenario:
+Create one scoped remediation job from a completed execution:
 
 ```bash
-test-genie generate <scenario> [options]
-
-Options:
-  --types      Comma-separated test types (unit,integration,e2e,business,performance)
-  --coverage   Target coverage percentage (1-100)
-  --priority   Priority level (low|normal|high|urgent)
-  --notes      Notes for the generation request
-  --notes-file Path to notes file
-  --json       Output as JSON
+test-genie remediate <scenario> --execution <uuid> --findings <stable-id,...> --role <role-ref> [--requirements <id,...>] [--context <text>]
 ```
 
 ### Execute Test Suites
@@ -163,7 +149,6 @@ Options:
   --preset      Preset name (e.g., quick, full)
   --phases      Comma-separated phases to run
   --skip        Comma-separated phases to skip
-  --request-id  Link to a suite request
   --fail-fast   Stop on first failure
   --stream      Stream live phase logs
   --json        Output as JSON
@@ -189,23 +174,11 @@ Options:
 
 ### Check Status
 
-View Test Genie health and queue status:
+View Test Genie health and latest execution status:
 
 ```bash
 test-genie status
 ```
-
-### Migrate Legacy Storage
-
-Import operational history from the removed Postgres store into the embedded SQLite database:
-
-```bash
-test-genie storage import-postgres \
-  --source "postgres://user:pass@host:5432/test_genie?sslmode=disable" \
-  --target "${SCENARIO_DATA_DIR}/test-genie.db"
-```
-
-Use `--force` to overwrite existing SQLite operational rows.
 
 ### Manage Requirements (local, no Node required)
 
@@ -228,10 +201,9 @@ The top-level directories communicate business capabilities, not technical conce
 
 | Directory | Business Capability |
 |-----------|---------------------|
-| `generate/` | Queue AI test generation |
+| `remediate/` | Create evidence-bound remediation jobs |
 | `execute/` | Run test suites with phases |
 | `runlocal/` | Trigger local test runners |
-| `storage/` | Perform one-time storage migrations |
 | `status/` | Monitor system health |
 
 ### Domain Cohesion

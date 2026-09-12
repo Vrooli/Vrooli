@@ -78,7 +78,7 @@ export function BundleCard({
       const priceIdentifier = getPriceIdentifier(price);
       const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
       const formState = priceForms[key];
-      const weight = formState?.values.displayWeight ?? price.display_weight ?? 0;
+      const weight = formState?.values.displayWeight ?? price.display_weight;
       const rank = typeof price.plan_rank === 'number' ? price.plan_rank : Number.MAX_SAFE_INTEGER;
       return { price, priceIdentifier, weight, rank, index };
     });
@@ -101,25 +101,18 @@ export function BundleCard({
   useEffect(() => {
     if (sortedVisiblePrices.length === 0) return;
     setCollapsedById((prev) => {
-      let changed = false;
       const next = { ...prev };
       const ids = new Set(sortedVisiblePrices.map((item) => item.priceIdentifier));
 
       sortedVisiblePrices.forEach((item) => {
         if (next[item.priceIdentifier] === undefined) {
           next[item.priceIdentifier] = true;
-          changed = true;
         }
       });
 
-      Object.keys(next).forEach((id) => {
-        if (!ids.has(id)) {
-          delete next[id];
-          changed = true;
-        }
-      });
+      const retained = Object.fromEntries(Object.entries(next).filter(([id]) => ids.has(id)));
 
-      return changed ? next : prev;
+      return retained;
     });
   }, [sortedVisiblePrices]);
 
@@ -183,7 +176,7 @@ export function BundleCard({
     }
 
     const reordered = moveItem(ids, sourceIndex, targetIndex);
-    onReorderPlans?.(entry.bundle.bundle_key, reordered);
+    onReorderPlans(entry.bundle.bundle_key, reordered);
     setDraggingId(null);
     setDragOverId(null);
   };
@@ -218,7 +211,7 @@ export function BundleCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onAddPlan(entry.bundle.bundle_key)}
+                onClick={() => { onAddPlan(entry.bundle.bundle_key); }}
                 className="gap-1"
               >
                 <Plus className="h-4 w-4" />
@@ -278,7 +271,7 @@ export function BundleCard({
                   formState={formState}
                   priceCheck={priceChecks[key]}
                   isCollapsed={collapsedById[priceIdentifier] ?? true}
-                  onToggleCollapse={() => handleToggleCollapse(priceIdentifier)}
+                  onToggleCollapse={() => { handleToggleCollapse(priceIdentifier); }}
                   onPriceChange={onPriceChange}
                   onSavePrice={onSavePrice}
                   onVerifyPrice={onVerifyPrice}
@@ -371,7 +364,7 @@ export function BundleCard({
                   formState={formState}
                   priceCheck={priceChecks[key]}
                   isCollapsed={collapsedById[priceIdentifier] ?? true}
-                  onToggleCollapse={() => handleToggleCollapse(priceIdentifier)}
+                  onToggleCollapse={() => { handleToggleCollapse(priceIdentifier); }}
                   onPriceChange={onPriceChange}
                   onSavePrice={onSavePrice}
                   onVerifyPrice={onVerifyPrice}

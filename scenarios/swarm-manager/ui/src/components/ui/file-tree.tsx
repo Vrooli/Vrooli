@@ -241,7 +241,7 @@ function FileTreeItem({
  * File tree component displaying a hierarchical list of files and directories
  */
 export function FileTree({
-  files = [],
+  files,
   onFileSelect,
   selectedPath,
   selectionMode = "single",

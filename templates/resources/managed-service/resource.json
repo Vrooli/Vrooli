@@ -1,0 +1,64 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "cli": {
+    "enabled": true,
+    "command": "{{RESOURCE_CLI_COMMAND}}",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "artifacts": {"manifest": {"location": "sibling"}, "build_metadata": {"location": "sibling"}},
+    "distribution": {"kind": "prebuilt_artifact", "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"},
+    "source_build": {"kind": "go_module"},
+    "invoke": {"kind": "installed_command", "command": "{{RESOURCE_CLI_COMMAND}}"},
+    "freshness": {"inputs": ["cli/**", "docs/**", "README.md", "resource.json"]}
+  },
+  "template": "managed-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "provider_policy": {"target_defaults": {"control-plane": "managed-shared", "desktop-bundle": "managed-private"}, "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"], "shared_reuse_requires_consent": true, "external_management": "forbidden", "external_access_capabilities": ["read-only"]},
+    "artifact": {"path": "server/{{RESOURCE_NAME}}", "version": "{{SERVICE_VERSION}}", "sha256": "{{SERVICE_SHA256}}", "bundle_artifact": "{{RESOURCE_NAME}}_${os}_${arch}"},
+    "acquisition": {
+      "kind": "url",
+      "targets": [
+        {
+          "when": {"os": "linux", "arch": "amd64"},
+          "url": "https://example.invalid/{{RESOURCE_NAME}}-linux-amd64.tar.gz",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "archive": "tar.gz",
+          "layout": "file",
+          "bin_path": "server/{{RESOURCE_NAME}}"
+        },
+        {
+          "when": {"os": "linux", "arch": "arm64"},
+          "url": "https://example.invalid/{{RESOURCE_NAME}}-linux-arm64.tar.gz",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "archive": "tar.gz",
+          "layout": "file",
+          "bin_path": "server/{{RESOURCE_NAME}}"
+        },
+        {"when": {"os": "macos"}, "unsupported": "Replace with a reproducible native macOS artifact before claiming macOS support."},
+        {"when": {"os": "windows"}, "unsupported": "Replace with a reproducible native Windows artifact before claiming Windows support."}
+      ]
+    },
+    "attach_health_path": "/health",
+    "arguments": ["server", "-config=${RESOURCE_CONFIG_DIR}/service.conf"],
+    "shutdown": {"signal": "terminate"},
+    "config": {"path": "service.conf", "content": "data_dir=${RESOURCE_DATA_DIR}\\n"}
+  },
+  "deployment": {"profiles": {"desktop": {
+    "linux": {"support": "conditional", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Service is supervised as a private background component; promote only after target smoke evidence."], "evidence": ["manifest-validation", "artifact-checksum"]},
+    "macos": {"support": "conditional", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Service is supervised as a private background component; promote only after target smoke evidence."], "evidence": ["manifest-validation", "artifact-checksum"]},
+    "windows": {"support": "conditional", "mode": "bundled-service", "architectures": ["amd64", "arm64"], "limitations": ["Service is supervised as a private background component; promote only after target smoke evidence."], "evidence": ["manifest-validation", "artifact-checksum"]}
+  }}},
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "orchestration": {"startup_order": 500, "startup_timeout_seconds": 30, "startup_time_estimate": "1-3s", "dependencies": [], "recovery_attempts": 2, "priority": "medium"},
+  "health_checks": [
+    {"type": "http", "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health", "kind": "readiness", "interval_seconds": 10, "timeout_seconds": 10},
+    {"type": "http", "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health", "kind": "liveness", "interval_seconds": 30, "timeout_seconds": 10}
+  ],
+  "lifecycle": {"start_timeout_seconds": 60, "stop_timeout_seconds": 30, "retries": 2},
+  "capabilities": {"supports_logs": true},
+  "template_version": "2"
+}

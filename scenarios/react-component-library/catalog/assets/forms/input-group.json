@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "forms.input-group", "name": "InputGroup", "kind": "component", "domain": "forms", "description": "Composes a field and its attached controls as one bordered, labelled, and focusable control row.", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

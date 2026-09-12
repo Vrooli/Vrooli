@@ -1,0 +1,18 @@
+{
+  "ComponentID": "f8df82a0-df06-4097-b256-6745d009d941",
+  "LibraryID": "react-component-library:PageFrame",
+  "Preflight": {
+    "Completed": true,
+    "CatalogID": "react-component-library:PageFrame",
+    "CatalogPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/catalog/assets/legacy/pageframe.json",
+    "RequiredBy": null,
+    "SuggestedBy": null,
+    "SourceReferences": null
+  },
+  "Archive": {
+    "SnapshotPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-f172c768f9cc8619594da8e5dfac7522a74fd129bea6386181fbc9e4a12b3f34.snapshot.json",
+    "SourceArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-f172c768f9cc8619594da8e5dfac7522a74fd129bea6386181fbc9e4a12b3f34"
+  },
+  "CatalogArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-f172c768f9cc8619594da8e5dfac7522a74fd129bea6386181fbc9e4a12b3f34.catalog.json",
+  "Retired": true
+}

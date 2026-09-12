@@ -137,6 +137,11 @@ HEADLESS=true
 BROWSER_EXECUTABLE_PATH=
 BROWSER_ARGS=
 IGNORE_HTTPS_ERRORS=false
+# Absolute WAV fixture applied to the DEFAULT browser instance (legacy
+# fallback for dedicated qualification drivers). Prefer the per-execution
+# path: workflow settings.fake_media.microphone_wav gives the session a
+# dedicated fake-media browser without any env configuration.
+BAS_FAKE_MICROPHONE_FILE=
 
 # Recording
 RECORDING_MAX_BUFFER_SIZE=10000

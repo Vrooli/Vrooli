@@ -1,6 +1,6 @@
 # Subflow
 
-`subflow` nodes run child workflows (inline or by ID) through the automation executor. The engine-agnostic path compiles and runs child plans without touching legacy Browserless client code. The legacy `workflowCall` type has been removed; migrate any remaining nodes to `subflow`.
+`subflow` nodes run child workflows (inline or by ID) through the automation executor. The engine-agnostic path compiles and runs child plans without touching the legacy browser-client code. The legacy `workflowCall` type has been removed; migrate any remaining nodes to `subflow`.
 
 ## Current Status
 

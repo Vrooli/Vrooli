@@ -46,9 +46,20 @@ type ExecutionRecord struct {
 	// Number of fixup attempts (0 for original execution).
 	FixupAttempt int32 `protobuf:"varint,18,opt,name=fixup_attempt,json=fixupAttempt,proto3" json:"fixup_attempt,omitempty"`
 	// Unified post-run finalization state for restart + health + review.
-	Finalization  *Finalization `protobuf:"bytes,23,opt,name=finalization,proto3,oneof" json:"finalization,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Finalization *Finalization `protobuf:"bytes,23,opt,name=finalization,proto3,oneof" json:"finalization,omitempty"`
+	// Requested runner/model preferences and the actual selected provider.
+	ExecutionPreferences *ExecutionPreferences `protobuf:"bytes,24,opt,name=execution_preferences,json=executionPreferences,proto3,oneof" json:"execution_preferences,omitempty"`
+	ActualRunner         *string               `protobuf:"bytes,25,opt,name=actual_runner,json=actualRunner,proto3,oneof" json:"actual_runner,omitempty"`
+	ActualModel          *string               `protobuf:"bytes,26,opt,name=actual_model,json=actualModel,proto3,oneof" json:"actual_model,omitempty"`
+	SelectionReason      *string               `protobuf:"bytes,27,opt,name=selection_reason,json=selectionReason,proto3,oneof" json:"selection_reason,omitempty"`
+	// Parent execution for an unattended continuation child.
+	ContinuationOf *string `protobuf:"bytes,28,opt,name=continuation_of,json=continuationOf,proto3,oneof" json:"continuation_of,omitempty"`
+	// Child execution IDs created from this execution by the sweeper.
+	ContinuationChildIds []string `protobuf:"bytes,29,rep,name=continuation_child_ids,json=continuationChildIds,proto3" json:"continuation_child_ids,omitempty"`
+	// Recorded Plan Manager boundary widenings projected into execution scope.
+	ScopeExtensions []*ScopeExtension `protobuf:"bytes,30,rep,name=scope_extensions,json=scopeExtensions,proto3" json:"scope_extensions,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExecutionRecord) Reset() {
@@ -207,6 +218,125 @@ func (x *ExecutionRecord) GetFinalization() *Finalization {
 	return nil
 }
 
+func (x *ExecutionRecord) GetExecutionPreferences() *ExecutionPreferences {
+	if x != nil {
+		return x.ExecutionPreferences
+	}
+	return nil
+}
+
+func (x *ExecutionRecord) GetActualRunner() string {
+	if x != nil && x.ActualRunner != nil {
+		return *x.ActualRunner
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetActualModel() string {
+	if x != nil && x.ActualModel != nil {
+		return *x.ActualModel
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetSelectionReason() string {
+	if x != nil && x.SelectionReason != nil {
+		return *x.SelectionReason
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetContinuationOf() string {
+	if x != nil && x.ContinuationOf != nil {
+		return *x.ContinuationOf
+	}
+	return ""
+}
+
+func (x *ExecutionRecord) GetContinuationChildIds() []string {
+	if x != nil {
+		return x.ContinuationChildIds
+	}
+	return nil
+}
+
+func (x *ExecutionRecord) GetScopeExtensions() []*ScopeExtension {
+	if x != nil {
+		return x.ScopeExtensions
+	}
+	return nil
+}
+
+// ScopeExtension is an execution-local projection of one Plan Manager
+// boundary extension. The Plan Manager execution remains the audit authority.
+type ScopeExtension struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Paths         []string               `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	RecordedAt    string                 `protobuf:"bytes,3,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	Author        string                 `protobuf:"bytes,4,opt,name=author,proto3" json:"author,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScopeExtension) Reset() {
+	*x = ScopeExtension{}
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScopeExtension) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScopeExtension) ProtoMessage() {}
+
+func (x *ScopeExtension) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScopeExtension.ProtoReflect.Descriptor instead.
+func (*ScopeExtension) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ScopeExtension) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *ScopeExtension) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ScopeExtension) GetRecordedAt() string {
+	if x != nil {
+		return x.RecordedAt
+	}
+	return ""
+}
+
+func (x *ScopeExtension) GetAuthor() string {
+	if x != nil {
+		return x.Author
+	}
+	return ""
+}
+
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
 type ArchiveContext struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -221,7 +351,7 @@ type ArchiveContext struct {
 
 func (x *ArchiveContext) Reset() {
 	*x = ArchiveContext{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -233,7 +363,7 @@ func (x *ArchiveContext) String() string {
 func (*ArchiveContext) ProtoMessage() {}
 
 func (x *ArchiveContext) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[1]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -246,7 +376,7 @@ func (x *ArchiveContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveContext.ProtoReflect.Descriptor instead.
 func (*ArchiveContext) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{1}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ArchiveContext) GetScenarioName() string {
@@ -301,7 +431,7 @@ type ReviewResult struct {
 
 func (x *ReviewResult) Reset() {
 	*x = ReviewResult{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -313,7 +443,7 @@ func (x *ReviewResult) String() string {
 func (*ReviewResult) ProtoMessage() {}
 
 func (x *ReviewResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -326,7 +456,7 @@ func (x *ReviewResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReviewResult.ProtoReflect.Descriptor instead.
 func (*ReviewResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ReviewResult) GetJobId() string {
@@ -384,7 +514,7 @@ type ReviewDimension struct {
 
 func (x *ReviewDimension) Reset() {
 	*x = ReviewDimension{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +526,7 @@ func (x *ReviewDimension) String() string {
 func (*ReviewDimension) ProtoMessage() {}
 
 func (x *ReviewDimension) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +539,7 @@ func (x *ReviewDimension) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReviewDimension.ProtoReflect.Descriptor instead.
 func (*ReviewDimension) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{3}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ReviewDimension) GetName() string {
@@ -454,7 +584,7 @@ type Finalization struct {
 
 func (x *Finalization) Reset() {
 	*x = Finalization{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +596,7 @@ func (x *Finalization) String() string {
 func (*Finalization) ProtoMessage() {}
 
 func (x *Finalization) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +609,7 @@ func (x *Finalization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Finalization.ProtoReflect.Descriptor instead.
 func (*Finalization) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{4}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Finalization) GetEligible() bool {
@@ -581,7 +711,7 @@ type FinalizationWarning struct {
 
 func (x *FinalizationWarning) Reset() {
 	*x = FinalizationWarning{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -593,7 +723,7 @@ func (x *FinalizationWarning) String() string {
 func (*FinalizationWarning) ProtoMessage() {}
 
 func (x *FinalizationWarning) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[5]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -606,7 +736,7 @@ func (x *FinalizationWarning) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizationWarning.ProtoReflect.Descriptor instead.
 func (*FinalizationWarning) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{5}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FinalizationWarning) GetCode() string {
@@ -659,7 +789,7 @@ type ScenarioFinalization struct {
 
 func (x *ScenarioFinalization) Reset() {
 	*x = ScenarioFinalization{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +801,7 @@ func (x *ScenarioFinalization) String() string {
 func (*ScenarioFinalization) ProtoMessage() {}
 
 func (x *ScenarioFinalization) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[6]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +814,7 @@ func (x *ScenarioFinalization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioFinalization.ProtoReflect.Descriptor instead.
 func (*ScenarioFinalization) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{6}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ScenarioFinalization) GetScenarioName() string {
@@ -736,7 +866,7 @@ type RestartResult struct {
 
 func (x *RestartResult) Reset() {
 	*x = RestartResult{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -748,7 +878,7 @@ func (x *RestartResult) String() string {
 func (*RestartResult) ProtoMessage() {}
 
 func (x *RestartResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[7]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -761,7 +891,7 @@ func (x *RestartResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestartResult.ProtoReflect.Descriptor instead.
 func (*RestartResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{7}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RestartResult) GetStatus() string {
@@ -815,7 +945,7 @@ type HealthCheckResult struct {
 
 func (x *HealthCheckResult) Reset() {
 	*x = HealthCheckResult{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +957,7 @@ func (x *HealthCheckResult) String() string {
 func (*HealthCheckResult) ProtoMessage() {}
 
 func (x *HealthCheckResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[8]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +970,7 @@ func (x *HealthCheckResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResult.ProtoReflect.Descriptor instead.
 func (*HealthCheckResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{8}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *HealthCheckResult) GetStatus() string {
@@ -898,7 +1028,7 @@ type ScenarioReview struct {
 
 func (x *ScenarioReview) Reset() {
 	*x = ScenarioReview{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -910,7 +1040,7 @@ func (x *ScenarioReview) String() string {
 func (*ScenarioReview) ProtoMessage() {}
 
 func (x *ScenarioReview) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[9]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -923,7 +1053,7 @@ func (x *ScenarioReview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioReview.ProtoReflect.Descriptor instead.
 func (*ScenarioReview) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{9}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ScenarioReview) GetStatus() string {
@@ -977,7 +1107,7 @@ type EvidenceItem struct {
 
 func (x *EvidenceItem) Reset() {
 	*x = EvidenceItem{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +1119,7 @@ func (x *EvidenceItem) String() string {
 func (*EvidenceItem) ProtoMessage() {}
 
 func (x *EvidenceItem) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[10]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1132,7 @@ func (x *EvidenceItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceItem.ProtoReflect.Descriptor instead.
 func (*EvidenceItem) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{10}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *EvidenceItem) GetId() string {
@@ -1080,7 +1210,7 @@ type EvidenceTestResult struct {
 
 func (x *EvidenceTestResult) Reset() {
 	*x = EvidenceTestResult{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +1222,7 @@ func (x *EvidenceTestResult) String() string {
 func (*EvidenceTestResult) ProtoMessage() {}
 
 func (x *EvidenceTestResult) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[11]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1235,7 @@ func (x *EvidenceTestResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceTestResult.ProtoReflect.Descriptor instead.
 func (*EvidenceTestResult) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{11}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *EvidenceTestResult) GetName() string {
@@ -1148,7 +1278,7 @@ type EvidenceRequestThread struct {
 
 func (x *EvidenceRequestThread) Reset() {
 	*x = EvidenceRequestThread{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1160,7 +1290,7 @@ func (x *EvidenceRequestThread) String() string {
 func (*EvidenceRequestThread) ProtoMessage() {}
 
 func (x *EvidenceRequestThread) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[12]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1173,7 +1303,7 @@ func (x *EvidenceRequestThread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceRequestThread.ProtoReflect.Descriptor instead.
 func (*EvidenceRequestThread) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{12}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *EvidenceRequestThread) GetId() string {
@@ -1233,7 +1363,7 @@ type EvidenceRequestMessage struct {
 
 func (x *EvidenceRequestMessage) Reset() {
 	*x = EvidenceRequestMessage{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1375,7 @@ func (x *EvidenceRequestMessage) String() string {
 func (*EvidenceRequestMessage) ProtoMessage() {}
 
 func (x *EvidenceRequestMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[13]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1388,7 @@ func (x *EvidenceRequestMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceRequestMessage.ProtoReflect.Descriptor instead.
 func (*EvidenceRequestMessage) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{13}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *EvidenceRequestMessage) GetRole() string {
@@ -1312,7 +1442,7 @@ type ReviewEvidenceRound struct {
 
 func (x *ReviewEvidenceRound) Reset() {
 	*x = ReviewEvidenceRound{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1324,7 +1454,7 @@ func (x *ReviewEvidenceRound) String() string {
 func (*ReviewEvidenceRound) ProtoMessage() {}
 
 func (x *ReviewEvidenceRound) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[14]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1337,7 +1467,7 @@ func (x *ReviewEvidenceRound) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReviewEvidenceRound.ProtoReflect.Descriptor instead.
 func (*ReviewEvidenceRound) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{14}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ReviewEvidenceRound) GetRound() int32 {
@@ -1426,7 +1556,7 @@ type ExecutionPolicy struct {
 
 func (x *ExecutionPolicy) Reset() {
 	*x = ExecutionPolicy{}
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1438,7 +1568,7 @@ func (x *ExecutionPolicy) String() string {
 func (*ExecutionPolicy) ProtoMessage() {}
 
 func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[15]
+	mi := &file_swarm_manager_v1_domain_execution_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1451,7 +1581,7 @@ func (x *ExecutionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionPolicy.ProtoReflect.Descriptor instead.
 func (*ExecutionPolicy) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{15}
+	return file_swarm_manager_v1_domain_execution_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ExecutionPolicy) GetDefaultMode() string {
@@ -1486,15 +1616,16 @@ var File_swarm_manager_v1_domain_execution_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
-	"'swarm-manager/v1/domain/execution.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xd4\b\n" +
+	"'swarm-manager/v1/domain/execution.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\"\xa8\r\n" +
 	"\x0fExecutionRecord\x12*\n" +
 	"\fexecution_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vexecutionId\x12X\n" +
 	"\fbacklog_kind\x18\x02 \x01(\tB5\xbaH2r0R\x04ideaR\x03fixR\aexecuteR\bresearchR\x05choreR\tspec-syncR\vbacklogKind\x12*\n" +
 	"\fbacklog_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vbacklogName\x12\x1c\n" +
 	"\atask_id\x18\x04 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1a\n" +
-	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12}\n" +
-	"\x06status\x18\x06 \x01(\tBe\xbaHbr`R\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
-	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
+	"\x06run_id\x18\x05 \x01(\tH\x01R\x05runId\x88\x01\x01\x12\x9d\x01\n" +
+	"\x06status\x18\x06 \x01(\tB\x84\x01\xbaH\x80\x01r~R\apendingR\bstartingR\arunningR\fneeds_reviewR\n" +
+	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\x10budget_exhaustedR\n" +
+	"cancellingR\bcanceledR\x06status\x12'\n" +
 	"\x04mode\x18\a \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\"\n" +
 	"\n" +
 	"started_at\x18\t \x01(\tH\x02R\tstartedAt\x88\x01\x01\x12$\n" +
@@ -1508,11 +1639,19 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcreatedAt\x12&\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12N\n" +
-	"\x0farchive_context\x18\x10 \x01(\v2 .swarm_manager.v1.ArchiveContextH\aR\x0earchiveContext\x88\x01\x01\x123\n" +
+	"updated_at\x18\x0f \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tupdatedAt\x12\\\n" +
+	"\x0farchive_context\x18\x10 \x01(\v2..vrooli.swarm_manager.v1.domain.ArchiveContextH\aR\x0earchiveContext\x88\x01\x01\x123\n" +
 	"\x13parent_execution_id\x18\x11 \x01(\tH\bR\x11parentExecutionId\x88\x01\x01\x12#\n" +
-	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12G\n" +
-	"\ffinalization\x18\x17 \x01(\v2\x1e.swarm_manager.v1.FinalizationH\tR\ffinalization\x88\x01\x01B\n" +
+	"\rfixup_attempt\x18\x12 \x01(\x05R\ffixupAttempt\x12U\n" +
+	"\ffinalization\x18\x17 \x01(\v2,.vrooli.swarm_manager.v1.domain.FinalizationH\tR\ffinalization\x88\x01\x01\x12n\n" +
+	"\x15execution_preferences\x18\x18 \x01(\v24.vrooli.swarm_manager.v1.domain.ExecutionPreferencesH\n" +
+	"R\x14executionPreferences\x88\x01\x01\x12(\n" +
+	"\ractual_runner\x18\x19 \x01(\tH\vR\factualRunner\x88\x01\x01\x12&\n" +
+	"\factual_model\x18\x1a \x01(\tH\fR\vactualModel\x88\x01\x01\x12.\n" +
+	"\x10selection_reason\x18\x1b \x01(\tH\rR\x0fselectionReason\x88\x01\x01\x12,\n" +
+	"\x0fcontinuation_of\x18\x1c \x01(\tH\x0eR\x0econtinuationOf\x88\x01\x01\x124\n" +
+	"\x16continuation_child_ids\x18\x1d \x03(\tR\x14continuationChildIds\x12Y\n" +
+	"\x10scope_extensions\x18\x1e \x03(\v2..vrooli.swarm_manager.v1.domain.ScopeExtensionR\x0fscopeExtensionsB\n" +
 	"\n" +
 	"\b_task_idB\t\n" +
 	"\a_run_idB\r\n" +
@@ -1524,7 +1663,18 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"_operationB\x12\n" +
 	"\x10_archive_contextB\x16\n" +
 	"\x14_parent_execution_idB\x0f\n" +
-	"\r_finalizationJ\x04\b\b\x10\tJ\x04\b\x13\x10\x17\"\x99\x02\n" +
+	"\r_finalizationB\x18\n" +
+	"\x16_execution_preferencesB\x10\n" +
+	"\x0e_actual_runnerB\x0f\n" +
+	"\r_actual_modelB\x13\n" +
+	"\x11_selection_reasonB\x12\n" +
+	"\x10_continuation_ofJ\x04\b\b\x10\tJ\x04\b\x13\x10\x17\"w\n" +
+	"\x0eScopeExtension\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1f\n" +
+	"\vrecorded_at\x18\x03 \x01(\tR\n" +
+	"recordedAt\x12\x16\n" +
+	"\x06author\x18\x04 \x01(\tR\x06author\"\x99\x02\n" +
 	"\x0eArchiveContext\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12,\n" +
 	"\rscenario_path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioPath\x12-\n" +
@@ -1532,12 +1682,12 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0epreserve_paths\x18\x04 \x03(\tR\rpreservePaths\x12,\n" +
 	"\x0fpreserve_preset\x18\x05 \x01(\tH\x01R\x0epreservePreset\x88\x01\x01B\x13\n" +
 	"\x11_preset_or_customB\x12\n" +
-	"\x10_preserve_preset\"\x8a\x02\n" +
+	"\x10_preserve_preset\"\x98\x02\n" +
 	"\fReviewResult\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12&\n" +
-	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12A\n" +
+	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12O\n" +
 	"\n" +
-	"dimensions\x18\x03 \x03(\v2!.swarm_manager.v1.ReviewDimensionR\n" +
+	"dimensions\x18\x03 \x03(\v2/.vrooli.swarm_manager.v1.domain.ReviewDimensionR\n" +
 	"dimensions\x12\x18\n" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12\x1f\n" +
 	"\vreviewed_at\x18\x05 \x01(\tR\n" +
@@ -1549,7 +1699,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
 	"\adetails\x18\x03 \x01(\tH\x00R\adetails\x88\x01\x01B\n" +
 	"\n" +
-	"\b_details\"\xd8\x04\n" +
+	"\b_details\"\xf4\x04\n" +
 	"\fFinalization\x12\x1a\n" +
 	"\beligible\x18\x01 \x01(\bR\beligible\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
@@ -1559,13 +1709,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"skipReason\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tH\x01R\tstartedAt\x88\x01\x01\x12&\n" +
-	"\fcompleted_at\x18\a \x01(\tH\x02R\vcompletedAt\x88\x01\x01\x12A\n" +
-	"\bwarnings\x18\b \x03(\v2%.swarm_manager.v1.FinalizationWarningR\bwarnings\x12-\n" +
+	"\fcompleted_at\x18\a \x01(\tH\x02R\vcompletedAt\x88\x01\x01\x12O\n" +
+	"\bwarnings\x18\b \x03(\v23.vrooli.swarm_manager.v1.domain.FinalizationWarningR\bwarnings\x12-\n" +
 	"\x12affected_scenarios\x18\t \x03(\tR\x11affectedScenarios\x129\n" +
 	"\x18aggregate_classification\x18\n" +
 	" \x01(\tR\x17aggregateClassification\x120\n" +
-	"\x11aggregate_summary\x18\v \x01(\tH\x03R\x10aggregateSummary\x88\x01\x01\x12D\n" +
-	"\tscenarios\x18\f \x03(\v2&.swarm_manager.v1.ScenarioFinalizationR\tscenariosB\x0e\n" +
+	"\x11aggregate_summary\x18\v \x01(\tH\x03R\x10aggregateSummary\x88\x01\x01\x12R\n" +
+	"\tscenarios\x18\f \x03(\v24.vrooli.swarm_manager.v1.domain.ScenarioFinalizationR\tscenariosB\x0e\n" +
 	"\f_skip_reasonB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\x14\n" +
@@ -1577,13 +1727,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\tretryable\x18\x04 \x01(\bR\tretryable\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAtB\x10\n" +
-	"\x0e_scenario_name\"\x92\x02\n" +
+	"\x0e_scenario_name\"\xbc\x02\n" +
 	"\x14ScenarioFinalization\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12#\n" +
-	"\rchanged_paths\x18\x02 \x03(\tR\fchangedPaths\x129\n" +
-	"\arestart\x18\x03 \x01(\v2\x1f.swarm_manager.v1.RestartResultR\arestart\x12;\n" +
-	"\x06health\x18\x04 \x01(\v2#.swarm_manager.v1.HealthCheckResultR\x06health\x128\n" +
-	"\x06review\x18\x05 \x01(\v2 .swarm_manager.v1.ScenarioReviewR\x06review\"\xdf\x01\n" +
+	"\rchanged_paths\x18\x02 \x03(\tR\fchangedPaths\x12G\n" +
+	"\arestart\x18\x03 \x01(\v2-.vrooli.swarm_manager.v1.domain.RestartResultR\arestart\x12I\n" +
+	"\x06health\x18\x04 \x01(\v21.vrooli.swarm_manager.v1.domain.HealthCheckResultR\x06health\x12F\n" +
+	"\x06review\x18\x05 \x01(\v2..vrooli.swarm_manager.v1.domain.ScenarioReviewR\x06review\"\xdf\x01\n" +
 	"\rRestartResult\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
 	"\battempts\x18\x02 \x01(\x05R\battempts\x12\"\n" +
@@ -1608,16 +1758,16 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x0e_health_statusB\n" +
 	"\n" +
 	"\b_detailsB\r\n" +
-	"\v_checked_at\"\xcd\x01\n" +
+	"\v_checked_at\"\xdb\x01\n" +
 	"\x0eScenarioReview\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
 	"\x06job_id\x18\x02 \x01(\tH\x00R\x05jobId\x88\x01\x01\x12$\n" +
 	"\vskip_reason\x18\x03 \x01(\tH\x01R\n" +
-	"skipReason\x88\x01\x01\x12;\n" +
-	"\x06result\x18\x04 \x01(\v2\x1e.swarm_manager.v1.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
+	"skipReason\x88\x01\x01\x12I\n" +
+	"\x06result\x18\x04 \x01(\v2,.vrooli.swarm_manager.v1.domain.ReviewResultH\x02R\x06result\x88\x01\x01B\t\n" +
 	"\a_job_idB\x0e\n" +
 	"\f_skip_reasonB\t\n" +
-	"\a_result\"\x8b\x03\n" +
+	"\a_result\"\x99\x03\n" +
 	"\fEvidenceItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
@@ -1627,8 +1777,8 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\bverified\x18\x06 \x01(\bR\bverified\x12$\n" +
 	"\vverified_at\x18\a \x01(\tH\x01R\n" +
 	"verifiedAt\x88\x01\x01\x123\n" +
-	"\x13before_capture_path\x18\b \x01(\tH\x02R\x11beforeCapturePath\x88\x01\x01\x12G\n" +
-	"\ftest_results\x18\t \x03(\v2$.swarm_manager.v1.EvidenceTestResultR\vtestResultsB\x0f\n" +
+	"\x13before_capture_path\x18\b \x01(\tH\x02R\x11beforeCapturePath\x88\x01\x01\x12U\n" +
+	"\ftest_results\x18\t \x03(\v22.vrooli.swarm_manager.v1.domain.EvidenceTestResultR\vtestResultsB\x0f\n" +
 	"\r_capture_pathB\x0e\n" +
 	"\f_verified_atB\x16\n" +
 	"\x14_before_capture_path\"\x7f\n" +
@@ -1636,13 +1786,13 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12*\n" +
 	"\x0eoutput_summary\x18\x03 \x01(\tH\x00R\routputSummary\x88\x01\x01B\x11\n" +
-	"\x0f_output_summary\"\x81\x02\n" +
+	"\x0f_output_summary\"\x8f\x02\n" +
 	"\x15EvidenceRequestThread\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12$\n" +
 	"\vevidence_id\x18\x02 \x01(\tH\x00R\n" +
 	"evidenceId\x88\x01\x01\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\x12D\n" +
-	"\bmessages\x18\x04 \x03(\v2(.swarm_manager.v1.EvidenceRequestMessageR\bmessages\x12\x1d\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12R\n" +
+	"\bmessages\x18\x04 \x03(\v26.vrooli.swarm_manager.v1.domain.EvidenceRequestMessageR\bmessages\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x01R\x05runId\x88\x01\x01B\x0e\n" +
@@ -1652,7 +1802,7 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1c\n" +
 	"\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12,\n" +
-	"\x12added_evidence_ids\x18\x04 \x03(\tR\x10addedEvidenceIds\"\xd9\x03\n" +
+	"\x12added_evidence_ids\x18\x04 \x03(\tR\x10addedEvidenceIds\"\xf5\x03\n" +
 	"\x13ReviewEvidenceRound\x12\x14\n" +
 	"\x05round\x18\x01 \x01(\x05R\x05round\x12!\n" +
 	"\fgenerated_at\x18\x02 \x01(\tR\vgeneratedAt\x12!\n" +
@@ -1660,9 +1810,9 @@ const file_swarm_manager_v1_domain_execution_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12.\n" +
 	"\x10agent_assessment\x18\x05 \x01(\tH\x00R\x0fagentAssessment\x88\x01\x01\x12+\n" +
 	"\x0eclassification\x18\x06 \x01(\tH\x01R\x0eclassification\x88\x01\x01\x12\x14\n" +
-	"\x05notes\x18\a \x03(\tR\x05notes\x12:\n" +
-	"\bevidence\x18\b \x03(\v2\x1e.swarm_manager.v1.EvidenceItemR\bevidence\x12P\n" +
-	"\x0frequest_threads\x18\t \x03(\v2'.swarm_manager.v1.EvidenceRequestThreadR\x0erequestThreads\x12\x1a\n" +
+	"\x05notes\x18\a \x03(\tR\x05notes\x12H\n" +
+	"\bevidence\x18\b \x03(\v2,.vrooli.swarm_manager.v1.domain.EvidenceItemR\bevidence\x12^\n" +
+	"\x0frequest_threads\x18\t \x03(\v25.vrooli.swarm_manager.v1.domain.EvidenceRequestThreadR\x0erequestThreads\x12\x1a\n" +
 	"\x06run_id\x18\n" +
 	" \x01(\tH\x02R\x05runId\x88\x01\x01B\x13\n" +
 	"\x11_agent_assessmentB\x11\n" +
@@ -1687,44 +1837,48 @@ func file_swarm_manager_v1_domain_execution_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_execution_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_swarm_manager_v1_domain_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_swarm_manager_v1_domain_execution_proto_goTypes = []any{
-	(*ExecutionRecord)(nil),        // 0: swarm_manager.v1.ExecutionRecord
-	(*ArchiveContext)(nil),         // 1: swarm_manager.v1.ArchiveContext
-	(*ReviewResult)(nil),           // 2: swarm_manager.v1.ReviewResult
-	(*ReviewDimension)(nil),        // 3: swarm_manager.v1.ReviewDimension
-	(*Finalization)(nil),           // 4: swarm_manager.v1.Finalization
-	(*FinalizationWarning)(nil),    // 5: swarm_manager.v1.FinalizationWarning
-	(*ScenarioFinalization)(nil),   // 6: swarm_manager.v1.ScenarioFinalization
-	(*RestartResult)(nil),          // 7: swarm_manager.v1.RestartResult
-	(*HealthCheckResult)(nil),      // 8: swarm_manager.v1.HealthCheckResult
-	(*ScenarioReview)(nil),         // 9: swarm_manager.v1.ScenarioReview
-	(*EvidenceItem)(nil),           // 10: swarm_manager.v1.EvidenceItem
-	(*EvidenceTestResult)(nil),     // 11: swarm_manager.v1.EvidenceTestResult
-	(*EvidenceRequestThread)(nil),  // 12: swarm_manager.v1.EvidenceRequestThread
-	(*EvidenceRequestMessage)(nil), // 13: swarm_manager.v1.EvidenceRequestMessage
-	(*ReviewEvidenceRound)(nil),    // 14: swarm_manager.v1.ReviewEvidenceRound
-	(*ExecutionPolicy)(nil),        // 15: swarm_manager.v1.ExecutionPolicy
+	(*ExecutionRecord)(nil),        // 0: vrooli.swarm_manager.v1.domain.ExecutionRecord
+	(*ScopeExtension)(nil),         // 1: vrooli.swarm_manager.v1.domain.ScopeExtension
+	(*ArchiveContext)(nil),         // 2: vrooli.swarm_manager.v1.domain.ArchiveContext
+	(*ReviewResult)(nil),           // 3: vrooli.swarm_manager.v1.domain.ReviewResult
+	(*ReviewDimension)(nil),        // 4: vrooli.swarm_manager.v1.domain.ReviewDimension
+	(*Finalization)(nil),           // 5: vrooli.swarm_manager.v1.domain.Finalization
+	(*FinalizationWarning)(nil),    // 6: vrooli.swarm_manager.v1.domain.FinalizationWarning
+	(*ScenarioFinalization)(nil),   // 7: vrooli.swarm_manager.v1.domain.ScenarioFinalization
+	(*RestartResult)(nil),          // 8: vrooli.swarm_manager.v1.domain.RestartResult
+	(*HealthCheckResult)(nil),      // 9: vrooli.swarm_manager.v1.domain.HealthCheckResult
+	(*ScenarioReview)(nil),         // 10: vrooli.swarm_manager.v1.domain.ScenarioReview
+	(*EvidenceItem)(nil),           // 11: vrooli.swarm_manager.v1.domain.EvidenceItem
+	(*EvidenceTestResult)(nil),     // 12: vrooli.swarm_manager.v1.domain.EvidenceTestResult
+	(*EvidenceRequestThread)(nil),  // 13: vrooli.swarm_manager.v1.domain.EvidenceRequestThread
+	(*EvidenceRequestMessage)(nil), // 14: vrooli.swarm_manager.v1.domain.EvidenceRequestMessage
+	(*ReviewEvidenceRound)(nil),    // 15: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound
+	(*ExecutionPolicy)(nil),        // 16: vrooli.swarm_manager.v1.domain.ExecutionPolicy
+	(*ExecutionPreferences)(nil),   // 17: vrooli.swarm_manager.v1.domain.ExecutionPreferences
 }
 var file_swarm_manager_v1_domain_execution_proto_depIdxs = []int32{
-	1,  // 0: swarm_manager.v1.ExecutionRecord.archive_context:type_name -> swarm_manager.v1.ArchiveContext
-	4,  // 1: swarm_manager.v1.ExecutionRecord.finalization:type_name -> swarm_manager.v1.Finalization
-	3,  // 2: swarm_manager.v1.ReviewResult.dimensions:type_name -> swarm_manager.v1.ReviewDimension
-	5,  // 3: swarm_manager.v1.Finalization.warnings:type_name -> swarm_manager.v1.FinalizationWarning
-	6,  // 4: swarm_manager.v1.Finalization.scenarios:type_name -> swarm_manager.v1.ScenarioFinalization
-	7,  // 5: swarm_manager.v1.ScenarioFinalization.restart:type_name -> swarm_manager.v1.RestartResult
-	8,  // 6: swarm_manager.v1.ScenarioFinalization.health:type_name -> swarm_manager.v1.HealthCheckResult
-	9,  // 7: swarm_manager.v1.ScenarioFinalization.review:type_name -> swarm_manager.v1.ScenarioReview
-	2,  // 8: swarm_manager.v1.ScenarioReview.result:type_name -> swarm_manager.v1.ReviewResult
-	11, // 9: swarm_manager.v1.EvidenceItem.test_results:type_name -> swarm_manager.v1.EvidenceTestResult
-	13, // 10: swarm_manager.v1.EvidenceRequestThread.messages:type_name -> swarm_manager.v1.EvidenceRequestMessage
-	10, // 11: swarm_manager.v1.ReviewEvidenceRound.evidence:type_name -> swarm_manager.v1.EvidenceItem
-	12, // 12: swarm_manager.v1.ReviewEvidenceRound.request_threads:type_name -> swarm_manager.v1.EvidenceRequestThread
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	2,  // 0: vrooli.swarm_manager.v1.domain.ExecutionRecord.archive_context:type_name -> vrooli.swarm_manager.v1.domain.ArchiveContext
+	5,  // 1: vrooli.swarm_manager.v1.domain.ExecutionRecord.finalization:type_name -> vrooli.swarm_manager.v1.domain.Finalization
+	17, // 2: vrooli.swarm_manager.v1.domain.ExecutionRecord.execution_preferences:type_name -> vrooli.swarm_manager.v1.domain.ExecutionPreferences
+	1,  // 3: vrooli.swarm_manager.v1.domain.ExecutionRecord.scope_extensions:type_name -> vrooli.swarm_manager.v1.domain.ScopeExtension
+	4,  // 4: vrooli.swarm_manager.v1.domain.ReviewResult.dimensions:type_name -> vrooli.swarm_manager.v1.domain.ReviewDimension
+	6,  // 5: vrooli.swarm_manager.v1.domain.Finalization.warnings:type_name -> vrooli.swarm_manager.v1.domain.FinalizationWarning
+	7,  // 6: vrooli.swarm_manager.v1.domain.Finalization.scenarios:type_name -> vrooli.swarm_manager.v1.domain.ScenarioFinalization
+	8,  // 7: vrooli.swarm_manager.v1.domain.ScenarioFinalization.restart:type_name -> vrooli.swarm_manager.v1.domain.RestartResult
+	9,  // 8: vrooli.swarm_manager.v1.domain.ScenarioFinalization.health:type_name -> vrooli.swarm_manager.v1.domain.HealthCheckResult
+	10, // 9: vrooli.swarm_manager.v1.domain.ScenarioFinalization.review:type_name -> vrooli.swarm_manager.v1.domain.ScenarioReview
+	3,  // 10: vrooli.swarm_manager.v1.domain.ScenarioReview.result:type_name -> vrooli.swarm_manager.v1.domain.ReviewResult
+	12, // 11: vrooli.swarm_manager.v1.domain.EvidenceItem.test_results:type_name -> vrooli.swarm_manager.v1.domain.EvidenceTestResult
+	14, // 12: vrooli.swarm_manager.v1.domain.EvidenceRequestThread.messages:type_name -> vrooli.swarm_manager.v1.domain.EvidenceRequestMessage
+	11, // 13: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound.evidence:type_name -> vrooli.swarm_manager.v1.domain.EvidenceItem
+	13, // 14: vrooli.swarm_manager.v1.domain.ReviewEvidenceRound.request_threads:type_name -> vrooli.swarm_manager.v1.domain.EvidenceRequestThread
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_execution_proto_init() }
@@ -1732,26 +1886,27 @@ func file_swarm_manager_v1_domain_execution_proto_init() {
 	if File_swarm_manager_v1_domain_execution_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_domain_backlog_proto_init()
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[0].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_execution_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[2].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[3].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[4].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[5].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_execution_proto_msgTypes[7].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[6].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[8].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[9].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[10].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[11].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_execution_proto_msgTypes[12].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_execution_proto_msgTypes[14].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[13].OneofWrappers = []any{}
+	file_swarm_manager_v1_domain_execution_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_execution_proto_rawDesc), len(file_swarm_manager_v1_domain_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

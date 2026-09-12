@@ -1,0 +1,186 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Brand Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Brand Manager"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Bottom navigation",
+    "mainContent": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings",
+      "brands": "Brands",
+      "assignments": "Assignments",
+      "assets": "Assets",
+      "generation": "Generation",
+      "apply": "Apply",
+      "discovery": "Discovery",
+      "design": "Design"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    },
+    "brands": {
+      "title": "Brands"
+    },
+    "assignments": {
+      "title": "Assignments"
+    },
+    "assets": {
+      "title": "Assets"
+    },
+    "generation": {
+      "title": "Generation"
+    },
+    "apply": {
+      "title": "Apply"
+    },
+    "discovery": {
+      "title": "Discovery"
+    },
+    "design": {
+      "title": "Design"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+    ,"providerMaturity": "Provider maturity"
+    ,"providerLoading": "Loading the provider maturity summary…"
+    ,"providerUnavailable": "The shared provider maturity summary is unavailable. Branding domain reports remain available."
+    ,"providerHistorical": "The provider returned an historical or unsupported presentation contract ({{version}}); no maturity summary was reconstructed."
+    ,"providerContract": "Provider-supplied presentation contract {{version}}"
+    ,"providerNorthStar": "North star:"
+    ,"providerNextAction": "Next action:"
+    ,"providerCapabilities": "Provider capability maturity"
+    ,"providerDocumentation": "Documentation: {{topics}}"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "brands": {
+    "title": "Brands",
+    "loading": "Loading brands…",
+    "empty": "No brands yet.",
+    "create": "Create brand",
+    "primaryLabel": "Primary:"
+  },
+  "assignments": {
+    "title": "Assignments",
+    "loading": "Loading assignments…",
+    "empty": "No brand assignments yet.",
+    "brandLabel": "Brand:",
+    "elementsLabel": "Elements:"
+  },
+  "assets": {
+    "title": "Assets",
+    "loading": "Loading assets…",
+    "empty": "No brand assets yet.",
+    "brandLabel": "Brand:",
+    "typeLabel": "Type:"
+  },
+  "generation": {
+    "title": "AI Providers",
+    "loading": "Checking provider availability…",
+    "empty": "No AI providers are configured.",
+    "availableLabel": "Available",
+    "unavailableLabel": "Unavailable",
+    "summaryAvailable": "At least one AI provider is available.",
+    "summaryUnavailable": "No AI providers are currently available.",
+    "imageTitle": "Image backend (image-tools)",
+    "imageLoading": "Checking image-tools readiness…",
+    "imageSummaryAvailable": "image-tools is reachable.",
+    "imageSummaryUnavailable": "image-tools is not reachable.",
+    "imageReadyLabel": "Ready",
+    "imageNotReadyLabel": "Not ready",
+    "imageCloudLabel": "BYOK cloud"
+  },
+  "apply": {
+    "title": "Apply Brand",
+    "description": "Preview which files applying a brand to a scenario would write. Applying is a CLI action.",
+    "brandPlaceholder": "Brand id…",
+    "scenarioPlaceholder": "Scenario name…",
+    "previewButton": "Preview",
+    "previewing": "Previewing…",
+    "previewFor": "Preview for",
+    "appliedHeading": "Files to write",
+    "skippedHeading": "Skipped",
+    "empty": "No changes detected."
+  },
+  "discovery": {
+    "title": "Discover Branding",
+    "description": "Scan a scenario for existing branding state. Importing is a CLI action.",
+    "scenarioPlaceholder": "Scenario name…",
+    "scanButton": "Scan",
+    "scanning": "Scanning…",
+    "scanFor": "Scan for",
+    "sourcesHeading": "Sources found",
+    "draftHeading": "Draft brand",
+    "suggestionsHeading": "Suggestions",
+    "confidenceLabel": "Confidence",
+    "empty": "No branding state found.",
+    "displayNameLabel": "Name",
+    "primaryLabel": "Primary"
+  },
+  "design": {
+    "title": "Design Language",
+    "description": "Render a brand as a canonical DESIGN.md document. Generating makes no changes.",
+    "brandPlaceholder": "Brand id…",
+    "generateButton": "Generate",
+    "generating": "Generating…",
+    "resultHeading": "DESIGN.md for brand"
+  }
+}

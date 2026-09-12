@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.meter",
+    "name": "Meter",
+    "kind": "primitive",
+    "surface": "raised",
+    "domain": "primitives",
+    "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Consumer class names are merged at the stamped meter root."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "The meter layout uses the governed stack primitive."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "The component injects its governed stylesheet through the library foundation."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Labels and descriptions use the governed text primitive."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Surface elevation is selected through the governed visual recipe."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "contrast-floor",
+    "accessible-naming"
+  ],
+  "rationale": "Separate from Progress on purpose: conflating a capacity gauge with task progress is a meaning error, and one component cannot honestly express both."
+}

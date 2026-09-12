@@ -1,0 +1,161 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-029",
+      "title": "Declared data bindings with consistent recovery points",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "data-and-credentials",
+      "description": "Persistent data is declared with owner, backup provider and migration hooks; recovery points capture database-native consistency and object inventory with schema and credential-version references.",
+      "tags": [
+        "data",
+        "backup"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backup/bindings_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-029] bindings from closure, postgres hook argv, DBM registrar"
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/backup_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "recovery points + restore receipts round trip"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-030",
+      "title": "Fresh-host restore with measured RTO/RPO",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "data-and-credentials",
+      "description": "Restoration of database and object data onto a clean host asserts application invariants and records measured recovery time and recovery-point age against declared budgets; corrupt archives and missing keys are refused.",
+      "tags": [
+        "data",
+        "restore"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backup/drill_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-030] fresh-host restore drill with measured RTO/RPO, corrupt archive and missing key refusals"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_backup_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "recovery-point routes"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-031",
+      "title": "Schema-aware rollback admission",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "data-and-credentials",
+      "description": "Code rollback is refused when the predecessor cannot read the current schema; a typed forward-repair or restore plan is offered instead.",
+      "tags": [
+        "data",
+        "rollback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backup/compat_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-031] schema-strategy-aware rollback admission, posture selection"
+        },
+        {
+          "type": "test",
+          "ref": "api/backup/retention_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "protected recovery points never deleted"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-032",
+      "title": "Versioned credential distribution, rotation, revocation and recovery",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "data-and-credentials",
+      "description": "Credential bindings reference descriptor and version; rotation stages provider preparation, consumer update, verification and predecessor revocation; unreachable consumers keep rotation explicitly incomplete; synthetic canaries never appear in retained surfaces.",
+      "tags": [
+        "credentials",
+        "rotation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/credentials/lifecycle_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Preservation on redeploy (A01), consumer verification before predecessor retirement (A02), provider rejection retains predecessor, unreachable consumer keeps rotation incomplete (A05), revoked grant denies distribution (A04), online vs unreachable revocation, operator handoff, signing overlap, enrollment refusal, lost-host recovery and locked store (A06), break-glass window and auto-revocation, concurrency, encryption-key rewrap proof."
+        },
+        {
+          "type": "test",
+          "ref": "api/credentials/bindings_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Descriptor collision refusal (A03), exact descriptors and stable ids, cross-deployment ambiguity, closure-derived consumers and classes."
+        },
+        {
+          "type": "test",
+          "ref": "api/credentials/distribution_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "SSH value on stdin only, locked vs unreachable classification, target refusals and replays, Bridge grant recheck and env injection."
+        },
+        {
+          "type": "test",
+          "ref": "api/credentials/canary_test.go",
+          "phase": "security",
+          "status": "implemented",
+          "notes": "Synthetic canaries never reach the ledger, operations, listings, logs, argv or payload metadata (A07)."
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/credentials_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ledger round trip for bindings, acks and operations; exact descriptor lookup."
+        },
+        {
+          "type": "test",
+          "ref": "api/secrets/binding_test.go",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "Post-deploy secrets management on the binding model; handlers never reveal values."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_credentials_test.go",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "REST and Connect share one lifecycle; 200/202/typed refusal mapping; inbound values never echoed."
+        },
+        {
+          "type": "test",
+          "ref": "docs/reference/credential-lifecycle.md",
+          "phase": "structure",
+          "status": "implemented",
+          "notes": "Lifecycle contract, class table, state machine, target verbs, revocation semantics, recovery and break-glass. Target-side proof lives in the control plane (refs must stay scenario-relative): internal/cloudtarget/credential_test.go (ingest from stdin and Bridge env, metadata-only ledger and receipts, stale/revoked refusals, locked store fails closed, acknowledge, revoke limitations) and internal/cli/cloudtargethandlers/credential_handlers_test.go (manifest-bound CLI, value on stdin only, exit 2 refusals, fence)."
+        }
+      ]
+    }
+  ]
+}

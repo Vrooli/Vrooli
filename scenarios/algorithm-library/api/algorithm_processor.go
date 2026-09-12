@@ -1,27 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 )
 
 const (
-	// LocalExecutionTokenPrefix identifies tokens from local (non-Judge0) execution
+	// LocalExecutionTokenPrefix identifies tokens from local execution.
 	LocalExecutionTokenPrefix = "local_"
 )
 
 type AlgorithmProcessor struct {
-	httpClient    *http.Client
-	judge0URL     string
 	localExecutor *LocalExecutor
-	useLocal      bool
 }
 
 // Algorithm Execution types
@@ -118,62 +112,13 @@ type ValidationTimestamp struct {
 	CompletedAt string `json:"completed_at"`
 }
 
-// Judge0 API types
-type Judge0Submission struct {
-	SourceCode     string `json:"source_code"`
-	LanguageID     int    `json:"language_id"`
-	Stdin          string `json:"stdin,omitempty"`
-	CPUTimeLimit   int    `json:"cpu_time_limit,omitempty"`
-	MemoryLimit    int    `json:"memory_limit,omitempty"`
-	ExpectedOutput string `json:"expected_output,omitempty"`
-}
-
-type Judge0Response struct {
-	Token         string       `json:"token"`
-	Status        Judge0Status `json:"status"`
-	Stdout        string       `json:"stdout,omitempty"`
-	Stderr        string       `json:"stderr,omitempty"`
-	CompileOutput string       `json:"compile_output,omitempty"`
-	Message       string       `json:"message,omitempty"`
-	Time          string       `json:"time,omitempty"`
-	Memory        int          `json:"memory,omitempty"`
-}
-
-type Judge0Status struct {
-	ID          int    `json:"id"`
-	Description string `json:"description"`
-}
-
-func NewAlgorithmProcessor(judge0URL string) *AlgorithmProcessor {
-	if judge0URL == "" {
-		judge0URL = "http://localhost:2358" // Default Judge0 port
-	}
-
-	// Check if Judge0 is available and functional
-	useLocal := false
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(judge0URL + "/about")
-	if err != nil || resp.StatusCode != 200 {
-		log.Printf("⚠️  Judge0 not available at %s, using local executor fallback", judge0URL)
-		useLocal = true
-	} else {
-		resp.Body.Close()
-		// Force local executor due to known cgroup issues with Judge0
-		log.Printf("⚠️  Judge0 available at %s but has known cgroup issues, using local executor", judge0URL)
-		useLocal = true
-	}
-
+func NewAlgorithmProcessor() *AlgorithmProcessor {
 	return &AlgorithmProcessor{
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		judge0URL:     judge0URL,
 		localExecutor: NewLocalExecutor(5 * time.Second),
-		useLocal:      useLocal,
 	}
 }
 
-// ExecuteAlgorithm executes code using Judge0 (replaces algorithm-executor workflow)
+// ExecuteAlgorithm executes code through the scenario's local multi-language executor.
 func (ap *AlgorithmProcessor) ExecuteAlgorithm(ctx context.Context, req AlgorithmExecutionRequest) (*AlgorithmExecutionResponse, error) {
 	executionID := fmt.Sprintf("algo_%d_%s", time.Now().Unix(), generateRandomString(6))
 
@@ -206,83 +151,7 @@ func (ap *AlgorithmProcessor) ExecuteAlgorithm(ctx context.Context, req Algorith
 		}, nil
 	}
 
-	// Use local executor if Judge0 is unavailable or for testing
-	if ap.useLocal {
-		return ap.executeLocal(ctx, req, executionID)
-	}
-
-	// Get language ID for Judge0
-	languageID, err := ap.getLanguageID(req.Language)
-	if err != nil {
-		return &AlgorithmExecutionResponse{
-			Success:           false,
-			Status:            "error",
-			StatusID:          -1,
-			ExecutionComplete: true,
-			ErrorDetails: &ExecutionErrorDetails{
-				Status:  "language_error",
-				Message: fmt.Sprintf("Unsupported language: %s", req.Language),
-			},
-			ExecutionID: executionID,
-		}, nil
-	}
-
-	// Set timeout limits
-	timeout := req.Timeout
-	if timeout <= 0 {
-		timeout = 5
-	}
-	if timeout > 30 {
-		timeout = 30
-	}
-
-	// Build Judge0 submission
-	submission := Judge0Submission{
-		SourceCode:     req.Code,
-		LanguageID:     languageID,
-		Stdin:          req.Stdin,
-		CPUTimeLimit:   timeout,
-		MemoryLimit:    128000, // 128MB
-		ExpectedOutput: req.ExpectedOutput,
-	}
-
-	// Submit to Judge0
-	response, err := ap.submitToJudge0(ctx, submission)
-	if err != nil {
-		return &AlgorithmExecutionResponse{
-			Success:           false,
-			Status:            "submission_error",
-			StatusID:          -1,
-			ExecutionComplete: true,
-			ErrorDetails: &ExecutionErrorDetails{
-				Status:  "submission_error",
-				Message: fmt.Sprintf("Failed to submit to Judge0: %v", err),
-			},
-			ExecutionID: executionID,
-		}, nil
-	}
-
-	// Wait for execution to complete
-	time.Sleep(2 * time.Second)
-
-	// Get results
-	result, err := ap.getJudge0Result(ctx, response.Token)
-	if err != nil {
-		return &AlgorithmExecutionResponse{
-			Success:           false,
-			Status:            "result_error",
-			StatusID:          -1,
-			ExecutionComplete: true,
-			ErrorDetails: &ExecutionErrorDetails{
-				Status:  "result_error",
-				Message: fmt.Sprintf("Failed to get results from Judge0: %v", err),
-			},
-			ExecutionID: executionID,
-		}, nil
-	}
-
-	// Process and format response
-	return ap.formatExecutionResponse(result, req, executionID), nil
+	return ap.executeLocal(ctx, req, executionID)
 }
 
 // ValidateBatch runs multiple test cases and compiles results (replaces batch-validator workflow)
@@ -415,173 +284,6 @@ func (ap *AlgorithmProcessor) ValidateBatch(ctx context.Context, req BatchValida
 	}, nil
 }
 
-// Helper methods
-
-func (ap *AlgorithmProcessor) getLanguageID(language string) (int, error) {
-	languageMap := map[string]int{
-		"python":     71, // Python 3.8
-		"javascript": 63, // JavaScript (Node.js)
-		"java":       62, // Java (OpenJDK)
-		"cpp":        54, // C++ (GCC)
-		"c":          50, // C (GCC)
-		"go":         60, // Go
-		"rust":       73, // Rust
-		"ruby":       72, // Ruby
-		"typescript": 74, // TypeScript
-		"csharp":     51, // C#
-	}
-
-	id, exists := languageMap[strings.ToLower(language)]
-	if !exists {
-		return 0, fmt.Errorf("unsupported language: %s", language)
-	}
-	return id, nil
-}
-
-func (ap *AlgorithmProcessor) submitToJudge0(ctx context.Context, submission Judge0Submission) (*Judge0Response, error) {
-	jsonData, err := json.Marshal(submission)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal submission: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/submissions", ap.judge0URL)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := ap.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to submit to Judge0: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Judge0 submission failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var response Judge0Response
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	return &response, nil
-}
-
-func (ap *AlgorithmProcessor) getJudge0Result(ctx context.Context, token string) (*Judge0Response, error) {
-	url := fmt.Sprintf("%s/submissions/%s", ap.judge0URL, token)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := ap.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get results from Judge0: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Judge0 result retrieval failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var response Judge0Response
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	return &response, nil
-}
-
-func (ap *AlgorithmProcessor) formatExecutionResponse(result *Judge0Response, req AlgorithmExecutionRequest, executionID string) *AlgorithmExecutionResponse {
-	statusDescriptions := map[int]string{
-		1:  "In Queue",
-		2:  "Processing",
-		3:  "Accepted",
-		4:  "Wrong Answer",
-		5:  "Time Limit Exceeded",
-		6:  "Compilation Error",
-		7:  "Runtime Error (SIGSEGV)",
-		8:  "Runtime Error (SIGXFSZ)",
-		9:  "Runtime Error (SIGFPE)",
-		10: "Runtime Error (SIGABRT)",
-		11: "Runtime Error (NZEC)",
-		12: "Runtime Error (Other)",
-		13: "Internal Error",
-		14: "Exec Format Error",
-	}
-
-	statusDescription := statusDescriptions[result.Status.ID]
-	if statusDescription == "" {
-		statusDescription = "Unknown Status"
-	}
-
-	passed := result.Status.ID == 3
-	executionComplete := result.Status.ID > 2
-
-	// Format execution time
-	executionTime := ""
-	if result.Time != "" {
-		if timeVal := parseFloat(result.Time); timeVal > 0 {
-			executionTime = fmt.Sprintf("%.0f ms", timeVal*1000)
-		}
-	}
-
-	// Format memory usage
-	memoryUsed := ""
-	if result.Memory > 0 {
-		memoryUsed = fmt.Sprintf("%d KB", result.Memory)
-	}
-
-	response := &AlgorithmExecutionResponse{
-		Success:           passed,
-		Status:            statusDescription,
-		StatusID:          result.Status.ID,
-		ExecutionComplete: executionComplete,
-		Output:            result.Stdout,
-		ErrorOutput:       result.Stderr,
-		CompileOutput:     result.CompileOutput,
-		Message:           result.Message,
-		ExecutionTime:     executionTime,
-		MemoryUsed:        memoryUsed,
-		Language:          req.Language,
-		ExecutionID:       executionID,
-		SubmissionToken:   result.Token,
-	}
-
-	// Add test comparison if expected output provided
-	if req.ExpectedOutput != "" {
-		response.TestResult = &TestComparison{
-			Expected: req.ExpectedOutput,
-			Actual:   strings.TrimSpace(result.Stdout),
-			Match:    passed,
-		}
-	}
-
-	// Add error details if execution failed
-	if !passed && executionComplete {
-		response.ErrorDetails = &ExecutionErrorDetails{
-			Status:       statusDescription,
-			CompileError: result.CompileOutput,
-			RuntimeError: result.Stderr,
-			Message:      result.Message,
-		}
-	}
-
-	return response
-}
-
 func (ap *AlgorithmProcessor) prepareTestCode(implementation, language string, testCase TestCase) string {
 	var testCode string
 
@@ -661,12 +363,6 @@ func generateRandomString(length int) string {
 	return string(result)
 }
 
-func parseFloat(s string) float64 {
-	var f float64
-	fmt.Sscanf(s, "%f", &f)
-	return f
-}
-
 func parseExecutionTime(timeStr string) (float64, error) {
 	var time float64
 	if strings.HasSuffix(timeStr, " ms") {
@@ -676,7 +372,7 @@ func parseExecutionTime(timeStr string) (float64, error) {
 	return 0, fmt.Errorf("invalid time format: %s", timeStr)
 }
 
-// executeLocal uses the local executor when Judge0 is unavailable
+// executeLocal runs code through the scenario's local multi-language executor.
 func (ap *AlgorithmProcessor) executeLocal(ctx context.Context, req AlgorithmExecutionRequest, executionID string) (*AlgorithmExecutionResponse, error) {
 	var result *LocalExecutionResult
 	var err error
@@ -734,7 +430,7 @@ func (ap *AlgorithmProcessor) executeLocal(ctx context.Context, req AlgorithmExe
 
 	// Format response
 	status := "completed"
-	statusID := 3 // Success in Judge0 terms
+	statusID := 3
 	if !result.Success {
 		status = "runtime_error"
 		statusID = 11
@@ -748,7 +444,7 @@ func (ap *AlgorithmProcessor) executeLocal(ctx context.Context, req AlgorithmExe
 		Output:            result.Output,
 		ErrorOutput:       result.Error,
 		CompileOutput:     "",
-		Message:           "Executed using local fallback",
+		Message:           "Executed using the local executor",
 		ExecutionTime:     fmt.Sprintf("%.3f", result.ExecutionTime),
 		MemoryUsed:        "N/A",
 		TestResult:        testResult,

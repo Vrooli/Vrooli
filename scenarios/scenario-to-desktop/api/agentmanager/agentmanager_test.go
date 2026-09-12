@@ -68,23 +68,6 @@ func TestBuildRunTag(t *testing.T) {
 }
 
 // =============================================================================
-// DefaultProfileConfig
-// =============================================================================
-
-func TestDefaultProfileConfig(t *testing.T) {
-	cfg := DefaultProfileConfig()
-
-	assert.Equal(t, domainpb.RunnerType_RUNNER_TYPE_CODEX, cfg.RunnerType)
-	assert.Equal(t, domainpb.ModelPreset_MODEL_PRESET_SMART, cfg.ModelPreset)
-	assert.Equal(t, int32(75), cfg.MaxTurns)
-	assert.Equal(t, int32(600), cfg.TimeoutSeconds)
-	assert.True(t, len(cfg.AllowedTools) > 0, "should have allowed tools")
-	assert.True(t, cfg.SkipPermissions)
-	assert.False(t, cfg.RequiresSandbox)
-	assert.False(t, cfg.RequiresApproval)
-}
-
-// =============================================================================
 // AgentService.IsEnabled / IsAvailable
 // =============================================================================
 
@@ -235,6 +218,47 @@ func TestClient_GetRun(t *testing.T) {
 	})
 }
 
+func TestClient_GetProfileAndRunEvents(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		opts := protojson.MarshalOptions{UseProtoNames: false}
+		switch r.URL.Path {
+		case "/api/v1/profiles/profile-1":
+			data, err := opts.Marshal(&apipb.GetProfileResponse{Profile: &domainpb.AgentProfile{Id: "profile-1"}})
+			require.NoError(t, err)
+			_, _ = w.Write(data)
+		case "/api/v1/runs/run-1/events":
+			assert.Equal(t, "9", r.URL.Query().Get("after_sequence"))
+			data, err := opts.Marshal(&apipb.GetRunEventsResponse{Events: []*domainpb.RunEvent{{RunId: "run-1", Sequence: 10}}})
+			require.NoError(t, err)
+			_, _ = w.Write(data)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	c := newTestClient(t, srv.URL)
+	profile, err := c.GetProfile(context.Background(), "profile-1")
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, "profile-1", profile.Id)
+	events, err := c.GetRunEvents(context.Background(), "run-1", 9)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, int64(10), events[0].Sequence)
+}
+
+func TestClient_GetProfileReturnsNilForNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+	profile, err := newTestClient(t, srv.URL).GetProfile(context.Background(), "missing")
+	require.NoError(t, err)
+	assert.Nil(t, profile)
+}
+
 // =============================================================================
 // Client.WaitForRun
 // =============================================================================
@@ -296,16 +320,23 @@ func TestClient_WaitForRun(t *testing.T) {
 func TestAgentService_Initialize(t *testing.T) {
 	t.Run("noop when disabled", func(t *testing.T) {
 		svc := &AgentService{enabled: false}
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		assert.NoError(t, err)
 	})
 
 	t.Run("creates profile and stores ID", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/api/v1/profiles/ensure", r.URL.Path)
-			resp := &apipb.EnsureProfileResponse{
-				Profile: &domainpb.AgentProfile{Id: "profile-xyz"},
-				Created: true,
+			assert.Equal(t, "/api/v1/profiles/reconcile-scenario", r.URL.Path)
+			resp := &apipb.ReconcileScenarioProfilesResponse{
+				Scenario: "scenario-to-desktop",
+				Results: []*apipb.ProfileReconcileResult{
+					{
+						ProfileKey: "test-key",
+						ProfileId:  "profile-xyz",
+						Status:     apipb.ProfileReconcileStatus_PROFILE_RECONCILE_STATUS_CREATED,
+					},
+				},
+				Created: 1,
 			}
 			opts := protojson.MarshalOptions{UseProtoNames: false}
 			data, _ := opts.Marshal(resp)
@@ -315,7 +346,7 @@ func TestAgentService_Initialize(t *testing.T) {
 		defer srv.Close()
 
 		svc := newTestService(t, srv.URL)
-		err := svc.Initialize(context.Background(), DefaultProfileConfig())
+		err := svc.Initialize(context.Background())
 		require.NoError(t, err)
 		assert.Equal(t, "profile-xyz", svc.GetProfileID())
 	})
@@ -534,26 +565,4 @@ func TestNewUUID(t *testing.T) {
 	// Uniqueness
 	id2 := NewUUID()
 	assert.NotEqual(t, id, id2)
-}
-
-// =============================================================================
-// buildProfile
-// =============================================================================
-
-func TestBuildProfile(t *testing.T) {
-	svc := &AgentService{
-		profileName: "test-profile",
-		profileKey:  "test-key",
-	}
-
-	cfg := DefaultProfileConfig()
-	profile := svc.buildProfile(cfg)
-
-	assert.Equal(t, "test-profile", profile.Name)
-	assert.Equal(t, "test-key", profile.ProfileKey)
-	assert.Equal(t, int32(75), profile.MaxTurns)
-	assert.Equal(t, "scenario-to-desktop", profile.CreatedBy)
-	assert.NotNil(t, profile.Timeout)
-	assert.Equal(t, cfg.AllowedTools, profile.AllowedTools)
-	assert.True(t, profile.SkipPermissionPrompt)
 }

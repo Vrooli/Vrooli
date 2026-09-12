@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": { "kind": "scenario-experience", "schema": "scenario-experience-spec/v1" },
+  "schemaVersion": "1.0.0",
+  "scenario": "music-tools",
+  "description": "Experience contract for Music Tools. This is an operations console for a capability primitive, not a creative tool: the surfaces exist to make model residency, GPU contention, licence lane, and job state legible while long work runs. The UI enhances the CLI and never gates it.",
+  "pages": [
+    { "id": "dashboard", "path": "pages/dashboard.json", "title": "Operations", "status": "active" },
+    { "id": "models", "path": "pages/models.json", "title": "Models", "status": "active" },
+    { "id": "jobs", "path": "pages/jobs.json", "title": "Jobs", "status": "active" },
+    { "id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "active" }
+  ],
+  "journeys": []
+}

@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "discovery",
+    "description": "Flow discovery: every flow/flow.json in the monorepo is enumerable via flow-verifier CLI and HTTP.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "DISC-001",
+      "title": "CLI lists every flow/flow.json under a root",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "discovery",
+      "criticality": "P0",
+      "description": "flow-verifier flows list --root <repo> enumerates every flow.json schema-v6 contract under the given root.",
+      "tags": ["cli", "discovery"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Go test in cli/domains/flows asserts list output for a synthetic root with multiple flow.json files."
+        }
+      ]
+    },
+    {
+      "id": "DISC-002",
+      "title": "HTTP API exposes the same flow inventory",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "discovery",
+      "criticality": "P0",
+      "description": "GET /api/v1/flows?root=<path> returns the same list, with id/path/language/schemaVersion.",
+      "tags": ["api", "discovery"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Handler test in api/internal/handlers."
+        }
+      ]
+    }
+  ]
+}

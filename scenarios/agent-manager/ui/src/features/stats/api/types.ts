@@ -19,11 +19,24 @@ export interface StatsFilter {
   profileId?: string;
   model?: string;
   tagPrefix?: string;
+  workloadKey?: string;
+  errorCode?: string;
 }
 
 // =============================================================================
 // Response Types
 // =============================================================================
+
+export interface MeasureMetadata {
+  executedQuery: string;
+  validity: {
+    state: "available" | "unreliable" | "unavailable";
+    reason: string;
+    sampleSize: number;
+    largestFingerprintShare: number;
+  };
+  definitionId: string;
+}
 
 export interface RunStatusCounts {
   pending: number;
@@ -61,6 +74,8 @@ export interface RunnerBreakdown {
   failedCount: number;
   totalCostUsd: number;
   avgDurationMs: number;
+  totalTokens?: number;
+  totalChargeMicroUsd?: number;
 }
 
 export interface ProfileBreakdown {
@@ -70,6 +85,8 @@ export interface ProfileBreakdown {
   successCount: number;
   failedCount: number;
   totalCostUsd: number; // Note: backend sends totalCostUsd (lowercase 'd')
+  totalTokens?: number;
+  totalChargeMicroUsd?: number;
 }
 
 export interface ModelBreakdown {
@@ -90,35 +107,31 @@ export interface ToolUsageStats {
 export interface ToolUsageModelBreakdown {
   model: string;
   runCount: number;
-  callCount: number;
+  callCount?: number;
   successCount: number;
   failedCount: number;
 }
 
 export interface ModelUsageRun {
   runId: string;
-  taskId: string;
-  taskTitle: string;
-  profileId?: string;
-  profileName: string;
-  status: string;
-  createdAt: string;
-  totalCostUsd: number;
+  taskTitle?: string;
+  profileName?: string;
+  status?: string;
+  createdAt?: string;
+  model?: string;
   totalTokens: number;
+  totalChargeMicroUsd?: number;
+  chargeBasis?: string;
 }
 
 export interface ToolUsageRun {
   runId: string;
-  taskId: string;
-  taskTitle: string;
-  profileId?: string;
-  profileName: string;
-  status: string;
-  createdAt: string;
-  model: string;
-  callCount: number;
-  successCount: number;
-  failedCount: number;
+  taskTitle?: string;
+  profileName?: string;
+  status?: string;
+  createdAt?: string;
+  model?: string;
+  callCount?: number;
 }
 
 export interface ErrorPattern {
@@ -155,55 +168,72 @@ export interface SummaryResponse {
 
 export interface StatusDistributionResponse {
   statusCounts: RunStatusCounts;
+  measure?: MeasureMetadata;
 }
 
 export interface SuccessRateResponse {
   successRate: number;
+  measure?: MeasureMetadata;
 }
 
 export interface DurationResponse {
   duration: DurationStats;
+  measure?: MeasureMetadata;
 }
 
 export interface CostResponse {
   cost: CostStats;
+  measure?: MeasureMetadata;
 }
 
 export interface RunnerBreakdownResponse {
   runners: RunnerBreakdown[];
+  measure?: MeasureMetadata;
 }
 
 export interface ProfileBreakdownResponse {
   profiles: ProfileBreakdown[];
+  measure?: MeasureMetadata;
 }
 
 export interface ModelBreakdownResponse {
   models: ModelBreakdown[];
+  measure?: MeasureMetadata;
 }
 
 export interface ToolUsageResponse {
   tools: ToolUsageStats[];
+  measure?: MeasureMetadata;
+}
+export interface ToolCommandBreakdownResponse {
+  rows: Array<{ executable: string; commandPath: string; callCount: number; successCount: number; failedCount: number; runCount: number; truncated: boolean }>;
+  measure?: MeasureMetadata;
 }
 
 export interface ModelUsageRunsResponse {
   runs: ModelUsageRun[];
+  measure?: MeasureMetadata;
 }
 
 export interface ToolUsageRunsResponse {
   runs: ToolUsageRun[];
+  measure?: MeasureMetadata;
 }
 
 export interface ToolUsageModelsResponse {
   models: ToolUsageModelBreakdown[];
+  measure?: MeasureMetadata;
 }
 
 export interface ErrorPatternsResponse {
   errors: ErrorPattern[];
+  measure?: MeasureMetadata;
 }
 
 export interface TimeSeriesResponse {
   buckets: TimeSeriesBucket[];
   bucketDuration: string;
+  measure?: MeasureMetadata;
 }
 
 // =============================================================================

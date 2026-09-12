@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/google/uuid"
@@ -9,7 +8,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // flow_utils.go holds helpers for graph traversal, instruction processing,
@@ -198,20 +196,11 @@ func uuidOrDefault(value, fallback uuid.UUID) uuid.UUID {
 	return fallback
 }
 
-// firstPresent returns the first present value for the given keys.
-func firstPresent(params map[string]any, keys ...string) any {
-	for _, k := range keys {
-		if v, ok := params[k]; ok {
-			return v
-		}
-	}
-	return nil
-}
-
 // =============================================================================
 // ACTION-AWARE STEP TYPE HELPERS
 // =============================================================================
-// These helpers extract step type and params from the typed Action field.
+// These helpers use the typed Action field directly. Workflow execution must
+// never serialize ActionDefinition back to a legacy stringly-typed params map.
 
 // InstructionStepType returns the step type string from a CompiledInstruction.
 func InstructionStepType(instr contracts.CompiledInstruction) string {
@@ -227,22 +216,6 @@ func PlanStepType(step contracts.PlanStep) string {
 		return actionTypeToString(step.Action.Type)
 	}
 	return ""
-}
-
-// InstructionParams returns the params map from a CompiledInstruction.
-func InstructionParams(instr contracts.CompiledInstruction) map[string]any {
-	if instr.Action != nil && instr.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
-		return actionToParams(instr.Action)
-	}
-	return nil
-}
-
-// PlanStepParams returns the params map from a PlanStep.
-func PlanStepParams(step contracts.PlanStep) map[string]any {
-	if step.Action != nil && step.Action.Type != basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
-		return actionToParams(step.Action)
-	}
-	return nil
 }
 
 // IsActionType checks if an instruction matches the given action type.
@@ -326,190 +299,78 @@ func actionTypeToString(at basactions.ActionType) string {
 	}
 }
 
-// actionToParams extracts params from a typed ActionDefinition into a map.
-// This provides compatibility with code that expects map[string]any params.
-func actionToParams(action *basactions.ActionDefinition) map[string]any {
+// actionPrimarySelector returns the selector the executor should use for
+// readiness checks. It deliberately enumerates the typed contract rather than
+// searching a serialized params map, so adding an action requires an explicit
+// decision about its readiness semantics.
+func actionPrimarySelector(action *basactions.ActionDefinition) string {
 	if action == nil {
-		return nil
+		return ""
 	}
-
-	// Use protojson to convert to JSON, then unmarshal to map for generic access
-	data, err := protojson.MarshalOptions{
-		UseProtoNames:   true,
-		EmitUnpopulated: false,
-	}.Marshal(action)
-	if err != nil {
-		return nil
+	var selector string
+	switch {
+	case action.GetClick() != nil:
+		selector = action.GetClick().GetSelector()
+	case action.GetInput() != nil:
+		selector = action.GetInput().GetSelector()
+	case action.GetWait() != nil:
+		selector = action.GetWait().GetSelector()
+	case action.GetAssert() != nil:
+		selector = action.GetAssert().GetSelector()
+	case action.GetSelectOption() != nil:
+		selector = action.GetSelectOption().GetSelector()
+	case action.GetHover() != nil:
+		selector = action.GetHover().GetSelector()
+	case action.GetScreenshot() != nil:
+		selector = action.GetScreenshot().GetSelector()
+	case action.GetFocus() != nil:
+		selector = action.GetFocus().GetSelector()
+	case action.GetBlur() != nil:
+		selector = action.GetBlur().GetSelector()
+	case action.GetExtract() != nil:
+		selector = action.GetExtract().GetSelector()
+	case action.GetUploadFile() != nil:
+		selector = action.GetUploadFile().GetSelector()
+	case action.GetDownload() != nil:
+		selector = action.GetDownload().GetSelector()
+	case action.GetFrameSwitch() != nil:
+		selector = action.GetFrameSwitch().GetSelector()
+	case action.GetDragDrop() != nil:
+		selector = action.GetDragDrop().GetSourceSelector()
+	case action.GetGesture() != nil:
+		selector = action.GetGesture().GetSelector()
+	case action.GetConditional() != nil:
+		selector = action.GetConditional().GetSelector()
+	case action.GetNavigate() != nil:
+		selector = action.GetNavigate().GetWaitForSelector()
 	}
-
-	var result map[string]any
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil
-	}
-
-	// Flatten action-specific params (e.g., action.click.selector → selector)
-	return flattenActionParams(result)
+	return strings.TrimSpace(selector)
 }
 
-// flattenActionParams flattens nested action params to top level.
-// e.g., {"click": {"selector": "x"}} → {"selector": "x"}
-// Also normalizes proto field names (snake_case) to executor-expected names (camelCase).
-func flattenActionParams(m map[string]any) map[string]any {
-	result := make(map[string]any)
-
-	// Copy top-level fields
-	for k, v := range m {
-		if k == "type" || k == "metadata" {
-			continue // Skip type enum and metadata
-		}
-		// If this is an action-specific nested object, flatten it
-		if nested, ok := v.(map[string]any); ok {
-			// Check if this is an action params object (e.g., click, input, navigate)
-			if isActionParamsKey(k) {
-				for nk, nv := range nested {
-					// Normalize proto field names to executor-expected names
-					normalizedKey, normalizedValue := normalizeProtoParam(k, nk, nv)
-					result[normalizedKey] = normalizedValue
-				}
-				continue
-			}
-		}
-		result[k] = v
+func actionStoreResult(action *basactions.ActionDefinition) string {
+	if action == nil || action.GetExtract() == nil {
+		return ""
 	}
-
-	return result
+	return strings.TrimSpace(action.GetExtract().GetStoreAs())
 }
 
-// normalizeProtoParam converts proto field names to executor-expected names.
-// This handles the mismatch between proto snake_case and executor camelCase conventions.
-func normalizeProtoParam(actionKey, paramKey string, value any) (string, any) {
-	// Loop action normalizations
-	if actionKey == "loop" {
-		return normalizeLoopParam(paramKey, value)
+func actionTimeoutMs(action *basactions.ActionDefinition) int {
+	if action == nil {
+		return 0
 	}
-	// Subflow action normalizations
-	if actionKey == "subflow" {
-		return normalizeSubflowParam(paramKey, value)
+	switch {
+	case action.GetNavigate() != nil:
+		return int(action.GetNavigate().GetTimeoutMs())
+	case action.GetWait() != nil:
+		return int(action.GetWait().GetTimeoutMs())
+	case action.GetExtract() != nil:
+		return int(action.GetExtract().GetTimeoutMs())
+	case action.GetUploadFile() != nil:
+		return int(action.GetUploadFile().GetTimeoutMs())
+	case action.GetDownload() != nil:
+		return int(action.GetDownload().GetTimeoutMs())
+	case action.GetConditional() != nil:
+		return int(action.GetConditional().GetTimeoutMs())
 	}
-	// Default: convert snake_case to camelCase
-	return snakeToCamel(paramKey), value
-}
-
-// normalizeLoopParam normalizes loop-specific proto params to executor-expected format.
-func normalizeLoopParam(key string, value any) (string, any) {
-	switch key {
-	case "loop_type":
-		// Convert "LOOP_TYPE_FOREACH" → "foreach"
-		if s, ok := value.(string); ok {
-			normalized := strings.ToLower(strings.TrimPrefix(s, "LOOP_TYPE_"))
-			return "loopType", normalized
-		}
-		return "loopType", value
-	case "count":
-		return "loopCount", value
-	case "max_iterations":
-		return "loopMaxIterations", value
-	case "array_source":
-		return "arraySource", value
-	case "item_variable":
-		return "itemVariable", value
-	case "index_variable":
-		return "indexVariable", value
-	case "iteration_timeout_ms":
-		return "iterationTimeoutMs", value
-	case "total_timeout_ms":
-		return "totalTimeoutMs", value
-	case "condition":
-		// Normalize nested condition object
-		if cond, ok := value.(map[string]any); ok {
-			return "condition", normalizeLoopCondition(cond)
-		}
-		return "condition", value
-	default:
-		return snakeToCamel(key), value
-	}
-}
-
-// normalizeLoopCondition normalizes loop condition params.
-func normalizeLoopCondition(cond map[string]any) map[string]any {
-	result := make(map[string]any, len(cond))
-	for k, v := range cond {
-		switch k {
-		case "type":
-			// Convert "LOOP_CONDITION_TYPE_VARIABLE" → "variable"
-			if s, ok := v.(string); ok {
-				result["conditionType"] = strings.ToLower(strings.TrimPrefix(s, "LOOP_CONDITION_TYPE_"))
-			} else {
-				result["conditionType"] = v
-			}
-		case "operator":
-			// Convert "LOOP_CONDITION_OPERATOR_EQUALS" → "equals"
-			if s, ok := v.(string); ok {
-				result["conditionOperator"] = strings.ToLower(strings.TrimPrefix(s, "LOOP_CONDITION_OPERATOR_"))
-			} else {
-				result["conditionOperator"] = v
-			}
-		case "variable":
-			result["conditionVariable"] = v
-		case "value":
-			result["conditionValue"] = v
-		case "expression":
-			result["conditionExpression"] = v
-		default:
-			result[snakeToCamel(k)] = v
-		}
-	}
-	return result
-}
-
-// normalizeSubflowParam normalizes subflow-specific proto params.
-func normalizeSubflowParam(key string, value any) (string, any) {
-	switch key {
-	case "workflow_id":
-		return "workflowId", value
-	case "workflow_path":
-		return "workflowPath", value
-	case "workflow_version":
-		return "workflowVersion", value
-	case "workflow_definition":
-		return "workflowDefinition", value
-	case "args":
-		// Convert args to parameters for executor compatibility
-		return "parameters", value
-	default:
-		return snakeToCamel(key), value
-	}
-}
-
-// snakeToCamel converts snake_case to camelCase.
-func snakeToCamel(s string) string {
-	parts := strings.Split(s, "_")
-	if len(parts) == 1 {
-		return s
-	}
-	result := parts[0]
-	for _, part := range parts[1:] {
-		if len(part) > 0 {
-			result += strings.ToUpper(part[:1]) + part[1:]
-		}
-	}
-	return result
-}
-
-// isActionParamsKey returns true if the key is an action-specific params field.
-func isActionParamsKey(key string) bool {
-	actionKeys := []string{
-		"navigate", "click", "input", "wait", "assert", "scroll",
-		"select_option", "evaluate", "keyboard", "hover", "screenshot",
-		"focus", "blur", "subflow", "extract", "upload_file", "download",
-		"frame_switch", "tab_switch", "cookie_storage", "shortcut",
-		"drag_drop", "gesture", "network_mock", "rotate",
-		"set_variable", "loop", "conditional",
-	}
-	for _, k := range actionKeys {
-		if key == k {
-			return true
-		}
-	}
-	return false
+	return 0
 }

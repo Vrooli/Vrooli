@@ -1,0 +1,356 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// Cohort watches are durable, bounded supervision subscriptions owned by
+// Agent Manager. Public cursors are opaque and filter-bound; the server alone
+// interprets their watermark and retention-generation claims.
+
+enum WatchStatus {
+  WATCH_STATUS_UNSPECIFIED = 0;
+  WATCH_STATUS_ACTIVE = 1;
+  WATCH_STATUS_TERMINAL = 2;
+  WATCH_STATUS_CANCELED = 3;
+  WATCH_STATUS_FAILED = 4;
+}
+
+enum WatchDisposition {
+  WATCH_DISPOSITION_UNSPECIFIED = 0;
+  WATCH_DISPOSITION_QUIET = 1;
+  WATCH_DISPOSITION_SIGNAL = 2;
+  WATCH_DISPOSITION_TERMINAL = 3;
+  WATCH_DISPOSITION_CURSOR_RESET = 4;
+  WATCH_DISPOSITION_UNAVAILABLE = 5;
+}
+
+enum WatchActionKind {
+  WATCH_ACTION_KIND_UNSPECIFIED = 0;
+  WATCH_ACTION_KIND_OBSERVE = 1;
+  WATCH_ACTION_KIND_NUDGE = 2;
+  WATCH_ACTION_KIND_PARK = 3;
+  WATCH_ACTION_KIND_CONTINUE = 4;
+  WATCH_ACTION_KIND_STOP = 5;
+  WATCH_ACTION_KIND_ESCALATE = 6;
+  WATCH_ACTION_KIND_WAKE_PARENT = 7;
+}
+
+enum WatchActionState {
+  option allow_alias = true;
+  WATCH_ACTION_STATE_UNSPECIFIED = 0;
+  WATCH_ACTION_STATE_REQUESTED = 1;
+  WATCH_ACTION_STATE_QUEUED = 2;
+  WATCH_ACTION_STATE_DELIVERED = 3;
+  WATCH_ACTION_STATE_ACCEPTED = 2;
+  WATCH_ACTION_STATE_APPLIED = 3;
+  WATCH_ACTION_STATE_REJECTED = 4;
+  WATCH_ACTION_STATE_SUPERSEDED = 5;
+  WATCH_ACTION_STATE_EXPIRED = 6;
+}
+
+enum WatchAuthority {
+  WATCH_AUTHORITY_UNSPECIFIED = 0;
+  WATCH_AUTHORITY_SYSTEM = 1;
+  WATCH_AUTHORITY_FAMILY_PARENT = 2;
+  WATCH_AUTHORITY_OPERATOR = 3;
+}
+
+message WatchSubject {
+  string family_execution_id = 1;
+  string plan_id = 2;
+  string run_id = 3;
+}
+
+message WatchTriggers {
+  uint32 event_count = 1;
+  google.protobuf.Duration quiet_time = 2;
+  google.protobuf.Timestamp deadline = 3;
+  double friction_score = 4;
+  bool terminal = 5;
+}
+
+message WatchSpec {
+  string family_execution_id = 1;
+  string parent_run_id = 2;
+  repeated WatchSubject subjects = 3;
+  WatchTriggers triggers = 4;
+  string policy_version = 5;
+  string created_by = 6;
+}
+
+message WatchCursor {
+  string token = 1;
+}
+
+message WatchDecision {
+  string decision_id = 1;
+  string idempotency_key = 2;
+  WatchDisposition disposition = 3;
+  repeated string evidence_ids = 4;
+  string classification = 5;
+  double confidence = 6;
+  WatchActionKind recommended_action = 7;
+  WatchCursor next_cursor = 8;
+  google.protobuf.Timestamp next_wake_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message WatchAction {
+  string action_id = 1;
+  string idempotency_key = 2;
+  WatchActionKind kind = 3;
+  string target_run_id = 4;
+  string rationale = 5;
+  WatchActionState state = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp acknowledged_at = 8;
+  string watch_id = 9;
+  string decision_id = 10;
+  string requested_by = 11;
+  WatchAuthority authority = 12;
+  string message = 13;
+  google.protobuf.Duration cooldown = 14;
+  uint32 maximum_count = 15;
+  string rejection_reason = 16;
+}
+
+message CohortWatch {
+  string watch_id = 1;
+  uint64 revision = 2;
+  WatchStatus status = 3;
+  WatchSpec spec = 4;
+  WatchCursor cursor = 5;
+  WatchDecision last_decision = 6;
+  google.protobuf.Timestamp next_wake_at = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  google.protobuf.Timestamp terminal_at = 10;
+}
+
+message CreateCohortWatchRequest {
+  WatchSpec spec = 1;
+  string idempotency_key = 2;
+}
+
+message GetCohortWatchRequest {
+  string watch_id = 1;
+}
+
+message ListCohortWatchesRequest {
+  string family_execution_id = 1;
+  WatchStatus status = 2;
+  uint32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListCohortWatchesResponse {
+  repeated CohortWatch watches = 1;
+  string next_page_token = 2;
+}
+
+message WaitCohortWatchRequest {
+  string watch_id = 1;
+  google.protobuf.Duration timeout = 2;
+  uint64 after_revision = 3;
+}
+
+message WaitCohortWatchResponse {
+  CohortWatch watch = 1;
+  bool timed_out = 2;
+}
+
+message CancelCohortWatchRequest {
+  string watch_id = 1;
+  uint64 expected_revision = 2;
+  string reason = 3;
+}
+
+message InspectCohortWatchRequest {
+  string watch_id = 1;
+  uint32 event_limit = 2;
+}
+
+message WatchEventEnvelope {
+  string event_id = 1;
+  string run_id = 2;
+  int64 sequence = 3;
+  string event_type = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message InspectCohortWatchResponse {
+  CohortWatch watch = 1;
+  repeated WatchEventEnvelope events = 2;
+  bool cursor_reset_required = 3;
+  string reset_reason = 4;
+ repeated WatchSubjectState subject_states = 5;
+ string subject_state_unavailable = 6;
+}
+
+message RequestCohortWatchActionRequest {
+  string watch_id = 1;
+  uint64 expected_watch_revision = 2;
+  string idempotency_key = 3;
+  WatchActionKind kind = 4;
+  string target_run_id = 5;
+  string requested_by = 6;
+  WatchAuthority authority = 7;
+  string rationale = 8;
+  string message = 9;
+  google.protobuf.Duration cooldown = 10;
+  uint32 maximum_count = 11;
+  bool waive_hard_validation_gate = 12;
+}
+
+message RequestCohortWatchActionResponse {
+  WatchAction action = 1;
+  CohortWatch watch = 2;
+  bool idempotent_replay = 3;
+}
+
+message ListCohortWatchActionsRequest {
+  string watch_id = 1;
+  uint32 limit = 2;
+}
+
+message ListCohortWatchActionsResponse {
+  repeated WatchAction actions = 1;
+}
+
+enum SupervisionPolicyState {
+  SUPERVISION_POLICY_STATE_UNSPECIFIED = 0;
+  SUPERVISION_POLICY_STATE_CANDIDATE = 1;
+  SUPERVISION_POLICY_STATE_ACTIVE = 2;
+  SUPERVISION_POLICY_STATE_RETIRED = 3;
+  SUPERVISION_POLICY_STATE_REJECTED = 4;
+  SUPERVISION_POLICY_STATE_ROLLED_BACK = 5;
+}
+
+message SupervisionPolicyDefinition {
+  string version = 1;
+  uint32 event_count = 2;
+  int64 quiet_seconds = 3;
+  double friction_threshold = 4;
+  bool terminal = 5;
+  repeated string allowed_actions = 6;
+  string classifier_revision = 7;
+  // Program Runtime content identity; active watches refuse changed evaluator code.
+  string evaluator_digest = 8;
+}
+
+message SupervisionPolicyRecord {
+  SupervisionPolicyDefinition policy = 1;
+  SupervisionPolicyState state = 2;
+  string digest = 3;
+  string supersedes = 4;
+  string created_by = 5;
+  string reviewed_by = 6;
+  string rejection_reason = 7;
+  // Absent until the owner has evaluated current retained evidence.
+  SupervisionReplayReport evaluation = 8;
+  string inference_identity_digest = 9;
+}
+
+message SupervisionOutcomeRecord {
+  string outcome_id = 1;
+  string idempotency_key = 2;
+  string policy_version = 3;
+  string family_execution_id = 4;
+  string watch_id = 5;
+  string decision_id = 6;
+  string action_id = 7;
+  string child_run_id = 8;
+  repeated string evidence_ids = 9;
+  string predicted_class = 10;
+  string observed_class = 11;
+  bool overridden = 12;
+  bool counterexample = 13;
+  bool safety_violation = 14;
+  double completion_impact = 15;
+  string supersedes_outcome_id = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp expires_at = 18;
+  // False means the scalar is unmeasured, including legacy zero values.
+  bool completion_impact_observed = 19;
+}
+
+message SupervisionReplayReport {
+  string version = 1;
+  int32 sample_count = 2;
+  int32 false_positives = 3;
+  int32 false_negatives = 4;
+  int32 safety_violations = 5;
+  double completion_impact = 6;
+  int32 rollout_samples = 7;
+  bool replay_passed = 8;
+  bool rollout_passed = 9;
+ string incumbent_version = 10;
+ int32 heldout_families = 11;
+ int32 candidate_errors = 12;
+ int32 incumbent_errors = 13;
+  bool comparison_passed = 14;
+  string selection = 15;
+  // The scalar is unknown until an independently observed completion-impact
+  // measurement exists; false is not a measured zero.
+  bool completion_impact_observed = 16;
+  string completion_impact_reason = 17;
+}
+
+message GetSupervisionPolicyRequest { string version = 1; }
+message CreateSupervisionPolicyCandidateRequest {
+  SupervisionPolicyDefinition policy = 1;
+  string supersedes = 2;
+  string created_by = 3;
+}
+message RecordSupervisionOutcomeRequest { SupervisionOutcomeRecord outcome = 1; }
+message RecordSupervisionOutcomeResponse {
+  SupervisionOutcomeRecord outcome = 1;
+  bool idempotent_replay = 2;
+  bool source_ledger_synced = 3;
+  string source_ledger_id = 4;
+  string degradation_reason = 5;
+}
+message EvaluateSupervisionPolicyRequest {
+  string version = 1;
+  // Retired caller claim: must be zero; rollout evidence is derived by the owner.
+  int32 rollout_samples = 2 [deprecated = true];
+  int32 min_samples = 3;
+  double max_false_positive_rate = 4;
+  double max_false_negative_rate = 5;
+  int32 min_rollout_samples = 6;
+}
+message PromoteSupervisionPolicyRequest { string version = 1; string reviewed_by = 2; }
+message RejectSupervisionPolicyRequest { string version = 1; string reviewed_by = 2; string reason = 3; }
+message RollbackSupervisionPolicyRequest { string active_version = 1; string reviewed_by = 2; }
+message SetSupervisionPolicyDisabledRequest { bool disabled = 1; string reason = 2; string actor = 3; }
+message SupervisionPolicyControl { bool disabled = 1; string reason = 2; }
+message ListSupervisionOutcomesRequest { string policy_version = 1; int32 limit = 2; string watch_id = 3; }
+message SupervisionEvidenceCoverage {
+  uint32 outcomes = 1;
+  uint32 assessed_outcomes = 2;
+  uint32 decisions = 3;
+  uint32 actions = 4;
+  uint32 applied_actions = 5;
+  uint32 children = 6;
+  uint32 families = 7;
+  uint32 measured_impact_outcomes = 8;
+  string population = 9;
+}
+message ListSupervisionOutcomesResponse {
+ repeated SupervisionOutcomeRecord outcomes = 1;
+ SupervisionEvidenceCoverage coverage = 2;
+ bool truncated = 3;
+}
+
+// Current owner state at inspection time, separate from the historical decision.
+message WatchSubjectState {
+ string run_id = 1;
+ string status = 2;
+ bool terminal = 3;
+ bool friction_unavailable = 4;
+ google.protobuf.Timestamp friction_through = 5;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "python-uv-react-vite",
+  "displayName": "Python uv + React + Vite Scenario",
+  "description": "A React/Vite scenario with a Python uv API and the standard Go CLI.",
+  "version": "1.0.0",
+  "baseTemplate": "react-vite",
+  "baseCopyExcludes": ["api"],
+  "stack": ["python", "uv", "react", "vite", "typescript", "cli"],
+  "startDocument": "docs/START-HERE.md",
+  "design": {"adapter": "react-vite-tailwind", "default": "vrooli-default", "required": true},
+  "requiredVars": {
+    "SCENARIO_ID": {"flag": "id", "description": "Scenario slug"},
+    "SCENARIO_DISPLAY_NAME": {"flag": "display-name", "description": "Display name"},
+    "SCENARIO_DESCRIPTION": {"flag": "description", "description": "Scenario description"}
+  },
+  "optionalVars": {
+    "SCENARIO_CATEGORY": {"flag": "category", "default": "ai_tools"},
+    "AUTHOR": {"flag": "author", "default": "Generator Agent"},
+    "DATE": {"flag": "date", "default": "{{CURRENT_DATE}}"}
+  }
+}

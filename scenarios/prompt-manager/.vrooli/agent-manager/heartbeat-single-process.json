@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-heartbeat-single-process",
+  "profileKey": "prompt-manager/heartbeat-inspection",
+  "description": "Portable profile for Prompt Manager single-process heartbeats",
+  "roleRef": "code.inspection",
+  "maxTurns": 200,
+  "timeout": "1800s",
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "createdBy": "prompt-manager",
+  "effort": "medium"
+}

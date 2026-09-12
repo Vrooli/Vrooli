@@ -7,15 +7,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
 import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
-import type { VariantStats } from "../../../shared/api";
+import type { AnalyticsSummary, VariantStats } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/useLandingVariant";
 import { useAdminAnalytics } from "../hooks/useAdminAnalytics";
 import { RESOLUTION_LABELS } from "../config/variant.constants";
+import { TrafficAttributionSection } from "../components/TrafficAttributionSection";
+import { buildDateRange } from "../controllers/analyticsController";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
   if (trend === 'down') return <ArrowDownRight className="h-4 w-4 text-red-400" />;
   return <Minus className="h-4 w-4 text-slate-400" />;
+};
+
+const EMPTY_ANALYTICS_SUMMARY: AnalyticsSummary = {
+  total_visitors: 0,
+  total_downloads: 0,
+  variant_stats: [],
+  top_cta: 'N/A',
+  top_cta_ctr: 0,
 };
 
 /**
@@ -66,7 +76,7 @@ export function AdminAnalytics() {
       <AdminLayout>
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
           <p className="text-red-400">Error: {error}</p>
-          <Button onClick={fetchAnalytics} variant="outline" className="mt-4">
+          <Button onClick={() => { void fetchAnalytics(); }} variant="outline" className="mt-4">
             Retry
           </Button>
         </div>
@@ -74,13 +84,14 @@ export function AdminAnalytics() {
     );
   }
 
+  const analyticsSummary = summary ?? EMPTY_ANALYTICS_SUMMARY;
+
   return (
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.pageSpacing}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
-          variant="icon-title"
           title="Analytics Dashboard"
           icon={TrendingUp}
           iconBgClass="bg-blue-500/10"
@@ -89,7 +100,7 @@ export function AdminAnalytics() {
           actions={
             <div className="flex gap-3" data-testid="analytics-filters">
               <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-                <SelectTrigger className="w-[140px] ${LAYOUT.card.base}" data-testid="analytics-time-range">
+                <SelectTrigger className={`w-[140px] ${LAYOUT.card.base}`} data-testid="analytics-time-range">
                   <SelectValue placeholder="Time range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -101,12 +112,12 @@ export function AdminAnalytics() {
               </Select>
 
               <Select value={selectedVariant} onValueChange={handleVariantChange}>
-                <SelectTrigger className="w-[160px] ${LAYOUT.card.base}" data-testid="analytics-variant-filter">
+                <SelectTrigger className={`w-[160px] ${LAYOUT.card.base}`} data-testid="analytics-variant-filter">
                   <SelectValue placeholder="All variants" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All variants</SelectItem>
-                  {summary?.variant_stats.map((v) => (
+                  {analyticsSummary.variant_stats.map((v) => (
                     <SelectItem key={v.variant_id} value={v.variant_slug}>
                       {v.variant_name}
                     </SelectItem>
@@ -124,8 +135,8 @@ export function AdminAnalytics() {
             timeRangeLabel={selectedTimeRangeLabel}
             filtersChanged={filtersChanged}
             onResetFilters={filtersChanged ? handleResetFilters : undefined}
-            onCustomizeVariant={selectedVariant !== 'all' ? () => navigateToVariantEditor(selectedVariant) : undefined}
-            onPreviewVariant={selectedVariant !== 'all' ? () => openVariantPreview(selectedVariant) : undefined}
+            onCustomizeVariant={selectedVariant !== 'all' ? () => { navigateToVariantEditor(selectedVariant); } : undefined}
+            onPreviewVariant={selectedVariant !== 'all' ? () => { openVariantPreview(selectedVariant); } : undefined}
             liveVariant={liveVariant}
             liveResolution={liveResolution}
             liveStatusNote={liveStatusNote}
@@ -144,39 +155,43 @@ export function AdminAnalytics() {
             }}
             bestVariant={bestVariantStat}
             weakestVariant={weakestVariantStat}
-            onFocusVariant={(slug) => handleVariantChange(slug)}
-            onCustomizeVariant={(slug) => navigateToVariantEditor(slug)}
+            onFocusVariant={(slug) => { handleVariantChange(slug); }}
+            onCustomizeVariant={(slug) => { navigateToVariantEditor(slug); }}
             timeRangeDays={parseInt(timeRange, 10)}
           />
         </ErrorBoundary>
 
+        <ErrorBoundary level="section" name="TrafficAttributionSection">
+          <TrafficAttributionSection range={buildDateRange(parseInt(timeRange, 10))} />
+        </ErrorBoundary>
+
         {/* Summary cards - OT-P0-023 */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="${LAYOUT.card.base}" data-testid="analytics-total-visitors">
+          <Card className={LAYOUT.card.base} data-testid="analytics-total-visitors">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Total Visitors</CardTitle>
               <Users className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{(summary?.total_visitors ?? 0).toLocaleString()}</div>
+              <div className="text-3xl font-bold">{analyticsSummary.total_visitors.toLocaleString()}</div>
               <p className="text-xs text-slate-400 mt-1">Unique visitors in selected period</p>
             </CardContent>
           </Card>
 
-          <Card className="${LAYOUT.card.base}" data-testid="analytics-total-downloads">
+          <Card className={LAYOUT.card.base} data-testid="analytics-total-downloads">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Downloads</CardTitle>
               <DownloadCloud className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                {(summary?.total_downloads ?? 0).toLocaleString()}
+                {(analyticsSummary.total_downloads ?? 0).toLocaleString()}
               </div>
               <p className="text-xs text-slate-400 mt-1">Verified download events</p>
             </CardContent>
           </Card>
 
-          <Card className="${LAYOUT.card.base}" data-testid="analytics-conversion-rate">
+          <Card className={LAYOUT.card.base} data-testid="analytics-conversion-rate">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Avg Conversion Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-slate-400" />
@@ -184,9 +199,9 @@ export function AdminAnalytics() {
             <CardContent>
               <div className="text-3xl font-bold">
                 {(() => {
-                  const stats = summary?.variant_stats ?? [];
+                  const stats = analyticsSummary.variant_stats;
                   if (stats.length === 0) return '0.00';
-                  const avgRate = stats.reduce((sum, v) => sum + (v.conversion_rate ?? 0), 0) / stats.length;
+                  const avgRate = stats.reduce((sum, v) => sum + v.conversion_rate, 0) / stats.length;
                   return Number.isFinite(avgRate) ? avgRate.toFixed(2) : '0.00';
                 })()}%
               </div>
@@ -194,17 +209,17 @@ export function AdminAnalytics() {
             </CardContent>
           </Card>
 
-          <Card className="${LAYOUT.card.base}" data-testid="analytics-top-cta">
+          <Card className={LAYOUT.card.base} data-testid="analytics-top-cta">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Top CTA</CardTitle>
               <MousePointerClick className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold truncate">
-                {summary?.top_cta ?? "N/A"}
+                {analyticsSummary.top_cta ?? 'N/A'}
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                {summary?.top_cta_ctr ? `${summary.top_cta_ctr.toFixed(1)}% CTR` : "No data yet"}
+                {(analyticsSummary.top_cta_ctr ?? 0) > 0 ? `${(analyticsSummary.top_cta_ctr ?? 0).toFixed(1)}% CTR` : "No data yet"}
               </p>
             </CardContent>
           </Card>
@@ -212,7 +227,7 @@ export function AdminAnalytics() {
 
         {/* Variant performance table - OT-P0-024 */}
         <ErrorBoundary level="section" name="VariantPerformanceTable">
-          <Card className="${LAYOUT.card.base}" data-testid="analytics-variant-performance">
+          <Card className={LAYOUT.card.base} data-testid="analytics-variant-performance">
             <CardHeader>
               <CardTitle>Variant Performance</CardTitle>
               <CardDescription className="text-slate-400">
@@ -220,7 +235,7 @@ export function AdminAnalytics() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {!summary || (summary.variant_stats?.length ?? 0) === 0 ? (
+              {analyticsSummary.variant_stats.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No variant data available yet</p>
@@ -235,35 +250,37 @@ export function AdminAnalytics() {
                         <th className="text-right py-3 px-4">Views</th>
                         <th className="text-right py-3 px-4">CTA Clicks</th>
                         <th className="text-right py-3 px-4">Conversions</th>
+                        <th className="text-right py-3 px-4">Exposures</th>
                         <th className="text-right py-3 px-4">Downloads</th>
-                        <th className="text-right py-3 px-4">Conv. Rate</th>
+                        <th className="text-right py-3 px-4">Conv. Rate / exposure</th>
                         <th className="text-right py-3 px-4">Trend</th>
                         <th className="text-right py-3 px-4"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(summary.variant_stats ?? []).map((variant) => (
+                      {analyticsSummary.variant_stats.map((variant) => (
                         <tr
                           key={variant.variant_id}
                           className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                          data-testid={`analytics-variant-row-${variant.variant_id}`}
+                          data-testid={`analytics-variant-row-${String(variant.variant_id)}`}
                         >
                           <td className="py-4 px-4">
-                            <div className="font-medium">{variant.variant_name ?? 'Unknown'}</div>
-                            <div className="text-xs text-slate-500">{variant.variant_slug ?? ''}</div>
+                            <div className="font-medium">{variant.variant_name}</div>
+                            <div className="text-xs text-slate-500">{variant.variant_slug}</div>
                           </td>
-                          <td className="text-right py-4 px-4">{(variant.views ?? 0).toLocaleString()}</td>
-                          <td className="text-right py-4 px-4">{(variant.cta_clicks ?? 0).toLocaleString()}</td>
-                          <td className="text-right py-4 px-4">{(variant.conversions ?? 0).toLocaleString()}</td>
+                          <td className="text-right py-4 px-4">{variant.views.toLocaleString()}</td>
+                          <td className="text-right py-4 px-4">{variant.cta_clicks.toLocaleString()}</td>
+                          <td className="text-right py-4 px-4">{variant.conversions.toLocaleString()}</td>
+                          <td className="text-right py-4 px-4">{(variant.exposures ?? 0).toLocaleString()}</td>
                           <td
                             className="text-right py-4 px-4"
-                            data-testid={`analytics-downloads-${variant.variant_id}`}
+                            data-testid={`analytics-downloads-${String(variant.variant_id)}`}
                           >
-                            {(variant.downloads ?? 0).toLocaleString()}
+                            {variant.downloads.toLocaleString()}
                           </td>
                           <td className="text-right py-4 px-4">
-                            <span className={(variant.conversion_rate ?? 0) > 5 ? "text-green-400 font-semibold" : "text-slate-300"}>
-                              {(variant.conversion_rate ?? 0).toFixed(2)}%
+                            <span className={variant.conversion_rate > 5 ? "text-green-400 font-semibold" : "text-slate-300"}>
+                              {variant.conversion_rate.toFixed(2)}%
                             </span>
                           </td>
                           <td className="text-right py-4 px-4">
@@ -277,24 +294,24 @@ export function AdminAnalytics() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleVariantChange(variant.variant_slug)}
-                                data-testid={`analytics-view-details-${variant.variant_id}`}
+                                onClick={() => { handleVariantChange(variant.variant_slug); }}
+                                data-testid={`analytics-view-details-${String(variant.variant_id)}`}
                               >
                                 Details →
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => navigateToVariantEditor(variant.variant_slug)}
-                                data-testid={`analytics-edit-${variant.variant_id}`}
+                                onClick={() => { navigateToVariantEditor(variant.variant_slug); }}
+                                data-testid={`analytics-edit-${String(variant.variant_id)}`}
                               >
                                 Customize
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => navigateToHeroSection(variant.variant_slug)}
-                                data-testid={`analytics-edit-hero-${variant.variant_id}`}
+                                onClick={() => { navigateToHeroSection(variant.variant_slug); }}
+                                data-testid={`analytics-edit-hero-${String(variant.variant_id)}`}
                               >
                                 Edit hero
                               </Button>
@@ -313,7 +330,7 @@ export function AdminAnalytics() {
         {/* Variant detail view - OT-P0-024 */}
         {selectedVariant !== "all" && variantDetails.length > 0 && (
           <ErrorBoundary level="section" name="VariantDetailView">
-            <Card className="mt-6 ${LAYOUT.card.base}" data-testid="analytics-variant-detail">
+            <Card className={`mt-6 ${LAYOUT.card.base}`} data-testid="analytics-variant-detail">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -325,7 +342,7 @@ export function AdminAnalytics() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleVariantChange("all")}
+                    onClick={() => { handleVariantChange("all"); }}
                   >
                     Back to All Variants
                   </Button>
@@ -346,7 +363,7 @@ export function AdminAnalytics() {
                     <div className="text-2xl font-bold">{(variantDetails[0]?.conversions ?? 0).toLocaleString()}</div>
                   </div>
                   <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <div className="text-sm text-slate-400 mb-1">Conversion Rate</div>
+                      <div className="text-sm text-slate-400 mb-1">Conversion Rate / exposure</div>
                     <div className="text-2xl font-bold">{(variantDetails[0]?.conversion_rate ?? 0).toFixed(2)}%</div>
                   </div>
                   <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -376,14 +393,14 @@ export function AdminAnalytics() {
                     <Button
                       variant="outline"
                       className="gap-2"
-                      onClick={() => navigateToVariantEditor(selectedVariant)}
+                      onClick={() => { navigateToVariantEditor(selectedVariant); }}
                     >
                       Edit {selectedVariantName ?? 'variant'}
                     </Button>
                     <Button
                       variant="outline"
                       className="gap-2"
-                      onClick={() => openVariantPreview(selectedVariant)}
+                      onClick={() => { openVariantPreview(selectedVariant); }}
                     >
                       Preview pinned variant
                     </Button>
@@ -393,7 +410,7 @@ export function AdminAnalytics() {
                       size="sm"
                       variant="outline"
                       className="gap-2"
-                      onClick={() => navigateToHeroSection(selectedVariant)}
+                      onClick={() => { navigateToHeroSection(selectedVariant); }}
                       data-testid="analytics-variant-edit-hero"
                     >
                       Jump to hero section
@@ -453,7 +470,7 @@ function AnalyticsFocusBanner({
     ? `Analyzing ${selectedVariantName ?? selectedVariantSlug}`
     : 'Analyzing all variants';
   const runtimeVariantLabel = liveVariant?.name ?? liveVariant?.slug ?? 'runtime variant not resolved yet';
-  const resolutionLabel = RESOLUTION_LABELS[liveResolution] ?? RESOLUTION_LABELS.unknown;
+  const resolutionLabel = RESOLUTION_LABELS[liveResolution];
   let runtimeMessage = liveVariant?.slug
     ? `Live runtime is serving ${runtimeVariantLabel} via ${resolutionLabel}.`
     : 'Live runtime has not selected a variant yet.';
@@ -471,7 +488,7 @@ function AnalyticsFocusBanner({
   }
 
   return (
-    <Card className="mb-6 ${LAYOUT.card.base}" data-testid="analytics-focus-banner">
+      <Card className={`mb-6 ${LAYOUT.card.base}`} data-testid="analytics-focus-banner">
       <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Current view</p>
@@ -519,7 +536,7 @@ function AnalyticsShortcutsCard({
   const showNeedsAttention = weakestVariant && !bestIsWeakest;
 
   return (
-    <Card className="mb-8 ${LAYOUT.card.base}" data-testid="analytics-shortcuts">
+    <Card className={`mb-8 ${LAYOUT.card.base}`} data-testid="analytics-shortcuts">
       <CardHeader>
         <CardTitle>Experience Shortcuts</CardTitle>
         <CardDescription className="text-slate-400">
@@ -532,7 +549,7 @@ function AnalyticsShortcutsCard({
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Live traffic</p>
             {liveVariant ? (
               <>
-                <p className="text-xl font-semibold text-white">{liveVariant.name ?? liveVariant.slug}</p>
+                <p className="text-xl font-semibold text-white">{liveVariant.name}</p>
                 <p className="text-xs text-slate-400">Source: {RESOLUTION_LABELS[liveResolution]}</p>
                 {liveStatusNote && <p className="text-xs text-slate-500">{liveStatusNote}</p>}
                 <Button
@@ -540,7 +557,6 @@ function AnalyticsShortcutsCard({
                   variant="outline"
                   className="mt-2"
                   onClick={onFocusLiveVariant}
-                  disabled={!liveVariant.slug}
                 >
                   Focus analytics
                 </Button>
@@ -558,10 +574,10 @@ function AnalyticsShortcutsCard({
                 <p className="text-3xl font-bold text-emerald-300">{bestVariant.conversion_rate.toFixed(2)}%</p>
                 <p className="text-xs text-slate-500">Last {timeRangeDays} day{timeRangeDays === 1 ? '' : 's'}</p>
                 <div className="flex gap-2 mt-2">
-                  <Button size="sm" onClick={() => onFocusVariant(bestVariant.variant_slug)}>
+                  <Button size="sm" onClick={() => { onFocusVariant(bestVariant.variant_slug); }}>
                     View breakdown
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(bestVariant.variant_slug)}>
+                  <Button size="sm" variant="outline" onClick={() => { onCustomizeVariant(bestVariant.variant_slug); }}>
                     Tune messaging
                   </Button>
                 </div>
@@ -573,16 +589,16 @@ function AnalyticsShortcutsCard({
 
           <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
-            {showNeedsAttention && weakestVariant ? (
+            {showNeedsAttention ? (
               <>
                 <p className="text-xl font-semibold text-white">{weakestVariant.variant_name}</p>
                 <p className="text-3xl font-bold text-rose-300">{weakestVariant.conversion_rate.toFixed(2)}%</p>
                 <p className="text-xs text-slate-500">Slowest performer right now</p>
                 <div className="flex gap-2 mt-2">
-                  <Button size="sm" onClick={() => onFocusVariant(weakestVariant.variant_slug)}>
+                  <Button size="sm" onClick={() => { onFocusVariant(weakestVariant.variant_slug); }}>
                     Inspect metrics
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(weakestVariant.variant_slug)}>
+                  <Button size="sm" variant="outline" onClick={() => { onCustomizeVariant(weakestVariant.variant_slug); }}>
                     Edit variant
                   </Button>
                 </div>

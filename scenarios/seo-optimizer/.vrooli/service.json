@@ -1,6 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "seo-optimizer",
     "displayName": "SEO Optimizer",
@@ -55,7 +71,28 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "SEO Optimizer UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "seo-optimizer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "seo-optimizer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "lifecycle": {
@@ -90,129 +127,19 @@
     },
     "setup": {
       "description": "Initialize SEO Optimizer",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/seo-optimizer-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "seo-optimizer",
-            "targets": [
-              "seo-optimizer"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
           "name": "generate-embeddings",
-          "run": "if [ -f .vrooli/app-identity.json ]; then if curl -fsS http://localhost:6333/health >/dev/null 2>&1; then vrooli resource qdrant embeddings refresh --force || echo 'Embeddings generation skipped (non-critical failure)'; else echo 'Embeddings refresh skipped (qdrant unavailable)'; fi; else echo 'Embeddings refresh skipped (identity not initialized)'; fi",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--force"
+          ],
+          "on_error": "continue",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "mkdir -p ~/.local/bin && chmod +x cli/seo-optimizer && ln -sf $(pwd)/cli/seo-optimizer ~/.local/bin/seo-optimizer",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o seo-optimizer-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd0d SEO Optimizer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display service URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start SEO Optimizer services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./seo-optimizer-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/seo-optimizer-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 SEO Optimizer running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display running services"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for seo-optimizer",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute seo-optimizer --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"seo-optimizer-api\" || true; sleep 1; pkill -9 -f \"seo-optimizer-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/seo-optimizer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/seo-optimizer.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -224,46 +151,57 @@
         "enabled": true,
         "required": true,
         "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Cache SEO analysis results and API responses"
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Store content embeddings for semantic SEO analysis",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
+        "startup_policy": "try_start",
+        "purpose": "Store content embeddings for semantic SEO analysis"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.2:3b",
-          "nomic-embed-text"
-        ]
-      },
-      "browserless": {
-        "type": "browserless",
-        "enabled": true,
-        "required": true,
-        "purpose": "Web crawling for SEO audits and competitor analysis"
+        "startup_policy": "must_start"
       }
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -1,0 +1,72 @@
+{
+  "description": "0–100 composite with classification band and per-dimension breakdown (quality / coverage / quantity / UI signal groups), each line showing observed counts, thresholds, and awarded points.",
+  "module_id": "MOD-P0-003",
+  "prd_ref": "OT-P0-003",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "The score response must include a composite score in the range 0–100 with an associated classification band (e.g. Excellent/Good/Fair/Poor or equivalent). The response must also include a per-dimension breakdown covering the four signal groups: quality, coverage, quantity, and UI signal. Each dimension line must display: observed counts, the applicable threshold values, and the awarded points for that dimension. The sum of per-dimension awarded points must equal the composite score. Dimension vocabulary and thresholds must be sourced exclusively from packages/maturity-go.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "draft",
+      "title": "0–100 Composite Score with Classification Band and Per-Dimension Breakdown",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/composite_score_test.go [REQ:OT-P0-003]: table tests asserting composite score stays within [0, 100] for boundary fixture inputs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/composite_score_test.go: assert classification band string is non-empty for each score boundary (0, 25, 50, 75, 100)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/composite_score_test.go: assert sum of per-dimension awarded points equals composite score for all fixture inputs",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/composite_score_test.go: each dimension entry (quality, coverage, quantity, ui_signal) carries observed_count, threshold, and awarded_points fields",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: GetScore response proto/JSON contains composite_score int in [0,100], classification_band non-empty string, and dimensions array with exactly 4 entries",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score get \u003cscenario\u003e --json` output passes JSON schema validation asserting required fields for composite and breakdown",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Engineering teams can see at a glance which dimensions are dragging the overall score and by how much",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Composite Score"
+}

@@ -38,18 +38,18 @@ type MockRepository struct {
 	callCounts CallCounts
 
 	// Error injection for testing error paths
-	CreateSessionErr       error
-	GetSessionErr          error
-	CloseSessionErr        error
-	ListSessionsErr        error
-	DeleteSessionErr       error
-	SaveTimelineEntryErr   error
-	SaveTimelineEntriesErr error
-	GetTimelineEntryErr    error
-	GetTimelineErr         error
-	CountTimelineErr       error
+	CreateSessionErr        error
+	GetSessionErr           error
+	CloseSessionErr         error
+	ListSessionsErr         error
+	DeleteSessionErr        error
+	SaveTimelineEntryErr    error
+	SaveTimelineEntriesErr  error
+	GetTimelineEntryErr     error
+	GetTimelineErr          error
+	CountTimelineErr        error
 	DeleteSessionEntriesErr error
-	PruneOldSessionsErr    error
+	PruneOldSessionsErr     error
 }
 
 // NewMockRepository creates a new mock repository for testing.

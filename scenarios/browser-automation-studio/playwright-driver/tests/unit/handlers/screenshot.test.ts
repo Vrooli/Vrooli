@@ -36,11 +36,31 @@ describe('ScreenshotHandler', () => {
   });
 
   it('should capture full page screenshot with quality option', async () => {
-    const instruction = createTypedInstruction('screenshot', { quality: 80, fullPage: true }, { nodeId: 'node-1' });
+    const instruction = createTypedInstruction(
+      'screenshot',
+      { quality: 80, fullPage: true },
+      { nodeId: 'node-1' }
+    );
 
     const result = await handler.execute(instruction, context);
 
     expect(result.success).toBe(true);
     expect(result.screenshot).toBeDefined();
+  });
+
+  it('should capture the requested element when a selector is provided', async () => {
+    const instruction = createTypedInstruction(
+      'screenshot',
+      { selector: '[data-testid="story-root"]', fullPage: false },
+      { nodeId: 'node-selector' }
+    );
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(mockPage.locator).toHaveBeenCalledWith('[data-testid="story-root"]');
+    expect(mockPage.locator('[data-testid="story-root"]').first().screenshot).toHaveBeenCalledWith({
+      type: 'png',
+    });
   });
 });

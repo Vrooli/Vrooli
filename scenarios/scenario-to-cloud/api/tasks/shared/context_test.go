@@ -107,3 +107,16 @@ func TestBuildUserNoteAttachment(t *testing.T) {
 		t.Fatalf("unexpected user note attachment: %+v", att)
 	}
 }
+
+func TestBuildDiagnosticChecklistAttachment_UsesContractNeutralScenarioGuidance(t *testing.T) {
+	att := BuildDiagnosticChecklistAttachment()
+	if att == nil {
+		t.Fatal("expected attachment")
+	}
+	if strings.Contains(att.Content, "<workdir>/scenarios/<scenario>/.vrooli/service.json") {
+		t.Fatalf("diagnostic checklist should not hard-code scenario path layout: %q", att.Content)
+	}
+	if !strings.Contains(att.Content, "contract-defined scenario root") {
+		t.Fatalf("diagnostic checklist should reference contract-defined scenario root: %q", att.Content)
+	}
+}

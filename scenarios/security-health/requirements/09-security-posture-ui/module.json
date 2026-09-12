@@ -1,0 +1,32 @@
+{
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "description": "Provide Posture, Dependencies, and (redacted) Secrets pages with severity grouping, last-scan time, and per-finding remediation.",
+  "requirements": [
+    {
+      "id": "REQ-P1-005",
+      "title": "Posture page",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "status": "planned",
+      "description": "A landing Posture page must let the user pick a scenario and view findings grouped by severity (Critical -> Info) with per-finding remediation, last-scan time, and a re-scan button.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "Findings render grouped by severity with stable data-testid selectors." },
+        { "type": "test", "phase": "business", "status": "pending", "notes": "Selecting a scenario and pressing re-scan refreshes the finding list." }
+      ]
+    },
+    {
+      "id": "REQ-P1-006",
+      "title": "Dependencies and redacted Secrets pages",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "status": "planned",
+      "description": "A Dependencies page must surface the searchable SBOM index (AI/TEXT toggle, ecosystem + vulnerable-only filters); a Secrets page must show gitleaks findings redacted to file:line only with rotation guidance.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "The Dependencies page renders the vulnerable-only filter and ecosystem toggle." },
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "The Secrets page never renders a raw secret value, only file:line and guidance." }
+      ]
+    }
+  ]
+}

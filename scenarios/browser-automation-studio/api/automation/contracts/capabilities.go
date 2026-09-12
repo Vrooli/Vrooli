@@ -9,7 +9,7 @@ import (
 // orchestration can select/validate engines before execution begins.
 type EngineCapabilities struct {
 	SchemaVersion         string `json:"schema_version"`
-	Engine                string `json:"engine"`            // e.g., browserless, desktop
+	Engine                string `json:"engine"`            // e.g., playwright
 	Version               string `json:"version,omitempty"` // Implementation version/commit.
 	RequiresDocker        bool   `json:"requires_docker"`
 	RequiresXvfb          bool   `json:"requires_xvfb"`
@@ -21,6 +21,8 @@ type EngineCapabilities struct {
 	SupportsFileUploads   bool   `json:"supports_file_uploads"`
 	SupportsDownloads     bool   `json:"supports_downloads"`
 	SupportsTracing       bool   `json:"supports_tracing"`
+	SupportsPerfTrace     bool   `json:"supports_perf_trace"`           // CDP performance trace + web-vitals capture.
+	SupportsAccessibility bool   `json:"supports_accessibility"`        // CDP accessibility-tree snapshot capture.
 	MaxViewportWidth      int    `json:"max_viewport_width,omitempty"`  // 0 = unknown/unbounded.
 	MaxViewportHeight     int    `json:"max_viewport_height,omitempty"` // 0 = unknown/unbounded.
 	Notes                 string `json:"notes,omitempty"`
@@ -29,15 +31,17 @@ type EngineCapabilities struct {
 // CapabilityRequirement expresses the minimum feature set required by a
 // compiled workflow (derived during preflight analysis).
 type CapabilityRequirement struct {
-	NeedsParallelTabs bool
-	NeedsHAR          bool
-	NeedsVideo        bool
-	NeedsIframes      bool
-	NeedsFileUploads  bool
-	NeedsDownloads    bool
-	NeedsTracing      bool
-	MinViewportWidth  int
-	MinViewportHeight int
+	NeedsParallelTabs  bool
+	NeedsHAR           bool
+	NeedsVideo         bool
+	NeedsIframes       bool
+	NeedsFileUploads   bool
+	NeedsDownloads     bool
+	NeedsTracing       bool
+	NeedsPerfTrace     bool
+	NeedsAccessibility bool
+	MinViewportWidth   int
+	MinViewportHeight  int
 }
 
 // CapabilityGap captures missing or risky capability matches.
@@ -97,6 +101,8 @@ func (c EngineCapabilities) CheckCompatibility(req CapabilityRequirement) Capabi
 	appendIf(req.NeedsFileUploads && !c.SupportsFileUploads, "file_uploads")
 	appendIf(req.NeedsDownloads && !c.SupportsDownloads, "downloads")
 	appendIf(req.NeedsTracing && !c.SupportsTracing, "tracing")
+	appendIf(req.NeedsPerfTrace && !c.SupportsPerfTrace, "perf_trace")
+	appendIf(req.NeedsAccessibility && !c.SupportsAccessibility, "accessibility")
 
 	if req.MinViewportWidth > 0 {
 		switch {

@@ -32,6 +32,7 @@ import {
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import ReportDiagnosticsPanel from './ReportDiagnosticsPanel';
 import ReportScreenshotPanel from './ReportScreenshotPanel';
+import './ReportIssueDialog.css';
 import type { ReportElementCapture } from './reportTypes';
 import useReportIssueState, { type BridgePreviewState } from './useReportIssueState';
 
@@ -121,11 +122,11 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   const dataLoadingSources = [
     { name: 'app logs', loading: logs.includeAppLogs && logs.loading },
     {
-      name: consoleLogs.fromFallback ? 'console logs (fallback)' : 'console logs',
+      name: 'console logs',
       loading: consoleLogs.includeConsoleLogs && consoleLogs.loading
     },
     {
-      name: network.fromFallback ? 'network requests (fallback)' : 'network requests',
+      name: 'network requests',
       loading: network.includeNetworkRequests && network.loading
     },
     { name: 'health checks', loading: health.includeHealthChecks && health.loading },
@@ -137,19 +138,19 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
   const hasIncompleteData = dataLoadingCount > 0;
   const existingIssuesError = existingIssues.status === 'error';
   const existingIssuesShouldWarn = existingIssues.status === 'ready'
-    && (existingIssues.openCount > 0 || existingIssues.activeCount > 0);
-  const existingIssuesErrorMessage = existingIssues.error ?? 'Unable to load existing issues.';
+    && (existingIssues.activeCount > 0 || existingIssues.archivedCount > 0);
+  const existingIssuesErrorMessage = existingIssues.error ?? 'Unable to load existing fix backlog items.';
+  const [showArchivedFixes, setShowArchivedFixes] = useState(false);
   const relevantIssues = useMemo(
-    () => existingIssues.issues.filter(issue => {
-      const status = issue.status?.toLowerCase();
-      return status === 'open' || status === 'active';
-    }),
-    [existingIssues.issues],
+    () => showArchivedFixes ? existingIssues.archived : existingIssues.active,
+    [existingIssues.active, existingIssues.archived, showArchivedFixes],
   );
   const issuesToDisplay = existingIssuesShouldWarn
     ? relevantIssues.slice(0, 4)
     : relevantIssues.slice(0, 3);
-  const issueSummaryLabel = `Active issues exist for this app`;
+  const issueSummaryLabel = showArchivedFixes
+    ? `Archived fixes exist for this app`
+    : `Active fixes exist for this app`;
 
   const existingIssuesCheckedLabel = existingIssues.lastFetched
     ? (() => {
@@ -222,7 +223,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
       <div className="report-dialog__header">
           <h2 id="app-report-dialog-title" className="report-dialog__title">
             <Bug aria-hidden size={20} />
-            <span>Report an Issue</span>
+            <span>Report a Fix</span>
             {issueDisplayName && (
               <span className="report-dialog__app-chip" title={issueDisplayName}>
                 {issueDisplayName}
@@ -245,7 +246,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
         {existingIssuesLoading && (
           <div className="report-dialog__issues-alert report-dialog__issues-alert--loading">
             <Loader2 aria-hidden size={16} className="spinning" />
-            <span>Checking existing issues…</span>
+            <span>Checking existing fixes…</span>
           </div>
         )}
 
@@ -283,23 +284,31 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                           type="button"
                           className="report-dialog__bridge-icon"
                           onClick={existingIssues.refresh}
-                          aria-label="Refresh matching issues"
-                          title="Refresh matching issues"
+                          aria-label="Refresh matching fixes"
+                          title="Refresh matching fixes"
                         >
                           <RefreshCw aria-hidden size={16} />
                         </button>
-                        {existingIssues.trackerUrl && (
+                        <button
+                          type="button"
+                          className="report-dialog__bridge-icon"
+                          onClick={() => setShowArchivedFixes(value => !value)}
+                          aria-label={showArchivedFixes ? 'Show active fixes' : 'Show archived fixes'}
+                          title={showArchivedFixes ? 'Show active fixes' : 'Show archived fixes'}
+                        >
+                          {showArchivedFixes ? 'Active' : 'Archived'}
+                        </button>
+                        {existingIssues.swarmUrl && (
                           <button
                             type="button"
                             className="report-dialog__bridge-icon"
                             onClick={() => {
-                              if (existingIssues.trackerUrl) {
-                                // Keep Referer so proxy affinity still maps assets for the opened tracker view.
-                                window.open(existingIssues.trackerUrl, '_blank', 'noopener');
+                              if (existingIssues.swarmUrl) {
+                                window.open(existingIssues.swarmUrl, '_blank', 'noopener');
                               }
                             }}
-                            aria-label="Open issue tracker"
-                            title="Open issue tracker"
+                            aria-label="Open Swarm Manager"
+                            title="Open Swarm Manager"
                           >
                             <ExternalLink aria-hidden size={16} />
                           </button>
@@ -326,10 +335,10 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                     {!issuesCollapsed && issuesToDisplay.length > 0 && (
                       <ul className="report-dialog__issues-list">
                         {issuesToDisplay.map((issue, index) => {
-                          const key = issue.id || issue.issue_url || issue.title || `issue-${index}`;
-                          const title = issue.title?.trim() || issue.id?.trim() || 'Unnamed issue';
+                          const key = issue.id || issue.url || issue.title || `fix-${index}`;
+                          const title = issue.title?.trim() || issue.id?.trim() || 'Unnamed fix';
                           const normalizedStatus = issue.status?.toLowerCase();
-                          const statusText = normalizedStatus === 'active' ? 'Active issue' : 'Open issue';
+                          const statusText = showArchivedFixes ? 'Archived fix' : 'Active fix';
                           const StatusIcon = normalizedStatus === 'active' ? CircleDot : Circle;
 
                           return (
@@ -359,18 +368,17 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                                   <span className="report-dialog__issues-entry-meta">{issue.id.trim()}</span>
                                 ) : null}
                               </div>
-                              {issue.issue_url && (
+                              {issue.url && (
                                 <button
                                   type="button"
                                   className="report-dialog__bridge-icon report-dialog__issues-link"
                                   onClick={() => {
-                                    if (issue.issue_url) {
-                                      // Maintain Referer for consistent proxy routing when the issue opens externally.
-                                      window.open(issue.issue_url, '_blank', 'noopener');
+                                    if (issue.url) {
+                                      window.open(issue.url, '_blank', 'noopener');
                                     }
                                   }}
-                                  aria-label="View issue"
-                                  title="View issue"
+                                  aria-label="View fix"
+                                  title="View fix"
                                 >
                                   <ExternalLink aria-hidden size={16} />
                                 </button>
@@ -384,7 +392,7 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                 )}
 
                 <label htmlFor="app-report-message" className="report-dialog__label">
-                  Describe the issue
+                  Describe the fix
                 </label>
                 <textarea
                   ref={textareaRef}
@@ -404,7 +412,6 @@ const ReportIssueDialog = (props: ReportIssueDialogProps) => {
                   includeSummary={diagnosticsSummaryIncluded}
                   onIncludeSummaryChange={setIncludeDiagnosticsSummary}
                   disabled={form.submitting}
-                  pageStatus={consoleLogs.fromFallback ? consoleLogs.pageStatus : null}
                   activePreviewUrl={activePreviewUrl}
                   app={app}
                 />

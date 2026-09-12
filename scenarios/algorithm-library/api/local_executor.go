@@ -5,13 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
-// LocalExecutor handles local code execution when Judge0 is unavailable
+// LocalExecutor handles the scenario's local code execution.
 type LocalExecutor struct {
 	timeout time.Duration
 }
@@ -208,6 +211,7 @@ func main() {
 
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, "go", "run", tmpFile)
+	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 	cmd.Stdin = strings.NewReader(stdin)
 
 	var stdout, stderr bytes.Buffer

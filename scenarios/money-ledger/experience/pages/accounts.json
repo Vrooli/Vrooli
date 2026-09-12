@@ -1,0 +1,427 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "accounts",
+    "title": "Books & Accounts",
+    "routes": [
+      "/accounts"
+    ],
+    "purpose": "Show the accounting entities an operator keeps and the accounts inside them, so personal and business money share one system without being mixed.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which book each account belongs to, unambiguously"
+    },
+    {
+      "statement": "Each account's balance, with the basis and age of the inputs behind it"
+    },
+    {
+      "statement": "Movement between books, modelled rather than lost"
+    },
+    {
+      "statement": "Account administration, ranked below the three above"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Books and their accounts at rest.",
+      "setup": {
+        "route": "/accounts"
+      }
+    },
+    {
+      "id": "idle",
+      "description": "Nothing in flight; the surface is at rest and its controls are usable.",
+      "setup": {
+        "route": "/accounts"
+      }
+    },
+    {
+      "id": "pending",
+      "description": "A user-triggered operation is in flight and its outcome is not yet known.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "pending"
+        }
+      }
+    },
+    {
+      "id": "success",
+      "description": "An operation completed; the result is announced, not merely rendered.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "success"
+        }
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the surface's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control is disabled and says why.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "syncing",
+      "description": "A background read is refreshing data the user is already looking at.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "syncing"
+        }
+      }
+    },
+    {
+      "id": "refreshing",
+      "description": "A user-requested re-read of data already on screen.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "refreshing"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No books or accounts exist yet — first run.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing source could not be read; what is missing is named.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next action are stated.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "retrying",
+      "description": "An automatic retry is in progress; attempt count and next attempt are visible.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "retrying"
+        }
+      }
+    },
+    {
+      "id": "permission-denied",
+      "description": "The caller's role does not permit this; what role would is stated.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "permission-denied"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; queued or read-only behavior is explained.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    },
+    {
+      "id": "multi-book",
+      "description": "More than one book exists — typically a personal and a business entity. Every account is attributed to exactly one of them.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "multi-book"
+        }
+      }
+    },
+    {
+      "id": "inter-book-transfer",
+      "description": "A movement between two books is present, shown as a linked pair rather than as an unexplained outflow in one book and inflow in the other.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "inter-book-transfer"
+        }
+      }
+    },
+    {
+      "id": "balance-partial",
+      "description": "An account's balance is missing a contributing source. The balance is shown with the gap named, never silently completed.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "balance-partial"
+        }
+      }
+    },
+    {
+      "id": "archiving-book",
+      "description": "A book archive is in flight; the archive control is disabled and states that journal history is retained.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "archiving-book"
+        }
+      }
+    },
+    {
+      "id": "archived-book",
+      "description": "A book has been archived and is excluded from default financial reads while its journal remains discoverable by id.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "archived-book"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "book-list",
+      "role": "list",
+      "name": "Books",
+      "description": "The accounting entities the operator keeps. Each account belongs to exactly one."
+    },
+    {
+      "id": "book-label",
+      "role": "status",
+      "description": "The book an account belongs to, stated on the account itself rather than implied by grouping alone."
+    },
+    {
+      "id": "account-table",
+      "role": "table",
+      "name": "Accounts",
+      "description": "Accounts with kind and balance. Balances are compared down the column, so they share a decimal alignment."
+    },
+    {
+      "id": "balance-basis",
+      "role": "note",
+      "description": "The basis and age of the inputs behind a balance, shown beside the figure."
+    },
+    {
+      "id": "balance-gap",
+      "role": "status",
+      "description": "Names the source missing from a balance when it could not be fully computed."
+    },
+    {
+      "id": "transfer-pair",
+      "role": "button",
+      "description": "Links the two sides of an inter-book transfer so neither reads as unexplained money appearing or vanishing."
+    },
+    {
+      "id": "empty-guidance",
+      "role": "note",
+      "description": "First-run guidance explaining what a book is and why the personal/business split exists before asking for one."
+    },
+    {
+      "id": "book-archive-control",
+      "role": "button",
+      "name": "Archive book",
+      "description": "Archives a book without deleting its immutable journal history."
+    },
+    {
+      "id": "archived-book-notice",
+      "role": "status",
+      "description": "Explains that an archived book is excluded from default position reads while its postings remain readable."
+    },
+    {
+      "id": "account-kind-vocabulary",
+      "role": "group",
+      "name": "Account kind vocabulary",
+      "description": "The declared account kinds accepted at the write boundary: ASSET, LIABILITY, REVENUE, EXPENSE, and EQUITY."
+    }
+  ],
+  "claims": [
+    {
+      "id": "account-states-its-book",
+      "type": "element-present",
+      "statement": "Every account states which book it belongs to, rather than relying on visual grouping alone.",
+      "tier": "machine",
+      "viewports": ["desktop", "mobile"],
+      "elements": [
+        "account-table",
+        "book-label"
+      ],
+      "states": [
+        "multi-book"
+      ],
+      "rationale": "OT-P0-001. Grouping is lost to a screen reader, to a sorted view, and to a filtered one — and mixing personal and business money is the failure this model exists to prevent."
+    },
+    {
+      "id": "transfer-is-shown-as-a-pair",
+      "type": "element-present",
+      "statement": "A movement between books is presented as a linked pair rather than as two unrelated events.",
+      "tier": "machine",
+      "elements": [
+        "transfer-pair"
+      ],
+      "states": [
+        "inter-book-transfer"
+      ],
+      "rationale": "OT-P0-001 requires inter-book movement to be modelled rather than lost. An unlinked pair reads as income in one book and a loss in the other, which is wrong in both."
+    },
+    {
+      "id": "partial-balance-names-its-gap",
+      "type": "element-present",
+      "statement": "A balance that could not be fully computed is shown with the missing source named.",
+      "tier": "machine",
+      "elements": [
+        "balance-gap"
+      ],
+      "states": [
+        "balance-partial"
+      ],
+      "rationale": "OT-P0-003 and the honesty rule. A balance is derived at read time; a partial derivation must say so or it is indistinguishable from a complete one."
+    },
+    {
+      "id": "balance-carries-its-basis",
+      "type": "element-present",
+      "statement": "Each balance is accompanied by the basis and age of the inputs behind it.",
+      "tier": "machine",
+      "elements": [
+        "balance-basis"
+      ],
+      "states": [
+        "default",
+        "multi-book",
+        "stale"
+      ],
+      "rationale": "PRD honesty rule. Balances are the figures most likely to be read as fact, so they are the figures that most need their provenance adjacent."
+    },
+    {
+      "id": "empty-explains-books-first",
+      "type": "state-covered",
+      "statement": "The first-run state explains what a book is before asking the operator to create one.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "empty-guidance"
+      ],
+      "rationale": "'Book' is domain vocabulary the target user does not have. An empty form labelled with an unfamiliar noun is the most likely abandonment point in the product."
+    },
+    {
+      "id": "balances-are-decimal-aligned",
+      "type": "custom",
+      "statement": "Balances share a decimal alignment and use tabular numerals so magnitudes are comparable down the column.",
+      "tier": "manual",
+      "elements": [
+        "account-table"
+      ],
+      "rationale": "DESIGN.md binding adaptation."
+    },
+    {
+      "id": "archive-is-not-delete",
+      "type": "state-distinct",
+      "statement": "Archiving removes a book from default financial reads without deleting its journal history.",
+      "tier": "manual",
+      "elements": ["book-archive-control", "archived-book-notice"],
+      "states": ["archiving-book", "archived-book"],
+      "rationale": "The ledger's drill evidence is regenerable false; archive is the recoverable boundary and journal history must remain readable."
+    },
+    {
+      "id": "account-kinds-name-the-vocabulary",
+      "type": "element-present",
+      "statement": "Account creation names the five accepted kinds rather than accepting an unexplained free-text category.",
+      "tier": "machine",
+      "elements": ["account-kind-vocabulary"],
+      "states": ["default", "multi-book"],
+      "rationale": "A financial aggregate cannot be trusted when the same concept is written as arbitrary casing or an undeclared kind."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "book-list": {
+        "testid": "book-list"
+      },
+      "book-label": {
+        "testid": "account-book-label"
+      },
+      "account-table": {
+        "testid": "account-table"
+      },
+      "balance-basis": {
+        "testid": "account-balance-basis"
+      },
+      "balance-gap": {
+        "testid": "account-balance-gap"
+      },
+      "transfer-pair": {
+        "testid": "account-transfer-pair"
+      },
+      "empty-guidance": {
+        "testid": "accounts-empty-guidance"
+      },
+      "book-archive-control": {
+        "testid": "book-archive-control"
+      },
+      "archived-book-notice": {
+        "testid": "archived-book-notice"
+      },
+      "account-kind-vocabulary": {
+        "testid": "account-kind-vocabulary"
+      }
+    }
+  }
+}

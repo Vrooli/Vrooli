@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-
-	"vrooli-autoheal/internal/checks"
 )
 
 // VrooliEntityType represents the type of Vrooli entity (resource or scenario).
@@ -29,6 +30,7 @@ type VrooliStrategy struct {
 	entityType VrooliEntityType
 	entityName string
 	executor   checks.CommandExecutor
+	client     *integration.Client
 }
 
 // NewVrooliStrategy creates a new Vrooli CLI strategy.
@@ -40,6 +42,7 @@ func NewVrooliStrategy(entityType VrooliEntityType, entityName string, executor 
 		entityType: entityType,
 		entityName: entityName,
 		executor:   executor,
+		client:     integration.NewClient(executor),
 	}
 }
 
@@ -65,6 +68,33 @@ func (v *VrooliStrategy) Start(ctx context.Context, checkID string) checks.Actio
 
 	result.Success = true
 	result.Message = fmt.Sprintf("%s %s started successfully", v.entityType, v.entityName)
+	return result
+}
+
+// RespawnCompanion reconciles host-side companions by running the idempotent
+// resource start path. For compose resources this leaves a live container alone
+// and only respawns dead companions tracked by stale pidfiles.
+func (v *VrooliStrategy) RespawnCompanion(ctx context.Context, checkID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  "respawn-companion",
+		CheckID:   checkID,
+		Timestamp: start,
+	}
+
+	output, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "start", v.entityName)
+	result.Output = string(output)
+	result.Duration = time.Since(start)
+
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = fmt.Sprintf("Failed to respawn companion for %s %s", v.entityType, v.entityName)
+		return result
+	}
+
+	result.Success = true
+	result.Message = fmt.Sprintf("%s %s companion respawn reconciled successfully", v.entityType, v.entityName)
 	return result
 }
 
@@ -209,7 +239,7 @@ func (v *VrooliStrategy) CleanupPorts(ctx context.Context, checkID string) check
 
 	var outputBuilder strings.Builder
 
-	// Step 1: Get entity ports
+	// Step 1: Get entity ports so cleanup can emit targeted diagnostics.
 	outputBuilder.WriteString("=== Getting ports ===\n")
 	portOutput, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "port", v.entityName)
 	outputBuilder.Write(portOutput)
@@ -226,51 +256,44 @@ func (v *VrooliStrategy) CleanupPorts(ctx context.Context, checkID string) check
 
 	// Step 2: Parse ports
 	ports := ExtractPorts(string(portOutput))
-	if len(ports) == 0 {
-		result.Output = outputBuilder.String()
-		result.Duration = time.Since(start)
-		result.Success = true
-		result.Message = fmt.Sprintf("No ports found to cleanup for %s %s", v.entityType, v.entityName)
-		return result
-	}
-
-	outputBuilder.WriteString(fmt.Sprintf("Found ports: %v\n\n", ports))
-
-	// Step 3: Kill processes on each port
-	killedCount := 0
 	for _, port := range ports {
-		outputBuilder.WriteString(fmt.Sprintf("=== Cleaning port %d ===\n", port))
-
-		// Find process on port using lsof
-		pidOutput, err := v.executor.Output(ctx, "lsof", "-ti", fmt.Sprintf(":%d", port))
-
-		if err != nil || len(strings.TrimSpace(string(pidOutput))) == 0 {
-			outputBuilder.WriteString("No process found on port\n")
-			continue
-		}
-
-		// Kill each PID
-		pids := strings.Fields(strings.TrimSpace(string(pidOutput)))
-		for _, pidStr := range pids {
-			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s... ", pidStr))
-
-			// First try SIGTERM
-			if err := v.executor.Run(ctx, "kill", pidStr); err != nil {
-				// If SIGTERM fails, try SIGKILL
-				if err := v.executor.Run(ctx, "kill", "-9", pidStr); err != nil {
-					outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
-					continue
-				}
-			}
-			outputBuilder.WriteString("OK\n")
-			killedCount++
+		outputBuilder.WriteString(fmt.Sprintf("=== Diagnosing port %d ===\n", port))
+		diagnoseOutput, diagnoseErr := v.executor.CombinedOutput(ctx, "vrooli", "diagnose-port", fmt.Sprintf("%d", port), v.entityName, "--json")
+		outputBuilder.Write(diagnoseOutput)
+		outputBuilder.WriteString("\n")
+		if diagnoseErr != nil {
+			outputBuilder.WriteString(fmt.Sprintf("diagnose-port error: %v\n", diagnoseErr))
 		}
 	}
+
+	outputBuilder.WriteString("=== Cleaning stale locks ===\n")
+	lockOutput, lockErr := v.executor.CombinedOutput(ctx, "vrooli", "cleanup", "locks")
+	outputBuilder.Write(lockOutput)
+	outputBuilder.WriteString("\n")
+
+	outputBuilder.WriteString("=== Cleaning orphaned Vrooli processes ===\n")
+	orphanOutput, orphanErr := v.executor.CombinedOutput(ctx, "vrooli", "cleanup", "orphans")
+	outputBuilder.Write(orphanOutput)
+	outputBuilder.WriteString("\n")
 
 	result.Output = outputBuilder.String()
 	result.Duration = time.Since(start)
+	if lockErr != nil || orphanErr != nil {
+		result.Success = false
+		errParts := make([]string, 0, 2)
+		if lockErr != nil {
+			errParts = append(errParts, "lock cleanup: "+lockErr.Error())
+		}
+		if orphanErr != nil {
+			errParts = append(errParts, "orphan cleanup: "+orphanErr.Error())
+		}
+		result.Error = strings.Join(errParts, "; ")
+		result.Message = fmt.Sprintf("Core cleanup failed for %s %s", v.entityType, v.entityName)
+		return result
+	}
+
 	result.Success = true
-	result.Message = fmt.Sprintf("Port cleanup complete: killed %d processes on %d ports", killedCount, len(ports))
+	result.Message = fmt.Sprintf("Core cleanup completed for %s %s", v.entityType, v.entityName)
 	return result
 }
 
@@ -329,11 +352,20 @@ func (v *VrooliStrategy) CleanRestart(ctx context.Context, checkID string) check
 	outputBuilder.Write(stopOutput)
 	outputBuilder.WriteString("\n")
 
-	// Step 2: Cleanup ports
-	outputBuilder.WriteString("=== Cleaning up ports ===\n")
+	// Step 2: Cleanup stale locks and orphaned Vrooli processes via core maintenance.
+	outputBuilder.WriteString("=== Running core cleanup ===\n")
 	portResult := v.CleanupPorts(ctx, checkID)
 	outputBuilder.WriteString(portResult.Output)
 	outputBuilder.WriteString("\n")
+
+	if !portResult.Success {
+		result.Output = outputBuilder.String()
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = portResult.Error
+		result.Message = fmt.Sprintf("Clean restart failed during cleanup for %s %s", v.entityType, v.entityName)
+		return result
+	}
 
 	// Step 3: Start
 	outputBuilder.WriteString(fmt.Sprintf("=== Starting %s ===\n", v.entityType))
@@ -356,24 +388,16 @@ func (v *VrooliStrategy) CleanRestart(ctx context.Context, checkID string) check
 
 // IsRunning checks if the entity is currently running by checking status.
 func (v *VrooliStrategy) IsRunning(ctx context.Context) bool {
-	output, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "status", v.entityName)
-	if err != nil {
+	switch v.entityType {
+	case VrooliResource:
+		status, _, err := v.client.ResourceStatus(ctx, v.entityName)
+		return err == nil && status.Success && status.Running
+	case VrooliScenario:
+		status, _, err := v.client.ScenarioStatus(ctx, v.entityName)
+		return err == nil && status.Success && strings.EqualFold(status.Scenario.Status, "running")
+	default:
 		return false
 	}
-	lower := strings.ToLower(string(output))
-
-	// Check for negative patterns first
-	if strings.Contains(lower, "not running") ||
-		strings.Contains(lower, "stopped") ||
-		strings.Contains(lower, "exited") ||
-		strings.Contains(lower, "failed") {
-		return false
-	}
-
-	// Check for positive patterns
-	return strings.Contains(lower, "running") ||
-		strings.Contains(lower, "healthy") ||
-		strings.Contains(lower, "started")
 }
 
 // ExtractPorts extracts port numbers from CLI output.

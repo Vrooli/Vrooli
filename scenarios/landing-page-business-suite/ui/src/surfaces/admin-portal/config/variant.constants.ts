@@ -17,5 +17,5 @@ export const RESOLUTION_LABELS: Record<VariantResolution, string> = {
  * Falls back to 'Unknown strategy' for unrecognized values.
  */
 export function getResolutionLabel(resolution: VariantResolution): string {
-  return RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
+  return RESOLUTION_LABELS[resolution];
 }

@@ -1,3 +1,4 @@
+import { librarySelectors } from "../consts/selectors.library";
 /**
  * Prompt Manager selector registry
  *
@@ -5,7 +6,7 @@
  * The selectors.manifest.json file is generated from this file.
  */
 
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree }
+import { createSelectorRegistry, type LiteralSelectorTree } from "@vrooli/ui-selectors";
 
 const literalSelectors = {
   sidebar: {
@@ -58,7 +59,6 @@ const literalSelectors = {
     runtimeMode: 'team-editor-runtime-mode',
     coordinationPattern: 'team-editor-coordination-pattern',
     executionPolicy: 'team-editor-execution-policy',
-    decisionMode: 'team-editor-decision-mode',
   },
   runs: {
     list: 'run-list',
@@ -71,21 +71,59 @@ const literalSelectors = {
     tabInvestigation: 'run-editor-tab-investigation',
   },
   world: {
+    view: 'world-view',
     canvas: 'world-canvas',
-    stats: 'world-stats',
-  },
-  settings: {
-    button: 'world-settings-button',
-    popup: 'world-settings-popup',
-    camera: 'world-settings-camera',
-    timeSlider: 'world-settings-time-slider',
-    realTimeToggle: 'world-settings-realtime-toggle',
-    scene: 'world-settings-scene',
-    graphics: 'world-settings-graphics',
-    customToggle: 'world-settings-custom-toggle',
-    fpsOverlayToggle: 'world-settings-fps-overlay-toggle',
-    fpsTraceToggle: 'world-settings-fps-trace-toggle',
-    fpsMaxSelect: 'world-settings-fps-max-select',
+    diagnostics: 'world-diagnostics',
+    qualityNotice: 'world-quality-notice',
+    webglBanner: 'world-webgl-banner',
+    webglRetry: 'world-webgl-retry',
+    hud: {
+      root: 'world-hud',
+      summary: 'world-hud-summary',
+      nextHeartbeat: 'world-hud-next-heartbeat',
+      weather: 'world-hud-weather',
+      agentCard: 'world-hud-agent-card',
+      agentCardClose: 'world-hud-agent-card-close',
+      agentState: 'world-hud-agent-state',
+      agentNotice: 'world-hud-agent-notice',
+      runNow: 'world-hud-run-now',
+      stopRun: 'world-hud-stop-run',
+      acknowledge: 'world-hud-acknowledge',
+      openEditor: 'world-hud-open-editor',
+      customize: 'world-hud-customize',
+      follow: 'world-hud-follow',
+      teamPanel: 'world-hud-team-panel',
+      ticker: 'world-hud-ticker',
+      filters: 'world-hud-filters',
+      search: 'world-hud-search',
+      teamFilter: 'world-hud-team-filter',
+      onlyFailed: 'world-hud-only-failed',
+      twoDMode: 'world-hud-2d-mode',
+      twoDToggle: 'world-hud-2d-toggle',
+      actorList: 'world-hud-actor-list',
+      feedStatus: 'world-hud-feed-status',
+      home: 'world-hud-home',
+    },
+    editor: {
+      toolbar: 'world-editor-toolbar',
+      toggle: 'world-editor-toggle',
+      undo: 'world-editor-undo',
+      redo: 'world-editor-redo',
+      reset: 'world-editor-reset',
+      remove: 'world-editor-remove',
+      status: 'world-editor-status',
+    },
+    settings: {
+      popup: 'world-settings-popup',
+      scene: 'world-settings-scene',
+      graphics: 'world-settings-graphics',
+      qualityAuto: 'world-settings-quality-auto',
+      period: 'world-settings-period',
+      camera: 'world-settings-camera',
+      diagnosticsToggle: 'world-settings-diagnostics-toggle',
+      levers: 'world-settings-levers',
+      leversReset: 'world-settings-levers-reset',
+    },
   },
   viewOverlay: {
     stats: 'view-overlay-stats',
@@ -127,58 +165,7 @@ const literalSelectors = {
   },
 } as const satisfies LiteralSelectorTree
 
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key]
-    if (typeof value === 'string') {
-      const manifestKey = nextPath.join('.')
-      target[manifestKey] = {
-        testId: value,
-        selector: `[data-testid="${value}"]`,
-      }
-      continue
-    }
-    flattenLiteralSelectors(value, nextPath, target)
-  }
-  return target
-}
-
-const mergeLiteralNodes = (
-  literalNode: LiteralSelectorTree | undefined,
-): Record<string, unknown> => {
-  const merged: Record<string, unknown> = {}
-  const keys = Object.keys(literalNode ?? {})
-
-  keys.forEach((key) => {
-    const literalValue = literalNode?.[key]
-
-    if (typeof literalValue === 'string') {
-      merged[key] = literalValue
-      return
-    }
-
-    if (literalValue && typeof literalValue === 'object') {
-      merged[key] = mergeLiteralNodes(literalValue)
-    }
-  })
-
-  return merged
-}
-
-const createSelectorRegistry = <L extends LiteralSelectorTree>(literalTree: L) => {
-  const selectors = mergeLiteralNodes(literalTree) as L
-  const manifest = {
-    selectors: flattenLiteralSelectors(literalTree),
-    dynamicSelectors: {},
-  }
-  return { selectors, manifest }
-}
-
-const { selectors, manifest } = createSelectorRegistry(literalSelectors)
+const { selectors, manifest } = createSelectorRegistry(literalSelectors, {}, librarySelectors)
 
 export { selectors }
 export const selectorsManifest = manifest

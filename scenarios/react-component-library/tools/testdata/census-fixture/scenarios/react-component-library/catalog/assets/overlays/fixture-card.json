@@ -1,0 +1,9 @@
+{
+  "asset": {
+    "id": "overlays.fixture-card",
+    "name": "FixtureCard",
+    "domain": "overlays",
+    "target": { "priority": "P0", "maturity": "production-ready" }
+  },
+  "requiredCapabilities": ["focus-containment"]
+}

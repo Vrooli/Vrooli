@@ -1,3 +1,23 @@
+---
+name: "social-media-scheduler"
+description: "Multi-platform content scheduling with calendar management, AI optimization, and analytics across Twitter, Instagram, LinkedIn, Facebook, and TikTok"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","marketing","social-media","scheduling"]
+  icon: "calendar"
+  status: "active"
+  revision: 1
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-03-19T00:00:00Z"
+  requires:
+    scenarios: ["vrooli"]
+    commands: ["vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Social Media Scheduler
 
 Schedule and manage content across multiple social media platforms with AI-powered optimization, calendar management, and performance analytics.
@@ -8,10 +28,10 @@ Schedule and manage content across multiple social media platforms with AI-power
 
 | Use when | Don't use when |
 |----------|----------------|
-| Scheduling a post to one or more platforms | Generating content from scratch (use campaign-content-studio) |
+| Scheduling a post to one or more platforms | Generating content from scratch (use the `x-<post-type>` skills) |
 | Viewing the content calendar for upcoming posts | Writing X/Twitter dev log threads (use x-dev-log) |
 | Optimizing content for a specific platform | Running SEO analysis (use seo-optimizer) |
-| Checking post performance analytics | Managing email campaigns (use campaign-content-studio) |
+| Checking post performance analytics | Managing email campaigns (no capability exists) |
 | Bulk scheduling multiple posts from a content plan | Need real-time engagement/replies |
 
 ```
@@ -38,7 +58,7 @@ vrooli scenario status social-media-scheduler
 ```
 
 Required resources: PostgreSQL, Redis, MinIO, Ollama
-Optional: Browserless (for social verification screenshots)
+Optional: browser-automation-studio (for social verification screenshots)
 
 Platform accounts must be connected via OAuth before scheduling:
 ```bash
@@ -117,13 +137,13 @@ curl -X POST http://localhost:${API_PORT}/api/v1/bulk/schedule \
 ### **5. CLI Reference**
 
 ```bash
-social-media-scheduler login <email> <password>     # Authenticate
+social-media-scheduler login "<email>" "<password>"     # Authenticate
 social-media-scheduler whoami                        # Current user info
 social-media-scheduler platforms                     # List available platforms
 social-media-scheduler accounts                      # Show connected accounts
-social-media-scheduler schedule <title> <content> <platforms> <datetime>
+social-media-scheduler schedule "<title>" "<content>" "<platforms>" "<datetime>"
 social-media-scheduler list                          # List scheduled posts
-social-media-scheduler status <post_id>              # Get post status
+social-media-scheduler status "<post_id>"              # Get post status
 ```
 
 ---

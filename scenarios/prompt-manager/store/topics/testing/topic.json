@@ -1,0 +1,16 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "testing",
+  "name": "Testing",
+  "description": "Writing and structuring tests: unit test architecture and end-to-end testing.",
+  "parentTopicId": "development",
+  "skills": [
+    "unit-testing-architecture-steer",
+    "e2e-testing"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:18Z",
+  "updatedAt": "2026-06-04T17:35:18Z"
+}

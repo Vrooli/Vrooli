@@ -9,8 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	sharedcleanup "github.com/vrooli/vrooli/scenarios/storage-manager/services/cleanupmanager"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/cleanupmanager"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
+)
+
+const (
+	diskCheckID = "system-disk"
+
+	// Used only when the check configuration declares no threshold at all.
+	fallbackWarningPercent  = 80
+	fallbackCriticalPercent = 90
 )
 
 // DiskCheck monitors disk space usage on specified partitions.
@@ -18,8 +29,11 @@ type DiskCheck struct {
 	partitions        []string
 	warningThreshold  int // percentage
 	criticalThreshold int // percentage
+	intervalSeconds   int
 	fsReader          checks.FileSystemReader
+	pressureReader    DiskPressureReader
 	executor          checks.CommandExecutor
+	cleanup           cleanupmanager.Reporter
 }
 
 // DiskCheckOption configures a DiskCheck.
@@ -45,6 +59,36 @@ func WithDiskThresholds(warning, critical int) DiskCheckOption {
 func WithFileSystemReader(reader checks.FileSystemReader) DiskCheckOption {
 	return func(c *DiskCheck) {
 		c.fsReader = reader
+		// An injected filesystem reader is the local unit-test seam. Production
+		// construction uses System Monitor's authoritative pressure reader.
+		c.pressureReader = nil
+	}
+}
+
+// WithDiskPressureReader injects the authoritative System Monitor reader.
+func WithDiskPressureReader(reader DiskPressureReader) DiskCheckOption {
+	return func(c *DiskCheck) { c.pressureReader = reader }
+}
+
+// WithDiskInterval sets how often the scheduler runs this check.
+// Non-positive values are ignored so a partially populated config cannot
+// silently disable the check.
+func WithDiskInterval(seconds int) DiskCheckOption {
+	return func(c *DiskCheck) {
+		if seconds > 0 {
+			c.intervalSeconds = seconds
+		}
+	}
+}
+
+// WithCleanupReporter sets the storage-manager client used by the
+// request-cleanup heal action.
+// [REQ:TEST-SEAM-001]
+func WithCleanupReporter(reporter cleanupmanager.Reporter) DiskCheckOption {
+	return func(c *DiskCheck) {
+		if reporter != nil {
+			c.cleanup = reporter
+		}
 	}
 }
 
@@ -57,15 +101,22 @@ func WithDiskExecutor(executor checks.CommandExecutor) DiskCheckOption {
 }
 
 // NewDiskCheck creates a disk space check.
-// Default partitions: "/" and "/home"
-// Default thresholds: warning at 80%, critical at 90%
+//
+// Every default — partitions, thresholds, and interval — is read from the
+// user-facing check configuration in the userconfig package. That package is
+// the single source: there is no second copy here for the scheduler and the
+// configuration surface to disagree about.
 func NewDiskCheck(opts ...DiskCheckOption) *DiskCheck {
+	defaults := userconfig.GetCheckDefaults(diskCheckID)
 	c := &DiskCheck{
-		partitions:        []string{"/"},
-		warningThreshold:  80,
-		criticalThreshold: 90,
+		partitions:        defaultDiskPartitions(defaults),
+		warningThreshold:  defaultThresholdPercent(defaults, thresholdWarning),
+		criticalThreshold: defaultThresholdPercent(defaults, thresholdCritical),
+		intervalSeconds:   defaults.IntervalSeconds,
 		fsReader:          checks.DefaultFileSystemReader,
+		pressureReader:    NewSystemMonitorDiskPressureReader(nil, ""),
 		executor:          checks.DefaultExecutor,
+		cleanup:           cleanupmanager.NewClient(cleanupmanager.Config{}),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -73,34 +124,122 @@ func NewDiskCheck(opts ...DiskCheckOption) *DiskCheck {
 	return c
 }
 
-func (c *DiskCheck) ID() string          { return "system-disk" }
+type thresholdKind int
+
+const (
+	thresholdWarning thresholdKind = iota
+	thresholdCritical
+)
+
+// defaultDiskPartitions resolves the partitions to watch, falling back to the
+// platform root when the configuration names none.
+func defaultDiskPartitions(defaults userconfig.CheckDefaults) []string {
+	if defaults.Thresholds != nil && len(defaults.Thresholds.Partitions) > 0 {
+		return append([]string(nil), defaults.Thresholds.Partitions...)
+	}
+	if runtime.GOOS == "windows" {
+		return []string{`C:\`}
+	}
+	return []string{"/"}
+}
+
+func defaultThresholdPercent(defaults userconfig.CheckDefaults, kind thresholdKind) int {
+	if defaults.Thresholds != nil {
+		switch kind {
+		case thresholdWarning:
+			if defaults.Thresholds.WarningPercent != nil {
+				return int(*defaults.Thresholds.WarningPercent)
+			}
+		case thresholdCritical:
+			if defaults.Thresholds.CriticalPercent != nil {
+				return int(*defaults.Thresholds.CriticalPercent)
+			}
+		}
+	}
+	if kind == thresholdCritical {
+		return fallbackCriticalPercent
+	}
+	return fallbackWarningPercent
+}
+
+func (c *DiskCheck) ID() string          { return diskCheckID }
 func (c *DiskCheck) Title() string       { return "Disk Space" }
 func (c *DiskCheck) Description() string { return "Monitors disk space usage on configured partitions" }
 func (c *DiskCheck) Importance() string {
 	return "Low disk space can cause service failures, database corruption, and log loss"
 }
 func (c *DiskCheck) Category() checks.Category  { return checks.CategorySystem }
-func (c *DiskCheck) IntervalSeconds() int       { return 300 }
+func (c *DiskCheck) IntervalSeconds() int       { return c.intervalSeconds }
 func (c *DiskCheck) Platforms() []platform.Type { return nil } // all platforms
 
+// DiskUsage is the result of measuring one partition. It is derived purely
+// from a StatfsResult so the arithmetic can be tested without a filesystem.
+type DiskUsage struct {
+	TotalBytes     uint64 // Size of the filesystem
+	UsedBytes      uint64 // Bytes consumed by files
+	AvailableBytes uint64 // Bytes an unprivileged writer can still consume
+	UsedPercent    int    // Capacity as `df` reports it
+}
+
+// measureUsage converts filesystem statistics into the same capacity figure
+// `df` prints.
+//
+// `df` does not compute used/total. It computes used/(used+available), where
+// used counts every allocated block and available excludes the superuser
+// reserve. The reserve therefore disappears from both the numerator and the
+// denominator instead of being silently counted as free space.
+//
+// This distinction is the reason for this function's existence. On the
+// incident host — 1831.7 GB total, 221.3 GB free, 128.2 GB available — the old
+// Bfree-based formula reported 87 percent while `df` reported 93 percent. The
+// check sat in its warning band for an entire filesystem that was critically
+// full for every unprivileged writer, including the runtime supervisor.
+func measureUsage(stat *checks.StatfsResult) DiskUsage {
+	if stat == nil || stat.Bsize <= 0 {
+		return DiskUsage{}
+	}
+	blockSize := uint64(stat.Bsize)
+
+	usage := DiskUsage{
+		TotalBytes:     stat.Blocks * blockSize,
+		AvailableBytes: stat.Bavail * blockSize,
+	}
+	if stat.Blocks >= stat.Bfree {
+		usage.UsedBytes = (stat.Blocks - stat.Bfree) * blockSize
+	}
+
+	// Capacity visible to an unprivileged writer. `df` rounds the percentage
+	// up, so a filesystem with any bytes in use never reports 0 percent and a
+	// nearly-full one never rounds down to a comfortable-looking number.
+	capacity := usage.UsedBytes + usage.AvailableBytes
+	if capacity > 0 {
+		usage.UsedPercent = int((usage.UsedBytes*100 + capacity - 1) / capacity)
+	}
+	return usage
+}
+
+// Run measures every configured partition through the injected filesystem
+// reader. There is one implementation for all platforms: the platform
+// difference lives entirely in RealFileSystemReader.Statfs.
 func (c *DiskCheck) Run(ctx context.Context) checks.Result {
+	if c.pressureReader != nil {
+		return c.runAuthoritativePressure(ctx)
+	}
+
 	result := checks.Result{
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		// Windows uses different filesystem APIs
-		return c.runWindows(ctx, result)
+	if len(c.partitions) == 0 {
+		result.Status = checks.StatusWarning
+		result.Message = "No disk partitions configured to check"
+		return result
 	}
 
-	return c.runUnix(ctx, result)
-}
-
-func (c *DiskCheck) runUnix(ctx context.Context, result checks.Result) checks.Result {
 	var subChecks []checks.SubCheck
 	worstStatus := checks.StatusOK
-	partitionDetails := make([]map[string]interface{}, 0)
+	partitionDetails := make([]map[string]interface{}, 0, len(c.partitions))
 
 	for _, partition := range c.partitions {
 		stat, err := c.fsReader.Statfs(partition)
@@ -114,45 +253,24 @@ func (c *DiskCheck) runUnix(ctx context.Context, result checks.Result) checks.Re
 			continue
 		}
 
-		// Calculate usage percentage
-		total := stat.Blocks * uint64(stat.Bsize)
-		free := stat.Bfree * uint64(stat.Bsize)
-		used := total - free
-		usedPercent := 0
-		if total > 0 {
-			usedPercent = int((used * 100) / total)
-		}
-
-		// Determine status for this partition
-		var partStatus checks.Status
-		var passed bool
-		switch {
-		case usedPercent >= c.criticalThreshold:
-			partStatus = checks.StatusCritical
-			passed = false
-		case usedPercent >= c.warningThreshold:
-			partStatus = checks.StatusWarning
-			passed = true // warning is still passing
-		default:
-			partStatus = checks.StatusOK
-			passed = true
-		}
-
+		usage := measureUsage(stat)
+		partStatus, passed := c.classify(usage.UsedPercent)
 		worstStatus = checks.WorstStatus(worstStatus, partStatus)
 
 		subChecks = append(subChecks, checks.SubCheck{
 			Name:   partition,
 			Passed: passed,
-			Detail: fmt.Sprintf("%d%% used (%s / %s)", usedPercent, formatBytes(used), formatBytes(total)),
+			Detail: fmt.Sprintf("%d%% used (%s / %s, %s available)",
+				usage.UsedPercent, formatBytes(usage.UsedBytes), formatBytes(usage.TotalBytes), formatBytes(usage.AvailableBytes)),
 		})
 
 		partitionDetails = append(partitionDetails, map[string]interface{}{
-			"partition":   partition,
-			"usedPercent": usedPercent,
-			"usedBytes":   used,
-			"totalBytes":  total,
-			"freeBytes":   free,
-			"status":      string(partStatus),
+			"partition":      partition,
+			"usedPercent":    usage.UsedPercent,
+			"usedBytes":      usage.UsedBytes,
+			"totalBytes":     usage.TotalBytes,
+			"availableBytes": usage.AvailableBytes,
+			"status":         string(partStatus),
 		})
 	}
 
@@ -161,12 +279,11 @@ func (c *DiskCheck) runUnix(ctx context.Context, result checks.Result) checks.Re
 	result.Details["warningThreshold"] = c.warningThreshold
 	result.Details["criticalThreshold"] = c.criticalThreshold
 
-	// Calculate overall score (inverse of worst usage)
+	// Score is the headroom left on the fullest partition.
 	score := 100
 	for _, p := range partitionDetails {
 		if used, ok := p["usedPercent"].(int); ok {
-			remaining := 100 - used
-			if remaining < score {
+			if remaining := 100 - used; remaining < score {
 				score = remaining
 			}
 		}
@@ -181,152 +298,92 @@ func (c *DiskCheck) runUnix(ctx context.Context, result checks.Result) checks.Re
 	case checks.StatusOK:
 		result.Message = "Disk space healthy on all partitions"
 	case checks.StatusWarning:
-		result.Message = "Disk space warning - some partitions above " + fmt.Sprintf("%d%%", c.warningThreshold)
+		result.Message = fmt.Sprintf("Disk space warning - some partitions above %d%%", c.warningThreshold)
 	case checks.StatusCritical:
-		result.Message = "Disk space critical - some partitions above " + fmt.Sprintf("%d%%", c.criticalThreshold)
+		result.Message = fmt.Sprintf("Disk space critical - some partitions above %d%%", c.criticalThreshold)
 	}
 
 	return result
 }
 
-func (c *DiskCheck) runWindows(ctx context.Context, result checks.Result) checks.Result {
-	// Use WMIC to get disk information on Windows
-	// WMIC outputs: "DeviceID  FreeSpace      Size"
-	output, err := c.executor.Output(ctx, "wmic", "logicaldisk", "get", "DeviceID,FreeSpace,Size", "/format:csv")
+// runAuthoritativePressure turns System Monitor's typed observation into an
+// autoheal result without recomputing any threshold locally.
+func (c *DiskCheck) runAuthoritativePressure(ctx context.Context) checks.Result {
+	result := checks.Result{
+		CheckID: c.ID(), Details: map[string]interface{}{"evidence_source": "system-monitor"},
+		Timestamp: time.Now(), Metrics: &checks.HealthMetrics{},
+	}
+	pressure, err := c.pressureReader.ReadDiskPressure(ctx)
 	if err != nil {
 		result.Status = checks.StatusWarning
-		result.Message = "Failed to query disk information on Windows"
-		result.Details["error"] = err.Error()
+		result.Message = "System Monitor disk pressure unavailable"
+		result.Details["evidence_status"] = "failed"
+		result.Details["reason"] = err.Error()
 		return result
 	}
-
-	var subChecks []checks.SubCheck
-	worstStatus := checks.StatusOK
-	partitionDetails := make([]map[string]interface{}, 0)
-
-	// Parse WMIC CSV output
-	// Format: Node,DeviceID,FreeSpace,Size
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "Node") {
-			continue // Skip header and empty lines
-		}
-
-		parts := strings.Split(line, ",")
-		if len(parts) < 4 {
-			continue
-		}
-
-		deviceID := strings.TrimSpace(parts[1])
-		freeSpaceStr := strings.TrimSpace(parts[2])
-		sizeStr := strings.TrimSpace(parts[3])
-
-		if deviceID == "" || sizeStr == "" || sizeStr == "0" {
-			continue // Skip drives with no size (CD-ROM, etc.)
-		}
-
-		// Check if this partition is in the configured list (or check all if not specified)
-		shouldCheck := len(c.partitions) == 0
-		for _, p := range c.partitions {
-			// Windows partitions are like "C:", "D:", etc.
-			if strings.EqualFold(p, deviceID) || strings.EqualFold(p, strings.TrimSuffix(deviceID, ":")) {
-				shouldCheck = true
-				break
-			}
-		}
-		if !shouldCheck {
-			continue
-		}
-
-		// Parse sizes
-		var total, free uint64
-		if _, err := fmt.Sscanf(sizeStr, "%d", &total); err != nil {
-			continue
-		}
-		if _, err := fmt.Sscanf(freeSpaceStr, "%d", &free); err != nil {
-			continue
-		}
-
-		if total == 0 {
-			continue
-		}
-
-		used := total - free
-		usedPercent := int((used * 100) / total)
-
-		// Determine status for this partition
-		var partStatus checks.Status
-		var passed bool
-		switch {
-		case usedPercent >= c.criticalThreshold:
-			partStatus = checks.StatusCritical
-			passed = false
-		case usedPercent >= c.warningThreshold:
-			partStatus = checks.StatusWarning
-			passed = true // warning is still passing
-		default:
-			partStatus = checks.StatusOK
-			passed = true
-		}
-
-		worstStatus = checks.WorstStatus(worstStatus, partStatus)
-
-		subChecks = append(subChecks, checks.SubCheck{
-			Name:   deviceID,
-			Passed: passed,
-			Detail: fmt.Sprintf("%d%% used (%s / %s)", usedPercent, formatBytes(used), formatBytes(total)),
-		})
-
-		partitionDetails = append(partitionDetails, map[string]interface{}{
-			"partition":   deviceID,
-			"usedPercent": usedPercent,
-			"usedBytes":   used,
-			"totalBytes":  total,
-			"freeBytes":   free,
-			"status":      string(partStatus),
-		})
-	}
-
-	if len(partitionDetails) == 0 {
+	if pressure.LastError != "" {
 		result.Status = checks.StatusWarning
-		result.Message = "No disk partitions found to check"
-		result.Details["platform"] = "windows"
+		result.Message = "System Monitor disk pressure reported an error"
+		result.Details["evidence_status"] = "failed"
+		result.Details["reason"] = pressure.LastError
+		return result
+	}
+	if !pressure.Observed {
+		result.Status = checks.StatusWarning
+		result.Message = "System Monitor has not produced a disk-pressure observation"
+		result.Details["evidence_status"] = "unmeasured"
 		return result
 	}
 
-	result.Status = worstStatus
-	result.Details["partitions"] = partitionDetails
-	result.Details["platform"] = "windows"
-	result.Details["warningThreshold"] = c.warningThreshold
-	result.Details["criticalThreshold"] = c.criticalThreshold
-
-	// Calculate overall score (inverse of worst usage)
-	score := 100
-	for _, p := range partitionDetails {
-		if used, ok := p["usedPercent"].(int); ok {
-			remaining := 100 - used
-			if remaining < score {
-				score = remaining
-			}
-		}
+	result.Details["evidence_status"] = "measured"
+	result.Details["mountPath"] = pressure.MountPath
+	result.Details["usedPercent"] = pressure.UsedPercent
+	result.Details["usedBytes"] = pressure.UsedBytes
+	result.Details["availableBytes"] = pressure.AvailableBytes
+	result.Details["totalBytes"] = pressure.TotalBytes
+	result.Details["band"] = pressure.Band
+	result.Timestamp = pressure.ObservedAt
+	used := int(pressure.UsedPercent)
+	result.Metrics.Score = &used
+	*result.Metrics.Score = 100 - *result.Metrics.Score
+	result.Metrics.SubChecks = []checks.SubCheck{{
+		Name: pressure.MountPath, Passed: pressure.Band == "normal" || pressure.Band == "warning",
+		Detail: fmt.Sprintf("%.1f%% used; System Monitor band=%s", pressure.UsedPercent, pressure.Band),
+	}}
+	switch pressure.Band {
+	case "critical":
+		result.Status = checks.StatusCritical
+		result.Message = fmt.Sprintf("System Monitor reports %s disk pressure", pressure.Band)
+	case "high":
+		// High and critical both request bounded recovery; storage-manager
+		// owns the final safety-tier decision.
+		result.Status = checks.StatusWarning
+		result.Message = "System Monitor reports high disk pressure; bounded recovery requested"
+	case "warning":
+		result.Status = checks.StatusWarning
+		result.Message = "System Monitor reports warning disk pressure"
+	case "normal":
+		result.Status = checks.StatusOK
+		result.Message = "System Monitor reports healthy disk pressure"
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = "System Monitor returned an unknown disk-pressure band"
+		result.Details["evidence_status"] = "failed"
 	}
-
-	result.Metrics = &checks.HealthMetrics{
-		Score:     &score,
-		SubChecks: subChecks,
-	}
-
-	switch worstStatus {
-	case checks.StatusOK:
-		result.Message = "Disk space healthy on all partitions"
-	case checks.StatusWarning:
-		result.Message = "Disk space warning - some partitions above " + fmt.Sprintf("%d%%", c.warningThreshold)
-	case checks.StatusCritical:
-		result.Message = "Disk space critical - some partitions above " + fmt.Sprintf("%d%%", c.criticalThreshold)
-	}
-
 	return result
+}
+
+// classify maps a usage percentage to a status. Warning still counts as
+// passing; only critical fails the check.
+func (c *DiskCheck) classify(usedPercent int) (checks.Status, bool) {
+	switch {
+	case usedPercent >= c.criticalThreshold:
+		return checks.StatusCritical, false
+	case usedPercent >= c.warningThreshold:
+		return checks.StatusWarning, true
+	default:
+		return checks.StatusOK, true
+	}
 }
 
 // formatBytes converts bytes to human-readable format
@@ -350,18 +407,12 @@ func (c *DiskCheck) RecoveryActions(lastResult *checks.Result) []checks.Recovery
 
 	return []checks.RecoveryAction{
 		{
-			ID:          "clean-apt-cache",
-			Name:        "Clean APT Cache",
-			Description: "Remove cached package files from apt",
-			Dangerous:   false,
-			Available:   isLinux,
-		},
-		{
-			ID:          "clean-journal",
-			Name:        "Clean System Journals",
-			Description: "Vacuum old journal logs (keeps last 100MB)",
-			Dangerous:   false,
-			Available:   isLinux,
+			ID:   requestCleanupActionID,
+			Name: "Request storage-manager reclamation",
+			Description: "Reports disk pressure to storage-manager, which reclaims safe/regenerable space " +
+				"without an operator present. This is the action that makes the disk check able to heal.",
+			Dangerous: false,
+			Available: true,
 		},
 		{
 			ID:          "clean-docker",
@@ -398,37 +449,8 @@ func (c *DiskCheck) ExecuteAction(ctx context.Context, actionID string) checks.A
 	}
 
 	switch actionID {
-	case "clean-apt-cache":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "apt-get", "clean")
-		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to clean APT cache"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "APT cache cleaned successfully"
-		return result
-
-	case "clean-journal":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "journalctl", "--vacuum-size=100M")
-		result.Duration = time.Since(start)
-		result.Output = string(output)
-
-		if err != nil {
-			result.Success = false
-			result.Error = err.Error()
-			result.Message = "Failed to vacuum journal logs"
-			return result
-		}
-
-		result.Success = true
-		result.Message = "Journal logs vacuumed successfully"
-		return result
+	case requestCleanupActionID:
+		return c.executeRequestCleanup(ctx, start)
 
 	case "clean-docker":
 		output, err := c.executor.CombinedOutput(ctx, "docker", "system", "prune", "-af", "--volumes")
@@ -525,3 +547,187 @@ func (c *DiskCheck) executeAnalyzeUsage(ctx context.Context, start time.Time) ch
 
 // Ensure DiskCheck implements HealableCheck
 var _ checks.HealableCheck = (*DiskCheck)(nil)
+
+// requestCleanupActionID is the heal action that makes disk pressure
+// self-remediating.
+//
+// It replaces the old assumption, recorded in userconfig as
+// "Can't auto-heal disk space", that nothing could be done automatically.
+// storage-manager exists precisely to reclaim space, and it enforces its own
+// safety boundary: only safe and proven regenerable providers run unattended.
+const requestCleanupActionID = "request-cleanup"
+
+// executeRequestCleanup reports current pressure to storage-manager and returns
+// what it reclaimed.
+//
+// The band reported is derived from the same thresholds the check classifies
+// with, so the heal action escalates exactly as far as the observation
+// justifies: high and critical partitions request bounded reclamation, while
+// storage-manager enforces the provider safety boundary.
+func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  requestCleanupActionID,
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	if c.cleanup == nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "storage-manager client not configured"
+		result.Message = "Cannot request cleanup"
+		return result
+	}
+
+	var pressure DiskPressure
+	var err error
+	if c.pressureReader != nil {
+		pressure, err = c.pressureReader.ReadDiskPressure(ctx)
+	} else {
+		var worst DiskUsage
+		var worstPartition string
+		worst, worstPartition, err = c.worstPartition()
+		if err == nil {
+			reportedBand, reported := c.band(worst.UsedPercent)
+			pressure = DiskPressure{
+				Observed:       true,
+				Band:           localCleanupBand(toCleanupBand(reportedBand), reported),
+				MountPath:      worstPartition,
+				UsedPercent:    float64(worst.UsedPercent),
+				UsedBytes:      int64(worst.UsedBytes),
+				AvailableBytes: int64(worst.AvailableBytes),
+				TotalBytes:     int64(worst.TotalBytes),
+			}
+		}
+	}
+	if err != nil {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Could not read authoritative disk pressure"
+		return result
+	}
+	if pressure.LastError != "" || !pressure.Observed {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "system-monitor disk pressure is unavailable"
+		result.Message = "Cannot request cleanup without authoritative disk evidence"
+		return result
+	}
+
+	band, ok := cleanupBand(pressure.Band)
+	if !ok {
+		result.Duration = time.Since(start)
+		result.Success = true
+		result.Message = fmt.Sprintf("No cleanup requested: disk pressure band is %s", pressure.Band)
+		return result
+	}
+	partition := pressure.MountPath
+	if partition == "" && len(c.partitions) > 0 {
+		partition = c.partitions[0]
+	}
+
+	outcome, err := c.cleanup.ReportPressure(ctx, cleanupmanager.Report{
+		SourceScenario:       "vrooli-autoheal",
+		Partition:            partition,
+		UsedPercent:          pressure.UsedPercent,
+		Band:                 band,
+		AvailableBytes:       pressure.AvailableBytes,
+		FillRateBytesPerHour: pressure.FillRateBytesPerHour,
+		HotWriters:           pressure.HotWriters,
+		Trigger:              "PRESSURE_TRIGGER_BAND",
+	})
+	result.Duration = time.Since(start)
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = "Failed to reach storage-manager"
+		return result
+	}
+
+	result.Success = true
+	result.Output = fmt.Sprintf("partition=%s used=%.1f%% band=%s action=%s reclaimed=%s withheld=%v",
+		partition, pressure.UsedPercent, band, outcome.Action, formatBytes(uint64(outcome.ReclaimedBytes)), outcome.ProvidersWithheld)
+	result.Message = fmt.Sprintf("storage-manager %s; reclaimed %s", outcome.Action, formatBytes(uint64(outcome.ReclaimedBytes)))
+	return result
+}
+
+func cleanupBand(band string) (cleanupmanager.Band, bool) {
+	switch strings.ToLower(strings.TrimSpace(band)) {
+	case "warning", "pressure_band_warning":
+		return cleanupmanager.BandWarning, true
+	case "high", "pressure_band_high":
+		return cleanupmanager.BandHigh, true
+	case "critical", "pressure_band_critical":
+		return cleanupmanager.BandCritical, true
+	default:
+		return "", false
+	}
+}
+
+func localCleanupBand(band cleanupmanager.Band, ok bool) string {
+	if !ok {
+		return "normal"
+	}
+	switch band {
+	case cleanupmanager.BandWarning:
+		return "warning"
+	case cleanupmanager.BandHigh:
+		return "high"
+	case cleanupmanager.BandCritical:
+		return "critical"
+	default:
+		return "normal"
+	}
+}
+
+func toCleanupBand(band sharedcleanup.Band) cleanupmanager.Band {
+	switch band {
+	case sharedcleanup.BandWarning:
+		return cleanupmanager.BandWarning
+	case sharedcleanup.BandHigh:
+		return cleanupmanager.BandHigh
+	case sharedcleanup.BandCritical:
+		return cleanupmanager.BandCritical
+	default:
+		return ""
+	}
+}
+
+// worstPartition measures every configured partition and returns the fullest.
+// Remediation should target the partition under the most pressure, not
+// whichever happens to be listed first.
+func (c *DiskCheck) worstPartition() (DiskUsage, string, error) {
+	var (
+		worst     DiskUsage
+		worstName string
+		measured  bool
+		lastErr   error
+	)
+	for _, partition := range c.partitions {
+		stat, err := c.fsReader.Statfs(partition)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		usage := measureUsage(stat)
+		if !measured || usage.UsedPercent > worst.UsedPercent {
+			worst, worstName, measured = usage, partition, true
+		}
+	}
+	if !measured {
+		if lastErr != nil {
+			return DiskUsage{}, "", fmt.Errorf("no partition could be measured: %w", lastErr)
+		}
+		return DiskUsage{}, "", fmt.Errorf("no partitions configured")
+	}
+	return worst, worstName, nil
+}
+
+// band applies the shared pressure classifier. Autoheal has no separate local
+// high threshold, so values between warning and critical remain warning rather
+// than being promoted to a stronger cleanup request.
+func (c *DiskCheck) band(usedPercent int) (sharedcleanup.Band, bool) {
+	band := sharedcleanup.Classify(float64(usedPercent), 1, sharedcleanup.Thresholds{Warning: float64(c.warningThreshold), High: float64(c.criticalThreshold), Critical: float64(c.criticalThreshold)})
+	return band, band != sharedcleanup.BandNormal
+}

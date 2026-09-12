@@ -1,0 +1,25 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "friction-curator",
+  "displayName": "Friction Curator",
+  "description": "Drains meta-optimization's friction-inbox/* (universal-source intake — any team's members may write via the report-friction skill). Classifies the scope, then routes by writing the entry to friction-report/<scope>/<date>/<slug> on the appropriate sub-member's behalf, or hands off to debt-curator when classification fails. Maintains a daily friction-triage-record/<YYYY-MM-DD> snapshot of throughput by reporter team and destination scope. Router, not analyst — synthesis is debt-curator's job, deep root-cause analysis is conversation-friction-analysis's job.",
+  "status": "active",
+  "appearance": {
+    "body": "#D97706",
+    "head": "#F59E0B",
+    "accent": "#FEF3C7"
+  },
+  "tags": [
+    "meta",
+    "friction",
+    "routing",
+    "triage"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-05-03T00:00:00Z",
+  "updatedAt": "2026-05-03T00:00:00Z"
+}

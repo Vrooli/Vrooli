@@ -27,22 +27,22 @@
 ### 🔴 P0 – Must ship for viability
 
 - [ ] OT-P0-001 | Core chart types: bar, line, pie, scatter, area charts with configurable data inputs
-- [x] OT-P0-002 | JSON/CSV/direct data object ingestion with automatic data type detection
+- [ ] OT-P0-002 | JSON/CSV/direct data object ingestion with automatic data type detection
 - [ ] OT-P0-003 | Default professional styling themes (light, dark, corporate, minimal)
 - [x] OT-P0-004 | CLI interface for programmatic chart generation by other scenarios
-- [x] OT-P0-005 | Export capabilities: PNG, SVG formats for different use cases
+- [ ] OT-P0-005 | Export capabilities: PNG, SVG formats for different use cases
 - [x] OT-P0-006 | PostgreSQL integration for chart template and style persistence
 - [ ] OT-P0-007 | Web UI for style management and preview with mock data
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Advanced chart types: gantt, heatmap, treemap charts
-- [x] OT-P1-002 | Candlestick charts for financial data
+- [ ] OT-P1-001 | Advanced chart types: gantt, heatmap, treemap charts
+- [ ] OT-P1-002 | Candlestick charts for financial data
 - [x] OT-P1-003 | Custom style builder with live preview and color palette management
-- [x] OT-P1-004 | Chart animation and interactivity options for web displays
+- [ ] OT-P1-004 | Chart animation and interactivity options for web displays
 - [x] OT-P1-005 | PDF export with vector graphics for print-quality reports
-- [x] OT-P1-006 | Chart composition (multiple charts in single canvas)
-- [x] OT-P1-007 | Data transformation pipeline (aggregation, filtering, sorting)
+- [ ] OT-P1-006 | Chart composition (multiple charts in single canvas)
+- [ ] OT-P1-007 | Data transformation pipeline (aggregation, filtering, sorting)
 - [x] OT-P1-008 | Template library with industry-specific presets
 
 ### 🟢 P2 – Future / expansion
@@ -62,7 +62,7 @@
 
 **Data Storage**: PostgreSQL for chart templates, custom styles, and generation history. Database-backed approach enables programmatic style creation and sharing across scenarios versus file-based templates.
 
-**Export Pipeline**: Browserless integration for PNG generation via headless Chrome (800x600 default), native SVG output from D3.js, PDF export with vector graphics support.
+**Export Pipeline**: browser-automation-studio (BAS) CaptureService for PNG generation — the renderer serves the chart HTML over its own HTTP surface and calls BAS via Connect-RPC to screenshot it (800x600 default), with fallback to Go native generation when BAS is unavailable; native SVG output from D3.js; PDF export with vector graphics support.
 
 **Performance Target**: <2000ms for complex charts with 1000+ data points. Current: 15-18ms typical generation time.
 
@@ -80,8 +80,10 @@
 
 **Required Local Resources**:
 - `postgres` – Chart template, style, and generation history persistence
-- `browserless` – PNG export via headless Chrome rendering
 - `n8n` – Chart generation pipeline orchestration (optional, fallback to direct API)
+
+**Scenario Dependencies**:
+- `browser-automation-studio` – PNG export via CaptureService screenshot (optional; falls back to Go native generation)
 
 **Optional Resources**:
 - `minio` – Generated chart asset storage (fallback: local filesystem with cleanup policies)
@@ -126,7 +128,7 @@
 
 ## 📎 Appendix
 
-**Reference Materials**: README.md, docs/api.md, docs/cli.md, initialization/storage/postgres/schema.sql, requirements/index.json
+**Reference Materials**: README.md, docs/api.md, docs/cli.md, api/internal/<domain>/storage/postgres/schema.sql, requirements/index.json
 
 **Related Scenarios**: business-reports, research-assistant, financial-analyzer, marketing-analytics, project-management-visualizer
 

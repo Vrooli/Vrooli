@@ -23,6 +23,7 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
@@ -403,6 +404,7 @@ type MockExecutionService struct {
 	GetExecutionScreenshotsError    error
 	GetExecutionTimelineError       error
 	GetExecutionTimelineProtoError  error
+	GetExecutionReplayPackageError  error
 	DescribeExecutionExportError    error
 	ExportToFolderError             error
 	HydrateExecutionProtoError      error
@@ -414,6 +416,7 @@ type MockExecutionService struct {
 	ExecutionScreenshots    []*basexecution.ExecutionScreenshot
 	ExecutionTimeline       *workflow.ExecutionTimeline
 	ExecutionTimelineProto  *bastimeline.ExecutionTimeline
+	ExecutionReplayPackage  *basevidence.ReplayPackage
 	ExecutionTraceArtifacts []workflow.ExecutionFileArtifact
 	ExecutionHarArtifacts   []workflow.ExecutionFileArtifact
 	ExecutionVideoArtifacts []workflow.ExecutionVideoArtifact
@@ -609,6 +612,16 @@ func (m *MockExecutionService) GetExecutionHarArtifacts(ctx context.Context, exe
 	return []workflow.ExecutionFileArtifact{}, nil
 }
 
+func (m *MockExecutionService) GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
+	if m.GetExecutionReplayPackageError != nil {
+		return nil, m.GetExecutionReplayPackageError
+	}
+	if m.ExecutionReplayPackage != nil {
+		return m.ExecutionReplayPackage, nil
+	}
+	return nil, database.ErrNotFound
+}
+
 func (m *MockExecutionService) HydrateExecutionProto(ctx context.Context, execIndex *database.ExecutionIndex) (*basexecution.Execution, error) {
 	if m.HydrateExecutionProtoError != nil {
 		return nil, m.HydrateExecutionProtoError
@@ -702,7 +715,7 @@ func (m *MockHub) BroadcastEnvelope(event any) {
 	m.LastBroadcastedEvent = event
 }
 
-func (m *MockHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+func (m *MockHub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) wsHub.BroadcastResult {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

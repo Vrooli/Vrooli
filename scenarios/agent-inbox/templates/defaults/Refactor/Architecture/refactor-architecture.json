@@ -35,6 +35,5 @@
       "required": false
     }
   ],
-  "suggestedSkillIds": ["screaming-arch"],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  "suggestedSkillIds": ["screaming-arch"]
 }

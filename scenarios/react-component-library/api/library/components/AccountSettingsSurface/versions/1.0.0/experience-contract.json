@@ -1,0 +1,87 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:AccountSettingsSurface@1.0.0"
+  },
+  "component": {
+    "id": "accountsettingssurface",
+    "title": "Account Settings Surface",
+    "purpose": "Kind-based experience contract scaffold."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default"
+    }
+  ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "generic"
+    }
+  ],
+  "claims": [
+    {
+      "id": "tap-target-size",
+      "type": "tap-target-size",
+      "statement": "The Account Settings Surface example satisfies the tap-target-size contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "content-not-clipped",
+      "type": "content-not-clipped",
+      "statement": "The Account Settings Surface example satisfies the content-not-clipped contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "state-contrast",
+      "type": "state-contrast",
+      "statement": "The Account Settings Surface example satisfies the state-contrast contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "padding",
+      "type": "padding",
+      "statement": "The Account Settings Surface example satisfies the padding contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The Account Settings Surface example satisfies the keyboard-reachable contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "size-parity",
+      "type": "size-parity",
+      "statement": "The Account Settings Surface example satisfies the size-parity contract claim.",
+      "tier": "machine",
+      "elements": [
+        "control"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "control": {
+        "selector": "[data-testid]"
+      }
+    }
+  }
+}

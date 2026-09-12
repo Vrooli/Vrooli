@@ -1,0 +1,266 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "service": {
+    "name": "graph-studio",
+    "displayName": "Graph Studio",
+    "description": "Unified platform for creating, validating, and converting all forms of graph-based visualizations and data structures",
+    "version": "1.0.0",
+    "tags": [
+      "graphs",
+      "diagrams",
+      "mind-maps",
+      "bpmn",
+      "uml",
+      "visualization",
+      "knowledge-graphs",
+      "workflow",
+      "architecture",
+      "plugin-system",
+      "format-conversion",
+      "go-api",
+      "react-ui",
+      "postgres-storage"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/graph-studio"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Graph Studio API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Graph Studio UI port",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Graph Studio health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Graph Studio",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/graph-studio-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "graph-studio",
+            "targets": [
+              "graph-studio"
+            ]
+          },
+          {
+            "type": "file",
+            "path": "initialization/postgres/schema.sql"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o graph-studio-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI bundle"
+        },
+        {
+          "name": "initialize-postgres",
+          "run": "echo 'Postgres initialization handled by resource-postgres'",
+          "description": "PostgreSQL initialization placeholder"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Graph Studio with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && env VROOLI_LIFECYCLE=active API_PORT=${API_PORT} POSTGRES_DB=graph_studio LOG_LEVEL=info CORS_ORIGINS=http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT} MAX_GRAPH_SIZE=10000 PLUGIN_DIR=./plugins PREVIEW_ACCESS_TOKEN=graph-studio-preview-token GRAPH_STUDIO_PREVIEW_TOKEN=graph-studio-preview-token ./graph-studio-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/graph-studio-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && env UI_PORT=${UI_PORT} API_PORT=${API_PORT} VITE_APP_NAME=\"Graph Studio\" VITE_ENABLE_AI=${resource.ollama.enabled} VITE_PREVIEW_ACCESS_TOKEN=graph-studio-preview-token npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for graph-studio",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute graph-studio --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Graph Studio services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"graph-studio-api\" || true; sleep 1; pkill -9 -f \"graph-studio-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/graph-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/graph-studio.*vite\" 2>/dev/null || true",
+          "description": "Stop UI development server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Store graph metadata, relationships, and versioning",
+        "database": "graph_studio",
+        "initialization": [
+          {
+            "file": "initialization/postgres/schema.sql",
+            "type": "schema"
+          }
+        ]
+      },
+      "minio": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Store large graph files and visualization assets",
+        "initialization": [],
+        "buckets": {
+          "default_buckets": [
+            "graph-files",
+            "graph-renders",
+            "graph-exports"
+          ]
+        }
+      },
+      "redis": {
+        "enabled": false,
+        "required": false,
+        "purpose": "Cache frequently accessed graphs and session state",
+        "fallback": "No caching, direct database queries"
+      },
+      "ollama": {
+        "enabled": false,
+        "required": false,
+        "purpose": "AI-powered graph suggestions and natural language queries",
+        "fallback": "Disable AI features"
+      },
+      "qdrant": {
+        "enabled": false,
+        "required": false,
+        "purpose": "Vector search for semantic graph similarity",
+        "fallback": "Keyword-based search only"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "graph-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "graph-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

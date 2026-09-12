@@ -1,0 +1,253 @@
+syntax = "proto3";
+
+package vrooli.backdrop_studio.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared;shared_v1";
+
+message ReservedRegion {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  string kind = 5;
+  string text_color = 6;
+}
+
+message ScaffoldBinding {
+  string preset = 1;
+  string conditioner = 2;
+  string params_json = 3;
+}
+
+// GenerationBlock is a style's model-backed source declaration.
+//
+// It deliberately carries no model id, provider URL or credential: image-tools
+// owns model selection, and a catalog that named a concrete model would pin
+// every install to whatever was available the day the style was written.
+//
+// Fields 1 and 2 were `role` and `profile`. They were validated on write and
+// then never sent, because image-tools' AIParams has no such fields and derives
+// the role server-side — so the message advertised routing that did not exist.
+// They are reserved rather than reused so an old client cannot silently bind a
+// new meaning to a field it still remembers.
+message GenerationBlock {
+  reserved 1, 2;
+  reserved "role", "profile";
+  string prompt_template = 3;
+  string negative = 4;
+  string model = 5;
+  string provider_url = 6;
+  string credential = 7;
+}
+
+// QualityTier is the quality bar a style's SOURCE must meet, which the
+// capability router resolves to a serving lane.
+//
+// It lives on the style because the style is the only place that knows. A
+// Truchet tiling never needs a diffusion model; a Mediterranean colonnade with
+// a statue and a sea behind it always does, and no amount of screening will
+// make three flat tonal zones into that picture. A global configuration switch
+// was rejected for exactly this reason: it forces one cost profile onto a
+// catalog whose styles have genuinely different needs.
+//
+// The tier is a floor, not an instruction. The router serves it with the
+// cheapest lane that meets it and refuses by name when none does — it never
+// downgrades silently, because a frontier-tier style served by a local model is
+// a picture wearing a label it did not earn.
+enum QualityTier {
+  // Unspecified means the style predates the tier and is served procedurally,
+  // which is what every style in seed versions 1 through 7 actually was.
+  QUALITY_TIER_UNSPECIFIED = 0;
+  // Drawn in-process by a generator. Free, offline, deterministic.
+  QUALITY_TIER_PROCEDURAL = 1;
+  // Needs a diffusion model; the installed local model set is enough.
+  QUALITY_TIER_LOCAL_MODEL = 2;
+  // Needs a current frontier image model, reached through image-tools' BYOK
+  // rung and its ai-gateway client. Opt-in per style, because it costs money.
+  QUALITY_TIER_FRONTIER_MODEL = 3;
+}
+
+// RoutingRecord is what actually served one candidate.
+//
+// Every field here answers a question that has no other source after the fact.
+// Which lane drew it decides whether the picture can be reproduced offline;
+// which model decides whether it can be disclosed honestly; what it cost
+// decides whether the catalog is affordable to render. The previous code
+// carried the routing policy as two constants in a Go file, so none of the
+// three was answerable from a candidate — and the constants' predecessor had
+// quietly billed every render to a cloud provider with nothing recording it.
+message RoutingRecord {
+  // The tier the style declared.
+  QualityTier declared_tier = 1;
+  // The lane that served it: "procedural", "local_model" or "frontier_model".
+  string served_lane = 2;
+  // The registry model image-tools' selector chose. Empty on the procedural
+  // lane, which uses no model. Never a model this scenario asked for: routing
+  // is image-tools' decision and recording a request as a result would be a
+  // fabricated disclosure.
+  string model_id = 3;
+  // Where it ran: "local-gpu", "local-cpu" or "byok-cloud".
+  string execution_tier = 4;
+  // Reported cost in USD. Zero on a free lane, and zero is a measurement there
+  // rather than a missing value.
+  double cost_usd = 5;
+  // Lanes tried and rejected before the served one, in order, so an operator
+  // can see the escalation rather than only its result.
+  repeated string attempted_lanes = 6;
+  // Why each attempted lane did not serve, aligned with attempted_lanes.
+  repeated string attempt_details = 7;
+}
+
+// Plate is one depth layer of a candidate.
+//
+// A backdrop is not flat. A colonnade sits in front of a sea which sits in
+// front of a sky, and the generators already know that — the vector family
+// draws each as its own SVG group. Flattening at the moment of render threw the
+// separation away, so a consumer wanting parallax had to infer depth from a
+// picture that no longer contained it.
+//
+// The image bytes are NOT carried here. A three-plate candidate at store
+// geometry is tens of megabytes, and a job record that inlined them would make
+// every list call expensive for a field most callers ignore. `ref` names where
+// the bytes are; the flat composite on the candidate is what a consumer reads
+// when it just wants a picture.
+message Plate {
+  // What this layer depicts: "sky", "sea", "colonnade", "figure".
+  string name = 1;
+  // Depth orders the stack, lowest first and furthest from the viewer.
+  int32 depth = 2;
+  // Blend with everything beneath: "normal", "multiply" or "screen". Empty is
+  // normal. The set matches image-tools' compositor exactly — a mode this
+  // scenario could name and that scenario could not run would be a contract
+  // that only looks complete.
+  string blend = 3;
+  // Opacity 0..1.
+  double opacity = 4;
+  // ref locates the plate's pixels. Empty on a single-plate candidate, whose
+  // only plate IS the composite.
+  string ref = 5;
+  // The treatment chain applied to this plate alone, in order. Empty means the
+  // plate ships as its generator drew it.
+  repeated string treatments = 6;
+  // motion is how this layer moves relative to the viewport. Absent means it
+  // does not move, which is the honest default: a plate with no declared
+  // parallax is a plate the art direction did not decide about.
+  MotionProfile motion = 7;
+}
+
+// MotionProfile is how one plate moves.
+//
+// Motion ships as a CSS transform descriptor over plate images, never as video
+// or an animated GIF. That is a boundary rather than a limitation: `image-tools`
+// records motion content as a non-goal, a landing page pays a video decode for
+// something a transform does for free, and a descriptor degrades to the flat
+// composite when a viewer asks for reduced motion. The revisit trigger is the
+// first ambient loop CSS genuinely cannot express — which is the signal to
+// build a rich-media capability, not to add an encoder here.
+message MotionProfile {
+  // parallax is how far this plate travels against the scroll, as a fraction of
+  // the viewport's travel. 0 is pinned to the page, 1 moves with it. A far
+  // plate takes a small factor and a near plate a large one, which is what
+  // produces the depth impression.
+  double parallax = 1;
+  // ambient names an optional continuous loop: "drift", "sway" or "breathe".
+  // Empty means the plate only responds to scroll.
+  string ambient = 2;
+  // ambient_seconds is one period of that loop. Long, because an ambient
+  // motion a reader can time is a distraction rather than an atmosphere.
+  double ambient_seconds = 3;
+  // ambient_amplitude is the loop's travel, as a fraction of the frame's short
+  // edge. Small: this is the difference between a picture that breathes and one
+  // that wobbles.
+  double ambient_amplitude = 4;
+}
+
+// PlateSpec is a style's declaration of one layer it draws.
+//
+// It is the catalog's half of the plate model: the render path fills a stack
+// from it, and a style whose spec names a layer no generator draws is refused
+// at write time rather than rendering a stack with a hole in it. Separate from
+// Plate — which is what a *candidate* actually got — because a declaration and
+// a result are different facts and conflating them is how a catalog comes to
+// describe pictures it does not produce.
+message PlateSpec {
+  // What this layer should depict. The generators name their own planes, and a
+  // spec entry binds to one of those names.
+  string name = 1;
+  // Depth orders the stack, lowest first.
+  int32 depth = 2;
+  // Blend with everything beneath: "normal", "multiply" or "screen".
+  string blend = 3;
+  // Opacity 0..1.
+  double opacity = 4;
+  // The treatment chain for this plate alone. A per-plate chain is the point of
+  // separating them: a screen over the sea and none over the sky is a picture
+  // the flat lane cannot make.
+  repeated string treatments = 5;
+  // motion is how this layer should move. Absent means it does not.
+  MotionProfile motion = 8;
+  // planes are the generator planes this plate merges, in the generator's own
+  // depth order. Empty means the single plane whose name matches `name`.
+  //
+  // The indirection lets a style ship fewer plates than its generator
+  // separates. The colonnade draws four planes against a three-plate cap, and
+  // merging "the far ground" loses no parallax where dropping a layer would
+  // lose picture — so a cap is enforced by composition rather than by deletion.
+  repeated string planes = 6;
+  // treatment_params are this plate's own parameters, keyed by operation name
+  // and overlaid on the style's.
+  //
+  // Depth-grading is exactly a parameter difference: a coarser screen on the
+  // far plane and a finer one on the near is the same operation at two
+  // rulings. Without these, per-plate chains could express "screen this layer
+  // and not that one" but never "screen both, differently" — which is the
+  // depth cue itself.
+  map<string, string> treatment_params = 7;
+}
+
+message Style {
+  string id = 1;
+  string name = 2;
+  int32 version = 3;
+  string role = 4;
+  string subject = 5;
+  repeated string treatments = 6;
+  string lineage = 7;
+  repeated string placements = 8;
+  string strategy = 9;
+  repeated ReservedRegion regions = 10;
+  double contrast_threshold = 11;
+  ScaffoldBinding scaffold = 12;
+  GenerationBlock generation = 13;
+  // treatment_params carries the per-style parameters for each named
+  // treatment, keyed by operation name, each value a JSON object.
+  //
+  // They were absent from this message while being the field that decides what
+  // a style actually looks like: two styles naming `halftone` differ only by
+  // their line frequency, angle and inks, so a catalog that ships the chain and
+  // withholds the parameters describes a look it cannot distinguish. Nothing
+  // outside the API could see them — the studio's style page had the chain, the
+  // regions and the prompt, and no way to answer "at what ruling?".
+  map<string, string> treatment_params = 14;
+  // inks are the style's own defaults for the "$brand.*" slots its parameters
+  // reference. They are what let a style render on a cold install with no brand
+  // bound, so an operator reading a style needs to see them to understand what
+  // binding a brand would change.
+  map<string, string> inks = 15;
+  // parent_id records the style this one was forked from.
+  //
+  // Lineage is what makes a fork reviewable: a style that differs from its
+  // parent on exactly one axis is a comparison, while the same style with no
+  // recorded parent is just another entry someone has to work out from scratch.
+  // The store has tracked it since the catalog was written; it was simply never
+  // on the wire, so the studio could offer a fork it could not record.
+  string parent_id = 16;
+  // quality_tier is the bar this style's source must meet. See QualityTier:
+  // the router resolves it to the cheapest lane that meets it, records what
+  // served, and refuses by name when nothing does.
+  QualityTier quality_tier = 17;
+  // plate_spec declares how many plates this style draws and what each depicts.
+  // Absent means one plate — the whole picture — which is what every style
+  // drew before the plate model existed and what most still draw.
+  repeated PlateSpec plate_spec = 18;
+}

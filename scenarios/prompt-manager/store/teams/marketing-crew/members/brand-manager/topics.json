@@ -1,0 +1,50 @@
+{
+  "loop_kind": "queue",
+  "intake": [
+    {
+      "prefix": "marketing-craft-observation/*",
+      "taxonomy": "marketing-craft-observation"
+    }
+  ],
+  "required_read": [
+    {
+      "prefix": "audience-scan/*"
+    },
+    {
+      "prefix": "competitor-record/*"
+    },
+    {
+      "prefix": "hook-record/*"
+    },
+    {
+      "prefix": "channel-scan/*"
+    },
+    {
+      "prefix": "format-scan/*"
+    },
+    {
+      "prefix": "brand-snapshot/YYYY-MM-DD"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "marketing-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/marketing/strategy/STRATEGY.md"
+    },
+    {
+      "prefix": "marketing-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/marketing/strategy/AUDIENCES.md"
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

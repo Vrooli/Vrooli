@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.approval;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval;approval_v1";
+
+enum ApprovalStatus {
+  APPROVAL_STATUS_UNSPECIFIED = 0;
+  APPROVAL_STATUS_QUEUED = 1;
+  APPROVAL_STATUS_APPROVED = 2;
+  APPROVAL_STATUS_DECLINED = 3;
+  APPROVAL_STATUS_EXPIRED = 4;
+}
+
+message ApprovalRequest {
+  string id = 1;
+  string authorization_id = 2;
+  string mandate_id = 3;
+  string requesting_agent = 4;
+  int64 amount_minor = 5;
+  string currency = 6;
+  string counterparty = 7;
+  ApprovalStatus status = 8;
+  string resolver_identity = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp resolved_at = 11;
+  google.protobuf.Timestamp expires_at = 12;
+  string book_id = 13;
+}

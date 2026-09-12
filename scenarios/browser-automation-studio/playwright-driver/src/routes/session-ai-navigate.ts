@@ -10,8 +10,7 @@
  * REQUEST:
  * {
  *   prompt: string;           // User's goal (e.g., "Order chicken from the menu")
- *   model: string;            // Model ID (e.g., "qwen3-vl-30b")
- *   api_key: string;          // API key for the model provider
+ *   model: string;            // AI Gateway route profile
  *   max_steps?: number;       // Maximum steps (default: 20)
  *   callback_url: string;     // URL to POST step events to
  * }
@@ -56,9 +55,11 @@ import type { BehaviorSettings } from '../types/browser-profile';
 interface AINavigateRequest {
   prompt: string;
   model: string;
-  api_key: string;
   max_steps?: number;
   callback_url: string;
+  effect_policy?: NavigationConfig['effectPolicy'];
+  postconditions?: NavigationConfig['postconditions'];
+  extraction?: NavigationConfig['extraction'];
 }
 
 /**
@@ -75,6 +76,7 @@ interface AINavigateResponse {
  * Track active navigations per session (to support abort).
  */
 const activeNavigations = new Map<string, { agent: ReturnType<typeof createVisionAgent>; navigationId: string }>();
+const AI_GATEWAY_TIMEOUT_MS = 120000;
 
 /**
  * Handle POST /session/:id/ai-navigate
@@ -135,10 +137,6 @@ export async function handleSessionAINavigate(
     sendJson(res, 400, { error: 'bad_request', message: 'model is required and must be a string' });
     return;
   }
-  if (!body.api_key || typeof body.api_key !== 'string') {
-    sendJson(res, 400, { error: 'bad_request', message: 'api_key is required and must be a string' });
-    return;
-  }
   if (!body.callback_url || typeof body.callback_url !== 'string') {
     sendJson(res, 400, { error: 'bad_request', message: 'callback_url is required and must be a string' });
     return;
@@ -156,6 +154,15 @@ export async function handleSessionAINavigate(
   }
 
   // Validate max_steps
+  if (body.effect_policy && !['explicit', 'read_only'].includes(body.effect_policy)) {
+    sendJson(res, 400, {error: 'bad_request', message: 'Unsupported effect_policy'});
+    return;
+  }
+  if ((body.postconditions && (!Array.isArray(body.postconditions) || body.postconditions.length > 16)) ||
+      (body.extraction && (!Array.isArray(body.extraction) || body.extraction.length > 16))) {
+    sendJson(res, 400, {error: 'bad_request', message: 'Task contract must contain bounded observation lists'});
+    return;
+  }
   const maxSteps = body.max_steps ?? 20;
   if (maxSteps < 1 || maxSteps > 100) {
     sendJson(res, 400, { error: 'bad_request', message: 'max_steps must be between 1 and 100' });
@@ -178,8 +185,10 @@ export async function handleSessionAINavigate(
   try {
     visionClient = createVisionClient({
       modelId: body.model,
-      apiKey: body.api_key,
-      timeoutMs: 60000, // 60s timeout for vision API calls
+      gatewayUrl: process.env.AI_GATEWAY_URL,
+      // Match the gateway's extract.structured role budget. Local vision
+      // models may need the full role window while loading a multimodal rung.
+      timeoutMs: AI_GATEWAY_TIMEOUT_MS,
       maxRetries: 2,
     });
   } catch (err) {
@@ -221,11 +230,13 @@ export async function handleSessionAINavigate(
 
   // Navigation config
   const navConfig: NavigationConfig = {
+    effectPolicy: body.effect_policy,
+    postconditions: body.postconditions,
+    extraction: body.extraction,
     prompt: body.prompt,
     page: session.page,
     maxSteps,
     model: body.model,
-    apiKey: body.api_key,
     callbackUrl: body.callback_url,
     navigationId,
     onStep: (step: NavigationStep) => {
@@ -283,6 +294,9 @@ export async function handleSessionAINavigate(
         finalUrl: result.finalUrl,
         error: result.error,
         summary: result.summary,
+        verifiedSuccess: result.verifiedSuccess,
+        extractedData: result.extractedData,
+        verificationError: result.verificationError,
       };
       emitNavigationComplete(body.callback_url, completeEvent).catch((err) => {
         logger.warn('Failed to emit navigation complete', {

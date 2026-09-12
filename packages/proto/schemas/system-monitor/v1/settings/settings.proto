@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.settings;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings;settings";
+
+// =============================================================================
+// SETTINGS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// System monitor settings and configuration types.
+//
+// USAGE CONTEXTS:
+//   - API responses for settings endpoints
+//   - UI settings modal
+//
+// =============================================================================
+
+// SystemSettings represents the system monitor configuration.
+message SystemSettings {
+  // Whether the monitor is active.
+  bool active = 1;
+
+  // Metric collection interval in seconds.
+  int32 metric_collection_interval = 2;
+
+  // Anomaly detection interval in seconds.
+  int32 anomaly_detection_interval = 3;
+
+  // Threshold check interval in seconds.
+  int32 threshold_check_interval = 4;
+
+  // Investigation cooldown period in seconds.
+  int32 cooldown_period_seconds = 5;
+
+  // CPU alert threshold percentage.
+  double cpu_threshold = 6;
+
+  // Memory alert threshold percentage.
+  double memory_threshold = 7;
+
+  // Disk alert threshold percentage. This is also the warning band boundary:
+  // the usage percentage at which disk pressure starts being recorded.
+  double disk_threshold = 8;
+
+  // Number of days of metrics history to retain before scheduled pruning.
+  int32 metrics_retention_days = 9;
+
+  // Interval in seconds between scheduled retention runs.
+  int32 retention_check_interval_seconds = 10;
+
+  // Whether retention runs once immediately at service startup.
+  bool retention_run_on_startup = 11;
+
+  // Whether a scheduled retention prune is followed by database compaction.
+  bool compact_after_retention = 12;
+
+  // Disk-pressure escalation band boundaries, in percent used. These must
+  // ascend: disk_threshold (warning) < disk_high_percent < disk_critical_percent.
+  //
+  // high     — request a cleanup preview; nothing is deleted.
+  // critical — safe-tier reclamation may run with no operator present.
+  double disk_high_percent = 13;
+  double disk_critical_percent = 14;
+
+  // Minimum seconds between two records for the same band, so a disk parked
+  // above a boundary does not alert on every evaluation.
+  int32 disk_escalation_cooldown_seconds = 15;
+
+  // How many consecutive observations a new band needs before it takes effect.
+  int32 disk_escalation_debounce_ticks = 16;
+
+  // A rise of at least this many percentage points in a single evaluation
+  // escalates immediately, bounding the delay debounce introduces.
+  double disk_fast_fill_jump_percent = 17;
+
+  double cpu_high_percent = 18;
+  double cpu_critical_percent = 19;
+  int32 cpu_escalation_cooldown_seconds = 20;
+  int32 cpu_escalation_debounce_ticks = 21;
+  int32 cpu_sustained_window_ticks = 22;
+  double cpu_pressure_threshold = 23;
+}
+
+// =============================================================================
+// SETTINGS API MESSAGES
+// =============================================================================
+//
+// @stability beta
+//
+// Request/response wrappers for settings API endpoints.
+//
+// =============================================================================
+
+// GetSettingsRequest is empty - no parameters needed.
+message GetSettingsRequest {}
+
+// GetSettingsResponse returns the current settings.
+message GetSettingsResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Current settings.
+  SystemSettings settings = 2;
+
+  // Error message (if failed).
+  string error = 3;
+}
+
+// UpdateSettingsRequest provides new settings values.
+message UpdateSettingsRequest {
+  // Updated settings.
+  SystemSettings settings = 1;
+}
+
+// UpdateSettingsResponse confirms the update.
+message UpdateSettingsResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Updated settings.
+  SystemSettings settings = 2;
+
+  // Error message (if failed).
+  string error = 3;
+}
+
+// ResetSettingsRequest is empty - no parameters needed.
+message ResetSettingsRequest {}
+
+// ResetSettingsResponse returns the reset (default) settings.
+message ResetSettingsResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Default settings.
+  SystemSettings settings = 2;
+
+  // Error message (if failed).
+  string error = 3;
+}
+
+// GetMaintenanceStateRequest is empty - no parameters needed.
+message GetMaintenanceStateRequest {}
+
+// GetMaintenanceStateResponse returns the maintenance state.
+message GetMaintenanceStateResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Current maintenance state (active/inactive).
+  string maintenance_state = 2;
+
+  // Error message (if failed).
+  string error = 3;
+}
+
+// SetMaintenanceStateRequest sets a new maintenance state.
+message SetMaintenanceStateRequest {
+  // Desired maintenance state (active/inactive).
+  string maintenance_state = 1;
+}
+
+// SetMaintenanceStateResponse confirms the state change.
+message SetMaintenanceStateResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // New maintenance state.
+  string maintenance_state = 2;
+
+  // Error message (if failed).
+  string error = 3;
+}
+
+// SettingsService provides the settings RPC surface.
+service SettingsService {
+  // GetSettings returns the current system settings.
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
+    option (google.api.http) = {get: "/api/v1/settings"};
+  }
+
+  // UpdateSettings updates system settings.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/settings"
+      body: "*"
+    };
+  }
+
+  // ResetSettings resets settings to defaults.
+  rpc ResetSettings(ResetSettingsRequest) returns (ResetSettingsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/settings/reset"
+      body: "*"
+    };
+  }
+
+  // GetMaintenanceState returns the maintenance state.
+  rpc GetMaintenanceState(GetMaintenanceStateRequest) returns (GetMaintenanceStateResponse) {
+    option (google.api.http) = {get: "/api/v1/maintenance/state"};
+  }
+
+  // SetMaintenanceState sets the maintenance state.
+  rpc SetMaintenanceState(SetMaintenanceStateRequest) returns (SetMaintenanceStateResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/maintenance/state"
+      body: "*"
+    };
+  }
+}

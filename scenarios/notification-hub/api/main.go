@@ -1,928 +1,221 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"context"
-	"crypto/rand"
-	"database/sql"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
-	"github.com/google/uuid"
-	"github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
+	"notification-hub/internal/capabilities"
+	"notification-hub/internal/hub"
+	"notification-hub/internal/integrations"
+	"notification-hub/internal/modules"
+	"notification-hub/internal/push"
+	"notification-hub/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/api-core/trustposture"
+	_ "modernc.org/sqlite"
+
+	capsH "notification-hub/handlers/capabilities"
+	conversationH "notification-hub/handlers/conversations"
+	deliveryH "notification-hub/handlers/delivery"
+	healthH "notification-hub/handlers/health"
+	notificationH "notification-hub/handlers/notifications"
+	recipientsH "notification-hub/handlers/recipients"
+	routingH "notification-hub/handlers/routing"
 )
 
-// Global structured logger
-var logger *slog.Logger
+type pushAdapter struct{ sender *push.Sender }
 
-// =============================================================================
-// DATA STRUCTURES
-// =============================================================================
-
-// Profile represents a tenant in the multi-tenant system
-type Profile struct {
-	ID           uuid.UUID              `json:"id" db:"id"`
-	Name         string                 `json:"name" db:"name"`
-	Slug         string                 `json:"slug" db:"slug"`
-	APIKeyPrefix string                 `json:"api_key_prefix" db:"api_key_prefix"`
-	Settings     map[string]interface{} `json:"settings" db:"settings"`
-	Plan         string                 `json:"plan" db:"plan"`
-	Status       string                 `json:"status" db:"status"`
-	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at" db:"updated_at"`
+func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, title, body string) (string, error) {
+	return a.sender.Send(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth}, title, body)
 }
 
-// Contact represents a notification recipient
-type Contact struct {
-	ID          uuid.UUID              `json:"id" db:"id"`
-	ProfileID   uuid.UUID              `json:"profile_id" db:"profile_id"`
-	ExternalID  *string                `json:"external_id" db:"external_id"`
-	Identifier  string                 `json:"identifier" db:"identifier"`
-	FirstName   *string                `json:"first_name" db:"first_name"`
-	LastName    *string                `json:"last_name" db:"last_name"`
-	Timezone    string                 `json:"timezone" db:"timezone"`
-	Locale      string                 `json:"locale" db:"locale"`
-	Preferences map[string]interface{} `json:"preferences" db:"preferences"`
-	Status      string                 `json:"status" db:"status"`
-	CreatedAt   time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at" db:"updated_at"`
+// scenarioStorageRoots resolves all filesystem storage classes once at
+// startup. File writers must select their class through fileRootPath so a
+// test-mode request uses the lease-owned root instead of the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("notification-hub")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve notification-hub storage namespace: %w", err)
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// Template represents a notification template
-type Template struct {
-	ID       uuid.UUID              `json:"id" db:"id"`
-	Name     string                 `json:"name" db:"name"`
-	Slug     string                 `json:"slug" db:"slug"`
-	Channels []string               `json:"channels" db:"channels"`
-	Category string                 `json:"category" db:"category"`
-	Subject  *string                `json:"subject" db:"subject"`
-	Content  map[string]interface{} `json:"content" db:"content"`
-	Status   string                 `json:"status" db:"status"`
+// fileRootPath is the template's mandatory file-store seam. Domain stores
+// compose their relative paths from it rather than retaining startup root
+// strings, so X-Vrooli-Test-Mode is honored independently per request.
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	root, err := roots.Pick(ctx, class)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
 }
-
-// Notification represents a notification instance
-type Notification struct {
-	ID                uuid.UUID              `json:"id" db:"id"`
-	ProfileID         uuid.UUID              `json:"profile_id" db:"profile_id"`
-	ContactID         uuid.UUID              `json:"contact_id" db:"contact_id"`
-	TemplateID        *uuid.UUID             `json:"template_id" db:"template_id"`
-	Subject           *string                `json:"subject" db:"subject"`
-	Content           map[string]interface{} `json:"content" db:"content"`
-	Variables         map[string]interface{} `json:"variables" db:"variables"`
-	ChannelsRequested []string               `json:"channels_requested" db:"channels_requested"`
-	ChannelsAttempted []string               `json:"channels_attempted" db:"channels_attempted"`
-	Priority          string                 `json:"priority" db:"priority"`
-	ScheduledAt       time.Time              `json:"scheduled_at" db:"scheduled_at"`
-	Status            string                 `json:"status" db:"status"`
-	CreatedAt         time.Time              `json:"created_at" db:"created_at"`
-}
-
-// NotificationRequest represents API request to send notification
-type NotificationRequest struct {
-	TemplateID  *string                `json:"template_id"`
-	ContactID   *string                `json:"contact_id"`
-	Recipients  []RecipientRequest     `json:"recipients"`
-	Subject     *string                `json:"subject"`
-	Content     map[string]interface{} `json:"content"`
-	Variables   map[string]interface{} `json:"variables"`
-	Channels    []string               `json:"channels"`
-	Priority    string                 `json:"priority"`
-	ScheduledAt *time.Time             `json:"scheduled_at"`
-	ExternalID  *string                `json:"external_id"`
-}
-
-// RecipientRequest represents a recipient in a notification request
-type RecipientRequest struct {
-	ContactID  string                 `json:"contact_id"`
-	Identifier *string                `json:"identifier"`
-	Variables  map[string]interface{} `json:"variables"`
-}
-
-// Server represents the HTTP server
-type Server struct {
-	db        *sql.DB
-	redis     *redis.Client
-	router    *gin.Engine
-	port      string
-	processor *NotificationProcessor
-}
-
-// =============================================================================
-// SERVER INITIALIZATION
-// =============================================================================
-
-var startTime time.Time
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "notification-hub",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "notification-hub"}) {
+		return
 	}
 
-	// Initialize structured logger
-	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-
-	startTime = time.Now()
-	server, err := NewServer()
-	if err != nil {
-		logger.Error("Failed to create server", "error", err)
-		os.Exit(1)
-	}
-
-	logger.Info("Notification Hub API starting", "port", server.port)
-	logger.Info("Notification processor initialized", "workers", 5)
-
-	// Start background notification processing
-	go server.startBackgroundProcessing()
-
-	if err := server.router.Run(":" + server.port); err != nil {
-		logger.Error("Failed to start server", "error", err)
-		os.Exit(1)
-	}
-}
-
-func NewServer() (*Server, error) {
-	// Environment variables - REQUIRED, no defaults
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		return nil, fmt.Errorf("API_PORT environment variable is required")
-	}
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		return nil, fmt.Errorf("REDIS_URL environment variable is required")
-	}
-
-	// Initialize database with exponential backoff
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "notification-hub",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("database connection failed: %v", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
-	logger.Info("Database connection pool established successfully")
 
-	// Initialize Redis
-	redisOpts, err := redis.ParseURL(redisURL)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
+		log.Fatalf("file storage configuration failed: %v", err)
 	}
-
-	rdb := redis.NewClient(redisOpts)
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	fileRoots := filerouting.New(primaryFileRoots)
+	service := hub.New(db, schedule.System(), log.Default())
+	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
+	service.SetRecipientResolver(integrations.OperatorStateRecipient())
+	configureWebPush(service, fileRoots)
+	posture := "personal"
+	if state, postureErr := trustposture.LoadWorkingTree(); postureErr != nil {
+		slog.Warn("trust posture unavailable; using fail-safe personal posture", "error", postureErr)
+	} else {
+		posture = string(state.Posture)
 	}
-
-	// Create notification processor
-	processor := NewNotificationProcessor(db, rdb)
-
-	server := &Server{
-		db:        db,
-		redis:     rdb,
-		port:      port,
-		processor: processor,
+	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
+	service.SetDesktopSender(hub.NewDesktopSender())
+	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
+	service.SetRemoteDelivery(hub.NewBridgeRemoteFromEnvironment())
+	if switchboardURL := strings.TrimSpace(os.Getenv("SWITCHBOARD_API_URL")); switchboardURL != "" {
+		service.SetChannelDelivery(hub.NewSwitchboardDelivery(switchboardURL))
+	} else if switchboardURL, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "switchboard"); resolveErr == nil {
+		service.SetChannelDelivery(hub.NewSwitchboardDelivery(switchboardURL))
+	} else {
+		slog.Warn("switchboard URL unavailable; conversational notification delivery will retry when configured", "error", resolveErr)
 	}
-
-	server.setupRoutes()
-	return server, nil
-}
-
-func (s *Server) setupRoutes() {
-	gin.SetMode(gin.ReleaseMode)
-	s.router = gin.Default()
-
-	// Add CORS middleware with explicit origin control
-	s.router.Use(func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-
-		// Build allowed origins from environment
-		// UI_PORT is required since UI is a core component
-		uiPort := os.Getenv("UI_PORT")
-		if uiPort == "" {
-			logger.Error("UI_PORT environment variable is required for CORS configuration")
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Server configuration error"})
-			return
-		}
-
-		// N8N_URL is optional - only add if n8n resource is enabled
-		// Default origins include localhost and 127.0.0.1 for local development
-		allowedOrigins := []string{
-			"http://localhost:" + uiPort,
-			"http://127.0.0.1:" + uiPort, // Required for health checks and local testing
-		}
-
-		// N8N_URL is optional: only used when n8n workflow integration is enabled
-		// Gracefully handles absence by only adding to CORS if present
-		n8nURL := os.Getenv("N8N_URL")
-		if n8nURL != "" {
-			allowedOrigins = append(allowedOrigins, n8nURL)
-		}
-
-		// Check if origin is in allowed list
-		allowed := false
-		for _, allowedOrigin := range allowedOrigins {
-			if origin == allowedOrigin {
-				allowed = true
-				c.Header("Access-Control-Allow-Origin", origin)
-				break
-			}
-		}
-
-		// If no origin header (e.g., CLI/Postman), allow but don't set CORS header
-		if origin == "" {
-			allowed = true
-		}
-
-		if allowed {
-			c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-			c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization,X-API-Key")
-			c.Header("Access-Control-Allow-Credentials", "true")
-		}
-
-		if c.Request.Method == "OPTIONS" {
-			if allowed {
-				c.AbortWithStatus(204)
-			} else {
-				c.AbortWithStatus(403)
-			}
-			return
-		}
-		c.Next()
-	})
-
-	// Health check
-	s.router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(s.db), health.Critical).Handler()))
-	s.router.GET("/docs", s.apiDocs)
-
-	// Public endpoints
-	public := s.router.Group("/api/v1")
-	public.POST("/webhooks/unsubscribe", s.handleUnsubscribe)
-
-	// Profile management (admin endpoints)
-	admin := s.router.Group("/api/v1/admin")
-	admin.POST("/profiles", s.createProfile)
-	admin.GET("/profiles", s.listProfiles)
-	admin.GET("/profiles/:id", s.getProfile)
-	admin.PUT("/profiles/:id", s.updateProfile)
-
-	// Profile-scoped endpoints (require API key authentication)
-	api := s.router.Group("/api/v1/profiles/:profile_id")
-	api.Use(s.authenticateAPIKey())
-
-	// Notification endpoints
-	api.POST("/notifications/send", s.sendNotification)
-	api.GET("/notifications", s.listNotifications)
-	api.GET("/notifications/:id", s.getNotification)
-	api.GET("/notifications/:id/status", s.getNotificationStatus)
-
-	// Contact management
-	api.POST("/contacts", s.createContact)
-	api.GET("/contacts", s.listContacts)
-	api.GET("/contacts/:id", s.getContact)
-	api.PUT("/contacts/:id", s.updateContact)
-	api.PUT("/contacts/:id/preferences", s.updateContactPreferences)
-
-	// Template management
-	api.POST("/templates", s.createTemplate)
-	api.GET("/templates", s.listTemplates)
-	api.GET("/templates/:id", s.getTemplate)
-	api.PUT("/templates/:id", s.updateTemplate)
-
-	// Analytics
-	api.GET("/analytics/delivery-stats", s.getDeliveryStats)
-	api.GET("/analytics/daily-stats", s.getDailyStats)
-}
-
-// =============================================================================
-// MIDDLEWARE
-// =============================================================================
-
-func (s *Server) authenticateAPIKey() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		profileID := c.Param("profile_id")
-		apiKey := c.GetHeader("X-API-Key")
-
-		if apiKey == "" {
-			apiKey = c.GetHeader("Authorization")
-			if strings.HasPrefix(apiKey, "Bearer ") {
-				apiKey = strings.TrimPrefix(apiKey, "Bearer ")
-			}
-		}
-
-		if apiKey == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "API key required"})
-			c.Abort()
-			return
-		}
-
-		// Verify API key and profile
-		var profile Profile
-		var apiKeyHash string
-		var settingsJSON []byte
-		query := `
-			SELECT id, name, slug, api_key_prefix, api_key_hash, settings, plan, status, created_at, updated_at
-			FROM profiles
-			WHERE id = $1 AND status = 'active'
-		`
-
-		logger.Info("Authenticating API request", "profile_id", profileID, "api_key_prefix", apiKey[:min(len(apiKey), 6)])
-
-		err := s.db.QueryRow(query, profileID).Scan(
-			&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
-			&apiKeyHash, &settingsJSON, &profile.Plan, &profile.Status,
-			&profile.CreatedAt, &profile.UpdatedAt,
-		)
-
-		if err != nil {
-			logger.Error("Profile lookup failed", "error", err, "profile_id", profileID)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key or profile"})
-			c.Abort()
-			return
-		}
-
-		// Parse settings JSON
-		if len(settingsJSON) > 0 {
-			if err := json.Unmarshal(settingsJSON, &profile.Settings); err != nil {
-				logger.Error("Failed to parse settings", "error", err)
-				profile.Settings = make(map[string]interface{})
-			}
-		} else {
-			profile.Settings = make(map[string]interface{})
-		}
-
-		// Compare API key with bcrypt hash
-		if err := bcrypt.CompareHashAndPassword([]byte(apiKeyHash), []byte(apiKey)); err != nil {
-			logger.Error("API key verification failed", "error", err)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key or profile"})
-			c.Abort()
-			return
-		}
-
-		logger.Info("Authentication successful", "profile_id", profileID, "profile_name", profile.Name)
-
-		c.Set("profile", profile)
-		c.Next()
+	eventDefaults := integrations.LiveConfig{
+		Pattern:               "incident.**",
+		SensitivityBySeverity: map[string]string{"critical": "critical", "warning": "sensitive", "informational": "public"},
+		Templates: map[string]integrations.EventTemplate{
+			"incident.opened.v1":           {Title: "Incident opened: {{check_id}}", Body: "{{message}}"},
+			"incident.severity_changed.v1": {Title: "Incident severity changed: {{check_id}}", Body: "{{message}}"},
+			"incident.resolved.v1":         {Title: "Incident resolved: {{check_id}}", Body: "{{message}}"},
+		},
 	}
-}
-
-// =============================================================================
-// API ENDPOINTS
-// =============================================================================
-
-func (s *Server) apiDocs(c *gin.Context) {
-	// Get the actual API port from environment (required by lifecycle system)
-	apiPort := os.Getenv("API_PORT")
-	// API_PORT is always set by the Vrooli lifecycle system, so no fallback needed
-	baseURL := fmt.Sprintf("http://localhost:%s", apiPort)
-
-	docs := fmt.Sprintf(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Notification Hub API Documentation</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
-        .method { font-weight: bold; color: #007cba; }
-        .url { font-family: monospace; background: #333; color: #fff; padding: 2px 6px; border-radius: 3px; }
-    </style>
-</head>
-<body>
-    <h1>🔔 Notification Hub API</h1>
-    <p>Multi-tenant notification management system for email, SMS, and push notifications.</p>
-
-    <h2>Authentication</h2>
-    <p>Use profile-scoped API keys in the <code>X-API-Key</code> header or <code>Authorization: Bearer</code> header.</p>
-
-    <h2>Core Endpoints</h2>
-
-    <div class="endpoint">
-        <span class="method">POST</span> <span class="url">/api/v1/profiles/{profile_id}/notifications/send</span>
-        <p>Send notifications via multiple channels. Supports templates, variables, and channel preferences.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> <span class="url">/api/v1/profiles/{profile_id}/notifications</span>
-        <p>List notifications with filtering and pagination.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">POST</span> <span class="url">/api/v1/profiles/{profile_id}/contacts</span>
-        <p>Create notification recipients with channel preferences.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method">GET</span> <span class="url">/api/v1/profiles/{profile_id}/analytics/delivery-stats</span>
-        <p>Get delivery statistics and performance metrics.</p>
-    </div>
-
-    <h2>Example Request</h2>
-    <pre>
-curl -X POST %s/api/v1/profiles/your-profile-id/notifications/send \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template_id": "welcome-email",
-    "recipients": [{
-      "contact_id": "contact-uuid",
-      "variables": {"name": "John", "company": "Acme Corp"}
-    }],
-    "channels": ["email", "push"],
-    "priority": "normal"
-  }'
-    </pre>
-
-    <p>For detailed API documentation, see the <a href="/health">health endpoint</a> for service status.</p>
-</body>
-</html>
-	`, baseURL)
-	c.Header("Content-Type", "text/html")
-	c.String(http.StatusOK, docs)
-}
-
-// Profile Management
-func (s *Server) createProfile(c *gin.Context) {
-	var req struct {
-		Name     string                 `json:"name" binding:"required"`
-		Slug     string                 `json:"slug"`
-		Settings map[string]interface{} `json:"settings"`
-		Plan     string                 `json:"plan"`
+	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {
+		eventDefaults.EventsAPIBase = eventsBase
+	} else {
+		slog.Error("vrooli-events URL could not be resolved", "error", resolveErr)
 	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
+	if apiPort := strings.TrimSpace(os.Getenv("API_PORT")); apiPort != "" {
+		eventDefaults.WebhookURL = "http://127.0.0.1:" + apiPort + "/api/v1/integrations/events"
 	}
-
-	// Generate slug if not provided
-	if req.Slug == "" {
-		req.Slug = strings.ToLower(strings.ReplaceAll(req.Name, " ", "-"))
-	}
-
-	// Generate API key
-	apiKey, apiKeyHash, apiKeyPrefix, err := s.generateAPIKey(req.Slug)
+	eventConfig, err := integrations.NewPersistentLiveConfigStore(context.Background(), db, eventDefaults)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate API key"})
-		return
+		log.Fatalf("event integration config initialization failed: %v", err)
+	}
+	if err := integrations.EnsureEventSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL, eventConfig.Get().Pattern); err != nil {
+		slog.Error("vrooli-events subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events subscription reconciled", "pattern", eventConfig.Get().Pattern)
 	}
 
-	// Convert settings to JSON for JSONB column
-	settingsJSON := []byte("{}")
-	if req.Settings != nil {
-		settingsJSON, err = json.Marshal(req.Settings)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid settings format"})
-			return
-		}
-	}
-
-	// Create profile
-	profileID := uuid.New()
-	query := `
-		INSERT INTO profiles (id, name, slug, api_key_hash, api_key_prefix, settings, plan, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
-		RETURNING created_at, updated_at
-	`
-
-	var createdAt, updatedAt time.Time
-	err = s.db.QueryRow(query, profileID, req.Name, req.Slug, apiKeyHash, apiKeyPrefix,
-		settingsJSON, req.Plan).Scan(&createdAt, &updatedAt)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create profile: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"id":             profileID,
-		"name":           req.Name,
-		"slug":           req.Slug,
-		"api_key":        apiKey, // Only returned on creation
-		"api_key_prefix": apiKeyPrefix,
-		"plan":           req.Plan,
-		"status":         "active",
-		"created_at":     createdAt,
-		"updated_at":     updatedAt,
-	})
-}
-
-func (s *Server) listProfiles(c *gin.Context) {
-	query := `
-		SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
-		FROM profiles
-		ORDER BY created_at DESC
-	`
-
-	rows, err := s.db.Query(query)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch profiles"})
-		return
-	}
-	defer rows.Close()
-
-	var profiles []Profile
-	for rows.Next() {
-		var p Profile
-		var settingsJSON []byte
-		err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.APIKeyPrefix,
-			&settingsJSON, &p.Plan, &p.Status, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			logger.Error("Failed to scan profile row", "error", err)
-			continue
-		}
-
-		// Unmarshal settings JSON
-		if len(settingsJSON) > 0 {
-			if err := json.Unmarshal(settingsJSON, &p.Settings); err != nil {
-				logger.Error("Failed to unmarshal settings", "error", err, "profile_id", p.ID)
-				p.Settings = make(map[string]interface{})
-			}
-		} else {
-			p.Settings = make(map[string]interface{})
-		}
-
-		profiles = append(profiles, p)
-	}
-
-	c.JSON(http.StatusOK, gin.H{"profiles": profiles})
-}
-
-func (s *Server) getProfile(c *gin.Context) {
-	profileID := c.Param("id")
-
-	var profile Profile
-	var settingsJSON []byte
-	query := `
-		SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
-		FROM profiles
-		WHERE id = $1
-	`
-
-	err := s.db.QueryRow(query, profileID).Scan(
-		&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
-		&settingsJSON, &profile.Plan, &profile.Status,
-		&profile.CreatedAt, &profile.UpdatedAt,
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.ModuleWithIdentity(db, ownerVerifier, "notification-hub-api", "1.0.0", posture),
+		capsH.Module(capabilities.NewRegistry()),
+		notificationH.ModuleWithVerifier(service, ownerVerifier),
+		recipientsH.ModuleWithVerifier(service, ownerVerifier),
+		routingH.ModuleWithVerifier(service, ownerVerifier),
+		deliveryH.ModuleWithVerifier(service, ownerVerifier),
+		conversationH.ModuleWithVerifier(service, ownerVerifier),
 	)
 
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
-		return
-	}
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookWithTemplatesAndSensitivity(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"), func() map[string]integrations.EventTemplate {
+		return eventConfig.Get().Templates
+	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }))
+	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
+	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
+		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
+	}))
 
-	// Unmarshal settings JSON
-	if len(settingsJSON) > 0 {
-		if err := json.Unmarshal(settingsJSON, &profile.Settings); err != nil {
-			logger.Error("Failed to unmarshal settings", "error", err, "profile_id", profile.ID)
-			profile.Settings = make(map[string]interface{})
-		}
-	} else {
-		profile.Settings = make(map[string]interface{})
-	}
+	rootMux.Handle("/", srv.Handler())
 
-	c.JSON(http.StatusOK, profile)
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
-func (s *Server) updateProfile(c *gin.Context) {
-	profileID := c.Param("id")
-
-	var req struct {
-		Name     *string                `json:"name"`
-		Settings map[string]interface{} `json:"settings"`
-		Plan     *string                `json:"plan"`
-		Status   *string                `json:"status"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
+func configureWebPush(service *hub.Service, fileRoots *filerouting.RoutedRoots) {
+	if service == nil {
 		return
 	}
-
-	// Build dynamic update query
-	setParts := []string{"updated_at = NOW()"}
-	args := []interface{}{profileID}
-	argIndex := 2
-
-	if req.Name != nil {
-		setParts = append(setParts, fmt.Sprintf("name = $%d", argIndex))
-		args = append(args, *req.Name)
-		argIndex++
+	subject := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_SUBJECT"))
+	if subject == "" {
+		subject = "mailto:notification-hub@localhost"
 	}
-	if req.Settings != nil {
-		setParts = append(setParts, fmt.Sprintf("settings = $%d", argIndex))
-		args = append(args, req.Settings)
-		argIndex++
-	}
-	if req.Plan != nil {
-		setParts = append(setParts, fmt.Sprintf("plan = $%d", argIndex))
-		args = append(args, *req.Plan)
-		argIndex++
-	}
-	if req.Status != nil {
-		setParts = append(setParts, fmt.Sprintf("status = $%d", argIndex))
-		args = append(args, *req.Status)
-		argIndex++
-	}
-
-	query := fmt.Sprintf("UPDATE profiles SET %s WHERE id = $1", strings.Join(setParts, ", "))
-
-	_, err := s.db.Exec(query, args...)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
-		return
-	}
-
-	// Return updated profile
-	s.getProfile(c)
-}
-
-// Notification Management
-func (s *Server) sendNotification(c *gin.Context) {
-	profile := c.MustGet("profile").(Profile)
-
-	var req NotificationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	// Set defaults
-	if req.Priority == "" {
-		req.Priority = "normal"
-	}
-	if req.Channels == nil || len(req.Channels) == 0 {
-		req.Channels = []string{"email"}
-	}
-	if req.Variables == nil {
-		req.Variables = make(map[string]interface{})
-	}
-
-	notifications := []uuid.UUID{}
-
-	// Process each recipient
-	for _, recipient := range req.Recipients {
-		notificationID := uuid.New()
-
-		// Create notification record
-		query := `
-			INSERT INTO notifications (
-				id, profile_id, contact_id, template_id, subject, content, variables,
-				channels_requested, priority, scheduled_at, status, external_id
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11)
-		`
-
-		scheduledAt := time.Now()
-		if req.ScheduledAt != nil {
-			scheduledAt = *req.ScheduledAt
-		}
-
-		var templateUUID *uuid.UUID
-		if req.TemplateID != nil {
-			parsed, err := uuid.Parse(*req.TemplateID)
-			if err == nil {
-				templateUUID = &parsed
-			}
-		}
-
-		contactUUID, err := uuid.Parse(recipient.ContactID)
+	privateValue := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_PRIVATE_KEY"))
+	publicValue := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_PUBLIC_KEY"))
+	if privateValue == "" {
+		keyPath, err := fileRootPath(context.Background(), fileRoots, storage.ClassState, "vapid-private-key")
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid contact_id: " + recipient.ContactID})
+			slog.Warn("web push transport disabled", "error", fmt.Errorf("resolve VAPID state path: %w", err))
 			return
 		}
-
-		// Merge recipient variables with request variables
-		mergedVariables := make(map[string]interface{})
-		for k, v := range req.Variables {
-			mergedVariables[k] = v
-		}
-		for k, v := range recipient.Variables {
-			mergedVariables[k] = v
-		}
-
-		// Convert maps to JSON for JSONB columns
-		contentJSON := []byte("{}")
-		if req.Content != nil {
-			contentJSON, err = json.Marshal(req.Content)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid content format"})
-				return
-			}
-		}
-
-		variablesJSON, err := json.Marshal(mergedVariables)
+		privateValue, err = push.LoadOrCreatePrivateKey(keyPath)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid variables format"})
-			return
-		}
-
-		_, err = s.db.Exec(query, notificationID, profile.ID, contactUUID, templateUUID,
-			req.Subject, contentJSON, variablesJSON, pq.Array(req.Channels), req.Priority,
-			scheduledAt, req.ExternalID)
-
-		if err != nil {
-			logger.Error("Failed to create notification", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create notification"})
-			return
-		}
-
-		notifications = append(notifications, notificationID)
-	}
-
-	// Process notifications immediately if not scheduled for future
-	if req.ScheduledAt == nil || req.ScheduledAt.Before(time.Now().Add(1*time.Minute)) {
-		go s.processor.ProcessPendingNotifications()
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"notifications": notifications,
-		"message":       fmt.Sprintf("Created %d notifications", len(notifications)),
-	})
-}
-
-// startBackgroundProcessing runs periodic notification processing
-func (s *Server) startBackgroundProcessing() {
-	ticker := time.NewTicker(10 * time.Second) // Process every 10 seconds
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			if err := s.processor.ProcessPendingNotifications(); err != nil {
-				logger.Error("Error processing notifications", "error", err)
-			}
-		}
-	}
-}
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-func (s *Server) generateAPIKey(slug string) (string, string, string, error) {
-	// Generate random bytes
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return "", "", "", err
-	}
-
-	// Create API key with prefix
-	prefix := slug[:min(len(slug), 4)] + "_"
-	apiKey := prefix + hex.EncodeToString(bytes)
-
-	// Hash the API key
-	hash, err := bcrypt.GenerateFromPassword([]byte(apiKey), bcrypt.DefaultCost)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	return apiKey, string(hash), prefix, nil
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// Additional endpoint stubs (implement as needed)
-func (s *Server) listNotifications(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"notifications": []Notification{}})
-}
-
-func (s *Server) getNotification(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) getNotificationStatus(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) createContact(c *gin.Context) {
-	profile := c.MustGet("profile").(Profile)
-
-	var req struct {
-		ExternalID  *string                `json:"external_id"`
-		Identifier  string                 `json:"identifier" binding:"required"`
-		FirstName   *string                `json:"first_name"`
-		LastName    *string                `json:"last_name"`
-		Timezone    string                 `json:"timezone"`
-		Locale      string                 `json:"locale"`
-		Preferences map[string]interface{} `json:"preferences"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
-		return
-	}
-
-	// Set defaults
-	if req.Timezone == "" {
-		req.Timezone = "UTC"
-	}
-	if req.Locale == "" {
-		req.Locale = "en-US"
-	}
-
-	// Convert preferences to JSON
-	preferencesJSON := []byte("{}")
-	if req.Preferences != nil {
-		var err error
-		preferencesJSON, err = json.Marshal(req.Preferences)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid preferences format"})
+			slog.Warn("web push transport disabled", "error", err)
 			return
 		}
 	}
-
-	// Create contact
-	contactID := uuid.New()
-	query := `
-		INSERT INTO contacts (
-			id, profile_id, external_id, identifier, first_name, last_name,
-			timezone, locale, preferences, status
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
-		RETURNING created_at, updated_at
-	`
-
-	var createdAt, updatedAt time.Time
-	err := s.db.QueryRow(query, contactID, profile.ID, req.ExternalID, req.Identifier,
-		req.FirstName, req.LastName, req.Timezone, req.Locale, preferencesJSON).
-		Scan(&createdAt, &updatedAt)
-
+	sender, err := push.NewFromValues(privateValue, publicValue, subject)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create contact: " + err.Error()})
+		slog.Warn("web push transport disabled", "error", err)
 		return
 	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"id":          contactID,
-		"profile_id":  profile.ID,
-		"external_id": req.ExternalID,
-		"identifier":  req.Identifier,
-		"first_name":  req.FirstName,
-		"last_name":   req.LastName,
-		"timezone":    req.Timezone,
-		"locale":      req.Locale,
-		"status":      "active",
-		"created_at":  createdAt,
-		"updated_at":  updatedAt,
-	})
-}
-
-func (s *Server) listContacts(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"contacts": []Contact{}})
-}
-
-func (s *Server) getContact(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) updateContact(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) updateContactPreferences(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) createTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) listTemplates(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"templates": []Template{}})
-}
-
-func (s *Server) getTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) updateTemplate(c *gin.Context) {
-	c.JSON(http.StatusNotFound, gin.H{"error": "Not implemented"})
-}
-
-func (s *Server) getDeliveryStats(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"stats": map[string]interface{}{}})
-}
-
-func (s *Server) getDailyStats(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"daily_stats": []interface{}{}})
-}
-
-func (s *Server) handleUnsubscribe(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "Unsubscribe processed"})
+	service.SetPushSender(pushAdapter{sender: sender})
+	service.SetWebPushPublicKey(sender.PublicKeyValue())
 }

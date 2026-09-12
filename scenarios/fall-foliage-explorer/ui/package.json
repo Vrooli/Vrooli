@@ -4,13 +4,32 @@
   "description": "Interactive autumn foliage tracking and prediction UI",
   "main": "server.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "start": "vrooli lifecycle protect -- node server.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit",
     "build": "node ./scripts/build.js"
   },
   "dependencies": {
+    "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   },
-  "keywords": ["foliage", "autumn", "maps", "travel"],
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "foliage",
+    "autumn",
+    "maps",
+    "travel"
+  ],
   "author": "Vrooli",
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

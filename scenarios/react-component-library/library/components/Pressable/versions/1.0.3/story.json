@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Ready",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Continue",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Save draft",
+          "role": "button"
+        },
+        {
+          "kind": "layout",
+          "minHeight": 44,
+          "minWidth": 44,
+          "selector": "[data-rcl-pressable]"
+        }
+      ],
+      "id": "ready",
+      "mode": "live",
+      "name": "Ready",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Pending",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Saving…",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Voice input",
+          "role": "button"
+        },
+        {
+          "kind": "attribute",
+          "name": "aria-busy",
+          "selector": "[data-rcl-pressable][data-rcl-pending=\"true\"]",
+          "value": "true"
+        }
+      ],
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending",
+      "role": "boundary"
+    }
+  ],
+  "title": "Pressable"
+}

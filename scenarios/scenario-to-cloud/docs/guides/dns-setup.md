@@ -9,6 +9,23 @@ This doc explains both setups and how they relate to scenario-to-cloud preflight
 
 ---
 
+## DNS policy and certificate issuance
+
+- `edge.dns_policy` in the manifest decides whether the plan requires DNS to
+  resolve to the target (`required`, the default), warns (`warn`) or skips the
+  check (`skip`). Under `required` a mismatch blocks the plan before any
+  target effect.
+- If the apex/`www` records are proxied through Cloudflare (orange cloud),
+  HTTP-01 issuance cannot reach the origin and DNS-01 is required. Supply a
+  Cloudflare API token as a deployment secret (`CLOUDFLARE_API_TOKEN`) so
+  Caddy can complete DNS-01.
+- DNS-only during issuance (the simpler path): set apex/`www` and the edge
+  domain to DNS-only until certificates are issued, confirm the A/AAAA
+  records point at the target, make sure inbound 80/443 are open at the
+  firewall and the provider security group, then re-enable proxying if you
+  want it. `scenario-to-cloud edge dns-check <deployment_id>` and
+  `edge tls <deployment_id>` report the state at each step.
+
 ## Option A: Cloudflare Worker proxy (recommended when you need dynamic OG tags)
 
 **When to use:** You want the Cloudflare Worker in `platforms/og-worker/` to intercept crawler requests and inject OG meta tags before serving content from your VPS.

@@ -8,14 +8,18 @@ import (
 type BypassCondition string
 
 const (
-	// BypassBYOK bypasses credit charging when the user provides their own API key.
-	BypassBYOK BypassCondition = "byok"
-
-	// BypassResourceOpenrouter bypasses credit charging when using resource openrouter.
-	BypassResourceOpenrouter BypassCondition = "resource_openrouter"
+	// BypassCredentialProvenance bypasses charging when a credential was
+	// provisioned through the shared credential authority. This is provenance,
+	// not a caller-supplied key or an environment-variable check.
+	BypassCredentialProvenance BypassCondition = "authority_provisioned" // #nosec G101 -- provenance label, not a secret
 
 	// BypassLocalExecution bypasses credit charging for local-only execution.
 	BypassLocalExecution BypassCondition = "local_execution"
+
+	// BypassResourceOpenrouter bypasses charging when the caller is using its
+	// own OpenRouter resource credential. Resource provenance is supplied by
+	// the server-side credential resolver, never by request input.
+	BypassResourceOpenrouter BypassCondition = "resource_openrouter"
 )
 
 // CreditPolicy defines how credits are charged for a navigator.
@@ -37,15 +41,15 @@ type CreditPolicy struct {
 }
 
 // ShouldChargeCredits determines if credits should be charged given the conditions.
-func (p CreditPolicy) ShouldChargeCredits(isBYOK, hasResourceOpenrouter, isLocalExecution bool) bool {
+func (p CreditPolicy) ShouldChargeCredits(provenance CredentialProvenance, hasResourceOpenrouter, isLocalExecution bool) bool {
 	if !p.RequiresCredits {
 		return false
 	}
 
 	for _, condition := range p.BypassConditions {
 		switch condition {
-		case BypassBYOK:
-			if isBYOK {
+		case BypassCredentialProvenance:
+			if provenance == CredentialProvenanceAuthority {
 				return false
 			}
 		case BypassResourceOpenrouter:

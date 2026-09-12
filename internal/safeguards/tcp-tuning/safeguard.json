@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "tcp_tuning",
+  "storage": {
+    "entries": {
+      "sysctl_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sysctl.d/99-vrooli-tcp.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes Linux TCP kernel settings."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
+  "description": "Optimize TCP stack parameters for reliable connectivity (PMTU probing, ECN, base MSS)",
+  "handler": "tcp_tuning",
+  "risk": "medium",
+  "verificationCheck": {
+    "files": [
+      "/etc/sysctl.d/99-vrooli-tcp.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "network-host-config",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_implemented",
+      "evidence": "The macOS TCP provider is not wired into this safeguard yet; the host mechanism is the sysctl network-tuning surface.",
+      "mechanism": "sysctl_network_tuning",
+      "since": "2026-08-26"
+    },
+    "windows": {
+      "status": "not_implemented",
+      "evidence": "The Windows TCP provider is not wired into this safeguard yet; the host mechanism is the netsh interface tcp surface.",
+      "mechanism": "netsh_interface_tcp",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

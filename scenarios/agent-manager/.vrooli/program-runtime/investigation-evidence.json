@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "agent-manager.investigation-evidence",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Collect bounded run reports and friction projections for an explicit investigation subject set, preserving unknown evidence as unknown.",
+  "inputs": {
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "One to eight explicit run identifiers; cohort membership is never inferred."
+    }
+  },
+  "assumptions": [
+    "agent-manager is running and its report and episode projections are reachable",
+    "run reports and episodes are bounded owner projections; transcript bodies are not read"
+  ],
+  "invariants": [
+    "read only; no launches, mutations, cursor movement, or recommendations",
+    "one report and one episode read per declared subject run, with at most four episode rows materialized per run",
+    "a failed subject read remains an explicit unknown and degrades the envelope to partial",
+    "the envelope is printed exactly once on every path"
+  ],
+  "bindings": [
+    {
+      "id": "agent-manager/run/report",
+      "effect": "read"
+    },
+    {
+      "id": "agent-manager/run/episodes",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Bounded subject evidence rows with availability and projection metadata"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Explicit subject run IDs and projection command identities; never transcript bodies"
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32
+  },
+  "fixtures": [
+    {
+      "id": "missing-subjects",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    },
+    {
+      "id": "empty-subjects",
+      "inputs": {
+        "run_ids": []
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "agent-manager"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "agent-manager"
+}

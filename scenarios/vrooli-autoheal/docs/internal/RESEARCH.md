@@ -8,11 +8,6 @@
 
 ## Related Scenarios
 
-### maintenance-orchestrator
-- **Purpose**: Control plane for maintenance scenarios (activate/deactivate)
-- **Relationship**: Complementary - autoheal monitors health, maintenance-orchestrator controls maintenance windows
-- **Overlap**: None - different concerns (health vs activation)
-
 ### system-monitor
 - **Purpose**: Real-time metrics, anomaly detection, AI investigation
 - **Relationship**: Complementary - system-monitor provides detailed metrics and anomaly detection; autoheal focuses on health checks and auto-recovery
@@ -101,7 +96,7 @@ vrooli-autoheal.sh (main orchestrator)
 1. **Cross-platform binaries**: Single binary, no runtime dependencies
 2. **Low overhead**: Important for a watchdog that runs continuously
 3. **System access**: Good stdlib support for process management, networking
-4. **Consistency**: Matches other Vrooli scenarios (maintenance-orchestrator, system-monitor)
+4. **Consistency**: Matches other Vrooli scenarios (system-monitor)
 
 ### Why React for UI?
 1. **Consistency**: Matches other Vrooli scenario UIs

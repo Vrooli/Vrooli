@@ -1,0 +1,16 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "platform-storage-packaging",
+  "name": "Platform, storage \u0026 packaging",
+  "description": "Platform, storage, and packaging: storage-layer design and cross-platform readiness for deployment and distribution.",
+  "parentTopicId": "development",
+  "skills": [
+    "storage-steer",
+    "cross-platform-readiness"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:23Z",
+  "updatedAt": "2026-06-04T17:35:23Z"
+}

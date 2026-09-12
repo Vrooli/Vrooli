@@ -1,32 +1,188 @@
 # Progress Log
 
+Historical execution details are preserved beneath the protected runtime home:
+`plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-desktop/docs/internal/PROGRESS.md`.
+The archive retains exact entries, validation receipts, and unresolved qualifications;
+relocation does not resolve a finding or establish current readiness.
+The table retains selected dated milestones; consult the archive for the full sequence.
+
+These are dated development milestones, not a current readiness verdict.
+Detailed pre-cleanup entries are preserved beneath the protected runtime home:
+`plan-artifacts/docs-cleanup-20260907-final-txumdx73/scenarios/scenario-to-desktop/docs/internal/PROGRESS.md`.
+Use that original for command transcripts, measurements, and full qualifications.
+Hashes and recovery instructions are in the project documentation cleanup record
+(`docs/internal/PROGRESS.md`, "Documentation cleanup completion — 2026-09-07").
+Current unresolved issues belong in this scenario's problem ledger; the historical
+handoff notes below remain follow-up leads until checked against current evidence.
+
+## 2026-09-04 — Outcome-linked learning
+
+Implemented recommendations 1–3. The usage skill captures advice decisions and
+verified outcomes through `vrooli-memory learning record`; the improvement board
+adds failure recurrence, success effort, and advice-outcome measurements. Contexts,
+unresolved tasks, missing evidence, and test provenance remain distinct. Targets
+stay null until comparable operator baselines exist.
+
+The shared implementation, scope provisioning receipt, capture/recall verification,
+fixture evidence, and known Memory suite limitations are in the
+[Vrooli Memory work record](../../../vrooli-memory/docs/internal/PROGRESS.md). This scenario's five-phase validation passed
+in Test Genie `20260904-213256-6066e7da`. Fresh runtime explanations and fixtures passed for both
+setpoint programs. The skill divergence review resolves missing recall, evidence,
+and baselines conservatively; no release gate or evidence floor was weakened.
+
+## Skill and program setup (2026-09-04)
+
+### Summary
+
+Added the scenario-owned usage/improve declaration, three governed read programs,
+and the `scenario-to-desktop-usage` memory scope. The usage skill replaces stale
+CLI recipes with operation selection and evidence boundaries. The improve skill
+retains the complete desktop behavior contract and routes missing measurements
+instead of claiming that capture counts or successful reads establish maturity.
+This work does not implement the remaining desktop platform adapters.
+
+The usage role is owed because `cli/manifest.json` exists. The improve role is
+owed because deployment-manager and scenario-to-android declare this dependency.
+No independent feature role was extracted: the inventory supplied no pattern
+shared by two agents that requires another skill. Role/rung canon is
+`docs/agent-system/SKILL_AUTHORING.md`; authoring followed `skill-set-authoring`,
+`skill-authoring-tools`, `improve-skill-authoring`, and `program-runtime`.
+
+### Sensor and program inventory
+
+| Surface | Observation on 2026-09-04 | Interpretation |
+|---|---|---|
+| `program-runtime bindings condition --scenario scenario-to-desktop --window-seconds 604800` | 48 bindings; five usage-program reads selected by the board; selected reads dormant in the receipt window | Measured, but insufficient serving evidence; never exercise writes to improve this reading |
+| `agent-manager.friction-digest` | `prog_f8e33772-d69e-4ff2-a380-addda6354473`: 40 recent runs, truncated window, zero attributable desktop episodes | Sampled observation; cannot establish representative zero friction |
+| `measures-health validate scenario scenario-to-desktop` | Passed with seven parameter-tier warnings | Snapshot measures exist; goal-level outcome aggregates below are pending |
+| `business-health matrix show scenario-to-desktop --format summary` | 34 requirements, four modules, 18 operational targets; no unproven status claims | Linkage inventory, not implementation completion |
+| `evals/*.primary.json` | No declared corpus | No invented floor |
+| `performance-baseline.json` | Five cold and five warm historical samples; cohort metadata requires review | Baseline candidate, not a live reading or approved budget |
+| `pipeline-inspect` | Three declared read bindings; one selected pipeline; at most five returned task references from a 100-task sample | Diagnosis only; saturation is explicit |
+| `evidence-inventory` | Two declared read bindings; at most five returned capture references | Historical metadata, not candidate-artifact proof |
+| `setpoint-read` | External binding sensor plus explicit external/pending rows | Six rows match the improve skill; `ok` describes execution only |
+
+The runtime's contract catalog loads at startup. Direct `library run` reads the
+scenario source files; library search needs the refreshed catalog. Registration
+uses the scenario-owned files and `.vrooli/service.json`, with no library-row edits.
+
+### Filed obligations
+
+Reuse these references on the next cycle. Measurement workers use
+`prompt-manager skill read measures-adoption`. Filing is not completion.
+
+| Row or missing operation | Work reference |
+|---|---|
+| desktop-behavior | `chore/scenario-to-desktop-measure-desktop-behavior` |
+| runtime-performance | `chore/scenario-to-desktop-measure-runtime-performance` |
+| pipeline-performance | `chore/scenario-to-desktop-measure-pipeline-performance` |
+| engineering-quality | `chore/scenario-to-desktop-measure-engineering-quality` |
+| Governed target/profile/matrix operations | `fix/scenario-to-desktop-validation-bindings-w1` |
+| Server-owned pipeline wait | `fix/scenario-to-desktop-pipeline-wait-w1` |
+
+Preserve and consult existing emulator/Bridge work before proposing transport
+changes, including `execute/adopt-vrooli-emulator-in-deployment-flows`,
+`execute/vrooli-emulator-remote-node-backend`,
+`execute/macos-real-device-validation-over-bridge`, and
+`execute/windows-real-device-validation-over-bridge`.
+
+External defect: Scenario QA `knw-1788554309150137139` records the governed
+measures-health validation response's unresolved native-report type. The binding
+is declared and callable, but program `prog_04fc107e-22dc-4cf9-9168-a2c90230edd9`
+failed decoding `ScenarioCoverageReport`. Its CLI remains usable. The desktop
+board does not substitute an invented reading for this failed probe.
+
+### Findings: skill validation
+
+| Capability | Primary path | Verification | Failure path |
+|---|---|---|---|
+| Build and inspect | Mode decision, typed pipeline CLI, pipeline-inspect | Exact scenario/pipeline identity and owner stage status | Typed read errors and stage diagnosis |
+| Locate evidence | evidence-inventory, journey CLI, validation UI | Counts, references, and separately verified matrix identity | Unknown/stale/wrong-target evidence retained |
+| Regulate the ramp | setpoint-read and external friction program | Same six rows, explicit validity and baseline gaps | First-read filing and work-ladder routing |
+| Learn across attempts | Declared memory scope and task/work records | Created scope; before/after evidence references | Failed bindings recorded separately from domain outcomes |
+
+Initial Major findings were repaired: the old skill excluded bundled mode while
+prescribing it, advertised unsupported `--wait` and deploy flags, duplicated the
+CLI manual, and lacked rung labels, the learning spine, and matrix ownership.
+
+Divergence probe: attempted two compliant executions for (1) newest versus exact
+pipeline selection, (2) pending-sensor routing versus code execution, and (3)
+close-out with unavailable native targets. The final text selects exact IDs for
+continuation, files/routes missing sensors before implementation, and prohibits
+a full-maturity claim with required unavailable cells. No divergence remained on
+these probed instructions. No remaining Critical or Major authoring finding.
+
+Contract integrity: primary skill flows use human CLI output. JSON is confined
+to explicitly justified evidence linkage and program envelopes. Programs use
+only declared read bindings; no shell, filesystem, media fetch, inference, or
+delegation exists in their execution paths. No non-Vrooli primary command is
+required by the skills. Program/skill references and cited command help were
+checked against the local registry and descriptors.
+
+### Prose Retirement Map
+
+| Instruction / Gate | Disposition (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
+|---|---|---|---|---|
+| Mode, identity, release, and ownership decisions | Keep | Judgment and authority remain necessary | Canonical desktop evidence contract | Wrong-platform or wrong-artifact claims |
+| Repeated pipeline and capture joins | Collapse | Programs return bounded attributable observations | pipeline-inspect and evidence-inventory contracts | Program success confused with release approval |
+| Copied flags and build/signing recipes | Collapse | Current help owns the command surface | Verified CLI help and typed descriptors | Historical flags drift |
+| Unconditional clean/wait and obsolete deploy examples | Delete | Current behavior and task authority do not support them | pipeline run help; Deployment Manager release workflow | Destructive rebuild or unsupported call |
+| Improvement target definitions | Keep | Missing measurements cannot be inferred | PRD, provider targets, evidence contract | Invented floors or suppressed unavailable cells |
+
+### Recommendations and notes
+
+1. **A (Recommended):** Use the registered skills and three programs; execute the
+   filed measurement/binding work through the owning implementation workflows.
+   Verify each new sensor with attributable before/after evidence. **B:** Retain
+   manual UI/CLI operation while those obligations remain open; preserve the same
+   evidence boundaries and do not claim automated matrix orchestration.
+
+Initial verification: contract JSON schema checks, clean runtime name-resolution
+explanations, all eight declared fixtures in fresh test-provenance sessions, and
+26 isolated behavioral assertions passed. Assertions covered malformed inputs,
+identity mismatch, missing reads, omitted protobuf zeros, sample saturation,
+kernel failure classification, and unavailable setpoint rows. These isolated
+checks do not claim native platform or end-to-end release validation.
+
+Final Test Genie run `20260904-204358-95dedc12` passed all five requested phases:
+programs, skill-set, docs, business, and structure. Programs and skill-set report
+L2 (their ceilings); business and structure report L3. The final contract fixture
+replay also passed all eight fixtures, including the explicit 100-task bound.
+Registry read `prog_a07d1813-ee3f-4ef5-9868-d5f5cf7f354f` confirms both role IDs;
+library search returns all three scenario contracts after lifecycle refresh.
+
+The passing docs phase retains advisory reference debt. Nine marked-path warnings
+refer to existing repository-relative files in the new skills, contrary to the
+marked-reference contract; Scenario QA `knw-1788554700046604331` records this
+validator issue. Other warnings include historical command snippets, derived
+counts, and documentation-contract coverage. No reference qualifier, validator,
+or quality floor was weakened to hide those findings.
+
 ## Changelog
 
 | Date       | Author           | Change % | Description |
 |------------|------------------|----------|-------------|
-| 2026-01-15 | Ecosystem Manager | +2%     | Signal & Feedback Surface Design - Enhanced runtime observability: (1) Added structured log entries with timestamps and severity levels (INFO/WARN/ERROR/DEBUG) to all pipeline stage operations via new `appendInfo()`, `appendWarn()`, `appendError()` helpers in `stage_helpers.go`; (2) Added `ProgressPercent` (0-100) and `ProgressMessage` fields to pipeline `Status` type for quick status checks by agents and UIs without parsing stage arrays; (3) Updated orchestrator to call `UpdateProgress()` at all state transitions (start, running, stage changes, completion, failure, cancellation); (4) Added UI log parsing utilities in `pipeline-utils.ts` (`parseLogEntry()`, `parseLogs()`, `filterLogsByLevel()`, `getLogLevelStyle()`, `formatLogTimestamp()`, `getLatestSignificantLog()`) for displaying structured logs with proper formatting and severity coloring; (5) Updated TypeScript `PipelineStatus` interface with `progress_percent` and `progress_message` fields. Logs now follow parseable format `[TIMESTAMP] [LEVEL] message` for both human readability and programmatic filtering. All Go tests passing. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Error Semantics Completion - Converted all remaining ad-hoc error handling in UI api.ts to use structured ApiError class. Updated 60+ API functions to use `throwIfNotOk()` helper instead of manual `throw new Error()`. Now all API errors throughout the UI are structured with: (1) error code for programmatic identification; (2) recovery action hint (retry, fix_input, etc.) for both UI display and agent consumption; (3) optional recovery hint text for user guidance. Special 404 handling preserved for state/logs queries where "not found" is an expected non-error condition. Fixed pipeline tests to use domain errors (ErrPipelineNotFound, ErrPipelineNotResumable) instead of plain fmt.Errorf - tests now verify correct HTTP status codes (422 for validation, 404 for not found, 400 for bad requests). Removed obsolete TestWriteJSON/TestWriteError tests since methods moved to shared/http. Error semantics now fully consistent between Go backend and TypeScript frontend. All 19 test packages passing. |
-| 2026-01-15 | Ecosystem Manager | +5%     | Error Semantics & Recovery Path Design - Enhanced structured error handling: (1) Added `RecoveryAction` type to `shared/errors` with 8 recovery categories (retry, retry_with_backoff, fix_input, provide_credentials, wait_for_resource, install_dependency, contact_support, none); (2) Extended `DomainError` struct with `Recovery` and `RecoveryHint` fields; (3) Created `defaultRecoveryMap` mapping all 50+ error codes to appropriate recovery actions; (4) Updated `ErrorResponse` HTTP type to include recovery fields; (5) Created pipeline-specific error constructors with recovery hints (ErrPipelineNotFound, ErrPipelineNotResumable, etc.); (6) Refactored `pipeline/handler.go` to use domain errors via `httputil.WriteError()`; (7) Added `ApiError` class and `throwIfNotOk()` helper to UI `api.ts`; (8) Created `error-utils.ts` with UI error display helpers; (9) Enhanced `pipelineStore.ts` with `PipelineErrorInfo` interface and structured error handling. All error responses now include machine-readable recovery hints for both humans and agents. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Assumption Mapping & Hardening - Systematically audited codebase for implicit assumptions. Added defensive guards to: (1) `orchestrator.go` - UserHomeDir() fallback chain with logging when home dir unavailable; (2) `generation/analyzer.go` - VROOLI_ROOT env var support and os.Getwd() error handling; (3) `handler.go` - ContentLength handling for chunked encoding and empty body; (4) `domain/generator.ts` - validateFormInputs() now guards against null/undefined params, arrays, and string fields. No new features added - purely defensive hardening. All existing selectors already use optional chaining. Go/TS compilation verified. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Idempotency & Replay Safety Hardening - Added `IdempotencyKey` field to pipeline `Config` and `Status` types. Implemented `GetByIdempotencyKey()` in InMemoryStore and FileStore. Updated orchestrator's `RunPipeline()` to check for existing pipelines by idempotency key before starting new work, enabling safe retries where "running twice is no worse than running once". Added 12 comprehensive idempotency tests (`TestIdempotencyKeyBasic`, `TestIdempotencyKeyStored`, etc.) verifying deduplication for running, completed, and empty-key scenarios. All 19 test packages passing. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Seam Discovery & Documentation - Audited entire codebase for seam architecture. Documented 4 new API seams (Pipeline Orchestrator, Stage, Store, Supporting Seams) and 3 new UI seams (Pipeline Store, Pipeline Utils, Scenario State Hook) in SEAMS.md. Verified all existing seams are well-defined, properly documented, and consistently used. No weak or eroded seams identified - architecture is mature. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Boundary-of-Responsibility Enforcement - Consolidated duplicate validation logic. Moved comprehensive `validateFormInputs()` from `components/generator/ValidationErrors.tsx` to `domain/generator.ts`. Converted `ValidationErrors.tsx` to pure presentation component (181→58 lines). Added `ValidationError` and `ValidateFormInputsParams` types to domain layer. Deprecated simple `validateGeneratorInputs()` in favor of richer version. Updated SEAMS.md to document validation seam. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Screaming Architecture Refactoring - Removed duplicate types from root package (types.go), eliminating DesktopConfig, UpdateConfig, BundleIPCConfig duplication between main and generation packages. Deleted dead code files (domain_constants.go, package_operations.go) and unused utility functions (uniqueStrings, containsParentRef). Updated template_generator_test.go to use canonical generation.DesktopConfig types. Root package now has minimal cross-cutting concerns only. |
-| 2026-01-15 | Ecosystem Manager | +0%     | Architecture Alignment Audit - Fixed test file inconsistencies (bundle tests with outdated function signatures and test expectations that didn't match implementation behavior). All 19 test packages now pass. Documented current architecture which follows "screaming architecture" patterns well. |
-| 2026-01-16 | Ecosystem Manager | +0%     | Lint & Code Quality Cleanup - Fixed all lint errors blocking test suite: (1) Removed unused imports/variables in TypeScript (formatTimestamp, Input, Label, cn, resolveEndpoints, stateLoading, stages, StopTaskResponse); (2) Fixed deprecated `strings.Title` usage in tasks/shared/context.go by using `golang.org/x/text/cases` with proper language tag; (3) Fixed staticcheck warnings in wine_service_test.go by adding early returns after nil checks; (4) Fixed staticcheck SA4023 warnings in smoketest/store_test.go by converting interface tests to compile-time checks (var _ Interface = Impl()). All 9 test phases now pass. Architecture verified as well-aligned with screaming architecture principles. |
-| 2026-01-16 | Ecosystem Manager | +0%     | Architecture Alignment & Screaming Architecture Cleanup - (1) Removed unused log helper functions (`logInfo`, `logWarn`, `logError`, `logDebug`) from `pipeline/stage_helpers.go` - these were dead code since only the `appendInfo/appendWarn/appendError` methods (which use `appendLog` directly) were being used; (2) Fixed React hook dependency warning in `GeneratorForm.tsx` by adding missing `setSigningEnabledForBuild` to `resetFormState` callback dependencies; (3) Fixed `BuildStatus.tsx` react-hooks/exhaustive-deps warning by consolidating all derived state into a single `useMemo` hook instead of computing values on every render then using them as effect dependencies; (4) Fixed fast-refresh warnings by extracting `TEMPLATE_SUMMARIES` and `FRAMEWORK_SUMMARIES` constants from `FrameworkTemplateSection.tsx` into new `generator/constants.ts` file, and removing function re-exports from `ValidationErrors.tsx` (consumers should import from domain layer directly). TypeScript lint now shows 0 issues (reduced from 5). Go lint reduced from 37 to 33 issues. All 9 test phases pass. |
-| 2026-01-16 | Ecosystem Manager | +0%     | Boundary-of-Responsibility Enforcement (Phase 2) - Extracted build progress calculation and pipeline status transformation from presentation layer to domain layer: (1) Created `domain/build.ts` with `BUILD_STAGES` definitions, `calculateBuildProgress()`, `getBuildStageStatuses()`, `extractStageResults()`, and `pipelineStatusToBuildStatus()` functions; (2) Refactored `BuildStatus.tsx` to use domain functions instead of inline heuristics; (3) Moved `_extractStageResults()` logic from `pipelineStore.ts` to domain layer; (4) Consolidated `createErrorInfo()` helper and `ErrorInfo` type from store to `lib/error-utils.ts`; (5) Updated `pipelineStore.ts` to use shared `ErrorInfo` type and imported `createErrorInfo()`. Build stage definitions (keywords, progress percentages) now live in domain layer as single source of truth. TypeScript compilation verified. Updated SEAMS.md with new seams documentation. |
-| 2026-01-16 | Ecosystem Manager | +0%     | Browser Seam Enforcement - Unified all browser API calls to flow through established seams in `lib/browser.ts`: (1) Fixed 7 components bypassing `writeToClipboard()` seam with direct `navigator.clipboard.writeText()` calls (DebugJsonModal, SidebarHeader, DocsPanel, DiagnosticsPanels, BundledPreflightSection, BundledRuntimeSection, GenerateDesktopButton); (2) Fixed 2 components reimplementing blob download pattern instead of using `triggerBlobDownload()` seam (BundledPreflightSection, BundledRuntimeSection); (3) All clipboard operations now use result-based error handling; (4) Documented 6 high-priority API seam opportunities (CommandRunner, Filesystem abstraction, Wine installer, TimeProvider consistency, PathProvider, EnvironmentReader) and 3 medium-priority UI seam opportunities (confirmation dialogs, portal roots, navigation) in SEAMS.md. TypeScript compilation verified clean. No regressions. |
-| 2026-01-16 | Ecosystem Manager | +0%     | Idempotency & Replay Safety Hardening (UI Layer) - Extended idempotency support from backend to UI layer: (1) Added `idempotency_key` field to `PipelineConfig` TypeScript interface in `api.ts`; (2) Created idempotency key generation utilities in `pipeline-utils.ts` (`generateIdempotencyKey()`, `generateUniqueIdempotencyKey()`, `getSessionId()`, `resetSessionId()`) with session-scoped keys that are stable within a page session but unique across sessions; (3) Updated `pipelineStore.ts` with `isSubmitting` flag and `currentIdempotencyKey` state for double-submission prevention; (4) Added in-flight request guards to `runStage()`, `runFullPipeline()`, and `resumePipeline()` - if already submitting, returns existing pipeline ID instead of creating duplicate; (5) Added `resetForRetry()` action that resets session ID to allow explicit retries with fresh idempotency keys; (6) Added `selectIsSubmitting` and `selectIsBusy` selectors for UI button guards; (7) Documented full idempotency seam architecture in SEAMS.md with design philosophy, implementation details, remaining gaps, and future enhancements. Backend already had comprehensive idempotency tests (`[REQ:IDEM-001]` in `orchestrator_test.go` lines 877-1204). No new features - purely replay safety hardening. |
-| 2026-02-03 | Claude            | +0%     | Generic Port Environment Variable Injection - Fixed critical bug where bundled Go runtimes crashed (exit code 1) because port env vars (API_PORT, UI_PORT, etc.) were never set. Implementation: (1) Added `PortConfig` struct and `Ports map[string]PortConfig` to `ScenarioMetadata` in [CODE: api/generation/types.go#PortConfig], replacing hardcoded `UIPort`/`APIPort` fields; (2) Updated `ServiceJSON` struct in [CODE: api/generation/analyzer.go] to use `map[string]ServiceJSONPortDef` for dynamic port keys instead of hardcoded api/ui structs; (3) Added `PORTS_CONFIG` template variable via [CODE: templates/build-tools/template-generator.ts#buildPortsConfig]; (4) Added `PORTS` constant and env var injection loop in [CODE: templates/vanilla/main.ts:77] and [CODE: templates/vanilla/main.ts:2293]; (5) Added `EnvVar` field to `PortRequest` in runtime and deployment-manager manifests; (6) Added `VROOLI_LIFECYCLE_MANAGED` and `VROOLI_DESKTOP_MODE` lifecycle markers. Documented complete data flow in [DOC: docs/internal/SEAMS.md#port-environment-seam-feb-2026]. Breaking change by design - all existing desktop builds must be regenerated. |
+| 2026-08-17 | Codex | Reduced the desktop lint surface without changing behavior: removed an unused journey-test field, replaced an unnecessary command wrapper with `exec.CommandContext`, and used the canonical workflow-artifact conversion. | Archived |
+| 2026-08-17 | Codex | Non-regression cleanup: `ElectronSession.Target()` now uses `proto.Clone` instead of shallow-copying a protobuf message with mutex state. | Archived |
+| 2026-08-09 | Codex | Produced fresh canonical Linux Electron evidence for both `scenario-to-desktop` and `secrets-manager`: pipelines `4d992263-9aee-63b1-42a6-56bb4e8d97ab` and `dbcbe219-cf34-3f6a-1506-d08c70a0d3f0` passed protocol smoke and desktop journeys, with persisted H.264 captures `28e189cd-4d3b-4191-93cd-e0bee23fc1b8` and `470e2b2c-eb82-4285-826d-7b63c87afda6`. | Archived |
+| 2026-08-09 | Codex | Produced the primary mutating Electron video deliverable from fresh pipeline `9b0aaa42-7067-d9e3-8a6c-8f1c8935056e`: BAS leased-desktop evidence passed 1/1 through authenticated loopback CDP, the visible result reported `leased writes: 3`, and persisted capture `048f1780-3eec-4548-a46b-61468664800d` is a 44.2-second H.264 MP4. | Archived |
+| 2026-08-09 | Codex | Captured and reviewed a real Secrets Manager Electron AppImage video through the live-desktop recorder and BAS dashboard case: 30-second H.264 MP4, 1920x1080, persisted capture `7fef7af1-216b-415d-a17c-e97aee34a95d`, passed Workflow Health run `a7311bcb-4358-4858-beeb-4f3f2b5bf186`, and zero primary-storage requests/writes. | Archived |
 
 ## Current State
 
-- **Overall Status**: Production Ready (bundled mode is the recommended default)
-- **Bundled Mode**: Fully operational - creates complete offline desktop applications
-- **Thin Client Mode**: Available for shared-server scenarios
-- **Tests**: 19/19 packages passing (100%)
-- **Completeness Score**: 49/100 (validation penalties for requirement grouping)
+The launch-performance baseline is durable at
+`docs/internal/performance-baseline.json`. It contains ten measured Linux
+Xvfb-compatible Hello Desktop runs on one artifact and host identity: five
+cold-designated and five warm-designated. Warm process-to-splash p95 is 651 ms;
+cold p95 is 1,745 ms because of one first-launch outlier. The 1-second
+process-to-splash budget remains advisory and is not promoted to a release gate
+until another baseline confirms the variance.
+
+- **Overall Status**: Baseline native journey proven; provider-specific release claims remain evidence-gated
+- **Bundled Mode**: Pipeline and supervisor contracts are implemented; offline/resource-native claims require the selected dependency journey
+- **Thin Client Mode**: Supported deployment mode; live Tier 1 route evidence depends on the target server fixture
+- **Tests**: Fresh native pipeline passed; latest scenario Test Genie run passed all 20 phases (2026-07-28)
+- **Completeness Score**: 93/100 (`nearly_ready`, 2026-07-28); this score does not promote environment-gated provider claims
 
 ## Architecture Notes
 
@@ -84,3 +240,18 @@ The root package is now minimal - types live in domain packages (e.g., `generati
 ### Lint Status
 - **TypeScript/JavaScript**: 0 issues (clean)
 - **Go**: 33 issues (mostly errcheck warnings in test files, 2 unused functions)
+
+## Historical handoff leads retained during condensation
+
+These clauses are preserved from dated entries; later work may have superseded
+them. They do not assert that an old failure or gap still exists.
+
+- **2026-07-28 — +0.0%**: Deferred work is tracked separately for multi-framework generation, LAN/public authentication, and secrets-manager/Vault dependency health; no shared-package defect was found during the proto migration.
+
+- **2026-07-23 — +0.2%**: The declared 85% global floor remains enforced and unresolved.
+
+- **2026-07-23 — +0.2%**: All remaining consumers now use `BundleSection`, `BundleSectionHandle`, and `BundleResult` directly; the TypeScript compiler now resolves the same `@/*` alias as Vite.
+
+- **2026-01-15 — +0%**: Error Semantics Completion - Converted all remaining ad-hoc error handling in UI api.ts to use structured ApiError class.
+
+- **2026-01-16 — +0%**: Idempotency & Replay Safety Hardening (UI Layer) - Extended idempotency support from backend to UI layer: (1) Added `idempotency_key` field to `PipelineConfig` TypeScript interface in `api.ts`; (2) Created idempotency key generation utilities in `pipeline-utils.ts` (`generateIdempotencyKey()`, `generateUniqueIdempotencyKey()`, `getSessionId()`, `resetSessionId()`) with session-scoped keys that are stable within a page session but unique across sessions; (3) Updated `pipelineStore.ts` with `isSubmitting` flag and `currentIdempotencyKey` state for double-submission prevention; (4) Added in-flight request guards to `runStage()`, `runFullPipeline()`, and `resumePipeline()` - if already submitting, returns existing pipeline ID instead of creating duplicate; (5) Added `resetForRetry()` action that resets session ID to allow explicit retries with fresh idempotency keys; (6) Added `selectIsSubmitting` and `selectIsBusy` selectors for UI button guards; (7) Documented full idempotency seam architecture in SEAMS.md with design philosophy, implementation details, remaining gaps, and future enhancements.

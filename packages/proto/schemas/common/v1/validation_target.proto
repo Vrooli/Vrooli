@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// ValidationTargetKind is the governance axis used by validation providers.
+// It is deliberately distinct from code_facts.v1.TargetKind, which describes
+// how code was resolved rather than who owns the validation contract.
+enum ValidationTargetKind {
+  VALIDATION_TARGET_KIND_UNSPECIFIED = 0;
+  VALIDATION_TARGET_KIND_SCENARIO = 1;
+  VALIDATION_TARGET_KIND_RESOURCE = 2;
+  VALIDATION_TARGET_KIND_TOOL = 3;
+  VALIDATION_TARGET_KIND_SAFEGUARD = 4;
+  VALIDATION_TARGET_KIND_TEAM = 5;
+  VALIDATION_TARGET_KIND_PACKAGE = 6;
+  VALIDATION_TARGET_KIND_CONTROL_PLANE = 7;
+  VALIDATION_TARGET_KIND_DOCS = 8;
+  VALIDATION_TARGET_KIND_PROJECT = 9;
+}
+
+// ValidationTarget identifies the governed thing a validation result is
+// about. An empty subject on a finding means the finding is about the run's
+// own target. root is repository-relative and is resolved by test-genie; a
+// provider must not reinterpret it as an arbitrary filesystem path.
+message ValidationTarget {
+  ValidationTargetKind kind = 1;
+  string id = 2;
+  string root = 3;
+}

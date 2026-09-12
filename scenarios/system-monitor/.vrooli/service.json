@@ -1,6 +1,59 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario API logs are routed through the storage resolver under the logs class.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Rotating operational logs are bounded by the scenario logging policy."
+        }
+      },
+      "retention-receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Retention receipts are bounded by size and age."
+        }
+      },
+      "settings": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "system-monitor-settings.json",
+        "regenerable": false,
+        "format": "json",
+        "rationale": "Operator settings are persisted in the scenario state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The settings document is a small bounded JSON configuration."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "system-monitor",
@@ -17,10 +70,192 @@
       "reports",
       "react-ui",
       "go-api",
-      "node-red",
       "sqlite",
       "ollama"
     ],
+    "capabilities": [
+      "system-monitor-cpu",
+      "system-monitor-memory",
+      "system-monitor-disk",
+      "system-monitor-network",
+      "system-monitor-process",
+      "system-monitor-gpu",
+      "system-monitor-device-graph",
+      "system-monitor-storage-health",
+      "system-monitor-thermal",
+      "system-monitor-memory-errors"
+    ],
+    "platform_capabilities": {
+      "system-monitor-cpu": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "procfs",
+          "evidence": "scenarios/system-monitor/api/internal/collectors/cpu.go and Linux contract tests"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "host_statistics",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "windows_performance_counters",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
+        }
+      },
+      "system-monitor-memory": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "procfs",
+          "evidence": "scenarios/system-monitor/api/internal/collectors/memory.go and Linux contract tests"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "host_statistics64",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "global_memory_status_ex",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
+        }
+      },
+      "system-monitor-disk": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "statfs_procfs",
+          "evidence": "Linux statfs contract tests and live disk-pressure endpoint"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "getmntinfo",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_disk_free_space_ex",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
+        }
+      },
+      "system-monitor-network": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "procfs_sysfs",
+          "evidence": "Linux collector contract tests"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "if_data",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_if_table_2",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
+        }
+      },
+      "system-monitor-process": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "procfs",
+          "evidence": "Linux process sampler contract tests"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "sysctl_proc_list",
+          "evidence": "darwin/arm64 cross-build and platform contract fixtures; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "windows_toolhelp",
+          "evidence": "windows/amd64 cross-build and platform contract fixtures; no real-host qualification"
+        }
+      },
+      "system-monitor-gpu": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "hostinventory",
+          "evidence": "Linux host-inventory integration tests; GPU availability remains host-dependent"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "ioreg",
+          "evidence": "darwin/arm64 cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "dxdiag",
+          "evidence": "windows/amd64 cross-build; no real-host qualification"
+        }
+      },
+      "system-monitor-device-graph": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "sysfs_device_tree",
+          "evidence": "scenarios/system-monitor/api/internal/devicegraph sysfs walk plus fixture contract tests; observed live on an amd64 Linux host enumerating 2 physical disks, 2 physical NICs and 8 hwmon sensors while excluding 32 virtual block devices, 3 partitions and 7 virtual interfaces"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "system_profiler_json",
+          "evidence": "darwin cross-build and the SPPCIDataType/SPUSBDataType/SPNVMeDataType fixture contract tests in platform_probe_test.go; no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_pnp_device",
+          "evidence": "windows cross-build and the Get-PnpDevice/Get-PhysicalDisk fixture contract tests in platform_probe_test.go; no real-host qualification"
+        }
+      },
+      "system-monitor-storage-health": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "smartctl_json",
+          "evidence": "scenarios/system-monitor/api/internal/devicegraph/smart.go parses both the NVMe health log and the ATA attribute table; fixture tests cover both plus a refused read, and a live amd64 Linux host graded both of its disks unmeasurable with the reason 'permission denied' rather than reporting zero errors"
+        },
+        "macos": {
+          "status": "build-verified",
+          "mechanism": "smartctl_json",
+          "evidence": "the same smartctl parser is used on darwin and is covered by the darwin backend fixture tests; smartmontools is declared for macos in internal/tools/smartctl/tool.json but has had no real-host qualification"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "get_storage_reliability_counter",
+          "evidence": "windows cross-build and fixture tests covering a disk that returns reliability counters and one that returns none; smartctl is not declared for windows, so wear comes from the storage driver instead; no real-host qualification"
+        }
+      },
+      "system-monitor-thermal": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "hwmon_and_thermal_zones",
+          "evidence": "hwmon and thermal-zone readers with setpoints taken from the sensor's own temp*_max/temp*_crit and trip points; fixture tests cover a host with zones and one without, and a live amd64 Linux host enumerated 8 hwmon sensors with the one exposing no temp*_input graded unmeasurable"
+        },
+        "macos": {
+          "status": "unsupported",
+          "mechanism": "powermetrics",
+          "evidence": "macOS exposes SMC temperatures only through the privileged powermetrics interface and this scenario never escalates at runtime, so the darwin backend deliberately grades thermal unavailable with that reason instead of implementing a reader"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "msacpi_thermal_zone_temperature",
+          "evidence": "windows cross-build and fixture tests covering both a host that exposes an ACPI thermal zone through WMI and one that does not; no real-host qualification"
+        }
+      },
+      "system-monitor-memory-errors": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "edac_sysfs",
+          "evidence": "reads ce_count, ue_count and per-DIMM counters from every registered EDAC controller; fixture tests cover an empty controller directory and a controller with a rising correctable count, and a live amd64 Linux host with no registered controller graded every rung unmeasurable rather than zero"
+        },
+        "macos": {
+          "status": "unsupported",
+          "evidence": "macOS exposes no EDAC-equivalent ECC counter interface and no per-controller error counter of any kind, so the darwin backend grades memory errors not-applicable with that reason; mechanism is deliberately omitted because there is no mechanism to wire"
+        },
+        "windows": {
+          "status": "unsupported",
+          "mechanism": "whea_event_log",
+          "evidence": "Windows reports corrected memory errors only as WHEA event-log records rather than running counters; no WHEA reader is implemented, so the windows backend grades memory errors unmeasurable with that reason"
+        }
+      }
+    },
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -48,7 +283,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36232,
+      "port": 21232,
       "description": "Web UI dashboard port"
     }
   },
@@ -60,7 +295,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
+      "startup_grace_period": 60000,
       "checks": [
         {
           "name": "api_endpoint",
@@ -79,138 +314,102 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/system-monitor-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "system-monitor"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o system-monitor-api ./cmd/server",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and UI server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./system-monitor-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/system-monitor-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute system-monitor --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'system-monitor-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
-    "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": true,
-        "description": "Persistent storage for metrics, investigations, reports, and alerts"
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2:3b"
-        ],
-        "description": "AI analysis for anomaly investigations"
-      }
-    },
     "scenarios": {
       "agent-manager": {
         "type": "scenario",
         "enabled": true,
-        "required": true,
-        "description": "Agent orchestration layer for investigations and anomaly checks"
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional Agent Manager integration for role-based investigation runs",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
+        },
+        "degraded_behavior": "Native investigations, metrics, and the dashboard remain available. Agent-backed investigations report typed unavailable status until Agent Manager recovers."
+      },
+      "vrooli-autoheal": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Optional autoheal proxy for the forensics page; degrades gracefully when offline",
+        "degraded_behavior": "Metrics, native investigations, and the dashboard remain available. Forensics autoheal checks report unavailable with the connection reason until vrooli-autoheal recovers.",
+        "startup_policy": "try_start"
       }
+    },
+    "resources": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional AI analysis for anomaly investigations",
+        "degraded_behavior": "Core monitoring and the dashboard remain available; AI-backed investigations report unavailable until Ollama recovers."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "system-monitor",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "system-monitor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

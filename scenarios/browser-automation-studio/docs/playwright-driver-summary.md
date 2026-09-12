@@ -152,7 +152,7 @@ src/
 
 ## Files to Reference
 
-- **Detailed Plan**: `docs/plans/playwright-driver-completion.md`
+- **Detailed Plan**: `docs/plans/README.md#historical-source-files`
 - **Go Contracts**: `api/automation/contracts/*.go`
 - **Current Driver**: `playwright-driver/src/server.ts` (TypeScript v2.0)
 - **Handler Docs**: `docs/nodes/*.md`

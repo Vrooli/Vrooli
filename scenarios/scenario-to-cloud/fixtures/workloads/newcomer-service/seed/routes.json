@@ -1,0 +1,17 @@
+{
+  "public_api": {
+    "listener": "public-api",
+    "path_prefix": "/api/v1",
+    "visibility": "public_via_edge"
+  },
+  "provider_callback": {
+    "listener": "provider-callback",
+    "path_prefix": "/callbacks/provider",
+    "visibility": "private"
+  },
+  "download": {
+    "listener": "public-api",
+    "path_prefix": "/api/v1/downloads",
+    "visibility": "public_via_edge"
+  }
+}

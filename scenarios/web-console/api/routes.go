@@ -1,0 +1,171 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"time"
+
+	aiH "web-console/handlers/ai"
+	audioAdminH "web-console/handlers/audio_admin"
+	audioRuntimeH "web-console/handlers/audio_runtime"
+	capabilitiesH "web-console/handlers/capabilities"
+	continuityH "web-console/handlers/continuity"
+	conversationH "web-console/handlers/conversation"
+	eventsH "web-console/handlers/events"
+	filePreviewH "web-console/handlers/file_preview"
+	groupTemplatesH "web-console/handlers/grouptemplates"
+	handoffRulesH "web-console/handlers/handoffrules"
+	hooksH "web-console/handlers/hooks"
+	metricsH "web-console/handlers/metrics"
+	sessionsH "web-console/handlers/sessions"
+	settingsH "web-console/handlers/settings"
+	shortcutsH "web-console/handlers/shortcuts"
+	snippetsH "web-console/handlers/snippets"
+	terminalH "web-console/handlers/terminal"
+	workspaceH "web-console/handlers/workspace"
+	internalContinuity "web-console/internal/continuity"
+
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
+)
+
+// setupRoutes is the transport assembly point for the API. Domain handlers
+// own their request semantics; this file owns only mounting and the small set
+// of deliberate REST exceptions (WebSocket, SSE, uploads, and blob streaming).
+func (s *Server) setupRoutes() {
+	s.router.Use(requestIDMiddleware)
+	s.router.Use(loggingMiddleware)
+	// Cross-scenario links are resolved against the origin the browser used, so
+	// the host has to survive the hop into a Connect handler. Go moves the Host
+	// header onto Request.Host, where connect.Request.Header() cannot see it.
+	s.router.Use(discovery.ExternalHostMiddleware)
+
+	healthBuilder := health.New().Version("1.0.0").BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY"))
+	if s.db != nil {
+		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
+		healthBuilder = healthBuilder.Functional(func(ctx context.Context) health.FunctionalStatus {
+			report, err := s.Integrity(ctx)
+			if err != nil {
+				return health.FunctionalStatus{Healthy: false, Reason: "continuity integrity is unavailable: " + err.Error()}
+			}
+			if report.UncatalogedConversations > 0 {
+				return health.FunctionalStatus{Healthy: false, Reason: fmt.Sprintf("%d conversation projections have no continuity catalog", report.UncatalogedConversations)}
+			}
+			return health.FunctionalStatus{Healthy: true}
+		})
+	}
+	healthHandler := healthBuilder.Handler()
+	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	// Read-only continuity audit. Reconciliation and permanent deletion are
+	// separate explicit workflows and are never triggered by this endpoint.
+	s.router.HandleFunc("/api/v1/conversations/integrity", s.handleConversationIntegrity).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/conversations/publish", s.handleConversationPublish).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/conversations/catalog", s.handleConversationCatalog).Methods(http.MethodGet, http.MethodPost)
+	continuityH.Module(continuityH.ModuleDeps{Service: s}).Mount(s.router)
+	if session := s.subscriptionSessionModule(); session != nil {
+		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
+		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
+			session.Delete(w, r)
+			if s.subscriptionResolver != nil {
+				s.subscriptionResolver.Clear()
+			}
+		}).Methods(http.MethodDelete)
+		s.router.HandleFunc("/api/v1/auth/subscription/summary", s.subscriptionSummaryHandler).Methods(http.MethodGet)
+	}
+	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
+	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/integrations/connections", s.connectionsHandler).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/commercial-context", s.commercialContextHandler).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
+	sessionAdapter := &sessionsH.Adapter{
+		Manager:             s.sessions,
+		Store:               s.sessionStore,
+		Idempotency:         s.idempotency,
+		Events:              s.events,
+		Metrics:             s.metrics,
+		Conversations:       s.conversations,
+		CodexCheckpoints:    s.agentCheckpointStore,
+		AgentCheckpoints:    s.agentCheckpointStore,
+		Workspace:           s.workspace,
+		CopyCodexHome:       copyCodexHome,
+		RemoveAgentHomes:    removeSessionAgentHomes,
+		AgentHistoryPresent: archivedAgentHistoryPresent,
+		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
+			cfg := s.sessions.GetConfig()
+			return sessionsH.ArchiveRetentionPolicy{
+				MessageLessAge: time.Duration(cfg.ArchiveMessageLessAgeDays) * 24 * time.Hour,
+				AgentHomeAge:   time.Duration(cfg.ArchiveAgentHomeAgeDays) * 24 * time.Hour,
+				MaxBytes:       cfg.ArchiveMaxBytes,
+			}
+		},
+		AgentHistorySize:  archivedAgentHistorySize,
+		PruneAgentHistory: pruneArchivedAgentHistory,
+		LifecycleLedger:   internalContinuity.NewSQLLedger(s.db),
+		ContinuityCatalog: internalContinuity.NewSQLCatalogStore(s.db),
+		Remote:            s,
+	}
+	s.lifecycleDelete = sessionAdapter.Delete
+	if s.sweeper != nil {
+		s.sweeper.SetArchiveHandler(sessionAdapter.Archive)
+	}
+	sessionsH.Module(sessionAdapter, nil).Mount(s.router)
+	s.registerOwnerCleanupRoutes()
+	s.mountTargetCatalog()
+	s.mountMachines()
+	s.mountDevices()
+
+	terminalH.Module(&terminalH.Adapter{Manager: s.sessions, Replier: opencodeReplier{server: s}}, terminalH.LegacyDeps{
+		Upload: s.handleUpload,
+		WS:     s.handleTerminalWS,
+	}, nil).Mount(s.router)
+
+	workspaceH.Module(&workspaceH.Adapter{Store: s.workspace, Events: s.events}, nil).Mount(s.router)
+	// Templates and rules are plain configuration: the domain Store already
+	// satisfies the handler's Service seam, so there is no adapter to add.
+	groupTemplatesH.Module(s.groupTemplates, nil).Mount(s.router)
+	handoffRulesH.Module(s.handoffRules, nil).Mount(s.router)
+	snippetsH.Module(s.snippets, nil).Mount(s.router)
+	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
+	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
+	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")
+	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
+	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
+	aiH.Module(&aiH.Adapter{Backend: s.ai}, nil).Mount(s.router)
+	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
+	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
+	capabilitiesH.Module(&capabilitiesH.Adapter{
+		Registry:        s.capabilities,
+		BackendRegistry: s.backendRegistry,
+		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
+		RemoteInstall:   s.installCapabilityRemote,
+		ConfirmInstall:  s.confirmCapabilityInstall,
+		ActionTracker:   capreg.NewActionTracker(),
+	}, nil).Mount(s.router)
+
+	audioAdminH.Module(audioAdminH.Deps{
+		StreamConfig:    s.streamConfigAdmin,
+		WakeWord:        s.wakeWordAdmin,
+		Speaker:         s.speakerAdmin,
+		TTSConfig:       s.ttsConfigAdmin,
+		SummarizeConfig: s.summarizeConfigAdmin,
+	}).Mount(s.router)
+	audioRuntimeH.Module(audioRuntimeH.Deps{
+		STT:      s.sttPort,
+		TTS:      s.ttsPort,
+		Playback: s.playbackRecorder,
+		Summ:     s.summarizer,
+	}).Mount(s.router)
+
+	if s.audioToolsResolver != nil {
+		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
+	}
+	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
+	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit, Notification: s.handleHookNotification}).Mount(s.router)
+	s.registerTTSHookRoutes()
+}

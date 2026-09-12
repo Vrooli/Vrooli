@@ -13,11 +13,16 @@ package export
 import (
 	"context"
 	"fmt"
+	"os"
+	"sort"
 	"sync"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
 )
 
 // ExportFormatType identifies the export format.
@@ -42,6 +47,22 @@ type ExportRequest struct {
 	OutputDir string
 	// StorageClient is optional for FormatFolder to fetch screenshots.
 	StorageClient storage.StorageInterface
+}
+
+func timelineFromReplayPackage(execution *database.ExecutionIndex, pack *basevidence.ReplayPackage) (*ExecutionTimeline, error) {
+	frames := make([]TimelineFrame, 0, len(pack.Timeline))
+	for _, value := range pack.Timeline {
+		if value != nil {
+			frames = append(frames, timelineEntryToFrame(proto.Clone(value).(*bastimeline.TimelineEntry)))
+		}
+	}
+	sort.Slice(frames, func(i, j int) bool {
+		if frames[i].StepIndex != frames[j].StepIndex {
+			return frames[i].StepIndex < frames[j].StepIndex
+		}
+		return frames[i].NodeID < frames[j].NodeID
+	})
+	return &ExecutionTimeline{ExecutionID: execution.ID, WorkflowID: execution.WorkflowID, Status: execution.Status, StartedAt: execution.StartedAt, CompletedAt: execution.CompletedAt, Frames: frames, Logs: []TimelineLog{}}, nil
 }
 
 // ExportResult holds the output of an export operation.
@@ -70,6 +91,9 @@ type ExportData struct {
 	Execution *database.ExecutionIndex
 	Workflow  *database.WorkflowIndex
 	Timeline  *ExecutionTimeline
+	// ReplayPackage is the storage-independent handoff used by replay renderers.
+	// It is nil only for legacy executions created before package production.
+	ReplayPackage *basevidence.ReplayPackage
 }
 
 // Service provides unified export capabilities.
@@ -162,10 +186,17 @@ func (s *Service) fetchExportData(ctx context.Context, executionID uuid.UUID) (*
 		return nil, fmt.Errorf("load timeline: %w", err)
 	}
 
+	var replayPackage *basevidence.ReplayPackage
+	if pack, packErr := s.timelineLoader.LoadReplayPackage(ctx, executionID); packErr == nil {
+		replayPackage = pack
+	} else if !os.IsNotExist(packErr) {
+		return nil, fmt.Errorf("load replay package: %w", packErr)
+	}
 	return &ExportData{
-		Execution: execution,
-		Workflow:  workflow,
-		Timeline:  timeline,
+		Execution:     execution,
+		Workflow:      workflow,
+		Timeline:      timeline,
+		ReplayPackage: replayPackage,
 	}, nil
 }
 
@@ -185,7 +216,15 @@ func (f *movieSpecFormat) Export(ctx context.Context, req ExportRequest, data *E
 		return nil, fmt.Errorf("timeline data required for movie-spec export")
 	}
 
-	spec, err := BuildReplayMovieSpec(data.Execution, data.Workflow, data.Timeline)
+	timeline := data.Timeline
+	if data.ReplayPackage != nil && len(data.ReplayPackage.Timeline) > 0 {
+		var err error
+		timeline, err = timelineFromReplayPackage(data.Execution, data.ReplayPackage)
+		if err != nil {
+			return nil, fmt.Errorf("decode replay package timeline: %w", err)
+		}
+	}
+	spec, err := BuildReplayMovieSpec(data.Execution, data.Workflow, timeline)
 	if err != nil {
 		return nil, fmt.Errorf("build movie spec: %w", err)
 	}

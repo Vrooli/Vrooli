@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-press",
+    "name": "usePress",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "The unified press primitive covering mouse, touch, keyboard, cancellation, disabled behavior, long press, and focus-visible semantics under one event contract.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Emits the shared change-detail shape carrying interaction source."
+      },
+      {
+        "asset": "hooks.use-focus-visible",
+        "reason": "Press and focus modality are resolved together or they disagree."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "activation-acknowledged"
+  ]
+}

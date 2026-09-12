@@ -7,6 +7,7 @@
 
 import { X } from "lucide-react";
 import type { CaptureAttachment } from "../../hooks/useCaptureAttachments";
+import { selectors } from "../../consts/selectors";
 
 interface CaptureAttachmentPreviewProps {
   attachments: CaptureAttachment[];
@@ -30,6 +31,7 @@ export function CaptureAttachmentPreview({ attachments, onRemove }: CaptureAttac
           <button
             onClick={() => onRemove(att.id)}
             className="absolute -right-2 -top-2 rounded-full border border-slate-600 bg-slate-800 p-1 opacity-0 transition-opacity hover:border-red-500/50 hover:bg-red-500/20 group-hover:opacity-100"
+            data-testid={selectors.agentSessions.composerImagePreviewRemove}
           >
             <X className="h-3 w-3 text-white" />
           </button>

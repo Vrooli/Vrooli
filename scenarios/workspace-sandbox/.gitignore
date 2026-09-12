@@ -17,3 +17,4 @@ coverage/
 *.log
 .DS_Store
 api/workspace-sandbox
+api/workspace-sandbox-launcher

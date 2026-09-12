@@ -655,9 +655,9 @@ func CheckHealthCheckImplementation(content []byte, filePath string) []Violation
 
 		if !hasHealthHandler {
 			violations = append(violations, Violation{
-				Type:       "health_check",
-				Severity:   "low",
-				Title:      "Health Check Handler Not Found",
+				Type:     "health_check",
+				Severity: "low",
+				Title:    "Health Check Handler Not Found",
 				Description: "The /health endpoint is registered but no handler implementation was detected. " +
 					"This may be a false positive if you're using an inline handler function.",
 				FilePath:       filePath,
@@ -682,10 +682,11 @@ type HealthRegistration struct {
 // Returns map[routerVarName]prefix (e.g., {"api": "/api", "v1": "/api/v1"})
 //
 // Detects patterns like:
-//   api := router.PathPrefix("/api").Subrouter()
-//   v1 := router.PathPrefix("/api/v1").Subrouter()
-//   apiGroup := router.Group("/api")
-//   v1Group := router.Group("/api/v1")
+//
+//	api := router.PathPrefix("/api").Subrouter()
+//	v1 := router.PathPrefix("/api/v1").Subrouter()
+//	apiGroup := router.Group("/api")
+//	v1Group := router.Group("/api/v1")
 func findPrefixedRouters(content string) map[string]string {
 	prefixed := make(map[string]string)
 
@@ -732,10 +733,11 @@ func findPrefixedRouters(content string) map[string]string {
 //   - HTTP client calls: client.Get("http://localhost/health")
 //
 // Matches patterns like:
-//   router.HandleFunc("/health", handler)
-//   r.Get("/health", handler)
-//   app.GET("/health", handler)
-//   http.HandleFunc("/health", handler)
+//
+//	router.HandleFunc("/health", handler)
+//	r.Get("/health", handler)
+//	app.GET("/health", handler)
+//	http.HandleFunc("/health", handler)
 func findHealthRegistrations(content string) []HealthRegistration {
 	var registrations []HealthRegistration
 
@@ -820,14 +822,14 @@ func isPrefixedRouter(routerVar string, prefixed map[string]string) bool {
 func containsHealthHandlerImplementation(content string) bool {
 	// Common handler naming patterns
 	patterns := []string{
-		`func\s+healthHandler`,   // func healthHandler(...)
-		`func\s+HealthHandler`,   // func HealthHandler(...)
-		`func\s+healthCheck`,     // func healthCheck(...)
-		`func\s+HealthCheck`,     // func HealthCheck(...)
-		`func\s+handleHealth`,    // func handleHealth(...)
-		`func\s+HandleHealth`,    // func HandleHealth(...)
-		`func\s*\(\s*[^)]+\)\s*healthHandler`,  // Method: func (s *Server) healthHandler
-		`func\s*\(\s*[^)]+\)\s*HealthHandler`,  // Method: func (s *Server) HealthHandler
+		`func\s+healthHandler`,                    // func healthHandler(...)
+		`func\s+HealthHandler`,                    // func HealthHandler(...)
+		`func\s+healthCheck`,                      // func healthCheck(...)
+		`func\s+HealthCheck`,                      // func HealthCheck(...)
+		`func\s+handleHealth`,                     // func handleHealth(...)
+		`func\s+HandleHealth`,                     // func HandleHealth(...)
+		`func\s*\(\s*[^)]+\)\s*healthHandler`,     // Method: func (s *Server) healthHandler
+		`func\s*\(\s*[^)]+\)\s*HealthHandler`,     // Method: func (s *Server) HealthHandler
 		`func\s*\([^)]*\)\s*\{[^}]*status[^}]*\}`, // Inline handler with "status"
 	}
 
@@ -854,31 +856,31 @@ func containsHealthTimeoutHandling(content string) bool {
 	// Common timeout patterns in health check handlers
 	timeoutPatterns := []string{
 		// Context-based timeouts
-		`context\.WithTimeout`,           // context.WithTimeout(r.Context(), duration)
+		`context\.WithTimeout`,                         // context.WithTimeout(r.Context(), duration)
 		`ctx\s*,\s*cancel\s*:=\s*context\.WithTimeout`, // ctx, cancel := context.WithTimeout(...)
 
 		// HTTP client timeouts
 		`Client\s*:\s*&\w+\{[^}]*Timeout\s*:`, // Client: &http.Client{Timeout: ...}
-		`Timeout\s*:\s*\d+`,               // Timeout: 5 * time.Second
+		`Timeout\s*:\s*\d+`,                   // Timeout: 5 * time.Second
 
 		// HTTP timeout handler
-		`http\.TimeoutHandler`,           // http.TimeoutHandler(handler, duration)
+		`http\.TimeoutHandler`, // http.TimeoutHandler(handler, duration)
 
 		// Time-based timeouts
-		`time\.After\s*\(`,               // time.After(duration)
+		`time\.After\s*\(`,                        // time.After(duration)
 		`select\s*\{[^}]*case\s*<-\s*time\.After`, // select { case <-time.After(...) }
 
 		// Channel-based timeouts
-		`timeout\s*:=\s*time\.After`,      // timeout := time.After(duration)
-		`case\s*<-\s*timeout\s*:`,         // case <-timeout:
+		`timeout\s*:=\s*time\.After`, // timeout := time.After(duration)
+		`case\s*<-\s*timeout\s*:`,    // case <-timeout:
 
 		// Context deadline
-		`ctx\.Deadline\(\)`,              // ctx.Deadline()
-		`context\.WithDeadline`,          // context.WithDeadline(...)
+		`ctx\.Deadline\(\)`,     // ctx.Deadline()
+		`context\.WithDeadline`, // context.WithDeadline(...)
 
 		// Timeout in function parameters or variables
-		`timeout\s+time\.Duration`,        // timeout time.Duration
-		`timeout\s*:=\s*\d+`,             // timeout := 5
+		`timeout\s+time\.Duration`, // timeout time.Duration
+		`timeout\s*:=\s*\d+`,       // timeout := 5
 	}
 
 	for _, pattern := range timeoutPatterns {

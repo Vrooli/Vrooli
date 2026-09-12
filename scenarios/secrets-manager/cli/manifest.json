@@ -1,0 +1,869 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "secrets-manager",
+  "description": "Typed Secrets Manager broker commands for bounded credential use.",
+  "groups": [
+    {
+      "name": "broker",
+      "description": "Grant-bound credential broker operations",
+      "commands": [
+        {
+          "name": "get-access-request",
+          "description": "Read the metadata-only status of an access request",
+          "flags": [
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Access request identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "GetAccessRequest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "request-access",
+          "description": "Create a metadata-only access request",
+          "flags": [
+            {
+              "name": "grant-id",
+              "required": true,
+              "description": "Approved grant identifier"
+            },
+            {
+              "name": "item-id",
+              "required": true,
+              "description": "Vault item identifier"
+            },
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Bounded operation name"
+            },
+            {
+              "name": "duration-seconds",
+              "default": "900",
+              "description": "Request lifetime in seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "RequestAccess"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "wait-access-request",
+          "description": "Wait for a bounded access-request decision",
+          "flags": [
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Access request identifier"
+            },
+            {
+              "name": "timeout-seconds",
+              "default": "30",
+              "description": "Maximum wait duration in seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "WaitAccessRequest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create-session",
+          "description": "Create a bounded broker capability",
+          "flags": [
+            {
+              "name": "grant-id",
+              "required": true,
+              "description": "Approved grant identifier"
+            },
+            {
+              "name": "item-id",
+              "required": true,
+              "description": "Vault item identifier"
+            },
+            {
+              "name": "target-origin",
+              "required": true,
+              "description": "Pinned consumer origin"
+            },
+            {
+              "name": "allow-internal",
+              "bool": true,
+              "description": "Allow the explicitly configured internal origin"
+            },
+            {
+              "name": "duration-seconds",
+              "default": "900",
+              "description": "Session lifetime in seconds"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "CreateBrokerSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "execute",
+          "description": "Execute one bounded operation through a broker session",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Broker session identifier"
+            },
+            {
+              "name": "session-token",
+              "required": true,
+              "description": "Broker capability token"
+            },
+            {
+              "name": "method",
+              "default": "GET",
+              "description": "Bounded HTTP method"
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Bounded path"
+            },
+            {
+              "name": "headers",
+              "description": "JSON object of request headers",
+              "bind": {
+                "field": "headers",
+                "kind": "json_inline"
+              }
+            },
+            {
+              "name": "body",
+              "description": "Request body"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "ExecuteBrokerOperation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a broker session",
+          "flags": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Broker session identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialBrokerService",
+            "method": "RevokeBrokerSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin",
+      "description": "Legacy admin operator commands",
+      "commands": [
+        {
+          "name": "orphans",
+          "description": "Run the admin orphans operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "cleanup-orphans",
+          "description": "Run the admin cleanup-orphans operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "backup",
+      "description": "Legacy backup operator commands",
+      "commands": [
+        {
+          "name": "export",
+          "description": "Run the backup export operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "migrate",
+          "description": "Run the backup migrate operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaigns",
+      "description": "Legacy campaigns operator commands",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Run the campaigns list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "credentials",
+      "description": "Legacy credentials operator commands",
+      "commands": [
+        {
+          "name": "coverage",
+          "description": "Run the credentials coverage operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Run the credentials delete operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Run the credentials doctor operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "list",
+          "description": "Run the credentials list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "provision",
+          "description": "Run the credentials provision operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Run the credentials validate operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "deployment",
+      "description": "Legacy deployment operator commands",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Run the deployment plan operation",
+          "flags": [
+            { "name": "scenario", "required": true, "description": "Scenario name" },
+            { "name": "tier", "default": "tier-2-desktop", "description": "Deployment tier" },
+            { "name": "include-optional", "bool": true, "description": "Include optional secrets" }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "readiness",
+          "description": "Run the deployment readiness operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "descriptors",
+      "description": "Legacy descriptors operator commands",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Run the descriptors list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Run the descriptors validate operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "grants",
+      "description": "Legacy grants operator commands",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Run the grants create operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "list",
+          "description": "Run the grants list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Run the grants revoke operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "rotate",
+          "description": "Run the grants rotate operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "keyring",
+      "description": "Legacy keyring operator commands",
+      "commands": [
+        {
+          "name": "inspect",
+          "description": "Run the keyring inspect operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "repair",
+          "description": "Run the keyring repair operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "overrides",
+      "description": "Legacy overrides operator commands",
+      "commands": [
+        {
+          "name": "copy-from-scenario",
+          "description": "Run the overrides copy-from-scenario operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "copy-from-tier",
+          "description": "Run the overrides copy-from-tier operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Run the overrides delete operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "effective",
+          "description": "Run the overrides effective operation",
+          "flags": [
+            { "name": "tier", "required": true, "description": "Tier to inspect" }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "get",
+          "description": "Run the overrides get operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "list",
+          "description": "Run the overrides list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "set",
+          "description": "Run the overrides set operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "resources",
+      "description": "Legacy resources operator commands",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Run the resources get operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "set-strategy",
+          "description": "Run the resources set-strategy operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "update-secret",
+          "description": "Run the resources update-secret operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenarios",
+      "description": "Legacy scenarios operator commands",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Run the scenarios list operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "security",
+      "description": "Legacy security operator commands",
+      "commands": [
+        {
+          "name": "compliance",
+          "description": "Run the security compliance operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "fix",
+          "description": "Run the security fix operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "scan",
+          "description": "Run the security scan operation",
+          "flags": [
+            { "name": "severity", "description": "Filter by severity" }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "set-status",
+          "description": "Run the security set-status operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "vulnerabilities",
+          "description": "Run the security vulnerabilities operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "vault",
+      "description": "Legacy vault operator commands",
+      "commands": [
+        {
+          "name": "items",
+          "description": "Run the vault items operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "lock",
+          "description": "Run the vault lock operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "status",
+          "description": "Run the vault status operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        },
+        {
+          "name": "unlock",
+          "description": "Run the vault unlock operation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Scenario health",
+      "flat": true,
+      "commands": [
+        {
+          "name": "health",
+          "description": "Show scenario health",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [],
+    "omitted": [
+      {
+        "domain": "deployment_campaigns",
+        "reason": "Deployment campaign rows are operational workflow state. Secrets Manager exposes their current status and next action; a historical measure belongs to the deployment campaign owner rather than this credential authority."
+      },
+      {
+        "domain": "pii_watchlist",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "scan_allowlist_rules",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "resource_secrets",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "secret_deployment_strategies",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "scenario_secret_strategy_overrides",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_vaults",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_workspace_members",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_owner_tokens",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_items",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_idempotency",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_grants",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_access_requests",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_audit_events",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_broker_sessions",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_sources",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      },
+      {
+        "domain": "pm_source_bindings",
+        "reason": "Operational custody, policy, or workflow state is exposed through metadata-safe status and activity APIs; it is not an independent historical measure contract owned by this CLI."
+      }
+    ]
+  },
+  "exceptions": [],
+  "omitted": []
+}

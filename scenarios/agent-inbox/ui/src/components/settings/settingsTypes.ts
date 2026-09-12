@@ -2,10 +2,12 @@ import type { LucideIcon } from "lucide-react";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "agent" | "tools" | "templates" | "suggestions" | "skills" | "data";
+export type SettingsTab = "general" | "ai" | "agent" | "templates" | "suggestions" | "skills" | "data";
 
-// Default model used when none is set
-export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
+// Default model ROLE used when none is set. The backend resolves this OpenRouter
+// policy role to a concrete model via resource-openrouter (greenfield: no
+// hard-coded provider slug here).
+export const DEFAULT_MODEL = "chat.default";
 
 // Default view mode
 export const DEFAULT_VIEW_MODE: ViewMode = "bubble";

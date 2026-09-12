@@ -2,13 +2,14 @@
  * HandoffTimeline - Vertical timeline showing handoff history with date grouping.
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { ChevronDown, Loader2, Clock, AlertCircle, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { ChevronDown, Loader2, Clock, AlertCircle, Trash2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { MarkdownRenderer } from '@/components/markdown'
 import { formatRelativePastTime, formatDateGroup } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HandoffHistoryEntry } from '@/services/heartbeatService'
@@ -45,45 +46,12 @@ function groupEntriesByDate(entries: HandoffHistoryEntry[]): DateGroup[] {
   return groups
 }
 
-/**
- * Renders handoff content with basic markdown-like styling.
- * - Lines starting with `**` get bold/accent treatment
- * - Lines starting with `- ` render as styled list items
- * - Everything else renders as plain pre-wrapped text
- */
 function HandoffContent({ content }: { content: string }) {
-  const lines = content.split('\n')
-
   return (
-    <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-      {lines.map((line, i) => {
-        // Bold label lines like "**Status**: ..." or "**Completed**:"
-        if (line.startsWith('**')) {
-          const match = line.match(/^\*\*(.+?)\*\*(.*)$/)
-          if (match) {
-            return (
-              <div key={i} className="text-foreground">
-                <span className="font-semibold">{match[1]}</span>
-                <span className="text-muted-foreground">{match[2]}</span>
-              </div>
-            )
-          }
-        }
-
-        // List items
-        if (line.startsWith('- ')) {
-          return (
-            <div key={i} className="flex gap-2 pl-1">
-              <span className="text-muted-foreground/60 select-none" aria-hidden="true">&bull;</span>
-              <span>{line.slice(2)}</span>
-            </div>
-          )
-        }
-
-        // Plain text (preserve empty lines)
-        return <div key={i}>{line || '\u00A0'}</div>
-      })}
-    </div>
+    <MarkdownRenderer
+      content={content}
+      className="text-sm text-muted-foreground break-words [&_*]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+    />
   )
 }
 
@@ -93,6 +61,7 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
   const [error, setError] = useState<string | null>(null)
   const [pageSize, setPageSize] = useState(PAGE_SIZE)
   const [agentFilter, setAgentFilter] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [clearing, setClearing] = useState(false)
@@ -119,14 +88,14 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
     return () => clearInterval(interval)
   }, [loadEntries])
 
-  const getAgentName = (agentId: string) => {
+  const getAgentName = useCallback((agentId: string) => {
     const member = members.find(m => m.agentId === agentId)
     return member?.displayName ?? agentId
-  }
+  }, [members])
 
-  const getAgentAppearance = (agentId: string) => {
+  const getAgentAppearance = useCallback((agentId: string) => {
     return allAgents?.find(a => a.id === agentId)?.appearance ?? null
-  }
+  }, [allAgents])
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -161,6 +130,22 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
     ? `Clear all handoff history for ${getAgentName(agentFilter)}? This cannot be undone.`
     : 'Clear all handoff history for this team? This cannot be undone.'
 
+  const filteredEntries = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter((entry) => {
+      const agentName = getAgentName(entry.agentId)
+      return (
+        entry.content.toLowerCase().includes(query) ||
+        entry.runId.toLowerCase().includes(query) ||
+        entry.agentId.toLowerCase().includes(query) ||
+        agentName.toLowerCase().includes(query)
+      )
+    })
+  }, [entries, searchQuery, getAgentName])
+
+  const dateGroups = groupEntriesByDate(filteredEntries)
+
   // Loading state
   if (loading) {
     return (
@@ -190,12 +175,10 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
     )
   }
 
-  const dateGroups = groupEntriesByDate(entries)
-
   return (
     <div className="space-y-4">
       {/* Filter + Clear */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <select
           value={agentFilter}
           onChange={e => setAgentFilter(e.target.value)}
@@ -206,6 +189,16 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
             <option key={m.agentId} value={m.agentId}>{m.displayName}</option>
           ))}
         </select>
+        <div className="relative min-w-[180px] flex-1">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search handoffs..."
+            className="w-full rounded border border-border bg-background py-1 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
         {entries.length > 0 && (
           <button
             onClick={() => setShowClearConfirm(true)}
@@ -225,6 +218,11 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
           <p className="text-xs text-center max-w-xs opacity-70">
             Handoffs are automatically captured at the end of each heartbeat.
           </p>
+        </div>
+      ) : filteredEntries.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Search className="h-8 w-8 mb-3 opacity-40" />
+          <p className="text-sm font-medium mb-1">No matching handoffs</p>
         </div>
       ) : (
         <div className="relative pl-5">
@@ -254,13 +252,13 @@ export function HandoffTimeline({ teamId, members, allAgents }: HandoffTimelineP
                       <div className="absolute -left-5 top-3 w-2.5 h-2.5 rounded-full bg-primary/30 border-2 border-primary/50" />
 
                       {/* Card */}
-                      <div className="border border-border rounded-lg p-3 bg-card">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                      <div className="min-w-0 overflow-hidden border border-border rounded-lg p-3 bg-card">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex min-w-0 items-center gap-2">
                             <AgentColorBadge appearance={getAgentAppearance(entry.agentId)} size="sm" />
-                            <span className="text-sm font-medium">{getAgentName(entry.agentId)}</span>
+                            <span className="truncate text-sm font-medium">{getAgentName(entry.agentId)}</span>
                           </div>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="shrink-0 text-xs text-muted-foreground">
                             {formatRelativePastTime(new Date(entry.timestamp))}
                           </span>
                         </div>

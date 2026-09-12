@@ -1,7 +1,11 @@
 package executionwriter
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +33,47 @@ func (noopRepo) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, res
 	return nil
 }
 
+type statusRecordingRepo struct {
+	statusUpdates int
+	execution     *database.ExecutionIndex
+}
+
+func (r *statusRecordingRepo) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return r.execution, nil
+}
+
+func (r *statusRecordingRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	r.statusUpdates++
+	return nil
+}
+
+func (r *statusRecordingRepo) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
+	return nil
+}
+
+func TestRecordStepOutcomeDoesNotSetTerminalExecutionStatus(t *testing.T) {
+	dataDir := t.TempDir()
+	plan := contracts.ExecutionPlan{ExecutionID: uuid.New(), WorkflowID: uuid.New()}
+	repo := &statusRecordingRepo{execution: &database.ExecutionIndex{ID: plan.ExecutionID, Status: database.ExecutionStatusRunning}}
+	writer := NewFileWriter(repo, storage.NewMemoryStorage(), nil, NewStaticRoot(dataDir))
+
+	_, err := writer.RecordStepOutcome(context.Background(), plan, contracts.StepOutcome{
+		ExecutionID: plan.ExecutionID,
+		StepIndex:   0,
+		NodeID:      "recoverable-step",
+		StepType:    "click",
+		StartedAt:   time.Now().UTC(),
+		Success:     false,
+		Failure:     &contracts.StepFailure{Message: "expected recoverable failure"},
+	})
+	if err != nil {
+		t.Fatalf("RecordStepOutcome() error = %v", err)
+	}
+	if repo.statusUpdates != 0 {
+		t.Fatalf("RecordStepOutcome() changed terminal status %d times; terminal status belongs to executor/service", repo.statusUpdates)
+	}
+}
+
 func TestRecordExecutionArtifacts(t *testing.T) {
 	dataDir := t.TempDir()
 	artifactPath := filepath.Join(dataDir, "video.webm")
@@ -37,7 +82,7 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 
 	memStore := storage.NewMemoryStorage()
-	writer := NewFileWriter(noopRepo{}, memStore, nil, dataDir)
+	writer := NewFileWriter(noopRepo{}, memStore, nil, NewStaticRoot(dataDir))
 	plan := contracts.ExecutionPlan{
 		ExecutionID: uuid.New(),
 		WorkflowID:  uuid.New(),
@@ -57,7 +102,10 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 		t.Fatalf("record artifacts: %v", err)
 	}
 
-	resultPath := writer.resultFilePath(plan.ExecutionID)
+	resultPath, err := writer.resultFilePath(context.Background(), plan.ExecutionID)
+	if err != nil {
+		t.Fatalf("result file path: %v", err)
+	}
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
 		t.Fatalf("read result: %v", err)
@@ -72,5 +120,31 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 	if memStore.ObjectCount() != 1 {
 		t.Fatalf("expected 1 stored artifact, got %d", memStore.ObjectCount())
+	}
+}
+
+func TestScreenshotMetadataUsesEncodedPixelDimensions(t *testing.T) {
+	for _, format := range []string{"png", "jpeg"} {
+		t.Run(format, func(t *testing.T) {
+			var encoded bytes.Buffer
+			pixels := image.NewRGBA(image.Rect(0, 0, 780, 1688))
+			var err error
+			if format == "png" {
+				err = png.Encode(&encoded, pixels)
+			} else {
+				err = jpeg.Encode(&encoded, pixels, nil)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			outcome := contracts.StepOutcome{Screenshot: &contracts.Screenshot{Data: encoded.Bytes(), Width: 390, Height: 844, MediaType: "image/png"}}
+			got := sanitizeOutcomeWithLimits(outcome, encoded.Len()+1, 1024, 1024, 1024)
+			if got.Screenshot.Width != 780 || got.Screenshot.Height != 1688 || got.Screenshot.MediaType != "image/"+format {
+				t.Fatalf("incorrect encoded image metadata: %dx%d %s", got.Screenshot.Width, got.Screenshot.Height, got.Screenshot.MediaType)
+			}
+			if !bytes.Equal(got.Screenshot.Data, encoded.Bytes()) {
+				t.Fatal("image bytes changed")
+			}
+		})
 	}
 }

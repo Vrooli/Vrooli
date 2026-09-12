@@ -1,15 +1,20 @@
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+// DOC: docs/guides/managing-policies.md
 package policy
 
 import "sync"
 
-// PolicyEvent represents a policy change, broadcast to SSE subscribers.
-// When Type is "snapshot", Rules contains the full set of enabled rules.
+// PolicyEvent is the versioned, atomically applicable policy cache payload.
+// Snapshot consumers must replace both Rules and ReceiptProjections together;
+// incremental Action fields are retained only for decoding historical streams.
 type PolicyEvent struct {
-	Type   string `json:"type"`              // "snapshot"
-	Action string `json:"action,omitempty"`  // legacy: "created", "updated", "deleted"
-	RuleID int64  `json:"rule_id,omitempty"` // legacy: ID of the affected rule
-	Rule   *Rule  `json:"rule,omitempty"`    // legacy: full rule for creates/updates
-	Rules  []Rule `json:"rules,omitempty"`   // snapshot: all enabled rules
+	Type               string                  `json:"type"` // "snapshot"
+	Version            int64                   `json:"version,omitempty"`
+	Rules              []Rule                  `json:"rules,omitempty"`
+	ReceiptProjections []ReceiptProjectionRule `json:"receipt_projections,omitempty"`
+	Action             string                  `json:"action,omitempty"`  // legacy
+	RuleID             int64                   `json:"rule_id,omitempty"` // legacy
+	Rule               *Rule                   `json:"rule,omitempty"`    // legacy
 }
 
 // PolicyBroadcaster fans out policy change events to in-process subscribers
@@ -68,10 +73,13 @@ func (b *PolicyBroadcaster) Broadcast(evt PolicyEvent) {
 	}
 }
 
-// BroadcastSnapshot broadcasts a full policy snapshot to all subscribers.
-func (b *PolicyBroadcaster) BroadcastSnapshot(rules []Rule) {
+// BroadcastSnapshot broadcasts a complete, versioned policy generation to all
+// subscribers. A partial update is intentionally not representable here.
+func (b *PolicyBroadcaster) BroadcastSnapshot(version int64, rules []Rule, projections []ReceiptProjectionRule) {
 	b.Broadcast(PolicyEvent{
-		Type:  "snapshot",
-		Rules: rules,
+		Type:               "snapshot",
+		Version:            version,
+		Rules:              rules,
+		ReceiptProjections: projections,
 	})
 }

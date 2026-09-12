@@ -1,7 +1,12 @@
 # Vrooli: The Recursive Intelligence Vision
 
+> **Owner:** `director-swarm` (drift detection via `vision-walk-prep` + `vision-update` decision context). **Author:** operator-direct. Agents may flag drift but do not author this file. Substantive expansion of the long-term arc — including the post-labor / DAO / peaceful-revolution narrative articulated in `docs/narrative/NARRATIVE.md`'s deep-vision section — is operator-curated. See `docs/narrative/README.md` for the full narrative canon hierarchy.
+
 ## The Core Insight
 Traditional automation is static. Vrooli is alive. Every task completed makes it smarter. This isn't incremental improvement - it's compound intelligence growth where capabilities multiply rather than add.
+
+## Operating Modes: Methodology As Capability
+Swarm Manager makes the *methodology* of agentic software engineering first-class. An operating mode is a **generic, composable, plan-first agentic-SWE state machine** expressed as data: it declares its unit of work (a plan, a plan reference, or an initiative), what each phase reads and must emit, how transitions classify progress from the work itself, and how modes compose by delegating phases to other modes. This is the practical bridge between the recursive-intelligence vision and day-to-day execution. The canonical concept, vocabulary, and architecture live in [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
 
 ## What We're Really Building
 Vrooli is the first platform where AI agents don't just execute tasks - they build the tools to execute future tasks better. It's a self-improving system that grows more capable through action, not programming.
@@ -17,7 +22,7 @@ This recursive loop means Vrooli's intelligence compounds. Each solution doesn't
 ### Layer 1: Scenario Intelligence - The Templates
 Businesses applications are generated from dual-purpose scenarios that serve as both integration tests AND revenue-generating templates. These scenarios:
 - **Validate** resource integration while proving deployment readiness
-- **Generate** $10K-50K revenue applications from customer requirements
+- **Generate** complete, deployable applications from customer requirements
 - **Compound** intelligence by becoming permanent platform capabilities
 - **Improve** themselves through meta-scenarios that enhance Vrooli itself
 
@@ -31,12 +36,15 @@ Access to local resources transformed everything. Moving from web APIs to infere
 - **Process** any data format with specialized AI models
 - **Execute** code in secure sandboxed environments
 
-Current resources include:
-- **AI Models:** Ollama, Claude Code, Whisper, Unstructured-IO
-- **Automation:** n8n, Windmill, Node-RED, Huginn, Agent-S2
-- **Storage:** PostgreSQL, Redis, Qdrant, MinIO, Vault
-- **Execution:** Judge0, Browserless
-- **Search:** SearXNG
+These capabilities come from a broad, evolving fleet of local and connected resources, spanning:
+- **Inference & AI models** — language, speech, vision, and embedding models, plus coding agents
+- **Storage & memory** — relational, cache, vector, time-series, graph, and object stores
+- **Execution** — sandboxed code execution and compute
+- **Automation & control** — browser, home, and infrastructure automation
+- **Connectors** — messaging, voice, email, and web-search bridges to the outside world
+- **Secrets & infrastructure** — secret management, backup, and supporting services
+
+The fleet is a tiered, evolving ecosystem — not a frozen inventory. For the current set and how it is managed, see [`docs/resources/README.md`](docs/resources/README.md) and the `vrooli resource` command surface.
 
 Each resource multiplies capabilities exponentially because agents combine them in unexpected ways.
 
@@ -58,6 +66,8 @@ The magic happens when these layers interact:
 5. Better solutions become more powerful capabilities
 6. The cycle accelerates exponentially
 
+> **From thesis to machinery:** this section is the *why*. For the operational form of the loop — how it is measured, prioritized, and run via the four projections (Answer / Validate / Guide / Act) — see [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md).
+
 ## The Scenario System: The Core Innovation
 
 Scenarios are the revolutionary breakthrough that makes this vision real. Each scenario:
@@ -65,15 +75,11 @@ Scenarios are the revolutionary breakthrough that makes this vision real. Each s
 ### Dual-Purpose Architecture
 Every scenario simultaneously serves as:
 - **Integration Test:** Validates that all resources work together correctly
-- **Business Template:** Complete $10K-50K revenue application ready for deployment
+- **Business Template:** Complete, deployable application built to be monetizable
 - **Intelligence Asset:** Permanent capability that enhances platform sophistication forever
 
-### Proven Revenue Generation
-Real businesses deployed from scenarios generate substantial revenue:
-- Research Assistant: $30K average deployment
-- Content Creation Studio: $25K average deployment
-- Document Processing Pipeline: $35K average deployment
-- Complete SaaS Platform: $50K+ average deployment
+### Revenue Potential
+Because every scenario is built to be monetizable, the same artifact that validates the platform can also earn its keep — as a product, part of a bundle, or a metered or gated capability. The concrete revenue model is operator-curated canon: see [`docs/monetization/`](docs/monetization/README.md) for bundles, delivery tiers, pricing, and revenue lines.
 
 ### Recursive Capability Expansion
 Every deployed scenario enables new capabilities:
@@ -91,10 +97,10 @@ Every deployed scenario enables new capabilities:
 - Proof of collaborative intelligence
 
 ### Phase 2: Resource Orchestration (Current)
-- 30+ local resources orchestrated for complete application building
-- Scenario-based revenue generation ($10K-50K applications) validated
-- Dual-purpose architecture (test+revenue) proven
-- Meta-scenarios enabling recursive self-improvement demonstrated
+- Dozens of local resources orchestrated for complete application building
+- Scenario-based application generation, with monetization built in by design
+- Dual-purpose architecture — every scenario is at once a test, a capability, and a potential product
+- Meta-scenarios driving recursive self-improvement
 
 ### Phase 3: Domain Specialization (Next)
 **Engineering Servers**
@@ -138,6 +144,8 @@ Every deployed scenario enables new capabilities:
 ### The Implications
 Every business becomes a software company instantly. Every idea becomes an application immediately. Every problem becomes solvable automatically.
 
+> **Operational detail:** this section is the *why*. For the concrete monetization plan — bundles, delivery tiers, pricing, and revenue lines — see [`docs/monetization/`](docs/monetization/README.md).
+
 ## Why This Changes Everything
 
 ### The End of Traditional Development
@@ -164,6 +172,15 @@ Intelligence emerges from the compound effect of countless small improvements. E
 
 ### The Critical Insight
 **Intelligence isn't what you know - it's what you can figure out.** Vrooli gets better at figuring things out by building tools that help it figure things out better.
+
+### The Three Faculties It Sharpens
+To figure anything out, you must **understand** the problem, **verify** a solution, and **know how to proceed**. Vrooli turns each into a space it can map and make cheap — the **Answer**, **Validate**, and **Guide** projections. Every architectural question it can answer instantly, every change it can verify and auto-fix, every task it already has a skill for — each is a pre-computed faculty that shrinks what's left to raw intelligence: the act of creation itself.
+
+The more complete these three become, the less intelligence each new act of building demands — until a small model running on hardware you own can do work that once required a frontier one. This is the engine beneath the recursive loop. Vrooli doesn't merely accumulate capabilities; it systematically converts the *judgment* its agents supply into *machinery* the project carries on its own — and each conversion makes the next one cheaper. That is how the loop pays for itself, and why it accelerates.
+
+The same conversion applies to *how the work itself is driven*. The repeatable methodology a human runs when steering a coding agent — what unit of work to take on, in what phases, with what checkpoints, and how to react when a phase doesn't converge — is itself judgment that can be turned into machinery. **Operating modes** make that a first-class, data-defined capability: each methodology loop is *data* interpreted by *one generic engine* — generic over its unit of work, composable with other modes, runnable plan-first — so it can be read at a glance, simulated before use, and run robustly against unreliable model output, rather than living implicitly in an operator's head or smeared across code. As `swarm-manager` becomes the surface through which all agentic work runs, operating modes are how "the way we do software engineering in the agentic world" becomes explicit, inspectable, and improvable. See [`scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md`](scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md).
+
+For the operational machinery — how these projections are measured, prioritized, and run — see [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md).
 
 ## The Societal Impact
 

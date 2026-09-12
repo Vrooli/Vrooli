@@ -1,157 +1,165 @@
-/**
- * Tests for DetailPageHeader.
- *
- * Verifies navigation button behavior (hamburger vs back arrow),
- * LensBar rendering, tab bar slot, and action slot.
- */
-
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
-import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
-import type { LensOption } from "./lens-options";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { Network, Activity } from "lucide-react";
+import { DetailPageHeader, type DetailPageHeaderProps } from "./DetailPageHeader";
+import type { LensOption } from "./lens-options";
+import { installMatchMediaMock, renderWithProviders } from "../../test-utils";
+import { useGraphUIStore } from "../../surfaces/graph/stores/graph-ui-store";
 
 const testLenses: LensOption[] = [
-  { lens: "topology", label: "View Topology", icon: Network, iconColorClass: "text-indigo-400" },
-  { lens: "operations", label: "View Operations", icon: Activity, iconColorClass: "text-amber-400" },
+  { lens: "plan", label: "View Plan", icon: Network, iconColorClass: "text-indigo-400" },
+  { lens: "focus", label: "View Focus", icon: Activity, iconColorClass: "text-amber-400" },
 ];
 
-// Track matchMedia mock to allow toggling mobile/desktop.
-let mockIsMobile = false;
-
 beforeEach(() => {
-  mockIsMobile = false;
-  useDetailSelectionStore.setState({ selection: null });
+  installMatchMediaMock();
+  // Default to a collapsed sidebar so the existing tests that assert the
+  // hamburger is present continue to pass; specific tests override below.
   useGraphUIStore.setState({ sidebarCollapsed: true });
-
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(max-width: 768px)" ? mockIsMobile : false,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
 });
 
 function renderHeader(overrides?: Partial<DetailPageHeaderProps>) {
   const defaults: DetailPageHeaderProps = {
     entityType: "backlog",
     title: "Test Item",
-    nodeId: "backlog/execute/test",
+    nodeId: "backlog-item/execute/test",
     lenses: testLenses,
     ...overrides,
   };
 
-  return render(
-    <MemoryRouter>
-      <DetailPageHeader {...defaults} />
-    </MemoryRouter>,
-  );
+  return renderWithProviders(<DetailPageHeader {...defaults} />, {
+    initialEntries: ["/graph", "/backlog/execute/test"],
+    initialIndex: 1,
+  });
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-path">{location.pathname}</span>;
 }
 
 describe("DetailPageHeader", () => {
-  it("renders entity type badge and title", () => {
+  it("renders the title without an entity-type badge (icons live in the body Overview)", () => {
     renderHeader();
 
-    expect(screen.getByText("backlog")).toBeInTheDocument();
     expect(screen.getByText("Test Item")).toBeInTheDocument();
+    expect(screen.queryByText("backlog")).toBeNull();
   });
 
-  it("renders subtitle when provided", () => {
-    renderHeader({ subtitle: "execute/test" });
+  it("opens a popover with the full title and a copy button when the title is clicked", async () => {
+    const longTitle = "Define the canonical sandbox auditability contract for agent-manager";
+    renderHeader({ title: longTitle });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-title-button"));
+
+    expect(screen.getByTestId("detail-title-popover")).toBeInTheDocument();
+    expect(screen.getByTestId("detail-title-popover-text")).toHaveTextContent(longTitle);
+    expect(screen.getByTestId("detail-title-copy-button")).toBeInTheDocument();
+  });
+
+  it("renders subtitle, status, one primary action, and an overflow menu", async () => {
+    renderHeader({
+      subtitle: "execute/test",
+      status: "in_progress",
+      primaryAction: <button data-testid="custom-action">Run</button>,
+      menuActions: [
+        { label: "Archive", onSelect: () => {}, testId: "menu-archive" },
+      ],
+    });
 
     expect(screen.getByText("execute/test")).toBeInTheDocument();
-  });
-
-  it("renders status badge when provided", () => {
-    renderHeader({ status: "in_progress" });
-
     expect(screen.getByTestId("detail-page-header")).toBeInTheDocument();
+    expect(screen.getByTestId("custom-action")).toBeInTheDocument();
+
+    // Secondary actions live behind the ellipsis, not inline.
+    expect(screen.queryByTestId("menu-archive")).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-header-actions"));
+    expect(screen.getByTestId("detail-header-actions-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("menu-archive")).toBeInTheDocument();
   });
 
-  it("renders action slot", () => {
-    renderHeader({ actions: <button data-testid="custom-action">Run</button> });
-
-    expect(screen.getByTestId("custom-action")).toBeInTheDocument();
+  it("renders no action row when only the title is provided", () => {
+    renderHeader();
+    expect(screen.queryByTestId("detail-header-actions")).toBeNull();
   });
 
   it("renders LensBar when nodeId and lenses are provided", () => {
     renderHeader();
 
     expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-topology")).toBeInTheDocument();
-    expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
+    expect(screen.getByTestId("lens-bar-focus")).toBeInTheDocument();
   });
 
-  it("does not render LensBar when nodeId is null", () => {
-    renderHeader({ nodeId: null });
-
+  it("does not render LensBar when nodeId is null or lenses are empty", () => {
+    const { rerender } = renderWithProviders(
+      <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={testLenses} />,
+    );
     expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
-  });
 
-  it("does not render LensBar when lenses are empty", () => {
-    renderHeader({ lenses: [] });
-
+    rerender(
+      <DetailPageHeader entityType="backlog" title="Test Item" nodeId="backlog-item/execute/test" lenses={[]} />,
+    );
     expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
   });
 
   it("renders tab bar slot when provided", () => {
-    renderHeader({
-      tabBar: <div data-testid="custom-tabs">Tabs</div>,
-    });
+    renderHeader({ tabBar: <div data-testid="custom-tabs">Tabs</div> });
 
     expect(screen.getByTestId("custom-tabs")).toBeInTheDocument();
   });
 
-  describe("desktop mode", () => {
-    it("shows back arrow on desktop", () => {
-      renderHeader();
+  it("places contextual lenses after tabs and can hide them outside Overview", () => {
+    const { rerender } = renderHeader({ tabBar: <div data-testid="custom-tabs">Tabs</div> });
+    const header = screen.getByTestId("detail-page-header");
+    expect(Array.from(header.children).findIndex((node) => node.contains(screen.getByTestId("custom-tabs"))))
+      .toBeLessThan(Array.from(header.children).findIndex((node) => node.contains(screen.getByTestId("lens-bar"))));
 
-      const navButton = screen.getByTestId("detail-nav-button");
-      expect(navButton).toHaveAttribute("aria-label", "Close detail view");
-    });
-
-    it("closes detail on click", async () => {
-      useDetailSelectionStore.setState({
-        selection: { entityType: "backlog", kind: "execute", name: "test" },
-      });
-      renderHeader();
-
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId("detail-nav-button"));
-
-      expect(useDetailSelectionStore.getState().selection).toBeNull();
-    });
+    rerender(<DetailPageHeader entityType="backlog" title="Test Item" nodeId="backlog-item/execute/test" lenses={testLenses} showLenses={false} />);
+    expect(screen.queryByTestId("lens-bar")).not.toBeInTheDocument();
   });
 
-  describe("mobile mode", () => {
-    beforeEach(() => {
-      mockIsMobile = true;
-    });
+  it("hides the hamburger button when the sidebar is open", () => {
+    useGraphUIStore.setState({ sidebarCollapsed: false });
+    renderHeader();
+    expect(screen.queryByTestId("page-sidebar-button")).toBeNull();
+  });
 
-    it("shows hamburger on mobile", () => {
-      renderHeader();
+  it("shows the hamburger button when the sidebar is collapsed", () => {
+    useGraphUIStore.setState({ sidebarCollapsed: true });
+    renderHeader();
+    expect(screen.getByTestId("page-sidebar-button")).toBeInTheDocument();
+  });
 
-      const navButton = screen.getByTestId("detail-nav-button");
-      expect(navButton).toHaveAttribute("aria-label", "Open sidebar");
-    });
+  it("uses route back semantics for the nav button", async () => {
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="*"
+          element={(
+            <>
+              <DetailPageHeader entityType="backlog" title="Test Item" nodeId={null} lenses={[]} />
+              <LocationProbe />
+            </>
+          )}
+        />
+      </Routes>,
+      {
+        initialEntries: ["/graph", "/backlog/execute/test"],
+        initialIndex: 1,
+      },
+    );
 
-    it("opens sidebar on click", async () => {
-      useGraphUIStore.setState({ sidebarCollapsed: true });
-      renderHeader();
+    expect(screen.getByTestId("page-sidebar-button")).toHaveAttribute("aria-label", "Open sidebar");
+    expect(screen.getByTestId("detail-nav-button")).toHaveAttribute("aria-label", "Close page");
 
-      const user = userEvent.setup();
-      await user.click(screen.getByTestId("detail-nav-button"));
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-nav-button"));
 
-      expect(useGraphUIStore.getState().sidebarCollapsed).toBe(false);
-    });
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/plan");
   });
 });

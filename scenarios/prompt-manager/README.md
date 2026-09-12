@@ -1,16 +1,17 @@
 # Prompt Manager
 
-**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization.
+**Skills + Agents + Teams** management system for Vrooli, providing reusable AI skills, agent coordination, and markdown-based skill references with 3D world visualization. Prompt-manager also documents a proposed **Actions** layer for typed executable wrappers over Vrooli-controlled CLI operations.
 
 ## Features
 
 - **Skills Management**: Full CRUD, versioning, AI search, testing, and pack organization (core/local/drafts)
 - **Agents**: Entities with appearance, SOUL.md + agent files, capabilities, connectors, and heartbeat
 - **Teams**: Organizational units with roles, members, org chart, and shared docs
-- **3D World Visualization**: Interactive React Three Fiber visualization for agent coordination
+- **3D World**: a diorama of the swarm where place is state (desks, team tables, commons), driven by the live run feed, with a HUD that makes the swarm actionable
 - **Multiple Interfaces**: Web UI, REST API, and command-line tool
 - **Text-Only Skills**: Agents and teams reference skills directly in markdown
 - **Relations**: Team-member memberships
+- **Actions (Proposed)**: Typed execution wrappers that let agents discover and run deterministic Vrooli-controlled CLI operations
 
 ## Quick Start
 
@@ -38,15 +39,17 @@
 ┌─────────────────────────────────────────────────────────┐
 │                    prompt-manager                        │
 ├─────────────┬─────────────┬─────────────┬───────────────┤
-│   Skills    │   Agents    │   Teams     │   Relations   │
-│  (packs)    │  (souls)    │  (roles)    │ (memberships) │
+│   Skills    │   Agents    │   Teams     │   Actions*    │
+│ (judgment)  │  (souls)    │  (roles)    │ (execution)   │
 └─────────────┴─────────────┴─────────────┴───────────────┘
                             │
             ┌───────────────┼───────────────┐
             ▼               ▼               ▼
-      File Store      PostgreSQL       Qdrant
+      File Store        SQLite         Qdrant
       (entities)      (metrics)       (vectors)
 ```
+
+`*` Actions are proposed and documented before implementation. See `docs/concepts/ACTIONS.md`.
 
 ### Components
 
@@ -54,7 +57,7 @@
 - **React UI** (port allocated by lifecycle): Web interface with pack navigation, skill editor, and 3D world
 - **Go CLI**: Command-line tool for quick operations
 - **File-based Store**: Primary entity storage (store/skills/, store/agents/, store/teams/)
-- **PostgreSQL** (optional): Analytics and metrics storage
+- **SQLite**: Embedded storage for tags, metrics, and test history
 - **Qdrant** (optional): Vector database for semantic search
 - **Ollama** (optional): Local LLM for skill testing
 
@@ -72,42 +75,27 @@ store/
 └── indexes/            # Generated lookup indexes
 ```
 
+The planned Actions store will follow the same per-entity, schema-validated posture as skills, agents, and teams once implemented.
+
 ## API Endpoints
 
-### Skills
-- `GET /api/v1/skills` - List skills with filters (folder, tag, mode)
-- `POST /api/v1/skills` - Create new skill
-- `GET /api/v1/skills/{id}` - Get skill details
-- `PUT /api/v1/skills/{id}` - Update skill
-- `DELETE /api/v1/skills/{id}` - Delete skill
-- `POST /api/v1/skills/{id}/use` - Record usage
-- `GET /api/v1/skills/{id}/versions` - Version history
-- `POST /api/v1/skills/{id}/revert/{ver}` - Revert to version
+Stable domains use generated Connect services under
+`/vrooli.prompt_manager.v1.<domain>.<Service>/<Method>`:
 
-### Agents
-- `GET /api/v1/agents` - List all agents
-- `POST /api/v1/agents` - Create agent
-- `GET /api/v1/agents/{id}` - Get agent details
-- `PUT /api/v1/agents/{id}` - Update agent
-- `DELETE /api/v1/agents/{id}` - Delete agent
+- `SkillsService`, `ActionsService`, and `TagsService` own authored capability state.
+- `SearchService`, `AISearchService`, and `DiscoveryService` own deterministic, semantic, and composed discovery.
+- `AgentsService` and `TeamsService` own identity, membership, team structure, files, roles, and exchange.
+- `TopicsService`, `TemplatesService`, `TestingService`, and `MetadataService` own supporting taxonomy, templates, skill tests, and link metadata.
+- `WorldService` owns world preferences, per-scene layout overrides and the server-streamed swarm feed (`docs/concepts/WORLD-ARCHITECTURE.md`).
 
-### Teams
-- `GET /api/v1/teams` - List all teams
-- `POST /api/v1/teams` - Create team
-- `GET /api/v1/teams/{id}` - Get team with roles and members
-- `PUT /api/v1/teams/{id}` - Update team
-- `DELETE /api/v1/teams/{id}` - Delete team
-- `POST /api/v1/teams/{id}/members` - Add member
-- `PUT /api/v1/teams/{id}/members/{agentId}` - Update member
-- `DELETE /api/v1/teams/{id}/members/{agentId}` - Remove member
+Use the generated Go/TypeScript clients or the CLI instead of constructing
+service URLs by hand. REST remains only for domains still listed in
+[`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md#baseline-rest-route-inventory).
 
 ### Search & Discovery
-- `GET /api/v1/search/skills?q={query}` - Full-text search
-- `POST /api/v1/search/ai` - Vector similarity search
-
-### Tags
-- `GET /api/v1/tags` - List all tags
-- `POST /api/v1/tags` - Create tag
+- `SearchService.SearchSkills` - Full-text search
+- `AISearchService.SearchSkills` - Vector similarity search
+- `DiscoveryService.Discover` - Budgeted capability discovery
 
 ## CLI Commands
 
@@ -121,7 +109,7 @@ prompt-manager skill show <id>
 prompt-manager skill add <name> [--folder=local] [--tags=...]
 prompt-manager skill update <id> [--name=...] [--tags=...]
 prompt-manager skill delete <id> [--force]
-prompt-manager skill use <id>                    # Copy and record usage
+prompt-manager skill read <id>                  # Read and record usage
 prompt-manager skill versions <id>               # View version history
 prompt-manager skill revert <id> <version>       # Revert to version
 
@@ -147,15 +135,15 @@ prompt-manager test history <skill-id>
 ## Configuration
 
 ### App Configuration
-Located in `initialization/configuration/app-config.json`:
+Located in `api/internal/<domain>/configuration/app-config.json`:
 - Port settings
-- Database configuration  
+- SQLite override hooks
 - Feature toggles
 - UI preferences
 - Resource limits
 
 ### Campaign Templates
-Located in `initialization/configuration/campaign-templates.json`:
+Located in `api/internal/<domain>/configuration/campaign-templates.json`:
 - Pre-configured campaign types
 - Color and icon schemes
 - Quick setup options
@@ -165,19 +153,12 @@ Located in `initialization/configuration/campaign-templates.json`:
 ### Prerequisites
 - Go 1.21+
 - Node.js 16+
-- PostgreSQL
 - (Optional) Qdrant, Ollama
 
 ### Setup
 ```bash
-# Database
-createdb prompt_manager
-psql -d prompt_manager < initialization/storage/postgres/schema.sql
-psql -d prompt_manager < initialization/storage/postgres/seed.sql
-
 # API Server
 cd api
-go mod tidy
 go run main.go
 
 # UI Development
@@ -185,8 +166,7 @@ cd ui
 npm install
 npm start
 
-# CLI Installation
-bash cli/install.sh
+# CLI installation is handled by the control plane from the declared Go module.
 ```
 
 ### Testing
@@ -230,9 +210,9 @@ bash deployment/validate.sh
 
 ```
 CLI/UI → Go API → File Store (skills, agents, teams)
-                → PostgreSQL (metrics, analytics)
+                → SQLite (tags, metrics, test history)
                 → Qdrant (embeddings)
                 → Ollama (testing)
 ```
 
-All interfaces interact through the central Go API server, ensuring consistent data handling and business logic. The 3D world visualization connects via React Query for real-time agent state.
+All interfaces interact through the central Go API server, ensuring consistent data handling and business logic. The 3D world reads a deterministic simulation fed by WorldService's stream; see docs/concepts/WORLD-SIM.md.

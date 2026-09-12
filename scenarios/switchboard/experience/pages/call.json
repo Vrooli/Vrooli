@@ -1,0 +1,266 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "call",
+    "title": "Call",
+    "routes": [
+      "/call/:threadId"
+    ],
+    "purpose": "A live voice conversation with an agent, holding the full viewport. The camera turns the device into an input the agent can read mid-sentence, which is the one thing a browser tab cannot do.",
+    "prd_refs": [
+      "OT-P2-002",
+      "OT-P2-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether the agent is currently hearing you"
+    },
+    {
+      "statement": "What it has understood so far, as running text"
+    },
+    {
+      "statement": "That a photo can be handed to the conversation without leaving it"
+    },
+    {
+      "statement": "How to end the call, reachable without looking"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The call is connected and speech is being transcribed."
+    },
+    {
+      "id": "loading",
+      "description": "The call is connecting; controls are present but inert."
+    },
+    {
+      "id": "submitting",
+      "description": "Captured media is uploading into the turn."
+    },
+    {
+      "id": "partial",
+      "description": "Transcription degraded to a lower-quality engine; the surface says which."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Microphone or camera permission was refused; recovery is stated."
+    },
+    {
+      "id": "request-error",
+      "description": "The call dropped; a reconnect action is offered."
+    },
+    {
+      "id": "offline",
+      "description": "The network is gone; the call is held and the state is stated."
+    },
+    {
+      "id": "success",
+      "description": "The call ended and its transcript was written to the thread."
+    },
+    {
+      "id": "empty",
+      "description": "Nothing to show yet; the surface says so and offers the action that would fill it."
+    },
+    {
+      "id": "stale",
+      "description": "Content is from a cached read; its age is stated."
+    }
+  ],
+  "elements": [
+    {
+      "id": "call-status",
+      "role": "status",
+      "name": "Call status"
+    },
+    {
+      "id": "listening-indicator",
+      "role": "img",
+      "name": "Listening"
+    },
+    {
+      "id": "live-transcript",
+      "role": "log",
+      "name": "Live transcript"
+    },
+    {
+      "id": "capture-action",
+      "role": "button",
+      "name": "Take a photo"
+    },
+    {
+      "id": "capture-preview",
+      "role": "img",
+      "name": "Captured photo"
+    },
+    {
+      "id": "mute-action",
+      "role": "button",
+      "name": "Mute"
+    },
+    {
+      "id": "end-action",
+      "role": "button",
+      "name": "End call"
+    },
+    {
+      "id": "engine-note",
+      "role": "note",
+      "name": "Transcription engine"
+    }
+  ],
+  "claims": [
+    {
+      "id": "listening-is-unambiguous",
+      "type": "element-present",
+      "statement": "Whether the agent is currently hearing the caller is perceivable at a glance and never inferred from silence.",
+      "tier": "aspirational",
+      "elements": [
+        "listening-indicator",
+        "call-status"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "end-is-always-reachable",
+      "type": "visible-without-scroll",
+      "statement": "The end-call action is visible and reachable in every state of the call, including error states.",
+      "tier": "aspirational",
+      "elements": [
+        "end-action"
+      ],
+      "rationale": "A call you cannot hang up is the worst possible failure of this surface."
+    },
+    {
+      "id": "end-target-size",
+      "type": "tap-target-size",
+      "statement": "Call controls meet the minimum tap target size at every viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "end-action",
+        "mute-action",
+        "capture-action"
+      ]
+    },
+    {
+      "id": "transcript-is-live",
+      "type": "accessible-name",
+      "statement": "The running transcript exposes a log role and announces politely without stealing focus from the controls.",
+      "tier": "aspirational",
+      "elements": [
+        "live-transcript"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "degradation-is-named",
+      "type": "element-present",
+      "statement": "A downgraded transcription engine is named rather than silently substituted.",
+      "tier": "aspirational",
+      "elements": [
+        "engine-note"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "A silent fall back to a weaker engine is indistinguishable from the product being bad."
+    },
+    {
+      "id": "capture-does-not-leave",
+      "type": "custom",
+      "statement": "Capturing a photo keeps the call connected and returns to the same call surface.",
+      "tier": "manual",
+      "elements": [
+        "capture-action",
+        "capture-preview"
+      ],
+      "states": [
+        "default",
+        "submitting"
+      ]
+    },
+    {
+      "id": "permission-recovery-stated",
+      "type": "element-present",
+      "statement": "A refused microphone or camera permission states the exact recovery step for this platform.",
+      "tier": "aspirational",
+      "states": [
+        "permission-denied"
+      ]
+    },
+    {
+      "id": "reduced-motion",
+      "type": "custom",
+      "statement": "The listening animation degrades to a non-animated state indicator under reduced-motion.",
+      "tier": "manual",
+      "elements": [
+        "listening-indicator"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "The call surface is legible in both themes without a separate design.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "transcript-region",
+      "purpose": "Running transcription of the live call.",
+      "required": true,
+      "component": {
+        "local": "transcript"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "call-status": {
+        "testid": "call-status"
+      },
+      "listening-indicator": {
+        "testid": "call-listening"
+      },
+      "live-transcript": {
+        "testid": "call-transcript"
+      },
+      "capture-action": {
+        "testid": "call-capture"
+      },
+      "capture-preview": {
+        "testid": "call-capture-preview"
+      },
+      "mute-action": {
+        "testid": "call-mute"
+      },
+      "end-action": {
+        "testid": "call-end"
+      },
+      "engine-note": {
+        "testid": "call-engine"
+      }
+    },
+    "regions": {
+      "transcript-region": {
+        "testid": "call-transcript-region"
+      }
+    }
+  }
+}

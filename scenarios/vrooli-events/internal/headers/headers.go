@@ -1,3 +1,5 @@
+// DOC: docs/guides/integrating-a-scenario.md
+// DOC: docs/reference/api-endpoints.md
 package headers
 
 import "net/http"

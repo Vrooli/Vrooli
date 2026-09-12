@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "inspector-layout",
+    "title": "InspectorLayout",
+    "purpose": "Keep a canvas-first workbench with a responsive inspector whose lifecycle does not displace the primary task.",
+    "storyRef": "../../library/components/InspectorLayout/versions/1.1.4/story.json"
+  },
+  "states": [
+    { "id": "ready-inspector", "example": "ready-inspector", "description": "The inspector is usable." },
+    { "id": "empty-inspector", "example": "empty-inspector", "description": "The inspector has no selection." },
+    { "id": "loading-inspector", "example": "loading-inspector", "description": "The inspector is loading." },
+    { "id": "partial-inspector", "example": "partial-inspector", "description": "The inspector is partially available." },
+    { "id": "error-inspector", "example": "error-inspector", "description": "The inspector reports an error." }
+  ],
+  "elements": [
+    { "id": "canvas", "role": "region", "description": "The primary work canvas." },
+    { "id": "toolbar", "role": "toolbar", "description": "Canvas controls and heading." }
+  ],
+  "claims": [
+    {
+      "id": "canvas-first",
+      "type": "custom",
+      "statement": "The canvas remains the primary task region while the inspector owns its own lifecycle state.",
+      "tier": "manual",
+      "elements": ["canvas"],
+      "states": ["ready-inspector", "empty-inspector", "loading-inspector", "partial-inspector", "error-inspector"]
+    },
+    {
+      "id": "responsive-workbench",
+      "type": "custom",
+      "statement": "The inspector moves below the canvas on narrow widths while preserving the content order.",
+      "tier": "manual",
+      "elements": ["canvas", "toolbar"],
+      "states": ["ready-inspector"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "canvas": { "selector": "[data-rcl-inspector-canvas]" },
+      "toolbar": { "selector": "[data-rcl-inspector-toolbar]" }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "module_id": "MOD-P2-013",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "description": "Move beyond detect-and-advise toward guided secret rotation. Deferred: v1 detects and advises only; rotation is explicitly out of scope.",
+  "requirements": [
+    {
+      "id": "REQ-P2-003",
+      "title": "Guided secret rotation",
+      "prd_ref": "OT-P2-003",
+      "category": "core",
+      "status": "not_implemented",
+      "description": "Provide a guided workflow that, given a gitleaks finding, walks an operator through rotating the credential and moving it to vault. v1 only detects and emits rotation guidance text.",
+      "validation": [
+        { "type": "manual", "phase": "business", "status": "deferred", "notes": "Deferred; v1 ships detection + advice only per PRD non-goals." }
+      ]
+    }
+  ]
+}

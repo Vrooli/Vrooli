@@ -305,3 +305,31 @@ func TestComputeListBlockingInfo_MissingDepNotBlocking(t *testing.T) {
 		t.Error("child with missing dep reference should not be blocked (fail-open)")
 	}
 }
+
+func TestComputeListBlockingInfo_ArchivedDepNotBlocking(t *testing.T) {
+	archivedAt := "2026-01-02T00:00:00Z"
+	items := []BacklogItem{
+		{Name: "archived-dep", Kind: KindIdea, Status: StatusBacklog, ArchivedAt: &archivedAt},
+		{Name: "child-item", Kind: KindFix, Status: StatusBacklog, DependsOn: []string{"idea/archived-dep"}},
+	}
+
+	result := ComputeListBlockingInfo(items)
+
+	if _, found := result["fix/child-item"]; found {
+		t.Error("child with archived dependency should not be blocked")
+	}
+}
+
+func TestComputeListBlockingInfo_ArchivedChildOmitted(t *testing.T) {
+	archivedAt := "2026-01-02T00:00:00Z"
+	items := []BacklogItem{
+		{Name: "dep-item", Kind: KindIdea, Status: StatusBacklog},
+		{Name: "archived-child", Kind: KindFix, Status: StatusBacklog, ArchivedAt: &archivedAt, DependsOn: []string{"idea/dep-item"}},
+	}
+
+	result := ComputeListBlockingInfo(items)
+
+	if _, found := result["fix/archived-child"]; found {
+		t.Error("archived child should not appear in blocking map")
+	}
+}

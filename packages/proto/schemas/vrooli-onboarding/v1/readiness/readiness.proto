@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.readiness;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "vrooli-onboarding/v1/shared/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness;readinessv1";
+
+// ReadinessService is the typed, metadata safe completion verdict for one
+// onboarding node. The readiness digest identifies the exact degraded set:
+// accepting one degraded set must not authorise completion over a different
+// one later.
+service ReadinessService {
+  rpc GetReadiness(GetReadinessRequest) returns (GetReadinessResponse);
+  rpc AcknowledgeDegradedReadiness(AcknowledgeDegradedReadinessRequest) returns (AcknowledgeDegradedReadinessResponse);
+}
+
+message GetReadinessRequest { string target = 1; }
+
+message AcknowledgeDegradedReadinessRequest {
+  string target = 1;
+  string readiness_digest = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+enum ReadinessState {
+  READINESS_STATE_UNSPECIFIED = 0;
+  READINESS_STATE_READY = 1;
+  READINESS_STATE_MISSING = 2;
+  READINESS_STATE_DEGRADED = 3;
+  READINESS_STATE_UNSUPPORTED = 4;
+  READINESS_STATE_DEFERRED = 5;
+  READINESS_STATE_NOT_APPLICABLE = 6;
+}
+
+message CredentialConsumerProvenance {
+  string logical_id = 1;
+  string address_pattern = 2;
+  string field = 3;
+  string kind = 4;
+  string consumer = 5;
+  string source_ref = 6;
+  bool required = 7;
+  string reason = 8;
+  repeated string tiers = 9;
+}
+
+message CredentialApplicabilityMatch {
+  string context = 1;
+  string setting = 2;
+  string operation = 3;
+  string role = 4;
+  string target = 5;
+  string environment = 6;
+  string capability = 7;
+  string provider = 8;
+  string value = 9;
+}
+
+message CredentialApplicabilityRule {
+  oneof comparison {
+    CredentialApplicabilityMatch eq = 1;
+    CredentialApplicabilityMatch neq = 2;
+  }
+}
+
+message CredentialApplicability {
+  repeated CredentialApplicabilityRule all = 1;
+  repeated CredentialApplicabilityRule any = 2;
+  CredentialApplicabilityRule not = 3;
+}
+
+message CredentialMigrationDiagnostic {
+  string address = 1;
+  string code = 2;
+  string severity = 3;
+  string message = 4;
+}
+
+message CredentialProvenance {
+  string owner = 1;
+  string source_ref = 2;
+  string kind = 3;
+  string env = 4;
+  string label = 5;
+  string description = 6;
+  string obtain_url = 7;
+  string provisioning = 8;
+  string derived_from = 9;
+  bool required = 10;
+  repeated CredentialConsumerProvenance consumers = 11;
+  string version = 12;
+  string provider = 13;
+  CredentialApplicability applies_when = 14;
+  string requirement_group = 15;
+  repeated string consumer_refs = 16;
+  repeated string companion_settings = 17;
+  repeated string companion_credentials = 18;
+  string acquisition_ref = 19;
+  string verification_ref = 20;
+  string recovery_ref = 21;
+  string help_ref = 22;
+  string evidence_policy = 23;
+  string provider_version = 24;
+  repeated string tiers = 25;
+  // Safe, non-secret sample text for an operator input placeholder.
+  string placeholder = 26;
+}
+
+message Credential {
+  string resource = 1;
+  string logical_id = 2;
+  string field = 3;
+  string label = 4;
+  string description = 5;
+  string obtain_url = 6;
+  // Safe, non-secret sample text for an operator input placeholder.
+  string placeholder = 38;
+  string provisioning = 7;
+  string derived_from = 8;
+  bool required = 9;
+  ReadinessState status = 10;
+  string legacy_status = 11;
+  string detail = 12;
+  repeated CredentialProvenance provenance = 13;
+  string owner = 14;
+  string source_ref = 15;
+  string kind = 16;
+  repeated string consumer_refs = 17;
+  string version = 18;
+  string provider = 19;
+  CredentialApplicability applies_when = 20;
+  string requirement_group = 21;
+  repeated string companion_settings = 22;
+  repeated string companion_credentials = 23;
+  string acquisition_ref = 24;
+  string verification_ref = 25;
+  string recovery_ref = 26;
+  string help_ref = 27;
+  string evidence_policy = 28;
+	string provider_version = 29;
+	repeated CredentialMigrationDiagnostic migration_diagnostics = 30;
+	// Storage presence and exercised provider evidence are separate facts.
+	string evidence_status = 31;
+	string evidence_detail = 32;
+	string evidence_next_action = 33;
+	string evidence_credential_version = 34;
+	string provider_state = 35;
+	string provider_detail = 36;
+	repeated string tiers = 37;
+}
+
+message ReadinessItem {
+  string name = 1;
+  string category = 2;
+  ReadinessState status = 3;
+  string legacy_status = 4;
+  string detail = 5;
+  string remediation = 6;
+  bool required = 7;
+}
+
+message HostReadiness {
+  ReadinessItem item = 1;
+  string kind = 2;
+  bool required = 3;
+}
+
+message RecoveryGap {
+  string address = 1;
+  string description = 2;
+}
+
+message Recovery {
+  bool receipt_exists = 1;
+  string exported_at = 2;
+  int32 entry_count = 3;
+  repeated string uncovered = 4;
+  repeated string required_absent = 5;
+  repeated RecoveryGap required_absent_details = 6;
+  google.protobuf.Struct root_copy = 7;
+  repeated string root_copy_issues = 8;
+  string status = 9;
+  int64 age_seconds = 10;
+  string freshness_reason = 11;
+}
+
+message GetReadinessResponse {
+  string target = 16;
+  string configuration_revision = 17;
+  google.protobuf.Timestamp expires_at = 18;
+  ReadinessState status = 1;
+  repeated string scenarios = 2;
+  repeated string resources = 3;
+  repeated Credential credentials = 4;
+  repeated HostReadiness hosts = 5;
+  repeated ReadinessItem integrations = 6;
+  google.protobuf.Timestamp checked_at = 7;
+  google.protobuf.Struct credential_diagnosis = 8;
+  Recovery recovery = 9;
+  repeated shared.CompletionBlocker blockers = 10;
+  repeated shared.CompletionBlocker degraded = 11;
+  string degraded_digest = 12;
+  bool degraded_acknowledged = 13;
+  bool managed_key_configured = 14;
+  bool trust_anchor_match = 15;
+}
+
+message AcknowledgeDegradedReadinessResponse {
+  string status = 1;
+  string readiness_digest = 2;
+  repeated shared.CompletionBlocker degraded = 3;
+}

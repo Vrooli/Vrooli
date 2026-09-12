@@ -1,0 +1,753 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.stt;
+
+import "audio-tools/v1/common/common.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt;stt_v1";
+
+// =============================================================================
+// STT DOMAIN — speech-to-text (transcription), voice stream config,
+//              wake-word template, and speaker verification.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain stt
+// @stability stable
+//
+// Provider routing: BYOK -> Vrooli/LPBS -> Local (fixed precedence).
+// ErrInsufficientCredits from the Vrooli tier short-circuits and does NOT
+// fall through to Local. Per-request credentials travel in metadata headers
+// — see audio-tools/v1/auth/auth.proto for the typed Credentials envelope
+// shared by the server-side and client-side Connect interceptors.
+//
+// REST exception:
+//   POST /api/v1/voice/transcribe (RESTReason: multipart_upload) parses
+//   multipart form-data and calls the same Transcribe handler.
+//
+// The browser-voice WebSocket transport at /api/v1/voice/stream is documented
+// in session.proto + SEAMS.md; it is a TransportReason: websocket_transport
+// endpoint, not a REST exception.
+// =============================================================================
+
+// STTService is the runtime transcription surface. Administrative
+// endpoints (stream/wake-word/speaker config + speaker-profile CRUD)
+// live on STTAdminService in stt_admin.proto so the runtime client
+// surface stays minimal.
+service STTService {
+  rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
+
+  // TranscribeStream is the Connect bidi-stream equivalent of the
+  // /api/v1/voice/stream WebSocket transport. It exists so non-browser
+  // consumers (other scenarios, CLIs) can call streaming STT through the
+  // same Connect-RPC surface as Transcribe. The browser path still uses
+  // the WebSocket transport for ecosystem-tooling reasons (recorded in
+  // SEAMS.md as TransportReason: websocket_transport).
+  rpc TranscribeStream(stream TranscribeStreamRequest) returns (stream TranscribeStreamEvent);
+
+  // GetSupportedFormats reports the audio-format capability matrix for STT
+  // ingress: the input codecs the API accepts (the audioformat substrate's
+  // vocabulary) plus whether the local ffmpeg decode backend is present.
+  // It is purely informational — it backs `audio-tools stt formats`.
+  rpc GetSupportedFormats(GetSupportedFormatsRequest) returns (GetSupportedFormatsResponse);
+
+  // ListEngines reports the selectable STT engines derived from the
+  // engine-capability manifest (internal/sttengine/manifest.json), with each
+  // engine's runtime availability. It backs the admin engine picker and
+  // `audio-tools stt engines`. The UI/CLI MUST read the engine list from here
+  // — never hardcode it — so adding an engine is a manifest-only change.
+  rpc ListEngines(ListEnginesRequest) returns (ListEnginesResponse);
+}
+
+// -----------------------------------------------------------------------------
+// Typed enums (replace prior freeform string fields).
+// -----------------------------------------------------------------------------
+
+// SpeakerMode is the speaker-verification gating mode applied to the
+// transcript pipeline.
+enum SpeakerMode {
+  SPEAKER_MODE_UNSPECIFIED = 0;
+  SPEAKER_MODE_OFF = 1;
+  SPEAKER_MODE_FILTER = 2;
+  SPEAKER_MODE_ADVISORY = 3;
+}
+
+// RejectBehavior selects what the pipeline does with a transcript that
+// failed speaker verification.
+enum RejectBehavior {
+  REJECT_BEHAVIOR_UNSPECIFIED = 0;
+  REJECT_BEHAVIOR_DROP = 1;
+  REJECT_BEHAVIOR_SHOW_MUTED = 2;
+}
+
+// StreamingMode controls whether the streaming pipeline runs at all.
+// AUTO = "use streaming whenever the active provider declares
+//         StreamingCapability=true; otherwise buffer-then-unary".
+// OFF  = "always buffer-then-unary, even when a streaming adapter is
+//         available".
+enum StreamingMode {
+  STREAMING_MODE_UNSPECIFIED = 0;
+  STREAMING_MODE_AUTO = 1;
+  STREAMING_MODE_OFF = 2;
+}
+
+// StrategyPreference selects which streaming strategy the chain prefers
+// when StreamingMode != OFF.
+enum StrategyPreference {
+  STRATEGY_PREFERENCE_UNSPECIFIED = 0;
+  STRATEGY_PREFERENCE_AUTO = 1;
+  STRATEGY_PREFERENCE_VAD = 2;
+  STRATEGY_PREFERENCE_OVERLAP = 3;
+  STRATEGY_PREFERENCE_PASSTHROUGH = 4;
+}
+
+// -----------------------------------------------------------------------------
+// Transcribe
+// -----------------------------------------------------------------------------
+
+message TranscribeRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  string language = 3; // empty = provider auto-detect
+  bool skip_speaker_verification = 4;
+  string initial_prompt = 5; // optional Whisper-style prompt
+}
+
+message TranscribeResponse {
+  string text = 1;
+  string detected_language = 2;
+  double duration_seconds = 3;
+
+  // Provider trace surface. model_id is the concrete model identifier
+  // the provider used.
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+
+  // Post-recognition quality policy result. When filtered is true, text is
+  // intentionally empty because the configured STT egress policy suppressed a
+  // known silence hallucination, low-confidence silence/noise, or equivalent
+  // non-user-facing output.
+  bool filtered = 8;
+  string filter_reason = 9;
+  map<string, string> policy_details = 10;
+}
+
+// -----------------------------------------------------------------------------
+// Stream config
+// -----------------------------------------------------------------------------
+
+message StreamConfig {
+  int32 flush_interval_ms = 1;
+  int32 min_delta_bytes = 2;
+  int32 overlap_bytes = 3;
+  bool persistent_mode = 4;
+  bool wake_word_enabled = 5;
+  double wake_word_threshold = 6;
+  int32 segment_silence_ms = 7;
+
+  // Streaming-pipeline operator levers (see
+  // scenarios/audio-tools/docs/reference/configuration.md#streaming-stt-control-surface).
+  StreamingMode streaming_mode = 8;
+  StrategyPreference strategy_preference = 9;
+  // vad_silence_ms: silence window that closes a VAD-segment.
+  // Range 200..3000; 0 defaults to 700.
+  int32 vad_silence_ms = 10 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 3000
+  }];
+  // overlap_window_ms: sliding-window size for OverlapAgreeStrategy.
+  // Range 1000..5000; 0 defaults to 2000.
+  int32 overlap_window_ms = 11 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5000
+  }];
+  // overlap_commit_runs: consecutive agreeing runs to commit a prefix.
+  // Range 2..4; 0 defaults to 2.
+  int32 overlap_commit_runs = 12 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 4
+  }];
+
+  // Post-recognition egress-gate levers (see
+  // scenarios/audio-tools/docs/reference/configuration.md#egress-gate).
+  // The gate is the single seam every transcribed segment passes through
+  // before the wire; these toggle/tune its quality stages. Defaults are
+  // applied server-side when a stored config predates the field.
+  //
+  // hallucination_filter_enabled: drop segments matching Whisper's known
+  // silence-hallucination phrases ("thank you for watching", ...). Default true.
+  bool hallucination_filter_enabled = 13;
+  // vad_filter_enabled: enable faster-whisper's built-in voice-activity
+  // filter on each /asr request (strips silence before decode — the
+  // source-level hallucination fix). Default true.
+  bool vad_filter_enabled = 14;
+  // no_speech_threshold: signal-domain drop when a segment's mean
+  // no_speech_prob exceeds this AND its avg_logprob is below
+  // logprob_threshold. Range (0,1]; 0 defaults to 0.6.
+  double no_speech_threshold = 15 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // logprob_threshold: paired with no_speech_threshold (see above).
+  // Range [-10,0); 0 defaults to -1.0.
+  double logprob_threshold = 16 [(buf.validate.field).double = {
+    gte: -10
+    lte: 0
+  }];
+
+  // engine_id selects the active STT engine (an sttengine manifest id, e.g.
+  // "whisper-local"). Empty resolves to the manifest's default engine. Only
+  // the Local tier honors it — BYOK/Vrooli tiers stream natively. Read the
+  // valid ids from ListEngines; do not hardcode.
+  string engine_id = 17;
+
+  // denoise_enabled turns on the pre-recognition ingress denoise stage
+  // (ffmpeg afftdn on the canonical-PCM stream, before the VAD and Whisper see
+  // it). Off by default; applies only to the Whisper PCM-buffering strategies
+  // (vad/overlap) and only when ffmpeg is available. Improves silence
+  // detection + accuracy in noisy environments.
+  bool denoise_enabled = 18;
+
+  // overlap_max_stall_rejects is the OverlapAgree stall-fallback commit
+  // policy. After this many CONSECUTIVE LocalAgreement divergence-rejects
+  // (the model wandering on hard audio so nothing commits), the strategy
+  // force-commits the freshest hypothesis tail and advances its cursor,
+  // bounding tail growth / re-transcription cost well before the 25s
+  // max_window_ms net — the fix for "streaming finalizes slower than
+  // batch". Range 0..10; 0 disables the fallback (only the 25s net
+  // applies); an absent/0-on-old-doc value backfills to the default (3).
+  // The active operator range is [1,10]. See
+  // scenarios/audio-tools/api/internal/stt/strategy/overlap_agree.go.
+  int32 overlap_max_stall_rejects = 19 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10
+  }];
+}
+
+message GetStreamConfigRequest {}
+
+message GetStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+message GetSupportedFormatsRequest {}
+
+// GetSupportedFormatsResponse describes the STT ingress capability matrix.
+message GetSupportedFormatsResponse {
+  // Input codecs the API accepts as a `format`/`input_format` hint. Batch
+  // transcription always decodes these (Whisper has its own decoder); live
+  // streaming of non-PCM additionally requires ffmpeg_available=true.
+  repeated vrooli.audio_tools.v1.common.AudioFormat accepted_formats = 1;
+  // True when the local ffmpeg decode backend is present. When false, live
+  // streaming of a non-PCM codec degrades to buffered whole-file decode.
+  bool ffmpeg_available = 2;
+  // The fixed canonical internal representation Whisper + VAD consume. Not
+  // caller-tunable; reported so clients know the PCM fast-path target.
+  int32 canonical_sample_rate_hz = 3;
+  int32 canonical_channels = 4;
+}
+
+// -----------------------------------------------------------------------------
+// ListEngines — manifest-derived engine catalog for the admin picker.
+// -----------------------------------------------------------------------------
+
+message ListEnginesRequest {}
+
+// EngineInfo is one selectable STT engine, projected from the sttengine
+// manifest with runtime availability resolved at call time.
+message EngineInfo {
+  string id = 1;
+  string display_name = 2;
+  // kind discriminator: "local_resource" | "byok_api" | "vrooli_hosted".
+  string kind = 3;
+  // available is true when the engine can serve right now (its backing
+  // resource is reachable). Unavailable engines are still listed so the UI can
+  // show them disabled with a reason.
+  bool available = 4;
+  // native_streaming mirrors the manifest provides.nativeStreaming — the UI
+  // uses it to explain that switching to this engine changes the strategy.
+  bool native_streaming = 5;
+  // is_active is true for the engine the persisted StreamConfig currently
+  // selects (or the manifest default when unset).
+  bool is_active = 6;
+  // verdict is selected, candidate, or rejected according to the resolver.
+  string verdict = 7;
+  // reason explains the signal and observed policy result for this candidate.
+  string reason = 8;
+}
+
+message ListEnginesResponse {
+  repeated EngineInfo engines = 1;
+}
+
+// -----------------------------------------------------------------------------
+// GetEngineSwitchImpact — shared-resource awareness for the engine picker.
+// When the operator switches the active engine, audio-tools may stop using the
+// previous engine's backing resource. Because resources are SHARED across
+// scenarios, audio-tools NEVER auto-stops one; instead it reports which other
+// scenarios still depend on it so the operator can make an informed choice.
+// -----------------------------------------------------------------------------
+
+message GetEngineSwitchImpactRequest {
+  // from_engine_id is the engine the operator is switching AWAY from (usually
+  // the currently-active engine). The impact describes what happens to that
+  // engine's backing resource once audio-tools no longer uses it.
+  string from_engine_id = 1;
+}
+
+// ScenarioResourceConsumer is one other scenario that declares the resource as
+// a dependency.
+message ScenarioResourceConsumer {
+  string scenario = 1; // scenario directory id
+  string display_name = 2; // service.json display name (falls back to id)
+  bool required = 3; // true when the scenario hard-requires the resource
+}
+
+message GetEngineSwitchImpactResponse {
+  // resource is from_engine_id's backing resource. Empty for non-local engines
+  // (BYOK/Vrooli own no local resource) — safe_to_stop is then true.
+  string resource = 1;
+  // consumers are OTHER scenarios still declaring `resource`. Empty means no
+  // other scenario uses it.
+  repeated ScenarioResourceConsumer consumers = 2;
+  // safe_to_stop is true when no other scenario consumes the resource, so the
+  // operator can stop it to reclaim compute/VRAM without affecting anything.
+  bool safe_to_stop = 3;
+  // stop_command is the exact command an operator runs to stop the resource.
+  // audio-tools NEVER stops it automatically. Empty when there is no resource.
+  string stop_command = 4;
+  // consumers_known is false when the scenarios directory could not be located
+  // (the prompt then explains it can't enumerate other consumers). When false,
+  // safe_to_stop is conservatively false for local resources.
+  bool consumers_known = 5;
+}
+
+// UpdateStreamConfigRequest carries a FieldMask + a full StreamConfig
+// payload. Server validates every path in `update_mask.paths` against
+// the StreamConfig schema; unknown paths -> CodeInvalidArgument. An
+// empty mask is rejected as CodeInvalidArgument ("no fields specified").
+message UpdateStreamConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  StreamConfig config = 2;
+}
+
+message UpdateStreamConfigResponse {
+  StreamConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Wake word
+// -----------------------------------------------------------------------------
+
+// WakeWordSample is one labelled audio clip used to fit the wakeword
+// model.
+message WakeWordSample {
+  bytes audio = 1;
+  vrooli.audio_tools.v1.common.AudioFormat format = 2;
+  int32 sample_rate_hz = 3;
+}
+
+// WakeWordTemplate is the typed payload that replaces the legacy opaque
+// `template_json` field. The shape is owned by audio-tools (server) and
+// consumed by the embed/UI wakeword engine.
+message WakeWordTemplate {
+  string label = 1;
+  double threshold = 2;
+  repeated WakeWordSample samples = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message WakeWordConfig {
+  bool configured = 1;
+  WakeWordTemplate template = 2;
+}
+
+message GetWakeWordConfigRequest {}
+
+message GetWakeWordConfigResponse {
+  WakeWordConfig config = 1;
+}
+
+message UpdateWakeWordTemplateRequest {
+  WakeWordTemplate template = 1;
+}
+
+message UpdateWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+message DeleteWakeWordTemplateRequest {}
+
+message DeleteWakeWordTemplateResponse {
+  WakeWordConfig config = 1;
+}
+
+// -----------------------------------------------------------------------------
+// Speaker verification
+// -----------------------------------------------------------------------------
+
+message SpeakerConfig {
+  bool enabled = 1;
+  repeated string profile_ids = 2;
+  double threshold = 3;
+  SpeakerMode mode = 4;
+  RejectBehavior reject_behavior = 5;
+  bool fallback_without_verification = 6;
+  bool extraction_enabled = 7;
+  // min_decision_seconds is the warm-up window: the session-level verifier does
+  // not reject any segment until this much voiced audio has accrued, so a short
+  // first utterance is never falsely rejected. 0 uses the server default.
+  double min_decision_seconds = 8;
+  // score_smoothing is the EMA alpha (0,1] applied to per-segment scores so the
+  // session decision stops swinging mid-utterance. 0 uses the server default.
+  double score_smoothing = 9;
+}
+
+message GetSpeakerConfigRequest {}
+
+message GetSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+// UpdateSpeakerConfigRequest follows the same FieldMask + payload shape
+// as UpdateStreamConfigRequest. Same validation rules apply.
+message UpdateSpeakerConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  SpeakerConfig config = 2;
+}
+
+message UpdateSpeakerConfigResponse {
+  SpeakerConfig config = 1;
+}
+
+message SpeakerProfile {
+  string id = 1;
+  string display_name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  string model_name = 5;
+  int32 embedding_dim = 6;
+  int32 sample_rate = 7;
+  double enrollment_audio_seconds = 8;
+  string notes = 9;
+  // A profile is one identity holding N enrollment clips (different devices /
+  // speaking styles), each strengthening the stored centroid.
+  int32 clip_count = 10;
+  double total_voiced_seconds = 11;
+}
+
+// SpeakerProfileClip is one labeled enrollment clip within a profile. The raw
+// embedding is never surfaced; only its metadata.
+message SpeakerProfileClip {
+  string clip_id = 1;
+  string label = 2;
+  double voiced_seconds = 3;
+  double audio_seconds = 4;
+  google.protobuf.Timestamp created_at = 5;
+  int32 embedding_dim = 6;
+}
+
+message SpeakerResourceInfo {
+  string backend = 1;
+  string model = 2;
+  string device = 3;
+  int32 sample_rate = 4;
+  string version = 5;
+  int32 embedding_dim = 6;
+}
+
+message SpeakerStatus {
+  SpeakerConfig config = 1;
+  string capability = 2;
+  string capability_label = 3;
+  bool resource_ready = 4;
+  bool profile_configured = 5;
+  bool profile_exists = 6;
+  int32 profile_count = 7;
+  repeated SpeakerProfile profiles = 8;
+  SpeakerResourceInfo info = 9;
+  google.protobuf.Timestamp checked_at = 10;
+}
+
+message GetSpeakerStatusRequest {}
+
+message GetSpeakerStatusResponse {
+  SpeakerStatus status = 1;
+}
+
+message ListSpeakerProfilesRequest {}
+
+message ListSpeakerProfilesResponse {
+  repeated SpeakerProfile profiles = 1;
+  int32 count = 2;
+}
+
+message SpeakerEnrollment {
+  string profile_id = 1;
+  string display_name = 2;
+  int32 embedding_dim = 3;
+  int32 sample_rate = 4;
+  double enrollment_audio_seconds = 5;
+  string model_name = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // The clip this enrollment call appended, plus the resulting profile totals.
+  string clip_id = 8;
+  string label = 9;
+  double voiced_seconds = 10;
+  int32 clip_count = 11;
+  double total_voiced_seconds = 12;
+}
+
+// EnrollSpeakerProfileRequest enrolls a new speaker profile. The
+// optional tri-state flags (`add_to_active`, `enable`) use proto3
+// `optional` rather than has_X partners.
+message EnrollSpeakerProfileRequest {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  vrooli.audio_tools.v1.common.AudioFormat format = 2 [(buf.validate.field).enum.not_in = 0];
+  string profile_id = 3;
+  string display_name = 4 [(buf.validate.field).string.min_len = 1];
+  string notes = 5;
+  optional bool add_to_active = 6;
+  optional bool enable = 7;
+  // label tags this enrollment clip with its condition (e.g. "laptop-normal",
+  // "phone-whisper") so the profile can hold a labeled variety of clips.
+  string label = 8;
+}
+
+message EnrollSpeakerProfileResponse {
+  SpeakerEnrollment enrollment = 1;
+  SpeakerConfig config = 2;
+}
+
+// ClearSpeakerProfileBinding clears ALL active profile bindings in the
+// speaker config. Profiles themselves remain in the speaker store; only
+// the active-binding list is emptied. The single-profile equivalent is
+// UnbindSpeakerProfile.
+message ClearSpeakerProfileBindingRequest {}
+
+message ClearSpeakerProfileBindingResponse {
+  SpeakerConfig config = 1;
+}
+
+// UnbindSpeakerProfileRequest removes a single profile_id from the
+// active SpeakerConfig.profile_ids list. The profile itself is NOT
+// deleted from the speaker store and can be re-bound later. Use
+// DeleteSpeakerProfile to purge the profile from the store.
+message UnbindSpeakerProfileRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message UnbindSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}
+
+// DeleteSpeakerProfileRequest permanently deletes a profile from the
+// speaker store and removes it from the active config. Requires a
+// configured speaker store (FailedPrecondition otherwise). To merely
+// unbind a profile without losing the enrollment, use
+// UnbindSpeakerProfile.
+message DeleteSpeakerProfileRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteSpeakerProfileResponse {
+  SpeakerConfig config = 1;
+}
+
+// ListSpeakerProfileClipsRequest lists the enrollment clips of one profile.
+message ListSpeakerProfileClipsRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message ListSpeakerProfileClipsResponse {
+  string profile_id = 1;
+  repeated SpeakerProfileClip clips = 2;
+  int32 count = 3;
+}
+
+// DeleteSpeakerProfileClipRequest removes one clip from a profile and
+// recomputes its centroid. Deleting the last clip deletes the (now-empty)
+// profile (deleted_profile=true in the response).
+message DeleteSpeakerProfileClipRequest {
+  string profile_id = 1 [(buf.validate.field).string.min_len = 1];
+  string clip_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeleteSpeakerProfileClipResponse {
+  string profile_id = 1;
+  string clip_id = 2;
+  bool deleted_profile = 3;
+  int32 clip_count = 4;
+  double total_voiced_seconds = 5;
+}
+
+// -----------------------------------------------------------------------------
+// TranscribeStream — Connect bidi mirror of the /api/v1/voice/stream WS.
+// The browser still uses the WS transport (TransportReason: websocket_transport).
+// This RPC is the cross-scenario / non-browser path.
+// -----------------------------------------------------------------------------
+
+message TranscribeStreamRequest {
+  oneof payload {
+    StreamStart start = 1;
+    StreamAudioChunk audio_chunk = 2;
+    StreamEnd end = 3;
+  }
+}
+
+message StreamStart {
+  StreamConfig config = 1;
+  string language = 2;
+  string initial_prompt = 3;
+  bool skip_speaker_verification = 4;
+  // input_format declares the codec of the audio bytes the client will
+  // send on this session. Clients SHOULD set it; the audioformat substrate
+  // sniffs as a fallback when it is AUDIO_FORMAT_UNSPECIFIED. Declaring
+  // AUDIO_FORMAT_PCM_S16LE takes the ffmpeg-free fast-path.
+  vrooli.audio_tools.v1.common.AudioFormat input_format = 5;
+  // input_sample_rate_hz is a hint about the inbound bytes (e.g. a PCM
+  // capture rate). It does NOT change the fixed internal target
+  // (16 kHz mono); the substrate resamples to canonical regardless.
+  int32 input_sample_rate_hz = 6;
+  // protocol_version is currently 2. A server rejects versions it cannot
+  // preserve rather than silently accepting unacknowledged audio.
+  int32 protocol_version = 7;
+  string session_id = 8;
+  uint64 generation = 9;
+  string resume_token = 10;
+}
+
+// StreamAudioChunk carries a monotonic identity and canonical sample range.
+// A retry repeats the same identity and digest; it never creates new audio.
+message StreamAudioChunk {
+  bytes audio = 1 [(buf.validate.field).bytes.min_len = 1];
+  uint64 sequence = 2;
+  int64 start_sample = 3;
+  int64 end_sample = 4;
+  bytes sha256 = 5;
+}
+
+message StreamEnd {}
+
+message TranscribeStreamEvent {
+  oneof event {
+    StreamSegment segment = 1;
+    StreamPartial partial = 2;
+    StreamWakeWord wake_word = 3;
+    StreamSpeakerRejection speaker_rejection = 4;
+    StreamError error = 5;
+    StreamDone done = 6;
+    StreamVadState vad_state = 7;
+    StreamAcknowledgement acknowledgement = 8;
+    StreamSessionStatus session_status = 9;
+  }
+}
+
+enum StreamDeliveryClass {
+  STREAM_DELIVERY_CLASS_UNSPECIFIED = 0;
+  STREAM_DELIVERY_CLASS_PROGRESS = 1;
+  STREAM_DELIVERY_CLASS_DURABLE = 2;
+}
+
+// StreamAcknowledgement exposes two distinct cursors. Received coverage may
+// be replayable but only processed coverage permits client journal compaction.
+message StreamAcknowledgement {
+  int64 received_sequence = 1;
+  int64 processed_sequence = 2;
+  int64 received_end_sample = 3;
+  int64 processed_end_sample = 4;
+  StreamDeliveryClass delivery_class = 5;
+}
+
+// StreamSessionStatus covers admission and recovery transitions without
+// exposing transcript or retained audio in routine telemetry.
+message StreamSessionStatus {
+  string session_id = 1;
+  uint64 generation = 2;
+  string state = 3;
+  int32 queue_position = 4;
+  string capability_outcome = 5;
+  string recovery_guidance = 6;
+}
+
+message StreamSegment {
+  string text = 1;
+  int64 start_ms = 2;
+  int64 end_ms = 3;
+  string detected_language = 4;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+  string segment_id = 8;
+  uint64 generation = 9;
+  int64 start_sample = 10;
+  int64 end_sample = 11;
+  string alignment_quality = 12;
+}
+
+message StreamPartial {
+  string text = 1;
+}
+
+message StreamWakeWord {
+  double score = 1;
+  string sample_id = 2;
+}
+
+message StreamSpeakerRejection {
+  string reason = 1;
+  bool fallback_used = 2;
+  // score is the best cosine-similarity the active speaker profiles produced
+  // for the rejected segment (0 when verification could not actually run);
+  // threshold is the configured match cutoff. Clients surface "score X <
+  // threshold Y" on the rejection banner — without these the banner can only
+  // show 0.00/0.00.
+  double score = 3;
+  double threshold = 4;
+}
+
+message StreamError {
+  string code = 1;
+  string message = 2;
+}
+
+// StreamVadState is a periodic snapshot of the server-side VAD silence
+// clock. Emitted by VADSegmenter on voiced↔silence transitions and at a
+// throttled cadence during sustained state. Clients (UI mic-button
+// ring) render silence_elapsed_ms with light interpolation so the ring
+// completes at the moment the server actually cuts a segment. See
+// audio-tools/api/internal/ai/sttchain.VadStateEvent for the Go mirror.
+message StreamVadState {
+  bool voiced = 1;
+  int64 silence_elapsed_ms = 2;
+  int64 silence_timeout_ms = 3;
+  uint64 tick_seq = 4;
+  // silence_timed_out is true on the single threshold-crossing tick where
+  // silence_elapsed_ms first reaches silence_timeout_ms — the same frame the
+  // server cuts the segment. After the cut the server emits no further ticks
+  // until voice resumes, so this is a one-shot, self-describing "you have hit
+  // the timeout" signal. One-shot clients latch on it instead of racing a
+  // freshness window against a float comparison (see autoStopDecision.ts).
+  bool silence_timed_out = 5;
+}
+
+message StreamDone {
+  string final_text = 1;
+  // Locked tier for the session and trace fields populated by the
+  // streaming chain on completion. fell_back_to_unary is true when no
+  // streaming-capable adapter accepted the stream-start and the chain
+  // fell back to running the full buffer through the unary path.
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 2;
+  string provider_id = 3;
+  string model_id = 4;
+  double latency_ms = 5;
+  bool fell_back_to_unary = 6;
+  int64 processed_sequence = 7;
+  int64 processed_end_sample = 8;
+  string terminal_reason = 9;
+}

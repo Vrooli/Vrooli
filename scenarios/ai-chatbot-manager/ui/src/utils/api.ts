@@ -2,9 +2,10 @@
  * API Configuration and Utilities
  * Handles dynamic API URL discovery for the AI Chatbot Manager
  */
-import { resolveApiBase } from '@vrooli/api-base';
+import { getInjectedConfig, resolveApiBase } from '@vrooli/api-base';
 
-const DEFAULT_API_PORT = (import.meta.env.VITE_API_PORT as string | undefined)?.trim() || '15000';
+const runtimeConfig = getInjectedConfig();
+const DEFAULT_API_PORT = runtimeConfig?.apiPort?.trim() || '15000';
 
 class APIClient {
   private baseURL: string | null = null;
@@ -25,12 +26,12 @@ class APIClient {
   }
 
   private async resolveAPIBaseURL(): Promise<string> {
-    const explicitUrl = import.meta.env.VITE_API_URL;
+    const explicitUrl = runtimeConfig?.apiUrl;
     if (explicitUrl) {
       return resolveApiBase({ explicitUrl, defaultPort: DEFAULT_API_PORT, appendSuffix: true });
     }
 
-    const explicitPort = (import.meta.env.VITE_API_PORT as string | undefined)?.trim();
+    const explicitPort = runtimeConfig?.apiPort?.trim();
     if (explicitPort) {
       const localhostUrl = `http://localhost:${explicitPort}`;
       return resolveApiBase({ explicitUrl: localhostUrl, defaultPort: DEFAULT_API_PORT, appendSuffix: true });

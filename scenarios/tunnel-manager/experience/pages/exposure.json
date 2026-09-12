@@ -1,0 +1,157 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "exposure",
+    "title": "Exposure",
+    "routes": [
+      "/exposure"
+    ],
+    "purpose": "Choose a known route, review readiness and publicness, then safely provision or manage its exposure."
+  },
+  "priorities": [
+    {
+      "statement": "Use the manifest-backed route catalog instead of an unvalidated scenario-name field."
+    },
+    {
+      "statement": "Make duration, target, hostname, tier, authentication, and /public/* scope visible before mutation."
+    },
+    {
+      "statement": "Keep route-level evidence and safe lifecycle actions in one detail surface."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Route inventory, leases, classifications, and policy evidence are loading.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "ready",
+      "description": "Search, filters, route collection, and the expose action are available.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No active exposures exist and the first exposure action explains the safety model.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "The route collection remains usable while a supporting readiness source is unavailable.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The last route inventory remains visible while refresh is pending.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "submitting",
+      "description": "The selected exposure is being provisioned with progress visible.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "success",
+      "description": "The resulting URL, expiry, publicness boundary, and verification state are visible.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "The selected route cannot be exposed until its typed readiness blocker is resolved.",
+      "setup": {
+        "route": "/exposure"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "Provisioning failed with a classified reason and retry or remediation path.",
+      "setup": {
+        "route": "/exposure"
+      }
+    }
+  ],
+  "regions": [{"id":"exposure-results","purpose":"Render the route inventory and lease workflow through loading, ready, partial, and failed states.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    {
+      "id": "page",
+      "role": "region",
+      "name": "Exposure manager"
+    },
+    {
+      "id": "collection",
+      "role": "region",
+      "name": "Exposure collection"
+    },
+    {
+      "id": "route-picker",
+      "role": "combobox",
+      "name": "Manifest route picker"
+    },
+    {
+      "id": "review",
+      "role": "dialog",
+      "name": "Exposure review"
+    },
+    {
+      "id": "detail",
+      "role": "dialog",
+      "name": "Route detail"
+    }
+  ],
+  "claims": [
+    {
+      "id": "page-present",
+      "type": "element-present",
+      "statement": "The Exposure page exposes a stable named main region.",
+      "tier": "machine",
+      "elements": [
+        "page"
+      ],
+      "states": [
+        "loading",
+        "ready",
+        "empty",
+        "partial",
+        "stale",
+        "submitting",
+        "success",
+        "validation-error",
+        "request-error"
+      ]
+    },
+    {
+      "id": "publicness-boundary",
+      "type": "custom",
+      "statement": "Anonymous access, when enabled, is limited to /public/* and does not make the primary application anonymous.",
+      "tier": "manual"
+    }
+  ],
+  "bindings": {
+    "regions": {"exposure-results":{"selector":"[data-experience-surface=\"exposure-results\"]"}},
+    "elements": {
+      "page": {
+        "testid": "page-exposure"
+      },
+      "collection": { "testid": "exposure-table" },
+      "route-picker": { "testid": "exposure-expose-input" },
+      "review": { "testid": "exposure-review-dialog" },
+      "detail": { "testid": "exposure-detail-dialog" }
+    }
+  }
+}

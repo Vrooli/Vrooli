@@ -1,0 +1,61 @@
+# experience/ - UX Contract
+
+This folder is the scenario's generated **experience contract**. It is the
+design-first sibling of `requirements/`: requirements say what the scenario
+does, while `experience/` says what the UI must communicate.
+
+This contract is authored to **L4**. Every non-deprecated page declares
+identity, route, purpose and operational-target linkage (L0), communication
+priorities (L1), elements, claims and bindings (L2), and explicit states with
+`setup` blocks (L3); journeys connect them (L4).
+
+That sentence was false for `settings` until 2026-08-13 — the page was `active`
+in the registry with no elements, claims, bindings, or state `setup` blocks, so
+it gated nothing while appearing complete. It is now authored to L3 like every
+other active page. **If a page cannot be authored to L2, mark it `draft` rather
+than leaving it `active`**; an active page with no claims is invisible to the
+experience phase and reads as coverage that does not exist.
+
+Two consequences follow, and both are binding on implementation:
+
+- **`bindings` is the selector contract, not a record of what was built.** The
+  `testid` values were chosen before the UI existed. Implement them as written
+  rather than renaming the spec to match the code — the bindings block is the
+  one section a pure refactor or restyle may touch, and only to re-ground an
+  element that moved.
+- **Each state's `setup.query.fixture` names a fixture the UI must serve.** A
+  state with no reachable fixture cannot be captured, so its claims silently
+  never run. Add the fixture with the feature, not afterwards.
+
+Use `experience-manager spec validate offer-desk --json` after edits.
+Machine-tier claims should only be added when the UI has stable selectors and
+the claim can be checked by the experience phase. Manual claims need
+attestations with expiry; aspirational claims are useful intent but never gate.
+
+The `triggers` page carries operational targets that had no surface before it existed; check `prd_refs` coverage across the whole contract before adding another page.
+
+## Known gaps in this contract
+
+Recorded so they are chosen rather than discovered.
+
+- **Mobile is now explicitly scoped.** Every page carries desktop/mobile
+  viewport coverage, and the dashboard priority-content claim is scoped to the
+  mobile viewport where the board is most likely to be read away from a desk.
+- **First run is explicit.** `first-run.json` covers the empty graph through
+  the first offer and trigger, including the operator-only activation gate.
+- **No cross-scenario journey exists, and the schema cannot express one.**
+  `JourneyStep.page` resolves within this scenario, so the pair's headline claim
+  — "this offer is active and has earned nothing" — has no journey on either
+  side, even though this board is where it is meant to be read. Neither contract
+  is at fault; the capability is missing. Raise it against `experience-manager`
+  rather than working around it.
+- **The posture rows on `dashboard` are specified ahead of `INT-005`.** Their
+  states, claims and bindings are authored; the Money Ledger posture read they
+  render does not exist yet. That is the intended order for this contract, but it
+  means those claims cannot pass until the second read ships, and the fixtures
+  must arrive with it.
+
+The product surfaces use semantic regions such as `board`, `offers`, and
+`triggers`, each bound to the corresponding page contract. Keep this boundary
+for every independently meaningful async region; passive UI primitives inherit
+their parent state.

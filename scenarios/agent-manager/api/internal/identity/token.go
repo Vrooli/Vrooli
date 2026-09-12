@@ -23,7 +23,14 @@ const DefaultTTL = 24 * time.Hour
 // GenerateToken creates a signed token string from claims using the given
 // HMAC secret. The format is: base64url(json_claims) + '.' + base64url(hmac_sha256).
 func GenerateToken(claims *Claims, secret []byte) (string, error) {
-	claimsJSON, err := json.Marshal(claims)
+	if claims == nil {
+		return "", ErrMalformedToken
+	}
+	copyClaims := *claims
+	if copyClaims.Scopes == nil {
+		copyClaims.Scopes = []string{}
+	}
+	claimsJSON, err := json.Marshal(&copyClaims)
 	if err != nil {
 		return "", fmt.Errorf("marshal claims: %w", err)
 	}
@@ -57,6 +64,9 @@ func VerifyToken(token string, secret []byte) (*Claims, error) {
 	var claims Claims
 	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
 		return nil, ErrMalformedToken
+	}
+	if claims.Scopes == nil {
+		claims.Scopes = []string{}
 	}
 
 	// Check expiry.

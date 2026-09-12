@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "personas",
+    "title": "Personas",
+    "routes": [
+      "/personas"
+    ],
+    "purpose": "See every identity this instance can act as, and how healthy each one is, so the right persona is chosen deliberately rather than by habit.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-010",
+      "OT-P0-013",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Kind (personal versus business) is visible on every row, because choosing the wrong one is an error that surfaces only much later."
+    },
+    {
+      "statement": "Health is shown per persona \u2014 a persona with an expiring document or a failing mailbox looks different from a healthy one."
+    },
+    {
+      "statement": "Creation requires a declared legal basis; the form must make that a deliberate statement, not a field to skip."
+    },
+    {
+      "statement": "Retired personas remain visible and clearly marked, because the journal still references them."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "One or more personas exist."
+    },
+    {
+      "id": "empty",
+      "description": "No personas yet. A single, well-explained creation path."
+    },
+    {
+      "id": "loading",
+      "description": "List resolving."
+    },
+    {
+      "id": "partial",
+      "description": "Personas load but health findings do not."
+    },
+    {
+      "id": "validation-error",
+      "description": "Creation was attempted without a legal basis or with a kind/identifier mismatch."
+    },
+    {
+      "id": "request-error",
+      "description": "The list cannot be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "The list is cached during an outage; per-persona health is shown as unknown rather than healthy."
+    }
+  ]
+}

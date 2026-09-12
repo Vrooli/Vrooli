@@ -17,7 +17,7 @@ import {
 import { useScheduleStore, formatNextRun, describeCron } from '@stores/scheduleStore';
 import type { WorkflowSchedule, CreateScheduleInput, UpdateScheduleInput } from '@stores/scheduleStore';
 import { useWorkflowStore } from '@stores/workflowStore';
-import { useProjectStore } from '@/domains/projects';
+import { useProjectStore } from '@/domains/projects/store';
 import { ScheduleModal } from './ScheduleModal';
 import { CalendarView } from './calendar/CalendarView';
 

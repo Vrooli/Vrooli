@@ -26,7 +26,10 @@ interface GeneratorLayoutProps {
   children: ReactNode;
 }
 
-export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps) {
+export function GeneratorLayout({
+  sectionRefs,
+  children,
+}: GeneratorLayoutProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
   const mobileDrawerOpen = useSidebarStore((s) => s.mobileDrawerOpen);
   const setMobileDrawerOpen = useSidebarStore((s) => s.setMobileDrawerOpen);
@@ -39,25 +42,35 @@ export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps)
       // Close drawer on mobile after navigation
       if (isMobile) setMobileDrawerOpen(false);
       const ref = sectionRefs[section];
-      if (ref?.current) {
-        ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const container = mainContentRef.current;
+      if (ref.current && container) {
+        container.scrollTo({
+          top: ref.current.offsetTop - container.offsetTop,
+          behavior: "smooth",
+        });
       }
     },
-    [setActiveSection, sectionRefs, isMobile, setMobileDrawerOpen]
+    [setActiveSection, sectionRefs, isMobile, setMobileDrawerOpen],
   );
 
   /* ── Mobile layout ─────────────────────────────────────────────── */
   if (isMobile) {
     return (
-      <div className="relative min-h-screen">
+      <div className="relative min-h-full">
         {/* Compact pipeline summary bar */}
-        <MobilePipelineSummary onOpenDrawer={() => setMobileDrawerOpen(true)} />
+        <MobilePipelineSummary
+          onOpenDrawer={() => {
+            setMobileDrawerOpen(true);
+          }}
+        />
 
         {/* Drawer overlay */}
         {mobileDrawerOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-            onClick={() => setMobileDrawerOpen(false)}
+            onClick={() => {
+              setMobileDrawerOpen(false);
+            }}
             aria-hidden="true"
           />
         )}
@@ -66,29 +79,29 @@ export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps)
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out bg-slate-950 shadow-2xl",
-            mobileDrawerOpen ? "translate-x-0" : "-translate-x-full"
+            mobileDrawerOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
           <div className="flex items-center justify-end p-2 border-b border-white/10">
             <button
               type="button"
-              onClick={() => setMobileDrawerOpen(false)}
+              onClick={() => {
+                setMobileDrawerOpen(false);
+              }}
               className="rounded-lg p-2 text-slate-400 hover:text-slate-200 hover:bg-white/5"
               aria-label="Close pipeline sidebar"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="overflow-y-auto h-[calc(100vh-3rem)]">
+          <div className="overflow-y-auto h-[calc(100%-3rem)]">
             <PipelineSidebar onSectionClick={handleSectionClick} />
           </div>
         </aside>
 
         {/* Main content — full width on mobile */}
         <main ref={mainContentRef} className="overflow-y-auto">
-          <div className="mx-auto max-w-4xl space-y-3 p-2">
-            {children}
-          </div>
+          <div className="mx-auto max-w-4xl space-y-3 p-2">{children}</div>
         </main>
       </div>
     );
@@ -96,9 +109,9 @@ export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps)
 
   /* ── Desktop layout ────────────────────────────────────────────── */
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-full">
       {/* Sidebar - sticky so it stays visible while scrolling */}
-      <div className="sticky top-0 h-screen">
+      <div className="sticky top-0 h-full">
         <PipelineSidebar onSectionClick={handleSectionClick} />
       </div>
 
@@ -107,9 +120,7 @@ export function GeneratorLayout({ sectionRefs, children }: GeneratorLayoutProps)
         ref={mainContentRef}
         className="flex-1 overflow-y-auto transition-all duration-300"
       >
-        <div className="mx-auto max-w-4xl space-y-6 p-6">
-          {children}
-        </div>
+        <div className="mx-auto max-w-4xl space-y-6 p-6">{children}</div>
       </main>
     </div>
   );

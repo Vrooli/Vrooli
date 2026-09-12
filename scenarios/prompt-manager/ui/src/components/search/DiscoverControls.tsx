@@ -40,6 +40,8 @@ interface DiscoverControlsProps {
   onToggleDiscover: (enabled: boolean) => void
   complexity: string | undefined
   onComplexityChange: (complexity: string | undefined) => void
+  discoverType?: 'skill' | 'action' | 'all'
+  onDiscoverTypeChange?: (type: 'skill' | 'action' | 'all') => void
   budgetChars?: number
   totalContentChars?: number
   selectedContentChars?: number
@@ -56,6 +58,8 @@ export function DiscoverControls({
   onToggleDiscover,
   complexity,
   onComplexityChange,
+  discoverType = 'skill',
+  onDiscoverTypeChange,
   budgetChars,
   totalContentChars,
   selectedContentChars,
@@ -128,38 +132,60 @@ export function DiscoverControls({
 
       {/* Complexity selector */}
       {useDiscover && (
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">Budget:</span>
-          <div className="flex items-center gap-1">
-            {DEFAULT_TIERS.map((tier) => {
-              const tierBudget = getBudgetForTier(tier.value, budgetConfig)
-              return (
+        <>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Type:</span>
+            <div className="flex items-center gap-1">
+              {(['skill', 'action', 'all'] as const).map((type) => (
                 <button
-                  key={tier.value}
+                  key={type}
                   type="button"
-                  onClick={() => onComplexityChange(complexity === tier.value ? undefined : tier.value)}
+                  onClick={() => onDiscoverTypeChange?.(type)}
                   className={cn(
-                    'px-2 py-0.5 text-[10px] rounded transition-colors',
-                    complexity === tier.value
+                    'px-2 py-0.5 text-[10px] rounded transition-colors capitalize',
+                    discoverType === type
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                   )}
-                  title={tierBudget > 0 ? `${tier.label} (${formatChars(tierBudget)} chars)` : tier.label}
                 >
-                  {tier.label}
+                  {type}
                 </button>
-              )
-            })}
+              ))}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={handleOpenSettings}
-            className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-            title="Configure discovery settings"
-          >
-            <Settings className="h-3 w-3" />
-          </button>
-        </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Budget:</span>
+            <div className="flex items-center gap-1">
+              {DEFAULT_TIERS.map((tier) => {
+                const tierBudget = getBudgetForTier(tier.value, budgetConfig)
+                return (
+                  <button
+                    key={tier.value}
+                    type="button"
+                    onClick={() => onComplexityChange(complexity === tier.value ? undefined : tier.value)}
+                    className={cn(
+                      'px-2 py-0.5 text-[10px] rounded transition-colors',
+                      complexity === tier.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                    )}
+                    title={tierBudget > 0 ? `${tier.label} (${formatChars(tierBudget)} chars)` : tier.label}
+                  >
+                    {tier.label}
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenSettings}
+              className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              title="Configure discovery settings"
+            >
+              <Settings className="h-3 w-3" />
+            </button>
+          </div>
+        </>
       )}
 
       {/* Discovery settings dialog */}

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "schtasks",
+  "description": "Windows scheduled-task lifecycle command.",
+  "commands": [
+    "schtasks"
+  ],
+  "versionArgs": [
+    "/Query",
+    "/?"
+  ],
+  "manual": true,
+  "installHint": "Provided by Windows.",
+  "bundling": "host-required",
+  "capability": "service-resource-limits",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    },
+    "macos": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

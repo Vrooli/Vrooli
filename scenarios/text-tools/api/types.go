@@ -6,12 +6,12 @@ import (
 
 // Configuration holds application configuration
 type Config struct {
-	Port         string
-	DatabaseURL  string
-	MinIOURL     string
-	RedisURL     string
-	OllamaURL    string
-	QdrantURL    string
+	Port        string
+	DatabaseURL string
+	MinIOURL    string
+	RedisURL    string
+	OllamaURL   string
+	QdrantURL   string
 }
 
 // Health Response
@@ -123,9 +123,9 @@ type TransformResponse struct {
 
 // ExtractRequest represents a text extraction request
 type ExtractRequest struct {
-	Source  interface{}     `json:"source"`
-	Format  string          `json:"format,omitempty"`
-	Options ExtractOptions  `json:"options,omitempty"`
+	Source  interface{}    `json:"source"`
+	Format  string         `json:"format,omitempty"`
+	Options ExtractOptions `json:"options,omitempty"`
 }
 
 // ExtractOptions configures extraction behavior
@@ -145,25 +145,25 @@ type ExtractResponse struct {
 
 // AnalyzeRequest represents a text analysis request
 type AnalyzeRequest struct {
-	Text     string          `json:"text"`
-	Analyses []string        `json:"analyses"`
-	Options  AnalyzeOptions  `json:"options,omitempty"`
+	Text     string         `json:"text"`
+	Analyses []string       `json:"analyses"`
+	Options  AnalyzeOptions `json:"options,omitempty"`
 }
 
 // AnalyzeOptions configures analysis behavior
 type AnalyzeOptions struct {
-	SummaryLength int    `json:"summary_length,omitempty"`
+	SummaryLength int      `json:"summary_length,omitempty"`
 	EntityTypes   []string `json:"entity_types,omitempty"`
-	UseAI         bool   `json:"use_ai,omitempty"`
+	UseAI         bool     `json:"use_ai,omitempty"`
 }
 
 // AnalyzeResponse contains analysis results
 type AnalyzeResponse struct {
-	Entities  []Entity               `json:"entities,omitempty"`
-	Sentiment Sentiment              `json:"sentiment,omitempty"`
-	Summary   string                 `json:"summary,omitempty"`
-	Keywords  []Keyword              `json:"keywords,omitempty"`
-	Language  Language               `json:"language,omitempty"`
+	Entities  []Entity  `json:"entities,omitempty"`
+	Sentiment Sentiment `json:"sentiment,omitempty"`
+	Summary   string    `json:"summary,omitempty"`
+	Keywords  []Keyword `json:"keywords,omitempty"`
+	Language  Language  `json:"language,omitempty"`
 }
 
 // Entity represents an extracted entity
@@ -232,7 +232,7 @@ type SearchOptionsV2 struct {
 // SearchResponseV2 extends SearchResponse with v2 features
 type SearchResponseV2 struct {
 	SearchResponse
-	RequestID       string         `json:"request_id"`
+	RequestID       string          `json:"request_id"`
 	SemanticMatches []SemanticMatch `json:"semantic_matches,omitempty"`
 }
 

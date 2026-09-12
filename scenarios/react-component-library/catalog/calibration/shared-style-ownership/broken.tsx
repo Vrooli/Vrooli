@@ -1,0 +1,1 @@
+export function SharedStyleOwnershipCalibration() { return <><style>{"@media (prefers-reduced-motion: reduce) { * { transition: none; } }"}</style><div data-testid="calibration.shared-style-ownership" /></>; }

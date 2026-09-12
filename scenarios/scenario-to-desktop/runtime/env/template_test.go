@@ -3,8 +3,8 @@ package env
 import (
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // mockEnvReader implements infra.EnvReader for testing.
@@ -75,6 +75,13 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		if env[tt.key] != tt.want {
 			t.Errorf("env[%q] = %q, want %q", tt.key, env[tt.key], tt.want)
 		}
+	}
+
+	if _, ok := env["VROOLI_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit VROOLI_ROOT")
+	}
+	if _, ok := env["SCENARIO_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit SCENARIO_ROOT")
 	}
 }
 

@@ -8,9 +8,7 @@ import (
 	"strings"
 	"time"
 
-	pq "github.com/lib/pq"
-
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // Store centralizes all persistence logic for the dependency analyzer.
@@ -42,6 +40,7 @@ func (s *Store) CleanupInvalidScenarioDependencies(known map[string]struct{}) er
 	}
 	defer rows.Close()
 
+	orphaned := make([]string, 0)
 	for rows.Next() {
 		var dep string
 		if scanErr := rows.Scan(&dep); scanErr != nil {
@@ -50,9 +49,23 @@ func (s *Store) CleanupInvalidScenarioDependencies(known map[string]struct{}) er
 		if _, ok := known[normalizeName(dep)]; ok {
 			continue
 		}
+		orphaned = append(orphaned, dep)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate scenario dependencies: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close scenario dependency query: %w", err)
+	}
+
+	// The production database intentionally has a single connection. Release the
+	// query cursor before issuing writes so this maintenance task cannot exhaust
+	// that pool and make the health endpoint time out.
+	for _, dep := range orphaned {
 		if _, err := s.db.Exec(`
             DELETE FROM scenario_dependencies
-            WHERE dependency_type = 'scenario' AND dependency_name = $1`, dep); err != nil {
+            WHERE dependency_type = 'scenario' AND dependency_name = ?`, dep); err != nil {
 			return fmt.Errorf("delete orphaned dependency %s: %w", dep, err)
 		}
 	}
@@ -69,9 +82,9 @@ func (s *Store) StoreDependencies(analysis *types.DependencyAnalysisResponse, ex
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.Exec("DELETE FROM scenario_dependencies WHERE scenario_name = $1", analysis.Scenario); err != nil {
+	if _, err := tx.Exec("DELETE FROM scenario_dependencies WHERE scenario_name = ?", analysis.Scenario); err != nil {
 		return err
 	}
 
@@ -87,9 +100,9 @@ func (s *Store) StoreDependencies(analysis *types.DependencyAnalysisResponse, ex
 		if _, err := tx.Exec(`
             INSERT INTO scenario_dependencies
             (scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            VALUES (?,?,?,?,?,?,?,?,?)`,
 			dep.ScenarioName, dep.DependencyType, dep.DependencyName, dep.Required,
-			dep.Purpose, dep.AccessMethod, configJSON, dep.DiscoveredAt, dep.LastVerified); err != nil {
+			dep.Purpose, dep.AccessMethod, string(configJSON), dep.DiscoveredAt, dep.LastVerified); err != nil {
 			return err
 		}
 	}
@@ -112,7 +125,7 @@ func (s *Store) LoadStoredDependencies(scenario string) (map[string][]types.Scen
 	rows, err := s.db.Query(`
         SELECT scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration, discovered_at, last_verified
         FROM scenario_dependencies
-        WHERE scenario_name = $1
+        WHERE scenario_name = ?
         ORDER BY dependency_type, dependency_name`, scenario)
 	if err != nil {
 		return nil, err
@@ -120,15 +133,11 @@ func (s *Store) LoadStoredDependencies(scenario string) (map[string][]types.Scen
 	defer rows.Close()
 
 	for rows.Next() {
-		var dep types.ScenarioDependency
-		var configJSON []byte
-		if err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName, &dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified); err != nil {
+		dep, err := scanDependency(rows)
+		if err != nil {
 			continue
 		}
-		if len(configJSON) > 0 {
-			_ = json.Unmarshal(configJSON, &dep.Configuration)
-		}
-		result[dep.DependencyType] = append(result[dep.DependencyType], dep)
+		result[dependencyBucket(dep.DependencyType)] = append(result[dependencyBucket(dep.DependencyType)], dep)
 	}
 
 	return result, nil
@@ -143,7 +152,7 @@ func (s *Store) LoadOptimizationRecommendations(scenario string) ([]types.Optimi
 	rows, err := s.db.Query(`
         SELECT id, scenario_name, recommendation_type, title, description, current_state, recommended_state, estimated_impact, confidence_score, priority, status, created_at
         FROM optimization_recommendations
-        WHERE scenario_name = $1
+        WHERE scenario_name = ?
         ORDER BY created_at DESC`, scenario)
 	if err != nil {
 		return nil, err
@@ -153,13 +162,19 @@ func (s *Store) LoadOptimizationRecommendations(scenario string) ([]types.Optimi
 	var recs []types.OptimizationRecommendation
 	for rows.Next() {
 		var rec types.OptimizationRecommendation
-		var currentJSON, recommendedJSON, estimatedJSON []byte
+		var currentJSON, recommendedJSON, estimatedJSON sql.NullString
 		if err := rows.Scan(&rec.ID, &rec.ScenarioName, &rec.RecommendationType, &rec.Title, &rec.Description, &currentJSON, &recommendedJSON, &estimatedJSON, &rec.ConfidenceScore, &rec.Priority, &rec.Status, &rec.CreatedAt); err != nil {
 			continue
 		}
-		_ = json.Unmarshal(currentJSON, &rec.CurrentState)
-		_ = json.Unmarshal(recommendedJSON, &rec.RecommendedState)
-		_ = json.Unmarshal(estimatedJSON, &rec.EstimatedImpact)
+		if currentJSON.Valid {
+			_ = json.Unmarshal([]byte(currentJSON.String), &rec.CurrentState)
+		}
+		if recommendedJSON.Valid {
+			_ = json.Unmarshal([]byte(recommendedJSON.String), &rec.RecommendedState)
+		}
+		if estimatedJSON.Valid {
+			_ = json.Unmarshal([]byte(estimatedJSON.String), &rec.EstimatedImpact)
+		}
 		recs = append(recs, rec)
 	}
 	return recs, nil
@@ -175,16 +190,16 @@ func (s *Store) PersistOptimizationRecommendations(scenario string, recs []types
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.Exec("DELETE FROM optimization_recommendations WHERE scenario_name = $1", scenario); err != nil {
+	if _, err := tx.Exec("DELETE FROM optimization_recommendations WHERE scenario_name = ?", scenario); err != nil {
 		return err
 	}
 
 	stmt := `
         INSERT INTO optimization_recommendations
         (id, scenario_name, recommendation_type, title, description, current_state, recommended_state, estimated_impact, confidence_score, priority, status, created_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
 
 	for _, rec := range recs {
 		currentJSON, _ := json.Marshal(rec.CurrentState)
@@ -196,9 +211,9 @@ func (s *Store) PersistOptimizationRecommendations(scenario string, recs []types
 			rec.RecommendationType,
 			rec.Title,
 			rec.Description,
-			currentJSON,
-			recommendedJSON,
-			estimatedJSON,
+			string(currentJSON),
+			string(recommendedJSON),
+			string(estimatedJSON),
 			rec.ConfidenceScore,
 			rec.Priority,
 			rec.Status,
@@ -212,7 +227,7 @@ func (s *Store) PersistOptimizationRecommendations(scenario string, recs []types
 }
 
 // UpdateScenarioMetadata upserts cached metadata about a scenario's service.json.
-func (s *Store) UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error {
+func (s *Store) UpdateScenarioMetadata(name string, cfg *types.Manifest, scenarioPath string) error {
 	if s.db == nil {
 		return nil
 	}
@@ -222,9 +237,14 @@ func (s *Store) UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, sc
 		return err
 	}
 
+	tagsJSON, err := json.Marshal(cfg.Service.Tags)
+	if err != nil {
+		return err
+	}
+
 	query := `
         INSERT INTO scenario_metadata (scenario_name, display_name, description, tags, service_config, file_path, last_scanned)
-        VALUES ($1,$2,$3,$4,$5,$6,$7)
+        VALUES (?,?,?,?,?,?,?)
         ON CONFLICT (scenario_name) DO UPDATE SET
             display_name = EXCLUDED.display_name,
             description = EXCLUDED.description,
@@ -232,15 +252,15 @@ func (s *Store) UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, sc
             service_config = EXCLUDED.service_config,
             file_path = EXCLUDED.file_path,
             last_scanned = EXCLUDED.last_scanned,
-            updated_at = NOW();
+            updated_at = datetime('now');
     `
 
 	_, err = s.db.Exec(query,
 		name,
 		cfg.Service.DisplayName,
 		cfg.Service.Description,
-		pqArray(cfg.Service.Tags),
-		payload,
+		string(tagsJSON),
+		string(payload),
 		scenarioPath,
 		time.Now(),
 	)
@@ -262,12 +282,14 @@ func (s *Store) LoadScenarioMetadataMap() (map[string]types.ScenarioSummary, err
 
 	for rows.Next() {
 		var summary types.ScenarioSummary
-		var tags pq.StringArray
+		var tagsJSON sql.NullString
 		var lastScanned sql.NullTime
-		if err := rows.Scan(&summary.Name, &summary.DisplayName, &summary.Description, &tags, &lastScanned); err != nil {
+		if err := rows.Scan(&summary.Name, &summary.DisplayName, &summary.Description, &tagsJSON, &lastScanned); err != nil {
 			continue
 		}
-		summary.Tags = []string(tags)
+		if tagsJSON.Valid && tagsJSON.String != "" {
+			_ = json.Unmarshal([]byte(tagsJSON.String), &summary.Tags)
+		}
 		if lastScanned.Valid {
 			summary.LastScanned = &lastScanned.Time
 		}
@@ -336,13 +358,9 @@ func (s *Store) LoadAllDependencies() ([]types.ScenarioDependency, error) {
 
 	var deps []types.ScenarioDependency
 	for rows.Next() {
-		var dep types.ScenarioDependency
-		var configJSON []byte
-		if err := rows.Scan(&dep.ScenarioName, &dep.DependencyType, &dep.DependencyName, &dep.Required, &dep.Purpose, &dep.AccessMethod, &configJSON, &dep.DiscoveredAt, &dep.LastVerified); err != nil {
+		dep, err := scanDependency(rows)
+		if err != nil {
 			continue
-		}
-		if len(configJSON) > 0 {
-			_ = json.Unmarshal(configJSON, &dep.Configuration)
 		}
 		deps = append(deps, dep)
 	}
@@ -350,13 +368,294 @@ func (s *Store) LoadAllDependencies() ([]types.ScenarioDependency, error) {
 	return deps, nil
 }
 
-func pqArray(values []string) interface{} {
-	if len(values) == 0 {
-		return pq.StringArray([]string{})
+// ReplaceGraphEdges atomically replaces the entire unified graph_edges store
+// with the supplied merged edge set. Used by a full fleet rebuild; the
+// incremental sweeper uses the per-scenario upsert path instead.
+func (s *Store) ReplaceGraphEdges(edges []types.UnifiedGraphEdge) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
 	}
-	return pq.StringArray(values)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec("DELETE FROM graph_edges"); err != nil {
+		return err
+	}
+	if err := insertGraphEdgesTx(tx, edges); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UpsertGraphEdgesForScenario replaces the edges originating from a single
+// source scenario with the supplied merged set. This is the incremental,
+// freshness-gated path: it never touches other scenarios' rows, so a partial
+// (per-scenario) re-ingest is safe and idempotent.
+func (s *Store) UpsertGraphEdgesForScenario(scenario string, edges []types.UnifiedGraphEdge) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return errors.New("scenario is required")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec("DELETE FROM graph_edges WHERE from_scenario = ?", scenario); err != nil {
+		return err
+	}
+	if err := insertGraphEdgesTx(tx, edges); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// MarkScenarioEdgesStale flags every edge from the named scenario as stale
+// without dropping it. Used by the sweeper's graceful-degradation path so an
+// upstream-source outage never zeroes out a scenario's contribution mid-cycle.
+func (s *Store) MarkScenarioEdgesStale(scenario string) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil
+	}
+	_, err := s.db.Exec("UPDATE graph_edges SET stale = 1 WHERE from_scenario = ?", scenario)
+	return err
+}
+
+func insertGraphEdgesTx(tx *sql.Tx, edges []types.UnifiedGraphEdge) error {
+	stmt := `
+        INSERT INTO graph_edges
+        (from_scenario, to_node, kind, evidence_source, confidence, required, evidence_json, stale, last_verified, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`
+	now := time.Now().UTC()
+	for _, edge := range edges {
+		evidenceJSON, _ := json.Marshal(edge.Evidence)
+		if len(edge.Evidence) == 0 {
+			evidenceJSON = []byte("[]")
+		}
+		lastVerified := edge.LastVerified
+		if lastVerified.IsZero() {
+			lastVerified = now
+		}
+		if _, err := tx.Exec(stmt,
+			edge.From, edge.To, edge.Kind, edge.Source, edge.Confidence, edge.Required,
+			string(evidenceJSON), boolToInt(edge.Stale), lastVerified.UTC().Format(time.RFC3339Nano), now.Format(time.RFC3339Nano),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// LoadGraphEdges returns every persisted unified edge, ordered for deterministic
+// graph construction.
+func (s *Store) LoadGraphEdges() ([]types.UnifiedGraphEdge, error) {
+	if s.db == nil {
+		return nil, errors.New("store not initialized")
+	}
+	rows, err := s.db.Query(`
+        SELECT from_scenario, to_node, kind, evidence_source, confidence, required, evidence_json, stale, last_verified
+        FROM graph_edges
+        ORDER BY from_scenario, to_node`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edges []types.UnifiedGraphEdge
+	for rows.Next() {
+		var (
+			edge         types.UnifiedGraphEdge
+			required     int
+			stale        int
+			evidenceJSON sql.NullString
+			lastVerified any
+		)
+		if err := rows.Scan(&edge.From, &edge.To, &edge.Kind, &edge.Source, &edge.Confidence, &required, &evidenceJSON, &stale, &lastVerified); err != nil {
+			continue
+		}
+		edge.Required = required != 0
+		edge.Stale = stale != 0
+		if evidenceJSON.Valid && evidenceJSON.String != "" {
+			_ = json.Unmarshal([]byte(evidenceJSON.String), &edge.Evidence)
+		}
+		edge.LastVerified = parseDBTime(lastVerified)
+		edges = append(edges, edge)
+	}
+	return edges, nil
+}
+
+// GraphEdgeStats summarizes the persisted unified graph store for status surfaces.
+type GraphEdgeStats struct {
+	TotalEdges    int
+	ScenarioEdges int
+	ResourceEdges int
+	StaleEdges    int
+	BySource      map[string]int
+	LastUpdated   time.Time
+}
+
+// GraphEdgeStats aggregates summary counts over the unified graph store.
+func (s *Store) GraphEdgeStats() (GraphEdgeStats, error) {
+	stats := GraphEdgeStats{BySource: map[string]int{}}
+	if s.db == nil {
+		return stats, errors.New("store not initialized")
+	}
+	rows, err := s.db.Query(`SELECT kind, evidence_source, stale, COUNT(*) FROM graph_edges GROUP BY kind, evidence_source, stale`)
+	if err != nil {
+		return stats, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			kind, source string
+			stale, count int
+		)
+		if err := rows.Scan(&kind, &source, &stale, &count); err != nil {
+			continue
+		}
+		stats.TotalEdges += count
+		switch kind {
+		case "resource":
+			stats.ResourceEdges += count
+		default:
+			stats.ScenarioEdges += count
+		}
+		if stale != 0 {
+			stats.StaleEdges += count
+		}
+		stats.BySource[source] += count
+	}
+	var lastUpdated sql.NullString
+	if err := s.db.QueryRow(`SELECT MAX(updated_at) FROM graph_edges`).Scan(&lastUpdated); err == nil && lastUpdated.Valid {
+		stats.LastUpdated = parseTimeString(lastUpdated.String)
+	}
+	return stats, nil
+}
+
+// GetIngestDigest returns the scenario tree digest of the last successful ingest.
+func (s *Store) GetIngestDigest(scenario string) (string, bool, error) {
+	if s.db == nil {
+		return "", false, errors.New("store not initialized")
+	}
+	var digest string
+	err := s.db.QueryRow("SELECT digest FROM graph_ingest_state WHERE scenario = ?", scenario).Scan(&digest)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return digest, true, nil
+}
+
+// SetIngestDigest records the scenario tree digest after a successful ingest.
+func (s *Store) SetIngestDigest(scenario, digest string) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	_, err := s.db.Exec(`
+        INSERT INTO graph_ingest_state (scenario, digest, last_ingested_at)
+        VALUES (?,?,?)
+        ON CONFLICT (scenario) DO UPDATE SET
+            digest = EXCLUDED.digest,
+            last_ingested_at = EXCLUDED.last_ingested_at`,
+		scenario, digest, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 func normalizeName(name string) string {
 	return strings.TrimSpace(strings.ToLower(name))
+}
+
+func dependencyBucket(depType string) string {
+	switch depType {
+	case "resource":
+		return "resources"
+	case "scenario":
+		return "scenarios"
+	case "shared_workflow":
+		return "shared_workflows"
+	default:
+		return depType
+	}
+}
+
+type dependencyScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanDependency(row dependencyScanner) (types.ScenarioDependency, error) {
+	var dep types.ScenarioDependency
+	var configJSON sql.NullString
+	var discoveredAt, lastVerified any
+	if err := row.Scan(
+		&dep.ScenarioName,
+		&dep.DependencyType,
+		&dep.DependencyName,
+		&dep.Required,
+		&dep.Purpose,
+		&dep.AccessMethod,
+		&configJSON,
+		&discoveredAt,
+		&lastVerified,
+	); err != nil {
+		return dep, err
+	}
+	if configJSON.Valid && configJSON.String != "" {
+		_ = json.Unmarshal([]byte(configJSON.String), &dep.Configuration)
+	}
+	dep.DiscoveredAt = parseDBTime(discoveredAt)
+	dep.LastVerified = parseDBTime(lastVerified)
+	return dep, nil
+}
+
+func parseDBTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v
+	case string:
+		return parseTimeString(v)
+	case []byte:
+		return parseTimeString(string(v))
+	default:
+		return time.Time{}
+	}
+}
+
+func parseTimeString(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	layouts := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	}
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, value); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }

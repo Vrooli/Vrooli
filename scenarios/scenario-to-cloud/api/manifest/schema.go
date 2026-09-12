@@ -73,7 +73,7 @@ func validateNode(schema map[string]interface{}, value interface{}, path string)
 	return issues
 }
 
-func validateObject(schema map[string]interface{}, value map[string]interface{}, path string) []domain.ValidationIssue {
+func validateObject(schema, value map[string]interface{}, path string) []domain.ValidationIssue {
 	var issues []domain.ValidationIssue
 
 	if required, ok := schema["required"].([]interface{}); ok {

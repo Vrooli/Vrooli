@@ -14,7 +14,7 @@ func applyMiddleware(router *mux.Router) http.Handler {
 	handler := corsMiddleware(router)
 	handler = loggingMiddleware(handler)
 	handler = recoveryMiddleware(handler)
-	
+
 	return handler
 }
 
@@ -41,12 +41,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Create a response writer that captures the status code
 		wrapper := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
+
 		next.ServeHTTP(wrapper, r)
-		
+
 		duration := time.Since(start)
 		log.Printf("%s %s %d %v", r.Method, r.URL.Path, wrapper.statusCode, duration)
 	})
@@ -61,7 +61,7 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			}
 		}()
-		
+
 		next.ServeHTTP(w, r)
 	})
 }

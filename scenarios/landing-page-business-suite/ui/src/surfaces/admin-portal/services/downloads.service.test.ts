@@ -26,7 +26,7 @@ const createAsset = (overrides: Partial<DownloadAsset>): DownloadAsset => ({
   release_version: '',
   requires_entitlement: false,
   ...overrides,
-} as DownloadAsset);
+});
 
 // Helper to create partial test apps
 const createApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
@@ -35,7 +35,7 @@ const createApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
   name: 'Test App',
   platforms: [],
   ...overrides,
-} as DownloadApp);
+});
 
 describe('downloads.service', () => {
   describe('PLATFORM_KEYS', () => {
@@ -251,7 +251,7 @@ describe('downloads.service', () => {
         app_key: 'test',
         name: null as unknown as string,
         storefronts: undefined,
-        platforms: undefined as unknown as DownloadAsset[],
+        platforms: undefined,
       });
 
       const result = deserializeApp(app);

@@ -17,11 +17,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/storage"
 )
 
 // -----------------------------------------------------------------------------
@@ -45,18 +45,26 @@ type AnalyzerClient interface {
 	FetchDeploymentReport(ctx context.Context, scenario string) (*analyzerDeploymentReport, error)
 }
 
+// seam: HTTPDoer performs outbound analyzer requests. Production wires an
+// http.Client; tests provide a deterministic response without a network call.
+type HTTPDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+var _ HTTPDoer = (*http.Client)(nil)
+
 // -----------------------------------------------------------------------------
 // PostgresSecretStore Implementation
 // -----------------------------------------------------------------------------
 
 // PostgresSecretStore implements SecretStore using PostgreSQL.
 type PostgresSecretStore struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewPostgresSecretStore creates a production SecretStore backed by PostgreSQL.
-func NewPostgresSecretStore(db *sql.DB, logger *Logger) *PostgresSecretStore {
+func NewPostgresSecretStore(db *database.RoutedDB, logger *Logger) *PostgresSecretStore {
 	return &PostgresSecretStore{db: db, logger: logger}
 }
 
@@ -106,9 +114,12 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 	argPos := 3
 
 	if len(resources) > 0 {
-		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY($%d)", argPos))
-		args = append(args, pq.Array(resources))
-		argPos++
+		resourcesJSON, err := json.Marshal(resources)
+		if err != nil {
+			return nil, fmt.Errorf("encode resource filter: %w", err)
+		}
+		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY(ARRAY(SELECT jsonb_array_elements_text($%d::jsonb)))", argPos))
+		args = append(args, string(resourcesJSON))
 	}
 	if !includeOptional {
 		filters = append(filters, "rs.required = TRUE")
@@ -130,6 +141,7 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 		if err != nil {
 			return nil, fmt.Errorf("scan secret row: %w", err)
 		}
+		enrichDeclarationIdentity(getVrooliRoot(), &entry, scenario)
 		entries = append(entries, entry)
 	}
 
@@ -138,6 +150,45 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 	}
 
 	return entries, nil
+}
+
+// enrichDeclarationIdentity carries the canonical scenario/resource identity
+// into deployment entries. Database rows retain the historical resource/env
+// names, while the bundle runtime needs the declaration-backed logical_id and
+// field to resolve the same authority entry in every tier.
+func enrichDeclarationIdentity(root string, entry *DeploymentSecretEntry, scenario string) {
+	if entry == nil || strings.TrimSpace(root) == "" {
+		return
+	}
+	candidates := []string{
+		filepath.Join(root, "resources", strings.TrimSpace(entry.ResourceName), "resource.json"),
+		filepath.Join(root, "scenarios", strings.TrimSpace(scenario), ".vrooli", "service.json"),
+	}
+	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var manifest struct {
+			Credentials struct {
+				Descriptors []credentialDescriptor `json:"descriptors"`
+			} `json:"credentials"`
+		}
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		for _, descriptor := range manifest.Credentials.Descriptors {
+			if !strings.EqualFold(strings.TrimSpace(descriptor.Env), strings.TrimSpace(entry.SecretKey)) || strings.TrimSpace(descriptor.LogicalID) == "" {
+				continue
+			}
+			entry.LogicalID = strings.TrimSpace(descriptor.LogicalID)
+			entry.Field = strings.TrimSpace(descriptor.Field)
+			if entry.Field == "" {
+				entry.Field = "value"
+			}
+			return
+		}
+	}
 }
 
 // scanSecretRow extracts a DeploymentSecretEntry from a database row.
@@ -234,15 +285,9 @@ func (s *PostgresSecretStore) PersistManifest(ctx context.Context, scenario, tie
 
 // HTTPAnalyzerClient implements AnalyzerClient using HTTP calls to the analyzer service.
 type HTTPAnalyzerClient struct {
-	logger      *Logger
-	reportCache map[string]*analyzerReportCacheEntry
-	cacheMu     sync.RWMutex
-}
-
-// analyzerReportCacheEntry caches analyzer reports with freshness tracking.
-type analyzerReportCacheEntry struct {
-	report    *analyzerDeploymentReport
-	fetchedAt time.Time
+	logger     *Logger
+	httpClient HTTPDoer
+	resolveURL func(context.Context) (string, error)
 }
 
 // reportStalenessThreshold defines when cached reports should be refreshed.
@@ -250,10 +295,15 @@ const reportStalenessThreshold = 24 * time.Hour
 
 // NewHTTPAnalyzerClient creates a production AnalyzerClient using HTTP.
 func NewHTTPAnalyzerClient(logger *Logger) *HTTPAnalyzerClient {
-	return &HTTPAnalyzerClient{
-		logger:      logger,
-		reportCache: make(map[string]*analyzerReportCacheEntry),
-	}
+	return NewHTTPAnalyzerClientWithDeps(logger, &http.Client{}, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
+	})
+}
+
+// NewHTTPAnalyzerClientWithDeps constructs an analyzer client with explicit
+// outbound dependencies for deterministic tests and alternate transports.
+func NewHTTPAnalyzerClientWithDeps(logger *Logger, httpClient HTTPDoer, resolveURL func(context.Context) (string, error)) *HTTPAnalyzerClient {
+	return &HTTPAnalyzerClient{logger: logger, httpClient: httpClient, resolveURL: resolveURL}
 }
 
 // FetchDeploymentReport retrieves the analyzer report for a scenario.
@@ -353,21 +403,34 @@ func (c *HTTPAnalyzerClient) persistReport(scenario string, report *analyzerDepl
 
 // reportPath returns the filesystem path for a scenario's analyzer report.
 func (c *HTTPAnalyzerClient) reportPath(scenario string) string {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			root = "/tmp"
-		} else {
-			root = filepath.Join(home, "Vrooli")
-		}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(root, "scenarios", scenario, ".vrooli", "deployment", "deployment-report.json")
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenario},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 // fetchFromService makes an HTTP request to the analyzer service.
 func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario string) (*analyzerDeploymentReport, error) {
-	baseURL, err := c.discoverAnalyzerURL(ctx)
+	if c.httpClient == nil {
+		return nil, fmt.Errorf("analyzer HTTP client is not configured")
+	}
+	if c.resolveURL == nil {
+		return nil, fmt.Errorf("analyzer URL resolver is not configured")
+	}
+
+	baseURL, err := c.resolveURL(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +444,7 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -402,9 +465,4 @@ func (c *HTTPAnalyzerClient) fetchFromService(ctx context.Context, scenario stri
 		return nil, err
 	}
 	return &report, nil
-}
-
-// discoverAnalyzerURL finds the URL where scenario-dependency-analyzer is running.
-func (c *HTTPAnalyzerClient) discoverAnalyzerURL(ctx context.Context) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
 }

@@ -469,7 +469,7 @@ func (c *TidinessScoreCalculator) getLastScanTime(ctx context.Context, scenario 
 // ---------------------------------------------------------------------------
 
 // handleGetTidinessScore handles GET /api/v1/scenarios/{scenario}/tidiness
-// and GET /api/v1/scan/{scenario} for ecosystem-manager compatibility.
+// for consumers of scenario tidiness metrics.
 func (s *Server) handleGetTidinessScore(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	scenario := vars["scenario"]

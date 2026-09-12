@@ -1,0 +1,337 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "command": "scenario-to-desktop",
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "invoke": {
+      "command": "scenario-to-desktop",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "description": "Fallback: File-based template storage",
+        "enabled": false,
+        "purpose": "Store desktop application templates and build history",
+        "required": false,
+        "type": "postgres"
+      },
+      "redis": {
+        "description": "Fallback: Local filesystem caching",
+        "enabled": false,
+        "purpose": "Cache compiled applications and build artifacts",
+        "required": false,
+        "type": "redis"
+      }
+    },
+    "scenarios": {
+      "agent-manager": {
+        "config": {
+          "declarations": {
+            "profileMode": "update_if_unmodified",
+            "reconcile": true,
+            "sources": [
+              ".vrooli/agent-manager/default.json"
+            ]
+          }
+        },
+        "description": "Agent orchestration layer for pipeline investigations",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "type": "scenario"
+      },
+      "deployment-manager": {
+        "purpose": "Bundle manifest generation for bundled runtime mode",
+        "required": true,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.",
+        "version": "1.0.0",
+        "versionRange": "\u003e=1.0.0"
+      }
+    }
+  },
+  "generation": {
+    "adopted": true,
+    "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d",
+    "generated_at": "2026-07-26T19:20:20Z",
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    }
+  },
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "Xvfb",
+      "notes": "Native runtime handler provisions the Linux virtual display dependency when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "x11vnc",
+      "notes": "Native runtime handler provisions the Linux VNC bridge when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "websockify",
+      "notes": "Native runtime handler provisions the browser WebSocket bridge when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "openbox",
+      "notes": "Native runtime handler provisions the lightweight Linux window manager when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Provide a lightweight window manager inside the Linux virtual display",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    },
+    {
+      "name": "xdotool",
+      "notes": "Native runtime handler provisions X11 window inspection tooling when absent",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
+      "required": false,
+      "when": [
+        "setup",
+        "develop"
+      ]
+    }
+  ],
+  "lifecycle": {
+    "develop": {
+      "description": "Start scenario-to-desktop services",
+      "steps": [
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-desktop-api"
+          },
+          "description": "Start Go API server in background",
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./scenario-to-desktop-api"
+        },
+        {
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          },
+          "description": "Start UI server in background (serves ui/dist production bundle)",
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js"
+        }
+      ]
+    },
+    "health": {
+      "checks": [
+        {
+          "critical": true,
+          "interval": 30000,
+          "name": "api_endpoint",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 5000,
+          "type": "http"
+        },
+        {
+          "critical": false,
+          "interval": 45000,
+          "name": "ui_endpoint",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 3000,
+          "type": "http"
+        }
+      ],
+      "description": "Scenario to Desktop health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "interval": 30000,
+      "startup_grace_period": 10000,
+      "timeout": 5000
+    },
+    "setup": {
+      "condition": {
+        "checks": [
+          {
+            "targets": [
+              "api/scenario-to-desktop-api"
+            ],
+            "type": "binaries"
+          },
+          {
+            "bundle_path": "ui/dist/index.html",
+            "note": "Vite build output",
+            "source_dir": "ui/src",
+            "type": "ui-bundle"
+          },
+          {
+            "command": "scenario-to-desktop",
+            "targets": [
+              "scenario-to-desktop"
+            ],
+            "type": "cli"
+          },
+          {
+            "paths": [
+              "ui/package.json"
+            ],
+            "type": "files"
+          }
+        ]
+      },
+      "description": "Initialize scenario-to-desktop",
+      "steps": [
+        {
+          "description": "Build Go API binary",
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 go build -o scenario-to-desktop-api ."
+        },
+        {
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
+          "description": "Install UI dependencies",
+          "name": "install-ui-deps",
+          "run": "cd ui \u0026\u0026 pnpm install --ignore-workspace"
+        },
+        {
+          "condition": {
+            "file_exists": "ui/package.json"
+          },
+          "description": "Build production UI with Vite",
+          "name": "build-ui",
+          "run": "cd ui \u0026\u0026 pnpm run build"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "description": "Stop API process",
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2\u003e/dev/null || true"
+        },
+        {
+          "description": "Stop UI server process",
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2\u003e/dev/null || true"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for scenario-to-desktop",
+      "steps": [
+        {
+          "description": "Execute phased scenario test suite",
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-to-desktop --preset comprehensive"
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "description": "Desktop build API server port",
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "description": "Desktop build UI server port",
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
+    }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "service": {
+    "category": "automation",
+    "description": "Transform Vrooli scenarios into professional Electron desktop applications",
+    "displayName": "Scenario to Desktop",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "license": "MIT",
+    "maintainers": [
+      {
+        "email": "support@vrooli.com",
+        "name": "Vrooli Team",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "name": "scenario-to-desktop",
+    "parent": "vrooli",
+    "repository": {
+      "directory": "/scenarios/scenario-to-desktop",
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli"
+    },
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "tags": [],
+    "type": "scenario",
+    "version": "1.0.0"
+  },
+  "version": "1.0.0",
+  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."},"runtime":{"rung":"owned","path":"runtime","kind":"dir","class":"state","regenerable":true,"rationale":"Scenario runtime artifacts observed in the canonical runtime directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."}
+}

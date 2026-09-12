@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1";
+
+// =============================================================================
+// CAPABILITIES DOMAIN — runtime capability probes
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain capabilities
+// @stability stable
+//
+// Wire contract for the CapabilitiesService Connect-RPC service. Two RPCs:
+//
+//   Get      — full snapshot. May trigger expensive verification checks
+//              (e.g. test transcription) when the server-side cache is stale.
+//   Liveness — fast probe. Returns cached full-check results when fresh,
+//              otherwise uses lightweight health checkers only.
+//
+// Both responses include the active session_backends list and current
+// default_backend when known, mirroring the prior REST surface so the UI's
+// liveness snapshot keeps working unchanged.
+// =============================================================================
+
+service CapabilitiesService {
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Liveness(LivenessRequest) returns (LivenessResponse);
+  rpc RunAction(RunActionRequest) returns (RunActionResponse);
+}
+
+// CapabilityState is the runtime view of a single capability. Mirrors
+// the Go CapabilityState struct field-for-field.
+message CapabilityState {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string dependency_kind = 4;
+  string dependency_slug = 5;
+  repeated string features = 6;
+
+  // Status is one of "available", "unavailable", "unknown".
+  string status = 7;
+  string message = 8;
+  string checked_at = 9;
+  string reason_code = 10;
+  string action_kind = 11;
+  string action_label = 12;
+  string operator_command = 13;
+
+  // Independent status for each feature served by this capability.
+  map<string, string> feature_status = 14;
+
+  // Actionable reason and repair command for unavailable features.
+  map<string, string> feature_reason = 15;
+  map<string, string> feature_operator_command = 16;
+
+  // Individual provider state used by consumers that prefer one provider
+  // while retaining another provider as a feature-level fallback.
+  map<string, string> provider_status = 17;
+
+  // Feature slugs served by each provider. Values are comma-separated when a
+  // provider serves more than one feature. This keeps consumer gates generic
+  // without requiring a second vendor/provider catalogue in the UI.
+  map<string, string> provider_features = 18;
+}
+
+// BackendOption mirrors the api.BackendDescriptor struct. Surfaced on
+// the full capabilities snapshot so the UI can render backend pickers
+// without a second round-trip.
+message BackendOption {
+  string id = 1;
+  string display_name = 2;
+  string description = 3;
+  bool survives_restart = 4;
+  bool available = 5;
+  string reason = 6;
+}
+
+message GetRequest {}
+
+message GetResponse {
+  repeated CapabilityState capabilities = 1;
+  string timestamp = 2;
+  repeated BackendOption session_backends = 3;
+  string default_backend = 4;
+}
+
+message LivenessRequest {}
+
+message LivenessResponse {
+  repeated CapabilityState capabilities = 1;
+  string timestamp = 2;
+}
+
+message RunActionRequest {
+  string capability_id = 1;
+  string action_kind = 2;
+  string target_id = 3;
+}
+
+message RunActionResponse {
+  bool success = 1;
+  string status = 2;
+  string message = 3;
+  string capability_id = 4;
+  string action_kind = 5;
+  repeated CapabilityState capabilities = 6;
+  string timestamp = 7;
+  // Durable Bridge correlation/audit identifier for a remote action.
+  string operation_id = 8;
+}

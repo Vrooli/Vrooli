@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // Note: Unit tests for secrets.Injector have been moved to secrets/inject_test.go.
@@ -26,7 +26,7 @@ func TestUpdateSecrets(t *testing.T) {
 	m := &manifest.Manifest{
 		Secrets: []manifest.Secret{}, // No required secrets
 	}
-	sm := secrets.NewManager(m, mockFS, filepath.Join(tmp, "secrets.json"))
+	sm := secrets.NewManager(m)
 	sm.Set(map[string]string{"EXISTING": "value"})
 
 	s := &Supervisor{
@@ -65,7 +65,7 @@ func TestUpdateSecrets_MissingRequired(t *testing.T) {
 			{ID: "REQUIRED_KEY", Required: &required},
 		},
 	}
-	sm := secrets.NewManager(m, mockFS, filepath.Join(tmp, "secrets.json"))
+	sm := secrets.NewManager(m)
 	sm.Set(map[string]string{})
 
 	s := &Supervisor{

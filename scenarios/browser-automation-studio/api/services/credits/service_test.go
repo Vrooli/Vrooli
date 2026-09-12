@@ -7,17 +7,20 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // createTestDB creates an in-memory SQLite database for testing.
 func createTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
@@ -49,6 +52,19 @@ func createTestDB(t *testing.T) *sql.DB {
 			duration_ms INTEGER DEFAULT 0,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
+
+		CREATE TABLE monetization_usage_outbox (
+			operation_id TEXT PRIMARY KEY,
+			user_identity TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_error TEXT,
+			delivered_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
 	`
 
 	_, err = db.Exec(schema)
@@ -68,12 +84,38 @@ func createTestService(t *testing.T) (*Service, *sql.DB) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:      db,
-		Logger:  log,
-		Dialect: "sqlite",
+		DB:     db,
+		Logger: log,
 	})
 
 	return svc, db
+}
+
+func TestPendingOutboxCountReadsDurableIdentityScopedRows(t *testing.T) {
+	svc, db := createTestService(t)
+	defer db.Close()
+	svc.monetizationOutbox = monetization.NewOutbox(monetization.NewSQLStore(db, monetization.SQLDialectSQLite), nil)
+
+	usage := monetization.Usage{
+		OperationID:  "pending-operation",
+		UserIdentity: "alice@example.com",
+		BundleKey:    "business_suite",
+		AppKey:       "browser-automation-studio",
+		MeterKey:     "workflow_executions",
+		Units:        1,
+		OccurredAt:   time.Now().UTC(),
+	}
+	if err := svc.monetizationOutbox.Enqueue(context.Background(), usage); err != nil {
+		t.Fatalf("enqueue pending usage: %v", err)
+	}
+
+	count, err := svc.PendingOutboxCount(context.Background(), "alice@example.com")
+	if err != nil {
+		t.Fatalf("pending count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("pending count = %d, want 1", count)
+	}
 }
 
 // ============================================================================
@@ -397,7 +439,6 @@ func createTestServiceWithLPBS(t *testing.T, reporter LPBSReporter) (*Service, *
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -732,7 +773,6 @@ func TestSendLPBSReport_RetriesOnFailure(t *testing.T) {
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -773,7 +813,6 @@ func TestSendLPBSReport_MaxRetriesExhausted(t *testing.T) {
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -820,7 +859,6 @@ func createTestServiceWithEntitlementProvider(t *testing.T, provider *MockEntitl
 	svc := NewService(ServiceOptions{
 		DB:                  db,
 		Logger:              log,
-		Dialect:             "sqlite",
 		EntitlementProvider: provider,
 	})
 
@@ -840,7 +878,6 @@ func TestCanPerformAIOperation_BYOKBypass(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, true)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -871,7 +908,6 @@ func TestCanPerformAIOperation_TierDeniesAI(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -902,7 +938,6 @@ func TestCanPerformAIOperation_TierAllowsAI_NoCreditsAccess(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -953,7 +988,6 @@ func TestCanPerformAIOperation_InsufficientCredits(t *testing.T) {
 
 	// Now check if we can perform another operation
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -984,7 +1018,6 @@ func TestCanPerformAIOperation_Success(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1016,7 +1049,6 @@ func TestCanPerformAIOperation_EntitlementError_FailsOpen(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, _, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1039,7 +1071,6 @@ func TestCanPerformAIOperation_EmptyUserIdentity(t *testing.T) {
 
 	// Empty user identity should still work (normalized to empty string)
 	canProceed, _, _, remaining, err := svc.CanPerformAIOperation(ctx, "", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1091,7 +1122,6 @@ func TestCanPerformAIOperation_UnlimitedTier(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1133,7 +1163,6 @@ func TestCanPerformAIOperation_DifferentOperationTypes(t *testing.T) {
 			ctx := context.Background()
 
 			canProceed, _, _, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", tc.operation, false)
-
 			if err != nil {
 				t.Fatalf("CanPerformAIOperation() returned error for %s: %v", tc.operation, err)
 			}
@@ -1323,7 +1352,6 @@ func TestCanPerformAIOperation_InsufficientCredits_MessageIncludesRemaining(t *t
 
 	// Now check - should have insufficient credits
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1346,7 +1374,7 @@ func TestCanPerformAIOperation_InsufficientCredits_MessageIncludesRemaining(t *t
 func TestCanPerformAIOperation_TierDenied_MessageDescriptive(t *testing.T) {
 	mock := &MockEntitlementProvider{
 		Entitlement:    &entitlement.Entitlement{Tier: entitlement.TierFree},
-		AICreditsLimit: 100, // Has credits
+		AICreditsLimit: 100,   // Has credits
 		CanUseAI:       false, // But tier denies AI
 	}
 	svc, db := createTestServiceWithEntitlementProvider(t, mock)
@@ -1355,7 +1383,6 @@ func TestCanPerformAIOperation_TierDenied_MessageDescriptive(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}

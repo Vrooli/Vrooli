@@ -1,0 +1,11 @@
+{
+  "gate": "consumer-pin",
+  "assetId": "calibration.consumer-pin",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.consumer-pin.missing",
+  "source": "clean.tsx",
+  "catalogAsset": "asset.json",
+  "mutation": "consumer-pin",
+  "description": "A scenario imports a version that the published asset does not contain."
+}

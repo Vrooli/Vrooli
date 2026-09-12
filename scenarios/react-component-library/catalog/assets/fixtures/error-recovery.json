@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.error-recovery",
+    "name": "ErrorRecoveryFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Deterministic failure records with permission, timeout, retry, and recovered outcomes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "failure",
+      "permission",
+      "timeout",
+      "recovery"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "RecoveryRecord"
+      ]
+    },
+    "recordCount": {
+      "typical": 1
+    }
+  },
+  "rationale": "Failure and recovery stories need a stable reason, next action, and retry outcome so error surfaces can be judged for usefulness and not just presence."
+}

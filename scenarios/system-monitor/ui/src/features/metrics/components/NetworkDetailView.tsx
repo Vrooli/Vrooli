@@ -9,7 +9,7 @@ import type {
   MetricHistory,
   ConnectionPool,
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { formatProtoTimestamp } from '../../../shared/utils/formatters';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 
@@ -23,7 +23,9 @@ export interface NetworkDetailViewProps {
 export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: NetworkDetailViewProps) => {
   const networkData = useMemo(() => buildSingleSeriesData(metricHistory?.network), [metricHistory?.network]);
   const networkDetails = detailedMetrics?.networkDetails;
-  const totalConnections = metrics?.tcpConnections ?? networkDetails?.tcpStates?.total ?? 0;
+  const totalConnections = metrics?.connections?.state?.case === 'measured'
+    ? metrics.connections.state.value
+    : networkDetails?.tcpStates?.total;
 
   const subhead = detailedMetrics?.timestamp
     ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
@@ -31,22 +33,25 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
 
   return (
     <MetricDetailLayout
+      layoutId="network"
       title="NETWORK ACTIVITY"
       icon={<Network size={22} />}
-      headline={`${totalConnections.toLocaleString()} active connections`}
+      headline={totalConnections === undefined ? 'Connections not measured' : `${totalConnections.toLocaleString()} active connections`}
       subhead={subhead}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="connection-history" title="Connection history"><MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="connection"
         className="card"
         data={networkData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
         lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-primary)' }]}
         unit=""
         yDomain={['auto', 'auto']}
         valueFormatter={value => `${Math.round(value).toLocaleString()} connections`}
-      />
+      /></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="network-state" title="Network state"><div className="metric-grid-auto-lg">
         <div className="card flex-col-gap-sm">
           <h3 className="section-heading">TCP States</h3>
           {networkDetails?.tcpStates ? (
@@ -79,10 +84,10 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
             </div>
           )}
         </div>
-      </div>
+      </div></DetailSection>
 
       {networkDetails?.connectionPools && networkDetails.connectionPools.length > 0 && (
-        <div className="card flex-col-gap-md">
+        <DetailSection id="connection-pools" title="Connection pools"><div className="card flex-col-gap-md">
           <div>
             <h3 className="section-heading">Connection Pools</h3>
             <div className="card-subtitle">
@@ -94,10 +99,10 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
               <div key={pool.name} className="pool-card">
                 <div className="text-bright mb-sm">{pool.name}</div>
                 <div className="text-dim-xs">
-                  Active: <span style={{ color: 'var(--color-text)' }}>{pool.active}</span> · Idle: <span style={{ color: 'var(--color-text)' }}>{pool.idle}</span>
+                  Active: <span data-sm-style="sm-style-bb03b2fa99">{pool.active}</span> · Idle: <span data-sm-style="sm-style-bb03b2fa99">{pool.idle}</span>
                 </div>
                 <div className="text-dim-xs">
-                  Waiting: <span style={{ color: 'var(--color-text)' }}>{pool.waiting}</span> / Max {pool.maxSize}
+                  Waiting: <span data-sm-style="sm-style-bb03b2fa99">{pool.waiting}</span> / Max {pool.maxSize}
                 </div>
                 <div style={{
                   marginTop: 'var(--spacing-xs)',
@@ -108,7 +113,7 @@ export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onB
               </div>
             ))}
           </div>
-        </div>
+        </div></DetailSection>
       )}
     </MetricDetailLayout>
   );

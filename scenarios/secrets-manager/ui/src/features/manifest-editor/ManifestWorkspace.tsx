@@ -8,7 +8,6 @@ import { ResourceTree } from "./ResourceTree";
 import { ManifestSecretDetailPanel } from "./ManifestSecretDetailPanel";
 import { ManifestSummaryBar } from "./ManifestSummaryBar";
 import { secretIdToString } from "./types";
-import type { DeploymentManifestResponse } from "../../lib/api";
 
 interface ManifestWorkspaceProps {
   initialScenario?: string;

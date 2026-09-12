@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"net/http"
 	"strings"
 
-	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
+
+// Replay config GET/PUT/DELETE are served via Connect-RPC
+// (ReplayConfigService); see handlers/replay_config/. The helpers below
+// remain in this REST package because export-service code paths reuse them
+// to apply persisted replay settings to export specs.
 
 const (
 	replayConfigSettingsKey = "replay_config.v1"
@@ -19,78 +22,8 @@ const (
 	maxBrowserScale         = 1.0
 )
 
-// ReplayConfigRequest captures a persisted replay configuration payload.
-type ReplayConfigRequest struct {
-	Config map[string]any `json:"config"`
-}
-
-// ReplayConfigResponse returns the persisted replay configuration payload.
-type ReplayConfigResponse struct {
-	Config map[string]any `json:"config"`
-}
-
-// GetReplayConfig handles GET /api/v1/replay-config
-func (h *Handler) GetReplayConfig(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
-	defer cancel()
-
-	config, err := h.loadReplayConfig(ctx)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to load replay config")
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_replay_config"}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: config})
-}
-
-// PutReplayConfig handles PUT /api/v1/replay-config
-func (h *Handler) PutReplayConfig(w http.ResponseWriter, r *http.Request) {
-	var req ReplayConfigRequest
-	if err := decodeJSONBody(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode replay config request")
-		h.respondError(w, ErrInvalidRequest)
-		return
-	}
-
-	if req.Config == nil {
-		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "config"}))
-		return
-	}
-
-	payload, err := json.Marshal(req.Config)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to marshal replay config")
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"field": "config"}))
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
-	defer cancel()
-
-	if err := h.repo.SetSetting(ctx, replayConfigSettingsKey, string(payload)); err != nil {
-		h.log.WithError(err).Error("Failed to persist replay config")
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "set_replay_config"}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse(req))
-}
-
-// DeleteReplayConfig handles DELETE /api/v1/replay-config
-func (h *Handler) DeleteReplayConfig(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
-	defer cancel()
-
-	if err := h.repo.DeleteSetting(ctx, replayConfigSettingsKey); err != nil {
-		h.log.WithError(err).Error("Failed to delete replay config")
-		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "delete_replay_config"}))
-		return
-	}
-
-	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: map[string]any{}})
-}
-
+// loadReplayConfig is retained for the export-service code paths that need
+// to read the persisted replay config blob directly (off the HTTP path).
 func (h *Handler) loadReplayConfig(ctx context.Context) (map[string]any, error) {
 	value, err := h.repo.GetSetting(ctx, replayConfigSettingsKey)
 	if err != nil {

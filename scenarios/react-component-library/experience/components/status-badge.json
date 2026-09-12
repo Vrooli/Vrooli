@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "status-badge",
+    "title": "StatusBadge",
+    "purpose": "Communicate semantic status with a readable label, non-color indicator, and bounded footprint.",
+    "storyRef": "../../library/components/StatusBadge/versions/1.2.0/story.json"
+  },
+  "states": [
+    { "id": "success", "example": "success", "description": "Successful status." },
+    { "id": "warning", "example": "warning", "description": "Warning status." },
+    { "id": "long-label", "example": "long-label", "description": "Long status label." },
+    { "id": "danger", "example": "danger", "description": "Danger status." }
+  ],
+  "elements": [
+    { "id": "badge", "role": "status", "description": "The semantic status badge." },
+    { "id": "indicator", "role": "img", "description": "The non-color status cue." },
+    { "id": "label", "role": "x-label", "description": "The visible status label." }
+  ],
+  "claims": [
+    {
+      "id": "semantic-tone",
+      "type": "custom",
+      "statement": "Status uses a semantic tone and an accompanying indicator so meaning is not conveyed by color alone.",
+      "tier": "manual",
+      "elements": ["badge", "indicator", "label"],
+      "states": ["success", "warning", "danger"]
+    },
+    {
+      "id": "bounded-label",
+      "type": "custom",
+      "statement": "Long labels remain inside the badge footprint with readable truncation.",
+      "tier": "manual",
+      "elements": ["badge", "label"],
+      "states": ["long-label"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "badge": { "selector": "[data-rcl-status-badge]" },
+      "indicator": { "selector": "[data-rcl-status-badge-indicator]" },
+      "label": { "selector": "[data-rcl-status-badge-label]" }
+    }
+  }
+}

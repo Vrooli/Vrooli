@@ -1,0 +1,428 @@
+package agentsessions
+
+import (
+	"context"
+	"fmt"
+	"html"
+	"log/slog"
+	"sort"
+	"strings"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/sourceledger"
+)
+
+// sessionDoctrine is the universal band: byte-identical for every session of
+// every kind. It states the two invariants that govern all sessions. Everything
+// kind-specific belongs in a later band.
+const sessionDoctrine = `You are in a Swarm Manager Agent Session: a durable conversation led by a human operator who is present now.
+
+Two rules govern every session.
+
+Propose, never apply. You may recommend any change. Swarm Manager applies it after the operator explicitly accepts a typed proposal. Do not mutate project state as a side effect of conversation.
+
+Resolve in this session. Reach a concrete outcome before the conversation ends: a reviewed proposal, a started transition, a design record, or a recorded reason to do nothing. Do not route the outcome to an autonomous agent's inbox, a team heartbeat, or a queue that only a scheduled loop drains.
+
+Answer first, then ask. Give the best answer available from the context below, then state what you assumed and what would change the answer. You may append one question, and only the question whose answer would most change your recommendation. Do not spend the operator's turn on clarifying questions alone.
+
+Match the weight of the answer to the weight of the operator's input: stay concise for a narrow prompt and go deep when the material warrants it.
+
+You may disagree with the operator's framing. State the disagreement plainly, then answer within the framing that remains.`
+
+// subjectForKind is the kind band: byte-identical for every session of one
+// kind. It states the subject only. The methodology lives in the skill.
+func subjectForKind(kind Kind) string {
+	switch kind {
+	case KindMetaOrchestration:
+		return "Subject: the product. What should exist, and what work makes that true. Shape the operator's raw material into goals, milestones, and backlog items. Resolution means an accepted goal, milestone, or backlog proposal; a rejected or deferred disposition; or a no-change recommendation."
+	case KindSwarmOperations:
+		return "Subject: work that already exists in the ledger. Its true state, what matters most next, and the registered transition that moves it. Resolution means an applied registered transition; a rejected proposal; an explicit keep or leave-alone decision; or a no-change recommendation."
+	case KindWorkflowAuthoring:
+		return "Subject: the machine, not the product. How the operator and agents work together — skills, prompts, workflows, transitions, briefs, session surfaces, and agent profiles. Resolution means an accepted workflow mutation; a reviewed design record; a rejected or deferred proposal; or a no-change recommendation."
+	default:
+		return "Subject: this session's declared kind."
+	}
+}
+
+func buildInitialPrompt(session Session, message Message, attachments []Attachment) string {
+	return buildInitialPromptWithBand(session, message, attachments, kindBand(session), continuityFallbackSection(), relatedWorkUnavailableSection())
+}
+
+func (s *Service) buildInitialPrompt(ctx context.Context, session Session, message Message, attachments []Attachment) string {
+	return buildInitialPromptWithBand(session, message, attachments, s.kindBand(ctx, session), s.ledgerSection(ctx, session), s.relatedWorkSection(ctx, message.Content))
+}
+
+func buildInitialPromptWithBand(session Session, message Message, attachments []Attachment, kindContent string, ledger, relatedWork promptSection) string {
+	sections := []promptSection{
+		newPromptSection(promptSectionKindDoctrine, "", sessionDoctrine),
+		newPromptSection(promptSectionKindSubject, attr("name", string(session.Kind)), kindContent),
+	}
+	if section, ok := starterJobSection(session); ok {
+		sections = append(sections, section)
+	}
+
+	if section, ok := proposalTargetSection(session); ok {
+		sections = append(sections, section)
+	}
+	sections = append(sections, ledger)
+
+	// Identity is volatile by construction — it is unique per session — so it
+	// sits below every stable band. Emitting it earlier is what collapsed the
+	// cacheable prefix for every session ever started.
+	sections = append(sections, newPromptSection(promptSectionKindIdentity, "", "Session ID: "+session.ID))
+
+	resolvedContext := contextSections(message.Context)
+	if len(resolvedContext) > 0 && resolvedContext[0].Kind == promptSectionKindStartupBrief {
+		sections = append(sections, resolvedContext[0])
+		resolvedContext = resolvedContext[1:]
+	}
+	sections = append(sections, relatedWork)
+	sections = append(sections, resolvedContext...)
+	if section, ok := imagesSection(attachments); ok {
+		sections = append(sections, section)
+	}
+	sections = append(sections, newPromptSection(promptSectionKindOperatorMsg, "", operatorMessageBody(message.Content)))
+
+	return assemblePrompt(sections)
+}
+
+const relatedWorkLimit = 8
+
+func relatedWorkUnavailableSection() promptSection {
+	return newPromptSection(promptSectionKindRelatedWork, attr("status", "unavailable"), "Related-work retrieval is unavailable for this turn. Do not infer that no related work exists.")
+}
+
+func (s *Service) relatedWorkSection(ctx context.Context, query string) promptSection {
+	query = strings.TrimSpace(query)
+	if s == nil || s.relatedWork == nil || query == "" {
+		return relatedWorkUnavailableSection()
+	}
+	entries, err := s.relatedWork.SearchRelatedWork(ctx, query, relatedWorkLimit)
+	if err != nil {
+		slog.Warn("agentsessions: related-work retrieval unavailable", "err", err)
+		return relatedWorkUnavailableSection()
+	}
+	if len(entries) == 0 {
+		return newPromptSection(promptSectionKindRelatedWork, attr("status", "empty"), "Related-work retrieval ran for this operator message and found no entries above the relevance threshold.")
+	}
+
+	if len(entries) > relatedWorkLimit {
+		entries = entries[:relatedWorkLimit]
+	}
+	var b strings.Builder
+	b.WriteString("The server retrieved these entries using the operator message as the query. Treat them as orientation, then verify current state before deciding.")
+	for _, entry := range entries {
+		ref := oneLine(entry.Ref)
+		title := truncateRunes(oneLine(entry.Title), contextLimitsForKind(KindMetaOrchestration).MaxSummaryRunes)
+		summary := truncateRunes(oneLine(entry.Summary), contextLimitsForKind(KindMetaOrchestration).MaxSummaryRunes)
+		fmt.Fprintf(&b, "\n\n<entry%s%s>", attr("ref", ref), attr("title", title))
+		if summary != "" {
+			fmt.Fprintf(&b, "\n%s", html.EscapeString(summary))
+		}
+		b.WriteString("\n</entry>")
+	}
+	return newPromptSection(promptSectionKindRelatedWork, attr("status", "hits"), b.String())
+}
+
+func oneLine(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func buildContinuationPrompt(message Message, attachments []Attachment) string {
+	if len(message.Context) == 0 && len(attachments) == 0 {
+		return strings.TrimSpace(message.Content)
+	}
+	sections := contextSections(message.Context)
+	if section, ok := imagesSection(attachments); ok {
+		sections = append(sections, section)
+	}
+	sections = append(sections, newPromptSection(promptSectionKindOperatorMsg, "", operatorMessageBody(message.Content)))
+	return assemblePrompt(sections)
+}
+
+// assemblePrompt wraps every reference section in one <context> block, ordered
+// by volatility, and leaves task-scoped sections outside it in prose. Sorting is
+// stable so that sections within a band keep their append order.
+func assemblePrompt(sections []promptSection) string {
+	ordered := make([]promptSection, len(sections))
+	copy(ordered, sections)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return promptSectionScopeOf(ordered[i].Kind) < promptSectionScopeOf(ordered[j].Kind)
+	})
+
+	var contextParts []string
+	var taskParts []string
+	for _, section := range ordered {
+		body := strings.TrimSpace(section.Content)
+		if body == "" {
+			continue
+		}
+		element := promptSectionElement(section.Kind)
+		if promptSectionScopeOf(section.Kind) == promptScopeTask {
+			taskParts = append(taskParts, fmt.Sprintf("<%s>\n%s\n</%s>", element, body, element))
+			continue
+		}
+		contextParts = append(contextParts, fmt.Sprintf("<%s%s>\n%s\n</%s>", element, section.Attrs, body, element))
+	}
+
+	var parts []string
+	if len(contextParts) > 0 {
+		parts = append(parts, "<context>\n\n"+strings.Join(contextParts, "\n\n")+"\n\n</context>")
+	}
+	parts = append(parts, taskParts...)
+	return strings.Join(parts, "\n\n")
+}
+
+// kindBand states the subject and names the authoritative skill. The skill
+// carries the complete methodology and is read by the agent before its first
+// answer; the startup brief carries only current state.
+func kindBand(session Session) string {
+	var b strings.Builder
+	b.WriteString(subjectForKind(session.Kind))
+	scope := sessionLedgerScope(session.Kind)
+	fmt.Fprintf(&b, "\n\nDurable continuity is optional and agent-chosen. Recall knowledge with `source-ledger recall \"<query>\" --scope=%s`; record knowledge with `source-ledger journal note \"<prose>\" --scope=%s --kind=session-knowledge`. Swarm Manager automatically records terminal proposal resolutions; all other knowledge is recorded only when you choose. Record knowledge, evidence, and decisions — never a task for another agent to pick up.", scope, scope)
+	if session.Kind == KindMetaOrchestration {
+		b.WriteString(" Record only rejected and deferred dispositions, never accepted work.")
+	}
+	if session.Kind == KindSwarmOperations {
+		b.WriteString(" A keep verdict and a leave-alone decision are worth recording.")
+	}
+	if session.Kind == KindWorkflowAuthoring {
+		b.WriteString(" This scope is shared with the autonomous meta-optimization team.")
+	}
+	if skill := strings.TrimSpace(session.SkillID); skill != "" {
+		fmt.Fprintf(&b, "\n\nYour complete methodology is the Prompt Manager skill `%s`. Read it in full before your first answer:\n\n    prompt-manager skill read %s\n\nThe startup brief below is current state, not procedure. Follow the skill.", skill, skill)
+	}
+	return b.String()
+}
+
+func (s *Service) kindBand(ctx context.Context, session Session) string {
+	content := kindBand(session)
+	skillID := strings.TrimSpace(session.SkillID)
+	if skillID == "" {
+		return content
+	}
+	text, ok := s.skillText(ctx, skillID)
+	if !ok {
+		return content
+	}
+	needle := fmt.Sprintf("Your complete methodology is the Prompt Manager skill `%s`. Read it in full before your first answer:\n\n    prompt-manager skill read %s\n\nThe startup brief below is current state, not procedure. Follow the skill.", skillID, skillID)
+	return strings.Replace(content, needle, "Your complete methodology is the Prompt Manager skill `"+skillID+"`, inlined below. The startup brief below is current state, not procedure. Follow the skill.\n\n<skill-content>\n"+strings.TrimSpace(text)+"\n</skill-content>", 1)
+}
+
+func sessionLedgerScope(kind Kind) string {
+	switch kind {
+	case KindMetaOrchestration:
+		return "session:meta-orchestration"
+	case KindSwarmOperations:
+		return "session:swarm-operations"
+	case KindWorkflowAuthoring:
+		return "team:meta-optimization"
+	default:
+		return "session:" + strings.ReplaceAll(string(kind), "_", "-")
+	}
+}
+
+func continuityFallbackSection() promptSection {
+	return newPromptSection(promptSectionKindFallback, "", "Source Ledger continuity is unavailable for this turn. Treat the startup brief and attached context as the available record; do not infer prior decisions that are not present here.")
+}
+
+func (s *Service) ledgerSection(ctx context.Context, session Session) promptSection {
+	if s == nil || s.sourceLedger == nil {
+		return continuityFallbackSection()
+	}
+	wake, err := s.sourceLedger.Wake(ctx, sessionLedgerScope(session.Kind), sourceledger.DefaultWakeBudget)
+	if err != nil {
+		return continuityFallbackSection()
+	}
+	var b strings.Builder
+	b.WriteString("This is bounded ambient orientation from Source Ledger, not authority. Verify it against the current startup brief and repository before deciding.")
+	if len(wake.Entries) == 0 {
+		b.WriteString("\n\nNo prior continuity entries were selected.")
+	} else {
+		for _, entry := range wake.Entries {
+			body := strings.TrimSpace(entry.Body)
+			if body == "" {
+				continue
+			}
+			fmt.Fprintf(&b, "\n\n<entry id=%q kind=%q>\n%s\n</entry>", entry.ID, entry.Kind, body)
+		}
+	}
+	if wake.Overflow || wake.Refused > 0 {
+		b.WriteString("\n\nThe ledger view is bounded; do not treat missing entries as evidence that no other history exists.")
+	}
+	return newPromptSection(promptSectionKindLedgerWake, attr("scope", sessionLedgerScope(session.Kind)), b.String())
+}
+
+func proposalTargetSection(session Session) (promptSection, bool) {
+	target := session.ProposalTarget
+	if target == nil {
+		return promptSection{}, false
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "This is a proposal session for %s %q. Return any recommended change as the skill's fenced mutation_list JSON envelope. Never mutate files directly.", target.Type, target.Ref)
+	if target.Type == ContextGoal {
+		b.WriteString("\n\nCopy the attached goal context Metadata.base_version exactly into the envelope's base_version field. The server rejects goal proposals without that optimistic-concurrency value.")
+		b.WriteString("\n\nFor create_milestone or update_milestone, use a goal_milestone object (not milestone) with at least name and title. Goal proposals may use only goal graph operations.")
+	}
+	attrs := attr("type", string(target.Type)) + attr("ref", target.Ref)
+	return newPromptSection(promptSectionKindProposalTarget, attrs, b.String()), true
+}
+
+func starterJobSection(session Session) (promptSection, bool) {
+	jobID := strings.TrimSpace(session.StarterJob)
+	if jobID == "" {
+		return promptSection{}, false
+	}
+	job, ok := starterJobText(jobID)
+	if !ok {
+		return promptSection{}, false
+	}
+	return newPromptSection(promptSectionKindStarterJob, attr("id", jobID), job), true
+}
+
+// contextSections splits resolved context into the startup brief and everything
+// else. The brief earns its own element because it is the answer-first source:
+// naming it lets the agent tell a live state snapshot from operator-chosen
+// attachments without parsing a numbered list.
+func contextSections(items []ContextItem) []promptSection {
+	var brief []ContextItem
+	var rest []ContextItem
+	for _, item := range items {
+		switch item.Type {
+		case ContextStartupBrief, ContextOperationsBriefing:
+			brief = append(brief, item)
+		default:
+			rest = append(rest, item)
+		}
+	}
+
+	var sections []promptSection
+	if len(brief) > 0 {
+		var b strings.Builder
+		b.WriteString("Answer broad status, planning, and authoring questions from this brief. Run at most one targeted drill-down or refresh before your first useful answer.\n")
+		writeContextItems(&b, brief)
+		sections = append(sections, newPromptSection(promptSectionKindStartupBrief, "", b.String()))
+	}
+	if len(rest) > 0 {
+		var b strings.Builder
+		b.WriteString("The operator attached these deliberately. Treat them as the subject of the message unless the message says otherwise.\n")
+		writeContextItems(&b, rest)
+		sections = append(sections, newPromptSection(promptSectionKindContext, "", b.String()))
+	}
+	return sections
+}
+
+func writeContextItems(b *strings.Builder, items []ContextItem) {
+	for _, item := range items {
+		fmt.Fprintf(b, "\n<item%s%s%s>\n", attr("type", string(item.Type)), attr("ref", item.Ref), attr("title", item.Title))
+		if metadata := strings.TrimSpace(item.MetadataJSON); metadata != "" {
+			fmt.Fprintf(b, "<metadata>%s</metadata>\n", metadata)
+		}
+		if summary := strings.TrimSpace(item.Summary); summary != "" {
+			fmt.Fprintf(b, "<summary>\n%s\n</summary>\n", summary)
+		}
+		b.WriteString("</item>\n")
+	}
+}
+
+func imagesSection(attachments []Attachment) (promptSection, bool) {
+	if len(attachments) == 0 {
+		return promptSection{}, false
+	}
+	var b strings.Builder
+	for _, attachment := range attachments {
+		fmt.Fprintf(&b, "<image%s%s%s />\n", attr("id", attachment.ID), attr("filename", attachment.Filename), attr("content-type", attachment.ContentType))
+	}
+	return newPromptSection(promptSectionKindImages, "", b.String()), true
+}
+
+func operatorMessageBody(content string) string {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return "(no text supplied — the operator sent context or images only; answer from those)"
+	}
+	return trimmed
+}
+
+// attr renders one escaped XML attribute, or nothing when the value is empty.
+func attr(name, value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	return ` ` + name + `="` + html.EscapeString(trimmed) + `"`
+}
+
+func truncateRunes(value string, max int) string {
+	if max <= 0 {
+		return value
+	}
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max])
+}
+
+// PreviewResult carries an assembled prompt and which builder produced it.
+type PreviewResult struct {
+	Prompt  string
+	Initial bool
+}
+
+// PreviewPrompt assembles the prompt a message would produce, without
+// appending the message, spawning a run, or mutating the session.
+//
+// It calls the same builders Start and Continue call. A client that
+// reimplemented the section order or the volatility gradient would produce a
+// preview that agrees with nothing, so assembly stays server-owned and this
+// method exists purely to expose it.
+func (s *Service) PreviewPrompt(ctx context.Context, req ContinueRequest) (PreviewResult, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return PreviewResult{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
+	if err != nil {
+		return PreviewResult{}, mapStoreError(err)
+	}
+
+	initial := session.Status == StatusDraft && strings.TrimSpace(session.RunID) == ""
+	if initial && strings.TrimSpace(req.StarterJob) != "" {
+		if !IsKnownStarterJob(req.StarterJob) {
+			return PreviewResult{}, apierr.BadRequest("starter job is not declared")
+		}
+		session.StarterJob = strings.TrimSpace(req.StarterJob)
+	}
+
+	refs := req.ContextRefs
+	if initial {
+		// Mirror Start: the startup brief and any proposal target are added
+		// server-side, so a preview that omitted them would understate the
+		// prompt by its single largest section.
+		refs = append(append([]ContextRef(nil), session.StagedContext...), refs...)
+		refs = refsWithAutoContext(session.Kind, refs, req.AutoContextPolicy, s.startupBriefResolverAvailable())
+		if session.ProposalTarget != nil {
+			refs = append(refs, ContextRef{Type: session.ProposalTarget.Type, Ref: session.ProposalTarget.Ref})
+		}
+	}
+
+	contextItems, err := s.resolveMessageContext(ctx, session, refs)
+	if err != nil {
+		return PreviewResult{}, err
+	}
+
+	message := Message{
+		Role:          MessageRoleUser,
+		Content:       req.Message,
+		AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
+		Context:       contextItems,
+	}
+	attachments := sessionAttachmentsByID(session, req.AttachmentIDs)
+
+	if initial {
+		return PreviewResult{Prompt: s.buildInitialPrompt(ctx, session, message, attachments), Initial: true}, nil
+	}
+	return PreviewResult{Prompt: buildContinuationPrompt(message, attachments), Initial: false}, nil
+}

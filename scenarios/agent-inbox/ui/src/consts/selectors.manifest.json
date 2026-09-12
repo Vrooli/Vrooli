@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.container": {
       "testId": "inbox-container",
@@ -226,49 +227,93 @@
       "description": "Chat list item by chat ID",
       "selectorPattern": "[data-testid=\"chat-item-${chatId}\"]",
       "testIdPattern": "chat-item-${chatId}",
-      "params": [{"name": "chatId", "type": "string"}]
+      "params": [
+        {
+          "name": "chatId",
+          "type": "string"
+        }
+      ]
     },
     "chat.message": {
       "description": "Message by message ID",
       "selectorPattern": "[data-testid=\"message-${messageId}\"]",
       "testIdPattern": "message-${messageId}",
-      "params": [{"name": "messageId", "type": "string"}]
+      "params": [
+        {
+          "name": "messageId",
+          "type": "string"
+        }
+      ]
     },
     "label.filterButton": {
       "description": "Label filter button in sidebar",
       "selectorPattern": "[data-testid=\"label-filter-${labelId}\"]",
       "testIdPattern": "label-filter-${labelId}",
-      "params": [{"name": "labelId", "type": "string"}]
+      "params": [
+        {
+          "name": "labelId",
+          "type": "string"
+        }
+      ]
     },
     "label.item": {
       "description": "Label item in label manager",
       "selectorPattern": "[data-testid=\"label-item-${labelId}\"]",
       "testIdPattern": "label-item-${labelId}",
-      "params": [{"name": "labelId", "type": "string"}]
+      "params": [
+        {
+          "name": "labelId",
+          "type": "string"
+        }
+      ]
     },
     "label.deleteButton": {
       "description": "Delete label button",
       "selectorPattern": "[data-testid=\"delete-label-${labelId}\"]",
       "testIdPattern": "delete-label-${labelId}",
-      "params": [{"name": "labelId", "type": "string"}]
+      "params": [
+        {
+          "name": "labelId",
+          "type": "string"
+        }
+      ]
     },
     "label.confirmDeleteButton": {
       "description": "Confirm delete label button",
       "selectorPattern": "[data-testid=\"confirm-delete-label-${labelId}\"]",
       "testIdPattern": "confirm-delete-label-${labelId}",
-      "params": [{"name": "labelId", "type": "string"}]
+      "params": [
+        {
+          "name": "labelId",
+          "type": "string"
+        }
+      ]
     },
     "model.option": {
       "description": "Model option in dropdown",
       "selectorPattern": "[data-testid=\"model-option-${modelId}\"]",
       "testIdPattern": "model-option-${modelId}",
-      "params": [{"name": "modelId", "type": "string"}]
+      "params": [
+        {
+          "name": "modelId",
+          "type": "string"
+        }
+      ]
     },
     "color.button": {
       "description": "Color picker button",
       "selectorPattern": "[data-testid=\"color-${color}\"]",
       "testIdPattern": "color-${color}",
-      "params": [{"name": "color", "type": "string"}]
+      "params": [
+        {
+          "name": "color",
+          "type": "string"
+        }
+      ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "c03dbe482e2ccf22f418959c4aaddcd84678b091a7befd6024537a2ec73fcc9f"
   }
 }

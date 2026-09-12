@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
-// handleGetTierLimits Tests
+// billing.GetTierLimits Tests
 // ============================================================================
 
 func TestHandleGetTierLimits_AllTiers(t *testing.T) {
@@ -19,7 +21,7 @@ func TestHandleGetTierLimits_AllTiers(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleGetTierLimits(svc)
+	handler := billinghttp.GetTierLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/limits", nil)
 	req = mux.SetURLVars(req, map[string]string{}) // No tier param
 
@@ -31,9 +33,7 @@ func TestHandleGetTierLimits_AllTiers(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].(map[string]interface{})
 	if !ok {
@@ -51,7 +51,7 @@ func TestHandleGetTierLimits_SpecificTier(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleGetTierLimits(svc)
+	handler := billinghttp.GetTierLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/limits/solo", nil)
 	req = mux.SetURLVars(req, map[string]string{"tier": "solo"})
 
@@ -63,9 +63,7 @@ func TestHandleGetTierLimits_SpecificTier(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	tierID, ok := resp["tier_id"].(string)
 	if !ok || tierID != "solo" {
@@ -86,7 +84,7 @@ func TestHandleGetTierLimits_NonExistentTier(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleGetTierLimits(svc)
+	handler := billinghttp.GetTierLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/limits/nonexistent", nil)
 	req = mux.SetURLVars(req, map[string]string{"tier": "nonexistent"})
 
@@ -98,9 +96,7 @@ func TestHandleGetTierLimits_NonExistentTier(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].([]interface{})
 	if !ok {
@@ -113,7 +109,7 @@ func TestHandleGetTierLimits_NonExistentTier(t *testing.T) {
 }
 
 // ============================================================================
-// handleUpdateTierLimits Tests
+// billing.UpdateTierLimits Tests
 // ============================================================================
 
 func TestHandleUpdateTierLimits_Success(t *testing.T) {
@@ -121,7 +117,7 @@ func TestHandleUpdateTierLimits_Success(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	newValue := int64(999999999)
 	body := map[string]interface{}{
@@ -143,10 +139,8 @@ func TestHandleUpdateTierLimits_Success(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	var resp commerce.TierLimit
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != newValue {
 		t.Errorf("expected limit_value %d, got %d", newValue, resp.LimitValue)
@@ -157,7 +151,7 @@ func TestHandleUpdateTierLimits_MissingTierID(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"limit_key": "ai_credits",
@@ -182,7 +176,7 @@ func TestHandleUpdateTierLimits_MissingLimitKey(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"update": map[string]interface{}{"limit_value": 100},
@@ -205,7 +199,7 @@ func TestHandleUpdateTierLimits_InvalidJSON(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	req := httptest.NewRequest(http.MethodPut, "/admin/limits/solo", bytes.NewReader([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -224,7 +218,7 @@ func TestHandleUpdateTierLimits_LimitNotFound(t *testing.T) {
 	defer db.Close()
 	// Don't seed any limits
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"limit_key": "nonexistent_key",
@@ -245,7 +239,7 @@ func TestHandleUpdateTierLimits_LimitNotFound(t *testing.T) {
 }
 
 // ============================================================================
-// handleGetAppLimits Tests
+// billing.GetAppLimits Tests
 // ============================================================================
 
 func TestHandleGetAppLimits_Success(t *testing.T) {
@@ -263,7 +257,7 @@ func TestHandleGetAppLimits_Success(t *testing.T) {
 		t.Fatalf("failed to seed: %v", err)
 	}
 
-	handler := handleGetAppLimits(svc)
+	handler := billinghttp.GetAppLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/apps/test-app/limits", nil)
 	req = mux.SetURLVars(req, map[string]string{"app": appKey})
 
@@ -275,9 +269,7 @@ func TestHandleGetAppLimits_Success(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["app_bundle_key"] != appKey {
 		t.Errorf("expected app_bundle_key '%s', got %v", appKey, resp["app_bundle_key"])
@@ -288,7 +280,7 @@ func TestHandleGetAppLimits_MissingAppKey(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleGetAppLimits(svc)
+	handler := billinghttp.GetAppLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/apps//limits", nil)
 	req = mux.SetURLVars(req, map[string]string{"app": ""})
 
@@ -304,7 +296,7 @@ func TestHandleGetAppLimits_EmptyResult(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleGetAppLimits(svc)
+	handler := billinghttp.GetAppLimits(svc, billingLimitsDependencies())
 	req := httptest.NewRequest(http.MethodGet, "/admin/apps/nonexistent/limits", nil)
 	req = mux.SetURLVars(req, map[string]string{"app": "nonexistent"})
 
@@ -316,9 +308,7 @@ func TestHandleGetAppLimits_EmptyResult(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].(map[string]interface{})
 	if !ok {
@@ -331,19 +321,19 @@ func TestHandleGetAppLimits_EmptyResult(t *testing.T) {
 }
 
 // ============================================================================
-// handleCreateTierLimit Tests
+// billing.CreateTierLimit Tests
 // ============================================================================
 
 func TestHandleCreateTierLimit_Success(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleCreateTierLimit(svc)
+	handler := billinghttp.CreateTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
-		"tier_id":    "new_tier",
-		"limit_type": "cost_based",
-		"limit_key":  "ai_credits",
+		"tier_id":     "new_tier",
+		"limit_type":  "cost_based",
+		"limit_key":   "ai_credits",
 		"limit_value": 1000000,
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -358,10 +348,8 @@ func TestHandleCreateTierLimit_Success(t *testing.T) {
 		t.Errorf("expected status 201, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	var resp commerce.TierLimit
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.TierID != "new_tier" {
 		t.Errorf("expected tier_id 'new_tier', got '%s'", resp.TierID)
@@ -375,7 +363,7 @@ func TestHandleCreateTierLimit_InvalidJSON(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleCreateTierLimit(svc)
+	handler := billinghttp.CreateTierLimit(svc, billingLimitsDependencies())
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/limits", bytes.NewReader([]byte("invalid")))
 	req.Header.Set("Content-Type", "application/json")
@@ -392,7 +380,7 @@ func TestHandleCreateTierLimit_ValidationError(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleCreateTierLimit(svc)
+	handler := billinghttp.CreateTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"tier_id":    "", // Empty - validation error
@@ -416,7 +404,7 @@ func TestHandleCreateTierLimit_InvalidLimitType(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleCreateTierLimit(svc)
+	handler := billinghttp.CreateTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"tier_id":    "test",
@@ -437,7 +425,7 @@ func TestHandleCreateTierLimit_InvalidLimitType(t *testing.T) {
 }
 
 // ============================================================================
-// handleDeleteTierLimit Tests
+// billing.DeleteTierLimit Tests
 // ============================================================================
 
 func TestHandleDeleteTierLimit_Success(t *testing.T) {
@@ -445,7 +433,7 @@ func TestHandleDeleteTierLimit_Success(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleDeleteTierLimit(svc)
+	handler := billinghttp.DeleteTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"tier_id":   "solo",
@@ -478,7 +466,7 @@ func TestHandleDeleteTierLimit_MissingFields(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleDeleteTierLimit(svc)
+	handler := billinghttp.DeleteTierLimit(svc, billingLimitsDependencies())
 
 	tests := []struct {
 		name string
@@ -518,7 +506,7 @@ func TestHandleDeleteTierLimit_InvalidJSON(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleDeleteTierLimit(svc)
+	handler := billinghttp.DeleteTierLimit(svc, billingLimitsDependencies())
 
 	req := httptest.NewRequest(http.MethodDelete, "/admin/limits", bytes.NewReader([]byte("invalid")))
 	req.Header.Set("Content-Type", "application/json")
@@ -535,7 +523,7 @@ func TestHandleDeleteTierLimit_NotFound(t *testing.T) {
 	svc, db := createTestLimitsService(t)
 	defer db.Close()
 
-	handler := handleDeleteTierLimit(svc)
+	handler := billinghttp.DeleteTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"tier_id":   "nonexistent",
@@ -568,7 +556,7 @@ func TestHandleDeleteTierLimit_WithAppBundleKey(t *testing.T) {
 		t.Fatalf("failed to seed: %v", err)
 	}
 
-	handler := handleDeleteTierLimit(svc)
+	handler := billinghttp.DeleteTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"tier_id":        "solo",
@@ -589,7 +577,7 @@ func TestHandleDeleteTierLimit_WithAppBundleKey(t *testing.T) {
 }
 
 // ============================================================================
-// handleUpdateTierLimits with AppBundleKey Tests
+// billing.UpdateTierLimits with AppBundleKey Tests
 // ============================================================================
 
 func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
@@ -606,7 +594,7 @@ func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
 		t.Fatalf("failed to seed: %v", err)
 	}
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	newValue := int64(20)
 	body := map[string]interface{}{
@@ -629,10 +617,8 @@ func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	var resp commerce.TierLimit
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != newValue {
 		t.Errorf("expected limit_value %d, got %d", newValue, resp.LimitValue)
@@ -644,7 +630,7 @@ func TestHandleUpdateTierLimits_SetUnlimited(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"limit_key": "ai_credits",
@@ -665,10 +651,8 @@ func TestHandleUpdateTierLimits_SetUnlimited(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	var resp commerce.TierLimit
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != -1 {
 		t.Errorf("expected limit_value -1 (unlimited), got %d", resp.LimitValue)
@@ -680,7 +664,7 @@ func TestHandleUpdateTierLimits_SetDisplayDollars(t *testing.T) {
 	defer db.Close()
 	seedTestTierLimits(t, db)
 
-	handler := handleUpdateTierLimits(svc)
+	handler := billinghttp.UpdateTierLimits(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
 		"limit_key": "ai_credits",
@@ -701,10 +685,8 @@ func TestHandleUpdateTierLimits_SetDisplayDollars(t *testing.T) {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	var resp commerce.TierLimit
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// $25 = 25 * 100 * 1,000,000 = 2,500,000,000
 	expectedValue := int64(2500000000)

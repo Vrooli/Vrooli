@@ -1,0 +1,14 @@
+{
+  "magic": "ATV2",
+  "headerBytes": 60,
+  "messages": {
+    "partial": "partial",
+    "final": "final",
+    "segmentFinal": "segment-final",
+    "segmentRejected": "segment-rejected",
+    "error": "error",
+    "done": "done",
+    "status": "status",
+    "vadState": "vad-state"
+  }
+}

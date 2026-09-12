@@ -1,0 +1,50 @@
+{
+  "loop_kind": "sweep",
+  "population": [
+    "skill",
+    "action"
+  ],
+  "required_read": [
+    {
+      "prefix": "skill-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "skill-visited/<skill-id>"
+    },
+    {
+      "prefix": "action-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "action-visited/<action-id>"
+    },
+    {
+      "prefix": "skill-experiment/<skill-id>/<experiment-id>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "skill-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "action-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "action-visited/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "skill-experiment/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "operator"
+  ]
+}

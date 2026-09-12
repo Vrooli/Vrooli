@@ -1,20 +1,49 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/backlog.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
 // ExecutionRecord captures one backlog execution lifecycle entry.
 message ExecutionRecord {
   string execution_id = 1 [(buf.validate.field).string.min_len = 1];
-  string backlog_kind = 2 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "research", "chore", "spec-sync"] }];
+  string backlog_kind = 2 [(buf.validate.field).string = {
+    in: [
+      "idea",
+      "fix",
+      "execute",
+      "research",
+      "chore",
+      "spec-sync"
+    ]
+  }];
   string backlog_name = 3 [(buf.validate.field).string.min_len = 1];
   optional string task_id = 4;
   optional string run_id = 5;
-  string status = 6 [(buf.validate.field).string = { in: ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] }];
-  string mode = 7 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string status = 6 [(buf.validate.field).string = {
+    in: [
+      "pending",
+      "starting",
+      "running",
+      "needs_review",
+      "validating",
+      "needs_fixup",
+      "completed",
+      "failed",
+      "budget_exhausted",
+      "cancelling",
+      "canceled"
+    ]
+  }];
+  string mode = 7 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 8;
   optional string started_at = 9;
   optional string finished_at = 10;
@@ -37,6 +66,30 @@ message ExecutionRecord {
 
   // Unified post-run finalization state for restart + health + review.
   optional Finalization finalization = 23;
+
+  // Requested runner/model preferences and the actual selected provider.
+  optional ExecutionPreferences execution_preferences = 24;
+  optional string actual_runner = 25;
+  optional string actual_model = 26;
+  optional string selection_reason = 27;
+
+  // Parent execution for an unattended continuation child.
+  optional string continuation_of = 28;
+
+  // Child execution IDs created from this execution by the sweeper.
+  repeated string continuation_child_ids = 29;
+
+  // Recorded Plan Manager boundary widenings projected into execution scope.
+  repeated ScopeExtension scope_extensions = 30;
+}
+
+// ScopeExtension is an execution-local projection of one Plan Manager
+// boundary extension. The Plan Manager execution remains the audit authority.
+message ScopeExtension {
+  repeated string paths = 1;
+  string reason = 2;
+  string recorded_at = 3;
+  string author = 4;
 }
 
 // ArchiveContext captures archive parameters for spec-sync-archive executions.
@@ -201,12 +254,20 @@ message ReviewEvidenceRound {
 
 // ExecutionPolicy controls default mode, delay, and auto-fixup behavior.
 message ExecutionPolicy {
-  string default_mode = 1 [(buf.validate.field).string = { in: ["manual", "yolo"] }];
+  string default_mode = 1 [(buf.validate.field).string = {
+    in: [
+      "manual",
+      "yolo"
+    ]
+  }];
   reserved 2;
   // When true, automatically re-runs execution when review finds issues.
   bool auto_fixup = 3;
   // Maximum number of automatic fixup attempts (0-5).
-  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = { gte: 0, lte: 5 }];
+  int32 max_fixup_attempts = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 5
+  }];
   // When true, spawns a review agent after finalization to gather evidence.
   bool review_agent_enabled = 5;
 }

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "powershell-test-runner",
+  "storage": {
+    "entries": {},
+    "rationale": "PowerShell jobs are host-session state; the runner owns their lifetime and Vrooli does not persist tool data."
+  },
+  "description": "Windows PowerShell job runner for shell and lifecycle tests",
+  "commands": ["pwsh", "powershell"],
+  "versionArgs": ["-Version"],
+  "packages": {
+    "winget": "Microsoft.PowerShell"
+  },
+  "installHint": "Install PowerShell 7 from the Microsoft.PowerShell winget package.",
+  "manual": true,
+  "bundling": "host-required",
+  "capability": "test-execution",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {"status": "unsupported", "evidence": "The Windows PowerShell job peer is not the Linux test runner."},
+    "macos": {"status": "unsupported", "evidence": "The Windows PowerShell job peer is not the macOS test runner."},
+    "windows": {"status": "build-verified", "mechanism": "pwsh Start-Job", "evidence": null}
+  }
+}

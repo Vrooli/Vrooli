@@ -1,0 +1,237 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// METRICS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Landing-page analytics: idempotent event ingestion (page views, scroll,
+// clicks, conversions, downloads) and admin rollups (per-variant funnel stats
+// and an aggregate analytics summary).
+//
+// =============================================================================
+
+// TrackEventRequest records a single analytics event. Ingestion is idempotent
+// on event_id: when omitted, the server derives a deterministic id from
+// (session_id, event_type, variant_id, unix-second) so duplicate posts within
+// the same second collapse to one row.
+message TrackEventRequest {
+  // Event type: page_view|scroll_depth|click|form_submit|conversion|download.
+  string event_type = 1;
+  // Variant the event belongs to (must be > 0).
+  int64 variant_id = 2;
+  // Free-form event payload (e.g. element_type, element_id, scroll depth).
+  google.protobuf.Struct event_data = 3;
+  // Visitor session identifier (required).
+  string session_id = 4;
+  // Optional stable visitor identifier spanning sessions.
+  string visitor_id = 5;
+  // Optional client-supplied idempotency id; server derives one when empty.
+  string event_id = 6;
+  // Variant slug used by the existing analytics store and public UI. Clients
+  // should supply this when they do not have the internal numeric variant id.
+  string variant_slug = 7;
+  string utm_source = 8;
+  string utm_medium = 9;
+  string utm_campaign = 10;
+  string landing_path = 11;
+  string referrer = 12;
+}
+
+enum TrafficDimension {
+  TRAFFIC_DIMENSION_UNSPECIFIED = 0;
+  COUNTRY = 1;
+  REFERRER_KIND = 2;
+  UTM_SOURCE = 3;
+  UTM_CAMPAIGN = 4;
+  DEVICE_CLASS = 5;
+  LANDING_PATH = 6;
+  VARIANT = 7;
+}
+
+message TrafficBreakdownRow {
+  string key = 1;
+  string label = 2;
+  int64 sessions = 3;
+  int64 conversions = 4;
+  int64 revenue_minor = 5;
+  double share = 6;
+}
+
+message GetTrafficBreakdownRequest {
+  TrafficDimension dimension = 1;
+  string start_date = 2;
+  string end_date = 3;
+  int32 limit = 4;
+}
+
+message GetTrafficBreakdownResponse {
+  repeated TrafficBreakdownRow rows = 1;
+  int64 total_sessions = 2;
+  bool exhaustive = 3;
+  string currency = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message TrafficSeriesPoint {
+  string bucket_start = 1;
+  double value = 2;
+}
+
+message GetTrafficSeriesRequest {
+  string metric = 1;
+  string start_date = 2;
+  string end_date = 3;
+  string bucket = 4;
+}
+
+message GetTrafficSeriesResponse {
+  repeated TrafficSeriesPoint points = 1;
+  string unit = 2;
+  google.protobuf.Timestamp observed_at = 3;
+}
+
+// TrackEventResponse acknowledges ingestion.
+message TrackEventResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// VariantStats is the funnel rollup for one variant over a date window.
+message VariantStats {
+  int64 variant_id = 1;
+  string variant_slug = 2;
+  string variant_name = 3;
+  int64 views = 4;
+  int64 cta_clicks = 5;
+  int64 conversions = 6;
+  int64 downloads = 7;
+  // conversions / exposures * 100 (0 when exposures == 0).
+  double conversion_rate = 8;
+  // Reserved for future trend rendering; not currently populated.
+  optional double trend = 9;
+  // Reserved for future scroll-depth rollups; not currently populated.
+  optional double avg_scroll_depth = 10;
+  // Number of first exposures used as the conversion-rate denominator.
+  int64 exposures = 11;
+}
+
+// AnalyticsSummary is the aggregate rollup across all variants for a window.
+message AnalyticsSummary {
+  int64 total_visitors = 1;
+  int64 total_downloads = 2;
+  repeated VariantStats variant_stats = 3;
+  // Highest-clicked CTA element id in the window, when any.
+  optional string top_cta = 4;
+  // Click-through rate for top_cta (clicks / views * 100).
+  optional double top_cta_ctr = 5;
+  // Time at which the producer completed this aggregate projection.
+  google.protobuf.Timestamp observed_at = 6;
+}
+
+// AdminRevenue is the producer-owned financial rollup. Monetary values are
+// expressed in the declared currency and unit, with sample_size counting the
+// active subscriptions included in MRR.
+message AdminRevenue {
+  double mrr = 1;
+  string mrr_unit = 2;
+  double today = 3;
+  string today_unit = 4;
+  string currency = 5;
+  int64 sample_size = 6;
+  google.protobuf.Timestamp observed_at = 7;
+}
+
+// RevenueSummary is the complete finance-owned aggregate used by admin
+// consumers. Monetary values are minor units in currency; rates are percent.
+message RevenueSummary {
+  // Producer completion timestamp for this aggregate.
+  google.protobuf.Timestamp observed_at = 1;
+  // ISO settlement currency for monetary fields.
+  string currency = 2;
+  // MRR in minor currency units.
+  int64 mrr_minor = 3;
+  // Successful checkout revenue today in minor currency units.
+  int64 revenue_today_minor = 4;
+  // Successful checkout revenue in the trailing 30-day window, in minor currency units.
+  int64 revenue_window_minor = 5;
+  // Count of active, eligible trialing, and past-due subscriptions.
+  int64 active_subscriptions = 6;
+  // Count of subscriptions canceled in the trailing 30-day window.
+  int64 subscriptions_churned_window = 7;
+  // Churn rate as a percentage from 0 to 100.
+  double churn_rate_percent = 8;
+  // Current wallet balance in credit units.
+  int64 credit_balance_total = 9;
+  // Credits consumed in the trailing 30-day window.
+  int64 credit_burned_window = 10;
+  // Usage records in the trailing 30-day window.
+  int64 usage_records_window = 11;
+  // Number of subscriptions included in the MRR sample.
+  int64 sample_size = 12;
+  // Trial subscriptions without a linked payment identity.
+  int64 trials_without_payment_method = 13;
+  // Unit label for mrr_minor; currently minor_currency.
+  string mrr_unit = 14;
+  // Unit label for revenue_today_minor; currently minor_currency.
+  string revenue_today_unit = 15;
+  // Unit label for revenue_window_minor; currently minor_currency.
+  string revenue_window_unit = 16;
+  // Unit label for credit fields; currently credits.
+  string credit_unit = 17;
+  // Number of additional currencies excluded from the dominant-currency rollup.
+  int64 currency_excluded_count = 18;
+}
+
+// GetAnalyticsSummaryRequest requests the aggregate summary for a date window.
+// Dates are YYYY-MM-DD; default window is the last 7 days.
+message GetAnalyticsSummaryRequest {
+  string start_date = 1;
+  string end_date = 2;
+}
+
+// GetVariantStatsRequest requests per-variant funnel stats for a date window,
+// optionally filtered to a single variant slug.
+message GetVariantStatsRequest {
+  string start_date = 1;
+  string end_date = 2;
+  // Optional variant slug filter; empty returns all active variants.
+  string variant = 3;
+}
+
+// GetVariantStatsResponse returns the resolved window and per-variant stats.
+message GetVariantStatsResponse {
+  string start_date = 1;
+  string end_date = 2;
+  repeated VariantStats stats = 3;
+}
+
+// MetricsService ingests analytics events and serves admin rollups.
+service MetricsService {
+  // Records a single analytics event (public, idempotent).
+  rpc TrackEvent(TrackEventRequest) returns (TrackEventResponse);
+  // Returns the aggregate analytics summary for a window (admin).
+  rpc GetAnalyticsSummary(GetAnalyticsSummaryRequest) returns (AnalyticsSummary);
+  // Returns per-variant funnel stats for a window (admin).
+  rpc GetVariantStats(GetVariantStatsRequest) returns (GetVariantStatsResponse);
+  rpc GetTrafficBreakdown(GetTrafficBreakdownRequest) returns (GetTrafficBreakdownResponse);
+  rpc GetTrafficSeries(GetTrafficSeriesRequest) returns (GetTrafficSeriesResponse);
+}
+
+// AdminRevenueService serves finance-owned aggregate readings to trusted
+// server-side consumers and the LPBS admin surface.
+service AdminRevenueService {
+  rpc GetRevenue(GetAdminRevenueRequest) returns (AdminRevenue);
+  rpc GetRevenueSummary(GetRevenueSummaryRequest) returns (RevenueSummary);
+}
+
+message GetAdminRevenueRequest {}
+message GetRevenueSummaryRequest {}

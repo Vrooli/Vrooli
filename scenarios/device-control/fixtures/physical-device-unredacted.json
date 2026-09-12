@@ -1,0 +1,8 @@
+{
+  "id": "physical-device-unredacted",
+  "name": "Explicit operator-only capture",
+  "allow_unredacted_capture": true,
+  "steps": [
+    {"id": "capture", "kind": "observe", "required_capabilities": ["screenshot"], "timeout_ms": 10000}
+  ]
+}

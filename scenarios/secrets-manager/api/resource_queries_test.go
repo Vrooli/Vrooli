@@ -5,16 +5,16 @@ import (
 	"testing"
 )
 
-func TestFetchResourceDetail_FallbacksToConfigWithoutDB(t *testing.T) {
+func TestFetchResourceDetail_UsesCanonicalManifestWithoutDB(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	detail, err := fetchResourceDetail(context.Background(), nil, "home-assistant")
+	detail, err := fetchResourceDetail(context.Background(), nil, "openrouter")
 	if err != nil {
 		t.Fatalf("fetchResourceDetail returned error: %v", err)
 	}
 	if len(detail.Secrets) == 0 {
-		t.Fatalf("expected secrets from config fallback, got none")
+		t.Fatalf("expected secrets from canonical resource manifest, got none")
 	}
 	if detail.TotalSecrets != len(detail.Secrets) {
 		t.Fatalf("TotalSecrets should equal len(Secrets); got %d vs %d", detail.TotalSecrets, len(detail.Secrets))

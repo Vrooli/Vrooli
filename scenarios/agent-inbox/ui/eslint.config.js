@@ -1,22 +1,35 @@
 import js from "@eslint/js";
+import globals from "globals";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "tailwind.config.ts"] },
+  { ignores: ["dist", "node_modules", "coverage"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
       parserOptions: {
-        // Enable type-aware linting for safety rules
-        project: "./tsconfig.json",
+        project: ["./tsconfig.json", "./tsconfig.node.json"],
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
+      import: importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: ["./tsconfig.json", "./tsconfig.node.json"],
+        },
+      },
     },
     rules: {
       // ════════════════════════════════════════════════════════════════════════
@@ -31,51 +44,59 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
 
       // CRITICAL: Catches React Error #310 (hook count changes between renders)
-      // Detects early returns before hooks, conditional hook calls, etc.
       "react-hooks/rules-of-hooks": "error",
 
-      // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
-      // Using ! hides bugs that will crash at runtime with "X is not a function"
-      // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
-      "@typescript-eslint/no-non-null-assertion": "error",
-
-      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
-      // These catch bugs like "v.trim is not a function" when v is not actually a string
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
-
-      // Prevents explicit 'any' which disables all type checking for that value
-      "@typescript-eslint/no-explicit-any": "error",
-
-      // ════════════════════════════════════════════════════════════════════════
-      // STANDARD RULES (can be adjusted if needed)
-      // ════════════════════════════════════════════════════════════════════════
-
-      // Catches stale closure bugs from missing/incorrect dependencies
+      // CRITICAL: Catches stale-closure bugs when dependencies drift from actual usage.
       "react-hooks/exhaustive-deps": "warn",
 
-      // Ensures only components are exported for proper HMR
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      // CRITICAL: Prevents explicit 'any' from disabling type safety at UI boundaries.
+      "@typescript-eslint/no-explicit-any": "error",
+
+      // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
+      "@typescript-eslint/no-non-null-assertion": "error",
+
+      // CRITICAL: Catches unsafe arguments flowing from unchecked values into typed APIs.
+      "@typescript-eslint/no-unsafe-argument": "warn",
+
+      // CRITICAL: Catches assigning unchecked values that spread `any` through the codebase.
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+
+      // CRITICAL: Catches invoking unchecked values that will crash at runtime.
+      "@typescript-eslint/no-unsafe-call": "warn",
+
+      // CRITICAL: Catches member access on unchecked values that will crash at runtime.
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+
+      // CRITICAL: Catches returning unchecked values that leak unsafe types to callers.
+      "@typescript-eslint/no-unsafe-return": "warn",
+
+      // CRITICAL: Detects circular dependencies that produce initialization-order failures.
+      "import/no-cycle": "error",
+
+      // This scenario intentionally colocates small React helpers, context hooks,
+      // and component constants in TSX modules. Treating that HMR-only convention
+      // as a scenario warning breaks warning-free gates without improving runtime
+      // safety, so keep the React safety rules above active and disable this one.
+      "react-refresh/only-export-components": "off",
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
     },
   },
-  // Test files get relaxed rules - non-null assertions are acceptable in tests
-  // where we control the test data and explicit guards are overkill
   {
     files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "react-refresh/only-export-components": "off",
     },
   }
 );

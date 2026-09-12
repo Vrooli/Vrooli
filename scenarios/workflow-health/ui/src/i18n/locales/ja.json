@@ -1,0 +1,99 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Workflow Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Workflow Health",
+    "eyebrow": "ワークフロー運用",
+    "description": "Workflow Health はシナリオのワークフロー資産を検証、実行、索引化、改善します。"
+  },
+  "layout": {
+    "sidebarLabel": "デスクトップナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "overview": "概要",
+      "inventory": "インベントリ",
+      "search": "検索",
+      "runs": "実行",
+      "findings": "検出事項",
+      "fixes": "修正",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "overview": {
+      "title": "ワークフロー概要"
+    },
+    "inventory": {
+      "title": "インベントリ",
+      "description": "BAS のケース、フロー、アクション、シード、レジストリ差分、要件リンク、安全メタデータを確認します。"
+    },
+    "search": {
+      "title": "ワークフロー検索",
+      "description": "workflow.flow、workflow.test、workflow.fragment の結果を実行前のガードレール付きで順位付けします。"
+    },
+    "runs": {
+      "title": "実行",
+      "description": "静的検証、観測実行、変更系の事前ゲート、生成された成果物タイムラインを確認します。"
+    },
+    "findings": {
+      "title": "検出事項",
+      "description": "安定した workflow-health の検出事項を資産と修正内容に紐づけて優先順位付けします。"
+    },
+    "fixes": {
+      "title": "修正",
+      "description": "決定的なレジストリ、メタデータ、正規化の変更を適用前にプレビューします。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

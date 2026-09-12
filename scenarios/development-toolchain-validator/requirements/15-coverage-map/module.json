@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-005",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "title": "Coverage Map",
+  "description": "Per-golden path-tree showing which skills' last runs touched which files/folders. Reveals overlap (paths touched by multiple skills) and gaps (paths no skill exercises).",
+  "requirements": [
+    {
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "title": "Path aggregation + tree view",
+      "description": "Aggregate the most-recent validation diffs per skill per golden into a path → [skills] map; render as a collapsible tree with per-node skill chips and overlap counts.",
+      "category": "ui",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

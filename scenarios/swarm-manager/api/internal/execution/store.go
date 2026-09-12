@@ -1,10 +1,9 @@
 package execution
 
 import (
-	"path/filepath"
 	"strings"
 
-	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/storage"
 )
 
@@ -26,7 +25,9 @@ type FileStore struct {
 // NewStore creates a store at the provided path.
 func NewStore(path string) *FileStore {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "execution-runs.json")
+		if resolved, err := runtimepaths.StatePath("execution-runs.json"); err == nil {
+			path = resolved
+		}
 	}
 	return &FileStore{path: path}
 }

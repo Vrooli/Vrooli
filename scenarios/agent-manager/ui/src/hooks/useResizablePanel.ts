@@ -38,6 +38,7 @@ interface ResizeRef {
   startPointer: number;
   startSize: number;
   containerSize: number;
+  lastSize: number;
 }
 
 const STORAGE_PREFIX = "agm.panel.";
@@ -64,6 +65,8 @@ export function useResizablePanel({
   const fullStorageKey = persistKey ?? `${STORAGE_PREFIX}${storageKey}.${storageSuffix}`;
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<ResizeRef | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const pendingSizeRef = useRef<number | null>(null);
 
   // Initialize from localStorage or default
   const [size, setSize] = useState(() => {
@@ -79,8 +82,12 @@ export function useResizablePanel({
   });
 
   const [isResizing, setIsResizing] = useState(false);
+  const [previewSize, setPreviewSize] = useState<number | null>(null);
 
-  // Save to localStorage when width changes
+  const displayedSize = previewSize ?? size;
+
+  // Save only committed sizes. Drag previews update React at most once per frame
+  // and persist on mouseup instead of writing localStorage on every pointer move.
   useEffect(() => {
     localStorage.setItem(fullStorageKey, String(size));
   }, [fullStorageKey, size]);
@@ -115,12 +122,15 @@ export function useResizablePanel({
 
       resizeRef.current = {
         startPointer: axis === "vertical" ? event.clientY : event.clientX,
-        startSize: size,
+        startSize: displayedSize,
         containerSize: axis === "vertical" ? container.clientHeight : container.clientWidth,
+        lastSize: displayedSize,
       };
+      pendingSizeRef.current = displayedSize;
+      setPreviewSize(displayedSize);
       setIsResizing(true);
     },
-    [axis, size]
+    [axis, displayedSize]
   );
 
   // Handle mouse move and up during resize
@@ -139,10 +149,28 @@ export function useResizablePanel({
       const maxSize = containerSize - resolvedMinOtherSize;
       const clampedSize = Math.max(resolvedMinSize, Math.min(maxSize, newSize));
 
-      setSize(clampedSize);
+      resizeRef.current.lastSize = clampedSize;
+      pendingSizeRef.current = clampedSize;
+
+      if (animationFrameRef.current === null) {
+        animationFrameRef.current = window.requestAnimationFrame(() => {
+          animationFrameRef.current = null;
+          if (pendingSizeRef.current !== null) {
+            setPreviewSize(pendingSizeRef.current);
+          }
+        });
+      }
     };
 
     const handleUp = () => {
+      const finalSize = resizeRef.current?.lastSize ?? pendingSizeRef.current ?? size;
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      pendingSizeRef.current = null;
+      setSize(finalSize);
+      setPreviewSize(null);
       setIsResizing(false);
       resizeRef.current = null;
       document.body.style.cursor = "";
@@ -159,14 +187,18 @@ export function useResizablePanel({
     return () => {
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [axis, isResizing, resolvedMinSize, resolvedMinOtherSize]);
+  }, [axis, isResizing, resolvedMinSize, resolvedMinOtherSize, size]);
 
   return {
-    size,
-    width: size,
+    size: displayedSize,
+    width: displayedSize,
     isResizing,
     handleResizeStart,
     containerRef,

@@ -56,6 +56,12 @@ function wrapper({ children }: { children: ReactNode }) {
   return <BrowserRouter>{children}</BrowserRouter>;
 }
 
+async function settleRouterUpdates(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('useAdminAnalytics', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,18 +76,18 @@ describe('useAdminAnalytics', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('uses default time range', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.timeRange).toBe(DEFAULT_TIME_RANGE);
     });
 
     it('uses default variant selection (all)', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.selectedVariant).toBe('all');
     });
 
@@ -96,7 +102,7 @@ describe('useAdminAnalytics', () => {
       });
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.selectedVariant).toBe('saved-variant');
       expect(result.current.timeRange).toBe('30');
@@ -109,7 +115,7 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.summary).toEqual(mockSummary);
       expect(mockFetchAnalyticsSummary).toHaveBeenCalledTimes(1);
@@ -117,18 +123,21 @@ describe('useAdminAnalytics', () => {
 
     it('handles fetch error', async () => {
       mockFetchAnalyticsSummary.mockRejectedValue(new Error('Network error'));
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.error).toBe('Network error');
+      expect(consoleError).toHaveBeenCalledWith('Analytics fetch error:', expect.any(Error));
+      consoleError.mockRestore();
     });
 
     it('can refresh data', async () => {
       mockFetchAnalyticsSummary.mockResolvedValue(createMockSummary());
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchAnalyticsSummary).toHaveBeenCalledTimes(1);
 
@@ -143,11 +152,12 @@ describe('useAdminAnalytics', () => {
   describe('filter handling', () => {
     it('changes variant selection', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleVariantChange('variant-a');
       });
+      await settleRouterUpdates();
 
       expect(result.current.selectedVariant).toBe('variant-a');
     });
@@ -156,11 +166,12 @@ describe('useAdminAnalytics', () => {
       mockFetchVariantAnalytics.mockResolvedValue([createMockVariantStats()]);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleVariantChange('variant-a');
       });
+      await settleRouterUpdates();
 
       await waitFor(() => {
         expect(mockFetchVariantAnalytics).toHaveBeenCalledWith('variant-a', expect.any(Object));
@@ -171,11 +182,12 @@ describe('useAdminAnalytics', () => {
       mockFetchVariantAnalytics.mockResolvedValue([createMockVariantStats()]);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleVariantChange('variant-a');
       });
+      await settleRouterUpdates();
 
       await waitFor(() => {
         expect(result.current.variantDetails.length).toBeGreaterThan(0);
@@ -184,29 +196,32 @@ describe('useAdminAnalytics', () => {
       act(() => {
         result.current.handleVariantChange('all');
       });
+      await settleRouterUpdates();
 
       expect(result.current.variantDetails).toEqual([]);
     });
 
     it('changes time range', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleTimeRangeChange('30');
       });
+      await settleRouterUpdates();
 
       expect(result.current.timeRange).toBe('30');
     });
 
     it('resets filters', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.handleVariantChange('variant-a');
         result.current.handleTimeRangeChange('30');
       });
+      await settleRouterUpdates();
 
       expect(result.current.selectedVariant).toBe('variant-a');
       expect(result.current.timeRange).toBe('30');
@@ -214,6 +229,7 @@ describe('useAdminAnalytics', () => {
       act(() => {
         result.current.handleResetFilters();
       });
+      await settleRouterUpdates();
 
       expect(result.current.selectedVariant).toBe('all');
       expect(result.current.timeRange).toBe(DEFAULT_TIME_RANGE);
@@ -221,13 +237,14 @@ describe('useAdminAnalytics', () => {
 
     it('detects when filters changed', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.filtersChanged).toBe(false);
 
       act(() => {
         result.current.handleVariantChange('variant-a');
       });
+      await settleRouterUpdates();
 
       expect(result.current.filtersChanged).toBe(true);
     });
@@ -236,13 +253,14 @@ describe('useAdminAnalytics', () => {
   describe('computed values', () => {
     it('provides time range label', async () => {
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.selectedTimeRangeLabel).toBe(TIME_RANGE_LABELS[DEFAULT_TIME_RANGE]);
 
       act(() => {
         result.current.handleTimeRangeChange('30');
       });
+      await settleRouterUpdates();
 
       expect(result.current.selectedTimeRangeLabel).toBe('Last 30 days');
     });
@@ -252,7 +270,7 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.variantNameLookup.get('variant-a')).toBe('Variant A');
       expect(result.current.variantNameLookup.get('variant-b')).toBe('Variant B');
@@ -262,13 +280,14 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(createMockSummary());
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.selectedVariantName).toBeNull();
 
       act(() => {
         result.current.handleVariantChange('variant-a');
       });
+      await settleRouterUpdates();
 
       expect(result.current.selectedVariantName).toBe('Variant A');
     });
@@ -284,7 +303,7 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.bestVariantStat?.variant_slug).toBe('high');
       expect(result.current.bestVariantStat?.conversion_rate).toBe(10.0);
@@ -301,7 +320,7 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(mockSummary);
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.weakestVariantStat?.variant_slug).toBe('low');
       expect(result.current.weakestVariantStat?.conversion_rate).toBe(2.0);
@@ -311,7 +330,7 @@ describe('useAdminAnalytics', () => {
       mockFetchAnalyticsSummary.mockResolvedValue(createMockSummary({ variant_stats: [] }));
 
       const { result } = renderHook(() => useAdminAnalytics(), { wrapper });
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.bestVariantStat).toBeNull();
       expect(result.current.weakestVariantStat).toBeNull();

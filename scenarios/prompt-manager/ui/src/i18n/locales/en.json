@@ -1,0 +1,16 @@
+{
+  "data-display": {
+    "bulk-action-bar": {
+      "selection-actions": "Selection actions",
+      "selection-workflow": "Selection workflow",
+      "title": {
+        "a-real-bulk-action-lifecycle": "A real bulk action lifecycle",
+        "completion-closes-the-loop": "Completion closes the loop",
+        "partial-failure-names-the-work-left-behind-detai": "Partial failure names the work left behind",
+        "progress-stays-attached-to-the-decision-detail-a": "Progress stays attached to the decision",
+        "retry-is-a-continuation-not-a-reset-detail-the-s": "Retry is a continuation, not a reset",
+        "transport-failure-preserves-intent": "Transport failure preserves intent"
+      }
+    }
+  }
+}

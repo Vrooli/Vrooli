@@ -5,21 +5,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "vrooli lifecycle protect -- vite",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port ${UI_PORT:-4173}",
-    "start": "node server.js",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "start": "vrooli lifecycle protect -- node server.js",
     "test": "echo 'UI tests require vitest installation: npm install' && exit 0"
   },
   "dependencies": {
+    "@connectrpc/connect-web": "^2.1.2",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "express": "^4.19.2",
     "lucide-react": "^0.441.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "vitest": "^5.0.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

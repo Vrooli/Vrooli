@@ -481,7 +481,8 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
   // Auto-scroll to latest step (only when not collapsed)
   useEffect(() => {
     if (isRunning && !isCollapsed && latestStepRef.current) {
-      latestStepRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Embedded webviews and test DOMs may not implement scrollIntoView.
+      latestStepRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
     }
   }, [steps.length, isRunning, isCollapsed]);
 
@@ -528,6 +529,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAbort(); }}
+              aria-label="Stop navigation"
               className="ml-auto p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
               title="Stop Navigation"
             >
@@ -680,6 +682,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
             {message.canAbort && isRunning && !isAborting && onAbort && (
               <button
                 onClick={(e) => { e.stopPropagation(); onAbort(); }}
+                aria-label="Stop navigation"
                 className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors border border-red-200 dark:border-red-800 flex items-center justify-center gap-1.5"
               >
                 <StopIcon className="w-3.5 h-3.5" />

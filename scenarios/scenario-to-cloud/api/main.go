@@ -3,43 +3,61 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	"scenario-to-cloud/agentmanager"
+	"scenario-to-cloud/authz"
+	"scenario-to-cloud/backup"
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/closure"
+	"scenario-to-cloud/credentials"
+	"scenario-to-cloud/deployment"
+	"scenario-to-cloud/deploymentsvc"
+	"scenario-to-cloud/dns"
+	"scenario-to-cloud/domain"
+	stchealth "scenario-to-cloud/health"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/instance"
+	"scenario-to-cloud/investigation"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/onboarding"
+	"scenario-to-cloud/operations"
+	"scenario-to-cloud/operationsvc"
+	"scenario-to-cloud/persistence"
+	"scenario-to-cloud/reach"
+	bridgereach "scenario-to-cloud/reach/bridge"
+	"scenario-to-cloud/reach/sshadapter"
+	"scenario-to-cloud/releasesvc"
+	"scenario-to-cloud/secrets"
+	"scenario-to-cloud/tasks"
+	"scenario-to-cloud/tlsinfo"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 
-	"scenario-to-cloud/agentmanager"
-	"scenario-to-cloud/bundle"
-	"scenario-to-cloud/deployment"
-	"scenario-to-cloud/dns"
-	"scenario-to-cloud/investigation"
-	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/persistence"
-	"scenario-to-cloud/secrets"
-	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/tasks"
-	"scenario-to-cloud/tlsinfo"
-	"scenario-to-cloud/toolexecution"
-	"scenario-to-cloud/toolhandlers"
-	"scenario-to-cloud/toolregistry"
-	"scenario-to-cloud/vps"
 	vpspreflight "scenario-to-cloud/vps/preflight"
 )
 
-// Config holds minimal runtime configuration
-type Config struct {
+// ServerConfig holds minimal runtime configuration.
+type ServerConfig struct {
 	Port string
 }
 
@@ -47,9 +65,10 @@ type Config struct {
 // Fields marked with "// Seam:" are integration points that can be substituted
 // for testing. If nil, defaults to the production implementation.
 type Server struct {
-	config           *Config
+	config           *ServerConfig
 	router           *mux.Router
-	db               *sql.DB
+	db               *database.RoutedDB
+	fileRoots        *filerouting.RoutedRoots
 	repo             *persistence.Repository
 	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
@@ -57,15 +76,22 @@ type Server struct {
 	taskSvc          *tasks.Service
 	historyRecorder  deployment.HistoryRecorder
 	orchestrator     *deployment.Orchestrator
-	// Tool Discovery Protocol
-	toolRegistry *toolregistry.Registry
-	// Tool Execution Protocol
-	toolExecutor *toolexecution.ServerExecutor
+	// operations is the durable operation owner (P07): the worker pool,
+	// reconciler and wait/cancel contract over cloud_operations.
+	operations *operations.Service
+	// authz is the management boundary; every route passes through it.
+	authz          *authz.Enforcer
+	authzInstalled bool
+	// testProvider is set only by newTestEnforcer so authorization tests can
+	// change the principal between admission and effect.
+	testProvider *FakePrincipalProvider
 
-	// Seam: SSH command execution (defaults to ssh.ExecRunner)
-	sshRunner ssh.Runner
-	// Seam: SCP file transfer (defaults to ssh.ExecSCPRunner)
-	scpRunner ssh.SCPRunner
+	// Seam: SSH command execution for the bounded reach adapter (defaults to
+	// sshadapter.ExecRunner)
+	sshRunner sshadapter.Runner
+	// Seam: SCP file transfer for the bounded reach adapter (defaults to
+	// sshadapter.ExecSCPRunner)
+	scpRunner sshadapter.SCPRunner
 	// Seam: Secrets fetching (defaults to secrets.NewClient())
 	secretsFetcher secrets.Fetcher
 	// Seam: Secrets generation (defaults to secrets.NewGenerator())
@@ -78,17 +104,63 @@ type Server struct {
 	tlsALPNRunner tlsinfo.ALPNRunner
 	// Seam: Deployment repository (defaults to persistence.Repository)
 	deploymentRepo DeploymentRepository
+	// Reach: typed target access selected by the deployment binding.
+	reach reach.Reach
+	// onboardingHandoff is the owner-issued handoff seam. It is enabled only
+	// when the deployment supplies the onboarding service credential; tests and
+	// local installs retain the pure-plan fallback until that peer is available.
+	onboardingHandoff onboarding.Issuer
+	// Seam: instance provider (defaults to the local disposable QEMU lane).
+	instanceProvider instance.Provider
+	// publicationDeps are the per-server governance seams (governor, receipt
+	// signer, target pointer reader, release resolver); tests substitute fakes.
+	publicationDeps *publicationDeps
+
+	// Optional capabilities are constructed once per server. Keeping their
+	// state here prevents one server instance (or test fixture) from sharing a
+	// repository, closure catalog, or failure with another instance.
+	releaseSvc            *releasesvc.Service
+	releaseErr            error
+	backupSvc             *backup.Service
+	backupErr             error
+	closureSvc            *closure.Service
+	closureErr            error
+	healthSvc             *stchealth.Alerter
+	edgeListenersOverride func(context.Context, *domain.Deployment, domain.CloudManifest) ([]domain.ClosureListener, map[string]bool, error)
+}
+
+// devRoutingMux adapts gorilla/mux's fluent registration API to api-core's
+// intentionally tiny mounting interface. Mount is important here: Connect
+// RPC handlers own a service-prefix subtree rather than one exact path.
+type devRoutingMux struct {
+	router *mux.Router
+}
+
+func (m devRoutingMux) Handle(pattern string, handler http.Handler) {
+	m.router.Handle(pattern, handler)
+}
+
+func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
+	m.router.PathPrefix(pattern).Handler(handler)
 }
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
-	cfg := &Config{
+	cfg := &ServerConfig{
 		Port: requireEnv("API_PORT"),
 	}
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		return nil, fmt.Errorf("resolve file storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
 
 	// Connect to database
-	db, err := database.Connect(context.Background(), database.Config{
+	db, err := database.Open(context.Background(), database.Config{
 		Driver: database.DriverPostgres,
+		// Test Genie provisions an isolated SQLite lease for routed workflow
+		// runs; production traffic remains on PostgreSQL.
+		TestDriver: database.DriverSQLite,
 	})
 	if err != nil {
 		return nil, err
@@ -96,10 +168,23 @@ func NewServer() (*Server, error) {
 
 	// Initialize repository and schema
 	repo := persistence.NewRepository(db)
+	// Keep the api-core schema contract active even though this scenario still
+	// owns a migration-rich repository schema. This also makes the routed
+	// primary/test-pool boundary explicit to storage-health.
+	if err := database.EnsureSchemas(context.Background(), db.Primary()); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := repo.InitSchema(context.Background()); err != nil {
 		db.Close()
 		return nil, err
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool); err != nil {
+			return err
+		}
+		return repo.InitSchemaOnDialect(ctx, pool, database.DriverSQLite)
+	})
 
 	progressHub := deployment.NewHub()
 
@@ -122,8 +207,8 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize seams with production implementations
-	sshRunner := ssh.ExecRunner{}
-	scpRunner := ssh.ExecSCPRunner{}
+	sshRunner := sshadapter.ExecRunner{}
+	scpRunner := sshadapter.ExecSCPRunner{}
 	secretsFetcher := secrets.NewClient()
 	secretsGenerator := secrets.NewGenerator()
 	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
@@ -135,10 +220,17 @@ func NewServer() (*Server, error) {
 	)
 	tlsALPNRunner := tlsinfo.DefaultALPNRunner
 
+	authConfig, err := authz.FromEnvironment(os.Getenv)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("management authorization: %w", err)
+	}
+
 	srv := &Server{
 		config:           cfg,
 		router:           mux.NewRouter(),
 		db:               db,
+		fileRoots:        fileRoots,
 		repo:             repo,
 		deploymentRepo:   repo,
 		progressHub:      progressHub,
@@ -153,25 +245,62 @@ func NewServer() (*Server, error) {
 		dnsService:       dnsService,
 		tlsService:       tlsService,
 		tlsALPNRunner:    tlsALPNRunner,
+		instanceProvider: instance.LocalQEMUProvider{},
 	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_HANDOFF_ENABLED")), "true") {
+		srv.onboardingHandoff = onboarding.NewClient()
+	}
+	authConfig.Logger = srv.log
+	enforcer, err := authz.New(authConfig, targetResolver{repo: repo})
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("management authorization: %w", err)
+	}
+	srv.authz = enforcer
 
-	// Initialize manifest refresher for rebuild operations
+	// Initialize manifest refresher for rebuild operations. The closure
+	// service (P05) is the only dependency source; a failure to build it is a
+	// startup error rather than a silent fallback.
+	closureSvc, err := newDefaultClosureService()
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("closure service: %w", err)
+	}
+	srv.closureSvc = closureSvc
+	releaseSvc, releaseErr := newDefaultReleaseService()
+	srv.releaseSvc, srv.releaseErr = releaseSvc, releaseErr
+	srv.backupSvc, srv.backupErr = srv.newDefaultBackupService()
+	detection, detectionSource := stchealth.LoadDetection()
+	srv.log("deployment alerting configured", map[string]interface{}{"budgets": detectionSource, "stale_after_seconds": detection.StaleObservationAfterSeconds, "certificate_warning_days": detection.CertificateExpiryWarningDays})
+	srv.healthSvc = stchealth.NewAlerter(eventbus.NewDiscoveredClient(context.Background()), detection, srv.log)
 	manifestRefresher := deployment.NewManifestRefresher(deployment.ManifestRefresherConfig{
 		SecretsFetcher: secretsFetcher,
-		DepsFetcher: &deployment.DefaultDependenciesFetcher{
-			AnalyzerFetcher:    createAnalyzerFetcher(),
-			ServiceJSONFetcher: deployment.ServiceJSONDependenciesFetcher,
-		},
-		PortsFetcher: &deployment.DefaultPortsFetcher{},
-		Logger:       srv.log,
+		Closure:        closureSvc,
+		PortsFetcher:   &deployment.DefaultPortsFetcher{},
+		Logger:         srv.log,
 	})
+
+	// Reach: the deployment's target binding selects the transport. Bridge
+	// reach needs an operator token for the Bridge API; without one the
+	// bridge path is a typed reach_unavailable, never an SSH fallback. Every
+	// target effect of a plan (verbs and artifact delivery) goes through it.
+	targetReach := &reach.Router{
+		SSH: &sshadapter.Adapter{Runner: sshRunner, SCP: scpRunner, Config: srv.sshConfigForTarget},
+	}
+	if token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")); token != "" {
+		bridgeClient := nodereach.New(nodereach.Config{Token: token})
+		targetReach.Bridge = &bridgereach.Adapter{Client: bridgeClient, Artifacts: bridgereach.NewArtifactClient(bridgeClient)}
+	}
+	srv.reach = targetReach
 
 	// Initialize the deployment orchestrator with all dependencies
 	srv.orchestrator = deployment.NewOrchestrator(deployment.OrchestratorConfig{
 		Repo:              repo,
 		ProgressHub:       progressHub,
-		SSHRunner:         sshRunner,
-		SCPRunner:         scpRunner,
+		Reach:             targetReach,
+		ReleaseBuilder:    srv.releaseBuilder(),
+		Credentials:       srv.credentialBinder(),
+		Backups:           srv.recoveryPointRecorder(),
 		SecretsFetcher:    secretsFetcher,
 		SecretsGenerator:  secretsGenerator,
 		DNSService:        dnsService,
@@ -180,26 +309,25 @@ func NewServer() (*Server, error) {
 		Logger:            srv.log,
 	})
 
-	// Initialize Tool Discovery Protocol registry
-	srv.toolRegistry = toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "scenario-to-cloud",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Deploys scenarios to VPS targets with full lifecycle management, preflight checks, and live state inspection.",
-	})
-	// Register all tool providers
-	srv.toolRegistry.RegisterProvider(toolregistry.NewDeploymentToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewInspectionToolProvider())
-	srv.toolRegistry.RegisterProvider(toolregistry.NewValidationToolProvider())
-
-	// Initialize Tool Execution Protocol executor
-	srv.toolExecutor = toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		Repo:         repo,
-		Resolver:     toolregistry.NewResolver(repo),
-		Orchestrator: srv.orchestrator,
-		SSHRunner:    sshRunner,
-		DNSService:   dnsService,
-		Logger:       srv.log,
-	})
+	// Durable operation owner: the worker pool executes admitted plans
+	// through the orchestrator; receipts are read back from the target's
+	// native owner before any unknown outcome is replayed. Startup
+	// reconciliation reacquires every unowned or expired record.
+	opsCfg := operations.DefaultConfig()
+	opsCfg.Logger = srv.log
+	hostMax, budgetsSource := stchealth.LoadHostConcurrencyLimit()
+	repo.SetHostConcurrencyLimit(hostMax)
+	srv.log("operation admission bounds configured", map[string]interface{}{"effectful_operations_per_host_max": hostMax, "budgets": budgetsSource})
+	srv.operations = operations.NewService(opsCfg, repo, srv.orchestrator, &deployment.ReachTargetReceipts{Reach: targetReach, Repo: repo}, srv.orchestrator)
+	srv.operations.Start()
+	reconcileCtx, cancelReconcile := context.WithTimeout(context.Background(), 30*time.Second)
+	taken, rerr := srv.operations.Reconcile(reconcileCtx)
+	cancelReconcile()
+	if rerr != nil {
+		srv.log("startup operation reconciliation failed", map[string]interface{}{"error": rerr.Error()})
+	} else {
+		srv.log("startup operation reconciliation complete", map[string]interface{}{"worker_id": srv.operations.WorkerID(), "acquired": len(taken), "operation_ids": taken})
+	}
 
 	srv.setupRoutes()
 	return srv, nil
@@ -207,13 +335,26 @@ func NewServer() (*Server, error) {
 
 // DOC: docs/reference/api-endpoints.md — complete endpoint reference
 func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
+	if s.authz == nil {
+		panic("scenario-to-cloud: routes cannot be registered without the authorization boundary")
+	}
+	if !s.authzInstalled {
+		s.router.Use(loggingMiddleware, s.authz.Middleware)
+		s.authzInstalled = true
+	}
+	gate := s.authz.EffectGate
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	healthHandler := health.Handler(health.DB(s.db))
+	healthHandler := health.Handler(health.Func("database", func(ctx context.Context) error {
+		if s.db == nil {
+			return fmt.Errorf("database not configured")
+		}
+		return s.db.PingContext(ctx)
+	}))
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/health", healthHandler).Methods("GET")
+	api.HandleFunc("/authz/matrix", authz.MatrixHandler()).Methods("GET")
 	api.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	api.HandleFunc("/scenarios/{id}/ports", s.handleScenarioPorts).Methods("GET")
 	api.HandleFunc("/scenarios/{id}/dependencies", s.handleScenarioDependencies).Methods("GET")
@@ -227,36 +368,40 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/bundle/build", s.handleBundleBuild).Methods("POST")
 	api.HandleFunc("/bundles", bundle.HandleListBundles()).Methods("GET")
 	api.HandleFunc("/bundles/stats", bundle.HandleBundleStats()).Methods("GET")
-	api.HandleFunc("/bundles/cleanup", bundle.HandleBundleCleanup(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/bundles/vps/list", bundle.HandleListVPSBundles(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/bundles/vps/delete", bundle.HandleDeleteVPSBundle(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/bundles/{sha256}", bundle.HandleDeleteBundle()).Methods("DELETE")
+	api.HandleFunc("/bundles/cleanup", gate(authz.EffectHost, bundle.HandleBundleCleanup())).Methods("POST")
+	api.HandleFunc("/bundles/{sha256}", gate(authz.EffectHost, bundle.HandleDeleteBundle())).Methods("DELETE")
 
 	// Deployment-scoped VPS bundle cache (recommended, selector-first via deployment resolve).
 	api.HandleFunc("/deployments/{id}/bundles/vps", s.handleListDeploymentVPSBundles).Methods("GET")
-	api.HandleFunc("/deployments/{id}/bundles/vps/gc", s.handleGCDeploymentVPSBundles).Methods("POST")
+	api.HandleFunc("/deployments/{id}/bundles/vps/gc", gate(authz.EffectHost, s.handleGCDeploymentVPSBundles)).Methods("POST")
 	api.HandleFunc("/preflight", vpspreflight.HandlePreflight(vpspreflight.HandlerDeps{
-		SSHRunner:         s.sshRunner,
+		Reach:             s.targetReach(),
 		DNSService:        s.dnsService,
 		ValidateManifest:  manifest.ValidateAndNormalize,
 		HasBlockingIssues: manifest.HasBlockingIssues,
 	})).Methods("POST")
 	api.HandleFunc("/preflight/requirements", vpspreflight.HandleRequirements()).Methods("GET")
 	api.HandleFunc("/secrets/{scenario}", secrets.HandleGetSecrets(s.secretsFetcher)).Methods("GET")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleGetLocalSecret()).Methods("GET")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleSetLocalSecret()).Methods("PUT")
-	api.HandleFunc("/local-secrets/{scope}/{key}", secrets.HandleDeleteLocalSecret()).Methods("DELETE")
 	api.HandleFunc("/vps/setup/plan", s.handleVPSSetupPlan).Methods("POST")
-	api.HandleFunc("/vps/setup/apply", s.handleVPSSetupApply).Methods("POST")
+	api.HandleFunc("/vps/setup/apply", gate(authz.EffectHost, s.handleVPSSetupApply)).Methods("POST")
 	api.HandleFunc("/vps/deploy/plan", s.handleVPSDeployPlan).Methods("POST")
-	api.HandleFunc("/vps/deploy/apply", s.handleVPSDeployApply).Methods("POST")
+	api.HandleFunc("/vps/deploy/apply", gate(authz.EffectWorkloadMutation, s.handleVPSDeployApply)).Methods("POST")
 	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
 	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
+	api.HandleFunc("/instances/plan", s.handleInstancePlan).Methods("POST")
+	api.HandleFunc("/instances/readiness", s.handleInstanceReadiness).Methods("GET")
+	api.HandleFunc("/instances", gate(authz.EffectHost, s.handleInstanceCreate)).Methods("POST")
+	api.HandleFunc("/instances/{id}/{action}", gate(authz.EffectHost, s.handleInstanceAction)).Methods("POST")
 
-	// Deployment management
+	// Deployment management. The selector route is registered before the
+	// {id} route so "resolve" is never read as a deployment id.
+	api.HandleFunc("/deployments/resolve", s.handleResolveDeployment).Methods("GET")
 	api.HandleFunc("/deployments", s.handleListDeployments).Methods("GET")
 	api.HandleFunc("/deployments", s.handleCreateDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}", s.handleGetDeployment).Methods("GET")
+	api.HandleFunc("/deployments/{id}/receipt", s.handleGetDeploymentReceipt).Methods("GET")
+	api.HandleFunc("/deployments/{id}/recovery", s.handleRecoverDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/recovery/{operation_id}", s.handleGetCloudRecoveryOperation).Methods("GET")
 	api.HandleFunc("/deployments/{id}", s.handleDeleteDeployment).Methods("DELETE")
 	api.HandleFunc("/deployments/{id}/execute", s.handleExecuteDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/progress", s.handleDeploymentProgress).Methods("GET")
@@ -271,10 +416,10 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/files/content", s.handleGetFileContent).Methods("GET")
 	api.HandleFunc("/deployments/{id}/drift", s.handleGetDrift).Methods("GET")
 	api.HandleFunc("/deployments/{id}/health", s.handleGetDeploymentHealth).Methods("GET")
-	api.HandleFunc("/deployments/{id}/actions/kill", s.handleKillProcess).Methods("POST")
-	api.HandleFunc("/deployments/{id}/actions/restart", s.handleRestartProcess).Methods("POST")
-	api.HandleFunc("/deployments/{id}/actions/process", s.handleProcessControl).Methods("POST")
-	api.HandleFunc("/deployments/{id}/actions/vps", s.handleVPSAction).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/kill", gate(authz.EffectHost, s.handleKillProcess)).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/restart", gate(authz.EffectHost, s.handleRestartProcess)).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/process", gate(authz.EffectHost, s.handleProcessControl)).Methods("POST")
+	api.HandleFunc("/deployments/{id}/actions/vps", gate(authz.EffectHost, s.handleVPSAction)).Methods("POST")
 
 	// History & Logs (Ground Truth Redesign - Phase 7)
 	api.HandleFunc("/deployments/{id}/history", s.handleGetHistory).Methods("GET")
@@ -282,12 +427,12 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/logs", s.handleGetLogs).Methods("GET")
 
 	// VPS Secrets Management (Post-deployment secret CRUD)
-	secretsMgmtDeps := secrets.ManagementDeps{Repo: s.repo, SSHRunner: s.sshRunner}
-	api.HandleFunc("/deployments/{id}/secrets", secrets.HandleListVPSSecrets(secretsMgmtDeps)).Methods("GET")
-	api.HandleFunc("/deployments/{id}/secrets", secrets.HandleCreateVPSSecret(secretsMgmtDeps)).Methods("POST")
-	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleGetVPSSecret(secretsMgmtDeps)).Methods("GET")
-	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleUpdateVPSSecret(secretsMgmtDeps)).Methods("PUT")
-	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleDeleteVPSSecret(secretsMgmtDeps)).Methods("DELETE")
+	secretsMgmtDeps := secrets.ManagementDeps{Repo: s.repo, Reach: s.targetReach()}
+	api.HandleFunc("/deployments/{id}/secrets", gate(authz.EffectSecret, secrets.HandleListVPSSecrets(secretsMgmtDeps))).Methods("GET")
+	api.HandleFunc("/deployments/{id}/secrets", gate(authz.EffectSecret, secrets.HandleCreateVPSSecret(secretsMgmtDeps))).Methods("POST")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", gate(authz.EffectSecret, secrets.HandleGetVPSSecret(secretsMgmtDeps))).Methods("GET")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", gate(authz.EffectSecret, secrets.HandleUpdateVPSSecret(secretsMgmtDeps))).Methods("PUT")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", gate(authz.EffectSecret, secrets.HandleDeleteVPSSecret(secretsMgmtDeps))).Methods("DELETE")
 
 	// Expected Secrets (secrets defined in scenario's service.json)
 	api.HandleFunc("/deployments/{id}/expected-secrets", s.handleGetExpectedSecrets).Methods("GET")
@@ -298,55 +443,118 @@ func (s *Server) setupRoutes() {
 	// Edge/TLS Management (Ground Truth Redesign - Enhancement)
 	api.HandleFunc("/deployments/{id}/edge/dns-check", s.handleDNSCheck).Methods("GET")
 	api.HandleFunc("/deployments/{id}/edge/dns-records", s.handleDNSRecords).Methods("GET")
-	api.HandleFunc("/deployments/{id}/edge/caddy", s.handleCaddyControl).Methods("POST")
+	api.HandleFunc("/deployments/{id}/edge/caddy", gate(authz.EffectHost, s.handleCaddyControl)).Methods("POST")
 	api.HandleFunc("/deployments/{id}/edge/tls", s.handleTLSInfo).Methods("GET")
-	api.HandleFunc("/deployments/{id}/edge/tls/renew", s.handleTLSRenew).Methods("POST")
+	api.HandleFunc("/deployments/{id}/edge/tls/renew", gate(authz.EffectHost, s.handleTLSRenew)).Methods("POST")
 
 	// Documentation
 	api.HandleFunc("/docs/manifest", s.handleGetDocsManifest).Methods("GET")
 	api.HandleFunc("/docs/content", s.handleGetDocContent).Methods("GET")
 
-	// SSH Key Management
-	keySvc := ssh.NewKeyService(nil, "")
-	keyCopier := ssh.ExecKeyCopier{}
-	api.HandleFunc("/ssh/keys", ssh.HandleListKeys(keySvc)).Methods("GET")
-	api.HandleFunc("/ssh/keys", ssh.HandleDeleteKey(keySvc)).Methods("DELETE")
-	api.HandleFunc("/ssh/keys/generate", ssh.HandleGenerateKey(keySvc)).Methods("POST")
-	api.HandleFunc("/ssh/keys/public", ssh.HandleGetPublicKey(keySvc)).Methods("POST")
-	api.HandleFunc("/ssh/test", ssh.HandleTestConnection(s.sshRunner, ssh.DefaultHandlerOptions())).Methods("POST")
-	api.HandleFunc("/ssh/copy-key", ssh.HandleCopyKey(keyCopier, ssh.DefaultHandlerOptions())).Methods("POST")
-
-	// Preflight fix actions
-	api.HandleFunc("/preflight/fix/ports", vpspreflight.HandleStopPortServices(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/fix/firewall", vpspreflight.HandleOpenFirewallPorts(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/fix/stop-processes", vpspreflight.HandleStopScenarioProcesses(s.sshRunner, adaptStopScenarioFunc)).Methods("POST")
-	api.HandleFunc("/preflight/disk/usage", vpspreflight.HandleDiskUsage(s.sshRunner)).Methods("POST")
-	api.HandleFunc("/preflight/disk/cleanup", vpspreflight.HandleDiskCleanup(s.sshRunner)).Methods("POST")
+	// Preflight fix actions: every one is an owner operation through the
+	// bounded reach adapter (privilege broker actions, lifecycle stops,
+	// observation programs). Host key custody is the credential binding's
+	// and enrollment is vrooli-bridge onboard; there is no /ssh surface.
+	api.HandleFunc("/preflight/fix/firewall", gate(authz.EffectHost, vpspreflight.HandleOpenFirewallPorts(s.adHocReach))).Methods("POST")
+	api.HandleFunc("/preflight/fix/stop-processes", gate(authz.EffectHost, vpspreflight.HandleStopScenarioProcesses(s.adHocReach))).Methods("POST")
 
 	// Investigation endpoints (agent-manager integration) - legacy, kept for backward compatibility
 	api.HandleFunc("/deployments/{id}/investigate", s.handleInvestigateDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/investigations", s.handleListInvestigations).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}", s.handleGetInvestigation).Methods("GET")
 	api.HandleFunc("/deployments/{id}/investigations/{invId}/stop", s.handleStopInvestigation).Methods("POST")
-	api.HandleFunc("/deployments/{id}/investigations/{invId}/apply-fixes", s.handleApplyFixes).Methods("POST")
+	api.HandleFunc("/deployments/{id}/investigations/{invId}/apply-fixes", gate(authz.EffectHost, s.handleApplyFixes)).Methods("POST")
 	api.HandleFunc("/agent-manager/status", s.handleCheckAgentManagerStatus).Methods("GET")
 
 	// New unified task endpoints
 	s.registerTaskRoutes(api)
 
-	// Tool Discovery Protocol endpoints
-	toolsHandler := toolhandlers.NewToolsHandler(s.toolRegistry)
-	api.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
-	api.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
+	// Dependency closure (P05) and typed health (P16).
+	s.registerClosureRoutes(api)
+	s.registerHealthRoutes(api)
+	s.registerReleaseRoutes(api)
+	s.registerCredentialRoutes(api)
+	s.registerEdgeRoutes(api)
+	s.registerBackupRoutes(api)
+	// Evidence, exact review binding and governed publication (P17).
+	s.registerPublicationRoutes(api)
 
-	// Tool Execution Protocol endpoint
-	toolExecHandler := toolexecution.NewHandler(s.toolExecutor)
-	api.HandleFunc("/tools/execute", toolExecHandler.Execute).Methods("POST", "OPTIONS")
+	// Executable plans (P06): REST preview/apply plus the Connect PlansService.
+	s.registerPlanRoutes(api)
+	if s.repo != nil {
+		path, handler := s.PlansService().Handler()
+		s.router.PathPrefix(path).Handler(handler)
+	}
+
+	// Durable operations (P07): REST wait/status/cancel plus the Connect
+	// OperationsService.
+	s.registerOperationRoutes(api)
+	s.registerReconcileRoutes(api)
+	if s.repo != nil {
+		path, handler := operationsvc.New(s.operations, s.repo).Handler()
+		s.router.PathPrefix(path).Handler(handler)
+	}
+
+	// Typed DeploymentsService (Connect) beside the REST routes. Later phases
+	// migrate the remaining slices onto generated contracts.
+	if s.repo != nil {
+		path, handler := deploymentsvc.New(s.repo).Handler()
+		s.router.PathPrefix(path).Handler(handler)
+	}
 }
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	rootMux := http.NewServeMux()
+	// Test-genie uses leased shadow database and file roots in development. The
+	// registration is deliberately dev-only inside api-core and is never
+	// exposed in production.
+	if s.db != nil && s.fileRoots != nil {
+		devrouting.RegisterWithFileRoots(rootMux, s.db, s.fileRoots)
+	}
+	rootMux.Handle("/", s.router)
+	return apihttp.TestModeMiddleware(handlers.RecoveryHandler()(securityHeadersMiddleware(rootMux)))
+}
+
+// scenarioStorageRoots resolves the scenario-owned filesystem classes once at
+// startup. Request-scoped writers select a class through fileRootPath so a
+// leased test request cannot fall back to the live tree.
+func scenarioStorageRoots() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("scenario-to-cloud")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve scenario storage namespace: %w", err)
+	}
+	return storage.EnsureAllDirs(resolver, storage.Options{ScenarioID: scenarioID}, 0o755)
+}
+
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	// RoutedRoots.Pick(ctx, class) is the request-scoped file isolation seam.
+	root, err := roots.Pick(ctx, class)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
+}
+
+// securityHeadersMiddleware centralizes the baseline browser boundary for
+// every API response. HSTS is included because the API is also deployed
+// behind the HTTPS edge; local development remains functional because this
+// header is only honored by browsers after a secure response.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {
@@ -373,83 +581,6 @@ func getEnvDefault(key, defaultValue string) string {
 	return value
 }
 
-// adaptStopScenarioFunc adapts vps.StopExistingScenario to the preflight package interface.
-func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, workdir, scenarioID string, targetPorts []int) vpspreflight.StopScenarioResult {
-	result := vps.StopExistingScenario(ctx, sshRunner, cfg, workdir, scenarioID, targetPorts)
-	return vpspreflight.StopScenarioResult{
-		OK:      result.OK,
-		Message: result.Message,
-	}
-}
-
-// createAnalyzerFetcher returns a function that fetches dependencies from the scenario-dependency-analyzer.
-// This is used by ManifestRefresher to get current dependencies when rebuilding.
-func createAnalyzerFetcher() func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
-	return func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
-		baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "scenario-dependency-analyzer")
-		if err != nil {
-			return nil, nil, fmt.Errorf("analyzer not available: %w", err)
-		}
-
-		// Call the analyzer API
-		url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
-
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("create analyzer request: %w", err)
-		}
-
-		client := &http.Client{Timeout: 5 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, nil, fmt.Errorf("analyzer request failed: %w", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, nil, fmt.Errorf("analyzer returned status %d", resp.StatusCode)
-		}
-
-		// Parse analyzer response
-		var analyzerResp struct {
-			Resources []struct {
-				DependencyName string `json:"dependency_name"`
-				Required       bool   `json:"required"`
-				Configuration  struct {
-					Enabled bool `json:"enabled"`
-				} `json:"configuration"`
-			} `json:"resources"`
-			Scenarios []struct {
-				DependencyName string `json:"dependency_name"`
-				Required       bool   `json:"required"`
-				Configuration  struct {
-					Enabled bool `json:"enabled"`
-				} `json:"configuration"`
-			} `json:"scenarios"`
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&analyzerResp); err != nil {
-			return nil, nil, fmt.Errorf("parse analyzer response: %w", err)
-		}
-
-		// Collect enabled/required resources
-		for _, r := range analyzerResp.Resources {
-			if r.Required || r.Configuration.Enabled {
-				resources = append(resources, r.DependencyName)
-			}
-		}
-
-		// Collect enabled/required scenarios
-		for _, s := range analyzerResp.Scenarios {
-			if s.Required || s.Configuration.Enabled {
-				scenarios = append(scenarios, s.DependencyName)
-			}
-		}
-
-		return resources, scenarios, nil
-	}
-}
-
 func main() {
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
@@ -465,9 +596,11 @@ func main() {
 
 	// P0: some VPS operations (setup/deploy) can take several minutes; keep the server-side
 	// response path alive rather than forcing async during early iterations.
+	authConfig := srv.authz.Config().Authn
 	if err := server.Run(server.Config{
-		Handler:      srv.Router(),
-		WriteTimeout: 35 * time.Minute,
+		Handler:        srv.Router(),
+		Authentication: &authConfig,
+		WriteTimeout:   35 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			if srv.db != nil {
 				return srv.db.Close()
@@ -477,4 +610,54 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+// targetResolver adapts the deployment repository to the authorization
+// boundary. It hands back identity only (id, environment, target key); the
+// locator never reaches a refused caller.
+type targetResolver struct {
+	repo DeploymentRepository
+}
+
+func (t targetResolver) ResolveTarget(ctx context.Context, id string) (authz.Target, bool, error) {
+	if t.repo == nil {
+		return authz.Target{}, false, fmt.Errorf("deployment repository not configured")
+	}
+	dep, err := t.repo.GetDeployment(ctx, id)
+	if err != nil {
+		return authz.Target{}, false, err
+	}
+	if dep == nil {
+		return authz.Target{}, false, nil
+	}
+	return authz.Target{DeploymentID: dep.ID, Environment: dep.Environment, Key: dep.Target.Key()}, true, nil
+}
+
+// sshConfigForTarget resolves the SSH connection for an ssh-bound target:
+// the locator from the binding, and the key file from the credential binding
+// vrooli/scenario-to-cloud:ssh-key of the deployment bound to that host. No
+// key bytes are read here; a target without a binding is reached with the
+// operator's ambient identity (agent, default identity files).
+func (s *Server) sshConfigForTarget(ctx context.Context, target identity.TargetRef) (sshadapter.ConnectionConfig, error) {
+	if strings.TrimSpace(target.Locator.Host) == "" {
+		return sshadapter.ConnectionConfig{}, fmt.Errorf("target binding has no host locator")
+	}
+	keyPath := ""
+	if s.repo != nil {
+		refs, err := s.repo.ResolveDeployments(ctx, identity.Selector{Host: target.Locator.Host})
+		if err != nil {
+			return sshadapter.ConnectionConfig{}, err
+		}
+		for _, ref := range refs {
+			bound, err := credentials.ResolveSSHKeyPath(ctx, s.repo, ref.ID)
+			if err != nil {
+				return sshadapter.ConnectionConfig{}, err
+			}
+			if bound != "" {
+				keyPath = bound
+				break
+			}
+		}
+	}
+	return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, keyPath), nil
 }

@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
+
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // =============================================================================
@@ -122,7 +124,7 @@ func TestClaudeCacheCheckRunWithMock_Critical(t *testing.T) {
 // TestClaudeCacheCheckRunWithMock_HomeDirError tests home directory error handling
 func TestClaudeCacheCheckRunWithMock_HomeDirError(t *testing.T) {
 	check := NewClaudeCacheCheck(
-		WithHomeDirFunc(func() (string, error) { return "", checks.ErrFileNotFound }),
+		WithHomeDirFunc(func() (string, error) { return "", testutil.ErrFileNotFound }),
 	)
 	result := check.Run(context.Background())
 

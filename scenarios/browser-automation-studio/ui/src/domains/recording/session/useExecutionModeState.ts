@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { getConfig } from '@/config';
 import {
   useExecutionStore,
   useStartWorkflow,
@@ -32,9 +31,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** Workflow node shape from API */
 export interface WorkflowNode {
   id: string;
-  type?: string;
-  data?: Record<string, unknown>;
-  action?: {
+  action: {
     type: string;
     metadata?: { label?: string };
     navigate?: { url?: string };
@@ -52,20 +49,15 @@ const parseWorkflowNodes = (value: unknown): WorkflowNode[] => {
   return value
     .map((node) => {
       if (!isRecord(node) || typeof node.id !== 'string') return null;
-      const parsedNode: WorkflowNode = { id: node.id };
-      if (typeof node.type === 'string') parsedNode.type = node.type;
-      if (isRecord(node.data)) parsedNode.data = node.data;
-      if (isRecord(node.action) && typeof node.action.type === 'string') {
-        const action: WorkflowNode['action'] = { type: node.action.type };
-        if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
-          action.metadata = { label: node.action.metadata.label };
-        }
-        if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
-          action.navigate = { url: node.action.navigate.url };
-        }
-        parsedNode.action = action;
+      if (!isRecord(node.action) || typeof node.action.type !== 'string') return null;
+      const action: WorkflowNode['action'] = { type: node.action.type };
+      if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+        action.metadata = { label: node.action.metadata.label };
       }
-      return parsedNode;
+      if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+        action.navigate = { url: node.action.navigate.url };
+      }
+      return { id: node.id, action };
     })
     .filter((node): node is WorkflowNode => node !== null);
 };
@@ -329,32 +321,22 @@ export function useExecutionModeState({
 
     const fetchWorkflowDefinition = async () => {
       try {
-        const config = await getConfig();
-        const res = await fetch(`${config.API_URL}/workflows/${selectedWorkflowId}`);
-        if (!res.ok) {
+        const { getWorkflowViaApi } = await import('@/domains/workflows/services/workflowApi');
+        const { toJson } = await import('@bufbuild/protobuf');
+        const { WorkflowDefinitionV2Schema } = await import('@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb');
+        const resp = await getWorkflowViaApi(selectedWorkflowId);
+        const summary = resp.workflow;
+        if (!summary) {
           console.warn('Failed to fetch workflow definition');
           return;
         }
-        const payload: unknown = await res.json();
-
-        // Parse workflow definition
-        if (isRecord(payload) && payload.definition) {
-          let definition: unknown = payload.definition;
-          if (typeof payload.definition === 'string') {
-            try {
-              definition = JSON.parse(payload.definition);
-            } catch {
-              definition = null;
-            }
-          }
-          if (isRecord(definition)) {
-            setWorkflowNodes(parseWorkflowNodes(definition.nodes));
-            setWorkflowEdges(parseWorkflowEdges(definition.edges));
-          }
+        if (summary.flowDefinition) {
+          const def = toJson(WorkflowDefinitionV2Schema, summary.flowDefinition, { useProtoFieldName: true }) as Record<string, unknown>;
+          setWorkflowNodes(parseWorkflowNodes(def.nodes));
+          setWorkflowEdges(parseWorkflowEdges(def.edges));
         }
-
-        if (!selectedWorkflowName && isRecord(payload) && typeof payload.name === 'string') {
-          setSelectedWorkflowName(payload.name);
+        if (!selectedWorkflowName && summary.name) {
+          setSelectedWorkflowName(summary.name);
         }
       } catch (err) {
         console.warn('Error fetching workflow definition:', err);

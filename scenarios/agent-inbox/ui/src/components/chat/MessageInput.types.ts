@@ -1,6 +1,5 @@
-import type { ForcedTool } from "./AttachmentButton";
 import type { Model, Message, UploadResponse } from "../../lib/api";
-import type { SkillPayload, Template } from "@/lib/types/templates";
+import type { SkillPayload } from "@/lib/types/templates";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,10 +34,8 @@ export interface MessagePayload {
   content: string;
   attachmentIds: string[];
   webSearchEnabled: boolean;
-  forcedTool?: ForcedTool;
   skillIds?: string[];
   skills?: SkillPayload[]; // Full skill payloads for tool context injection
-  suggestedToolIds?: string[]; // Tools suggested by template
 }
 
 export interface MessageInputProps {
@@ -49,12 +46,10 @@ export interface MessageInputProps {
   enableAttachments?: boolean;
   /** Enable web search toggle. Requires chatWebSearchDefault. Default: true */
   enableWebSearch?: boolean;
-  /** Enable force tool selection. Requires chatId. Default: true */
-  enableForceTools?: boolean;
   /** Auto-focus the textarea on mount. Default: false */
   autoFocus?: boolean;
   currentModel?: Model | null;
-  /** Current chat ID (required for force tool selection) */
+  /** Current chat ID */
   chatId?: string;
   chatWebSearchDefault?: boolean;
   onChatWebSearchDefaultChange?: (enabled: boolean) => void;
@@ -66,11 +61,8 @@ export interface MessageInputProps {
   onCancelEdit?: () => void;
   /** Callback when edit is submitted */
   onSubmitEdit?: (payload: MessagePayload) => void;
-  /** Callback when a template with suggested tools is activated */
-  onTemplateActivated?: (
-    templateId: string,
-    toolIds: string[],
-  ) => Promise<void>;
+  /** Callback when a template is activated */
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   /** Currently active template ID (persisted state, for UI indicator) */
   activeTemplateId?: string | null;
   /** Callback to deactivate the active template */
@@ -83,6 +75,4 @@ export interface MessageInputProps {
   customUploadFn?: (file: File) => Promise<UploadResponse>;
 }
 
-// Re-export ForcedTool so consumers of this module don't need to reach into AttachmentButton
-export type { ForcedTool } from "./AttachmentButton";
 export type { Template } from "@/lib/types/templates";

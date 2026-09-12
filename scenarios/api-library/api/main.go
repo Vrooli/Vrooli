@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	schema "github.com/vrooli/scenarios/api-library/api/internal/api"
 	"html"
 	"io"
 	"log"
@@ -31,6 +32,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	coreRedis "github.com/vrooli/api-core/redis"
 	"github.com/vrooli/api-core/server"
 )
 
@@ -123,8 +125,7 @@ type SemanticSearchClient struct {
 	QdrantURL        string
 	QdrantAPIKey     string
 	QdrantCollection string
-	OllamaURL        string
-	OllamaModel      string
+	OllamaRole       string
 	HTTPClient       *http.Client
 }
 
@@ -556,7 +557,7 @@ func executeFullTextSearch(ctx context.Context, params SearchParams) ([]SearchRe
 }
 
 func (c *SemanticSearchClient) isReady() bool {
-	return c != nil && c.QdrantURL != "" && c.OllamaURL != ""
+	return c != nil && c.QdrantURL != ""
 }
 
 func (c *SemanticSearchClient) SemanticSearch(ctx context.Context, params SearchParams) ([]SearchResult, error) {
@@ -585,56 +586,32 @@ func (c *SemanticSearchClient) generateEmbedding(ctx context.Context, text strin
 		return nil, fmt.Errorf("empty query")
 	}
 
-	model := c.OllamaModel
-	if model == "" {
-		model = "nomic-embed-text"
+	role := c.OllamaRole
+	if role == "" {
+		role = "embedding.default"
 	}
 
-	payload := map[string]interface{}{
-		"model":  model,
-		"prompt": text,
-	}
-
-	body, err := json.Marshal(payload)
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
+		"--role", role, "--json", "--input-stdin")
+	cmd.Stdin = strings.NewReader(text)
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
-	}
-
-	endpoint := strings.TrimRight(c.OllamaURL, "/") + "/api/embeddings"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := c.HTTPClient
-	if client == nil {
-		client = http.DefaultClient
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		msg, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama embeddings failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+		stderr := ""
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr = strings.TrimSpace(string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %v: %s", err, stderr)
 	}
 
 	var result struct {
 		Embedding []float32 `json:"embedding"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-
 	if len(result.Embedding) == 0 {
 		return nil, fmt.Errorf("embedding response was empty")
 	}
-
 	return result.Embedding, nil
 }
 
@@ -1309,6 +1286,7 @@ func main() {
 	handler := c.Handler(router)
 
 	log.Println("API Library service starting...")
+
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -1348,27 +1326,14 @@ func initDB() {
 
 func initRedisCache() {
 	// Redis is optional - if not available, caching will be disabled
-	redisHost := os.Getenv("REDIS_HOST")
-	if redisHost == "" {
-		redisHost = "localhost"
-	}
-
-	redisPort := os.Getenv("REDIS_PORT")
-	if redisPort == "" {
-		redisPort = "6379"
-	}
-
-	redisDB := 0
-	if dbStr := os.Getenv("REDIS_DB"); dbStr != "" {
-		if parsed, err := strconv.Atoi(dbStr); err == nil {
-			redisDB = parsed
-		}
+	redisConfig, err := coreRedis.Resolve(os.Getenv)
+	if err != nil {
+		log.Printf("⚠️  Redis configuration unavailable: %v - caching disabled", err)
+		return
 	}
 
 	redisClient = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
-		DB:       redisDB,
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr: redisConfig.Addr, DB: redisConfig.DB, Password: redisConfig.Password,
 	})
 
 	// Test Redis connection
@@ -1380,7 +1345,7 @@ func initRedisCache() {
 		redisClient = nil
 		cacheEnabled = false
 	} else {
-		log.Printf("✅ Redis cache enabled at %s:%s", redisHost, redisPort)
+		log.Printf("✅ Redis cache enabled at %s", redisConfig.Addr)
 		cacheEnabled = true
 	}
 }
@@ -1440,139 +1405,12 @@ func invalidateCachePattern(ctx context.Context, pattern string) error {
 }
 
 func initializeSchema() error {
-	// Check if tables exist, if not create them
-	var tableCount int
-	err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		AND table_name IN ('apis', 'endpoints', 'pricing_tiers', 'notes', 'api_credentials')
-	`).Scan(&tableCount)
-
-	if err != nil {
-		return fmt.Errorf("failed to check existing tables: %v", err)
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		return fmt.Errorf("apply api-library schema: %w", err)
 	}
 
-	// If all tables exist, skip initialization
-	if tableCount >= 5 {
-		log.Println("✅ Database schema already initialized")
-		return nil
-	}
-
-	log.Println("📝 Initializing database schema...")
-
-	// Create tables directly with individual statements to handle partial failures better
-	tables := []string{
-		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
-		`CREATE TABLE IF NOT EXISTS apis (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			name VARCHAR(255) NOT NULL UNIQUE,
-			provider VARCHAR(255) NOT NULL,
-			description TEXT,
-			base_url VARCHAR(500),
-			documentation_url VARCHAR(500),
-			pricing_url VARCHAR(500),
-			category VARCHAR(100),
-			status VARCHAR(50) DEFAULT 'active',
-			sunset_date DATE,
-			auth_type VARCHAR(50),
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			last_refreshed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			source_url VARCHAR(500),
-			tags TEXT[],
-			capabilities TEXT[],
-			search_vector tsvector
-		)`,
-		`CREATE TABLE IF NOT EXISTS endpoints (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			path VARCHAR(500) NOT NULL,
-			method VARCHAR(10) NOT NULL,
-			description TEXT,
-			rate_limit_requests INTEGER,
-			rate_limit_period VARCHAR(50),
-			request_schema JSONB,
-			response_schema JSONB,
-			requires_auth BOOLEAN DEFAULT true,
-			auth_details JSONB,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, path, method)
-		)`,
-		`CREATE TABLE IF NOT EXISTS pricing_tiers (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			name VARCHAR(255) NOT NULL,
-			price_per_request DECIMAL(10, 6),
-			price_per_mb DECIMAL(10, 6),
-			price_per_minute DECIMAL(10, 6),
-			monthly_cost DECIMAL(10, 2),
-			annual_cost DECIMAL(10, 2),
-			free_tier_requests INTEGER,
-			free_tier_mb INTEGER,
-			max_requests_per_month INTEGER,
-			pricing_details JSONB,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, name)
-		)`,
-		`CREATE TABLE IF NOT EXISTS notes (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			content TEXT NOT NULL,
-			type VARCHAR(50) NOT NULL,
-			endpoint_id UUID REFERENCES endpoints(id) ON DELETE CASCADE,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_by VARCHAR(255) DEFAULT 'system',
-			scenario_source VARCHAR(255),
-			helpful_count INTEGER DEFAULT 0,
-			not_helpful_count INTEGER DEFAULT 0
-		)`,
-		`CREATE TABLE IF NOT EXISTS api_credentials (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			is_configured BOOLEAN DEFAULT false,
-			configuration_date TIMESTAMP,
-			last_verified TIMESTAMP,
-			environment VARCHAR(50) DEFAULT 'development',
-			last_used TIMESTAMP,
-			usage_count INTEGER DEFAULT 0,
-			configuration_notes TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, environment)
-		)`,
-	}
-
-	for _, table := range tables {
-		if _, err := db.Exec(table); err != nil {
-			log.Printf("⚠️  Warning: Failed to create table: %v", err)
-			// Continue with other tables
-		}
-	}
-
-	// Create indexes
-	indexes := []string{
-		`CREATE INDEX IF NOT EXISTS idx_apis_status ON apis(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_apis_category ON apis(category)`,
-		`CREATE INDEX IF NOT EXISTS idx_apis_provider ON apis(provider)`,
-		`CREATE INDEX IF NOT EXISTS idx_endpoints_api_id ON endpoints(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_pricing_api_id ON pricing_tiers(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_notes_api_id ON notes(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_credentials_api_id ON api_credentials(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_credentials_configured ON api_credentials(is_configured)`,
-	}
-
-	for _, index := range indexes {
-		if _, err := db.Exec(index); err != nil {
-			log.Printf("⚠️  Warning: Failed to create index: %v", err)
-		}
-	}
-
-	log.Println("✅ Database schema initialized successfully")
-
-	// Insert minimal seed data to get started
+	// Insert minimal seed data to get started. The schema itself remains owned
+	// by the domain provider above.
 	seedData := []string{
 		`INSERT INTO apis (name, provider, description, base_url, documentation_url, category, auth_type, tags, capabilities)
 		 VALUES ('OpenAI API', 'OpenAI', 'Access to GPT models for text generation, embeddings, and more', 
@@ -1811,19 +1649,8 @@ func initSemanticSearchClient() *SemanticSearchClient {
 	}
 	qdrantURL = strings.TrimRight(qdrantURL, "/")
 
-	ollamaURL := strings.TrimSpace(os.Getenv("OLLAMA_URL"))
-	if ollamaURL == "" {
-		ollamaURL = strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL"))
-	}
-	if ollamaURL == "" {
-		if port := strings.TrimSpace(os.Getenv("RESOURCE_PORT_OLLAMA")); port != "" {
-			ollamaURL = fmt.Sprintf("http://localhost:%s", port)
-		}
-	}
-	ollamaURL = strings.TrimRight(ollamaURL, "/")
-
-	if qdrantURL == "" || ollamaURL == "" {
-		log.Println("🧠 Semantic search disabled (Qdrant or Ollama URL missing)")
+	if qdrantURL == "" {
+		log.Println("🧠 Semantic search disabled (Qdrant URL missing)")
 		return nil
 	}
 
@@ -1832,23 +1659,22 @@ func initSemanticSearchClient() *SemanticSearchClient {
 		collection = "api_embeddings"
 	}
 
-	model := strings.TrimSpace(os.Getenv("OLLAMA_EMBED_MODEL"))
-	if model == "" {
-		model = "nomic-embed-text"
+	role := strings.TrimSpace(os.Getenv("OLLAMA_EMBED_ROLE"))
+	if role == "" {
+		role = "embedding.default"
 	}
 
 	client := &SemanticSearchClient{
 		QdrantURL:        qdrantURL,
 		QdrantAPIKey:     strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		QdrantCollection: collection,
-		OllamaURL:        ollamaURL,
-		OllamaModel:      model,
+		OllamaRole:       role,
 		HTTPClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
 	}
 
-	log.Printf("🔍 Semantic search enabled (Qdrant: %s, Collection: %s, Model: %s)", client.QdrantURL, client.QdrantCollection, client.OllamaModel)
+	log.Printf("🔍 Semantic search enabled (Qdrant: %s, Collection: %s, Role: %s)", client.QdrantURL, client.QdrantCollection, client.OllamaRole)
 	return client
 }
 
@@ -3547,7 +3373,7 @@ func getCodeGenSpecHandler(w http.ResponseWriter, r *http.Request) {
 		authType   sql.NullString
 		version    sql.NullString
 	)
-	
+
 	err := db.QueryRow(`
 		SELECT id, name, provider, COALESCE(description, ''), COALESCE(base_url, ''), 
 		       documentation_url, pricing_url, COALESCE(category, 'general'), 
@@ -3558,7 +3384,7 @@ func getCodeGenSpecHandler(w http.ResponseWriter, r *http.Request) {
 		&docURL, &pricingURL, &api.Category,
 		&api.Status, &authType, &version,
 	)
-	
+
 	// Handle nullable fields
 	if docURL.Valid {
 		api.DocumentationURL = docURL.String

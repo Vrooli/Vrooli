@@ -1,63 +1,68 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
 
-// SessionDefaultsResponse is the JSON shape for session defaults settings.
-type SessionDefaultsResponse struct {
-	DefaultBackend string            `json:"default_backend"`
-	DefaultPolicy  *ExpirationPolicy `json:"default_policy"`
+	"web-console/internal/backend"
+	"web-console/internal/config"
+	"web-console/internal/policy"
+
+	settingsH "web-console/handlers/settings"
+)
+
+// settingsAdapter satisfies handlers/settings.Service by translating
+// between the transport-neutral Defaults shape and the live
+// session.Manager + backendRegistry state on the Server.
+type settingsAdapter struct {
+	server *Server
 }
 
-// handleGetSessionDefaults returns the current session defaults.
-// GET /api/v1/settings/session-defaults
-func (s *Server) handleGetSessionDefaults(w http.ResponseWriter, _ *http.Request) {
-	cfg := s.sessions.GetConfig()
-	resp := SessionDefaultsResponse{
+func newSettingsAdapter(s *Server) settingsH.Service {
+	return &settingsAdapter{server: s}
+}
+
+// SessionDefaultsResponse is the legacy JSON wire shape that the prior
+// REST endpoint returned. Retained as a Go type only because in-process
+// callers (tests, sibling files) referenced it; not used on the wire
+// anymore. Remove once those callers migrate.
+type SessionDefaultsResponse struct {
+	DefaultBackend string         `json:"default_backend"`
+	DefaultPolicy  *policy.Policy `json:"default_policy"`
+}
+
+func (a *settingsAdapter) GetDefaults() settingsH.Defaults {
+	cfg := a.server.sessions.GetConfig()
+	return settingsH.Defaults{
 		DefaultBackend: cfg.DefaultBackend,
-		DefaultPolicy: &ExpirationPolicy{
-			Mode:     PolicyMode(cfg.DefaultPolicyMode),
+		DefaultPolicy: settingsH.Policy{
+			Mode:     cfg.DefaultPolicyMode,
 			Duration: cfg.DefaultPolicyDuration,
 		},
 	}
-	writeJSON(w, http.StatusOK, resp)
 }
 
-// UpdateSessionDefaultsRequest is the JSON body for updating session defaults.
-type UpdateSessionDefaultsRequest struct {
-	DefaultBackend *string           `json:"default_backend,omitempty"`
-	DefaultPolicy  *ExpirationPolicy `json:"default_policy,omitempty"`
-}
-
-// handleUpdateSessionDefaults updates the session defaults.
-// PUT /api/v1/settings/session-defaults
-func (s *Server) handleUpdateSessionDefaults(w http.ResponseWriter, r *http.Request) {
-	var req UpdateSessionDefaultsRequest
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-
+func (a *settingsAdapter) UpdateDefaults(req settingsH.UpdateDefaultsRequest) (settingsH.Defaults, error) {
 	if req.DefaultBackend != nil {
-		bid := BackendID(*req.DefaultBackend)
-		if _, ok := s.backendRegistry.Get(bid); !ok {
-			writeCatalogError(w, "backend_unknown", "Unknown backend: "+*req.DefaultBackend)
-			return
+		bid := backend.ID(*req.DefaultBackend)
+		if _, ok := a.server.backendRegistry.Get(bid); !ok {
+			return settingsH.Defaults{}, fmt.Errorf("%w: unknown backend %q", settingsH.ErrInvalidArgument, *req.DefaultBackend)
 		}
-		s.sessions.SetConfigField(func(cfg *Config) {
+		a.server.sessions.SetConfigField(func(cfg *config.Config) {
 			cfg.DefaultBackend = *req.DefaultBackend
 		})
 	}
-
 	if req.DefaultPolicy != nil {
-		if err := ValidatePolicy(*req.DefaultPolicy); err != nil {
-			writeCatalogError(w, "invalid_policy", err.Error())
-			return
+		p := policy.Policy{
+			Mode:     policy.Mode(req.DefaultPolicy.Mode),
+			Duration: req.DefaultPolicy.Duration,
 		}
-		s.sessions.SetConfigField(func(cfg *Config) {
+		if err := policy.Validate(p); err != nil {
+			return settingsH.Defaults{}, fmt.Errorf("%w: %s", settingsH.ErrInvalidArgument, err.Error())
+		}
+		a.server.sessions.SetConfigField(func(cfg *config.Config) {
 			cfg.DefaultPolicyMode = string(req.DefaultPolicy.Mode)
 			cfg.DefaultPolicyDuration = req.DefaultPolicy.Duration
 		})
 	}
-
-	// Return updated state
-	s.handleGetSessionDefaults(w, r)
+	return a.GetDefaults(), nil
 }

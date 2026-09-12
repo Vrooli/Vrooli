@@ -174,7 +174,7 @@ Events are stored in JSONL format:
 {telemetry_dir}/{scenario}.jsonl
 ```
 
-Default telemetry directory: `~/.vrooli/deployment/telemetry/`
+Default telemetry directory: `~/.local/state/logs/vrooli/deployment-manager/telemetry/`
 
 Each line is a JSON object:
 
@@ -193,13 +193,13 @@ Configure telemetry in `bundle.json`:
 {
   "telemetry": {
     "file": "telemetry/deployment-telemetry.jsonl",
-    "upload_to": "https://your-server/api/v1/telemetry/upload"
+    "upload_url": "https://your-server/api/v1/telemetry/upload"
   }
 }
 ```
 
 - `file`: Local JSONL file path (relative to app data dir)
-- `upload_to`: Optional endpoint for automatic upload
+- `upload_url`: Optional endpoint for automatic upload
 
 ---
 

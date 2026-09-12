@@ -7,7 +7,7 @@
 
 import { useCallback, useId } from 'react';
 import { X, FolderTree, FolderPlus, Check } from 'lucide-react';
-import { useProjectStore, type Project } from '@/domains/projects';
+import { useProjectStore, type Project } from '@/domains/projects/store';
 import { ResponsiveDialog } from '@shared/layout';
 
 interface ProjectPickerModalProps {

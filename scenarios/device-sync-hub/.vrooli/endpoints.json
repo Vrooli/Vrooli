@@ -1,0 +1,822 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_sync_hub.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_setup_owner",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/SetupOwnerDevice",
+      "method": "POST",
+      "summary": "Set up this hub's first (owner) device",
+      "description": "First-run bootstrap. Claims the hub for the authenticated owner if unclaimed (first-owner-wins), then registers the calling client as a TRUSTED device directly — no pairing code needed — and returns its one-time hub device token. Owner-authed; a different identity on an already-claimed hub is rejected.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "profile": "DeviceProfile"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device (trusted)",
+          "device_token": "string (returned once)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Hub already owned by a different identity"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Claim or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Set up owner device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/SetupOwnerDevice -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{\"profile\":{\"device_name\":\"Workstation\",\"kind\":\"laptop\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_list",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices",
+      "method": "POST",
+      "summary": "List trusted devices",
+      "description": "Returns every device in the authenticated owner's trust group, newest first.",
+      "category": "devices",
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List devices",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_get",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/GetDevice",
+      "method": "POST",
+      "summary": "Get a device by id",
+      "description": "Returns one owner-scoped device.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device for this owner"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/GetDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"id\":\"<device-id>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_issue_pairing_code",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/IssuePairingCode",
+      "method": "POST",
+      "summary": "Issue a pairing code",
+      "description": "Mints a short-TTL, single-use pairing code (and QR payload) for a new device to redeem. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_name": "string (optional slot label)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "pairing_code": "PairingCode (raw code returned once)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Code generation or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Issue code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/IssuePairingCode -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_name\":\"My Phone\"}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_redeem_pairing_code",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RedeemPairingCode",
+      "method": "POST",
+      "summary": "Redeem a pairing code",
+      "description": "Called by a new device presenting a valid code. Registers a TRUSTED device and returns its one-time hub device token. No owner token required.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "code": "string",
+          "profile": "DeviceProfile"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device",
+          "device_token": "string (returned once)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown, expired, or already-used code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Redeem code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RedeemPairingCode -d '{\"code\":\"ABCDE-FGHIJ\",\"profile\":{\"device_name\":\"Tablet\",\"kind\":\"tablet\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_request_pairing",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RequestPairing",
+      "method": "POST",
+      "summary": "Request pairing (fallback)",
+      "description": "Fallback join path for a device that cannot enter a code: registers a PENDING device and returns an inert token that activates when the owner approves.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "profile": "DeviceProfile"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device (pending)",
+          "device_token": "string (inert until approved)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "No owner yet — first device must use a code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Request pairing",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RequestPairing -d '{\"profile\":{\"device_name\":\"Tablet\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_approve_pairing",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/ApprovePairing",
+      "method": "POST",
+      "summary": "Approve a pending device",
+      "description": "Promotes a PENDING device (from the request path) to TRUSTED. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Device is revoked"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Approve device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ApprovePairing -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_rename",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RenameDevice",
+      "method": "POST",
+      "summary": "Rename a device",
+      "description": "Updates a device's human-facing name. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string",
+          "name": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Rename device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RenameDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\",\"name\":\"Laptop\"}'"
+        }
+      ]
+    },
+    {
+      "id": "devices_revoke",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RevokeDevice",
+      "method": "POST",
+      "summary": "Revoke a device",
+      "description": "Immediately severs a device's access: flips it to REVOKED (hub token rejected at once) and revokes its authenticator session. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RevokeDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_login",
+      "path": "/vrooli.device_sync_hub.v1.identity.IdentityService/Login",
+      "method": "POST",
+      "summary": "Owner sign-in (same-origin)",
+      "description": "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The hub owns no credential logic — it relays. Called same-origin by the hub UI/CLI so the browser never makes a cross-origin call.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid email or password"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sign in",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.identity.IdentityService/Login -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_register",
+      "path": "/vrooli.device_sync_hub.v1.identity.IdentityService/Register",
+      "method": "POST",
+      "summary": "Create owner account (same-origin)",
+      "description": "Creates an owner account in scenario-authenticator and returns the issued owner JWT (the account is signed in immediately, so a fresh owner can set up their first device in one flow). Relayed via api-core/discovery; same-origin only.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "password": "string",
+          "username": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "email": "string",
+          "refresh_token": "string",
+          "token": "string (owner JWT)",
+          "user_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Email already registered"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Weak password or malformed email (authenticator message relayed)"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create account",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.identity.IdentityService/Register -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "realtime_events",
+      "path": "/api/v1/realtime/events",
+      "method": "GET",
+      "summary": "Subscribe to realtime events",
+      "description": "Opens a server-sent-events stream of presence, item-arrived/deleted, and pairing-request events scoped to the calling trusted device. Authenticated by the device token via the X-Device-Token header or a ?token= query parameter (for the browser EventSource API).",
+      "category": "realtime",
+      "response": {
+        "type": "text/event-stream",
+        "properties": {
+          "data": "Event (vrooli.device_sync_hub.v1.realtime.Event, protojson per SSE message)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Subscribe",
+          "curl": "curl -N http://localhost:${API_PORT}/api/v1/realtime/events -H 'X-Device-Token: <token>'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Long-lived SSE stream (text/event-stream) consumed by the browser EventSource API directly (no Connect client); each event payload is the proto-typed realtime.Event marshaled with protojson.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_sync_hub.v1.realtime.Event",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "transfer_create_text",
+      "path": "/vrooli.device_sync_hub.v1.transfer.TransferService/CreateTextItem",
+      "method": "POST",
+      "summary": "Send a text snippet",
+      "description": "Stores a text snippet as an item visible to the trust group (or directed to one device). Device-token authed.",
+      "category": "transfer",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (optional label)",
+          "retention": "Retention (live|held|pinned; default held)",
+          "target_device_id": "string (empty = broadcast)",
+          "text": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "item": "Item"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Empty text or invalid target device"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Storage quota exceeded"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Send text",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/CreateTextItem -H 'X-Device-Token: <token>' -H 'Content-Type: application/json' -d '{\"text\":\"hello\"}'"
+        }
+      ]
+    },
+    {
+      "id": "transfer_list",
+      "path": "/vrooli.device_sync_hub.v1.transfer.TransferService/ListItems",
+      "method": "POST",
+      "summary": "List received items",
+      "description": "Returns the items the calling device may pull (broadcast, directed-to-it, or originated by it), newest first, optionally filtered by query/kind.",
+      "category": "transfer",
+      "request": {
+        "type": "object",
+        "properties": {
+          "kind": "ItemKind (optional; unspecified = both)",
+          "query": "string (optional substring filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "items": "array<Item>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List items",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/ListItems -H 'X-Device-Token: <token>' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "transfer_get",
+      "path": "/vrooli.device_sync_hub.v1.transfer.TransferService/GetItem",
+      "method": "POST",
+      "summary": "Get an item by id",
+      "description": "Returns one item's metadata if the calling device may see it.",
+      "category": "transfer",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "item": "Item"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No visible item with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get item",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/GetItem -H 'X-Device-Token: <token>' -d '{\"id\":\"<item-id>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "transfer_delete",
+      "path": "/vrooli.device_sync_hub.v1.transfer.TransferService/DeleteItem",
+      "method": "POST",
+      "summary": "Delete an item",
+      "description": "Removes an item and its blob. Any trusted device of the owner may delete.",
+      "category": "transfer",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "id": "string (deleted id)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such item for this owner"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete item",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/DeleteItem -H 'X-Device-Token: <token>' -d '{\"id\":\"<item-id>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "transfer_upload",
+      "path": "/api/v1/transfer/items",
+      "method": "POST",
+      "summary": "Upload a file",
+      "description": "Uploads opaque file bytes via the documented REST multipart exception and returns proto-typed Item metadata. Device-token authed; quota-checked; generates an image thumbnail when applicable.",
+      "category": "transfer",
+      "request": {
+        "type": "multipart/form-data",
+        "properties": {
+          "file": "file (required)",
+          "name": "string (optional; defaults to filename)",
+          "retention": "string (live|held|pinned; default held)",
+          "target_device_id": "string (optional; empty = broadcast)"
+        }
+      },
+      "response": {
+        "type": "UploadItemResponse",
+        "properties": {
+          "item": "Item"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing/empty file or invalid multipart upload"
+        },
+        {
+          "status": 413,
+          "code": "quota_exceeded",
+          "description": "Upload would exceed the owner or device storage quota"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "BlobStore or metadata persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Upload file",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/transfer/items -H 'X-Device-Token: <token>' -F file=@./photo.png -F retention=held"
+        }
+      ],
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is the proto-typed UploadItemResponse message.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_sync_hub.v1.transfer.UploadItemResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_sync_hub.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "transfer_download",
+      "path": "/api/v1/transfer/items/{id}/content",
+      "method": "GET",
+      "summary": "Download an item's bytes",
+      "description": "Streams an item's content with its original filename (Content-Disposition). For text items the body is the snippet; ?thumb=1 streams the image thumbnail. Pulling a Live item marks it delivered (purged on the next sweep). Device-token authed.",
+      "category": "transfer",
+      "response": {
+        "type": "application/octet-stream",
+        "properties": {
+          "body": "raw bytes (original filename via Content-Disposition)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or untrusted device token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No visible item with that id, or no thumbnail"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Download file",
+          "curl": "curl -OJ http://localhost:${API_PORT}/api/v1/transfer/items/<item-id>/content -H 'X-Device-Token: <token>'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Direct GET (no Connect client): response body is opaque streamed bytes with the original filename — no proto message can carry it. Metadata is served proto-typed via the GetItem Connect RPC.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_sync_hub.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    }
+  ]
+}

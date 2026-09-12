@@ -3,6 +3,7 @@ package smoketest
 import (
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/procmetrics"
 )
 
@@ -150,13 +151,70 @@ type Status struct {
 	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
 
 	// Screen recording configuration and results
-	RecordingConfig *ScreenRecordingConfig `json:"recording_config,omitempty"`
-	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
+	RecordingConfig           *ScreenRecordingConfig `json:"recording_config,omitempty"`
+	ScreenRecording           *RecordingStatus       `json:"screen_recording,omitempty"`
+	JourneyCaptureID          string                 `json:"journey_capture_id,omitempty"`
+	JourneyDisposition        string                 `json:"journey_disposition,omitempty"`
+	JourneyDegradedReason     string                 `json:"journey_degraded_reason,omitempty"`
+	EvidenceReportDisposition string                 `json:"evidence_report_disposition,omitempty"`
+	EvidenceReportError       string                 `json:"evidence_report_error,omitempty"`
+	EvidenceReview            *JourneyReview         `json:"evidence_review,omitempty"`
 
 	// Process metrics from app execution
-	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
-	ReadyDurationMs  *int64               `json:"ready_duration_ms,omitempty"`
-	ResourceSummary  *procmetrics.Summary `json:"resource_summary,omitempty"`
+	SplashDurationMs        *int64                         `json:"splash_duration_ms,omitempty"`
+	ReadyDurationMs         *int64                         `json:"ready_duration_ms,omitempty"`
+	ResourceSummary         *procmetrics.Summary           `json:"resource_summary,omitempty"`
+	ProtocolResourceSummary *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
+	DemoResourceSummary     *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
+	DemoProcessTree         *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
+	ProtocolTracePath       string                         `json:"protocol_trace_path,omitempty"`
+	DemoTracePath           string                         `json:"demo_trace_path,omitempty"`
+	ProtocolProfileDir      string                         `json:"protocol_profile_dir,omitempty"`
+	DemoProfileDir          string                         `json:"demo_profile_dir,omitempty"`
+	PerformanceStatus       string                         `json:"performance_status,omitempty"`
+	PerformanceReason       string                         `json:"performance_reason,omitempty"`
+	ProtocolPhases          []PerformancePhase             `json:"protocol_phases,omitempty"`
+	DemoPhases              []PerformancePhase             `json:"demo_phases,omitempty"`
+}
+
+type PerformancePhase struct {
+	Name       string `json:"name"`
+	Available  bool   `json:"available"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type JourneyReview struct {
+	SchemaVersion     string                                   `json:"schema_version"`
+	Capability        string                                   `json:"capability"`
+	PlanID            string                                   `json:"plan_id"`
+	Profile           string                                   `json:"profile"`
+	Disposition       string                                   `json:"disposition"`
+	Reason            string                                   `json:"reason,omitempty"`
+	EventCount        int                                      `json:"event_count"`
+	DeploymentMode    string                                   `json:"deployment_mode,omitempty"`
+	ProviderTier      string                                   `json:"provider_tier,omitempty"`
+	ServiceIdentity   string                                   `json:"service_identity,omitempty"`
+	Readiness         string                                   `json:"readiness,omitempty"`
+	FallbackDecision  string                                   `json:"fallback_decision,omitempty"`
+	SafeRouteClass    string                                   `json:"safe_route_class,omitempty"`
+	WorkflowRequired  bool                                     `json:"workflow_required,omitempty"`
+	WorkflowReference *deliveryramp.WorkflowExecutionReference `json:"workflow_reference,omitempty"`
+	Chapters          []JourneyChapter                         `json:"chapters"`
+}
+
+type JourneyChapter struct {
+	ID                 string   `json:"id"`
+	Purpose            string   `json:"purpose"`
+	Action             string   `json:"action"`
+	Disposition        string   `json:"disposition"`
+	AssertionID        string   `json:"assertion_id,omitempty"`
+	Expected           string   `json:"expected,omitempty"`
+	Observed           string   `json:"observed,omitempty"`
+	Error              string   `json:"error,omitempty"`
+	VideoStartOffsetMs *int64   `json:"video_start_offset_ms,omitempty"`
+	VideoEndOffsetMs   *int64   `json:"video_end_offset_ms,omitempty"`
+	EvidenceIDs        []string `json:"evidence_ids,omitempty"`
 }
 
 // ScreenRecordingConfig controls whether the smoke test records the display.
@@ -168,13 +226,13 @@ type ScreenRecordingConfig struct {
 	MaxDurationSec int  `json:"max_duration_sec,omitempty"`
 }
 
-// ScreenRecordingResult holds the outcome of a screen recording during a smoke test.
-type ScreenRecordingResult struct {
-	Recorded      bool   `json:"recorded"`
-	VideoPath     string `json:"video_path,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
-	Error         string `json:"error,omitempty"`
+// RecordingStatus holds only the durable capture identity and producer-side
+// checksum for a screen recording. Artifact paths and bytes never live here.
+type RecordingStatus struct {
+	Recorded  bool   `json:"recorded"`
+	CaptureID string `json:"capture_id,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // CancelResponse represents the response from cancelling a smoke test.

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-session",
+  "profileKey": "swarm-manager/session",
+  "description": "Agent profile for Swarm Manager agent sessions: operator-led conversations that investigate and propose, and never apply. Grants web research; withholds the file-write tools.",
+  "roleRef": "code.default",
+  "maxTurns": 600,
+  "timeout": "3600s",
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search", "web_fetch"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_PROTECTED"
+  },
+  "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
+  "createdBy": "swarm-manager",
+  "effort": "medium"
+}

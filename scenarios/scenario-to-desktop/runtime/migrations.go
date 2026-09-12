@@ -3,7 +3,7 @@ package bundleruntime
 import (
 	"context"
 
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // runMigrations executes pending migrations for a service.

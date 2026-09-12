@@ -1,0 +1,339 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "measures-health",
+  "phase": "measures",
+  "displayName": "Measures",
+  "description": "Validates measures coverage and per-measure tiering through measures-health.",
+  "source": "validation-provider",
+  "orderHint": 16,
+  "timeout": "180s",
+  "findingSource": "measures",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "best_effort",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "skip_without_failing"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/measures/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "capabilities": [
+      {
+        "id": "contract_derivation",
+        "label": "Contract Derivation",
+        "description": "Readable measure inputs, CLI manifest access, architecture-derived stateful domains, and illegal-domain detection.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No readable measures contract",
+            "status_label": "Unavailable",
+            "description": "The scenario has not exposed enough structure for measures-health to reason about measures adoption.",
+            "capability_summary": "Measures Health cannot derive the expected stateful-domain contract.",
+            "next_unlock": "Readable CLI manifest and repository contract inputs."
+          },
+          {
+            "id": "L1",
+            "name": "Expected domains derived",
+            "status_label": "Foundation",
+            "description": "Measures Health can derive the scenario's stateful domains from the canonical architecture surface or a documented fallback.",
+            "capability_summary": "Expected stateful domains can be derived.",
+            "next_unlock": "Architecture-backed derivation without illegal domain declarations."
+          },
+          {
+            "id": "L2",
+            "name": "Contract derivation clean",
+            "status_label": "Complete",
+            "description": "Expected stateful domains are derived from canonical architecture inputs without illegal declarations or fallback debt.",
+            "capability_summary": "Measure contract derivation is clean."
+          }
+        ]
+      },
+      {
+        "id": "domain_coverage",
+        "label": "Domain Coverage",
+        "description": "Expected stateful domains are covered by measures or deliberate waivers, with persisted substrate declarations reconciled.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Domain coverage unavailable",
+            "status_label": "Unavailable",
+            "description": "Expected domains cannot be compared with declared measures or waivers.",
+            "capability_summary": "Domain coverage cannot be evaluated.",
+            "next_unlock": "Expected domains and persisted substrates are known."
+          },
+          {
+            "id": "L1",
+            "name": "Coverage comparable",
+            "status_label": "Foundation",
+            "description": "Expected domains can be compared with measure declarations, waivers, and persisted substrates.",
+            "capability_summary": "Measures coverage can be compared against expected stateful domains.",
+            "next_unlock": "Every expected domain is covered or deliberately waived."
+          },
+          {
+            "id": "L2",
+            "name": "Domains covered or waived",
+            "status_label": "Ready",
+            "description": "Every expected stateful domain has a declared measure or a deliberate waiver.",
+            "capability_summary": "Expected stateful domains are covered or waived.",
+            "next_unlock": "Waiver and substrate coverage debt eliminated."
+          },
+          {
+            "id": "L3",
+            "name": "Domain coverage clean",
+            "status_label": "Complete",
+            "description": "Domain coverage, waivers, and persisted substrate declarations are clean.",
+            "capability_summary": "Domain coverage is clean."
+          }
+        ]
+      },
+      {
+        "id": "declaration_assembly",
+        "label": "Declaration Assembly",
+        "description": "Declared measures assemble against their bound proto request schemas.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Measure declarations unavailable",
+            "status_label": "Unavailable",
+            "description": "Declared measures cannot be parsed or assembled.",
+            "capability_summary": "Measure declarations cannot be assembled.",
+            "next_unlock": "Readable measure declarations."
+          },
+          {
+            "id": "L1",
+            "name": "Declarations readable",
+            "status_label": "Foundation",
+            "description": "Declared measures can be inspected for proto request bindings.",
+            "capability_summary": "Measure declarations are readable.",
+            "next_unlock": "Valid declaration shape and proto request bindings."
+          },
+          {
+            "id": "L2",
+            "name": "Measures assemble",
+            "status_label": "Ready",
+            "description": "Declared measures assemble against their bound proto request schemas.",
+            "capability_summary": "Measure declarations assemble against their proto bindings.",
+            "next_unlock": "Maximum declaration-assembly maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Declaration assembly clean",
+            "status_label": "Complete",
+            "description": "Measure declaration assembly checks are clean.",
+            "capability_summary": "Measure declaration assembly is clean."
+          }
+        ]
+      },
+      {
+        "id": "tier_completeness",
+        "label": "Tier Completeness",
+        "description": "Covered domains are backed by full-tier measures with deterministic or bounded parameter extraction.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Tier posture unavailable",
+            "status_label": "Unavailable",
+            "description": "Measure tier posture cannot be evaluated.",
+            "capability_summary": "Measure tier posture is unavailable.",
+            "next_unlock": "Assembled measure declarations with tier metadata."
+          },
+          {
+            "id": "L1",
+            "name": "Tier posture visible",
+            "status_label": "Foundation",
+            "description": "Measure tiers can be inspected across covered domains.",
+            "capability_summary": "Measure tier posture is visible.",
+            "next_unlock": "Full-tier measures for covered domains."
+          },
+          {
+            "id": "L2",
+            "name": "Full-tier coverage",
+            "status_label": "Ready",
+            "description": "Covered domains are backed by full-tier measures with deterministic or bounded parameter extraction.",
+            "capability_summary": "Covered domains have full-tier measures.",
+            "next_unlock": "Tier fallback and partial-tier debt eliminated."
+          },
+          {
+            "id": "L3",
+            "name": "Tier coverage clean",
+            "status_label": "Complete",
+            "description": "Measure tier coverage is clean.",
+            "capability_summary": "Measure tier completeness is clean."
+          }
+        ]
+      },
+      {
+        "id": "behavioral_indexing",
+        "label": "Behavioral Indexing",
+        "description": "Declared measures pass behavioral probes and are suitable for indexed search and fleet surfaces.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Behavioral readiness unavailable",
+            "status_label": "Unavailable",
+            "description": "Declared measures cannot yet prove behavioral readiness.",
+            "capability_summary": "Measure behavioral readiness is unavailable.",
+            "next_unlock": "Assembled full-tier measures that can be probed."
+          },
+          {
+            "id": "L1",
+            "name": "Behavioral probeable",
+            "status_label": "Foundation",
+            "description": "Declared measures can be inspected for behavioral probe and index readiness.",
+            "capability_summary": "Measures can be checked for behavioral and index readiness.",
+            "next_unlock": "No hollow declarations remain."
+          },
+          {
+            "id": "L2",
+            "name": "Behavioral and indexed",
+            "status_label": "Complete",
+            "description": "Declared measures pass the behavioral probe and are ready for fleet/search surfaces.",
+            "capability_summary": "Measures are behaviorally ready and indexable."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "measures.architecture-fallback": {
+        "capability_id": "contract_derivation",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "measures-adoption"
+        ]
+      },
+      "measures.hollow-declaration": {
+        "capability_id": "behavioral_indexing",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "test"
+        ]
+      },
+      "measures.illegal-domain-declaration": {
+        "capability_id": "contract_derivation",
+        "local_level_impact": "L1",
+        "global_impact": "evolvability_gap",
+        "dimension": "structure",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "screaming-architecture-audit",
+          "measures-adoption"
+        ]
+      },
+      "measures.malformed-declaration": {
+        "capability_id": "declaration_assembly",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "api-steer"
+        ]
+      },
+      "measures.stale-waiver": {
+        "capability_id": "domain_coverage",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "measures-adoption"
+        ]
+      },
+      "measures.tier-fallback": {
+        "capability_id": "tier_completeness",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption"
+        ]
+      },
+      "measures.tier-partial": {
+        "capability_id": "tier_completeness",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "measures-adoption"
+        ]
+      },
+      "measures.uncovered-domain": {
+        "capability_id": "domain_coverage",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption"
+        ]
+      },
+      "measures.undeclared-substrate": {
+        "capability_id": "domain_coverage",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "screaming-architecture-audit"
+        ]
+      }
+    },
+    "fallback": {
+      "capability_id": "contract_derivation",
+      "local_level_impact": "L1",
+      "global_impact": "unknown",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [],
+  "freshnessRequirement": "never",
+  "phaseClass": "quality",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "measures"
+  ]
+}

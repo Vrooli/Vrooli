@@ -16,7 +16,7 @@ import {
 } from "./FileTree";
 import type { Project } from "./store";
 import { useWorkflowStore } from "@stores/workflowStore";
-import { useStartWorkflow } from "@/domains/executions";
+import { useStartWorkflow } from "@/domains/executions/hooks/useStartWorkflow";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";

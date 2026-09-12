@@ -67,13 +67,13 @@ export function AttachRunModal({
       setSelectedRun(null);
       setPreviewEvents([]);
       setPreviewError(null);
-      fetchRuns(statusFilter);
+      void fetchRuns(statusFilter);
     }
   }, [isOpen, statusFilter, fetchRuns]);
 
   useEffect(() => {
     if (selectedRun) {
-      fetchPreview(selectedRun.run_id);
+      void fetchPreview(selectedRun.run_id);
     }
   }, [selectedRun, fetchPreview]);
 
@@ -155,7 +155,7 @@ export function AttachRunModal({
               </select>
               <button
                 type="button"
-                onClick={() => fetchRuns(statusFilter)}
+                onClick={() => { void fetchRuns(statusFilter); }}
                 disabled={isFetching}
                 className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
                 title="Refresh"

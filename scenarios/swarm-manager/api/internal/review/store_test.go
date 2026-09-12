@@ -11,7 +11,6 @@ func validCompletedRound(roundNum int) Round {
 	return Round{
 		RoundNum:        roundNum,
 		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-1",
 		Status:          RoundStatusComplete,
 		AgentAssessment: "Looks good.",
 		Classification:  "ready",
@@ -196,7 +195,7 @@ func TestLoadRound_Specific(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	round := Round{RoundNum: 2, GeneratedAt: "2026-04-02T00:00:00Z", ExecutionID: "exec-1", Status: RoundStatusGathering}
+	round := Round{RoundNum: 2, GeneratedAt: "2026-04-02T00:00:00Z", Status: RoundStatusGathering}
 	data, _ := json.MarshalIndent(round, "", "  ")
 	if err := os.WriteFile(filepath.Join(reviewDir, "round-002.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -230,7 +229,6 @@ func TestSaveRound_CreatesDirectory(t *testing.T) {
 	round := Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
 		Status:      RoundStatusGathering,
 		Evidence:    []EvidenceItem{},
 	}
@@ -330,7 +328,6 @@ func TestLoadRounds_NormalizesInvalidCompletedRound(t *testing.T) {
 	round := Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
 		Status:      RoundStatusComplete,
 	}
 	data, _ := json.MarshalIndent(round, "", "  ")
@@ -363,7 +360,6 @@ func TestLoadRound_NormalizesInvalidCompletedRound(t *testing.T) {
 	round := Round{
 		RoundNum:    2,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-2",
 		Status:      RoundStatusComplete,
 	}
 	data, _ := json.MarshalIndent(round, "", "  ")

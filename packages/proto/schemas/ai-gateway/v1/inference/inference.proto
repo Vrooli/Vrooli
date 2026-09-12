@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.inference;
+
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
+
+// Usage is the provider-reported accounting for one inference operation.
+// cost_micros is expressed in USD micro-units; local providers report zero
+// when no monetary cost is incurred.
+message Usage {
+  int64 input_tokens = 1;
+  int64 output_tokens = 2;
+  int64 cost_micros = 3;
+}
+
+enum InferenceErrorCode {
+  INFERENCE_ERROR_CODE_UNSPECIFIED = 0;
+  INFERENCE_ERROR_CODE_UNAVAILABLE = 1;
+  INFERENCE_ERROR_CODE_INVALID_REQUEST = 2;
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA = 3;
+  INFERENCE_ERROR_CODE_VALIDATION_FAILED = 4;
+  INFERENCE_ERROR_CODE_PROVIDER_FAILED = 5;
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING means the caller asked for a
+  // sampling control that no remaining candidate's provider can honour. It
+  // names the offending control in `construct` (e.g. "sampling.temperature").
+  // A caller-supplied control is a promise the gateway keeps or refuses; it is
+  // never silently downgraded, matching how a rejected schema is never
+  // degraded to unconstrained generation. A role-declared default that cannot
+  // be honoured is omitted silently instead, because the role author expressed
+  // a preference while the caller made no promise.
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING = 6;
+  // INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW means the assembled input plus the
+  // requested output cap cannot fit the resolved provider model window. The
+  // gateway refuses before dispatch and never exposes the window value.
+  INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW = 7;
+}
+
+// InferenceError is a typed failure returned inside a response. It is kept
+// distinct from an empty value so callers can choose whether to abstain or
+// raise while transport-level failures remain reserved for malformed RPCs.
+message InferenceError {
+  InferenceErrorCode code = 1;
+  string message = 2;
+  // construct is the unsupported schema keyword or construct when code is
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA.
+  string construct = 3;
+}
+
+// Turn is an ordered, caller-owned conversation fragment. The gateway never
+// stores turns and there is intentionally no conversation identifier.
+message Turn {
+  string role = 1;
+  string text = 2;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 3;
+}
+
+message RunRequest {
+  string source = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+  repeated Turn turns = 5;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 6;
+  // profile carries the caller's locality stance. The gateway still owns
+  // provider selection and never accepts a concrete model or credential.
+  vrooli.ai_gateway.v1.shared.Profile profile = 7;
+  // sampling is the caller's explicit sampling request. It is honoured only by
+  // roles that declare themselves overridable; sending it to a deterministic
+  // role is INFERENCE_ERROR_CODE_INVALID_REQUEST, not a silent override.
+  // @default the role's declared sampling
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 8;
+  // max_output_tokens bounds the response the gateway asks the provider for.
+  // It is request-level rather than role-level because the budget depends on
+  // caller data a role cannot know — one role serves a single draft and a
+  // twenty-candidate set, and sizing for either breaks the other. It is
+  // bidirectional: a caller may send a tighter cap than the role default.
+  // @default the resolved resource role's declared cap, else no cap
+  // @unit tokens
+  int32 max_output_tokens = 9;
+}
+
+message RunResponse {
+  string value_json = 1;
+  string provider = 2;
+  string model = 3;
+  bool validated = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+  // applied reports what the gateway actually sent and what the resolved role
+  // declares, so provenance records fact rather than the caller's own request.
+  // It is populated on every return path including errors: a refused or
+  // truncated call is exactly when a caller needs to know the cap.
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
+}
+
+message RunBatchItem {
+  string source = 1;
+}
+
+message RunBatchRequest {
+  repeated RunBatchItem items = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+}
+
+message RunBatchResponse {
+  // Results preserve the exact order of the request items, including failed
+  // items. Each result has its own provider/model and usage accounting.
+  repeated RunResponse results = 1;
+  Usage usage = 2;
+}
+
+message EmbedRequest {
+  repeated string texts = 1;
+  string role = 2;
+  // Embeddings are deterministic. Presence is rejected as an invalid request.
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 3;
+}
+
+message EmbedResponse {
+  repeated EmbeddingVector vectors = 1;
+  string provider = 2;
+  string model = 3;
+  int32 dimension = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+}
+
+message EmbeddingVector {
+  repeated double values = 1;
+}
+
+service InferenceService {
+	rpc Run(RunRequest) returns (RunResponse);
+	rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
+	rpc Embed(EmbedRequest) returns (EmbedResponse);
+}

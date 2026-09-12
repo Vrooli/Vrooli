@@ -1,3 +1,24 @@
+---
+name: "ui-design-system-migration"
+description: "Migrate scenario UIs to a token-driven design system with phased rollout, quality gates, and convergence tracking"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","ux"]
+  tags: ["skill"]
+  icon: "palette"
+  status: "active"
+  defaultScope: "architecture-scope"
+  revision: 2
+  createdAt: "2026-02-07T00:00:00Z"
+  updatedAt: "2026-02-07T20:12:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: UI Design System Migration
 
 Prioritize migrating `scenarios/{{TARGET}}/ui/` to a **token-driven, primitive-owned design system** so major theme refreshes become low-risk and repeatable.
@@ -5,8 +26,8 @@ Prioritize migrating `scenarios/{{TARGET}}/ui/` to a **token-driven, primitive-o
 Your goal is to reduce style coupling, preserve behavior, and converge on a UI where visual identity can be changed by updating tokens and primitive variants rather than rewriting surfaces.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
-- `prompt-manager skill read react-coherence react-stability experience-architecture-audit`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `prompt-manager skill read ui-health experience-architecture-audit`
 - `prompt-manager skill read visited-tracker-tools`
 
 ---
@@ -14,8 +35,8 @@ Required reading:
 ### **1. Scope Boundaries**
 
 **In scope:**
-- Token system design and migration (`shared/theme` ownership)
-- Primitive/composite ownership (`shared/ui/primitives`, `shared/ui/composites`)
+- Token system design and migration (`path:shared/theme` ownership)
+- Primitive/composite ownership (`path:shared/ui/primitives`, `path:shared/ui/composites`)
 - Surface migration from ad-hoc styles to design-system contracts
 - Theme-refresh readiness gates and migration burn-down tracking
 
@@ -39,7 +60,9 @@ Capture a short migration brief first:
    - Token + primitive refresh
    - Token + primitive + layout refresh
 
-If this brief does not exist, create/update `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` with it before major migration work.
+If this brief does not exist, record the durable migration boundary in the
+scenario's existing `ARCHITECTURE.md` or `PROBLEMS.md` before major work. Do
+not create a standalone `EXPERIENCE-AUDIT.md` for a temporary brief.
 
 ---
 
@@ -75,7 +98,8 @@ rg "legacy-|old-|ko-|app-" scenarios/{{TARGET}}/ui/src --type tsx --type css
 rg "useState\(" scenarios/{{TARGET}}/ui/src --type tsx -c | sort -t: -k2 -nr | head -20
 ```
 
-Record findings in `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md`.
+Record durable findings in the scenario's existing architecture/problem doc;
+use a legacy `COHERENCE-NOTES.md` only as migration input.
 
 ---
 
@@ -95,10 +119,10 @@ surfaces/*                    # Feature/page composition only
 ```
 
 Ownership rules:
-1. `shared/theme` owns visual language values.
-2. `shared/ui/primitives` owns base interaction and variant contracts.
-3. `shared/ui/composites` owns repeated multi-part patterns.
-4. `surfaces/*` may assemble, but should not invent new base primitives.
+1. `path:shared/theme` owns visual language values.
+2. `path:shared/ui/primitives` owns base interaction and variant contracts.
+3. `path:shared/ui/composites` owns repeated multi-part patterns.
+4. `path:surfaces/*` may assemble, but should not invent new base primitives.
 
 ---
 
@@ -127,7 +151,7 @@ Ownership rules:
 
 Temporary dual styling is allowed only when all three are true:
 1. Old and new contracts are clearly named.
-2. Deprecation intent is documented in `COHERENCE-NOTES.md`.
+2. Deprecation intent is documented in the canonical architecture/problem doc.
 3. Removal criteria are tracked (usage count, target phase, owner).
 
 Do not leave permanent mixed contracts.
@@ -153,8 +177,8 @@ When visual language changes, documentation must reflect the new contract in the
 Required updates:
 1. Update `scenarios/{{TARGET}}/PRD.md` if visual identity/branding language changed.
 2. Update `scenarios/{{TARGET}}/README.md` UI descriptions (and screenshots if present) so they match the shipped interface.
-3. Update `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md` with the migration brief and post-migration flow/readability outcomes.
-4. Update `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md` with old-vs-new style contract notes and remaining debt.
+3. Update the canonical architecture/problem doc with the migration brief and post-migration flow/readability outcomes.
+4. Update the canonical architecture/problem doc with old-vs-new style contract notes and remaining debt.
 
 Rule:
 - If screenshots, branding language, or UX claims are stale after migration, the migration is not complete.
@@ -163,7 +187,7 @@ Rule:
 
 ### **10. Convergence Scorecard (Use Every Loop)**
 
-Track these indicators in `COHERENCE-NOTES.md`:
+Track these indicators in the canonical architecture/problem document:
 
 | Indicator | Target |
 |----------|--------|
@@ -198,12 +222,11 @@ Use visited-tracker for systematic migration loops:
 visited-tracker least-visited --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --limit 10
 
 # Mark files as reviewed after migration work
-visited-tracker visit <file-path> --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --note "migrated to primitive contracts"
+visited-tracker visit "<file-path>" --location scenarios/{{TARGET}}/ui --tag ui-design-system-migration --note "migrated to primitive contracts"
 ```
 
-Also keep these docs current:
-- `scenarios/{{TARGET}}/docs/internal/COHERENCE-NOTES.md`
-- `scenarios/{{TARGET}}/docs/internal/EXPERIENCE-AUDIT.md`
+Keep the canonical architecture/problem document current. Legacy coherence or
+experience audit files are optional migration inputs, not required outputs.
 
 ---
 

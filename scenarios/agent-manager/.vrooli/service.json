@@ -1,11 +1,48 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "local_read_only",
+    "default_mode": "personal_local",
+    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli"],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "agent-manager",
+    "audience": "scenario-authenticator:agent-manager",
+    "offline": true,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "agent-manager:read", "effect": "read", "agent_eligible": true},
+      {"id": "agent-manager:write", "effect": "write", "agent_eligible": false},
+      {"id": "agent-manager:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": false
+  },
   "service": {
     "parent": "vrooli",
     "name": "agent-manager",
     "displayName": "Agent Manager",
     "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
+    "platform_capabilities": {
+      "agent-orchestration": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-agent-manager-api",
+          "evidence": "Linux module and handler contract tests; host qualification is not claimed"
+        },
+        "macos": {
+          "status": "unqualified",
+          "mechanism": "portable-go-api-with-platform-guarded-host-probes",
+          "evidence": "darwin cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "unqualified",
+          "mechanism": "portable-go-api-with-platform-guarded-host-probes",
+          "evidence": "windows cross-build; no real-host qualification"
+        }
+      }
+    },
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -48,14 +85,8 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 36238,
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "port": 25100,
-      "range": "25000-29999"
+      "port": 21238,
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -66,7 +97,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
+      "startup_grace_period": 30000,
       "checks": [
         {
           "name": "api_endpoint",
@@ -82,145 +113,60 @@
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
           "interval": 30000,
-          "critical": false
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/agent-manager-api"]
-          },
-          {
-            "type": "cli",
-            "command": "agent-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && PROJECT_ROOT=\"${PROJECT_ROOT:-${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}}\" ./agent-manager-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/agent-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute agent-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'agent-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
+          "critical": true
         }
       ]
     }
   },
   "dependencies": {
     "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": false,
-        "required": false,
-        "description": "Uses embedded local SQLite file (no standalone resource daemon required)"
-      },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for Claude Code agent execution"
+        "description": "Runner adapter for Claude Code agent execution",
+        "startup_policy": "try_start"
       },
       "codex": {
         "type": "codex",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for OpenAI Codex agent execution"
+        "description": "Runner adapter for OpenAI Codex agent execution",
+        "startup_policy": "try_start"
       },
       "opencode": {
         "type": "opencode",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for open-source code model execution"
+        "description": "Runner adapter for open-source code model execution",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "Local LLM for recommendation extraction from investigation outputs"
+        "description": "Local LLM for recommendation extraction from investigation outputs",
+        "model_roles": [
+          "code.local",
+          "embedding.default"
+        ],
+        "startup_policy": "try_start",
+        "degraded_behavior": "Semantic conversation retrieval is unavailable; SQLite FTS and bounded regex search remain operational."
+      },
+      "antigravity": {
+        "type": "declared-resource",
+        "enabled": true,
+        "required": false,
+        "description": "Optional Antigravity agent runner detected and governed by Scenario Dependency Analyzer.",
+        "startup_policy": "try_start"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "description": "Variant-isolated vector storage for the conversation recall index.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Semantic and hybrid vector legs are unavailable; SQLite FTS and bounded regex search remain operational."
       }
     },
     "scenarios": {
@@ -228,8 +174,252 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
+        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution",
+        "startup_policy": "must_start"
+      },
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Publishes non-blocking observed receipts for declared Agent Manager operations",
+        "config": {
+          "declarations": [
+            ".vrooli/vrooli-events/receipt-capture.json"
+          ]
+        },
+        "startup_policy": "try_start"
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=0.0.1",
+        "description": "Executes bounded, deterministic-first cohort supervision evaluations",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Watches preserve their cursors and emit an unavailable observation until Program Runtime recovers."
+      },
+      "source-ledger": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "versionRange": ">=0.0.1",
+        "description": "Receives bounded supervision outcome projections while Agent Manager retains canonical state",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Canonical outcomes remain durable in Agent Manager and report an explicit projection degradation reason."
       }
     }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data, including canonical runs/events and logically regenerable conversation-search projection tables, shares this SQLite container. The entry remains non-regenerable because canonical rows must never be reclaimed with the projection.",
+        "budget": {
+          "max_bytes": "6GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "api_data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned API data observed in the canonical API data directory.",
+        "subpath": "api/data",
+        "budget": {
+          "max_bytes": "6GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under Agent Manager's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
+      },
+      "run_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "runs",
+        "regenerable": false,
+        "rationale": "Per-run transcripts, scratchpads, and recovery metadata are agent-manager-owned operational evidence. Active runs and leased recovery state are protected; terminal directories are owner-pruned after the configured review window.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "32GiB",
+          "rationale": "The reconciler removes terminal run state after the seven-day recovery window; the byte ceiling is an alarm-only guard because run evidence is durable and must not be reclaimed by a generic sweep."
+        }
+      },
+      "conversation_search_qdrant": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "8GiB",
+          "max_age": "72h",
+          "rationale": "Variant-isolated Qdrant generations are owned by the conversation-search provider. Active and rollback generations are protected; failed or expired generations require preview and approval before Qdrant API deletion."
+        },
+        "rationale": "Qdrant is an external derived store. Physical allocation is measured by storage-manager; lifecycle state and deletion authorization remain in the agent-manager generation catalog."
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "conversation-search-qdrant",
+        "name": "Conversation-search Qdrant generation owner",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "enabled",
+        "default_approval": "operator",
+        "storage_entries": ["conversation_search_qdrant"]
+      }
+    ],
+    "rationale": "Canonical state is physically non-regenerable. Conversation-search catalog, FTS, checkpoint, generation, and content-free bounded telemetry tables are logical projections inside that protected SQLite file; they may be rebuilt or reclaimed only through domain-owned operations, and whole-file cleanup remains forbidden. The governed optional Qdrant dependency owns variant-isolated semantic generations under storage.Collection(\"conversation-search\"); failed shadows roll back and successful retired generations remain for reviewed rollback."
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
+  "environment": {
+    "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db",
+    "AGENT_MANAGER_WORKSPACE_ID": "local"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/vrooli-events",
+        "field": "agent-manager-webhook-secret",
+        "label": "Agent Manager program-event webhook secret",
+        "description": "Generated shared HMAC credential for receiving signed program-runtime events.",
+        "required": false,
+        "provisioning": "generated",
+        "tiers": [
+          "tier-1-local"
+        ]
+      }
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "readiness": {
+          "type": "http",
+          "path": "/health",
+          "timeout_ms": 90000
+        },
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "depends_on": [
+          {
+            "component": "api",
+            "wait": "ready"
+          }
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/agent-manager/SKILL.md",
+      "programs": [
+        "agent-manager.friction-digest",
+        "agent-manager.conversation-recall",
+        "agent-manager.supervision-evaluate",
+        "agent-manager.supervision-case-read",
+        "agent-manager.supervision-experiment-read"
+      ]
+    },
+    "improve": {
+      "source": "skills/agent-manager-improve/SKILL.md",
+      "programs": [
+        "agent-manager.setpoint-read",
+        "agent-manager.friction-digest"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/investigating-agent-runs/SKILL.md"
+      },
+      {
+        "source": "skills/reviewing-agent-run-efficiency/SKILL.md"
+      },
+      {
+        "source": "skills/agent-manager-plan-family-supervision/SKILL.md",
+        "programs": [
+          "agent-manager.supervision-evaluate"
+        ]
+      }
+    ],
+    "learning": {
+      "scope": "agent-manager-usage"
+    },
+    "contract": [
+      {
+        "source": "skills/agent-manager-process-investigation/SKILL.md"
+      },
+      {
+        "source": "skills/agent-manager-process-investigation-apply/SKILL.md"
+      }
+    ]
   }
 }

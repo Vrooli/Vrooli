@@ -1,9 +1,9 @@
 package status
 
 import (
-	"github.com/vrooli/cli-core/cliutil"
-
 	"test-genie/cli/internal/apijson"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Client provides API access to health endpoints.

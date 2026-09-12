@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "name": "workflow-health-overview-smoke",
+    "description": "Observer smoke workflow for the workflow-health operator UI. It opens the live scenario, waits for the workflow overview surface, and asserts the app title so Test Genie's delegated workflow phase has an executable self-check without requiring mutating confirmation or routed test data.",
+    "requirement": "REQ-P1-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "operator-ui-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-overview",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "workflow-health",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to workflow-health overview" }
+      }
+    },
+    {
+      "id": "wait-overview",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workflow.overview",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Workflow overview visible" }
+      }
+    },
+    {
+      "id": "assert-title",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/app.title",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "Workflow Health" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Workflow Health title did not render on the operator overview."
+        },
+        "metadata": { "label": "Assert operator title renders" }
+      }
+    }
+  ]
+}

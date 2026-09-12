@@ -15,6 +15,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+
+	chartsSchema "chart-generator-api/internal/charts"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -69,11 +71,13 @@ func main() {
 	// Initialize database connection (optional for chart generation)
 	var db *sql.DB
 
-	// Check if database is configured
-	if os.Getenv("POSTGRES_HOST") != "" || os.Getenv("POSTGRES_URL") != "" {
+	// Check if database is configured through the canonical seam.
+	dsn, dsnErr := database.ResolvePostgresDSN(os.Getenv)
+	if dsnErr == nil && dsn != "" {
 		var err error
 		db, err = database.Connect(context.Background(), database.Config{
 			Driver: "postgres",
+			DSN:    dsn,
 		})
 		if err != nil {
 			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
@@ -83,6 +87,11 @@ func main() {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
+			if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(chartsSchema.Schema)); err != nil {
+				log.Printf("⚠️  Database schema initialization failed: %v (continuing without database)", err)
+				_ = db.Close()
+				db = nil
+			}
 			log.Println("🎉 Database connection pool established successfully!")
 		}
 	} else {
@@ -134,6 +143,17 @@ func main() {
 
 	// Interactive chart endpoint (P1 feature - animation and interactivity)
 	r.HandleFunc("/api/v1/charts/interactive", generateInteractiveChartHandler).Methods("POST")
+
+	// Serve generated chart files so browser-automation-studio can screenshot
+	// PNG exports (it navigates to scenario=chart-generator,path=<renderedURLPrefix>...).
+	// Read-only GET of the dedicated render root; must precede the UI catch-all.
+	if err := os.MkdirAll(renderRootDir, 0o755); err != nil {
+		log.Printf("⚠️ Failed to create chart render dir %s: %v", renderRootDir, err)
+	}
+	r.PathPrefix(renderedURLPrefix).Handler(
+		http.StripPrefix(renderedURLPrefix, http.FileServer(http.Dir(renderRootDir))),
+	)
+	log.Printf("🖼️  Rendered chart files served from %s at %s", renderRootDir, renderedURLPrefix)
 
 	// Serve static UI files - must come after API routes
 	// This catches all unmatched routes and serves the UI

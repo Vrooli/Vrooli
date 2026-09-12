@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.claims;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims;claims_v1";
+
+// ClaimsService owns the reusable claim library and its evidence lifecycle.
+service ClaimsService {
+  rpc ListClaims(ListClaimsRequest) returns (ListClaimsResponse);
+  rpc ListDraftClaims(ListDraftClaimsRequest) returns (ListDraftClaimsResponse);
+  rpc CreateClaim(CreateClaimRequest) returns (CreateClaimResponse);
+  rpc CiteClaim(CiteClaimRequest) returns (CiteClaimResponse);
+  rpc VerifyClaim(VerifyClaimRequest) returns (VerifyClaimResponse);
+  rpc SweepClaims(SweepClaimsRequest) returns (SweepClaimsResponse);
+  rpc GetClaimCoverage(GetClaimCoverageRequest) returns (GetClaimCoverageResponse);
+  rpc ExtractClaimProposals(ExtractClaimProposalsRequest) returns (ExtractClaimProposalsResponse);
+  rpc ListClaimProposals(ListClaimProposalsRequest) returns (ListClaimProposalsResponse);
+  rpc DecideClaimProposal(DecideClaimProposalRequest) returns (DecideClaimProposalResponse);
+}
+
+message Claim {
+  string id = 1;
+  string statement = 2;
+  string verification_status = 3;
+  string kind = 4;
+}
+
+message ListClaimsRequest {}
+
+message ListClaimsResponse {
+  repeated Claim claims = 1;
+}
+message ListDraftClaimsRequest {
+  string draft_id = 1;
+}
+message ListDraftClaimsResponse {
+  repeated Claim claims = 1;
+}
+
+message CreateClaimRequest {
+  string statement = 1;
+  string kind = 2;
+  string evidence_kind = 3;
+  string reference = 4;
+  string command = 5;
+  string expected_result = 6;
+  string observed_at = 7;
+}
+message CreateClaimResponse {
+  Claim claim = 1;
+}
+
+message CiteClaimRequest {
+  string draft_id = 1;
+  string claim_id = 2;
+  int32 span_start = 3;
+  int32 span_end = 4;
+  string body = 5;
+}
+message CiteClaimResponse {}
+
+message VerifyClaimRequest {
+  string id = 1;
+}
+message VerifyClaimResponse {
+  Claim claim = 1;
+}
+message SweepClaimsRequest {}
+message SweepClaimsResponse {
+  repeated Claim claims = 1;
+}
+
+message TextSpan {
+  int32 start = 1;
+  int32 end = 2;
+  string claim_id = 3;
+  bool supported = 4;
+}
+message GetClaimCoverageRequest {
+  string draft_id = 1;
+  string body = 2;
+}
+message GetClaimCoverageResponse {
+  repeated TextSpan supported_spans = 1;
+  repeated TextSpan uncovered_spans = 2;
+}
+
+// ClaimProposal is advisory extracted text. It is not a claim and does not
+// satisfy the approval gate until an operator creates and verifies a claim.
+message ClaimProposal {
+  string id = 1;
+  string draft_id = 2;
+  string statement = 3;
+  string status = 4;
+  string created_at = 5;
+  string decided_at = 6;
+}
+message ExtractClaimProposalsRequest {
+  string draft_id = 1;
+  string body = 2;
+}
+message ExtractClaimProposalsResponse {
+  repeated ClaimProposal proposals = 1;
+}
+message ListClaimProposalsRequest {
+  string draft_id = 1;
+}
+message ListClaimProposalsResponse {
+  repeated ClaimProposal proposals = 1;
+}
+message DecideClaimProposalRequest {
+  string id = 1;
+  string status = 2;
+}
+message DecideClaimProposalResponse {
+  ClaimProposal proposal = 1;
+}

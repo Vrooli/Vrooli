@@ -15,22 +15,10 @@ func Run(args []string) error {
 	}
 
 	switch args[0] {
-	case "report":
-		return runReport(args[1:])
-	case "validate":
-		return runValidate(args[1:])
 	case "sync":
 		return runSync(args[1:])
-	case "manual-log":
-		return runManualLog(args[1:])
-	case "lint-prd":
-		return runLintPRD(args[1:])
-	case "drift":
-		return runDrift(args[1:])
-	case "phase", "phase-inspect":
-		return runPhaseInspect(args[1:])
-	case "init":
-		return runInit(args[1:])
+	case "report", "validate", "manual-log", "lint-prd", "drift", "phase", "phase-inspect", "init":
+		return fmt.Errorf("`test-genie requirements %s` moved to business-health (the business-contract provider).\n\nUse `vrooli scenario requirements %s <scenario>` (routed automatically) or the business-health CLI directly.", args[0], args[0])
 	case "help", "-h", "--help":
 		return printUsage()
 	default:
@@ -42,16 +30,14 @@ func printUsage() error {
 	fmt.Println(`Usage: test-genie requirements <command>
 
 Commands:
-  report       Generate requirement coverage report (json|markdown|trace|summary)
-  validate     Validate requirement files (schema + semantics)
-  sync         Sync requirement statuses from local evidence
-  manual-log   Record a manual validation entry
-  lint-prd     Check PRD ↔ requirements mapping
-  drift        Detect drift between snapshots, evidence, and requirements
-  phase        Inspect validations for a single phase
-  init         Scaffold a requirements/ registry
+  sync         Sync requirement statuses from local evidence (the run-coupled
+               evidence writer; fires automatically inside suite execution)
 
-Run 'test-genie requirements <command> -h' for command-specific options.`)
+The contract-side verbs (validate, report, lint-prd, drift, phase, init,
+manual-log) live in business-health — use
+'vrooli scenario requirements <verb> <scenario>' or the business-health CLI.
+
+Run 'test-genie requirements sync -h' for options.`)
 	return nil
 }
 

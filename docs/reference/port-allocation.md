@@ -1,0 +1,187 @@
+# Port Allocation
+
+This page is the canonical reference for scenario listener ports in Vrooli.
+Templates, scaffolding, scenario-auditor config rules, and the manifest
+validator all point here rather than duplicating policy.
+
+## TL;DR
+
+Declare scenario ports in `.vrooli/service.json` using these canonical bands.
+All bands sit **below 32768** so no listener overlaps the Linux ephemeral
+range (the OS can otherwise steal the number as an outbound source port while
+the scenario is down, which surfaces as intermittent "port already in use"
+restart failures).
+
+| Role      | Env var     | Canonical band   |
+|-----------|-------------|------------------|
+| API       | `API_PORT`  | `15000-19999`    |
+| UI        | `UI_PORT`   | `20000-24999`    |
+| WebSocket | `WS_PORT`   | `25000-29999`    |
+| Reserved headroom (future roles) | —           | `30000-32767`    |
+
+Fixed ports (e.g. Cloudflare-tunneled UIs) pin a single value inside the band
+for that role.
+
+The `ports` block declares listener ports that lifecycle should allocate and
+that runtime supervision should expect to observe as bound sockets. It is not
+endpoint metadata. HTTP routes, WebSocket routes, gRPC services, and UI proxy
+paths can share one listener; describe those user-facing endpoints in
+`.vrooli/endpoints.json` rather than adding extra `service.json` ports.
+
+## Why 32768 matters
+
+Every operating system maintains an "ephemeral" port pool that the kernel
+allocates as **source** ports for outbound TCP/UDP connections. Defaults vary:
+
+| OS      | Default ephemeral range | How to verify                                                                |
+|---------|-------------------------|------------------------------------------------------------------------------|
+| Linux   | `32768-60999`           | `cat /proc/sys/net/ipv4/ip_local_port_range`                                 |
+| macOS   | `49152-65535`           | `sysctl net.inet.ip.portrange.first net.inet.ip.portrange.last`              |
+| Windows | `49152-65535`           | `netsh int ipv4 show dynamicport tcp`                                        |
+| IANA (RFC 6335) | `49152-65535`  | — (specification, not an enforced value)                                     |
+
+Linux's default starts **much lower** than the IANA recommendation and than
+any other supported OS. A listener port in `32768-60999` on Linux is a
+roulette bet: whenever the scenario is down, another process's outbound
+socket can consume that port as its source, leaving `bind()` to fail on the
+next start with no visible permanent listener to blame.
+
+This class of failure is the reason the canonical bands stop at `32767`.
+
+## How Vrooli enforces the policy
+
+Three layers work together so a regression is caught as early as possible:
+
+1. **Manifest validator** — `internal/scenario/validate_ports.go` runs at
+   `ReadService` time. It rejects any fixed port or range that overlaps the
+   **live** OS ephemeral window (detected once per process via
+   `internal/portspec.OSEphemeralRange`). Broken manifests fail fast with a
+   link back to this document.
+2. **Auditor rule** — `scenarios/scenario-auditor/api/rules/config/service_ports.go`
+   runs during scenario-auditor validation. It applies the same canonical-band
+   rules against a **static reference** ephemeral range (Linux's default
+   `32768-60999`) so CI output is reproducible regardless of the machine
+   running the audit. It also checks whether declared port env vars appear in
+   runtime listener-startup source and can optionally correlate findings with
+   historical runtime evidence.
+3. **Template defaults** — `templates/scenarios/react-vite/.vrooli/service.json`
+   and `templates/scenarios/landing-page-react-vite/.vrooli/service.json`
+   declare the canonical bands. New scenarios inherit them automatically.
+
+### Runtime evidence artifact
+
+Static validation does not start scenarios. When you want scenario-auditor to
+consider historical runtime evidence, capture the public maintenance JSON and
+pass it through the auditor environment:
+
+```bash
+vrooli locks --json > /tmp/vrooli-runtime-port-evidence.json
+SCENARIO_AUDITOR_RUNTIME_PORT_EVIDENCE_PATH=/tmp/vrooli-runtime-port-evidence.json \
+  scenario-auditor standards scan <scenario-name> --wait
+```
+
+The artifact is intentionally a CLI JSON snapshot, not a direct read of
+`runtime.db`. The auditor treats it as evidence, not proof: repeated
+`not_listening` observations can raise confidence that a declared listener is
+stale, while healthy listener evidence can reduce ambiguity.
+
+### Escape hatch
+
+If a manifest legitimately must live outside the policy (e.g., a legacy
+integration you are in the middle of migrating), set
+`VROOLI_PORT_VALIDATION=off` when loading. This is intentionally limited to
+the manifest validator — the auditor still flags the finding. Do not leave it
+on permanently.
+
+## Failure modes this prevents
+
+The following three symptoms all collapse onto the same "port already in use"
+error message in the current CLI; the port-allocation policy addresses each.
+
+1. **Ephemeral-range steal (Linux only).** Kernel assigns your listener's port
+   as an outbound source while the scenario is stopped, so `bind()` fails on
+   restart. Fix: keep every listener below 32768 (this policy).
+2. **Orphan listeners from unclean termination.** A leftover child process
+   continues listening on the fixed port after the CLI terminated
+   abnormally. Fix (unrelated to this page): the start-time cleanup path in
+   `internal/lifecycle/lifecycle.go` now kills env-less orphans on canonical
+   ports; see that code's tests for the contract.
+
+## Allocation authority
+
+Port ownership lives in the scenario runtime registry. Lifecycle acquires a
+registry `PortClaim` for each declared port before any process starts. The
+registry — not files on disk — decides which scenario owns which port:
+
+- `BuildEnvironmentWithRuntimeClaims` in `internal/ports/ports.go` calls
+  `AcquirePortClaim` first. If another active instance holds the port, the
+  call fails with `active registry claim already owns port <N>` and no
+  process is launched.
+- `ensurePortBindable` then runs a single socket probe. The only thing it
+  can reject is a *foreign* TCP listener (a stale process from another
+  scenario or external tool that is currently bound to the port). A listener
+  from the same scenario is treated as a recoverable restart-in-progress.
+- The runtime supervisor renews the lease and observes listener evidence
+  while the scenario is running. A claim becomes non-authoritative when its
+  lease is stale, the host has rebooted, or the listener disappears — all
+  surfaced by `vrooli locks --json` and `vrooli diagnose-port`.
+- Scenario lifecycle starts the runtime supervisor in `auto` mode by default
+  unless `VROOLI_RUNTIME_SUPERVISOR=off` is set. Persistent hosts should also
+  install the user service with `vrooli runtime supervisor install --user`;
+  the generated systemd unit records `VROOLI_SOURCE_ROOT` and runs from the
+  repository root so the supervisor can operate outside an interactive shell.
+
+Releases before the registry cut-over wrote `.port_<port>.lock` files in
+`~/.vrooli/state/scenarios/`. That layer is fully retired: nothing reads or
+writes lock files anymore, and the registry is the only ownership authority.
+`vrooli cleanup locks` sweeps any stray `.port_*.lock` files left by old
+installs as one-time data cleanup.
+
+## Cross-platform evidence
+
+Listener and process-liveness evidence is collected per-OS by
+`internal/network` (`TCPListenerSnapshot`) and `internal/process`
+(`IsPIDRunning`):
+
+| OS | Listener port set | PID attribution | Liveness |
+|---|---|---|---|
+| Linux | `/proc/net/tcp{,6}` (fork-free) | one `ss -ltnpH` | `kill(pid, 0)` + `/proc/<pid>/stat` zombie check (EPERM ⇒ alive) |
+| macOS | `netstat -an -p tcp` (one fork, all users) | one `lsof -iTCP -sTCP:LISTEN` (own user only) | `kill(pid, 0)` (EPERM ⇒ alive) |
+| Windows | `GetExtendedTcpTable` (iphlpapi, zero forks) | owner PID from the same table | `OpenProcess` + `WaitForSingleObject` (ACCESS_DENIED ⇒ alive) |
+
+When a source cannot answer, evidence degrades to *unknown* — reconcile never
+treats unknown as "not listening", so claims are never expired on missing
+evidence. Manual trial steps for a new mac/windows host: run
+`vrooli locks --json` and confirm (a) it completes in under a second, (b)
+bound claims of running scenarios show `listener_status: listening`, and (c)
+`strace`/`dtruss`-equivalent shows no per-claim subprocess storm (at most one
+netstat + one lsof on macOS; zero forks on Windows). `make cross-compile` is
+the compile-time gate.
+
+## Migration
+
+The `path:cmd/vrooli-ports-migrate` tool computes `newPort = oldPort - 15000` for
+any scenario UI port currently in `35xxx-36xxx` and rewrites
+`.vrooli/service.json` accordingly. Dry-run by default:
+
+```bash
+go run ./cmd/vrooli-ports-migrate         # print before→after table
+go run ./cmd/vrooli-ports-migrate --apply # write changes in-place
+go run ./cmd/vrooli-ports-migrate --json  # machine-readable output
+```
+
+Scenarios with public Cloudflare tunnels or other external consumers are
+flagged in the tool's output so the tunnel configuration can be updated in
+the same pass. The migration is idempotent — running it twice after a
+successful apply is a no-op.
+
+## See also
+
+- [`docs/operations/troubleshooting.md`](../operations/troubleshooting.md) —
+  `vrooli diagnose-port` for live conflict triage.
+- [`docs/reference/cli-commands.md`](cli-commands.md) — lifecycle commands that
+  surface port allocation.
+- `path:internal/portspec/` — constants and OS probe.
+- `internal/scenario/validate_ports.go` — validator.
+- `scenarios/scenario-auditor/api/rules/config/service_ports.go` — audit
+  rule.

@@ -1,17 +1,16 @@
 /**
- * CaptureDetailsPage — Full detail overlay for a capture.
+ * CaptureDetailsPage — Routed capture detail page.
  *
  * Shows the raw capture text, attachments at full size with lightbox,
- * classification triage, and metadata. Opened from sidebar CaptureCard
- * click or via deep-link (?detail=capture&id=...).
+ * classification triage, and metadata.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, RefreshCw, Trash2, MessageSquare } from "lucide-react";
+import { useParams } from "react-router-dom";
+import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
-import { CaptureTriage } from "../components/capture/capture-triage";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
@@ -19,20 +18,17 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { captureService } from "../services/capture-service";
 import { NoteEditor } from "../components/ui/note-editor";
 import { useCaptureStore } from "../stores/capture-store";
-import { useDetailSelectionStore } from "../stores/detail-selection-store";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
-import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
+import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
-import type { BacklogFormValues } from "../types";
-import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
-import { backlogService } from "../services/backlog-service";
-import { useBacklogStore } from "../stores";
+import { useAppBack } from "../app/routes/useAppBack";
+import { useGlobalKeyDown } from "../hooks/useGlobalKeyDown";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { captureOption } from "../components/session/context/session-context-refs";
 
 export function CaptureDetailsPage() {
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const { closeDetail } = useDetailNavigation();
-  const captureId = selection?.identifier;
+  const { captureId } = useParams<{ captureId: string }>();
+  const closeDetail = useAppBack();
 
   // Try to get from store first (instant for sidebar click-through)
   const storeCapture = useCaptureStore((s) =>
@@ -47,22 +43,17 @@ export function CaptureDetailsPage() {
   });
 
   const capture: Capture | undefined = storeCapture ?? fetchedCapture;
+  const attachToSession = useAttachToSessionAction(capture ? captureOption(capture) : null);
 
   const [isRetrying, setIsRetrying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const removeCapture = useCaptureStore((s) => s.removeCapture);
   const updateCapture = useCaptureStore((s) => s.updateCapture);
-  const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
 
   // Delete confirmation state
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const { getDeleteConfirmLevel } = useRuntimeConfig();
+  const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("capture");
 
   // Edit dialog state
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Lightbox state
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -80,61 +71,30 @@ export function CaptureDetailsPage() {
     }
   }, [captureId, updateCapture]);
 
-  const performDelete = useCallback(async () => {
-    if (!captureId) return;
-    setIsDeleting(true);
-    setShowDeleteDialog(false);
-    try {
-      await captureService.remove(captureId);
-      removeCapture(captureId);
-      closeDetail();
-    } catch {
-      setIsDeleting(false);
-    }
-  }, [captureId, removeCapture, closeDetail]);
-
   const handleDeleteClick = useCallback(() => {
-    if (getDeleteConfirmLevel("capture") === "none") {
-      performDelete();
-    } else {
-      setShowDeleteDialog(true);
-    }
-  }, [getDeleteConfirmLevel, performDelete]);
+    if (!captureId) return;
+    requestDelete({
+      entityName: captureId,
+      description: "Are you sure you want to delete this capture? This action cannot be undone.",
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await captureService.remove(captureId);
+          removeCapture(captureId);
+          closeDetail();
+        } catch (err) {
+          setIsDeleting(false);
+          throw err; // keep the confirm dialog open so the user can retry
+        }
+      },
+    });
+  }, [captureId, requestDelete, removeCapture, closeDetail]);
 
-  const handleEditItem = useCallback((prefill: BacklogFormValues) => {
-    setEditPrefill(prefill);
-    setSubmitError(null);
-    setShowEditDialog(true);
+  const handleLightboxKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setLightboxSrc(null);
   }, []);
-
-  const handleEditSubmit = useCallback(async (values: BacklogFormValues) => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const created = await backlogService.create({ ...values, suggestedSkills: [] });
-      upsertBacklogItem(created);
-      setShowEditDialog(false);
-      setEditPrefill(undefined);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create backlog item");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [upsertBacklogItem]);
-
-  const handleCaptureResolved = useCallback(() => {
-    closeDetail();
-  }, [closeDetail]);
-
-  // Close lightbox on Escape
-  useEffect(() => {
-    if (!lightboxSrc) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxSrc(null);
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [lightboxSrc]);
+  useGlobalKeyDown(handleLightboxKeyDown, { enabled: lightboxSrc !== null });
 
   if (!captureId) {
     return (
@@ -171,51 +131,46 @@ export function CaptureDetailsPage() {
     capture.status === "classified" && items.length > 0 ? "Classified" :
     "No action";
 
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      {capture.status === "failed" && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleRetry}
-          disabled={isRetrying}
-        >
-          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} />
-          Retry
-        </Button>
-      )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDeleteClick}
-        disabled={isDeleting}
-        className="text-red-400 hover:text-red-300"
-      >
-        {isDeleting ? (
-          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-        )}
-        Delete
-      </Button>
-    </div>
-  );
+  const primaryAction = capture.status === "failed" ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleRetry}
+      disabled={isRetrying}
+    >
+      <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isRetrying ? "animate-spin" : ""}`} />
+      Retry
+    </Button>
+  ) : undefined;
+
+  const menuActions = [
+    attachToSession.actionItem,
+    {
+      label: "Delete",
+      icon: <Trash2 />,
+      onSelect: handleDeleteClick,
+      disabled: isDeleting,
+      loading: isDeleting,
+      destructive: true,
+    },
+  ];
 
   return (
     <DetailPageLayout
       header={
         <DetailPageHeader
           entityType="Capture"
-          entityIcon={MessageSquare}
           title={capture.text.length > 80 ? capture.text.slice(0, 80) + "..." : capture.text}
           subtitle={formatRelativeTime(capture.created)}
           status={statusLabel}
           nodeId={null}
           lenses={[]}
-          actions={headerActions}
+          primaryAction={primaryAction}
+          menuActions={menuActions}
         />
       }
     >
+      {attachToSession.sheet}
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Full capture text */}
         <section>
@@ -291,20 +246,9 @@ export function CaptureDetailsPage() {
           </section>
         )}
 
-        {/* Triage suggestions */}
+        {/* Classification is reviewed on the proposal decision rail. */}
         {capture.status === "classified" && items.length > 0 && (
-          <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">
-              Suggested Items
-            </h2>
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <CaptureTriage
-                capture={capture}
-                onEditItem={handleEditItem}
-                onCaptureResolved={handleCaptureResolved}
-              />
-            </div>
-          </section>
+          <p className="text-sm text-violet-300">Proposals sent to the Decide stream.</p>
         )}
 
         {/* Metadata */}
@@ -355,35 +299,8 @@ export function CaptureDetailsPage() {
       )}
 
       {/* Delete confirmation dialog */}
-      {(() => {
-        const deleteLevel = getDeleteConfirmLevel("capture");
-        return deleteLevel !== "none" ? (
-          <ConfirmDialog
-            isOpen={showDeleteDialog}
-            onClose={() => setShowDeleteDialog(false)}
-            onConfirm={performDelete}
-            title="Delete Capture"
-            description="Are you sure you want to delete this capture? This action cannot be undone."
-            confirmationText={deleteLevel === "strong" ? capture.id : undefined}
-            confirmLabel="Delete"
-            isLoading={isDeleting}
-          />
-        ) : null;
-      })()}
+      <ConfirmDialog {...deleteDialogProps} />
 
-      {/* Edit before adding dialog */}
-      <BacklogFormDialog
-        isOpen={showEditDialog}
-        mode="create"
-        initialValues={editPrefill}
-        isSubmitting={isSubmitting}
-        submitError={submitError}
-        onClose={() => {
-          setShowEditDialog(false);
-          setEditPrefill(undefined);
-        }}
-        onSubmit={handleEditSubmit}
-      />
     </DetailPageLayout>
   );
 }

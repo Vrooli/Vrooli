@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-direction",
+  "deprecatedVersions": [
+    "2.0.0",
+    "2.1.1",
+    "2.1.0",
+    "1.0.0",
+    "2.1.2"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "2.1.1",
+    "2.1.0",
+    "2.0.0",
+    "1.0.0",
+    "2.1.2",
+    "2.1.3"
+  ],
+  "latest": "2.1.4",
+  "libraryId": "react-component-library:useDirection"
+}

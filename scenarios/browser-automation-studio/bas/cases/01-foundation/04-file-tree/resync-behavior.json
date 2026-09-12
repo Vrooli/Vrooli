@@ -21,12 +21,12 @@
     {
       "id": "e3",
       "source": "capture-initial-tree-state",
-      "target": "click-new-menu",
+      "target": "open-more-menu",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
       "id": "e4",
-      "source": "click-new-menu",
+      "source": "open-more-menu",
       "target": "assert-resync-button-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -57,12 +57,6 @@
     {
       "id": "e9",
       "source": "confirm-resync",
-      "target": "wait-for-tree-refresh",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e10",
-      "source": "wait-for-tree-refresh",
       "target": "assert-tree-still-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -81,11 +75,17 @@
   ],
   "metadata": {
     "description": "Tests the resync-from-disk functionality: verifies that the resync operation rebuilds the file index and is accessible via the UI menu",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requirements_json": "[\"BAS-WORKFLOW-PERSIST-CRUD\"]",
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go",
+      "spec_entry_id": "project-detail"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Resync Behavior",
+    "version": "1"
   },
   "nodes": [
     {
@@ -109,9 +109,6 @@
           "label": "Switch to File Tree view"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "switch-to-tree-view"
     },
@@ -146,24 +143,21 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/workflows.newButton"
+          "selector": "@selector/projects.moreMenuButton"
         },
         "metadata": {
-          "label": "Open New file menu to access resync"
+          "label": "Open More menu to access resync"
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 300
-      },
-      "id": "click-new-menu"
+      "id": "open-more-menu"
     },
     {
       "action": {
         "assert": {
           "failure_message": "Resync from Disk button should be visible in the New menu",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "button:has-text('Resync From Disk')",
+          "selector": "@selector/projects.resyncFilesButton",
           "timeout_ms": 3000
         },
         "metadata": {
@@ -176,15 +170,12 @@
     {
       "action": {
         "click": {
-          "selector": "button:has-text('Resync From Disk')"
+          "selector": "@selector/projects.resyncFilesButton"
         },
         "metadata": {
           "label": "Click Resync from Disk"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "click-resync-button"
     },
@@ -198,9 +189,6 @@
           "selector": "@selector/dialogs.responsive.content",
           "timeout_ms": 5000
         }
-      },
-      "execution_settings": {
-        "wait_after_ms": 300
       },
       "id": "wait-for-confirm-dialog"
     },
@@ -229,22 +217,7 @@
         },
         "type": "ACTION_TYPE_CLICK"
       },
-      "execution_settings": {
-        "wait_after_ms": 2000
-      },
       "id": "confirm-resync"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for tree to refresh after resync"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-for-tree-refresh"
     },
     {
       "action": {

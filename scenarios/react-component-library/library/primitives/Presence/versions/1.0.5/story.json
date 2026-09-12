@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Ready to continue",
+        "initial": true,
+        "present": true
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PresenceAnatomy"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Ready to continue"
+        }
+      ],
+      "id": "present",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Entering and entered",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Ready to continue",
+        "initial": true,
+        "keepMounted": true,
+        "present": false
+      },
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "PresenceBoundary"
+        }
+      },
+      "expect": [
+        {
+          "attribute": "data-presence-hidden",
+          "kind": "attribute",
+          "selector": "[data-rcl-presence]",
+          "value": "true"
+        }
+      ],
+      "id": "absent",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Unmounted after exit",
+      "role": "boundary"
+    }
+    ,
+    {"id":"empty","name":"Empty presence","args":{"children":""},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading presence","args":{"state":"loading"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Presence error","args":{"state":"error"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long presence content","args":{"children":"A deliberately long presence description that must wrap cleanly"},"expect":[{"kind":"text","value":"Ready to continue"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Presence"
+}

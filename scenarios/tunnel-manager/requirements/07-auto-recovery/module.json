@@ -1,0 +1,97 @@
+{
+  "_metadata": {
+    "module": "recovery",
+    "description": "Auto-recovery engine (live): restart cloudflared / re-push config with exponential backoff + circuit breaker as the single authoritative restart owner, with a persisted recovery event log.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RECOV-001",
+      "title": "Restart cloudflared / re-push config on /ready failure or HA=0",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "recovery",
+      "criticality": "P0",
+      "description": "On a /ready failure or HA-connections=0 the engine takes a recovery action (restart cloudflared or re-push config) live, driven by the failure classification.",
+      "tags": [
+        "recovery",
+        "live",
+        "cloudflared"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "RECOV-002",
+      "title": "Apply exponential backoff and a circuit breaker to recovery attempts",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "recovery",
+      "criticality": "P0",
+      "description": "Successive recovery attempts back off exponentially, and a circuit breaker stops further automatic restarts after a threshold of consecutive failures, surfacing an alert instead.",
+      "tags": [
+        "backoff",
+        "circuit-breaker"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "RECOV-003",
+      "title": "Act as the single authoritative owner of cloudflared restart",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "recovery",
+      "criticality": "P0",
+      "description": "Cloudflared restart is mutually exclusive to the recovery engine so concurrent or external restarts (e.g. vrooli-autoheal, now alert-only) cannot race the engine.",
+      "tags": [
+        "single-owner",
+        "mutual-exclusion"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
+        }
+      ]
+    },
+    {
+      "id": "RECOV-004",
+      "title": "Persist a recovery event log of attempts, actions, and outcomes",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "recovery",
+      "criticality": "P1",
+      "description": "Each recovery attempt records trigger, action, outcome, and timestamps in the recovery_events table for post-incident review.",
+      "tags": [
+        "event-log",
+        "sqlite",
+        "audit-trail"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "implemented",
+          "ref": "api/internal/recovery/sqlite_test.go"
+        }
+      ]
+    }
+  ]
+}

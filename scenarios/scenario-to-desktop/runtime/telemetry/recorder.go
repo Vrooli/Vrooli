@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
 
 // Record represents a single telemetry event in JSONL format.

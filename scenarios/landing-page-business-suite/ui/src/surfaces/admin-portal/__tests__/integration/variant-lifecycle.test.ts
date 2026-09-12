@@ -16,15 +16,13 @@ import {
   type VariantFormState,
 } from '../../controllers/variantEditorController';
 import * as variantsApi from '../../../../shared/api/variants';
-import * as sectionsApi from '../../../../shared/api/sections';
 import type { Variant, ContentSection, VariantSpace } from '../../../../shared/api';
 
 // Mock API modules
 vi.mock('../../../../shared/api/variants');
-vi.mock('../../../../shared/api/sections');
 
 const mockGetVariant = vi.mocked(variantsApi.getVariant);
-const mockGetAdminSections = vi.mocked(sectionsApi.getAdminSections);
+const mockGetVariantSections = vi.mocked(variantsApi.getVariantSections);
 
 const createMockVariant = (overrides: Partial<Variant> = {}): Variant => ({
   id: 1,
@@ -41,6 +39,7 @@ const createMockVariant = (overrides: Partial<Variant> = {}): Variant => ({
 const createMockSection = (overrides: Partial<ContentSection> = {}): ContentSection => ({
   id: 1,
   variant_id: 1,
+  key: 'section-1-hero',
   section_type: 'hero',
   content: {},
   order: 0,
@@ -68,7 +67,7 @@ describe('Variant Lifecycle Integration', () => {
       ];
 
       mockGetVariant.mockResolvedValue(mockVariant);
-      mockGetAdminSections.mockResolvedValue({ sections: mockSections });
+      mockGetVariantSections.mockResolvedValue({ sections: mockSections });
 
       // Load data
       const data = await loadVariantEditorData('hero-test');
@@ -89,7 +88,7 @@ describe('Variant Lifecycle Integration', () => {
     it('handles variant without sections gracefully', async () => {
       const mockVariant = createMockVariant();
       mockGetVariant.mockResolvedValue(mockVariant);
-      mockGetAdminSections.mockResolvedValue({ sections: [] });
+      mockGetVariantSections.mockResolvedValue({ sections: [] });
 
       const data = await loadVariantEditorData('test-variant');
 
@@ -97,11 +96,12 @@ describe('Variant Lifecycle Integration', () => {
       expect(data.sections).toHaveLength(0);
     });
 
-    it('throws error when variant has no ID', async () => {
-      const invalidVariant = { ...createMockVariant(), id: undefined } as unknown as Variant;
-      mockGetVariant.mockResolvedValue(invalidVariant);
+    it('supports JSON-backed variants without a numeric database ID', async () => {
+      const jsonBackedVariant: Variant = { ...createMockVariant(), id: undefined };
+      mockGetVariant.mockResolvedValue(jsonBackedVariant);
+      mockGetVariantSections.mockResolvedValue({ sections: [] });
 
-      await expect(loadVariantEditorData('test')).rejects.toThrow('Variant payload missing ID');
+      await expect(loadVariantEditorData('test')).resolves.toEqual({ variant: jsonBackedVariant, sections: [] });
     });
   });
 

@@ -358,8 +358,8 @@ func (r *FailureReport) DiagnosticCommands() []DiagnosticCommand {
 				Category:    "debug",
 			},
 			DiagnosticCommand{
-				Description: "Check network connectivity to telemetry endpoint",
-				Command:     "curl -v http://127.0.0.1:8080/api/v1/deployment/telemetry",
+				Description: "Check network connectivity to the Connect telemetry endpoint",
+				Command:     "curl -v http://127.0.0.1:8080/vrooli.scenario_to_desktop.v1.domain.TelemetryService/IngestTelemetry",
 				Category:    "check",
 			},
 		)

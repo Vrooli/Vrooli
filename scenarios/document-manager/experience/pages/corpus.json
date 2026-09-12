@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": { "id": "corpus", "title": "Corpus", "routes": ["/corpus"], "purpose": "Browse live collections and content-addressed documents with privacy, federation, and processing locality visible in the default view.", "prd_refs": ["OT-P0-023", "OT-P0-024", "OT-P0-025"] },
+  "priorities": [
+    { "statement": "Privacy and federation policy are visible on every collection row." },
+    { "statement": "Document identity and processing locality are visible without opening a document." },
+    { "statement": "Empty and error states explain whether the corpus is empty or unavailable." }
+  ],
+  "states": [
+    { "id": "default", "description": "Collections and documents are loaded from the corpus API." },
+    { "id": "empty", "description": "The API is reachable but has no collections or documents." },
+    { "id": "error", "description": "The corpus API failed and the error is visible." }
+  ],
+  "elements": [
+    { "id": "corpus-region", "role": "region", "name": "Corpus" },
+    { "id": "collection-list", "role": "list", "name": "Collections" },
+    { "id": "document-list", "role": "list", "name": "Documents" },
+    { "id": "locality-status", "role": "status", "name": "Where processed" }
+  ],
+  "claims": [
+    { "id": "corpus-region-present", "type": "element-present", "statement": "The corpus page exposes a named region with collections and documents.", "tier": "machine", "elements": ["corpus-region", "collection-list", "document-list"], "states": ["default", "empty", "error"] },
+    { "id": "privacy-visible", "type": "element-present", "statement": "A document's privacy class is visible in the document list.", "tier": "machine", "elements": ["document-list"], "states": ["default"] },
+    { "id": "locality-visible", "type": "element-present", "statement": "Document processing locality is conveyed by a readable label in the list.", "tier": "machine", "elements": ["document-list", "locality-status"], "states": ["default"] },
+    { "id": "corpus-keyboard-reachable", "type": "element-present", "statement": "The corpus lists expose their labels to assistive technology in normal document order.", "tier": "machine", "elements": ["collection-list", "document-list"], "states": ["default", "empty"] },
+    { "id": "corpus-states-covered", "type": "state-covered", "statement": "Populated, empty, and error states are distinct.", "tier": "machine", "elements": ["corpus-region"], "states": ["default", "empty", "error"] }
+  ],
+  "bindings": { "elements": {
+    "corpus-region": { "testid": "page-corpus" },
+    "collection-list": { "testid": "corpus-collections" },
+    "document-list": { "testid": "corpus-documents" },
+    "locality-status": { "testid": "corpus-locality" }
+  }}
+}

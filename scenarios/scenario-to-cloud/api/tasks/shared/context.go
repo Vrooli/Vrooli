@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // DefaultIncludeContexts lists context items included by default if none specified.
@@ -211,7 +211,7 @@ func BuildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
    → Check ~/.vrooli/logs/ for resource and scenario start logs
 
 3. If no, is it declared in the scenario's service.json?
-   → Check <workdir>/scenarios/<scenario>/.vrooli/service.json
+   → Check the target scenario's .vrooli/service.json at its contract-defined scenario root
 
 4. Is the Vrooli CLI working?
    → Run: vrooli --version && vrooli resource list
@@ -292,11 +292,11 @@ Monitoring, alerts, or pipeline improvements to catch this earlier.`)
 // BuildVPSConnectionAttachment creates the VPS connection details.
 func BuildVPSConnectionAttachment(vps *domain.ManifestVPS, sshUser string, sshPort int, m *domain.CloudManifest) *domainpb.ContextAttachment {
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("ssh -i %s -p %d %s@%s \"<command>\"\n\n", vps.KeyPath, sshPort, sshUser, vps.Host))
+	content.WriteString(fmt.Sprintf("ssh -p %d %s@%s \"<command>\"\n\n", sshPort, sshUser, vps.Host))
 	content.WriteString(fmt.Sprintf("host: %s\n", vps.Host))
 	content.WriteString(fmt.Sprintf("user: %s\n", sshUser))
 	content.WriteString(fmt.Sprintf("port: %d\n", sshPort))
-	content.WriteString(fmt.Sprintf("key_path: %s\n", vps.KeyPath))
+	content.WriteString("identity: credential binding vrooli/scenario-to-cloud:ssh-key, or the operator's ambient SSH identity\n")
 	if vps.Workdir != "" {
 		content.WriteString(fmt.Sprintf("workdir: %s\n", vps.Workdir))
 	}

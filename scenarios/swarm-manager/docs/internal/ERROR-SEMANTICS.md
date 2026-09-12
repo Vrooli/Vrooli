@@ -136,6 +136,15 @@ Same pattern as Backlog Flow.
 | API unreachable | Returns raw Go error | NETWORK |
 | Invalid JSON | Prints raw bytes | PARSE |
 
+### 5. Agent Session Optional Dependencies
+
+| Dependency failure | Behavior | Integrity rule |
+|---|---|---|
+| Related-work search unavailable | Start continues with a `related-work status="unavailable"` section. | Never report the outage as an empty successful search or infer that no related work exists. |
+| Source Ledger wake unavailable | Prompt construction emits `continuity-fallback`. | Startup brief and attached context remain usable; do not infer prior decisions. |
+| Source Ledger resolution write fails | The already-applied or rejected proposal remains terminal and the server logs the write failure. | An optional continuity sink cannot roll back or misreport an authoritative domain decision. |
+| Job-slice resolver fails | The kind startup brief remains and carries a warning. | Never replace authoritative kind state with invented job state. |
+
 ---
 
 ## Failure Modes by Flow
@@ -159,6 +168,21 @@ Same pattern as Backlog Flow.
 |--------------|----------|------------------|
 | API unreachable | NETWORK | Returns error from api-core |
 | Invalid JSON | PARSE | Prints raw bytes |
+
+### Operating Mode Execution Failures
+
+| Failure Mode | Scope / Impact | Behavior | Recovery |
+|--------------|----------------|----------|----------|
+| Multiple nonterminal manifests for one target/mode | Local / high integrity risk | Start and resume fail with `ErrExecutionAmbiguous`; no precedence rule selects one | Inspect manifests and repair the duplicate ownership state before retrying |
+| One Agent Manager run indexed to two execution rounds | Local / high attribution risk | Second registration fails with `ErrRunOwnerAmbiguous`; the first mapping is retained | Investigate the conflicting dispatch; never overwrite the owner index |
+| Round definition digest differs from its manifest | Local / high replay risk | Save/interpretation fails closed before routing or side effects | Restore the matching manifest/round pair from durable history |
+| Live registry changes during an execution | Expected evolution / no impact | Existing rounds resolve, classify, and delegate through the pinned bundle; only a new execution sees the edit | No recovery required; start a new execution to adopt the new definition |
+| Legacy flat round has no execution manifest | Local / compatibility | An unambiguous history is staged and validated into a deterministic pinned execution while its original bytes are retained under `legacy-rounds/`; ambiguous history remains readable and is excluded from continuation | Repair ambiguity deliberately or start a fresh execution; never infer precedence |
+| Caller input is missing, unknown, mistyped, out of bounds, oversized, sensitive, or uses non-replayable retention | Local / request error with no side effects | Execution preflight rejects the request before creating a manifest, round, lock, or run | Correct the request using the catalog/workspace compiled input contract; sensitive caller values require a future secure runtime store rather than bypassing retention policy |
+| Caller inputs on a retry differ from the active execution snapshot | Local / high replay risk | Resume fails closed; the existing manifest and snapshot remain unchanged | Omit inputs when continuing, repeat the identical normalized map, or finish/cancel and start a new execution |
+| Persisted input contract or input snapshot digest does not match canonical JSON content | Local / high replay risk | Manifest load fails closed before prompt rendering, routing, or spawn | Restore the matching manifest bytes from durable history; never recompute the stored digest to hide an unexplained mutation |
+| Plan-ref path is absolute, traversing, symlinked, non-regular, missing, oversized, or non-UTF-8 | Local / request error with no side effects | Target resolution fails before prompt pinning, execution creation, round reservation, lock acquisition, or spawn | Supply a regular UTF-8 plan file within the configured execution workspace; do not bypass the workspace boundary with links |
+| Execution or round state changes during dynamic phase preflight | Local / retryable concurrency conflict with no reservation side effect | Compare-and-reserve returns `ErrRoundPreflightStale`; it never chooses the next round number or reuses the stale rendered prompt | Recollect run context and repeat the complete read-only preflight against current pinned state |
 
 ---
 

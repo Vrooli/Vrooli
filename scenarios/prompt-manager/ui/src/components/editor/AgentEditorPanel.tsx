@@ -119,7 +119,7 @@ export function AgentEditorPanel({
   // TODO: Wire up save all button in the actions menu
   void _onSaveAll
   // Active tab state
-  const [activeTab, setActiveTab] = useState(initialTab ?? 'files')
+  const [activeTab, setActiveTab] = useState(initialTab ?? 'info')
   const isCompactHeader = useIsCompactHeader()
 
   // Sync when initialTab changes (e.g. context menu → prompt tab)
@@ -279,9 +279,9 @@ export function AgentEditorPanel({
       >
         {/* Tab List */}
         <TabList>
+          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
           <TabTrigger value="files" icon={<Folder className="h-4 w-4" />} label="Files" />
           <TabTrigger value="prompt" icon={<Eye className="h-4 w-4" />} label="Prompt" />
-          <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </TabList>
 
         {/* Tab Content */}

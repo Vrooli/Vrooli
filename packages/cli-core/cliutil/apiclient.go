@@ -2,6 +2,7 @@ package cliutil
 
 import (
 	"net/url"
+	"time"
 )
 
 // APIClient wraps HTTPClient and applies API base resolution and token wiring.
@@ -17,6 +18,36 @@ func NewAPIClient(client *HTTPClient, baseResolver func() APIBaseOptions, tokenS
 		baseResolver: baseResolver,
 		tokenSource:  tokenSource,
 	}
+}
+
+// WithTimeout returns a copy of this client whose requests use timeout instead
+// of the CLI default. Base resolution, token wiring, and provenance headers are
+// preserved, so an operator-initiated maintenance call that legitimately runs
+// for minutes does not have to choose between timing out and losing its
+// attribution. The receiver is unchanged.
+func (c *APIClient) WithTimeout(timeout time.Duration) *APIClient {
+	if c == nil || timeout <= 0 {
+		return c
+	}
+	clone := *c
+	clone.client = c.client.CloneWithTimeout(timeout)
+	return &clone
+}
+
+// WithoutTimeout creates an explicit server-owned wait attachment. It keeps
+// base resolution, authentication, provenance and transport configuration,
+// without changing the ordinary client's deadline or retrying the request.
+func (c *APIClient) WithoutTimeout() *APIClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	client := c.client
+	if client == nil {
+		client = NewHTTPClient(HTTPClientOptions{})
+	}
+	clone.client = client.CloneWithoutTimeout()
+	return &clone
 }
 
 func (c *APIClient) Get(path string, query url.Values) ([]byte, error) {

@@ -1,0 +1,157 @@
+{
+  "metadata": {
+    "name": "ledger-illustrative-figures-render",
+    "description": "Navigates to /ledger in mark mode and asserts illustrative readings render as hollow or dotted figures carrying a qualifier, with the legend on screen (CC-UI-002). Provenance is material, never a red chip.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-002\"]"
+    },
+    "version": "2",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/ledger?samples=mark",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /ledger"
+        }
+      }
+    },
+    {
+      "id": "wait-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='vault']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='vault'"
+        }
+      }
+    },
+    {
+      "id": "wait-ink",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-reading][data-ink='hollow'] [data-figure], [data-reading][data-ink='dotted'] [data-figure]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for an illustrative figure"
+        }
+      }
+    },
+    {
+      "id": "assert-qualifier",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-reading][data-ink='hollow'] [data-qualifier], [data-reading][data-ink='dotted'] [data-qualifier]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected every hollow or dotted reading to carry a [data-qualifier]"
+        },
+        "metadata": {
+          "label": "Illustrative readings carry a qualifier"
+        }
+      }
+    },
+    {
+      "id": "assert-legend",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='room-legend']",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Expected the provenance legend in mark mode when illustrative figures are on screen"
+        },
+        "metadata": {
+          "label": "Legend is on screen in mark mode"
+        }
+      }
+    },
+    {
+      "id": "assert-supporting-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface='supporting'][data-experience-state='ready'], [data-experience-surface='supporting'][data-experience-state='partial']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Expected the supporting readings region to reach a terminal lifecycle state"
+        },
+        "metadata": {
+          "label": "Supporting readings reached a terminal state"
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture /ledger illustrative figures"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-theme",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-theme",
+      "target": "wait-ink",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-ink",
+      "target": "assert-qualifier",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-qualifier",
+      "target": "assert-legend",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-legend",
+      "target": "assert-supporting-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-supporting-ready",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

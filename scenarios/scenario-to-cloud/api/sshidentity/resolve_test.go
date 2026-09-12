@@ -4,14 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"scenario-to-cloud/domain"
 )
 
-func TestDefaultResolver_PrefersManifestKeyPath(t *testing.T) {
+func TestDefaultResolver_PrefersBoundKeyPath(t *testing.T) {
 	r := DefaultResolver{}
-	m := domain.CloudManifest{Target: domain.ManifestTarget{VPS: &domain.ManifestVPS{KeyPath: "~/.ssh/id_ed25519"}}}
-	resolved, err := r.Resolve(m, nil)
+	resolved, err := r.Resolve("~/.ssh/id_ed25519", nil)
 	if err != nil {
 		t.Fatalf("Resolve error: %v", err)
 	}
@@ -31,10 +28,9 @@ func TestDefaultResolver_FallsBackToPersistedExplicitKey(t *testing.T) {
 	}
 
 	r := DefaultResolver{}
-	m := domain.CloudManifest{Target: domain.ManifestTarget{VPS: &domain.ManifestVPS{}}}
 	existing := &DeploymentSSHIdentity{AuthMode: AuthModeExplicitKey, VerificationState: VerificationAuthorized, KeyPath: keyPath}
 
-	resolved, err := r.Resolve(m, existing)
+	resolved, err := r.Resolve("", existing)
 	if err != nil {
 		t.Fatalf("Resolve error: %v", err)
 	}
@@ -52,8 +48,7 @@ func TestDefaultResolver_FallsBackToPersistedExplicitKey(t *testing.T) {
 func TestDefaultResolver_UsesAmbientModeWhenNoExplicitKey(t *testing.T) {
 	t.Setenv("SSH_AUTH_SOCK", "")
 	r := DefaultResolver{}
-	m := domain.CloudManifest{Target: domain.ManifestTarget{VPS: &domain.ManifestVPS{}}}
-	resolved, err := r.Resolve(m, nil)
+	resolved, err := r.Resolve("", nil)
 	if err != nil {
 		t.Fatalf("Resolve error: %v", err)
 	}

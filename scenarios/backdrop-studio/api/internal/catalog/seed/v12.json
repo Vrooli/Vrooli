@@ -1,0 +1,85 @@
+{
+  "version": 12,
+  "note": "Moves the reserved region of the two styles whose declared copy can be made legible by placement alone, and whose repair also survives their motion.",
+  "retune_reasons": [
+    "Measured 2026-08-13: ZERO of the twenty styles that declare an overlay region kept their declared text colour legible, against each style's own threshold. A reserved region is where a designer drops a headline without editing the picture, so a backdrop that cannot carry its own declared copy has not met the written bar however well it reads.",
+    "The region's SIZE is the author's decision and is untouched here - a headline needs the room it needs - so only the position moved. `legibility.FindPlacements` swept each region over a 5x5 grid of origins and reported worst-pixel contrast at each; these three are the only styles in the catalog where some position clears the threshold with the colour the style already declares.",
+    "ember-mesh moves to x=0.15 y=0.00 and goes from 2.81 to 4.83 against a 4.50 threshold. The mesh darkens toward its lower right, so the copy sat in the gradient's shoulder; at the top it sits on the pale end.",
+    "feature-band-mesh moves to x=0.00 y=0.00 and goes from 2.15 to 5.65. It was centred over the band's brightest passage, which is exactly where dark type has least to work with.",
+    "pale-moon was moved and then REVERTED, and the reason is worth keeping. The rest-only search found x=0.16 y=0.00 at 6.57, and the real render measured 6.89 there - better than predicted. The parallax-sweep gate then refused it: at full scroll the orb and burst planes rise under the region and contrast falls to 2.38. The placement that fixes a plated style at rest can break it in motion, so the search has to become sweep-aware before it is trusted on a style that moves. The gate caught this on the first repair it was asked about, which is what it exists for.",
+    "The other twenty-one styles are NOT repaired here, and no threshold was lowered to pretend otherwise. Every text colour was tried - each style's three ink slots plus pure black and pure white, at every grid position - and not one crosses 4.50; the best lands at 4.49. That is structural: worst-pixel contrast asks about the least legible pixel, and a pictorial backdrop has light and dark pixels nearly everywhere, so dark type meets a dot and light type meets the paper. The repair for those is a region-scoped scrim or a generator that draws a genuinely quiet zone, and both are capability work rather than a seed edit.",
+    "Every style's version is incremented so an install that already holds these rows takes the new value. The seed upserts on id and replaces the row, so a version that does not bump is indistinguishable from one that was never applied."
+  ],
+  "styles": [
+    {
+      "id": "ember-mesh",
+      "name": "Ember Mesh",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "mid_century_modern",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.15,
+          "y": 0.0,
+          "width": 0.42,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#241008"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"focal_x\": 0.78, \"focal_y\": 0.22, \"smear\": 0.42, \"angle\": 34, \"blades\": 0.5, \"blade_scale\": 0.16}"
+      }
+    },
+    {
+      "id": "feature-band-mesh",
+      "name": "Feature Band Mesh",
+      "version": 2,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "bauhaus",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize"
+      ],
+      "placements": [
+        "feature_graphic",
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#12224a",
+        "$brand.background": "#f6efe0"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 7, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 0.52,
+          "height": 0.5,
+          "kind": "overlay",
+          "text_color": "#12224a"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 2, \"focal_x\": 0.12, \"focal_y\": 0.2, \"smear\": 0.6, \"angle\": 8, \"blades\": 0.45}"
+      }
+    }
+  ]
+}

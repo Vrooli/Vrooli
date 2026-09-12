@@ -1,0 +1,12 @@
+[data-theme="ground-control"] {
+  --color-background: #04060d;
+  --color-background-deep: #000104;
+  --color-surface: rgba(10, 18, 36, 0.72);
+  --color-foreground: #eaf3ff;
+  --color-muted-foreground: #8aa2c8;
+  --color-primary: #33d6ff;
+  --color-accent: #9be9ff;
+  --color-glow: rgba(51, 214, 255, 0.5);
+  --color-border: rgba(51, 214, 255, 0.22);
+  --color-gap: #b7a6ff;
+}

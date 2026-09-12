@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {"kind": "scenario-experience", "schema": "scenario-experience-spec/v1"},
+  "schemaVersion": "1.0.0",
+  "scenario": "secrets-manager",
+  "description": "Password-manager experience contract for the replacement UI.",
+  "pages": [
+    {"id": "vault", "path": "pages/vault.json", "title": "Vault", "status": "active"},
+    {"id": "access", "path": "pages/access.json", "title": "Access", "status": "active"},
+    {"id": "activity", "path": "pages/activity.json", "title": "Activity", "status": "active"},
+    {"id": "recovery", "path": "pages/recovery.json", "title": "Recovery", "status": "active"},
+    {"id": "sources", "path": "pages/sources.json", "title": "Sources", "status": "active"},
+    {"id": "settings", "path": "pages/settings.json", "title": "Settings", "status": "active"}
+  ],
+  "journeys": [{"id": "open-password-manager", "path": "journeys/open-password-manager.json", "title": "Open password manager", "status": "active"}]
+}

@@ -1,0 +1,27 @@
+{
+  "description": "Workflow Health previews and applies deterministic workflow asset repairs without silently changing behavior.",
+  "module_id": "MOD-P1-006",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "id": "REQ-P1-002",
+      "title": "Preview and Apply Mechanical Fixes",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "autofix",
+      "criticality": "P1",
+      "description": "Workflow Health must preview and apply only deterministic structural fixes, including registry rebuilds, metadata normalization, missing docs stubs, legacy reset normalization, and unambiguous requirement-label repairs; behavioral workflow edits must remain preview-only or manual.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "ref": "",
+          "notes": "Fix engine tests run preview/apply on temporary fixtures and assert exact diffs, idempotence, and refusal to rewrite ambiguous workflow behavior."
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic remediation"
+}

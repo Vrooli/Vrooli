@@ -60,8 +60,9 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
   if (pathname.startsWith('/admin/analytics')) {
     segments.push({ label: 'Analytics', path: '/admin/analytics' });
     const variantMatch = pathname.match(/\/admin\/analytics\/(.+)/);
-    if (variantMatch) {
-      segments.push({ label: `Variant ${variantMatch[1]}` });
+    const variantSlug = variantMatch?.[1];
+    if (variantSlug) {
+      segments.push({ label: `Variant ${variantSlug}` });
     }
     return segments;
   }
@@ -74,15 +75,16 @@ export function buildBreadcrumbs(pathname: string): BreadcrumbSegment[] {
       segments.push({ label: 'New Variant' });
     } else {
       const variantMatch = pathname.match(/\/variants\/([^/]+)/);
-      if (variantMatch) {
+      const variantSlug = variantMatch?.[1];
+      if (variantSlug) {
         segments.push({
-          label: `Variant ${variantMatch[1]}`,
-          path: `/admin/customization/variants/${variantMatch[1]}`,
+          label: `Variant ${variantSlug}`,
+          path: `/admin/customization/variants/${variantSlug}`,
         });
 
         const sectionMatch = pathname.match(/\/sections\/(\d+|new)/);
-        if (sectionMatch) {
-          const sectionId = sectionMatch[1];
+        const sectionId = sectionMatch?.[1];
+        if (sectionId) {
           segments.push({
             label: sectionId === 'new' ? 'New Section' : `Section ${sectionId}`,
           });

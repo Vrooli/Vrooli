@@ -1,5 +1,7 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { createTerminalSessionStub } from "../test-utils";
+import { screen } from "@testing-library/react";
 
 // jsdom doesn't provide ResizeObserver
 beforeAll(() => {
@@ -19,7 +21,7 @@ vi.mock("@xterm/xterm", () => ({
     write: vi.fn(),
     dispose: vi.fn(),
     focus: vi.fn(),
-    loadAddon: vi.fn(),
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(),
     onData: vi.fn(() => ({ dispose: vi.fn() })),
     onTitleChange: vi.fn(() => ({ dispose: vi.fn() })),
     onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
@@ -57,20 +59,28 @@ vi.mock("@xterm/addon-web-links", () => ({
   })),
 }));
 
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: () => ({
-    sendInput: vi.fn(),
-    sendResize: vi.fn(),
-  }),
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  // One stable session object: TerminalPane keys effects on these references.
+  const session = createTerminalSessionStub();
+  return { useTerminalSession: () => session };
+});
 
-vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
-      renamePaneById: vi.fn(),
-    }),
-}));
+vi.mock("../stores/useWorkspaceStore", () => {
+  const baseState = {
+    panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
+    renamePaneById: vi.fn(),
+    startMutedOnLoad: true,
+    deviceFontSize: {},
+    setPendingInputBuffer: vi.fn(),
+    consumePendingInputBuffer: vi.fn(() => undefined),
+    setPendingInputDraft: vi.fn(),
+    consumePendingInputDraft: vi.fn(() => undefined),
+  };
+  const useWorkspaceStore = (selector: (s: Record<string, unknown>) => unknown) =>
+    selector(baseState);
+  useWorkspaceStore.getState = () => baseState;
+  return { useWorkspaceStore, useEffectiveFontSize: () => 14 };
+});
 
 // We need to mock useTerminalTouch to control hasSelection
 let mockHasSelection = false;

@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.session;
+
+import "common/v1/surface.proto";
+import "device-control/v1/desktop/desktop.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session;session_v1";
+
+// Session is the transport-neutral wire contract for an interactive byte
+// stream. The WebSocket edge carries one binary-encoded Frame per message.
+// SSE remains the job-frame transport and is deliberately not replaced.
+message Open {
+  string session_id = 1;
+  string node_id = 2;
+  uint32 receive_window = 3;
+  uint32 idle_timeout_seconds = 4;
+  uint32 max_lifetime_seconds = 5;
+  string shell = 6;
+  string working_dir = 7;
+  // Optional for legacy terminal sessions. Remote desktop sessions must bind
+  // the transport to the exact target surface, owner, lease, and policy
+  // revision before the node receives any input.
+  Binding binding = 8;
+  uint32 max_frame_bytes = 9;
+  uint32 max_frames_per_second = 10;
+}
+
+message Binding {
+  common.v1.SurfaceRef surface = 1;
+  string transport = 2;
+  string owner_id = 3;
+  string lease_id = 4;
+  uint64 lease_epoch = 5;
+  string policy_revision = 6;
+}
+
+message Data {
+  uint64 sequence = 1;
+  bytes data = 2;
+  // Stable caller command identity. Retries must reuse this value; a new
+  // command id is required for a distinct external effect.
+  string command_id = 3;
+}
+
+// DesktopCommand is carried in Data.data for a session whose binding
+// transport is "desktop". Keeping the byte-stream envelope preserves the
+// existing session flow-control and replay rules while this typed payload
+// gives the node adapter an explicit operation vocabulary.
+enum DesktopCommandOperation {
+  DESKTOP_COMMAND_OPERATION_UNSPECIFIED = 0;
+  DESKTOP_COMMAND_OPERATION_OBSERVE = 1;
+  DESKTOP_COMMAND_OPERATION_ACT = 2;
+  DESKTOP_COMMAND_OPERATION_STOP = 3;
+}
+
+message DesktopCommand {
+  string command_id = 1;
+  DesktopCommandOperation operation = 2;
+  uint32 process_id = 3;
+  string application_id = 4;
+  string application_revision = 5;
+  string geometry_revision = 6;
+  vrooli.device_control.v1.desktop.Action action = 7;
+}
+
+// DesktopResult is also carried in Data.data. Observation pixels remain
+// bounded by the negotiated session frame limit and are never written to the
+// Bridge audit log; the separate Evidence frame carries only metadata and a
+// digest linking the local and remote command identities.
+message DesktopResult {
+  string command_id = 1;
+  string remote_command_id = 2;
+  vrooli.device_control.v1.desktop.ObserveResponse observation = 3;
+  vrooli.device_control.v1.desktop.ActResponse act = 4;
+  string error = 5;
+}
+
+message Resize {
+  uint32 columns = 1;
+  uint32 rows = 2;
+}
+
+message Close {
+  string code = 1;
+  string reason = 2;
+}
+
+message Ack {
+  bool accepted = 1;
+  uint64 sequence = 2;
+  uint32 window_available = 3;
+  string code = 4;
+  string reason = 5;
+  string command_id = 6;
+}
+
+message WindowUpdate {
+  uint32 window_available = 1;
+}
+
+message Evidence {
+  string command_id = 1;
+  string remote_command_id = 2;
+  string evidence_id = 3;
+  string kind = 4;
+  string digest = 5;
+}
+
+message Revoke {
+  string lease_id = 1;
+  uint64 lease_epoch = 2;
+  string reason = 3;
+}
+
+message Frame {
+  oneof payload {
+    Open open = 1;
+    Data data = 2;
+    Resize resize = 3;
+    Close close = 4;
+    Ack ack = 5;
+    WindowUpdate window_update = 6;
+    Evidence evidence = 7;
+    Revoke revoke = 8;
+  }
+}

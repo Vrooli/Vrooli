@@ -23,26 +23,20 @@ func TestInterfaceTypes(t *testing.T) {
 func TestDecision_Fields(t *testing.T) {
 	// Verify Decision struct can be instantiated with correct fields
 	d := policy.Decision{
-		Allowed:           true,
-		RequiresSandbox:   true,
-		RequiresApproval:  false,
-		EffectiveMaxFiles: 100,
-		EffectiveMaxSize:  10 * 1024 * 1024,
-		EffectiveTimeout:  30 * 60 * 1000, // 30 minutes in ms
-		DenialReason:      "",
+		Allowed:             true,
+		RequiredSandboxMode: domain.SandboxModeProtected,
+		EffectiveTimeout:    30 * 60 * 1000, // 30 minutes in ms
+		DenialReason:        "",
 	}
 
 	if !d.Allowed {
 		t.Error("expected decision to be allowed")
 	}
-	if !d.RequiresSandbox {
-		t.Error("expected sandbox to be required")
+	if d.RequiredSandboxMode != domain.SandboxModeProtected {
+		t.Errorf("expected required sandbox mode %q, got %q", domain.SandboxModeProtected, d.RequiredSandboxMode)
 	}
-	if d.RequiresApproval {
-		t.Error("expected approval not to be required")
-	}
-	if d.EffectiveMaxFiles != 100 {
-		t.Errorf("expected max files 100, got %d", d.EffectiveMaxFiles)
+	if d.EffectiveTimeout != 30*60*1000 {
+		t.Errorf("expected effective timeout %d, got %d", 30*60*1000, d.EffectiveTimeout)
 	}
 }
 
@@ -113,7 +107,7 @@ func TestEvaluateRequest_Fields(t *testing.T) {
 	}
 	profile := &domain.AgentProfile{
 		ID:   uuid.New(),
-		Name: "test-profile",
+		Name: "test-profile", RoleRef: "code.default",
 	}
 
 	req := policy.EvaluateRequest{
@@ -198,8 +192,8 @@ func TestDecision_WithAppliedPolicies(t *testing.T) {
 	policy2ID := uuid.New()
 
 	d := policy.Decision{
-		Allowed:         true,
-		RequiresSandbox: true,
+		Allowed:             true,
+		RequiredSandboxMode: domain.SandboxModeProtected,
 		AppliedPolicies: []policy.AppliedPolicy{
 			{PolicyID: policy1ID, PolicyName: "sandbox-rule", Effect: "require_sandbox"},
 			{PolicyID: policy2ID, PolicyName: "approval-rule", Effect: "require_approval"},

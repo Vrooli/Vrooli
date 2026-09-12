@@ -1,7 +1,7 @@
 # Manifest Reference
 
 > [CODE: api/domain/manifest.go] — CloudManifest type definition
-> [CODE: api/manifest/] — Validation and normalization logic
+> [CODE: api/manifest/validator.go] — Validation and normalization logic
 
 Complete reference for the deployment manifest configuration.
 
@@ -51,8 +51,7 @@ Defines where to deploy.
     "vps": {
       "host": "192.168.1.100",
       "user": "root",
-      "port": 22,
-      "key_path": "~/.ssh/id_rsa"
+      "port": 22
     }
   }
 }
@@ -64,7 +63,8 @@ Defines where to deploy.
 | `vps.host` | string | Yes | - | Hostname or IP address |
 | `vps.user` | string | No | `root` | SSH username |
 | `vps.port` | number | No | `22` | SSH port |
-| `vps.key_path` | string | No | `~/.ssh/id_rsa` | Path to SSH private key |
+
+There is no key field. Target access is a Bridge enrollment or the credential binding `vrooli/scenario-to-cloud:ssh-key` (see [VPS Setup](vps-setup.md) "Target Access"); a manifest that carries `key_path` is refused by the schema.
 
 ## Edge Section
 
@@ -123,6 +123,28 @@ Declare required resources and scenarios.
 |-------|------|-------------|
 | `resources` | string[] | Resource IDs to start |
 | `scenarios` | string[] | Dependent scenario IDs |
+
+## Identity topology
+
+The cloud manifest selects what is deployed; it does not invent a second
+authentication schema. The target scenario's declared authentication metadata
+and the dependency snapshot together determine the identity topology.
+
+Use these rules:
+
+| Deployment intent | Manifest/dependency behavior |
+|---|---|
+| Public hosted product | Reference the approved hosted or external identity provider. Do not add a private authenticator instance per request or per customer without an explicit tenant design. |
+| Self-hosted LPBS | Include `scenario-authenticator` in the analyzer-derived scenario dependency snapshot and bundle it in the same mini-Vrooli installation. Treat its realm and signing keys as installation data. |
+| Single-user private app | Keep the product in `personal_local` unless the operator explicitly enables multi-user or remote identity. Do not require an LPBS website login merely because the artifact was downloaded. |
+| Multi-user installation | Declare `local_multi_user` or the appropriate remote/shared-provider mode in the scenario/bundle authentication metadata and fail closed if its provider is unavailable. |
+
+The cloud deployer must preserve the selected mode, provider, audience,
+offline behavior, and dependency provenance in generated deployment metadata.
+Secrets, passwords, private keys, refresh tokens, and website sessions never
+belong in this manifest. Bootstrap and account linking use explicit,
+short-lived server/browser flows; matching email addresses are not a linking
+protocol.
 
 ## Bundle Section
 
@@ -183,3 +205,11 @@ Bundle composition and runtime safety defaults.
   }
 }
 ```
+
+## Closure binding
+
+When the API refreshes a manifest (`ForceBundleBuild`), `dependencies.scenarios`,
+`dependencies.resources`, `bundle.scenarios` and `bundle.resources` are the
+projection of the deployment closure and `dependencies.closure_digest` records
+the closure digest the snapshot came from. See
+[Deployment Closure](../reference/closure.md).

@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "module": "analysis",
+    "description": "Uniform decomposition of any track into embeddings, structure, tempo, key, loudness, tags, notation, and lyrics.",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-009",
+      "title": "One decomposition contract for owned and generated audio",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "criticality": "P0",
+      "description": "A single analyze contract returns the same structured description regardless of provenance, so generated tracks are rankable and searchable on identical footing with owned ones.",
+      "tags": ["analysis", "contract"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/analysis/contract_test.go", "phase": "unit", "status": "planned", "notes": "Owned and generated inputs return the same shape" }
+      ]
+    },
+    {
+      "id": "MUS-P0-010",
+      "title": "Dual embedding space",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Analysis emits both an audio-text embedding (enabling natural-language retrieval over audio) and a music-specific embedding (encoding tonal, rhythmic, and structural character); consumers may request either or both.",
+      "tags": ["analysis", "embeddings"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/analysis/embeddings_test.go", "phase": "unit", "status": "planned", "notes": "Both embedding families are produced with declared dimensionality" }
+      ]
+    },
+    {
+      "id": "MUS-P0-011",
+      "title": "Embeddings are stored pooled, not frame-level",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Persisted embeddings are pooled or segment-level by default. Frame-level output is produced only on explicit request for a single track and is never written to the library index, because frame-level storage is roughly four orders of magnitude larger per track.",
+      "tags": ["analysis", "storage"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/analysis/pooling_test.go", "phase": "unit", "status": "planned", "notes": "Default persistence is pooled; frame-level requires explicit opt-in and is not indexed" }
+      ]
+    },
+    {
+      "id": "MUS-P1-001",
+      "title": "Structure, beats, tempo, and key with disagreement recorded",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Analysis returns section boundaries and labels, beats and downbeats, tempo, and key. Where independent estimators are available, their disagreement is stored alongside the consensus value, because disagreement is itself a meaningful signal about rubato and tonal ambiguity.",
+      "tags": ["analysis", "structure"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/analysis/structure_test.go", "phase": "unit", "status": "planned", "notes": "Segments, beats, tempo and key returned; estimator disagreement persisted" }
+      ]
+    },
+    {
+      "id": "MUS-P1-002",
+      "title": "Notation and lyric extraction",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Audio-to-MIDI notation runs per separated stem rather than on the full mix, and lyric transcription uses a model tuned for sung vocals rather than general speech.",
+      "tags": ["analysis", "midi", "lyrics"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/analysis/notation_test.go", "phase": "unit", "status": "planned", "notes": "MIDI extraction runs per stem; lyric transcription path is distinct from speech STT" }
+      ]
+    }
+  ]
+}

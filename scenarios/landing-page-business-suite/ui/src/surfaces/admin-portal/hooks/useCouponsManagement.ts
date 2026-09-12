@@ -88,7 +88,7 @@ export function useCouponsManagement(): UseCouponsManagementReturn {
 
   // Initial load
   useEffect(() => {
-    loadCoupons();
+    void loadCoupons();
   }, [loadCoupons]);
 
   /**

@@ -2,68 +2,61 @@
 package convert
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// EnvelopeToEvent converts a proto EventEnvelope to an internal store.Event.
-// The payload is stored as proto binary bytes of the Any message.
+// EnvelopeToEvent persists the canonical envelope as one protobuf value while
+// copying only query indexes into storage columns. No receipt fact is projected
+// into untyped storage metadata.
 func EnvelopeToEvent(env *domain.EventEnvelope) (store.Event, error) {
-	var payload []byte
-	if env.Payload != nil {
-		var err error
-		payload, err = proto.Marshal(env.Payload)
-		if err != nil {
-			return store.Event{}, err
-		}
+	if env == nil {
+		return store.Event{}, fmt.Errorf("event envelope is required")
 	}
-
-	var createdAt time.Time
-	if env.Timestamp != nil {
-		createdAt = env.Timestamp.AsTime()
-	} else {
-		createdAt = time.Now()
+	payload, err := proto.Marshal(env)
+	if err != nil {
+		return store.Event{}, fmt.Errorf("marshal event envelope: %w", err)
 	}
-
-	return store.Event{
-		EventID:        env.EventId,
-		SourceScenario: env.SourceScenario,
-		TargetScenario: env.TargetScenario,
-		EventType:      env.EventType,
-		CorrelationID:  env.CorrelationId,
-		Payload:        payload,
-		Metadata:       env.Metadata,
-		CreatedAt:      createdAt,
-	}, nil
+	occurredAt := time.Now().UTC()
+	if env.OccurredAt != nil {
+		occurredAt = env.OccurredAt.AsTime()
+	}
+	var source, target, correlation string
+	if env.Source != nil {
+		source = env.Source.Scenario
+	}
+	if env.Target != nil {
+		target = env.Target.Scenario
+	}
+	if env.Correlation != nil {
+		correlation = env.Correlation.AgentRunId
+	}
+	return store.Event{EventID: env.EventId, SourceScenario: source, TargetScenario: target,
+		EventType: env.EventType, CorrelationID: correlation, Payload: payload,
+		CreatedAt: occurredAt}, nil
 }
 
-// EventToEnvelope converts an internal store.Event to a proto EventEnvelope.
+// EventToEnvelope restores only canonical v1 data. Historical payloads are
+// intentionally rejected: the hard cut has no compatibility deserializer.
 func EventToEnvelope(e store.Event) (*domain.EventEnvelope, error) {
-	env := &domain.EventEnvelope{
-		EventId:        e.EventID,
-		SourceScenario: e.SourceScenario,
-		TargetScenario: e.TargetScenario,
-		EventType:      e.EventType,
-		CorrelationId:  e.CorrelationID,
-		Timestamp:      timestamppb.New(e.CreatedAt),
-		Metadata:       e.Metadata,
+	env := &domain.EventEnvelope{}
+	if err := proto.Unmarshal(e.Payload, env); err != nil {
+		return nil, fmt.Errorf("decode canonical event envelope: %w", err)
 	}
-
-	if len(e.Payload) > 0 {
-		any := &anypb.Any{}
-		if err := proto.Unmarshal(e.Payload, any); err != nil {
-			// Payload bytes may not be valid proto (e.g. migrated data or raw JSON).
-			// Dropping the payload silently is safer than returning an error that
-			// would prevent the entire event from being read.
-			any = nil
-		}
-		env.Payload = any
+	if env.OccurredAt == nil {
+		env.OccurredAt = timestamppb.New(e.CreatedAt)
 	}
-
+	// ReceiptData was originally published under vrooli.events.v1.domain.
+	// Keep historical envelopes queryable while all new writes use the
+	// canonical vrooli.vrooli_events.v1.domain package name.
+	if env.Data != nil && strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData") {
+		env.Data.TypeUrl = "type.googleapis.com/vrooli.vrooli_events.v1.domain.ReceiptData"
+	}
 	return env, nil
 }

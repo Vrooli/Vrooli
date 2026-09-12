@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "log_volume_bounds",
+  "storage": {
+    "entries": {
+      "logrotate_stanza": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/logrotate.d/rsyslog",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The distribution stanza is edited in place to add a maxsize bound; logrotate rejects a second stanza for the same files."
+      },
+      "logrotate_stanza_backup": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/var/lib/vrooli/log-volume-bounds/logrotate-rsyslog.orig",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": false,
+        "rationale": "The unmodified distribution stanza, preserved once before the first edit so the bound can be re-derived or reverted."
+      },
+      "timer_drop_in": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/system/logrotate.timer.d/99-vrooli-hourly.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "Runs logrotate hourly so maxsize is enforced within the hour."
+      },
+      "rsyslog_rate_limit": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/rsyslog.d/05-vrooli-ratelimit.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "Per-process ceiling on the system log socket."
+      },
+      "truncation_evidence": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/var/log/vrooli/log-volume-bounds",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "dir",
+        "regenerable": false,
+        "class": "logs",
+        "sensitive": true,
+        "rationale": "The last megabyte of any log the safeguard truncated during an emergency reclaim, one small file per event."
+      }
+    },
+    "rationale": "Linux-only host configuration verified by file content; the evidence directory holds at most one megabyte per truncation event."
+  },
+  "description": "Bound the flat-file system log store (rsyslog + logrotate) so no runaway writer can fill the disk: maxsize rotation, hourly logrotate, per-process rate limit, emergency truncation of logs already far past the bound",
+  "handler": "log_volume_bounds",
+  "risk": "medium",
+  "config": {
+    "max_size": "1G",
+    "emergency_multiplier": 8,
+    "rate_limit_interval_seconds": 5,
+    "rate_limit_burst": 1000
+  },
+  "verificationCheck": {
+    "files": [
+      "/etc/logrotate.d/rsyslog",
+      "/etc/systemd/system/logrotate.timer.d/99-vrooli-hourly.conf",
+      "/etc/rsyslog.d/05-vrooli-ratelimit.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "service-resource-limits",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "macOS bounds its unified log store and newsyslog rotates by size by default; there is no unbounded flat syslog file to protect.",
+      "review_by": "2027-09-01"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows event logs carry a maximum size and overwrite policy by default; there is no unbounded flat syslog file to protect.",
+      "review_by": "2027-09-01"
+    }
+  },
+  "risk_class": "restore_absent"
+}

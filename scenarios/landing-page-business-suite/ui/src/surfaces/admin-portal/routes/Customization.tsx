@@ -95,7 +95,7 @@ export function Customization() {
       <AdminLayout>
         <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
           <p className="text-red-400">Error: {error}</p>
-          <Button onClick={fetchVariants} variant="outline" className="mt-4">
+          <Button onClick={() => { void fetchVariants(); }} variant="outline" className="mt-4">
             Retry
           </Button>
         </div>
@@ -109,7 +109,6 @@ export function Customization() {
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
-          variant="icon-title"
           title="Customization"
           description="Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split)."
           icon={Palette}
@@ -143,7 +142,7 @@ export function Customization() {
           query={variantQuery}
           onQueryChange={setVariantQuery}
           attentionOnly={attentionOnly}
-          onAttentionToggle={() => setAttentionOnly(!attentionOnly)}
+          onAttentionToggle={() => { setAttentionOnly(!attentionOnly); }}
           hasFilters={Boolean(variantQuery) || attentionOnly}
           onClearFilters={clearVariantFilters}
         />
@@ -167,10 +166,9 @@ export function Customization() {
           neverUpdatedVariants={neverUpdatedVariants}
           underperforming={underperformingInfo}
           analyticsRangeDays={snapshotDays}
-          onEditVariant={navigateToVariantEditor}
           onViewAnalytics={navigateToAnalytics}
           onHighlightVariant={highlightVariantInList}
-          onEditSection={navigateToSectionEditor}
+          onEditSection={(slug, options) => { void navigateToSectionEditor(slug, options); }}
         />
       </ErrorBoundary>
 
@@ -211,7 +209,7 @@ export function Customization() {
                       className="flex flex-col gap-2 rounded-lg border border-white/10 bg-slate-900/40 px-3 py-2 md:flex-row md:items-center md:justify-between"
                     >
                       <div>
-                        <div className="text-sm font-medium text-white">{variant.name ?? variant.slug}</div>
+                        <div className="text-sm font-medium text-white">{variant.name}</div>
                         <div className="text-xs text-slate-400">
                           Weight {weight}% • Normalized {share.toFixed(1)}%
                         </div>
@@ -220,7 +218,7 @@ export function Customization() {
                         <div className="w-32 h-2 rounded-full bg-slate-800 overflow-hidden">
                           <div
                             className="h-2 bg-sky-400 transition-all"
-                            style={{ width: `${Math.min(share, 100)}%` }}
+                            style={{ width: `${String(Math.min(share, 100))}%` }}
                             aria-label={`Normalized share ${share.toFixed(1)}%`}
                           />
                         </div>
@@ -231,11 +229,11 @@ export function Customization() {
                           value={weight}
                           disabled={saving}
                           className="w-36"
-                          onChange={(e) => setWeightDraft(variant.slug, parseInt(e.target.value, 10) || 0)}
-                          onMouseUp={(e) => persistWeight(variant.slug, parseInt((e.target as HTMLInputElement).value, 10) || 0)}
+                          onChange={(e) => { setWeightDraft(variant.slug, parseInt(e.target.value, 10) || 0); }}
+                          onMouseUp={(e) => { void persistWeight(variant.slug, parseInt((e.target as HTMLInputElement).value, 10) || 0); }}
                           onTouchEnd={(e) => {
                             const target = e.target as HTMLInputElement;
-                            persistWeight(variant.slug, parseInt(target.value, 10) || 0);
+                            void persistWeight(variant.slug, parseInt(target.value, 10) || 0);
                           }}
                           data-testid={`live-weight-slider-${variant.slug}`}
                         />
@@ -327,8 +325,9 @@ export function Customization() {
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label={`Edit ${variant.name}`}
                           className="flex-1 gap-2"
-                          onClick={() => navigateToVariantEditor(variant.slug)}
+                          onClick={() => { navigateToVariantEditor(variant.slug); }}
                           data-testid={`edit-variant-${variant.slug}`}
                         >
                           <Edit className="h-4 w-4" />
@@ -337,7 +336,8 @@ export function Customization() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openVariantPreview(variant.slug)}
+                          aria-label={`Preview ${variant.name}`}
+                          onClick={() => { openVariantPreview(variant.slug); }}
                           data-testid={`preview-variant-${variant.slug}`}
                         >
                           <Eye className="h-4 w-4" />
@@ -345,7 +345,8 @@ export function Customization() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onArchive(variant.slug)}
+                          aria-label={`Archive ${variant.name}`}
+                          onClick={() => { void onArchive(variant.slug); }}
                           data-testid={`archive-variant-${variant.slug}`}
                         >
                           <Archive className="h-4 w-4" />
@@ -353,7 +354,7 @@ export function Customization() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigateToAnalytics(variant.slug)}
+                          onClick={() => { navigateToAnalytics(variant.slug); }}
                           data-testid={`variant-analytics-${variant.slug}`}
                         >
                           View Analytics
@@ -397,7 +398,7 @@ export function Customization() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onDelete(variant.slug)}
+                      onClick={() => { void onDelete(variant.slug); }}
                       className="w-full gap-2 text-red-400 hover:text-red-300"
                       data-testid={`delete-variant-${variant.slug}`}
                     >
@@ -433,7 +434,7 @@ function VariantFilterBar({ query, onQueryChange, attentionOnly, onAttentionTogg
           <input
             type="text"
             value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
+            onChange={(event) => { onQueryChange(event.target.value); }}
             placeholder="Search by name or slug"
             className="w-full rounded-full border border-white/10 bg-slate-950/60 py-3 pl-11 pr-4 text-sm focus:border-blue-500 focus:outline-none"
             data-testid="variant-search-input"
@@ -479,10 +480,10 @@ function VariantListSummary({ activeCount, archivedCount, attentionCount, totalW
       return 'Traffic is fully allocated across variants. Weights are interpreted as proportions.';
     }
     if (weightStatus === 'under') {
-      return `Weights sum to ${totalWeight}%. API will normalize; increase weights if you want more skew.`;
+      return `Weights sum to ${String(totalWeight)}%. API will normalize; increase weights if you want more skew.`;
     }
     if (weightStatus === 'over') {
-      return `Weights exceed 100% by ${totalWeight - 100}%. API normalizes, but trim to express intent.`;
+      return `Weights exceed 100% by ${String(totalWeight - 100)}%. API normalizes, but trim to express intent.`;
     }
     return 'Assign weights to control where visitors land. 0% disables a variant.';
   })();
@@ -520,10 +521,9 @@ interface ExperienceOpsPanelProps {
   neverUpdatedVariants: Variant[];
   underperforming: { stats: VariantStats; variant?: Variant } | null;
   analyticsRangeDays: number;
-  onEditVariant: (slug: string) => void;
   onViewAnalytics: (slug: string) => void;
   onHighlightVariant?: (slug?: string) => void;
-  onEditSection?: (slug: string, options?: { sectionId?: number; sectionType?: string }) => void;
+  onEditSection: (slug: string, options?: { sectionId?: number; sectionType?: string }) => void;
 }
 
 function ExperienceOpsPanel({
@@ -534,7 +534,6 @@ function ExperienceOpsPanel({
   neverUpdatedVariants,
   underperforming,
   analyticsRangeDays,
-  onEditVariant,
   onViewAnalytics,
   onHighlightVariant,
   onEditSection,
@@ -549,9 +548,9 @@ function ExperienceOpsPanel({
       return 'All visitor traffic is allocated. Weights act as proportions across active variants.';
     }
     if (weightStatus === 'under') {
-      return `Weights sum to ${totalWeight}%. The API normalizes proportions; increase weights for clearer intent.`;
+      return `Weights sum to ${String(totalWeight)}%. The API normalizes proportions; increase weights for clearer intent.`;
     }
-    return `${totalWeight}% of traffic is assigned, exceeding 100% by ${remainder}%. API still normalizes; trim weights to reflect the split you want.`;
+    return `${String(totalWeight)}% of traffic is assigned, exceeding 100% by ${String(remainder)}%. API still normalizes; trim weights to reflect the split you want.`;
   })();
   const neverTouchedNames = neverUpdatedVariants.map((variant) => variant.name || variant.slug);
   const underperformingSlug = underperforming?.stats.variant_slug;
@@ -573,7 +572,7 @@ function ExperienceOpsPanel({
             <div className="h-2 rounded-full bg-white/5 overflow-hidden">
               <div
                 className={`h-2 ${weightStatus === 'balanced' ? 'bg-emerald-400' : 'bg-amber-400'} transition-all`}
-                style={{ width: `${progressWidth}%` }}
+                style={{ width: `${String(progressWidth)}%` }}
               />
             </div>
             <p className="text-sm text-slate-400">{weightMessage}</p>
@@ -588,17 +587,13 @@ function ExperienceOpsPanel({
                 {staleVariants.map(({ variant, daysSinceUpdate }) => (
                   <div key={variant.slug} className="flex items-center justify-between bg-slate-900/60 border border-white/10 rounded-lg px-3 py-2">
                     <div>
-                      <p className="text-sm font-medium text-white">{variant.name ?? variant.slug}</p>
+                      <p className="text-sm font-medium text-white">{variant.name}</p>
                       <p className="text-xs text-slate-400">Updated {daysSinceUpdate} day{daysSinceUpdate === 1 ? '' : 's'} ago</p>
                     </div>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        onEditSection
-                          ? onEditSection(variant.slug, { sectionType: 'hero' })
-                          : onEditVariant(variant.slug)
-                      }
+                      onClick={() => { onEditSection(variant.slug, { sectionType: 'hero' }); }}
                     >
                       Refresh copy
                     </Button>
@@ -626,17 +621,13 @@ function ExperienceOpsPanel({
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Button size="sm" className="gap-2" onClick={() => onViewAnalytics(underperformingSlug)}>
+                  <Button size="sm" className="gap-2" onClick={() => { onViewAnalytics(underperformingSlug); }}>
                     Inspect analytics
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() =>
-                      onEditSection
-                        ? onEditSection(underperformingSlug, { sectionType: 'hero' })
-                        : onEditVariant(underperformingSlug)
-                    }
+                    onClick={() => { onEditSection(underperformingSlug, { sectionType: 'hero' }); }}
                   >
                     Tune copy
                   </Button>
@@ -644,7 +635,7 @@ function ExperienceOpsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => onHighlightVariant(underperformingSlug)}
+                      onClick={() => { onHighlightVariant(underperformingSlug); }}
                       data-testid="needs-attention-focus"
                     >
                       Highlight in list
@@ -725,7 +716,7 @@ function formatVariantUpdatedLabel(updatedAt?: string | null) {
   if (diffDays === 1) {
     return 'Updated yesterday';
   }
-  return `Updated ${diffDays} days ago`;
+  return `Updated ${String(diffDays)} days ago`;
 }
 
 interface VariantStatusBadgesProps {

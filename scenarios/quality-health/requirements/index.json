@@ -1,0 +1,13 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-scenario-boundary/module.json",
+    "02-audit-core/module.json",
+    "03-surfaces-and-integrations/module.json",
+    "04-autofix-completeness/module.json"
+  ]
+}

@@ -27,8 +27,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 // TestCreateIdempotencyWithKey verifies that Create with the same idempotency

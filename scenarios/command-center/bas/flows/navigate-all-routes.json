@@ -1,0 +1,288 @@
+{
+  "metadata": {
+    "name": "navigate-all-routes",
+    "description": "Walks all six top-level command-center routes (mission-control, hive, forge, ledger, broadcast, panorama), verifying each applies the expected data-theme attribute and capturing a screenshot per route.",
+    "labels": {
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control"
+        }
+      }
+    },
+    {
+      "id": "wait-mission-control-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='ground-control']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='ground-control'"
+        }
+      }
+    },
+    {
+      "id": "capture-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /mission-control"
+        }
+      }
+    },
+    {
+      "id": "navigate-hive",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/hive",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /hive"
+        }
+      }
+    },
+    {
+      "id": "wait-hive-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='bioluminescent']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='bioluminescent'"
+        }
+      }
+    },
+    {
+      "id": "capture-hive",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /hive"
+        }
+      }
+    },
+    {
+      "id": "navigate-forge",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/forge",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /forge"
+        }
+      }
+    },
+    {
+      "id": "wait-forge-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='foundry']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='foundry'"
+        }
+      }
+    },
+    {
+      "id": "capture-forge",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /forge"
+        }
+      }
+    },
+    {
+      "id": "navigate-ledger",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/ledger",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /ledger"
+        }
+      }
+    },
+    {
+      "id": "wait-ledger-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='vault']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='vault'"
+        }
+      }
+    },
+    {
+      "id": "capture-ledger",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /ledger"
+        }
+      }
+    },
+    {
+      "id": "navigate-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/broadcast",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /broadcast"
+        }
+      }
+    },
+    {
+      "id": "wait-broadcast-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='signal-tower']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='signal-tower'"
+        }
+      }
+    },
+    {
+      "id": "capture-broadcast",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /broadcast"
+        }
+      }
+    },
+    {
+      "id": "navigate-panorama",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/panorama",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /panorama"
+        }
+      }
+    },
+    {
+      "id": "wait-panorama-theme",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='cosmos']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='cosmos'"
+        }
+      }
+    },
+    {
+      "id": "capture-panorama",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /panorama"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-mission-control", "target": "wait-mission-control-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-mission-control-theme", "target": "capture-mission-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "capture-mission-control", "target": "navigate-hive", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "navigate-hive", "target": "wait-hive-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "wait-hive-theme", "target": "capture-hive", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "capture-hive", "target": "navigate-forge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "navigate-forge", "target": "wait-forge-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "wait-forge-theme", "target": "capture-forge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "capture-forge", "target": "navigate-ledger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "navigate-ledger", "target": "wait-ledger-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "wait-ledger-theme", "target": "capture-ledger", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "capture-ledger", "target": "navigate-broadcast", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "navigate-broadcast", "target": "wait-broadcast-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "wait-broadcast-theme", "target": "capture-broadcast", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e15", "source": "capture-broadcast", "target": "navigate-panorama", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e16", "source": "navigate-panorama", "target": "wait-panorama-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e17", "source": "wait-panorama-theme", "target": "capture-panorama", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

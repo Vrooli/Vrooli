@@ -9,9 +9,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/scheduletest"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/domain"
-	"github.com/vrooli/browser-automation-studio/internal/clock"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/fixtures"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 )
 
@@ -31,7 +32,7 @@ func TestNewService_WithClock(t *testing.T) {
 	repo := persistence.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
-	mockClock := clock.NewMock(time.Time{})
+	mockClock := scheduletest.New(time.Time{})
 
 	svc := NewService(repo, nil, log, ServiceConfig{
 		Clock: mockClock,
@@ -68,7 +69,6 @@ func TestService_CreateSession(t *testing.T) {
 		ViewportWidth:  1920,
 		ViewportHeight: 1080,
 	})
-
 	if err != nil {
 		t.Fatalf("CreateSession failed: %v", err)
 	}
@@ -411,7 +411,6 @@ func TestService_RecordActionUnified_Success(t *testing.T) {
 		Source:        ActionSourceManual,
 		CorrelationID: "test-correlation-123",
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified failed: %v", err)
 	}
@@ -478,7 +477,6 @@ func TestService_RecordActionUnified_NilAction(t *testing.T) {
 		PageID:    pageID,
 		Source:    ActionSourceManual,
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified should not return error for nil action: %v", err)
 	}
@@ -538,7 +536,6 @@ func TestService_RecordActionUnified_PersistenceError(t *testing.T) {
 		PageID:    pageID,
 		Source:    ActionSourceManual,
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified should not return error on persistence failure: %v", err)
 	}
@@ -612,7 +609,6 @@ func TestService_RecordPageEventUnified_Success(t *testing.T) {
 		Event:         event,
 		CorrelationID: "test-page-event-123",
 	})
-
 	if err != nil {
 		t.Fatalf("RecordPageEventUnified failed: %v", err)
 	}
@@ -679,7 +675,6 @@ func TestService_RecordPageEventUnified_NilEvent(t *testing.T) {
 		SessionID: session.ID,
 		Event:     nil, // nil event
 	})
-
 	if err != nil {
 		t.Fatalf("RecordPageEventUnified should not return error for nil event: %v", err)
 	}
@@ -1036,32 +1031,21 @@ func TestService_WarmCache_LoadsFromRepository(t *testing.T) {
 	sessionID := "test-session-for-warming"
 
 	// Create session directly in repository (simulating existing data)
-	session := &domain.RecordingSession{
-		ID:             sessionID,
-		Status:         domain.SessionStatusActive,
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-		CreatedAt:      time.Now(),
-	}
+	session := fixtures.RecordingSession(fixtures.WithRecordingSessionID(sessionID))
 	_ = repo.CreateSession(ctx, session)
 
 	// Add entries directly to repository
 	pageID := uuid.New()
 	for i := 0; i < 5; i++ {
-		entry := &persistence.UnifiedTimelineEntry{
-			ID:        uuid.New(),
-			Type:      persistence.TimelineEntryTypeAction,
-			Timestamp: time.Now(),
-			SessionID: sessionID,
-			PageID:    pageID,
-			Sequence:  i + 1,
-			Action: &domain.RecordingAction{
-				ID:         uuid.New(),
-				SessionID:  sessionID,
-				ActionType: "click",
-				Timestamp:  time.Now(),
-			},
-		}
+		entry := fixtures.TimelineEntry(
+			fixtures.WithTimelineEntrySessionID(sessionID),
+			fixtures.WithTimelineEntryPageID(pageID),
+			fixtures.WithTimelineEntrySequence(i+1),
+			fixtures.WithTimelineEntryAction(fixtures.RecordingAction(
+				fixtures.WithRecordingActionSessionID(sessionID),
+				fixtures.WithRecordingActionPageID(pageID),
+			)),
+		)
 		_ = repo.SaveTimelineEntry(ctx, entry)
 	}
 
@@ -1109,33 +1093,22 @@ func TestService_WarmCache_SetsCorrectSequence(t *testing.T) {
 	sessionID := "test-session-sequence"
 
 	// Create session
-	session := &domain.RecordingSession{
-		ID:             sessionID,
-		Status:         domain.SessionStatusActive,
-		ViewportWidth:  1920,
-		ViewportHeight: 1080,
-		CreatedAt:      time.Now(),
-	}
+	session := fixtures.RecordingSession(fixtures.WithRecordingSessionID(sessionID))
 	_ = repo.CreateSession(ctx, session)
 
 	// Add entries with specific sequence numbers
 	pageID := uuid.New()
 	maxSeq := 42
 	for i := 0; i < 5; i++ {
-		entry := &persistence.UnifiedTimelineEntry{
-			ID:        uuid.New(),
-			Type:      persistence.TimelineEntryTypeAction,
-			Timestamp: time.Now(),
-			SessionID: sessionID,
-			PageID:    pageID,
-			Sequence:  maxSeq - 4 + i, // 38, 39, 40, 41, 42
-			Action: &domain.RecordingAction{
-				ID:         uuid.New(),
-				SessionID:  sessionID,
-				ActionType: "click",
-				Timestamp:  time.Now(),
-			},
-		}
+		entry := fixtures.TimelineEntry(
+			fixtures.WithTimelineEntrySessionID(sessionID),
+			fixtures.WithTimelineEntryPageID(pageID),
+			fixtures.WithTimelineEntrySequence(maxSeq-4+i), // 38, 39, 40, 41, 42
+			fixtures.WithTimelineEntryAction(fixtures.RecordingAction(
+				fixtures.WithRecordingActionSessionID(sessionID),
+				fixtures.WithRecordingActionPageID(pageID),
+			)),
+		)
 		_ = repo.SaveTimelineEntry(ctx, entry)
 	}
 
@@ -1237,7 +1210,7 @@ func TestService_FilterEntries_BySince(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
-	mockClock := clock.NewMock(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC))
+	mockClock := scheduletest.New(time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC))
 	svc := NewService(repo, nil, log, ServiceConfig{Clock: mockClock})
 	ctx := context.Background()
 
@@ -1316,12 +1289,7 @@ func TestService_FilterEntries_ByEntryType(t *testing.T) {
 
 	// Record some page events
 	for i := 0; i < 2; i++ {
-		event := &domain.PageEvent{
-			ID:        uuid.New(),
-			Type:      domain.PageEventCreated,
-			PageID:    pageID,
-			Timestamp: time.Now(),
-		}
+		event := fixtures.PageEvent(fixtures.WithPageEventPageID(pageID))
 		_ = svc.RecordPageEvent(ctx, session.ID, event)
 	}
 

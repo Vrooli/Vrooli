@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -960,6 +961,27 @@ func TestCompiledInstruction_Structure(t *testing.T) {
 		assert.Equal(t, "nav-1", instr.Context["previousStep"])
 		assert.Equal(t, "recording", instr.Metadata["source"])
 	})
+}
+
+func TestExecutionContractsRejectLegacyTypeParamsFields(t *testing.T) {
+	t.Parallel()
+
+	for _, contract := range []any{CompiledInstruction{}, PlanStep{}} {
+		contractType := reflect.TypeOf(contract)
+		for _, legacyField := range []string{"Type", "Params"} {
+			if _, exists := contractType.FieldByName(legacyField); exists {
+				t.Fatalf("%s must use ActionDefinition rather than a legacy %s field", contractType.Name(), legacyField)
+			}
+		}
+
+		actionField, exists := contractType.FieldByName("Action")
+		if !exists {
+			t.Fatalf("%s must expose a typed Action field", contractType.Name())
+		}
+		if actionField.Type != reflect.TypeOf((*basactions.ActionDefinition)(nil)) {
+			t.Fatalf("%s.Action type = %s, want *actions.ActionDefinition", contractType.Name(), actionField.Type)
+		}
+	}
 }
 
 // =============================================================================

@@ -2,16 +2,34 @@
 package protoconv
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRunToProtoReplacesMalformedUTF8AtTransportBoundary(t *testing.T) {
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        uuid.New(),
+		PromptPreview: string([]byte{'o', 'k', 0xff}),
+		Subject:       []string{string([]byte{'s', 0xfe})},
+		Summary:       &domain.RunSummary{Description: string([]byte{'d', 0xfd})},
+		Actions:       &domain.RunActions{CanContinueReason: string([]byte{'a', 0xfc})},
+		Result:        &domain.RunResult{FinalOutput: string([]byte{'r', 0xfb})},
+	}
+
+	if _, err := proto.Marshal(RunToProto(run)); err != nil {
+		t.Fatalf("RunToProto must produce a protobuf-safe message: %v", err)
+	}
+}
 
 // =============================================================================
 // RUNNER TYPE TESTS
@@ -61,6 +79,255 @@ func TestRunnerTypeFromProto(t *testing.T) {
 	}
 }
 
+func TestExecutionModeToProto(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    domain.ExecutionMode
+		expected pb.ExecutionMode
+	}{
+		{"codec_pipe", domain.ExecutionModeCodecPipe, pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
+		{"interactive", domain.ExecutionModeInteractive, pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE},
+		{"attached", domain.ExecutionModeAttached, pb.ExecutionMode_EXECUTION_MODE_ATTACHED},
+		{"empty normalizes to codec_pipe", domain.ExecutionMode(""), pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExecutionModeToProto(tt.input); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestExecutionModeFromProto(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    pb.ExecutionMode
+		expected domain.ExecutionMode
+	}{
+		{"codec_pipe", pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE, domain.ExecutionModeCodecPipe},
+		{"interactive", pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE, domain.ExecutionModeInteractive},
+		{"attached", pb.ExecutionMode_EXECUTION_MODE_ATTACHED, domain.ExecutionModeAttached},
+		{"unspecified maps to empty", pb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED, domain.ExecutionMode("")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExecutionModeFromProto(tt.input); got != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestAttachedRunProtoRoundTripOmitsUnboundTask(t *testing.T) {
+	run := &domain.Run{
+		ID:               uuid.New(),
+		TaskID:           uuid.Nil,
+		ExecutionMode:    domain.ExecutionModeAttached,
+		HarnessKind:      "claude-code",
+		HarnessSessionID: "session-123",
+		Status:           domain.RunStatusRunning,
+		Phase:            domain.RunPhaseExecuting,
+	}
+	encoded := RunToProto(run)
+	if encoded.GetTaskId() != "" {
+		t.Fatalf("unbound task id encoded as %q, want empty", encoded.GetTaskId())
+	}
+	if encoded.ExecutionMode != pb.ExecutionMode_EXECUTION_MODE_ATTACHED || encoded.HarnessKind != "claude-code" || encoded.HarnessSessionId != "session-123" {
+		t.Fatalf("attached fields not encoded: mode=%v kind=%q session=%q", encoded.ExecutionMode, encoded.HarnessKind, encoded.HarnessSessionId)
+	}
+	decoded := RunFromProto(encoded)
+	if decoded.TaskID != uuid.Nil || decoded.ExecutionMode != domain.ExecutionModeAttached || decoded.HarnessKind != run.HarnessKind || decoded.HarnessSessionID != run.HarnessSessionID {
+		t.Fatalf("attached fields not decoded: task=%s mode=%q kind=%q session=%q", decoded.TaskID, decoded.ExecutionMode, decoded.HarnessKind, decoded.HarnessSessionID)
+	}
+}
+
+// TestRunToProtoInteractiveFields verifies the interactive execution-mode
+// surface (execution_mode, web_console_session_id, computed web_console_session_url)
+// round-trips through the Run converters.
+func TestRunToProtoInteractiveFields(t *testing.T) {
+	r := &domain.Run{
+		ID:                   uuid.New(),
+		TaskID:               uuid.New(),
+		ExecutionMode:        domain.ExecutionModeInteractive,
+		WebConsoleSessionID:  "sess-123",
+		WebConsoleSessionURL: "http://localhost:21233/?session=sess-123",
+	}
+	pbRun := RunToProto(r)
+	if pbRun.ExecutionMode != pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE {
+		t.Errorf("execution_mode: expected INTERACTIVE, got %v", pbRun.ExecutionMode)
+	}
+	if pbRun.WebConsoleSessionId != "sess-123" {
+		t.Errorf("web_console_session_id: expected sess-123, got %q", pbRun.WebConsoleSessionId)
+	}
+	if pbRun.WebConsoleSessionUrl != "http://localhost:21233/?session=sess-123" {
+		t.Errorf("web_console_session_url: unexpected %q", pbRun.WebConsoleSessionUrl)
+	}
+
+	back := RunFromProto(pbRun)
+	if back.ExecutionMode != domain.ExecutionModeInteractive {
+		t.Errorf("round-trip execution_mode: expected interactive, got %q", back.ExecutionMode)
+	}
+	if back.WebConsoleSessionID != "sess-123" {
+		t.Errorf("round-trip session id: got %q", back.WebConsoleSessionID)
+	}
+}
+
+func TestRunResultProtoRoundTrip(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Result: &domain.RunResult{
+		FinalOutput: "canonical handoff",
+		Selection: domain.FinalOutputSelection{
+			Status: domain.FinalOutputSelectionSelected, SelectedCandidateID: "candidate-1",
+			Rule: "unique_terminal_main_assistant", AlgorithmVersion: domain.FinalOutputResolverVersion,
+			Evidence: []string{"event=result"},
+		},
+		Candidates: []domain.FinalOutputCandidate{{ID: "candidate-1", Content: "canonical handoff", MessageID: "msg-1", Terminal: true, EvidenceTier: 3}},
+		Success:    true,
+		Structured: &domain.StructuredResult{
+			Status: domain.StructuredResultSuccess, SpecKind: domain.ResultSpecKindJSONSchema,
+			SchemaDigest: "sha256:test", Value: json.RawMessage(`{"answer":"yes"}`), Method: "whole_document",
+			Diagnostics: []domain.StructuredDiagnostic{{Code: "note", Path: "/answer", Message: "safe"}},
+		},
+	}}
+	converted := RunFromProto(RunToProto(run))
+	if converted.Result == nil || converted.Result.FinalOutput != "canonical handoff" {
+		t.Fatalf("result round trip = %#v", converted.Result)
+	}
+	if converted.Result.Selection.Status != domain.FinalOutputSelectionSelected || len(converted.Result.Candidates) != 1 {
+		t.Fatalf("selection round trip = %#v", converted.Result)
+	}
+	if converted.Result.Structured == nil || converted.Result.Structured.Status != domain.StructuredResultSuccess || string(converted.Result.Structured.Value) != `{"answer":"yes"}` {
+		t.Fatalf("structured result round trip = %#v", converted.Result.Structured)
+	}
+}
+
+func TestExecutionPolicySnapshotRoundTrip(t *testing.T) {
+	original := &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex,
+		Model:      "gpt-primary",
+		ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindClassification, Schema: json.RawMessage(`{"enum":["yes","no"],"type":"string"}`), SchemaDigest: "sha256:spec", ExtractionMode: domain.StructuredExtractionConstrained, ExtractionRole: "extract.structured"},
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{
+			CatalogDigest: "sha256:catalog-revision",
+			RoleRef:       "code.smart",
+			Candidates: []domain.ExecutionCandidate{
+				{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
+				{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+			},
+			SelectedIndex: 1,
+			SelectedCandidate: domain.ExecutionCandidate{
+				RunnerType:    domain.RunnerTypeClaudeCode,
+				SelectionType: domain.ModelSelectionTypeRunnerDefault,
+			},
+			Explanation: domain.PolicyResolutionExplanation{
+				Source:           "portable_role",
+				Summary:          "resolved before run creation",
+				RequestedRoleRef: "code.smart",
+				Preflight: []domain.CandidatePreflight{
+					{
+						Index:     0,
+						Candidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "gpt-primary"},
+						Reason:    "model unavailable",
+					},
+					{
+						Index:     1,
+						Candidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeClaudeCode, SelectionType: domain.ModelSelectionTypeRunnerDefault},
+						Available: true,
+					},
+				},
+			},
+		},
+	}
+
+	protoConfig := RunConfigToProto(original)
+	if protoConfig.PolicySnapshot == nil {
+		t.Fatal("policy snapshot was dropped from proto config")
+	}
+	roundTrip := RunConfigFromProto(protoConfig)
+	if !reflect.DeepEqual(roundTrip.PolicySnapshot, original.PolicySnapshot) {
+		t.Fatalf("policy snapshot round trip mismatch\n got: %#v\nwant: %#v", roundTrip.PolicySnapshot, original.PolicySnapshot)
+	}
+	if !reflect.DeepEqual(roundTrip.ResultSpec, original.ResultSpec) {
+		t.Fatalf("result spec round trip mismatch\n got: %#v\nwant: %#v", roundTrip.ResultSpec, original.ResultSpec)
+	}
+}
+
+func TestSandboxConfigRoundTripPreservesLifecycleAcceptanceAndNilCriteria(t *testing.T) {
+	trueValue := true
+	original := &domain.SandboxConfig{
+		Mode:           domain.SandboxModeProtected,
+		ManualReview:   true,
+		AutoApply:      &trueValue,
+		ApplyOnFailure: &trueValue,
+		NetworkMode:    domain.NetworkAccessLocalhost,
+		NoLock:         true,
+		Acceptance: domain.SandboxAcceptanceConfig{
+			Mode:         "allowlist",
+			Allow:        domain.SandboxFileCriteria{PathGlobs: []string{"src/**"}, Extensions: []string{".go"}},
+			IgnoreBinary: true,
+		},
+		Lifecycle: domain.SandboxLifecycleConfig{
+			CheckpointOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed},
+			StopOn:       []domain.SandboxLifecycleEvent{domain.SandboxLifecycleRejected},
+			DeleteOn:     []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal},
+			TTL:          30 * time.Minute,
+			IdleTimeout:  5 * time.Minute,
+		},
+	}
+	converted := SandboxConfigToProto(original)
+	if converted.GetAcceptance().GetDeny() != nil {
+		t.Fatal("empty deny criteria must be omitted so it cannot mean deny everything")
+	}
+	if got := SandboxConfigFromProto(converted); got == nil || !reflect.DeepEqual(*got, *original) {
+		t.Fatalf("sandbox config round trip mismatch\n got: %#v\nwant: %#v", got, *original)
+	}
+	if SandboxConfigToProto(nil) != nil || SandboxConfigFromProto(nil) != nil {
+		t.Fatal("nil sandbox configs are not safely represented")
+	}
+}
+
+func TestSandboxLifecycleEventsModesAndAcceptanceConvertersFailClosed(t *testing.T) {
+	events := []domain.SandboxLifecycleEvent{
+		domain.SandboxLifecycleTurnCompleted, domain.SandboxLifecycleTurnFailed, domain.SandboxLifecycleTurnCancelled,
+		domain.SandboxLifecycleTerminal, domain.SandboxLifecycleRunCompleted, domain.SandboxLifecycleRunFailed,
+		domain.SandboxLifecycleRunCancelled, domain.SandboxLifecycleApproved, domain.SandboxLifecycleRejected, domain.SandboxLifecycleTerminal,
+	}
+	for _, event := range events {
+		if got := SandboxLifecycleEventFromProto(SandboxLifecycleEventToProto(event)); got != event {
+			t.Fatalf("event %q round trip=%q", event, got)
+		}
+	}
+	if SandboxLifecycleEventToProto("unknown") != pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED || SandboxLifecycleEventFromProto(pb.SandboxLifecycleEvent_SANDBOX_LIFECYCLE_EVENT_UNSPECIFIED) != "" {
+		t.Fatal("unknown lifecycle events must fail closed")
+	}
+	for _, mode := range []domain.SandboxMode{domain.SandboxModeOff, domain.SandboxModeTracking, domain.SandboxModeProtected} {
+		if got := SandboxModeFromProto(SandboxModeToProto(mode)); got != mode {
+			t.Fatalf("sandbox mode %q round trip=%q", mode, got)
+		}
+	}
+	if SandboxModeFromProto(pb.SandboxMode_SANDBOX_MODE_UNSPECIFIED) != domain.SandboxModeUnspecified || SandboxAcceptanceModeFromProto(pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED) != "" || SandboxAcceptanceModeToProto("unknown") != pb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_UNSPECIFIED {
+		t.Fatal("unknown sandbox policy values must not receive a permissive default")
+	}
+}
+
+func TestRunEventTypeConversionsPreserveKnownEventsAndDefaultSafely(t *testing.T) {
+	events := []domain.RunEventType{
+		domain.EventTypeLog, domain.EventTypeMessage, domain.EventTypeMessageDeleted, domain.EventTypeToolCall,
+		domain.EventTypeToolResult, domain.EventTypeStatus, domain.EventTypeMetric, domain.EventTypeArtifact,
+		domain.EventTypeError, domain.EventTypeCompaction, domain.EventTypeLifecycle,
+	}
+	for _, event := range events {
+		if got := RunEventTypeFromProto(RunEventTypeToProto(event)); got != event {
+			t.Fatalf("event type %q round trip=%q", event, got)
+		}
+	}
+	if RunEventTypeToProto(domain.RunEventType("unknown")) != pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED {
+		t.Fatal("unknown event type must not be exposed as a known API event")
+	}
+	if RunEventTypeFromProto(pb.RunEventType_RUN_EVENT_TYPE_UNSPECIFIED) != domain.EventTypeLog {
+		t.Fatal("unspecified event type must retain the log-compatible default")
+	}
+}
+
 // =============================================================================
 // TASK STATUS TESTS
 // =============================================================================
@@ -106,6 +373,7 @@ func TestRunStatusRoundTrip(t *testing.T) {
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,
 		domain.RunStatusCancelled,
+		domain.RunStatusParked,
 	}
 
 	for _, status := range statuses {
@@ -275,24 +543,22 @@ func TestDurationConversions(t *testing.T) {
 
 func TestAgentProfileRoundTrip(t *testing.T) {
 	original := &domain.AgentProfile{
-		ID:                   uuid.New(),
-		Name:                 "test-profile",
-		ProfileKey:           "test-profile-key",
-		Description:          "A test profile",
-		RunnerType:           domain.RunnerTypeClaudeCode,
-		Model:                "claude-3-opus",
-		MaxTurns:             100,
-		Timeout:              10 * time.Minute,
-		AllowedTools:         []string{"read", "write"},
-		DeniedTools:          []string{"bash"},
-		SkipPermissionPrompt: true,
-		RequiresSandbox:      true,
-		RequiresApproval:     false,
-		AllowedPaths:         []string{"/src"},
-		DeniedPaths:          []string{"/secrets"},
-		CreatedBy:            "test-user",
-		CreatedAt:            time.Now().Truncate(time.Second),
-		UpdatedAt:            time.Now().Truncate(time.Second),
+		ID:          uuid.New(),
+		Name:        "test-profile",
+		ProfileKey:  "test-profile-key",
+		Description: "A test profile",
+
+		MaxTurns:              100,
+		Timeout:               10 * time.Minute,
+		AllowedTools:          []string{"read", "write"},
+		DeniedTools:           []string{"bash"},
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicyAdvisory,
+		SkipPermissionPrompt:  true,
+		AllowedPaths:          []string{"/src"},
+		DeniedPaths:           []string{"/secrets"},
+		CreatedBy:             "test-user",
+		CreatedAt:             time.Now().Truncate(time.Second),
+		UpdatedAt:             time.Now().Truncate(time.Second), RoleRef: "code.default",
 	}
 
 	proto := AgentProfileToProto(original)
@@ -304,11 +570,14 @@ func TestAgentProfileRoundTrip(t *testing.T) {
 	if result.Name != original.Name {
 		t.Errorf("Name: expected %v, got %v", original.Name, result.Name)
 	}
+	if result.ToolRestrictionPolicy != domain.ToolRestrictionPolicyAdvisory {
+		t.Errorf("ToolRestrictionPolicy = %q", result.ToolRestrictionPolicy)
+	}
 	if result.ProfileKey != original.ProfileKey {
 		t.Errorf("ProfileKey: expected %v, got %v", original.ProfileKey, result.ProfileKey)
 	}
-	if result.RunnerType != original.RunnerType {
-		t.Errorf("RunnerType: expected %v, got %v", original.RunnerType, result.RunnerType)
+	if result.RoleRef != original.RoleRef {
+		t.Errorf("RoleRef: expected %q, got %q", original.RoleRef, result.RoleRef)
 	}
 	if result.MaxTurns != original.MaxTurns {
 		t.Errorf("MaxTurns: expected %v, got %v", original.MaxTurns, result.MaxTurns)
@@ -415,6 +684,49 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 }
 
+func TestRunAwaitHandleRoundTrip(t *testing.T) {
+	registeredAt := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+	deadline := time.Now().Add(25 * time.Minute).Truncate(time.Second)
+
+	original := &domain.Run{
+		ID:        uuid.New(),
+		TaskID:    uuid.New(),
+		Status:    domain.RunStatusParked,
+		Phase:     domain.RunPhaseExecuting,
+		CreatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second),
+		AwaitHandle: &domain.AwaitHandle{
+			Producer:     "test-genie",
+			Key:          "agent-manager/20260625-1",
+			Deadline:     &deadline,
+			RegisteredAt: registeredAt,
+		},
+	}
+
+	result := RunFromProto(RunToProto(original))
+
+	if result.AwaitHandle == nil {
+		t.Fatalf("AwaitHandle: expected non-nil after round-trip")
+	}
+	if result.AwaitHandle.Producer != original.AwaitHandle.Producer {
+		t.Errorf("Producer: expected %q, got %q", original.AwaitHandle.Producer, result.AwaitHandle.Producer)
+	}
+	if result.AwaitHandle.Key != original.AwaitHandle.Key {
+		t.Errorf("Key: expected %q, got %q", original.AwaitHandle.Key, result.AwaitHandle.Key)
+	}
+	if result.AwaitHandle.Deadline == nil || !result.AwaitHandle.Deadline.Equal(*original.AwaitHandle.Deadline) {
+		t.Errorf("Deadline: expected %v, got %v", original.AwaitHandle.Deadline, result.AwaitHandle.Deadline)
+	}
+	if !result.AwaitHandle.RegisteredAt.Equal(original.AwaitHandle.RegisteredAt) {
+		t.Errorf("RegisteredAt: expected %v, got %v", original.AwaitHandle.RegisteredAt, result.AwaitHandle.RegisteredAt)
+	}
+
+	// A non-parked run carries no handle.
+	if RunToProto(&domain.Run{ID: uuid.New()}).AwaitHandle != nil {
+		t.Errorf("expected nil await_handle for a handle-less run")
+	}
+}
+
 func TestRunNilHandling(t *testing.T) {
 	if RunToProto(nil) != nil {
 		t.Error("expected nil for nil input")
@@ -427,6 +739,19 @@ func TestRunNilHandling(t *testing.T) {
 func TestRunEventToProtoPayloads(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	runID := uuid.New()
+
+	t.Run("message provider evidence", func(t *testing.T) {
+		event := domain.NewProviderMessageEvent(runID, "assistant", "done", domain.MessageEventData{
+			MessageID: "msg-1", ConversationID: "session-1", TurnID: "turn-1",
+			ProviderOrigin: "codex", CompletionReason: "turn_completed", Terminal: true,
+			ParentMessageID: "", ProviderEventType: "turn.completed", RawEvidenceRef: "codex:turn.completed",
+			EvidenceOnly: true, EvidenceForEventID: "event-1",
+		})
+		message := RunEventToProto(event).GetMessage()
+		if message == nil || !message.Terminal || message.MessageId != "msg-1" || message.CompletionReason != "turn_completed" || !message.EvidenceOnly || message.EvidenceForEventId != "event-1" {
+			t.Fatalf("message evidence proto = %#v", message)
+		}
+	})
 
 	t.Run("tool call", func(t *testing.T) {
 		event := &domain.RunEvent{
@@ -600,25 +925,23 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 			EventType: domain.EventTypeMetric,
 			Timestamp: now,
 			Sequence:  7,
-			Data: &domain.CostEventData{
+			Data: &domain.UsageEventData{
 				InputTokens:           10,
 				OutputTokens:          20,
 				CacheCreationTokens:   1,
 				CacheReadTokens:       2,
-				TotalCostUSD:          0.12,
-				ServiceTier:           "standard",
 				Model:                 "o4-mini",
 				WebSearchRequests:     3,
 				ServerToolUseRequests: 4,
 			},
 		}
 		proto := RunEventToProto(event)
-		payload := proto.GetCost()
+		payload := proto.GetMetric()
 		if payload == nil {
 			t.Fatalf("expected cost payload, got nil")
 		}
-		if payload.ServiceTier != "standard" || payload.Model != "o4-mini" {
-			t.Errorf("Cost: expected standard/o4-mini, got %s/%s", payload.ServiceTier, payload.Model)
+		if payload == nil || payload.Tags["model"] != "o4-mini" {
+			t.Errorf("usage: expected o4-mini tag, got %#v", payload)
 		}
 	})
 
@@ -799,14 +1122,14 @@ func TestAgentProfileWithFeaturesRoundTrip(t *testing.T) {
 		ID:         uuid.New(),
 		Name:       "features-profile",
 		ProfileKey: "features-key",
-		RunnerType: domain.RunnerTypeClaudeCode,
-		Features:   domain.FeatureFlags{EnableBrowser: true},
+
+		Features: domain.FeatureFlags{EnableBrowser: true},
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--verbose", "--allowedTools"},
 			domain.RunnerTypeCodex:      []string{"--verbose"},
 		},
 		CreatedAt: time.Now().Truncate(time.Second),
-		UpdatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second), RoleRef: "code.default",
 	}
 
 	proto := AgentProfileToProto(original)
@@ -843,8 +1166,8 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 		Id:          uuid.New().String(),
 		Name:        "test",
 		Description: "test profile",
-		RunnerType:  pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		MaxTurns:    100,
+
+		MaxTurns: 100, RoleRef: "code.default",
 	}
 
 	data, err := MarshalJSON(profile)
@@ -860,8 +1183,8 @@ func TestMarshalUnmarshalJSON(t *testing.T) {
 	if result.Name != profile.Name {
 		t.Errorf("Name: expected %v, got %v", profile.Name, result.Name)
 	}
-	if result.RunnerType != profile.RunnerType {
-		t.Errorf("RunnerType: expected %v, got %v", profile.RunnerType, result.RunnerType)
+	if result.RoleRef != profile.RoleRef {
+		t.Errorf("RoleRef: expected %q, got %q", profile.RoleRef, result.RoleRef)
 	}
 }
 

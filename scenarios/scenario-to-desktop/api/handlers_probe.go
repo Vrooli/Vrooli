@@ -1,33 +1,37 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"time"
-
-	httputil "scenario-to-desktop-api/shared/http"
 )
 
-// probeEndpointsHandler validates that the provided UI/API URLs respond before we generate a thin client.
-func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		ProxyURL  string `json:"proxy_url"`
-		ServerURL string `json:"server_url"`
-		APIURL    string `json:"api_url"`
-		TimeoutMs int    `json:"timeout_ms"`
-	}
+type probeEndpointsRequest struct {
+	ProxyURL  string `json:"proxy_url"`
+	ServerURL string `json:"server_url"`
+	APIURL    string `json:"api_url"`
+	TimeoutMs int    `json:"timeout_ms"`
+}
 
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "invalid JSON payload", http.StatusBadRequest)
-		return
-	}
+type probeEndpointResult struct {
+	Status     string `json:"status"`
+	StatusCode *int   `json:"status_code,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+type probeEndpointsResponse struct {
+	ProxyURL string              `json:"proxy_url,omitempty"`
+	Server   probeEndpointResult `json:"server"`
+	API      probeEndpointResult `json:"api"`
+}
+
+func (s *Server) probeEndpoints(ctx context.Context, request probeEndpointsRequest) (probeEndpointsResponse, error) {
 	if request.ProxyURL != "" {
 		normalized, err := normalizeProxyURL(request.ProxyURL)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("invalid proxy_url: %s", err.Error()), http.StatusBadRequest)
-			return
+			return probeEndpointsResponse{}, fmt.Errorf("invalid proxy_url: %w", err)
 		}
 		request.ProxyURL = normalized
 		request.ServerURL = normalized
@@ -37,8 +41,7 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if request.ServerURL == "" && request.APIURL == "" {
-		http.Error(w, "provide at least a server_url or api_url to probe", http.StatusBadRequest)
-		return
+		return probeEndpointsResponse{}, fmt.Errorf("provide at least a server_url or api_url to probe")
 	}
 
 	timeout := time.Duration(request.TimeoutMs) * time.Millisecond
@@ -47,40 +50,30 @@ func (s *Server) probeEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &http.Client{Timeout: timeout}
-	probe := func(target string) map[string]any {
+	probe := func(target string) probeEndpointResult {
 		if target == "" {
-			return map[string]any{"status": "skipped", "message": "no URL provided"}
+			return probeEndpointResult{Status: "skipped", Message: "no URL provided"}
 		}
 		if _, err := url.ParseRequestURI(target); err != nil {
-			return map[string]any{"status": "error", "message": fmt.Sprintf("invalid URL: %v", err)}
+			return probeEndpointResult{Status: "error", Message: fmt.Sprintf("invalid URL: %v", err)}
 		}
 
-		req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 		if err != nil {
-			return map[string]any{"status": "error", "message": err.Error()}
+			return probeEndpointResult{Status: "error", Message: err.Error()}
 		}
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return map[string]any{"status": "error", "message": err.Error()}
+			return probeEndpointResult{Status: "error", Message: err.Error()}
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-			return map[string]any{"status": "ok", "status_code": resp.StatusCode}
+			return probeEndpointResult{Status: "ok", StatusCode: &resp.StatusCode}
 		}
-		return map[string]any{
-			"status":      "error",
-			"status_code": resp.StatusCode,
-			"message":     fmt.Sprintf("server returned %d", resp.StatusCode),
-		}
+		return probeEndpointResult{Status: "error", StatusCode: &resp.StatusCode, Message: fmt.Sprintf("server returned %d", resp.StatusCode)}
 	}
 
-	response := map[string]any{
-		"proxy_url": request.ProxyURL,
-		"server":    probe(request.ServerURL),
-		"api":       probe(request.APIURL),
-	}
-
-	httputil.WriteJSON(w, http.StatusOK, response)
+	return probeEndpointsResponse{ProxyURL: request.ProxyURL, Server: probe(request.ServerURL), API: probe(request.APIURL)}, nil
 }

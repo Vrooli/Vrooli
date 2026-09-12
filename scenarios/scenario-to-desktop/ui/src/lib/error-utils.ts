@@ -3,13 +3,17 @@
  * Works with the ApiError class from ./api.ts
  */
 
-import { ApiError } from "./api";
+import { ConnectError } from "@connectrpc/connect";
+import { ApiError, apiErrorFromConnect } from "./api/client";
 
 /**
  * Extract a displayable message from any error type.
  * Prefers structured ApiError messages with recovery hints.
  */
 export function getErrorMessage(error: unknown): string {
+  if (error instanceof ConnectError) {
+    return apiErrorFromConnect(error).getUserMessage();
+  }
   if (error instanceof ApiError) {
     return error.getUserMessage();
   }
@@ -64,6 +68,8 @@ export interface ErrorInfo {
   requiresInputFix: boolean;
   /** Human-readable recovery hint */
   recoveryHint?: string;
+  /** Raw structured details retained for diagnostics and recovery display. */
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -72,6 +78,9 @@ export interface ErrorInfo {
  * suitable for UI consumption without coupling to the ApiError class methods.
  */
 export function createErrorInfo(err: unknown): ErrorInfo {
+  if (err instanceof ConnectError) {
+    return createErrorInfo(apiErrorFromConnect(err));
+  }
   if (err instanceof ApiError) {
     return {
       message: err.message,
@@ -79,6 +88,7 @@ export function createErrorInfo(err: unknown): ErrorInfo {
       canRetry: err.canRetry(),
       requiresInputFix: err.requiresInputFix(),
       recoveryHint: err.recoveryHint,
+      details: err.details,
     };
   }
   // Fallback for non-ApiError errors

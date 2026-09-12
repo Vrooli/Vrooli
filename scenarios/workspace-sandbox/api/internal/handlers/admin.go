@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
+	"workspace-sandbox/internal/driverpref"
 	"workspace-sandbox/internal/sandbox"
 )
 
@@ -34,49 +36,12 @@ func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, response)
 }
 
-// Health handles health check requests.
-// Deprecated: This handler has been replaced by api-core/health in main.go for standardized responses.
-// This method is kept for backwards compatibility with tests but is no longer registered in routes.
-func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
-	status := "healthy"
-	dbStatus := "connected"
-
-	if err := h.DB.PingContext(r.Context()); err != nil {
-		status = "unhealthy"
-		dbStatus = "disconnected"
-	}
-
-	// Check driver availability using injected driver
-	driverAvailable, _ := h.Driver().IsAvailable(r.Context())
-	driverStatus := "available"
-	if !driverAvailable {
-		driverStatus = "unavailable"
-	}
-
-	response := map[string]interface{}{
-		"status":    status,
-		"service":   "Workspace Sandbox API",
-		"version":   Version,
-		"readiness": status == "healthy",
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]string{
-			"database": dbStatus,
-			"driver":   driverStatus,
-		},
-		"config": map[string]interface{}{
-			"projectRoot": h.Config.Driver.ProjectRoot,
-		},
-	}
-
-	h.JSONSuccess(w, response)
-}
-
 // DriverInfo handles getting driver information.
 func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 	available, availErr := h.Driver().IsAvailable(r.Context())
 
 	info := driver.Info{
-		Type:        h.Driver().Type(),
+		ID:          h.Driver().ID(),
 		Version:     h.Driver().Version(),
 		Description: "Linux overlayfs driver for copy-on-write sandboxes",
 		Available:   available,
@@ -96,7 +61,7 @@ func (h *Handlers) DriverInfo(w http.ResponseWriter, r *http.Request) {
 // DriverOptions handles getting all available driver options with their requirements.
 // This endpoint is used by the UI settings dialog to show driver configuration options.
 func (h *Handlers) DriverOptions(w http.ResponseWriter, r *http.Request) {
-	resp := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	resp := driver.GetDriverOptions(r.Context(), h.Starter, h.Driver().ID(), h.InUserNamespace)
 	h.JSONSuccess(w, resp)
 }
 
@@ -116,7 +81,7 @@ func (h *Handlers) Stats(w http.ResponseWriter, r *http.Request) {
 	// Include timestamp for cache invalidation hints
 	response := map[string]interface{}{
 		"stats":     stats,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"timestamp": h.Clock.Now().UTC().Format(time.RFC3339),
 	}
 
 	h.JSONSuccess(w, response)
@@ -138,8 +103,9 @@ type SelectDriverResponse struct {
 
 // SelectDriver handles setting the preferred driver.
 // This endpoint allows users to select which driver to use.
-// The driver is hot-swapped immediately without requiring an API restart.
-// In-flight operations continue with the old driver; new operations use the new driver.
+// Drivers that are available in the current process are hot-swapped immediately.
+// Drivers that require a different outer launch mode persist the preference and
+// return requiresRestart=true so the launcher can activate them on next boot.
 func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	var req SelectDriverRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,7 +119,7 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get available options to validate the request
-	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Starter, h.Driver().ID(), h.InUserNamespace)
 
 	// Find the requested driver option
 	var selectedOption *driver.DriverOption
@@ -196,9 +162,30 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hot-swap the driver using the manager
-	// This atomically switches to the new driver and saves the preference
-	if err := h.DriverManager.Switch(r.Context(), driver.DriverOptionID(req.DriverID)); err != nil {
+	requestedID := driver.DriverID(req.DriverID)
+	if requiresOuterLaunchRestart(requestedID, h.InUserNamespace) {
+		if err := driverpref.Save(h.Config.Driver.BaseDir, requestedID); err != nil {
+			h.JSONError(w, "failed to save driver preference: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		h.JSONSuccess(w, SelectDriverResponse{
+			Success:         true,
+			SelectedDriver:  req.DriverID,
+			RequiresRestart: true,
+			Message:         "Driver preference saved for " + req.DriverID + ". Restart workspace-sandbox so the launcher can activate it.",
+		})
+		return
+	}
+
+	// Hot-swap the driver via the slot. SwitchDriver does the
+	// validate → store → persist sequence atomically.
+	driverCfg := driver.Config{
+		BaseDir:            h.Config.Driver.BaseDir,
+		HomeOverlayBaseDir: h.Config.Driver.HomeOverlayBaseDir,
+		MaxSandboxes:       h.Config.Limits.MaxSandboxes,
+		MaxSizeMB:          h.Config.Limits.MaxSandboxSizeMB,
+	}
+	if err := driver.SwitchDriver(r.Context(), h.DriverSlot, driverCfg, driver.Deps{Clock: h.Clock, Mounter: h.Mounter, Starter: h.Starter}, requestedID); err != nil {
 		h.JSONError(w, "failed to switch driver: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -211,15 +198,23 @@ func (h *Handlers) SelectDriver(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func requiresOuterLaunchRestart(id driver.DriverID, inUserNamespace bool) bool {
+	return id == driver.DriverOverlayfsUserNS && !inUserNamespace
+}
+
 // GetDriverPreference handles getting the current driver preference.
 func (h *Handlers) GetDriverPreference(w http.ResponseWriter, r *http.Request) {
-	pref, err := driver.LoadDriverPreference(h.Config.Driver.BaseDir)
-	if err != nil {
+	prefID, err := driverpref.Load(h.Config.Driver.BaseDir)
+	pref := string(prefID)
+	if errors.Is(err, driverpref.ErrNotFound) {
 		// No preference set - return current driver
-		pref = string(h.Driver().Type())
+		pref = string(h.Driver().ID())
+	} else if err != nil {
+		h.JSONError(w, "failed to read driver preference: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	options := driver.GetDriverOptions(r.Context(), h.Driver().Type(), h.InUserNamespace)
+	options := driver.GetDriverOptions(r.Context(), h.Starter, h.Driver().ID(), h.InUserNamespace)
 
 	response := map[string]interface{}{
 		"preference":    pref,
@@ -409,6 +404,12 @@ func (h *Handlers) SaveProfile(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	// Refresh the resolver snapshot so future Resolves see the new
+	// profile without requiring a server restart (Round 4 Phase 9).
+	if err := h.RefreshProfileSnapshot(); err != nil {
+		h.JSONError(w, "profile saved but snapshot refresh failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	h.JSONSuccess(w, profile)
 }
@@ -426,6 +427,12 @@ func (h *Handlers) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.ProfileStore.Delete(id); err != nil {
 		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// Mirror the resolver snapshot to the post-delete state so future
+	// Resolves see the deletion immediately (Round 4 Phase 9).
+	if err := h.RefreshProfileSnapshot(); err != nil {
+		h.JSONError(w, "profile deleted but snapshot refresh failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

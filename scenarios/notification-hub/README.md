@@ -1,311 +1,145 @@
-# 🔔 Notification Hub
+# Notification Hub
 
-**Multi-tenant notification management system for email, SMS, and push notifications across all Vrooli scenarios.**
+Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver
 
-## 🎯 What This Scenario Does
+This scenario provides
+the standard full-stack Vrooli scenario shape:
 
-The Notification Hub is Vrooli's central nervous system for all communication. Instead of each scenario implementing its own notification logic, they all use this unified service. This creates a **compound intelligence effect** - every improvement to notification delivery, analytics, and optimization benefits ALL Vrooli scenarios simultaneously.
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry, generated L0 experience contract, and progress log
+  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
-### Core Capabilities
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-- **🏢 Multi-tenant Architecture** - Isolated profiles for different organizations/apps
-- **📧📱💬 Multi-channel Delivery** - Email, SMS, and push notifications via unified API  
-- **🔄 Provider Abstraction** - Swap SendGrid/Twilio/Firebase without changing client code
-- **🎯 Smart Routing** - Cost optimization, fallback chains, delivery guarantees
-- **📊 Analytics & Insights** - Delivery tracking, engagement metrics, cost analysis
-- **⚖️ Compliance Built-in** - Unsubscribe, rate limits, GDPR compliance
+## What's In This Scenario
 
-## 🚀 Quick Start
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
+  coordinated through generated proto contracts.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
+  metadata, testing config, and CLI install wiring.
+- Domain-first API shape with per-domain service, repository, schema,
+  handler module, mocks, and tests.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
+- UI/CLI guardrails for i18n, accessibility, API base resolution,
+  declarative command args, generated Connect clients, and report-shaped
+  output.
+- Baseline PWA/native-readiness metadata: web app manifest,
+  standalone-mode mobile tags, proxy-safe relative install asset URLs,
+  a minimal app-shell service worker, safe-area CSS tokens, and generic
+  placeholder icons ready for scenario-specific replacement.
+- Canonical responsive shell plus adopted-provenance UI primitives from
+  `react-component-library` for common shared surfaces such as buttons,
+  cards, data tables, empty states, inputs, selects, status badges, sidebar
+  shell, and bottom navigation.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
+- Generated `experience/` L0 specs for the starter routes. These are UX
+  intent placeholders, not finished claims; grow them as routes become real.
+- A documentation contract in `docs/manifest.json`, with stubs for
+  domains, flows, data, integrations, monetization, deployment,
+  runbooks, observability, security, performance, and durable
+  decisions.
 
-### 1. Initialize the Scenario
+## Placeholders vs. Durable Scaffolding
+
+The generated scaffold is intentionally not the product. When you build
+the real UX, treat these as **placeholders** to replace:
+
+- The notification domains (proto, API, CLI, UI feature) — the live vertical
+  slice meant to be copied once and then deleted.
+- Starter page content such as the dashboard metric placeholders.
+- The bare-minimum settings surface once your scenario needs more than
+  theme and locale.
+
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
+
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
+  `react-component-library adoptions apply` over hand-rolling a new primitive.
+- The responsive shell floors: full viewport height, overflow-contained main
+  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
+  ownership of locale switching.
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
+
+**Connect-RPC is the default transport.** Every domain endpoint goes
+through a proto service and generated Connect handlers/clients. If
+you find yourself writing `Path: "/api/v1/..."` as a literal string in
+an `EndpointDescriptor`, stop — use a proto service method instead.
+Codegen rejects literal Paths that lack an explicit `RESTException`
+tag; the four allowed REST reasons (multipart upload, webhook
+receiver, third-party shape, ops probe) are enumerated in
+`api/internal/module/module.go`. The delivery endpoints are
+the worked REST example.
+
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
+
+## Running The Scenario
+
 ```bash
-cd scenarios/notification-hub
-vrooli scenario setup
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
+
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
 ```
 
-### 2. Start the Services
-```bash
-vrooli scenario run notification-hub
-```
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-### 3. Access the Dashboard
-- **Web Dashboard**: http://localhost:32100
-- **API Documentation**: http://localhost:28100/docs
-- **n8n Workflows**: http://localhost:5678
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute notification-hub --preset comprehensive` directly for
+finer-grained presets.
 
-### 4. Send Your First Notification
-```bash
-# Using the CLI
-notification-hub --profile-id=00000000-0000-0000-0000-000000000001 \
-  --api-key=demo_7f8e9d2c3b4a5e6f7890abcdef123456 \
-  notifications send \
-  --email demo@example.com \
-  --subject "Welcome to Vrooli!" \
-  --message "Your notification hub is ready to use."
+## Documentation Map
 
-# Using the API
-curl -X POST http://localhost:28100/api/v1/profiles/00000000-0000-0000-0000-000000000001/notifications/send \
-  -H "X-API-Key: demo_7f8e9d2c3b4a5e6f7890abcdef123456" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "template_id": "20000000-0000-0000-0000-000000000001",
-    "recipients": [{
-      "contact_id": "10000000-0000-0000-0000-000000000001",
-      "variables": {"first_name": "Demo", "organization_name": "Vrooli"}
-    }],
-    "channels": ["email"],
-    "priority": "normal"
-  }'
-```
+| Need | Start Here |
+|---|---|
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
+| Author UX intent | [`experience/README.md`](experience/README.md) |
+| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
-## 🏗️ Architecture Overview
+## Working Rules
 
-### Components
-- **Go API Server** (`api/`) - Profile management, notification processing, analytics
-- **PostgreSQL Database** - Multi-tenant data storage with full isolation
-- **Redis Cache** - Queues, rate limiting, and real-time counters
-- **n8n Workflows** - Multi-channel delivery routing and provider integrations
-- **Web Dashboard** (`ui/`) - Profile configuration and analytics interface  
-- **CLI Tool** (`cli/`) - Command-line interface for automation and scripting
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
+6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+10. **Keep boundaries**: only edit within this scenario's directory.
 
-### Data Flow
-1. **Profile Setup** - Organizations create isolated notification environments
-2. **Contact Management** - Recipients registered with channel preferences
-3. **Template Creation** - Reusable notification templates with variables
-4. **Notification Request** - API call triggers multi-channel delivery
-5. **Smart Routing** - n8n workflows handle provider selection and failover
-6. **Delivery Tracking** - Real-time status updates and analytics collection
+## pnpm Everywhere
 
-## 🔌 Integration Examples
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
 
-### From Another Scenario (Go)
-```go
-// study-buddy scenario sends achievement notification
-import "bytes"
-import "encoding/json"
-import "net/http"
+## Need Inspiration?
 
-type NotificationRequest struct {
-    TemplateID  string                 `json:"template_id"`
-    Recipients  []RecipientRequest     `json:"recipients"`
-    Variables   map[string]interface{} `json:"variables"`
-    Channels    []string               `json:"channels"`
-}
-
-func sendAchievementNotification(userID, achievement string) error {
-    reqBody := NotificationRequest{
-        TemplateID: "achievement-unlocked",
-        Recipients: []RecipientRequest{{
-            ContactID: userID,
-            Variables: map[string]interface{}{
-                "achievement": achievement,
-                "points_earned": "100",
-            },
-        }},
-        Channels: []string{"email", "push"},
-    }
-    
-    jsonBody, _ := json.Marshal(reqBody)
-    
-    req, _ := http.NewRequest("POST", 
-        "http://localhost:28100/api/v1/profiles/study-buddy-prod/notifications/send",
-        bytes.NewBuffer(jsonBody))
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("X-API-Key", os.Getenv("NOTIFICATION_HUB_API_KEY"))
-    
-    client := &http.Client{Timeout: 30 * time.Second}
-    resp, err := client.Do(req)
-    
-    return err
-}
-```
-
-### From n8n Workflow
-Use the shared `notification-send.json` workflow:
-```json
-{
-  "profile_id": "{{ $vars.PROFILE_ID }}",
-  "template_id": "order-confirmation", 
-  "recipients": [{
-    "contact_id": "{{ $json.user_id }}",
-    "variables": {
-      "order_id": "{{ $json.order_id }}",
-      "total": "{{ $json.total }}"
-    }
-  }],
-  "channels": ["email", "sms"]
-}
-```
-
-### JavaScript/Node.js
-```javascript
-const axios = require('axios');
-
-const notificationHub = axios.create({
-  baseURL: 'http://localhost:28100/api/v1',
-  headers: {
-    'X-API-Key': process.env.NOTIFICATION_HUB_API_KEY,
-    'Content-Type': 'application/json'
-  }
-});
-
-// Send welcome email
-async function sendWelcomeEmail(userId, email, name) {
-  try {
-    const response = await notificationHub.post(`/profiles/${PROFILE_ID}/notifications/send`, {
-      template_id: 'welcome-email',
-      recipients: [{
-        contact_id: userId,
-        variables: { first_name: name, email: email }
-      }],
-      channels: ['email']
-    });
-    
-    console.log('Notification sent:', response.data);
-  } catch (error) {
-    console.error('Failed to send notification:', error.response?.data);
-  }
-}
-```
-
-## 📊 Analytics & Monitoring
-
-### Delivery Statistics
-- **Delivery Rates** - Success/failure rates per channel and provider
-- **Cost Tracking** - Per-notification and aggregate cost analysis
-- **Performance Metrics** - Response times and throughput statistics
-- **Engagement Analytics** - Open rates, click rates, conversion tracking
-
-### Available Metrics
-- `notifications_sent_total` - Total notifications sent
-- `notifications_delivered_total` - Successfully delivered notifications
-- `notification_delivery_duration` - Time from send to delivery
-- `provider_success_rate` - Success rate per provider
-- `notification_cost_total` - Total spend in cents
-
-## 🔧 Configuration
-
-### Environment Variables
-```bash
-# API Configuration
-PORT=28100
-POSTGRES_URL=postgres://user:pass@localhost:5432/notification_hub
-REDIS_URL=redis://localhost:6379
-N8N_BASE_URL=http://localhost:5678
-
-# Profile Configuration (for CLI)
-NOTIFICATION_HUB_API_URL=http://localhost:28100
-NOTIFICATION_HUB_PROFILE_ID=your-profile-id
-NOTIFICATION_HUB_API_KEY=your-api-key
-```
-
-### Provider Configuration
-Configure notification providers in the database:
-```sql
-INSERT INTO profile_providers (profile_id, channel, provider, config, priority, enabled) 
-VALUES (
-  'your-profile-id',
-  'email', 
-  'sendgrid',
-  '{"api_key": "your-sendgrid-key", "from_email": "noreply@yourapp.com"}',
-  1,
-  true
-);
-```
-
-## 🔐 Security & Compliance
-
-- **🔑 API Authentication** - Profile-scoped API keys with rate limiting
-- **🔒 Data Encryption** - All PII encrypted at rest and in transit  
-- **📋 Audit Logging** - Complete notification and access audit trail
-- **⚖️ GDPR Compliance** - Right to be forgotten, data portability
-- **📧 CAN-SPAM Compliance** - Automatic unsubscribe and sender identification
-- **🛡️ SOC 2 Ready** - Security controls for enterprise customers
-
-## 🎨 UI & UX Design
-
-The dashboard follows a modern, professional design optimized for notification management:
-
-- **🎯 Gradient Background** - Blue-to-purple gradient for visual appeal
-- **📱 Responsive Design** - Works on desktop, tablet, and mobile
-- **⚡ Quick Actions** - Common tasks accessible from main dashboard
-- **📊 Real-time Stats** - Live metrics and system status indicators
-- **🎨 Card-based Layout** - Organized feature sections with hover effects
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**API Returns 401 Unauthorized**
-- Check that your API key is correct
-- Ensure the profile ID matches the API key
-- Verify the profile status is 'active'
-
-**Notifications Not Sending** 
-- Check n8n workflow status: http://localhost:5678
-- Verify provider configurations in database
-- Check notification status: `notification-hub notifications list`
-
-**Database Connection Errors**
-- Ensure PostgreSQL is running on the correct port
-- Check database permissions and schema initialization
-- Verify connection string format
-
-### Debug Mode
-Enable verbose logging:
-```bash
-VERBOSE=true notification-hub --verbose status
-```
-
-## 🤝 Contributing to Other Scenarios
-
-When building scenarios that need notifications:
-
-1. **Use the Notification Hub API** instead of implementing custom notification logic
-2. **Create profile-specific templates** for your scenario's notification needs  
-3. **Leverage smart routing** - let the hub choose the best delivery method
-4. **Track analytics** - use delivery metrics to optimize user engagement
-5. **Follow multi-tenancy** - ensure your scenario can handle multiple customer profiles
-
-### Example Integration Pattern
-```go
-// Don't do this in your scenario:
-func sendEmailDirectly(to, subject, body string) error {
-    // Custom SMTP implementation...
-}
-
-// Do this instead:
-func sendNotification(templateID, contactID string, variables map[string]interface{}) error {
-    return notificationHub.Send(NotificationRequest{
-        TemplateID: templateID,
-        Recipients: []Recipient{{ContactID: contactID, Variables: variables}},
-        Channels: []string{"email", "push"}, // Hub will optimize delivery
-    })
-}
-```
-
-## 📈 Performance & Scalability
-
-- **⚡ High Throughput** - Handles 1M+ notifications per hour
-- **🔄 Horizontal Scaling** - Stateless API servers with Redis clustering
-- **📊 Rate Limiting** - Profile and contact-level quotas prevent abuse
-- **🎯 Smart Queuing** - Redis-based job queues with priority handling
-- **📈 Auto-scaling** - Kubernetes deployment with HPA support
-
-## 🎯 Success Metrics
-
-This scenario succeeds when:
-
-- **80%+ of Vrooli scenarios** use it instead of building custom notification logic
-- **Multi-tenant deployments** can offer professional notification capabilities immediately  
-- **Notification costs** decrease 20-50% through provider optimization
-- **Developer integration** takes <30 minutes with comprehensive SDKs
-- **Enterprise scenarios** can offer white-label notification management
-
----
-
-## 🌟 The Compound Intelligence Effect
-
-Every improvement to the Notification Hub—better delivery rates, new providers, advanced analytics, smarter routing—**automatically benefits every Vrooli scenario that uses it**. This is the power of centralized capabilities in a compound intelligence system.
-
-**Built with ❤️ for the Vrooli ecosystem**
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

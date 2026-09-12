@@ -13,7 +13,7 @@ interface TimeWindowStoreValue {
 }
 
 const PRESET_OPTIONS: readonly TimePreset[] = ["6h", "12h", "24h", "7d", "30d"] as const;
-const DEFAULT_PRESET: TimePreset = "24h";
+const DEFAULT_PRESET: TimePreset = "7d";
 
 let activePreset: TimePreset = DEFAULT_PRESET;
 const listeners = new Set<() => void>();
@@ -32,6 +32,11 @@ function getSnapshot(): TimePreset {
 function setActivePreset(nextPreset: TimePreset): void {
   if (activePreset === nextPreset) return;
   activePreset = nextPreset;
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    params.set("window", nextPreset);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}?${params.toString()}${window.location.hash}`);
+  }
   for (const listener of listeners) {
     listener();
   }
@@ -48,7 +53,8 @@ export function TimeWindowProvider({
 }: TimeWindowProviderProps) {
   useEffect(() => {
     const previousPreset = activePreset;
-    setActivePreset(defaultPreset);
+    const urlPreset = typeof window !== "undefined" ? window.location.search.match(/[?&]window=(6h|12h|24h|7d|30d)/)?.[1] as TimePreset | undefined : undefined;
+    setActivePreset(urlPreset ?? defaultPreset);
     return () => {
       setActivePreset(previousPreset);
     };

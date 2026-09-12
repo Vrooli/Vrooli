@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "{{SCENARIO_ID}}",
+    "displayName": "{{SCENARIO_DISPLAY_NAME}}",
+    "description": "{{SCENARIO_DESCRIPTION}}",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "{{SCENARIO_CATEGORY}}",
+    "tags": ["python-api", "react-ui"]
+  },
+  "hostTools": [{"name": "uv", "required": false, "reason": "Python environment manager for the API", "when": ["setup", "develop", "test"], "platforms": ["linux", "macos", "windows"]}],
+  "ports": {
+    "api": {"env_var": "API_PORT", "description": "Python API server", "range": "15000-19999"},
+    "ui": {"env_var": "UI_PORT", "description": "React UI", "range": "20000-24999"}
+  },
+  "components": {
+    "api": {"role": "api", "build": {"kind": "python_uv", "dir": "api"}, "run": {"argv": ["uv", "run", "python", "-m", "{{SCENARIO_ID_SNAKE}}.api"], "cwd": "api", "env": {"PYTHONPATH": "src"}, "port": "api"}},
+    "ui": {"role": "ui", "build": {"kind": "pnpm_vite", "dir": "ui"}, "run": {"argv": ["node", "server.js"], "cwd": "ui", "port": "ui"}}
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {"description": "Standard API/UI health checks", "endpoints": {"api": "/health", "ui": "/health"}, "startup_grace_period": 15000, "checks": [
+      {"name": "api_endpoint", "type": "http", "target": "http://localhost:${API_PORT}/health", "critical": true, "timeout": 10000, "interval": 30000},
+      {"name": "ui_endpoint", "type": "http", "target": "http://localhost:${UI_PORT}/health", "timeout": 5000, "interval": 30000}
+    ]}
+  },
+  "dependencies": {},
+  "credentials": {}
+}

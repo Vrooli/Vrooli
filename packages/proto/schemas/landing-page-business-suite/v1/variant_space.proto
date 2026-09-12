@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// VARIANT SPACE DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// The variant space is the file-backed catalog of A/B axes and their allowed
+// variant ids that authored variants must select from. It is served verbatim:
+// the on-disk JSON (including leading-underscore metadata keys the frontend
+// agent guidelines rely on) is preserved byte-for-byte rather than round-tripped
+// through structured proto fields, so the raw payload rides in a bytes field.
+//
+// =============================================================================
+
+// GetVariantSpaceRequest asks for the active variant space definition.
+message GetVariantSpaceRequest {}
+
+// GetVariantSpaceResponse carries the variant space as its verbatim JSON bytes.
+message GetVariantSpaceResponse {
+  // Raw variant-space JSON, preserved byte-for-byte from the source of truth.
+  // Clients parse this directly; the server never re-encodes it.
+  bytes raw_json = 1;
+}
+
+// VariantSpaceService serves the authored variant space catalog.
+service VariantSpaceService {
+  // Returns the active variant space as verbatim JSON bytes.
+  rpc GetVariantSpace(GetVariantSpaceRequest) returns (GetVariantSpaceResponse);
+}

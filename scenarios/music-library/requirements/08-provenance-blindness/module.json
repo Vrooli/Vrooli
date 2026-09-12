@@ -1,0 +1,52 @@
+{
+  "_metadata": {
+    "module": "provenance-blindness",
+    "description": "Generated-content disclosure, and architectural blindness of the recommender to monetisation.",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MLIB-P0-018",
+      "title": "Generated tracks are disclosed wherever they appear",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Any generated track is identifiable as generated in every surface that shows it, including queue, library, search results, and exported files. Disclosure is present in the accessibility tree and does not rely on colour or icon alone.",
+      "tags": ["provenance", "disclosure", "accessibility"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/provenance/disclosure_test.go", "phase": "unit", "status": "planned", "notes": "No surface can render a generated track without its disclosure" },
+        { "type": "test", "ref": "ui/src/features/provenance/Disclosure.test.tsx", "phase": "unit", "status": "planned", "notes": "Disclosure carries a text equivalent, not colour or icon alone" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-019",
+      "title": "Generation lineage is complete and inspectable",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "A generated track records the model, its licence lane, the caption and lyrics used, the seed and parameters, and the profile state that conditioned it — enough to reproduce it and to answer whether it may be used commercially.",
+      "tags": ["provenance", "lineage"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/provenance/lineage_test.go", "phase": "unit", "status": "planned", "notes": "Lineage is complete and sufficient to reproduce the render" }
+      ]
+    },
+    {
+      "id": "MLIB-P0-020",
+      "title": "The recommender cannot observe monetisation state",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Ranking and generation-conditioning components have no access to what is sold, promoted, or commission-bearing. Any offer insertion is strictly post-processing over an already-final ranking. This is enforced structurally so it cannot be bypassed by a later change, per the lifestyle-bundle recommendation-blindness rule.",
+      "tags": ["blindness", "integrity", "monetization"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/ranking/blindness_test.go", "phase": "unit", "status": "planned", "notes": "No import path or interface reaches monetisation state from the ranking package" },
+        { "type": "test", "ref": "api/internal/offers/postprocess_test.go", "phase": "unit", "status": "planned", "notes": "Offer insertion cannot reorder or filter the ranking it decorates" }
+      ]
+    }
+  ]
+}

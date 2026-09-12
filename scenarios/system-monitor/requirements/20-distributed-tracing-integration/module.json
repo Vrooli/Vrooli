@@ -1,0 +1,11 @@
+{
+  "requirements": [{
+    "id": "REQ-P2-001",
+    "title": "Distributed tracing integration",
+    "status": "planned",
+    "prd_ref": "OT-P2-001",
+    "category": "integration",
+    "description": "Integrate distributed tracing across scenarios for end-to-end observability.",
+    "validation": [{"type": "test", "phase": "integration", "status": "not_implemented", "notes": "Validate trace propagation across scenario boundaries."}]
+  }]
+}

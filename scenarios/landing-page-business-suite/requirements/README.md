@@ -15,10 +15,10 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 - Use `vrooli scenario requirements snapshot <name>` to review the last synced commands, operational-target completion counts, and any expiring manual validations before making changes.
 - Run `vrooli scenario requirements lint-prd <name>` whenever you add or rename operational targets to ensure every `OT-P*-###` entry has at least one requirement (and that no requirement references a missing target).
 - Never add compatibility shims (duplicate folders or alias imports) during migrations—let things fail temporarily instead of adding debt.
-- Manual validations are a temporary escape hatch; if you must use one, record it with `vrooli scenario requirements manual-log <scenario> <REQ-ID>` so drift detection knows when it expires, then replace it with Vrooli Ascension workflows (`docs/testing/guides/ui-automation-with-bas.md`) or other automated phases so `scenario status` stays green.
-- Keep this README under 100 lines and link to shared docs (`docs/testing/guides/requirement-tracking-quick-start.md`) for schema details.
+- Manual validations are a temporary escape hatch; if you must use one, record it with `vrooli scenario requirements manual-log <scenario> <requirement-id>` so drift detection knows when it expires, then replace it with Vrooli Ascension workflows (`docs/testing/guides/ui-automation-with-bas.md`) or other automated phases so `scenario status` stays green.
+- Keep this README under num[threshold]:100 lines and link to shared docs (`docs/testing/guides/requirement-tracking-quick-start.md`) for schema details.
 
 ## Factory vs Template Scope
-- Factory (landing-manager) owns template registry, generation UX, and handoff.
+- Template Manager owns template registry, generation, validation, and lifecycle guidance.
 - Template-owned features (admin portal, A/B testing, metrics, Stripe, customization UX) should move to the template payload and be validated in the generated scenario, not here.
 - Requirements will be realigned in the next pass; current structure still mirrors landing-page targets.

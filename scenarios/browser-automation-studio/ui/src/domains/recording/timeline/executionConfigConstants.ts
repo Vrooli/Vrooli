@@ -1,5 +1,5 @@
 import type { NavigationWaitUntil } from '@/types/workflow';
-import type { ExecutionConfigSettings } from './ExecutionConfigPanel';
+import type { ExecutionConfigSettings } from './executionConfigTypes';
 
 export const DEFAULT_EXECUTION_SETTINGS: ExecutionConfigSettings = {
   navigationWaitUntil: 'domcontentloaded',

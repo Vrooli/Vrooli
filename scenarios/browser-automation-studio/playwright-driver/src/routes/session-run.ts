@@ -63,6 +63,7 @@ import {
   type ExecutionContext,
 } from '../execution';
 import { logger, scopedLog, LogContext } from '../utils';
+import { getActionType } from '../proto';
 import { MAX_EXECUTED_INSTRUCTIONS_PER_SESSION } from '../constants';
 import winston from 'winston';
 
@@ -71,6 +72,17 @@ import winston from 'winston';
 // =============================================================================
 
 const IDEMPOTENCY_KEY_HEADER = 'x-idempotency-key';
+
+function withAudioCapability(outcome: unknown, session: SessionState): unknown {
+  if (!outcome || typeof outcome !== 'object' || Array.isArray(outcome)) return outcome;
+  return {
+    ...outcome,
+    audio_strategy: session.audioStrategy,
+    host_audio_outcome: session.audioCapability?.outcome,
+    host_audio_reason: session.audioCapability?.reason,
+    audio_playback_failure: session.audioPlaybackFailure?.(),
+  };
+}
 
 // =============================================================================
 // Idempotency Cache (delegated to infra/idempotency-cache.ts)
@@ -178,9 +190,17 @@ export async function handleSessionRun(
     // [COORDINATION] Session phase guard - prevent concurrent execution
     // ─────────────────────────────────────────────────────────────────────────
     if (session.phase === 'executing') {
-      logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), { sessionId, phase: session.phase });
+      logger.warn(scopedLog(LogContext.INSTRUCTION, 'concurrent execution rejected'), {
+        sessionId,
+        phase: session.phase,
+      });
       sendJson(res, 409, {
-        error: { code: 'SESSION_BUSY', message: 'Session is already executing an instruction', kind: 'orchestration', retryable: true },
+        error: {
+          code: 'SESSION_BUSY',
+          message: 'Session is already executing an instruction',
+          kind: 'orchestration',
+          retryable: true,
+        },
       });
       return;
     }
@@ -198,7 +218,12 @@ export async function handleSessionRun(
     if (!validationResult.valid) {
       sessionManager.setSessionPhase(sessionId, 'ready');
       sendJson(res, 400, {
-        error: { code: validationResult.error.code, message: validationResult.error.message, kind: 'orchestration', retryable: false },
+        error: {
+          code: validationResult.error.code,
+          message: validationResult.error.message,
+          kind: 'orchestration',
+          retryable: false,
+        },
       });
       return;
     }
@@ -212,11 +237,19 @@ export async function handleSessionRun(
     const previousExecution = session.executedInstructions?.get(instructionKey);
     if (previousExecution?.cachedOutcome) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
-        sessionId, type: instruction.type, stepIndex: instruction.index, nodeId: instruction.nodeId,
+        sessionId,
+        type: getActionType(instruction),
+        stepIndex: instruction.index,
+        nodeId: instruction.nodeId,
       });
       sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
       if (idempotencyKey) {
-        idempotencyCache.store(idempotencyKey, sessionId, instructionKey, previousExecution.cachedOutcome);
+        idempotencyCache.store(
+          idempotencyKey,
+          sessionId,
+          instructionKey,
+          previousExecution.cachedOutcome
+        );
       }
       sendJson(res, 200, previousExecution.cachedOutcome);
       return;
@@ -224,7 +257,9 @@ export async function handleSessionRun(
 
     if (previousExecution) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected (no cached outcome)'), {
-        sessionId, type: instruction.type, stepIndex: instruction.index,
+        sessionId,
+        type: getActionType(instruction),
+        stepIndex: instruction.index,
       });
     }
 
@@ -239,12 +274,20 @@ export async function handleSessionRun(
       logger: appLogger,
       metrics: appMetrics,
       sessionId,
+      electronTarget: session.spec?.app_target,
+      interactionState: session.spec?.browser_profile?.interaction_state,
     };
 
-    const executionResult = await executeInstruction(instruction, executionContext, handlerRegistry);
+    const executionResult = await executeInstruction(
+      instruction,
+      executionContext,
+      handlerRegistry,
+      sessionManager.getInstrumentation()
+    );
     sessionManager.incrementInstructionCount(sessionId);
 
     const { driverOutcome, success } = executionResult;
+    const outcomeWithAudio = withAudioCapability(driverOutcome, session);
     const completedAt = new Date();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -252,20 +295,24 @@ export async function handleSessionRun(
     // [COORDINATION] Reset session phase
     // [PRESENTATION] Send response
     // ─────────────────────────────────────────────────────────────────────────
-    recordExecutedInstruction(session, instructionKey, driverOutcome, success, completedAt);
+    recordExecutedInstruction(session, instructionKey, outcomeWithAudio, success, completedAt);
     sessionManager.setSessionPhase(sessionId, getDesiredSessionPhase(session));
     if (idempotencyKey) {
-      idempotencyCache.store(idempotencyKey, sessionId, instructionKey, driverOutcome);
+      idempotencyCache.store(idempotencyKey, sessionId, instructionKey, outcomeWithAudio);
     }
 
-    sendJson(res, 200, driverOutcome);
+    sendJson(res, 200, outcomeWithAudio);
   } catch (error) {
     // ─────────────────────────────────────────────────────────────────────────
     // [COORDINATION] Error recovery - reset phase
     // [PRESENTATION] Error response
     // ─────────────────────────────────────────────────────────────────────────
     if (enteredExecutingPhase) {
-      try { sessionManager.setSessionPhase(sessionId, 'ready'); } catch { /* Session may be closed */ }
+      try {
+        sessionManager.setSessionPhase(sessionId, 'ready');
+      } catch {
+        /* Session may be closed */
+      }
     }
     sendError(res, error as Error, `/session/${sessionId}/run`);
     appMetrics.instructionErrors.inc({ type: 'unknown', error_kind: 'engine' });

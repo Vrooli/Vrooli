@@ -1,0 +1,1447 @@
+{
+  "schemaVersion": 6,
+  "flowId": "web-console.playback-transport.ui",
+  "source": {
+    "contractPath": "ui/src/domains/tts-playback/flow/flow.json",
+    "contractSha256": "85bd810b4fc034fb5fc461bdd4005151fe6c068a5f6f73708725b6255bed7c83",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "ui/src/domains/tts-playback/flow/generated/model.qnt",
+    "modelSha256": "d875a8386a86c1f12839c61f807aec66ce44587d6bd9d85624f437553022b036",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "ui/src/domains/tts-playback/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026051301",
+      "--max-samples",
+      "16",
+      "--n-traces",
+      "16",
+      "--max-steps",
+      "8",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "ui/src/domains/tts-playback/flow/generated/model.qnt",
+      "--seed",
+      "2026051301"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "ui/src/domains/tts-playback/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "ui/src/domains/tts-playback/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "IllegalTransitionsPreserveState",
+      "PausedSwallowsAutoAdvance",
+      "StaleCompletionIsIgnored",
+      "--max-steps",
+      "8"
+    ]
+  },
+  "states": [
+    "idle",
+    "loading",
+    "playing",
+    "paused",
+    "error"
+  ],
+  "events": [
+    "play",
+    "loadResolved",
+    "loadFailed",
+    "trackStarted",
+    "trackEnded",
+    "pause",
+    "resume",
+    "stop",
+    "playbackError"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "play",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "loadResolved",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "loadFailed",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "trackStarted",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "trackEnded",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "pause",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "resume",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "stop",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "playbackError",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "play",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "loadResolved",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "loadFailed",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "trackStarted",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "trackEnded",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "pause",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "resume",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "stop",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "loading",
+      "event": "playbackError",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "play",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "loadResolved",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "loadFailed",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "trackStarted",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "trackEnded",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "pause",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "resume",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "stop",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "playing",
+      "event": "playbackError",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "play",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "loadResolved",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "loadFailed",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "trackStarted",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "trackEnded",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "pause",
+      "to": "paused",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "resume",
+      "to": "playing",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "stop",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "paused",
+      "event": "playbackError",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "play",
+      "to": "loading",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "loadResolved",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "loadFailed",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "trackStarted",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "trackEnded",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "pause",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "resume",
+      "to": "error",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "stop",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "error",
+      "event": "playbackError",
+      "to": "error",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "single_event_play_through",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "pause_then_resume_then_finish",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "paused",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "pause_then_stale_trackEnded_does_not_advance",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "paused",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "paused",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "pause_then_play_other_event",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "paused",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "play_replaces_in_flight_load",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "load_failed_then_retry",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "playback_error_recovers_via_play",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "stop_from_paused_returns_idle",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "paused",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "stale_load_resolved_after_stop_is_ignored",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "queue_auto_advance_via_idle",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "error",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "error",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "loading",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_011",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_012",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackEnded",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "playing",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_013",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "resume",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_014",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "play",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "loading",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "error",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "error",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_015",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadResolved",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "stop",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_016",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "pause",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "playbackError",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "loadFailed",
+          "want": "idle",
+          "wantError": false
+        },
+        {
+          "event": "trackStarted",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "IllegalTransitionsPreserveState",
+    "PausedSwallowsAutoAdvance",
+    "StaleCompletionIsIgnored"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "loading",
+        "playing",
+        "paused",
+        "error"
+      ],
+      "coveredEvents": [
+        "play",
+        "loadResolved",
+        "loadFailed",
+        "trackStarted",
+        "trackEnded",
+        "pause",
+        "resume",
+        "stop",
+        "playbackError"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "loading",
+        "playing",
+        "error"
+      ],
+      "coveredEvents": [
+        "play",
+        "loadResolved",
+        "loadFailed",
+        "trackStarted",
+        "trackEnded",
+        "pause",
+        "resume",
+        "stop",
+        "playbackError"
+      ],
+      "coveredPairs": [
+        "idle/play",
+        "idle/loadResolved",
+        "idle/loadFailed",
+        "idle/trackStarted",
+        "idle/trackEnded",
+        "idle/pause",
+        "idle/resume",
+        "idle/stop",
+        "idle/playbackError",
+        "loading/play",
+        "loading/loadResolved",
+        "loading/loadFailed",
+        "loading/trackStarted",
+        "loading/trackEnded",
+        "loading/resume",
+        "loading/stop",
+        "loading/playbackError",
+        "playing/loadResolved",
+        "error/play",
+        "error/loadResolved",
+        "error/trackStarted",
+        "error/trackEnded",
+        "error/pause",
+        "error/playbackError"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

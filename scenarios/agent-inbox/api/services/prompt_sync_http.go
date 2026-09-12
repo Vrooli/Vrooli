@@ -6,17 +6,38 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"agent-inbox/resilience"
 
 	"github.com/vrooli/api-core/discovery"
 )
+
+func (s *PromptSyncService) promptManagerSkillsClient() (skillsconnect.SkillsServiceClient, error) {
+	if err := s.ensureEnabledAndReachable(); err != nil {
+		return nil, err
+	}
+	return skillsconnect.NewSkillsServiceClient(s.client, strings.TrimRight(s.cfg.PromptManagerURL, "/")), nil
+}
+
+func convertPromptManagerProto(source proto.Message, target any) error {
+	raw, err := protojson.Marshal(source)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, target)
+}
 
 // reResolveURL attempts to re-discover the prompt-manager URL via api-core discovery.
 // Returns true if a new URL was found, false otherwise.

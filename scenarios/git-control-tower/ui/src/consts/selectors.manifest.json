@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app": {
+      "testId": "git-control-tower",
+      "selector": "[data-testid=\"git-control-tower\"]"
+    },
+    "header.root": {
+      "testId": "status-header",
+      "selector": "[data-testid=\"status-header\"]"
+    },
+    "header.branchInfo": {
+      "testId": "branch-info",
+      "selector": "[data-testid=\"branch-info\"]"
+    },
+    "header.commitOid": {
+      "testId": "commit-oid",
+      "selector": "[data-testid=\"commit-oid\"]"
+    },
+    "header.fileStats": {
+      "testId": "file-stats",
+      "selector": "[data-testid=\"file-stats\"]"
+    },
+    "header.healthStatus": {
+      "testId": "health-status",
+      "selector": "[data-testid=\"health-status\"]"
+    },
+    "header.refreshButton": {
+      "testId": "refresh-button",
+      "selector": "[data-testid=\"refresh-button\"]"
+    },
+    "fileList.root": {
+      "testId": "file-list-panel",
+      "selector": "[data-testid=\"file-list-panel\"]"
+    },
+    "fileList.stageAllButton": {
+      "testId": "stage-all-button",
+      "selector": "[data-testid=\"stage-all-button\"]"
+    },
+    "fileList.unstageAllButton": {
+      "testId": "unstage-all-button",
+      "selector": "[data-testid=\"unstage-all-button\"]"
+    },
+    "fileList.emptyState": {
+      "testId": "empty-state",
+      "selector": "[data-testid=\"empty-state\"]"
+    },
+    "diffViewer.root": {
+      "testId": "diff-viewer-panel",
+      "selector": "[data-testid=\"diff-viewer-panel\"]"
+    },
+    "diffViewer.stats": {
+      "testId": "diff-stats",
+      "selector": "[data-testid=\"diff-stats\"]"
+    },
+    "diffViewer.loading": {
+      "testId": "diff-loading",
+      "selector": "[data-testid=\"diff-loading\"]"
+    },
+    "diffViewer.error": {
+      "testId": "diff-error",
+      "selector": "[data-testid=\"diff-error\"]"
+    },
+    "diffViewer.empty": {
+      "testId": "diff-empty",
+      "selector": "[data-testid=\"diff-empty\"]"
+    },
+    "diffViewer.noChanges": {
+      "testId": "diff-no-changes",
+      "selector": "[data-testid=\"diff-no-changes\"]"
+    },
+    "diffViewer.content": {
+      "testId": "diff-content",
+      "selector": "[data-testid=\"diff-content\"]"
+    },
+    "diffViewer.raw": {
+      "testId": "diff-raw",
+      "selector": "[data-testid=\"diff-raw\"]"
+    },
+    "diffViewer.minimap": {
+      "testId": "diff-minimap",
+      "selector": "[data-testid=\"diff-minimap\"]"
+    },
+    "diffViewer.minimapRail": {
+      "testId": "diff-minimap-rail",
+      "selector": "[data-testid=\"diff-minimap-rail\"]"
+    },
+    "diffViewer.minimapViewport": {
+      "testId": "diff-minimap-viewport",
+      "selector": "[data-testid=\"diff-minimap-viewport\"]"
+    },
+    "diffViewer.minimapMarker": {
+      "testId": "diff-minimap-marker",
+      "selector": "[data-testid=\"diff-minimap-marker\"]"
+    },
+    "diffViewer.minimapTexture": {
+      "testId": "diff-minimap-texture",
+      "selector": "[data-testid=\"diff-minimap-texture\"]"
+    },
+    "diffViewer.minimapTextureLine": {
+      "testId": "diff-minimap-texture-line",
+      "selector": "[data-testid=\"diff-minimap-texture-line\"]"
+    },
+    "errorToast": {
+      "testId": "error-toast",
+      "selector": "[data-testid=\"error-toast\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.tabs.links": {
+      "testId": "navigation.tabs.Links",
+      "selector": "[data-testid=\"navigation.tabs.Links\"]"
+    },
+    "library.navigation.tabs.settingsTabSessions": {
+      "testId": "navigation.tabs.settings-tab-sessions",
+      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.notificationbadge.root": {
+      "testId": "notificationbadge",
+      "selector": "[data-testid=\"notificationbadge\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.feedback.toast.root": {
+      "testId": "feedback.toast",
+      "selector": "[data-testid=\"feedback.toast\"]"
+    },
+    "library.feedback.toast.action": {
+      "testId": "feedback.toast.action",
+      "selector": "[data-testid=\"feedback.toast.action\"]"
+    },
+    "library.feedback.toast.dismiss": {
+      "testId": "feedback.toast.dismiss",
+      "selector": "[data-testid=\"feedback.toast.dismiss\"]"
+    },
+    "library.feedback.toast.viewport": {
+      "testId": "feedback.toast.viewport",
+      "selector": "[data-testid=\"feedback.toast.viewport\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "fileList.section": {
+      "description": "File section by category (staged, unstaged, untracked, conflicts)",
+      "selectorPattern": "[data-testid=\"file-section-${category}\"]",
+      "testIdPattern": "file-section-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.sectionToggle": {
+      "description": "File section toggle button",
+      "selectorPattern": "[data-testid=\"file-section-toggle-${category}\"]",
+      "testIdPattern": "file-section-toggle-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileItem": {
+      "description": "File item by category",
+      "selectorPattern": "[data-testid=\"file-item-${category}\"]",
+      "testIdPattern": "file-item-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileAction": {
+      "description": "File action button (stage/unstage)",
+      "selectorPattern": "[data-testid=\"file-action-${category}\"]",
+      "testIdPattern": "file-action-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileByPath": {
+      "description": "File item by path",
+      "selectorPattern": "[data-file-path=\"${path}\"]",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ]
+    },
+    "diffViewer.hunk": {
+      "description": "Diff hunk by index",
+      "selectorPattern": "[data-testid=\"diff-hunk-${index}\"]",
+      "testIdPattern": "diff-hunk-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "diffViewer.line": {
+      "description": "Diff line",
+      "selectorPattern": "[data-testid=\"diff-line\"]",
+      "testIdPattern": "diff-line",
+      "params": []
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "0a9333cceea22496c793687e3a716cd8ac51d5abc56d9bf9ca1704db075f0b10",
+    "ui/src/consts/selectors.ts": "df0cb16359e19e12a7b9191a2e993800ddaeb42612bdd1ba9bdf0f0d16da7f5e"
+  }
+}

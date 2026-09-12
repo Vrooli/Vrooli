@@ -166,7 +166,7 @@ func NewIngestionService(repo IngestionRepository, storageClient storage.Storage
 	return &IngestionService{
 		repo:           repo,
 		storage:        store,
-		recorder:       executionwriter.NewFileWriter(execRepo, store, log, absRoot),
+		recorder:       executionwriter.NewFileWriter(execRepo, store, log, executionwriter.NewStaticRoot(absRoot)),
 		log:            log,
 		recordingsRoot: absRoot,
 	}

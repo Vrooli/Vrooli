@@ -1,0 +1,18 @@
+# Workspace boundary — this UI is a standalone pnpm project.
+#
+# pnpm resolves its workspace by walking UP the directory tree until it finds a
+# pnpm-workspace.yaml. Without this file, a plain `pnpm install` run here walks
+# up to the repo root, silently joins the root packages/* workspace, ignores
+# this project's lockfile/overrides, and regenerates stray root artifacts.
+# This file stops that walk: plain `pnpm install` is now always scoped to this
+# UI, with or without the (still harmless) --ignore-workspace flag.
+#
+# Scenarios stay fully isolated — own package.json, own pnpm-lock.yaml, own
+# node_modules — so dependency upgrades here never affect other scenarios.
+# Shared @vrooli/* packages are consumed via file: references (see package.json).
+packages:
+  - .
+
+# Hold newly published packages for one week before they can enter this
+# subscription and billing surface.
+minimumReleaseAge: 10080

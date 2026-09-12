@@ -13,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 const (
@@ -109,21 +110,9 @@ func printUsage() {
 }
 
 func getDBConnection() (*sql.DB, error) {
-	postgresURL := os.Getenv("POSTGRES_URL")
-	if postgresURL == "" {
-		// Try to build from individual components
-		host := os.Getenv("POSTGRES_HOST")
-		port := os.Getenv("POSTGRES_PORT")
-		user := os.Getenv("POSTGRES_USER")
-		password := os.Getenv("POSTGRES_PASSWORD")
-		dbname := os.Getenv("POSTGRES_DB")
-
-		if host == "" || port == "" || user == "" || password == "" || dbname == "" {
-			return nil, fmt.Errorf("database configuration missing. Provide POSTGRES_URL or all individual components")
-		}
-
-		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			user, password, host, port, dbname)
+	postgresURL, err := database.ResolvePostgresDSN(os.Getenv)
+	if err != nil {
+		return nil, fmt.Errorf("database configuration missing: %w", err)
 	}
 
 	db, err := sql.Open("postgres", postgresURL)

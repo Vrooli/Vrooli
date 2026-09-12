@@ -19,6 +19,31 @@ func (s *stubGovernanceProvider) LoadGovernance() (GovernanceSettings, error) {
 	return s.settings, nil
 }
 
+// laneLimits builds a four-lane LaneLimits map with the Execute lane set
+// to executeCap. Other lanes default to the production values so tests
+// never accidentally exercise lane starvation in lanes they aren't
+// stressing.
+func laneLimits(executeCap int) map[string]int {
+	return map[string]int{
+		"investigate": 6,
+		"execute":     executeCap,
+		"review":      8,
+		"reconcile":   2,
+	}
+}
+
+// findLaneStatus returns the LaneStatus for the named lane, or false if
+// not present. Used by GovernanceStatus tests to assert per-lane
+// utilization without relying on Lanes() ordering.
+func findLaneStatus(lanes []LaneStatus, name string) (LaneStatus, bool) {
+	for _, l := range lanes {
+		if l.Lane == name {
+			return l, true
+		}
+	}
+	return LaneStatus{}, false
+}
+
 func TestCountActiveExecutions(t *testing.T) {
 	records := []Record{
 		{Status: StatusStarting},
@@ -75,16 +100,22 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       2,
+			LaneLimits: map[string]int{
+				"investigate": 6,
+				"execute":     2,
+				"review":      8,
+				"reconcile":   2,
+			},
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -103,6 +134,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 	}
 }
 
+// [REQ:SWM-P1-008] execution policy: queue depth cap enforced
 func TestQueueDepthEnforcement(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "new-item", map[string]any{
@@ -114,13 +146,18 @@ func TestQueueDepthEnforcement(t *testing.T) {
 		"tags":        []string{},
 	})
 	mustWriteDeliverableFile(t, root, "idea", "new-item")
+	// The queue depth test seeds two pending records. They must reference
+	// real backlog items on disk or pruneOrphanedPendingRecords would drop
+	// them before the depth check, defeating the test.
+	mustWriteBacklogItem(t, root, "idea", "seed-a", map[string]any{"name": "seed-a", "status": "queued", "priority": 3, "tags": []string{}})
+	mustWriteBacklogItem(t, root, "idea", "seed-b", map[string]any{"name": "seed-b", "status": "queued", "priority": 3, "tags": []string{}})
 
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 
 	// Pre-populate with 2 pending records (maxQueueDepth=2).
 	preExisting := []Record{
-		{ExecutionID: "pending-1", Status: StatusPending, BacklogKind: "idea", BacklogName: "a", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
-		{ExecutionID: "pending-2", Status: StatusPending, BacklogKind: "idea", BacklogName: "b", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
+		{ExecutionID: "pending-1", Status: StatusPending, BacklogKind: "idea", BacklogName: "seed-a", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
+		{ExecutionID: "pending-2", Status: StatusPending, BacklogKind: "idea", BacklogName: "seed-b", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
 	}
 	store := NewStore(storePath)
 	if err := store.Save(preExisting); err != nil {
@@ -128,16 +165,17 @@ func TestQueueDepthEnforcement(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       3,
+			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 2,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -167,18 +205,19 @@ func TestCostCapEnforcement(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "expensive")
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       3,
+			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
 			ExecutionCostCapPerRun:        2.0,
 			CostPerTurnEstimate:           0.10,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -234,16 +273,17 @@ func TestYoloAtCapacity_LeavesPending(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       1,
+			LaneLimits:                    laneLimits(1),
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -281,16 +321,17 @@ func TestCircuitBreakerBlocksQueue(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer: testPlanRenderer(),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       3,
+			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -321,15 +362,16 @@ func TestGovernanceStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		RootDir:   root,
-		StorePath: storePath,
+		DataRoot:     root,
+		StorePath:    storePath,
+		PlanRenderer: testPlanRenderer(),
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
-			MaxConcurrentExecutions:       3,
+			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
 			CostPerTurnEstimate:           0.10,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -340,8 +382,21 @@ func TestGovernanceStatus(t *testing.T) {
 	if status.ActiveExecutions != 1 {
 		t.Fatalf("expected 1 active, got %d", status.ActiveExecutions)
 	}
-	if status.MaxConcurrent != 3 {
-		t.Fatalf("expected max concurrent 3, got %d", status.MaxConcurrent)
+	if got := len(status.Lanes); got != 4 {
+		t.Fatalf("expected 4 lanes, got %d", got)
+	}
+	executeLane, ok := findLaneStatus(status.Lanes, "execute")
+	if !ok {
+		t.Fatal("expected lanes to include execute")
+	}
+	if executeLane.Capacity != 3 {
+		t.Fatalf("execute lane capacity = %d, want 3", executeLane.Capacity)
+	}
+	if executeLane.Active != 1 {
+		t.Fatalf("execute lane active = %d, want 1", executeLane.Active)
+	}
+	if executeLane.Queue != 1 {
+		t.Fatalf("execute lane queue = %d, want 1", executeLane.Queue)
 	}
 	if status.QueueDepth != 1 {
 		t.Fatalf("expected 1 queued, got %d", status.QueueDepth)

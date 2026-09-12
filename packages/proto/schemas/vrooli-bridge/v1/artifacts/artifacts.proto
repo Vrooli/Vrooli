@@ -1,0 +1,178 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.artifacts;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts;artifacts_v1";
+
+// =============================================================================
+// ARTIFACTS DOMAIN — non-git artifact distribution via device-sync-hub
+// (OT-P1-003)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the ArtifactsService: when a job needs a NON-git artifact
+// on a node — a built desktop installer, a large test fixture — bridge ships it
+// through device-sync-hub's directed delivery rather than reinventing file
+// transport. "Bridge orchestrates, device-sync-hub moves the bytes."
+//
+// Bridge implements NO byte transport of its own and stores NO large blobs:
+// DistributeArtifact records a durable Distribution, delegates the actual move
+// to the device-sync-hub directed-delivery seam (which returns a delivery
+// reference the node fetches), and tracks the delivery's terminal status. The
+// artifact bytes never transit bridge's SQLite store (DATA.md) — only the
+// reference + metadata do.
+//
+// Dry-run: DistributeArtifact honours X-Dry-Run. It validates the node + source
+// reference and short-circuits with dry_run=true BEFORE recording a
+// distribution or invoking device-sync-hub.
+//
+// Consumed by:
+//   - API: handlers/artifacts/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/artifacts/handlers.go via the generated Connect-Go client.
+// =============================================================================
+
+// DeliveryStatus is a distribution's lifecycle state.
+enum DeliveryStatus {
+  DELIVERY_STATUS_UNSPECIFIED = 0;
+
+  // The directed delivery was accepted by device-sync-hub and is in flight; the
+  // node has not yet confirmed receipt.
+  DELIVERY_STATUS_PENDING = 1;
+
+  // Terminal: device-sync-hub reports the artifact reached the node and is
+  // available to the job at destination_path.
+  DELIVERY_STATUS_DELIVERED = 2;
+
+  // Terminal: the directed delivery failed; detail carries the reason.
+  DELIVERY_STATUS_FAILED = 3;
+}
+
+// Distribution is the durable, server-owned record of one artifact delivery. It
+// holds only the reference + metadata — never the bytes.
+message Distribution {
+  // Server-owned distribution id.
+  string id = 1;
+
+  // The target node (registry id).
+  string node_id = 2;
+
+  // A logical name for the artifact (e.g. "my-app-1.4.0-setup.exe").
+  string name = 3;
+
+  // The source reference the bytes live behind (a device-sync-hub content ref
+  // or a control-plane-resolvable URI). Bridge never reads the bytes.
+  string source_ref = 4;
+
+  // Where on the node the artifact should land so the job can use it.
+  string destination_path = 5;
+
+  DeliveryStatus status = 6;
+
+  // The device-sync-hub directed-delivery reference, set once accepted; the
+  // node fetches the bytes against it.
+  string delivery_ref = 7;
+
+  // Human-readable detail (the failure reason, or an acceptance note).
+  string detail = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+service ArtifactsService {
+  // DistributeArtifact ships a non-git artifact to a node via device-sync-hub
+  // directed delivery, recording a durable Distribution. Owner-gated. An
+  // unknown/revoked node is rejected before any delivery is attempted. Honours
+  // X-Dry-Run.
+  rpc DistributeArtifact(DistributeArtifactRequest) returns (DistributeArtifactResponse);
+
+  // GetDistribution returns one distribution by id. Owner-gated.
+  rpc GetDistribution(GetDistributionRequest) returns (GetDistributionResponse);
+
+  // ListDistributions returns distributions newest-first, optionally filtered by
+  // node. Owner-gated.
+  rpc ListDistributions(ListDistributionsRequest) returns (ListDistributionsResponse);
+
+  // UploadRunArtifact is node-facing. A paired node uploads one bounded file
+  // produced by its own dispatched run; the node credential identifies and
+  // authorizes the source run. Owner-facing retrieval is GetRunArtifact.
+  rpc UploadRunArtifact(UploadRunArtifactRequest) returns (UploadRunArtifactResponse);
+
+  // GetRunArtifact returns one bounded produced artifact for an owner-gated run.
+  rpc GetRunArtifact(GetRunArtifactRequest) returns (GetRunArtifactResponse);
+}
+
+message DistributeArtifactRequest {
+  // Target node (registry id). Must be a known, non-revoked node.
+  string node_id = 1;
+
+  // Logical artifact name.
+  string name = 2;
+
+  // Source reference the bytes live behind (device-sync-hub content ref / URI).
+  string source_ref = 3;
+
+  // Destination path on the node.
+  string destination_path = 4;
+}
+
+message DistributeArtifactResponse {
+  // The server-owned distribution id to track. Empty on a dry-run.
+  string distribution_id = 1;
+
+  // True when X-Dry-Run short-circuited.
+  bool dry_run = 2;
+
+  DeliveryStatus status = 3;
+
+  // The device-sync-hub delivery reference, set when the delivery was accepted.
+  string delivery_ref = 4;
+}
+
+message GetDistributionRequest {
+  string id = 1;
+}
+
+message GetDistributionResponse {
+  Distribution distribution = 1;
+}
+
+message ListDistributionsRequest {
+  // Optional node filter; empty returns every node's distributions.
+  string node_id = 1;
+
+  // Optional cap (0 = server default).
+  int32 limit = 2;
+}
+
+message ListDistributionsResponse {
+  repeated Distribution distributions = 1;
+}
+
+message UploadRunArtifactRequest {
+  string run_id = 1;
+  string name = 2;
+  string media_type = 3;
+  bytes data = 4;
+}
+
+message UploadRunArtifactResponse {
+  string artifact_ref = 1;
+  int64 size_bytes = 2;
+}
+
+message GetRunArtifactRequest {
+  string run_id = 1;
+  string name = 2;
+}
+
+message GetRunArtifactResponse {
+  string run_id = 1;
+  string name = 2;
+  string media_type = 3;
+  bytes data = 4;
+  string artifact_ref = 5;
+}

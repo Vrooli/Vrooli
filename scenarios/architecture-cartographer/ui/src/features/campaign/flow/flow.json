@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "architecture-cartographer.campaign-item-lifecycle.ui",
+  "domain": "campaign",
+  "description": "UI projection of the per-item lifecycle inside a campaign. Re-targeted from the conflict-resolution flow (features/conflicts/flow): same CampaignItemStatus states, but the events are the ones the campaign TRACKER drives — resolve/apply mark an item fixed, and a re-audit reconciles by stable id (absent→validate, reappeared-terminal→regress). Mirrors api/internal/campaign/service.go (ResolveItem / ReauditCampaign). transition.ts is the runtime authority; flow.test.ts replays this declaration to guarantee they agree. Adding a state or transition requires updating service.go, this JSON, transition.ts, and flow.test.ts together.",
+  "states": [
+    { "id": "detected", "initial": true, "description": "Item was ingested (or regressed back) and awaits work." },
+    { "id": "assigned", "description": "Mirrored from the conflict lifecycle; the campaign tracker treats it as open (the tracker has no assign step, but the state is accepted from the wire)." },
+    { "id": "split", "description": "Mirrored from the conflict lifecycle; treated as open." },
+    { "id": "resolved", "description": "Agent marked the item fixed by hand (resolve/apply); awaits a re-audit to confirm." },
+    { "id": "validated", "description": "A re-audit no longer saw the item — the fix held (terminal-good)." },
+    { "id": "committed", "description": "Defensive sink mirrored from the conflict lifecycle; the campaign domain never produces it." },
+    { "id": "force_resolved", "description": "Defensive sink mirrored from the conflict lifecycle; the campaign domain never produces it." }
+  ],
+  "events": [
+    { "id": "resolve", "description": "Agent calls ResolveItem with a note." },
+    { "id": "apply", "description": "Agent calls ApplyItem (status-only hand-fix)." },
+    { "id": "validate", "description": "A re-audit found the item absent → the fix held." },
+    { "id": "regress", "description": "A re-audit saw a terminal item reappear (or a brand-new item) → back to detected, flagged regressed." },
+    { "id": "close", "description": "Operator closes the whole campaign (does not change an item's status)." }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": "detected", "event": "resolve", "to": "resolved" },
+    { "from": "detected", "event": "apply", "to": "resolved" },
+    { "from": "detected", "event": "validate", "to": "validated" },
+    { "from": "detected", "event": "regress", "to": "detected" },
+    { "from": "detected", "event": "close", "to": "detected" },
+
+    { "from": "assigned", "event": "resolve", "to": "resolved" },
+    { "from": "assigned", "event": "apply", "to": "resolved" },
+    { "from": "assigned", "event": "validate", "to": "validated" },
+    { "from": "assigned", "event": "regress", "to": "detected" },
+    { "from": "assigned", "event": "close", "to": "assigned" },
+
+    { "from": "split", "event": "resolve", "to": "resolved" },
+    { "from": "split", "event": "apply", "to": "resolved" },
+    { "from": "split", "event": "validate", "to": "validated" },
+    { "from": "split", "event": "regress", "to": "detected" },
+    { "from": "split", "event": "close", "to": "split" },
+
+    { "from": "resolved", "event": "resolve", "to": "resolved" },
+    { "from": "resolved", "event": "apply", "to": "resolved" },
+    { "from": "resolved", "event": "validate", "to": "validated" },
+    { "from": "resolved", "event": "regress", "to": "detected" },
+    { "from": "resolved", "event": "close", "to": "resolved" },
+
+    { "from": "validated", "event": "resolve", "to": "validated" },
+    { "from": "validated", "event": "apply", "to": "validated" },
+    { "from": "validated", "event": "validate", "to": "validated" },
+    { "from": "validated", "event": "regress", "to": "detected" },
+    { "from": "validated", "event": "close", "to": "validated" },
+
+    { "from": "committed", "event": "resolve", "to": "committed" },
+    { "from": "committed", "event": "apply", "to": "committed" },
+    { "from": "committed", "event": "validate", "to": "committed" },
+    { "from": "committed", "event": "regress", "to": "committed" },
+    { "from": "committed", "event": "close", "to": "committed" },
+
+    { "from": "force_resolved", "event": "resolve", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "apply", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "validate", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "regress", "to": "force_resolved" },
+    { "from": "force_resolved", "event": "close", "to": "force_resolved" }
+  ],
+  "invariants": [
+    { "id": "detected_is_initial", "description": "Every item starts in 'detected'." },
+    { "id": "committed_is_terminal", "description": "No event moves an item out of 'committed'." },
+    { "id": "force_resolved_is_terminal", "description": "No event moves an item out of 'force_resolved'." },
+    { "id": "regress_returns_to_detected", "description": "'regress' from any non-sink state returns to 'detected'." },
+    { "id": "close_is_item_neutral", "description": "'close' never changes an item's status (it closes the campaign, not the item)." }
+  ]
+}

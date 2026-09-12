@@ -1,0 +1,273 @@
+{
+  "version": 4,
+  "note": "Makes the catalog's declared subjects true. Four procedural generators used to answer every subject by substituting the nearest scene they had, so sixteen named art directions drew four pictures. The lane now refuses a subject no generator depicts; this version corrects three styles that were mislabelled, routes one that genuinely depicts something to the model lane, and adds three styles so the four new field generators (flow, voronoi, reaction-diffusion, caustics) are reachable from the catalog.",
+  "retune_reasons": [
+    "swiss-contour: subject cartographic -> geological. A Swiss contour study renders strata and elevation, which is what the terrain generator draws and what this style always rendered; `cartographic` claimed a map the lane cannot draw and got a terrain anyway.",
+    "memphis-weave: subject textile_material -> non_representational, generator reaction-diffusion. Memphis is an abstract-pattern movement, not a depiction of cloth; reaction-diffusion draws exactly the organic-geometric pattern the style is named for, where `field` drew soft blobs shared with three other styles.",
+    "vaporwave-drift: subject object_metaphor -> non_representational, generator flow field. The style is a drifting gradient and never depicted an object; the flow field is the generator that actually drifts.",
+    "op-art-interior: strategy procedural-treated -> guided. Unlike the three above, this style genuinely claims to depict an interior, and no procedural generator draws one. Routing it to the model lane is the honest answer; relabelling its subject to fit the generators available would be the same substitution in the other direction.",
+    "tidal-caustic (new): the caustics generator under a fine halftone. Refracted light has the widest tonal range of any generator here, which is what a dot screen needs to reach both inks \u2014 the reference genre this scenario was commissioned to hit.",
+    "glaze-mosaic (new): the voronoi generator as cracked glaze under a duotone. Cell interiors span the ramp and the seams take the highlight, so a two-ink map has real structure to hold.",
+    "silk-drift (new): the flow field under a plain duotone. Filament density carries the tone, so the treatment can stay minimal and the generator does the work."
+  ],
+  "surfaces": [],
+  "styles": [
+    {
+      "id": "swiss-contour",
+      "name": "Swiss Contour",
+      "version": 4,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "swiss_international",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "line_screen"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#b02a1f",
+        "$brand.background": "#f3f1ec"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":5,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "line_screen": "{\"spacing_rel\": 0.0153, \"angle\": 0, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "memphis-weave",
+      "name": "Memphis Weave",
+      "version": 3,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "memphis",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "displacement",
+        "posterize"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2d1b4e",
+        "$brand.background": "#ffd6e8"
+      },
+      "treatment_params": {
+        "displacement": "{\"amplitude_rel\": 0.025, \"spacing_rel\": 0.036, \"seed\": 5}",
+        "posterize": "{\"levels\":6,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "reaction",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "vaporwave-drift",
+      "name": "Vaporwave Drift",
+      "version": 3,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "vaporwave",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "aberration",
+        "bloom",
+        "scrim"
+      ],
+      "placements": [
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2a0f4d",
+        "$brand.background": "#ffb3de"
+      },
+      "treatment_params": {
+        "aberration": "{\"distance_rel\": 0.0125}",
+        "bloom": "{\"radius_rel\": 0.0306, \"threshold\": 0.58}",
+        "scrim": "{\"color\":\"$brand.primary\",\"opacity\":0.42,\"direction\":\"bottom\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "flow",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "op-art-interior",
+      "name": "Op Art Interior",
+      "version": 4,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "op_art",
+      "strategy": "guided",
+      "treatments": [
+        "line_screen"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#141414",
+        "$brand.background": "#f2f2f2"
+      },
+      "treatment_params": {
+        "line_screen": "{\"spacing_rel\": 0.0181, \"angle\": 45, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "arcade",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "a high-contrast modernist interior, hard-edged vaulting and repeated columns receding, strong directional light, generous unbroken wall at left",
+        "negative": "text, watermark, signature, people, furniture clutter, lens flare",
+        "model": "",
+        "provider_url": "",
+        "credential": ""
+      }
+    },
+    {
+      "id": "tidal-caustic",
+      "name": "Tidal Caustic",
+      "version": 1,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "wabi_sabi",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "halftone"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#12304f",
+        "$brand.background": "#f2ece0"
+      },
+      "treatment_params": {
+        "halftone": "{\"lpi\": 96, \"angle\": 15, \"dot\": \"circle\", \"normalize\": true, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\"}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "caustics",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "glaze-mosaic",
+      "name": "Glaze Mosaic",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "neo_brutalist",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#1b2b3a",
+        "$brand.background": "#e8e2d4"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"amount\": 0.05, \"contrast_multiplier\": 1.03, \"seed\": 23}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "voronoi",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "silk-drift",
+      "name": "Silk Drift",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "frutiger_aero",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#101c3a",
+        "$brand.background": "#eef4f8"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "flow",
+        "conditioner": "",
+        "params_json": ""
+      }
+    }
+  ]
+}

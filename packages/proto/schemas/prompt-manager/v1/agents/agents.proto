@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.agents;
+
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/agents;agents_v1";
+
+service AgentsService {
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+  rpc GetAgent(GetAgentRequest) returns (Agent);
+  rpc CreateAgent(CreateAgentRequest) returns (Agent);
+  rpc UpdateAgent(UpdateAgentRequest) returns (Agent);
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse);
+  rpc ListAgentTeams(ListAgentTeamsRequest) returns (ListAgentTeamsResponse);
+  rpc GetSoul(GetSoulRequest) returns (Soul);
+  rpc SetSoul(SetSoulRequest) returns (Soul);
+  rpc ManageSoul(ManageSoulRequest) returns (Soul);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc GetFile(GetFileRequest) returns (FileContent);
+  rpc SetFile(SetFileRequest) returns (FileContent);
+  rpc CreateFile(CreateFileRequest) returns (FileContent);
+  rpc RenameFile(RenameFileRequest) returns (FileContent);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+message Appearance { string body = 1; string head = 2; string accent = 3; }
+message Capability { string capability_id = 1; repeated string verbs = 2; }
+message Capabilities { repeated Capability provides = 1; repeated Capability requires = 2; }
+message Connector { string type = 1; string id = 2; bool enabled = 3; }
+message Heartbeat { int32 interval_seconds = 1; int32 timeout_seconds = 2; int32 max_missed_beats = 3; }
+message Agent {
+  string id = 1;
+  string display_name = 2;
+  string description = 3;
+  string status = 4;
+  Appearance appearance = 5;
+  Capabilities capabilities = 6;
+  repeated Connector connectors = 7;
+  string default_profile_ref = 8;
+  Heartbeat heartbeat = 9;
+  repeated string tags = 10;
+  repeated string file_order = 11;
+  string agent_dir = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+message AgentInput {
+  string id = 1;
+  string display_name = 2;
+  string description = 3;
+  string status = 4;
+  Appearance appearance = 5;
+  Capabilities capabilities = 6;
+  repeated Connector connectors = 7;
+  string default_profile_ref = 8;
+  Heartbeat heartbeat = 9;
+  repeated string tags = 10;
+  repeated string file_order = 11;
+}
+message ListAgentsRequest {}
+message ListAgentsResponse { repeated Agent agents = 1; }
+message GetAgentRequest { string id = 1; }
+message CreateAgentRequest { AgentInput agent = 1; }
+message UpdateAgentRequest { string id = 1; AgentInput agent = 2; google.protobuf.FieldMask update_mask = 3; }
+message DeleteAgentRequest { string id = 1; }
+message DeleteAgentResponse {}
+message TeamMembership { string team_id = 1; string team_display_name = 2; repeated string roles = 3; string status = 4; }
+message ListAgentTeamsRequest { string id = 1; }
+message ListAgentTeamsResponse { string agent_id = 1; repeated TeamMembership memberships = 2; }
+message Soul { string agent_id = 1; string content = 2; }
+message GetSoulRequest { string id = 1; }
+message SetSoulRequest { string id = 1; string content = 2; }
+message ManageSoulRequest { string id = 1; optional string content = 2; }
+message FileEntry { string path = 1; bool is_dir = 2; int64 size = 3; }
+message ListFilesRequest { string id = 1; }
+message ListFilesResponse { string agent_id = 1; repeated FileEntry files = 2; }
+message FileContent { string agent_id = 1; string path = 2; string content = 3; }
+message GetFileRequest { string id = 1; string path = 2; }
+message SetFileRequest { string id = 1; string path = 2; string content = 3; }
+message CreateFileRequest { string id = 1; string path = 2; string content = 3; bool is_dir = 4; }
+message RenameFileRequest { string id = 1; string from = 2; string to = 3; }
+message DeleteFileRequest { string id = 1; string path = 2; }
+message DeleteFileResponse {}

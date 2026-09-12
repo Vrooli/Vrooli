@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-table]"
+        }
+      ],
+      "role": "boundary"
+    }
+    ,
+    {"id":"error","name":"Table error","args":{"state":"error"},"expect":[{"kind":"role","role":"table"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading table","args":{"state":"loading"},"expect":[{"kind":"role","role":"table"}],"role":"boundary","mode":"pinned"},
+    {"id":"one","name":"One table row","args":{"rows":[{"id":"one","name":"Release evidence"}]},"expect":[{"kind":"role","role":"table"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many table rows","args":{"rows":[{"id":"one","name":"Release evidence"},{"id":"two","name":"Review queue"},{"id":"three","name":"Published artifact"},{"id":"four","name":"Captured preview"}]},"expect":[{"kind":"role","role":"table"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long table cell","args":{"rows":[{"id":"long","name":"A deliberately long table cell value that must wrap without clipping"}]},"expect":[{"kind":"role","role":"table"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Table"
+}

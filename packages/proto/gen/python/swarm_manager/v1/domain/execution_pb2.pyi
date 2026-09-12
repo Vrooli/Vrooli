@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from swarm_manager.v1.domain import backlog_pb2 as _backlog_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -8,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionRecord(_message.Message):
-    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization")
+    __slots__ = ("execution_id", "backlog_kind", "backlog_name", "task_id", "run_id", "status", "mode", "started_at", "finished_at", "failure_reason", "started_by", "operation", "created_at", "updated_at", "archive_context", "parent_execution_id", "fixup_attempt", "finalization", "execution_preferences", "actual_runner", "actual_model", "selection_reason", "continuation_of", "continuation_child_ids", "scope_extensions")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_KIND_FIELD_NUMBER: _ClassVar[int]
     BACKLOG_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -27,6 +28,13 @@ class ExecutionRecord(_message.Message):
     PARENT_EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     FIXUP_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     FINALIZATION_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_RUNNER_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATION_OF_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATION_CHILD_IDS_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     backlog_kind: str
     backlog_name: str
@@ -45,7 +53,26 @@ class ExecutionRecord(_message.Message):
     parent_execution_id: str
     fixup_attempt: int
     finalization: Finalization
-    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ...) -> None: ...
+    execution_preferences: _backlog_pb2.ExecutionPreferences
+    actual_runner: str
+    actual_model: str
+    selection_reason: str
+    continuation_of: str
+    continuation_child_ids: _containers.RepeatedScalarFieldContainer[str]
+    scope_extensions: _containers.RepeatedCompositeFieldContainer[ScopeExtension]
+    def __init__(self, execution_id: _Optional[str] = ..., backlog_kind: _Optional[str] = ..., backlog_name: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ..., mode: _Optional[str] = ..., started_at: _Optional[str] = ..., finished_at: _Optional[str] = ..., failure_reason: _Optional[str] = ..., started_by: _Optional[str] = ..., operation: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., archive_context: _Optional[_Union[ArchiveContext, _Mapping]] = ..., parent_execution_id: _Optional[str] = ..., fixup_attempt: _Optional[int] = ..., finalization: _Optional[_Union[Finalization, _Mapping]] = ..., execution_preferences: _Optional[_Union[_backlog_pb2.ExecutionPreferences, _Mapping]] = ..., actual_runner: _Optional[str] = ..., actual_model: _Optional[str] = ..., selection_reason: _Optional[str] = ..., continuation_of: _Optional[str] = ..., continuation_child_ids: _Optional[_Iterable[str]] = ..., scope_extensions: _Optional[_Iterable[_Union[ScopeExtension, _Mapping]]] = ...) -> None: ...
+
+class ScopeExtension(_message.Message):
+    __slots__ = ("paths", "reason", "recorded_at", "author")
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_FIELD_NUMBER: _ClassVar[int]
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    reason: str
+    recorded_at: str
+    author: str
+    def __init__(self, paths: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., recorded_at: _Optional[str] = ..., author: _Optional[str] = ...) -> None: ...
 
 class ArchiveContext(_message.Message):
     __slots__ = ("scenario_name", "scenario_path", "preset_or_custom", "preserve_paths", "preserve_preset")

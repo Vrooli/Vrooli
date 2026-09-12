@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-profile/v1",
+  "title": "Agent profile declaration",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": "agent-profile/v1" },
+    "name": { "type": "string", "minLength": 1 },
+    "profileKey": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "roleRef": { "type": "string", "minLength": 1 },
+    "roleReason": { "type": "string" },
+    "createdBy": { "type": "string", "minLength": 1 },
+    "maxTurns": { "type": "integer", "minimum": 1 },
+    "timeout": { "type": "string", "minLength": 1 },
+    "skipPermissionPrompt": { "type": "boolean" },
+    "networkAccess": { "enum": ["NETWORK_ACCESS_LOCALHOST"] },
+    "sandboxConfig": { "type": "object", "additionalProperties": true },
+    "effort": { "enum": ["low", "medium", "high", "xhigh", "max"] },
+    "allowedTools": {
+      "type": "array",
+      "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
+    },
+    "deniedTools": {
+      "type": "array",
+      "items": { "enum": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"] }
+    },
+    "toolRestrictionPolicy": { "enum": ["enforced", "advisory"] }
+    ,"spawnPolicy": {
+      "type": "object",
+      "required": ["axisOrder", "executionMode", "sandboxMode"],
+      "properties": {
+        "axisOrder": {"type": "array", "items": {"enum": ["sandboxMode", "executionMode"]}, "minItems": 1, "maxItems": 2},
+        "executionMode": {"type": "object", "required": ["prefer"], "properties": {"prefer": {"type": "array", "items": {"enum": ["codec_pipe", "interactive"]}, "minItems": 1}}},
+        "sandboxMode": {"type": "object", "required": ["prefer"], "properties": {"prefer": {"type": "array", "items": {"enum": ["protected", "tracking", "off"]}, "minItems": 1}}},
+        "require": {"type": "array", "items": {"type": "object", "required": ["executionMode", "sandboxMode"], "properties": {"executionMode": {"type": "string"}, "sandboxMode": {"type": "string"}}}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["schemaVersion", "name", "profileKey", "description", "roleRef", "createdBy", "effort"],
+  "additionalProperties": false
+}

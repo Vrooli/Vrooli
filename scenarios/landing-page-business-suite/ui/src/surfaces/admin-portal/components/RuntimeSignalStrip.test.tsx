@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 import type { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import type { LandingConfigResponse } from '../../../shared/api';
 
-const mockUseLandingVariant = vi.fn<[], ReturnType<typeof useLandingVariant>>();
+const mockUseLandingVariant = vi.fn<() => ReturnType<typeof useLandingVariant>>();
 
 vi.mock('../../../app/providers/useLandingVariant', () => ({
   useLandingVariant: () => mockUseLandingVariant(),
@@ -34,7 +35,7 @@ const buildContext = (
   resolution: 'api_select',
   statusNote: 'Variant selected via weighted API',
   lastUpdated: Date.now(),
-  refresh: vi.fn<[], Promise<void>>(),
+  refresh: vi.fn<() => Promise<void>>(),
   ...overrides,
 });
 

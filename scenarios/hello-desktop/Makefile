@@ -1,61 +1,66 @@
-# Hello Desktop - Minimal Desktop Deployment Test Scenario
-# This scenario is designed to validate the full desktop deployment pipeline
+# Hello Desktop Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/hello-desktop-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-SCENARIO_NAME := hello-desktop
-VROOLI_ROOT ?= $(HOME)/Vrooli
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
 
-.PHONY: help start stop status test logs clean build run
+.DEFAULT_GOAL := help
 
-help:
-	@echo "Hello Desktop - Minimal Desktop Deployment Test"
-	@echo ""
-	@echo "Usage:"
-	@echo "  make start    - Start the scenario"
-	@echo "  make stop     - Stop the scenario"
-	@echo "  make status   - Check scenario status"
-	@echo "  make build    - Build API binary"
-	@echo "  make test     - Run tests"
-	@echo "  make clean    - Clean build artifacts"
-	@echo ""
-	@echo "Desktop Deployment:"
-	@echo "  make deploy-desktop  - Full desktop deployment pipeline"
+SCENARIO_NAME := $(notdir $(CURDIR))
 
-start:
-	vrooli scenario start $(SCENARIO_NAME)
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
 
-stop:
-	vrooli scenario stop $(SCENARIO_NAME)
+help: ## Show this help message
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
 
-status:
-	vrooli scenario status $(SCENARIO_NAME)
+start: ## Start this scenario
+	@vrooli scenario start $(SCENARIO_NAME)
 
-build:
-	cd api && go build -o hello-desktop-api .
+stop: ## Stop this scenario
+	@vrooli scenario stop $(SCENARIO_NAME)
 
-test:
-	@echo "Testing API health..."
-	@curl -sf http://localhost:$$(vrooli scenario port $(SCENARIO_NAME) API_PORT)/health || echo "API not running"
+restart: ## Restart this scenario
+	@vrooli scenario restart $(SCENARIO_NAME)
 
-logs:
-	vrooli scenario logs $(SCENARIO_NAME)
+test: ## Run scenario tests
+	@vrooli scenario test $(SCENARIO_NAME)
 
-clean:
-	rm -f api/hello-desktop-api
-	rm -rf api/bin/
-	rm -rf platforms/
+logs: ## Show scenario logs
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
-# Desktop deployment workflow
-deploy-desktop: build
-	@echo "=== Desktop Deployment Pipeline ==="
-	@echo ""
-	@echo "1. Creating deployment profile..."
-	deployment-manager profile create hello-desktop-profile $(SCENARIO_NAME) --tier 2 || true
-	@echo ""
-	@echo "2. Checking fitness..."
-	deployment-manager fitness $(SCENARIO_NAME) --tier 2 || true
-	@echo ""
-	@echo "3. Running deploy-desktop..."
-	deployment-manager deploy-desktop --profile hello-desktop-profile --dry-run
+status: ## Show scenario status
+	@vrooli scenario status $(SCENARIO_NAME)
+
+clean: ## Clean build artifacts
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+
+fmt: fmt-go fmt-ui ## Format all code
+
+lint: lint-go lint-ui ## Lint all code
+
+check: fmt lint test ## Run full quality gates
+
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
 
 # Development shortcuts
 run: start
+dev: start

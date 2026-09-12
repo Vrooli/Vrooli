@@ -8,10 +8,13 @@ import { CoverageBadge } from "./CoverageBadge";
 export function CoverageMap() {
   return (
     <details className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200">
-      <summary className="cursor-pointer text-xs font-semibold text-slate-100">Coverage map</summary>
+      <summary className="cursor-pointer text-xs font-semibold text-slate-100">
+        Coverage map
+      </summary>
       <p className="mt-2 text-[11px] text-slate-400">
-        Preflight starts the runtime supervisor, validates bundle files, applies secrets, starts services, and
-        captures readiness plus log tails. The Electron UI is not started during preflight.
+        Preflight starts the runtime supervisor, validates bundle files, applies
+        secrets, starts services, and captures readiness plus log tails. The
+        Electron UI is not started during preflight.
       </p>
       <div className="mt-3 space-y-2">
         {COVERAGE_ROWS.map((row) => {
@@ -27,7 +30,11 @@ export function CoverageMap() {
               </div>
               <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 {row.cells.map((cell) => (
-                  <CoverageBadge key={`${row.id}-${cell.label}`} label={cell.label} active={cell.active} />
+                  <CoverageBadge
+                    key={`${row.id}-${cell.label}`}
+                    label={cell.label}
+                    active={cell.active}
+                  />
                 ))}
               </div>
             </div>

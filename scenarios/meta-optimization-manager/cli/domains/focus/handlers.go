@@ -1,0 +1,337 @@
+package focus
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"connectrpc.com/connect"
+
+	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus"
+	focusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus/focus_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client focusconnect.FocusServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{core: core, client: focusconnect.NewFocusServiceClient(httpClient, baseURL)}
+}
+
+func (h *handlers) next(ctx cliapp.RunContext) error {
+	proj, err := projectionFlag(ctx)
+	if err != nil {
+		return err
+	}
+	limit, err := limitFlag(ctx)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.GetFocus(context.Background(), connect.NewRequest(&focusv1.GetFocusRequest{
+		Limit:      limit,
+		Projection: proj,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("focus next", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no focus response")
+	}
+	results := make([]string, 0, len(resp.Msg.Items))
+	for _, it := range resp.Msg.Items {
+		results = append(results, formatFocusItem(it))
+	}
+	summary := []string{fmt.Sprintf("%d ranked next-best gap(s).", len(resp.Msg.Items))}
+	if resp.Msg.GetDegraded() {
+		summary = append(summary, "DEGRADED: "+resp.Msg.GetDegradedReason())
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Focus",
+		Results:        results,
+		RetrievalHints: []string{
+			"`gaps show <id>` — full qualitative context for a gap",
+			"`gaps note <id> --add \"<approach>\"` — store an explored approach",
+		},
+	})
+}
+
+func (h *handlers) gapsList(ctx cliapp.RunContext) error {
+	proj, err := projectionFlag(ctx)
+	if err != nil {
+		return err
+	}
+	status, err := statusFlag(ctx)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.ListGaps(context.Background(), connect.NewRequest(&focusv1.ListGapsRequest{
+		Projection: proj,
+		CellId:     strings.TrimSpace(ctx.Flag("cell")),
+		Status:     status,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("gaps list", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no gaps response")
+	}
+	results := make([]string, 0, len(resp.Msg.Gaps))
+	for _, g := range resp.Msg.Gaps {
+		results = append(results, formatGap(g))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d gap(s).", len(resp.Msg.Gaps))},
+		ResultsHeading: "Gaps",
+		Results:        results,
+		RetrievalHints: []string{"`gaps show <id>` — provenance + approaches for one gap"},
+	})
+}
+
+func (h *handlers) gapsShow(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	resp, err := h.client.GetGap(context.Background(), connect.NewRequest(&focusv1.GetGapRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("gaps show %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Gap == nil {
+		return fmt.Errorf("server returned no gap")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Gap %s.", resp.Msg.Gap.GetId())},
+		ResultsHeading: "Gap",
+		Results:        gapDetail(resp.Msg.Gap),
+	})
+}
+
+func (h *handlers) gapsNote(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	approach := strings.TrimSpace(ctx.Flag("add"))
+	if approach == "" {
+		return fmt.Errorf("provide the approach to store via --add \"<approach>\"")
+	}
+	resp, err := h.client.AddGapNote(context.Background(), connect.NewRequest(&focusv1.AddGapNoteRequest{Id: id, Approach: approach}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("gaps note %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Gap == nil {
+		return fmt.Errorf("server returned no gap")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Stored approach on gap %s.", resp.Msg.Gap.GetId())},
+		ResultsHeading: "Gap",
+		Results:        gapDetail(resp.Msg.Gap),
+	})
+}
+
+func (h *handlers) conditionStatus(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListCondition(context.Background(), connect.NewRequest(&focusv1.ListConditionRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("condition status", err, nil)
+	}
+	results := make([]string, 0)
+	for _, gap := range resp.Msg.GetGaps() {
+		results = append(results, fmt.Sprintf("%s status=%s provider=%s recurrence=%d %s", gap.GetId(), gap.GetConditionStatus(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle()))
+	}
+	instrumentation := resp.Msg.GetInstrumentation()
+	ledger := instrumentation.GetLedgerExercise()
+	receipts := instrumentation.GetReceiptExercise()
+	summary := []string{
+		fmt.Sprintf("%d observed condition finding(s).", len(results)),
+		fmt.Sprintf("Verdicts: healthy=%d degraded=%d dormant=%d uninstrumented=%d unavailable=%d; ledger instrumented=%d/%d invocations=%d basis=%s; receipts instrumented=%d/%d invocations=%d basis=%s.", instrumentation.GetHealthy(), instrumentation.GetDegraded(), instrumentation.GetDormant(), instrumentation.GetUninstrumented(), instrumentation.GetUnavailable(), ledger.GetInstrumented(), ledger.GetTotal(), ledger.GetInvocations(), ledger.GetBasis(), receipts.GetInstrumented(), receipts.GetTotal(), receipts.GetInvocations(), receipts.GetBasis()),
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Condition", Results: results, RetrievalHints: []string{"`condition explain-leg <provider-id>` — trace one leg"}})
+}
+
+func (h *handlers) conditionExplain(ctx cliapp.RunContext) error {
+	provider := strings.TrimSpace(ctx.Positional("provider-id"))
+	resp, err := h.client.ExplainCondition(context.Background(), connect.NewRequest(&focusv1.ExplainConditionRequest{ProviderId: provider}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("condition explain-leg %q", provider), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Gap == nil {
+		return fmt.Errorf("server returned no condition finding")
+	}
+	gap := resp.Msg.Gap
+	results := []string{fmt.Sprintf("%s status=%s provider=%s recurrence=%d %s", gap.GetId(), gap.GetConditionStatus(), strings.Join(gap.GetProviderIds(), ","), gap.GetRecurrence(), gap.GetTitle())}
+	results = append(results, gap.GetNotes()...)
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Condition evidence for " + provider + "."}, ResultsHeading: "Condition leg", Results: results})
+}
+
+func formatFocusItem(it *focusv1.FocusItem) string {
+	g := it.GetGap()
+	result := fmt.Sprintf("[%.2f] %s [%s/%s] %s — %s", it.GetPriorityScore(), g.GetId(), axisLabel(g.GetAxis()), statusLabel(g.GetStatus()), g.GetTitle(), focusEvidence(g, it.GetRationale()))
+	if command := firstRepairCommand(g); command != "" {
+		result += " — repair: " + command
+	}
+	return result
+}
+
+func formatGap(g *focusv1.Gap) string {
+	scope := projectionLabel(g.GetProjection())
+	if g.GetGlobal() {
+		scope = "global"
+	}
+	base := fmt.Sprintf("%s [%s/%s/%s] %s", g.GetId(), axisLabel(g.GetAxis()), scope, statusLabel(g.GetStatus()), g.GetTitle())
+	if evidence := gapEvidence(g); evidence != "" {
+		return base + " — " + evidence
+	}
+	return base
+}
+
+func gapDetail(g *focusv1.Gap) []string {
+	out := []string{formatGap(g)}
+	if g.GetAvailabilityReason() != "" {
+		out = append(out, "  ! availability: "+g.GetAvailabilityReason())
+	}
+	for _, n := range g.GetNotes() {
+		out = append(out, "  · note: "+n)
+	}
+	for _, a := range g.GetApproaches() {
+		out = append(out, "  ↳ approach: "+a)
+	}
+	for _, f := range g.GetFollowUps() {
+		out = append(out, "  → follow-up: "+f)
+	}
+	for _, finding := range g.GetMaturityFindings() {
+		if finding.GetMessage() != "" {
+			out = append(out, "  ! maturity: "+finding.GetMessage())
+		}
+		if finding.GetLocation() != "" {
+			out = append(out, "    location: "+finding.GetLocation())
+		}
+		if finding.GetRemediation() != "" {
+			out = append(out, "    remediation: "+finding.GetRemediation())
+		}
+		if finding.GetRepairCommand() != "" {
+			out = append(out, "    repair: "+finding.GetRepairCommand())
+		}
+	}
+	return out
+}
+
+func firstRepairCommand(g *focusv1.Gap) string {
+	for _, finding := range g.GetMaturityFindings() {
+		if command := strings.TrimSpace(finding.GetRepairCommand()); command != "" {
+			return command
+		}
+	}
+	return ""
+}
+
+func focusEvidence(g *focusv1.Gap, rationale string) string {
+	evidence := gapEvidence(g)
+	if evidence == "" {
+		return rationale
+	}
+	return rationale + " — " + evidence
+}
+
+func gapEvidence(g *focusv1.Gap) string {
+	parts := make([]string, 0, 3)
+	if g.GetRecurrence() > 0 {
+		parts = append(parts, fmt.Sprintf("recurrence=%d", g.GetRecurrence()))
+	}
+	if g.GetEvidenceSource() != "" {
+		parts = append(parts, "source="+g.GetEvidenceSource())
+	}
+	if g.GetEvidenceLocator() != "" {
+		parts = append(parts, "evidence="+g.GetEvidenceLocator())
+	}
+	return strings.Join(parts, ", ")
+}
+
+// limitFlag parses the optional --limit flag (0 => server default). A negative
+// or non-numeric value is a usage error.
+func limitFlag(ctx cliapp.RunContext) (int32, error) {
+	raw := strings.TrimSpace(ctx.Flag("limit"))
+	if raw == "" {
+		return 0, nil
+	}
+	// ParseInt with bitSize 32 bounds the result to int32 range, so the
+	// conversion below cannot overflow (avoids gosec G109).
+	n, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("invalid --limit %q (use a non-negative integer)", raw)
+	}
+	return int32(n), nil
+}
+
+// projectionFlag maps --projection to the shared proto enum. Empty => UNSPECIFIED.
+func projectionFlag(ctx cliapp.RunContext) (sharedv1.Projection, error) {
+	switch strings.ToLower(strings.TrimSpace(ctx.Flag("projection"))) {
+	case "":
+		return sharedv1.Projection_PROJECTION_UNSPECIFIED, nil
+	case "answer":
+		return sharedv1.Projection_PROJECTION_ANSWER, nil
+	case "validate":
+		return sharedv1.Projection_PROJECTION_VALIDATE, nil
+	case "guide":
+		return sharedv1.Projection_PROJECTION_GUIDE, nil
+	case "act":
+		return sharedv1.Projection_PROJECTION_ACT, nil
+	default:
+		return 0, fmt.Errorf("unknown projection %q (use answer|validate|guide|act)", ctx.Flag("projection"))
+	}
+}
+
+func statusFlag(ctx cliapp.RunContext) (sharedv1.CellStatus, error) {
+	switch strings.ToLower(strings.TrimSpace(ctx.Flag("status"))) {
+	case "":
+		return sharedv1.CellStatus_CELL_STATUS_UNSPECIFIED, nil
+	case "now":
+		return sharedv1.CellStatus_CELL_STATUS_NOW, nil
+	case "in_reach", "in-reach":
+		return sharedv1.CellStatus_CELL_STATUS_IN_REACH, nil
+	case "missing":
+		return sharedv1.CellStatus_CELL_STATUS_MISSING, nil
+	default:
+		return 0, fmt.Errorf("unknown status %q (use now|in_reach|missing)", ctx.Flag("status"))
+	}
+}
+
+func projectionLabel(p sharedv1.Projection) string {
+	switch p {
+	case sharedv1.Projection_PROJECTION_ANSWER:
+		return "answer"
+	case sharedv1.Projection_PROJECTION_VALIDATE:
+		return "validate"
+	case sharedv1.Projection_PROJECTION_GUIDE:
+		return "guide"
+	case sharedv1.Projection_PROJECTION_ACT:
+		return "act"
+	default:
+		return "cross-cutting"
+	}
+}
+
+func axisLabel(axis sharedv1.GapAxis) string {
+	switch axis {
+	case sharedv1.GapAxis_GAP_AXIS_COVERAGE:
+		return "coverage"
+	case sharedv1.GapAxis_GAP_AXIS_EMPIRICAL:
+		return "empirical"
+	default:
+		return "?"
+	}
+}
+
+func statusLabel(s sharedv1.CellStatus) string {
+	switch s {
+	case sharedv1.CellStatus_CELL_STATUS_NOW:
+		return "now"
+	case sharedv1.CellStatus_CELL_STATUS_IN_REACH:
+		return "in_reach"
+	case sharedv1.CellStatus_CELL_STATUS_MISSING:
+		return "missing"
+	default:
+		return "?"
+	}
+}

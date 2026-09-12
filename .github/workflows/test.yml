@@ -2,18 +2,74 @@ name: Tests
 
 on:
   push:
-    branches: [main, dev]
+    branches: [master]
   pull_request:
-    branches: [main, dev]
+    branches: [master]
+  workflow_dispatch:
 
 # Limit permissions to only what's needed
 permissions:
   contents: read
 
 jobs:
+  clean-shared-package-provisioning:
+    name: Clean shared-package provisioning
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Setup Node and pnpm
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
+        with:
+          node-version: 22
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10.14.0 --activate
+
+      - name: Run setup with no pre-existing package output
+        run: |
+          test ! -e packages/iframe-bridge/dist
+          test ! -e packages/api-base/dist
+          test ! -e packages/audio-capture-browser/dist
+          test ! -e packages/vitest-requirement-reporter/dist
+          make setup SETUP_ARGS="--environment development --resources none --scenarios none --yes"
+
+      - name: Build test-genie from a clean shared-package state
+        run: go run ./cmd/vrooli --no-stale-check scenario setup test-genie
+
+      - name: Prove disabled provisioning fails with an actionable package error
+        shell: bash
+        run: |
+          set +e
+          VROOLI_DISABLE_SHARED_PACKAGE_PROVISIONING=1 \
+            go run ./cmd/vrooli --no-stale-check scenario setup test-genie 2>&1 | tee /tmp/shared-package-provisioning-disabled.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -F '@vrooli/iframe-bridge' /tmp/shared-package-provisioning-disabled.log
+          grep -F 'pnpm build' /tmp/shared-package-provisioning-disabled.log
+          if grep -F 'TS2307' /tmp/shared-package-provisioning-disabled.log; then
+            echo 'disabled provisioning reached TypeScript module resolution instead of the control-plane diagnostic' >&2
+            exit 1
+          fi
+
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -21,32 +77,517 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
-        with:
-          node-version: "18.x"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Setup Go
-        uses: actions/setup-go@v5
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: "1.21.x"
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 # v1
+        with:
+          # Pinned to the version used for local generation: a newer buf in CI
+          # would regenerate differently and fail the drift gate spuriously.
+          version: "1.37.0"
+
+      - name: Verify proto generated artifacts
+        run: make verify-committed-gen
+        working-directory: packages/proto
+
+      - name: Cross-compile OS-evidence packages (darwin/windows)
+        run: make cross-compile
+
+      - name: Enforce declared platform conformance
+        run: go run ./cmd/vrooli capability conformance
+
+      - name: Verify capability schema artifacts are generated from the vocabulary
+        run: go run ./internal/deployability/cmd/capability-vocabulary --root . --check
+
+      - name: Build control plane for supported host platforms
+        run: |
+          go build ./internal/... ./cmd/...
+          GOOS=windows GOARCH=amd64 go build ./internal/... ./cmd/...
+          GOOS=darwin GOARCH=arm64 go build ./internal/... ./cmd/...
+
+      - name: Cross-build system-monitor API contract
+        working-directory: scenarios/system-monitor/api
+        run: |
+          set -euo pipefail
+          for target in linux/amd64 linux/arm64 darwin/arm64 windows/amd64; do
+            os=${target%/*}
+            arch=${target#*/}
+            GOOS="$os" GOARCH="$arch" GOWORK=off go build ./...
+            GOOS="$os" GOARCH="$arch" GOWORK=off go test -c \
+              -o "$RUNNER_TEMP/system-monitor-collectors-$os-$arch.test" \
+              ./internal/collectors
+            GOOS="$os" GOARCH="$arch" GOWORK=off go test -c \
+              -o "$RUNNER_TEMP/system-monitor-procsampler-$os-$arch.test" \
+              ./internal/procsampler
+          done
+          GOWORK=off go test ./internal/collectors ./internal/procsampler ./internal/convert
+
+      - name: Run evidence-layer tests
+        run: |
+          go test -count=1 \
+            ./internal/network/... \
+            ./internal/process/... \
+            ./internal/maintenance/... \
+            ./internal/ports/... \
+            ./internal/runtimesupervisor/... \
+            ./internal/scenarioruntime/... \
+            ./internal/cli/projectcli/...
+
+      - name: Run lifecycle suite under the race detector
+        run: go test -race ./internal/lifecycle/... -count=1
+
+      - name: Assert readiness-driven health has no fixed grace sleep
+        run: >-
+          go test -count=1 ./internal/lifecycle
+          -run 'Test(CharacterizeWaitForHealthTiming|DerivedReadinessUsesPortWithoutLeadingGraceSleep|ExplicitProcessReadinessOverridesDerivedPort|DerivedReadinessHonorsFailureCeilingWithInjectedClock)$'
 
       - name: Run scenario-to-desktop runtime tests
-        run: go test ./scenarios/scenario-to-desktop/runtime -count=1
+        run: go test ./... -count=1
+        working-directory: scenarios/scenario-to-desktop/runtime
 
       - name: Run scenario-to-desktop preflight tests
-        run: go test ./scenarios/scenario-to-desktop/api -run TestPreflightBundleHandler -count=1
+        run: go test ./... -run TestPreflightBundleHandler -count=1
+        working-directory: scenarios/scenario-to-desktop/api
 
-      - name: Run Tests in Workspaces
+  structure-health-contract:
+    name: Structure-health repository contract gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Start structure-health through the control plane
+        run: go run ./cmd/vrooli scenario start structure-health --timeout 120
+
+      - name: Enforce the repository structure contract
+        run: go run ./cmd/vrooli hygiene --contract-only --fail-on error --json
+
+  resource-contract:
+    name: Resource fleet contract gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      # These two gates protect the resource fleet's portability claims: that no
+      # resource ships a shell file, and that no resource claims a platform it
+      # has no acquisition route for. Both existed as Makefile targets and were
+      # run by nobody, which is how the shell gate sat red unnoticed.
+      - name: Enforce the resource fleet contract
+        run: make fleet-contract-check
+
+      - name: Verify the generated acquisition contract is current
+        run: make acquisition-schema-check
+
+  desktop-runtime:
+    name: Desktop runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Build desktop runtime
+        run: go build ./...
+        working-directory: scenarios/scenario-to-desktop/runtime
+
+      - name: Test desktop runtime
+        run: go test ./... -count=1
+        working-directory: scenarios/scenario-to-desktop/runtime
+
+      - name: Smoke-test current-platform bundle staging
+        run: go test ./bundle -run TestDefaultCLIStagerStage -count=1
+        working-directory: scenarios/scenario-to-desktop/api
+
+  cross-platform-lifecycle:
+    name: Cross-platform lifecycle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Run lifecycle contract suite
+        shell: bash
+        run: go test -count=1 ./internal/lifecycle/... ./internal/process/... ./internal/cli/scenariocli/...
+
+      - name: Run a complete scenario lifecycle through the control plane
+        shell: bash
         run: |
-          pnpm workspace @vrooli/shared test && \
-          pnpm workspace @vrooli/server test && \
-          pnpm workspace @vrooli/jobs test && \
-          pnpm workspace @vrooli/ui test
+          set -euo pipefail
+          go run ./cmd/vrooli help >/dev/null
+          go run ./cmd/vrooli scenario --help >/dev/null
+          go run ./cmd/vrooli scenario start hello-plugin --timeout 120 --json
+          go run ./cmd/vrooli scenario status hello-plugin --json
+          go run ./cmd/vrooli scenario stop hello-plugin --json
 
-      - name: Run Bash Script Tests
-        run: ./scripts/tests/__runTests.sh
+  # The credential seam is the one place where a platform adapter can differ
+  # silently: a backend that answers "no such value" as "backend broken" turns an
+  # unset API key back into a failed scenario start. One shared conformance suite
+  # runs against the real backend on every supported platform.
+  credentials:
+    name: Credential store (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      # The Linux runner is intentionally exercised through the unattended
+      # encrypted-file path. Native keyrings are not a reliable CI fixture;
+      # macOS and Windows use their real user stores below.
+      VROOLI_CREDENTIAL_BACKEND: ${{ matrix.expected_backend == 'encrypted-file' && 'encrypted-file' || '' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            expected_backend: encrypted-file
+          - os: macos-latest
+            expected_backend: macos-keychain
+          - os: windows-latest
+            expected_backend: windows-credential-manager
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      # A locked keychain makes the conformance suite report an unavailable
+      # provider and skip, which would look like a pass. Unlock it first so the
+      # run is meaningful.
+      - name: Unlock the macOS login keychain
+        if: runner.os == 'macOS'
+        run: |
+          security unlock-keychain -p "" ~/Library/Keychains/login.keychain-db || \
+            security unlock-keychain -p "actions" ~/Library/Keychains/login.keychain-db || true
+          security list-keychains
+
+      - name: Initialize the Linux encrypted store
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          printf '%s\n' 'ci-conformance-passphrase' | go run ./cmd/vrooli credentials store init
+
+      - name: Run credential store and authority tests
+        shell: bash
+        env:
+          CGO_ENABLED: 1
+        run: go test -count=1 ./internal/resources/securestore/... ./internal/secrets/...
+
+      # The recovery drill is the reason this whole seam exists, so it gets the
+      # same treatment as the conformance suite: prove it ran rather than
+      # trusting a green summary that a skip would also produce.
+      - name: Assert the recovery drill ran
+        shell: bash
+        env:
+          CGO_ENABLED: 1
+        run: |
+          go test -count=1 -v -run 'TestRecoveryDrillSurvivesTotalStoreLoss|TestRecoveryExportRefusesWhileTheProviderIsUnavailable|TestRecoveryExportFailsRatherThanSkippingAnUnsetEntry' \
+            ./internal/secrets/ | tee drill.log
+          go test -count=1 -v -run 'TestStoredFormIsIdenticalAcrossBackends|TestEncryptedStoreValuesSurviveANewHandle|TestEncryptedStoreFileNeverContainsAPlaintextValue' \
+            ./internal/resources/securestore/ | tee -a drill.log
+          # The Vault chain spans three packages, and the failure that matters is
+          # a break between them: a key stored under one address and enumerated
+          # under another passes every unit test and still loses the instance.
+          go test -count=1 -v -run 'TestVaultUnsealKeySurvivesTotalStoreLossAndRestoresAWorkingInstance|TestRecoveryExportFailsRatherThanSkippingAnUnstoredUnsealKey|TestControlPlaneRecoversFromAnUnsealKeyRatherThanReinitializing|TestKopiaCredentialRecoveryDrill' \
+            ./internal/resources/ | tee -a drill.log
+          if grep -q -- "--- SKIP" drill.log; then
+            echo "::error::A recovery drill skipped on ${{ matrix.os }}; recovery is the one path that must never go unverified."
+            exit 1
+          fi
+          for name in TestRecoveryDrillSurvivesTotalStoreLoss TestStoredFormIsIdenticalAcrossBackends TestEncryptedStoreFileNeverContainsAPlaintextValue TestVaultUnsealKeySurvivesTotalStoreLossAndRestoresAWorkingInstance TestControlPlaneRecoversFromAnUnsealKeyRatherThanReinitializing TestKopiaCredentialRecoveryDrill; do
+            grep -q -- "--- PASS: $name" drill.log || { echo "::error::$name did not run"; exit 1; }
+          done
+
+      # The suite skips rather than fails when no backend exists. On these
+      # runners a backend does exist, so a skip is a defect, not a pass.
+      - name: Assert the conformance suite ran rather than skipped
+        shell: bash
+        env:
+          CGO_ENABLED: 1
+        run: |
+          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+          if grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log; then
+            echo "::error::Adapter conformance skipped on ${{ matrix.os }}; the platform backend was not reachable."
+            exit 1
+          fi
+          grep -q -- "--- PASS: TestPlatformAdapterConformance" conformance.log
+
+      - name: Assert the expected backend
+        shell: bash
+        run: |
+          go run ./cmd/vrooli credentials doctor --format json > doctor.json
+          jq -e --arg expected '${{ matrix.expected_backend }}' '.provider.backend == $expected' doctor.json
+
+      - name: Assert shared conformance suite is unchanged
+        shell: bash
+        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/resources/securestore/conformance_test.go
+
+  credentials-encrypted-override:
+    name: Credential store encrypted override (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      VROOLI_CREDENTIAL_BACKEND: encrypted-file
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Initialize the encrypted override store
+        shell: bash
+        run: printf '%s\n' 'ci-conformance-passphrase' | go run ./cmd/vrooli credentials store init
+
+      - name: Run the encrypted override conformance suite
+        shell: bash
+        env:
+          VROOLI_CREDENTIAL_BACKEND: encrypted-file
+        run: |
+          go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+          ! grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log
+          grep -q -- "--- PASS: TestPlatformAdapterConformance" conformance.log
+          go run ./cmd/vrooli credentials doctor --format json | jq -e '.provider.backend == "encrypted-file"'
+
+      - name: Assert shared conformance suite is unchanged
+        shell: bash
+        run: git diff --exit-code "${{ github.event.pull_request.base.sha || github.event.before }}" -- internal/resources/securestore/conformance_test.go
+
+  credentials-libsecret:
+    name: Credential store (Linux libsecret)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install libsecret and headless Secret Service
+        run: sudo apt-get update && sudo apt-get install --yes libsecret-tools gnome-keyring dbus-x11
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Run conformance against native libsecret
+        shell: bash
+        env:
+          CGO_ENABLED: 1
+        run: |
+          dbus-run-session -- bash -ceu '
+            export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-$(mktemp -d)}"
+            mkdir -p "$XDG_RUNTIME_DIR"
+            chmod 700 "$XDG_RUNTIME_DIR"
+            eval "$(printf "%s\n" ci-conformance-passphrase | gnome-keyring-daemon --start --components=secrets --unlock)"
+            go test -count=1 -v -run TestPlatformAdapterConformance ./internal/resources/securestore/ | tee conformance.log
+            if grep -q -- "--- SKIP: TestPlatformAdapterConformance" conformance.log; then
+              echo "::error::Native libsecret conformance skipped"
+              exit 1
+            fi
+            grep -q -- "--- PASS: TestPlatformAdapterConformance" conformance.log
+          '
+
+      - name: Assert native backend diagnosis
+        shell: bash
+        run: |
+          dbus-run-session -- bash -ceu '
+            export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-$(mktemp -d)}"
+            mkdir -p "$XDG_RUNTIME_DIR"
+            eval "$(printf "%s\n" ci-conformance-passphrase | gnome-keyring-daemon --start --components=secrets --unlock)"
+            go run ./cmd/vrooli credentials doctor --format json | jq -e ".provider.backend == \"libsecret\""
+          '
+
+  unit-health-executor:
+    name: Unit Health executor (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        id: go-version
+        shell: bash
+        run: echo "value=$(jq -r '.version' internal/tools/go/tool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned Go toolchain
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ steps.go-version.outputs.value }}
+
+      - name: Run native typed-executor conformance
+        id: executor
+        shell: bash
+        working-directory: scenarios/unit-health/api
+        run: |
+          evidence_dir="$RUNNER_TEMP/unit-health-native-evidence"
+          mkdir -p "$evidence_dir"
+          set +e
+          go test -json -count=1 ./internal/executor | tee "$evidence_dir/executor-tests.json"
+          status=${PIPESTATUS[0]}
+          printf '%s\n' "$status" > "$evidence_dir/executor-exit-code"
+          exit "$status"
+
+      - name: Run native platform process-substrate tests
+        id: platform_go
+        shell: bash
+        working-directory: packages/platform-go
+        run: go test -count=1 ./...
+
+      - name: Boot and terminate the native Unit Health API
+        id: api_e2e
+        shell: bash
+        working-directory: scenarios/unit-health/api
+        run: go test -tags=e2e -count=1 .
+
+      - name: Compile adapter and readiness packages for the native host
+        id: compile_adapters
+        shell: bash
+        working-directory: scenarios/unit-health/api
+        run: go test -run '^$' ./internal/adapterregistry ./internal/adapters ./internal/hostbin ./internal/readiness ./internal/validation
+
+      - name: Run targeted native adapter, cache, and readiness conformance
+        id: targeted_conformance
+        shell: bash
+        working-directory: scenarios/unit-health/api
+        run: |
+          go test -count=1 ./internal/adapterregistry ./internal/hostbin ./internal/adapters ./internal/evidence ./internal/readiness ./internal/discovery
+          go test -count=1 ./internal/validation -run 'TestValidate(CacheHitStartsNoRunnerChildren|WarmCacheMeetsTwentyFoldRunnerAvoidanceTarget)|TestSDAReadinessResolver'
+
+      - name: Write native evidence manifest
+        if: always()
+        shell: bash
+        working-directory: scenarios/unit-health/api
+        run: |
+          evidence_dir="$RUNNER_TEMP/unit-health-native-evidence"
+          mkdir -p "$evidence_dir"
+          jq -n \
+            --arg runner_os "$RUNNER_OS" \
+            --arg runner_arch "$RUNNER_ARCH" \
+            --arg goos "$(go env GOOS 2>/dev/null || true)" \
+            --arg goarch "$(go env GOARCH 2>/dev/null || true)" \
+            --arg sha "$(git rev-parse HEAD 2>/dev/null || true)" \
+            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg executor_outcome "${{ steps.executor.outcome }}" \
+            --arg platform_go_outcome "${{ steps.platform_go.outcome }}" \
+            --arg api_e2e_outcome "${{ steps.api_e2e.outcome }}" \
+            --arg compile_adapters_outcome "${{ steps.compile_adapters.outcome }}" \
+            --arg targeted_conformance_outcome "${{ steps.targeted_conformance.outcome }}" \
+            '{schemaVersion: 1, runnerOS: $runner_os, runnerArch: $runner_arch, goOS: $goos, goArch: $goarch, commit: $sha, generatedAt: $generated_at, outcomes: {executor: $executor_outcome, platformGo: $platform_go_outcome, apiE2E: $api_e2e_outcome, compileAdapters: $compile_adapters_outcome, targetedConformance: $targeted_conformance_outcome}}' \
+            > "$evidence_dir/manifest.json"
+          mkdir -p "$GITHUB_WORKSPACE/.vrooli/evidence/native-platform"
+          cp "$evidence_dir/manifest.json" "$GITHUB_WORKSPACE/.vrooli/evidence/native-platform/${RUNNER_OS}-$(go env GOARCH).json"
+
+      - name: Upload native Unit Health evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unit-health-native-evidence-${{ matrix.os }}
+          path: ${{ runner.temp }}/unit-health-native-evidence
+          if-no-files-found: error
+          retention-days: 14

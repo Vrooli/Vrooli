@@ -16,7 +16,6 @@ func TestAnalyzer_AnalyzeExecution_Empty(t *testing.T) {
 
 	execID := uuid.New()
 	metrics, err := analyzer.AnalyzeExecution(context.Background(), execID)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -61,7 +60,6 @@ func TestAnalyzer_AnalyzeExecution_WithTraces(t *testing.T) {
 	}
 
 	metrics, err := analyzer.AnalyzeExecution(context.Background(), execID)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

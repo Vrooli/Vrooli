@@ -1,0 +1,228 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Business Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Business Health"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "matrix": "Matrix",
+      "fleet": "Fleet",
+      "wizard": "Wizard",
+      "findings": "Findings",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  },
+  "common": {
+    "scenarioLabel": "Scenario",
+    "scenarioPlaceholder": "scenario slug (e.g. business-health)",
+    "load": "Load",
+    "recentLabel": "Recent",
+    "clearRecent": "Clear recents",
+    "chooseScenario": "Enter a scenario slug above to begin.",
+    "close": "Close"
+  },
+  "matrix": {
+    "title": "Traceability matrix",
+    "description": "Operational targets traced to requirements, validations, and live evidence.",
+    "loading": "Building the traceability matrix…",
+    "error": "Could not load the matrix for this scenario.",
+    "empty": "This scenario has no operational targets or requirements yet.",
+    "degraded": "Evidence was partly unavailable: {{reason}}",
+    "registry": {
+      "modules": "Modules",
+      "requirements": "Requirements",
+      "targets": "Operational targets",
+      "starter": "Starter template"
+    },
+    "orphanTarget": "Orphaned target — no requirement links to it.",
+    "orphanRequirement": "Unlinked requirement — its PRD reference does not resolve.",
+    "unproven": "Unproven claim",
+    "checked": "Committed",
+    "unchecked": "Not committed",
+    "evidence": {
+      "live": "Live: {{status}}",
+      "stale": "Stale",
+      "manual": "Manual",
+      "none": "No evidence",
+      "syncedAt": "Synced {{when}}",
+      "expired": "Attestation expired",
+      "expires": "Expires {{when}}",
+      "attestedBy": "Attested by {{who}}"
+    },
+    "drawer": {
+      "title": "Requirement detail",
+      "validations": "Declared validations",
+      "refExists": "ref resolves",
+      "refMissing": "ref missing",
+      "noValidations": "No validations declared.",
+      "evidenceHeading": "Evidence",
+      "attestHeading": "Log manual validation",
+      "attestBy": "Attested by",
+      "attestByPlaceholder": "agent or operator id",
+      "attestNotes": "Notes",
+      "attestNotesPlaceholder": "what was verified",
+      "attestSubmit": "Log attestation",
+      "attestSuccess": "Attestation recorded."
+    }
+  },
+  "fleet": {
+    "title": "Fleet",
+    "description": "Every scenario graded worst-first by business-contract debt.",
+    "loading": "Scanning the fleet…",
+    "error": "The fleet scan failed.",
+    "empty": "No scenarios were discovered.",
+    "refresh": "Rescan",
+    "asOf": "Scanned {{when}}",
+    "filterPlaceholder": "Filter by scenario…",
+    "filter": {
+      "starter": "Starter registry",
+      "laggard": "Template laggard",
+      "unproven": "Unproven claims"
+    },
+    "tile": {
+      "scanned": "Scanned",
+      "passing": "Passing",
+      "starter": "Starter registries",
+      "laggard": "Template laggards"
+    },
+    "column": {
+      "scenario": "Scenario",
+      "status": "Status",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "autofix": "Auto-fixable",
+      "orphans": "Orphans",
+      "unproven": "Unproven",
+      "template": "Template",
+      "debt": "Debt"
+    },
+    "passed": "Passing",
+    "failed": "Failing",
+    "errorsHeading": "Could not grade {{count}} scenarios",
+    "errorsHeading_one": "Could not grade {{count}} scenario",
+    "noMatches": "No scenarios match the current filters."
+  },
+  "wizard": {
+    "title": "Contract wizard",
+    "description": "Author a scenario's PRD and requirements through a guided interview.",
+    "loading": "Loading the interview…",
+    "error": "Could not start the wizard session.",
+    "reset": "Start over",
+    "progress": "{{answered}} of {{total}} answered",
+    "required": "Required",
+    "optional": "Optional",
+    "listAdd": "Add entry",
+    "listRemove": "Remove",
+    "otTitlePlaceholder": "Outcome title",
+    "otDescPlaceholder": "What it delivers",
+    "submit": "Save answer",
+    "saving": "Saving…",
+    "complete": "Every required question is answered.",
+    "sectionPreviewHeading": "Answers so far",
+    "sectionPreviewEmpty": "Answers you save appear here.",
+    "previewButton": "Preview scaffold",
+    "previewLoading": "Rendering the scaffold…",
+    "previewHeading": "Scaffold preview",
+    "previewBlocking": "Finish these before applying:",
+    "apply": "Apply scaffold",
+    "applying": "Writing artifacts…",
+    "applied": "Wrote {{count}} files.",
+    "applied_one": "Wrote {{count}} file.",
+    "residual": "Residual findings after apply:",
+    "hintsHeading": "Similar capabilities already exist",
+    "hintScore": "match {{score}}"
+  },
+  "findings": {
+    "title": "Findings",
+    "description": "Business-contract findings with remediation docs and deterministic fixes.",
+    "loading": "Validating the scenario…",
+    "error": "Validation failed for this scenario.",
+    "empty": "No findings — this scenario's business contract is clean.",
+    "verdict": "Verdict: {{status}}",
+    "degraded": "Validated in a degraded mode: {{reason}}",
+    "remediationHeading": "How to fix it",
+    "docLink": "Remediation doc: {{path}}",
+    "location": "Location: {{location}}",
+    "autofix": "Auto-fixable",
+    "previewFix": "Preview fix",
+    "previewLoading": "Computing the fix…",
+    "applyFix": "Apply fix",
+    "applying": "Applying…",
+    "fixEmpty": "No deterministic fix is available for this scenario.",
+    "fixApplied": "Applied {{count}} edits.",
+    "fixApplied_one": "Applied {{count}} edit.",
+    "noFixable": "None of these findings have a deterministic fixer."
+  },
+  "diff": {
+    "added": "+{{count}}",
+    "removed": "-{{count}}",
+    "newFile": "new file",
+    "empty": "No changes."
+  }
+}

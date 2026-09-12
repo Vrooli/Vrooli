@@ -1,0 +1,16 @@
+-- Cross-cutting database objects only. Intentionally empty.
+--
+-- Domain tables NEVER belong here. A table declared in a central file survives
+-- the removal of its feature, becomes orphaned, and is recreated on every boot
+-- (storage-steer §4.1, §10.2). Every table lives in internal/<domain>/schema.sql.
+--
+-- This file previously held three PostgreSQL-only objects: the
+-- `knowledge_observatory` schema namespace, a shared update_updated_at_column()
+-- trigger function, and a GRANT. SQLite has no schema namespace (isolation comes
+-- from the per-scenario database file), expresses updated_at maintenance as a
+-- per-table trigger inside each domain's own schema.sql, and has no GRANT. All
+-- three therefore disappeared with the engine cutover, leaving nothing genuinely
+-- cross-cutting.
+--
+-- Adding anything here should be rare and deliberate. The tripwire test in
+-- internal/modules/registry_test.go rejects tables, indexes, and views outright.

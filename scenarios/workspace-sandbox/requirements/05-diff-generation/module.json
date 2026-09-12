@@ -1,43 +1,38 @@
 {
-  "description": "Generate unified diff and file list of all changes in sandbox's upper layer with stable ordering",
-  "module_id": "MOD-P0-005",
-  "prd_ref": "OT-P0-005",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-003"
-      ],
-      "description": "Generate unified diffs with stable file ordering showing changes in sandbox upper layer",
       "id": "REQ-P0-006",
-      "prd_ref": "OT-P0-005",
-      "status": "complete",
       "title": "Stable Diff Generation",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "description": "Generate unified diffs with stable file ordering showing changes in sandbox upper layer",
       "validation": [
         {
-          "notes": "API returns diff result with unified diff format",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetDiffSuccess",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "Driver detects changed files in upper layer",
           "phase": "unit",
-          "ref": "api/internal/driver/overlayfs_test.go::TestDetectChangeType",
-          "status": "implemented",
-          "type": "test"
+          "status": "failing",
+          "notes": "API returns diff result with unified diff format"
         },
         {
-          "notes": "integration: Diff endpoint returns 404 with hint for unknown sandbox",
-          "phase": "api",
+          "type": "test",
+          "ref": "api/internal/driver/overlayfs_test.go::TestDetectChangeType",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Driver detects changed files in upper layer"
+        },
+        {
+          "type": "test",
           "ref": "bas/cases/diff-generation/api/diff_endpoint.bats::diff 404 response includes hint",
+          "phase": "api",
           "status": "implemented",
-          "type": "test"
+          "notes": "integration: Diff endpoint returns 404 with hint for unknown sandbox"
         }
       ]
     }
-  ],
-  "title": "Diff Generation"
+  ]
 }

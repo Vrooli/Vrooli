@@ -11,6 +11,57 @@ Heartbeat commands are subcommands of `prompt-manager team`. They manage:
 
 ---
 
+## Heartbeat Auto-Pause Control
+
+### prompt-manager heartbeat-control status
+
+Show global heartbeat control state and per-team summaries.
+
+```bash
+prompt-manager heartbeat-control status [--json]
+```
+
+### prompt-manager heartbeat-control pause
+
+Manually pause future heartbeat starts globally.
+
+```bash
+prompt-manager heartbeat-control pause [--reason "quiet period"] [--json]
+```
+
+### prompt-manager heartbeat-control resume
+
+Resume global heartbeat scheduling and reschedule enabled heartbeat configs for enabled teams.
+
+```bash
+prompt-manager heartbeat-control resume [--json]
+```
+
+### prompt-manager heartbeat-control policy
+
+Show or update the global auto-pause policy.
+
+```bash
+prompt-manager heartbeat-control policy show [--json]
+prompt-manager heartbeat-control policy set --enabled=true --pause-after=14d --warning-after=10d --resume-mode=manual [--json]
+```
+
+### prompt-manager team heartbeat-control
+
+Show or update one team's control state.
+
+```bash
+prompt-manager team heartbeat-control <team-id> status [--json]
+prompt-manager team heartbeat-control <team-id> pause [--reason "quiet period"] [--json]
+prompt-manager team heartbeat-control <team-id> resume [--json]
+prompt-manager team heartbeat-control <team-id> policy show [--json]
+prompt-manager team heartbeat-control <team-id> policy set --mode=inherit|disabled|custom --pause-after=21d --warning-after=14d [--json]
+```
+
+Pause is separate from member heartbeat `enabled`. A paused team can still have enabled heartbeat configs; they simply will not start until resumed.
+
+---
+
 ## Heartbeat Configuration
 
 ### prompt-manager team heartbeat-list
@@ -37,6 +88,18 @@ prompt-manager team heartbeat-list my-team
 
 ---
 
+### prompt-manager team heartbeat-fleet-health
+
+Report the rolling 24-hour success aggregate across enabled heartbeat members of enabled teams.
+
+```bash
+prompt-manager team heartbeat-fleet-health [--json]
+```
+
+The numerator uses each heartbeat record's durable `lastSuccessfulExecution`. Starting a new run therefore does not erase that member's earlier completion from the rolling window, and the aggregate does not depend on event-history retention. The JSON response includes `successPercent`, `thresholdPercent`, and the integer-arithmetic `meetsThreshold` verdict; consumers should use that verdict instead of rounding the percentage. `membersWithTwoFailures` reports the number of enabled members whose consecutive-failure streak is at least two.
+
+---
+
 ### prompt-manager team heartbeat
 
 Get heartbeat configuration for a specific member.
@@ -52,7 +115,7 @@ prompt-manager team heartbeat my-team agent-1
 # Heartbeat for my-team/agent-1:
 #   Enabled:  true
 #   Schedule: 0 */6 * * * (every 6 hours)
-#   Profile:  prompt-manager-heartbeat
+#   Profile:  prompt-manager/heartbeat
 #   Last Run: 2026-02-01T10:00:00Z (completed)
 #   Next Run: 2026-02-01T16:00:00Z
 ```
@@ -71,7 +134,7 @@ prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--p
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Agent-manager profile key override. Defaults to `prompt-manager-heartbeat` for multi-process teams and `prompt-manager-heartbeat-cc` for single-process teams |
+| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat` for multi-process teams and `prompt-manager/heartbeat-single-process` for single-process teams. |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**
@@ -276,11 +339,35 @@ prompt-manager agent soul agent-1 --file=soul.md
 
 ---
 
-## Member Context
+## Prompt Preview and Member Context
+
+### prompt-manager team prompt-preview
+
+Preview the full runtime heartbeat prompt for a member. This includes the active `HEARTBEAT.md` task and should be used when auditing exactly what a heartbeat run receives.
+
+```bash
+prompt-manager team prompt-preview <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-preview-structured
+
+Preview the same runtime prompt as backend-ordered sections. This is the CLI equivalent of the UI's prompt pipeline surface.
+
+```bash
+prompt-manager team prompt-preview-structured <team-id> <agent-id> [--json]
+```
+
+### prompt-manager team prompt-matrix
+
+Show prompt section coverage and character counts for every member in a team. Use `--json` to inspect the complete structured prompt matrix.
+
+```bash
+prompt-manager team prompt-matrix <team-id> [--json]
+```
 
 ### prompt-manager team member-context
 
-Get the full context prompt for a team member. This includes agent files, responsibilities, org context, coordination guidance, durable-state guidance, and inbox content when enabled, but excludes HEARTBEAT.md task instructions. Used by leader-led single-process teams for teammate bootstrapping and by operators who want to inspect the resolved prompt context.
+Get standing context for a team member without the active `HEARTBEAT.md` task. This includes agent files, responsibilities, org context, coordination guidance, storage-map guidance, and inbox content when enabled. Use this for external or leader-led bootstrapping that needs taskless context; use `prompt-preview` to audit the full runtime heartbeat prompt.
 
 ```bash
 prompt-manager team member-context <team-id> <agent-id> [--json]

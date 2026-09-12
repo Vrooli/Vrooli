@@ -1,10 +1,89 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
+
+func TestHeartbeatFunctionalStatusHealthyFleet(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: true, ConsecutiveFailures: 1}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusSingleFailureDoesNotTrip(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run refused"},
+	})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy with one failing member", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusFleetFailureReportsReason(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run identity refused"},
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 3},
+	})
+	if status.Healthy || !strings.Contains(status.Reason, "2 enabled heartbeat members") || !strings.Contains(status.Reason, "run identity refused") {
+		t.Fatalf("status = %#v, want unhealthy fleet reason", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusIgnoresNeverFiredMember(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: false, ConsecutiveFailures: 99}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy for never-fired member", status)
+	}
+}
+
+func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
+	router := mux.NewRouter()
+	gorillaMuxAdapter{router: router}.Handle("/service/", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/service/operation", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("service prefix status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+}
+
+func TestResolveOllamaEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		enabled bool
+		wantErr bool
+	}{
+		{name: "absent resource", env: map[string]string{}, enabled: false},
+		{name: "resource URL injected", env: map[string]string{"OLLAMA_BASE_URL": "http://localhost:11434"}, enabled: true},
+		{name: "resource port injected", env: map[string]string{"OLLAMA_PORT": "11434"}, enabled: true},
+		{name: "explicit disable wins", env: map[string]string{"OLLAMA_ENABLED": "false", "OLLAMA_BASE_URL": "http://localhost:11434"}, enabled: false},
+		{name: "explicit enable", env: map[string]string{"OLLAMA_ENABLED": "true"}, enabled: true},
+		{name: "invalid override", env: map[string]string{"OLLAMA_ENABLED": "sometimes"}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveOllamaEnabled(func(key string) string { return tt.env[key] })
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.enabled {
+				t.Fatalf("enabled = %v, want %v", got, tt.enabled)
+			}
+		})
+	}
+}
 
 func TestDiscoverScenarioNames(t *testing.T) {
 	// Create a temporary directory structure mimicking scenarios/<name>/store
@@ -33,13 +112,7 @@ func TestDiscoverScenarioNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// storeDir mimics scenarios/alpha/store
-	storeDir := filepath.Join(scenariosDir, "alpha", "store")
-	if err := os.MkdirAll(storeDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	names := discoverScenarioNames(storeDir)
+	names := discoverScenarioNames(scenariosDir)
 
 	expected := map[string]bool{"alpha": true, "beta": true, "gamma": true}
 	if len(names) != len(expected) {
@@ -52,8 +125,30 @@ func TestDiscoverScenarioNames(t *testing.T) {
 	}
 }
 
+func TestReceiptSignerFromLifecycleDeclarationUsesCredentialAuthority(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"trust_signing":{"provider":"credential-authority-ed25519","identity":"vrooli/prompt-manager/experiment-receipts","field":"key-ring"}}`
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_SCENARIO_DIR", root)
+	signer, production, err := receiptSignerFromRuntimeConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !production {
+		t.Fatal("lifecycle credential-authority declaration did not require production signing")
+	}
+	if _, ok := signer.(*credentialauthoritysigning.Signer); !ok {
+		t.Fatalf("signer = %T, want credential-authority signer", signer)
+	}
+}
+
 func TestDiscoverScenarioNames_NonexistentDir(t *testing.T) {
-	names := discoverScenarioNames("/nonexistent/path/store")
+	names := discoverScenarioNames("/nonexistent/path/scenarios")
 	if len(names) != 0 {
 		t.Fatalf("expected 0 names for nonexistent dir, got %d", len(names))
 	}

@@ -1,17 +1,16 @@
 {
   "_metadata": {
     "description": "Calendar scenario requirements registry with operational target linkage",
-    "domain": "scheduling",
-    "last_updated": "2025-11-18"
+    "last_validated_at": "2026-08-27T14:33:57-04:00"
   },
   "requirements": [
     {
       "id": "CAL-P0-001",
-      "category": "core.auth",
-      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "title": "Multi-user event creation with authentication",
-      "description": "Verifies event creation works with scenario-authenticator JWT validation and user isolation.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-001",
+      "category": "core.auth",
+      "description": "Verifies event creation works with scenario-authenticator JWT validation and user isolation.",
       "validation": [
         {
           "type": "test",
@@ -23,30 +22,30 @@
     },
     {
       "id": "CAL-P0-002",
-      "category": "core.recurring",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "title": "Recurring event patterns",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
+      "category": "core.recurring",
       "description": "Ensures daily, weekly, monthly, and custom recurrence patterns generate correct event instances.",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/recurring_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CAL-P0-003",
-      "category": "core.reminders",
-      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "title": "Event reminders via notification-hub",
-      "description": "Validates reminder scheduling and delivery through notification-hub integration.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-003",
+      "category": "core.reminders",
+      "description": "Validates reminder scheduling and delivery through notification-hub integration.",
       "validation": [
         {
-          "type": "integration",
+          "type": "test",
           "ref": "notification-hub API",
           "phase": "integration",
           "status": "implemented"
@@ -55,11 +54,11 @@
     },
     {
       "id": "CAL-P0-004",
-      "category": "core.nlp",
-      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "title": "Natural language scheduling with Ollama",
-      "description": "Confirms chat interface parses natural language scheduling requests and creates events.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-004",
+      "category": "core.nlp",
+      "description": "Confirms chat interface parses natural language scheduling requests and creates events.",
       "validation": [
         {
           "type": "test",
@@ -71,11 +70,11 @@
     },
     {
       "id": "CAL-P0-005",
-      "category": "core.automation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "title": "Event-triggered code execution",
-      "description": "Verifies webhook automation triggers when events start based on automation_config.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-005",
+      "category": "core.automation",
+      "description": "Verifies webhook automation triggers when events start based on automation_config.",
       "validation": [
         {
           "type": "test",
@@ -87,27 +86,27 @@
     },
     {
       "id": "CAL-P0-006",
-      "category": "core.storage",
-      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "title": "PostgreSQL storage with CRUD",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-006",
+      "category": "core.storage",
       "description": "Ensures full create, read, update, delete operations on events with proper schema.",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/database_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CAL-P0-007",
-      "category": "core.search",
-      "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "title": "AI-powered semantic search",
-      "description": "Validates Qdrant vector embeddings enable semantic event search.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-007",
+      "category": "core.search",
+      "description": "Validates Qdrant vector embeddings enable semantic event search.",
       "validation": [
         {
           "type": "test",
@@ -119,11 +118,11 @@
     },
     {
       "id": "CAL-P0-008",
-      "category": "core.api",
-      "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "title": "REST API for programmatic access",
-      "description": "Confirms 28+ REST endpoints available for cross-scenario event scheduling.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-008",
+      "category": "core.api",
+      "description": "Confirms 28+ REST endpoints available for cross-scenario event scheduling.",
       "validation": [
         {
           "type": "test",
@@ -135,11 +134,11 @@
     },
     {
       "id": "CAL-P0-009",
-      "category": "core.ui",
-      "prd_ref": "Operational Targets > P0 > OT-P0-009",
       "title": "Professional calendar UI",
-      "description": "Verifies React UI serves week/month/agenda views with drag-drop scheduling.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-009",
+      "category": "core.ui",
+      "description": "Verifies React UI serves week/month/agenda views with drag-drop scheduling.",
       "validation": [
         {
           "type": "manual",
@@ -151,11 +150,11 @@
     },
     {
       "id": "CAL-P1-001",
-      "category": "advanced.optimization",
-      "prd_ref": "Operational Targets > P1 > OT-P1-001",
       "title": "Schedule optimization with AI",
-      "description": "Validates AI-powered schedule optimization suggestions based on constraints.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-001",
+      "category": "advanced.optimization",
+      "description": "Validates AI-powered schedule optimization suggestions based on constraints.",
       "validation": [
         {
           "type": "test",
@@ -167,59 +166,59 @@
     },
     {
       "id": "CAL-P1-002",
-      "category": "advanced.conflicts",
-      "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "Smart conflict detection",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-002",
+      "category": "advanced.conflicts",
       "description": "Ensures conflict detection returns 409 responses with resolution suggestions.",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/conflicts_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CAL-P1-003",
-      "category": "advanced.timezone",
-      "prd_ref": "Operational Targets > P1 > OT-P1-003",
       "title": "Timezone handling",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-003",
+      "category": "advanced.timezone",
       "description": "Validates timezone conversion and storage for distributed teams.",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/timezone_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CAL-P1-004",
-      "category": "advanced.categorization",
-      "prd_ref": "Operational Targets > P1 > OT-P1-004",
       "title": "Event categorization and filtering",
+      "status": "in_progress",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-004",
+      "category": "advanced.categorization",
       "description": "Confirms auto-categorization and filtering by event type, tags, and custom categories.",
-      "status": "complete",
       "validation": [
         {
           "type": "test",
           "ref": "api/categorization_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "CAL-P1-005",
-      "category": "advanced.bulk",
-      "prd_ref": "Operational Targets > P1 > OT-P1-005",
       "title": "Bulk operations and batch scheduling",
-      "description": "Verifies atomic creation, update, and deletion of multiple events in single transactions.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-005",
+      "category": "advanced.bulk",
+      "description": "Verifies atomic creation, update, and deletion of multiple events in single transactions.",
       "validation": [
         {
           "type": "test",
@@ -231,11 +230,11 @@
     },
     {
       "id": "CAL-P1-006",
-      "category": "advanced.ical",
-      "prd_ref": "Operational Targets > P1 > OT-P1-006",
       "title": "iCal import/export",
-      "description": "Ensures iCal format import and export for external calendar synchronization.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-006",
+      "category": "advanced.ical",
+      "description": "Ensures iCal format import and export for external calendar synchronization.",
       "validation": [
         {
           "type": "test",
@@ -247,11 +246,11 @@
     },
     {
       "id": "CAL-P1-007",
-      "category": "advanced.templates",
-      "prd_ref": "Operational Targets > P1 > OT-P1-007",
       "title": "Event templates",
-      "description": "Validates creation and usage of reusable event templates for common meeting types.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-007",
+      "category": "advanced.templates",
+      "description": "Validates creation and usage of reusable event templates for common meeting types.",
       "validation": [
         {
           "type": "test",
@@ -263,11 +262,11 @@
     },
     {
       "id": "CAL-P1-008",
-      "category": "advanced.rsvp",
-      "prd_ref": "Operational Targets > P1 > OT-P1-008",
       "title": "Attendance tracking and RSVP",
-      "description": "Confirms RSVP functionality and attendance tracking with check-in methods.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P1 \u003e OT-P1-008",
+      "category": "advanced.rsvp",
+      "description": "Confirms RSVP functionality and attendance tracking with check-in methods.",
       "validation": [
         {
           "type": "test",
@@ -279,11 +278,11 @@
     },
     {
       "id": "CAL-P2-001",
-      "category": "future.sync",
-      "prd_ref": "Operational Targets > P2 > OT-P2-001",
       "title": "External calendar synchronization",
-      "description": "Validates OAuth integration and bidirectional sync with Google Calendar and Outlook.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-001",
+      "category": "future.sync",
+      "description": "Validates OAuth integration and bidirectional sync with Google Calendar and Outlook.",
       "validation": [
         {
           "type": "test",
@@ -295,11 +294,11 @@
     },
     {
       "id": "CAL-P2-002",
-      "category": "future.prep",
-      "prd_ref": "Operational Targets > P2 > OT-P2-002",
       "title": "Meeting preparation automation",
-      "description": "Ensures automatic agenda generation and pre-work suggestions for meetings.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-002",
+      "category": "future.prep",
+      "description": "Ensures automatic agenda generation and pre-work suggestions for meetings.",
       "validation": [
         {
           "type": "test",
@@ -311,11 +310,11 @@
     },
     {
       "id": "CAL-P2-003",
-      "category": "future.travel",
-      "prd_ref": "Operational Targets > P2 > OT-P2-003",
       "title": "Travel time calculation",
-      "description": "Validates smart travel time estimation and automatic buffer insertion between events.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-003",
+      "category": "future.travel",
+      "description": "Validates smart travel time estimation and automatic buffer insertion between events.",
       "validation": [
         {
           "type": "test",
@@ -327,11 +326,11 @@
     },
     {
       "id": "CAL-P2-004",
-      "category": "future.resources",
-      "prd_ref": "Operational Targets > P2 > OT-P2-004",
       "title": "Resource double-booking prevention",
-      "description": "Confirms resource booking system prevents conflicts for rooms, equipment, and personnel.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-004",
+      "category": "future.resources",
+      "description": "Confirms resource booking system prevents conflicts for rooms, equipment, and personnel.",
       "validation": [
         {
           "type": "test",
@@ -343,11 +342,11 @@
     },
     {
       "id": "CAL-P2-005",
-      "category": "future.analytics",
-      "prd_ref": "Operational Targets > P2 > OT-P2-005",
       "title": "Advanced analytics on scheduling patterns",
-      "description": "Validates comprehensive analytics with productivity metrics and recommendations.",
       "status": "complete",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-005",
+      "category": "future.analytics",
+      "description": "Validates comprehensive analytics with productivity metrics and recommendations.",
       "validation": [
         {
           "type": "test",
@@ -359,17 +358,17 @@
     },
     {
       "id": "CAL-P2-006",
-      "category": "future.voice",
-      "prd_ref": "Operational Targets > P2 > OT-P2-006",
       "title": "Voice-activated scheduling",
-      "description": "Enables voice-activated scheduling through audio scenario integration.",
       "status": "pending",
+      "prd_ref": "Operational Targets \u003e P2 \u003e OT-P2-006",
+      "category": "future.voice",
+      "description": "Enables voice-activated scheduling through audio scenario integration.",
       "validation": [
         {
-          "type": "integration",
+          "type": "test",
           "ref": "audio scenarios",
           "phase": "integration",
-          "status": "pending"
+          "status": "not_implemented"
         }
       ]
     }

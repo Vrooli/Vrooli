@@ -1,0 +1,196 @@
+# Problems — Content Desk
+
+Persistent register of known issues, tech debt, and deferred work
+specific to **this** scenario. Future agents read this file to avoid
+re-discovering the same constraint.
+
+This ledger records constraints discovered during implementation that need an
+owner or a follow-up; it is intentionally not a generated empty template.
+
+## What belongs here
+
+- **Known bugs** that are real but not yet worth fixing
+- **Tech debt** — workarounds that need a real fix later
+- **Deferred work** — features descoped from a phase, with the reason
+- **Architecture drift** — code/docs/tests that no longer line up with
+  the intended capability map or boundary model
+- **Constraints discovered the hard way** that aren't visible from
+  the code (e.g., "this resource needs warm-up before the first call;
+  see commit X")
+
+## What does NOT belong here
+
+- **Generic template issues** — those go in
+  [`../guides/troubleshooting.md`](../guides/troubleshooting.md)
+- **Open feature requests** — track those in PRD operational targets
+- **Code comments** — if the constraint is local to one file, a
+  comment there is more discoverable
+- **Test failures** — fix them, don't document them
+
+## Entry template
+
+Use this shape so entries are scannable. Append newest at the bottom.
+
+```markdown
+### YYYY-MM-DD — short title
+
+**Symptom:** What goes wrong, observable from outside the system.
+
+**Root cause:** What actually causes it (or "unknown" if not yet diagnosed).
+
+**Workaround:** What to do today to keep moving.
+
+**Real fix:** What needs to happen for this entry to be deleted.
+
+**Owner:** Who should drive the fix (or "unassigned").
+
+**Refs:** Code paths, related issues, prior commits.
+```
+
+## Entries
+
+### 2026-07-28 — Retired scenario reference cleanup (resolved)
+
+`campaign-content-studio` was moved out of the repo to
+`/tmp/campaign-content-studio-retired-2026-07-27`. The obsolete skill was
+retired, its cross-references were corrected, and resource capability lists no
+longer advertise it. The rich-media catalogue now records the retirement as
+history, not as a promotion target.
+
+**Impact:** resolved; agents are no longer directed to a removed scenario.
+
+**Next step:** none. Keep historical references only where they explain the
+replacement decision.
+
+### 2026-07-28 — `video-studio` skill points at a scenario that was never built
+
+Discovered while mapping media boundaries. The `video-studio` skill is marked
+`active` in the registry and its `skill.json` carries `scenario: null`; no
+`scenarios/video-studio` exists. It is unrelated to this scenario's scope but
+is the same class of drift as the entry above, and it will mislead any agent
+that discovers it.
+
+**Next step:** an owner decision — build, retire, or mark planned. Not this
+scenario's call.
+
+### 2026-07-28 — Claim taxonomy is uncalibrated
+
+The eight claim kinds and the evidence-strength rules were designed against
+worked examples, not against a real draft. What counts as a claim may be wrong
+in both directions: too broad makes the gate exhausting, too narrow lets a
+misleading statement through as "framing".
+
+**Impact:** the taxonomy is the load-bearing product decision and it has never
+met real input.
+
+**Next step:** publish one post manually end to end and classify its assertions
+by hand before implementing the gate. This is deliberately sequenced ahead of
+implementation in the PRD launch plan.
+
+### 2026-07-28 — business-health wizard is unusable for this scenario
+
+**Corrected 2026-07-28.** An earlier version of this entry blamed degradation
+over process uptime and claimed a restart cleared it. That diagnosis is wrong
+and following it wastes a restart.
+
+**Symptom:** every `business-health wizard` subcommand for `content-desk` fails
+with `Error: ... unavailable: unexpected EOF`. This includes `start`, `answer`,
+and `preview`, because each one resumes the session first.
+
+**Root cause (partial):** `WizardService/StartSession` for this scenario takes
+**67–72 seconds** server-side and returns **status 200** — the server completes
+the work every time. The connection is already gone when it does. Raising the
+client deadline through `VROOLI_HTTP_TIMEOUT` and `BUSINESS_HEALTH_HTTP_TIMEOUT`
+does **not** help, which places the cut server-side rather than in the CLI —
+most likely an HTTP write deadline shorter than the handler's runtime.
+
+**Not** uptime degradation: this reproduces on a process started seconds
+earlier. The restart in the previous entry coincided with, but did not cause,
+the brief window in which `preview` succeeded.
+
+**Workaround:** none through the CLI. `preview` succeeded twice while a session
+was warm and then stopped, so it is not reliable. Contract edits must either
+wait for a fix or be made directly against `PRD.md` and `requirements/`, with
+`vrooli scenario requirements validate content-desk --json` as the conformance
+gate — that command uses `ContractService`, completes in ~3 ms, and is
+unaffected.
+
+**Impact:** not a `content-desk` defect, but it blocks the sanctioned path for
+changing this scenario's operational targets.
+
+**Real fix:** `business-health` — either make `StartSession` fast or extend the
+server write deadline for it.
+
+**Owner:** unassigned; file to scenario-qa against `business-health`.
+
+**Refs:** `scenarios/business-health/api/internal/wizard/questions.go`;
+observed in `vrooli scenario logs business-health --step start-api`.
+
+### 2026-07-28 — Channel Manager handoff was not yet a safe typed integration
+
+Read-only inspection of the predecessor scheduler found an internal worker that
+returns `PlatformPostID` and `PostURL` after publishing, and a database lookup
+for an active account by platform. It exposes neither a typed cross-scenario
+handoff contract nor the required lane-eligibility question. Its API is legacy
+Gin/REST and its worker reads account credentials internally, which content-desk
+must never do.
+
+**Impact:** P0 can record a Channel Manager-returned URL and post id once a seam
+exists; P1 account eligibility remains unavailable rather than guessed.
+
+**Next step:** introduce a Channel Manager-owned typed handoff/eligibility contract in
+its modernization work. Content-desk consumes only `{eligible, reason}` and
+published `{url, post_id}`, with no account or credential fields.
+
+### 2026-07-28 — Approval identity signal is available through API Core provenance
+
+Every standard API Core server installs `provenance.Middleware`. A verified
+Agent Manager request has `Actor == "agent"`, `VerificationStatus ==
+"verified"`, and a non-empty `RunID`; ordinary requests resolve to
+`Actor == "operator"`, `VerificationStatus == "absent"`. Approval must read
+`provenance.FromContext(ctx).IsVerifiedAgent()` and reject only that verified
+agent case; the stored approval attribution uses the same provenance fields.
+
+**Impact:** no custom identity table, role model, or untrusted header check is
+needed for `CONTENTD-P0-007`.
+
+## Work ladder
+
+- Rung: W0 (unverifiable through Swarm Manager; implementation authority is the active plan)
+- Evidence: the deterministic `swarm-manager goals list --json` name/title/description filter returned no `content-desk` goal; the active plan requires a ledger with claim, review, posttype, campaign, artifact, and publish-history gates, and `PRD.md` P0 targets name those same capabilities.
+- Blocker: no registered Swarm Manager goal exists to independently contradict the contract; no contract contradiction was found against the active plan.
+- Measured: 2026-07-28
+
+### 2026-07-28 — Flow verifier cannot generate a targeted draft-lifecycle artifact
+
+`flow-verifier artifacts generate --flow artifacts.draft-lifecycle.api` first
+validates every repository temporal contract and fails on an unrelated invalid
+`architecture-cartographer` UI contract. Restricting `--root` to
+`scenarios/content-desk` reaches the service but ends in `unexpected EOF`.
+
+**Impact:** the draft lifecycle has its declarative `flow.json`, pure
+production transition function, exhaustive transition matrix, and replay test,
+but its checked Quint/generated artifact cannot yet be produced by the owning
+tool.
+
+**Next step:** repair the unrelated contract or make Flow Verifier validate only
+the selected flow, then regenerate `api/internal/artifacts/flow/generated/`
+and replace the local replay with formal artifact replay.
+
+## Architecture Drift
+
+Use this section for deferred findings from `screaming-architecture-audit`.
+Do not create a standalone architecture-audit report unless the work is
+a migration handoff with a planned retirement path back into
+`ARCHITECTURE.md`, `SEAMS.md`, or this file.
+
+| Area | Drift | Maturity Impact | Real Fix |
+|---|---|---|---|
+| Formal artifact generation | Flow Verifier cannot currently generate the targeted draft-lifecycle artifact because of unrelated repository contract validation and a scoped `unexpected EOF`. | Formal replay remains a follow-up despite the declarative flow, generated matrix, and production transition tests being present. | Repair Flow Verifier scoping or its upstream contract validation, then regenerate the artifact. |
+
+## Cross-references
+
+- [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
+- [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
+- [`TESTING.md`](TESTING.md) — test patterns
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues

@@ -115,7 +115,7 @@ export function StepVerify({
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={onTestConnection}
+            onClick={() => { void onTestConnection(); }}
             disabled={testStatus === 'testing' || saveStatus !== 'success'}
             className="gap-2"
           >
@@ -158,7 +158,7 @@ export function StepVerify({
             <Callout
               type="warning"
               message="Connection issues are often caused by CORS, permissions, or credential problems."
-              actions={[{ label: 'Troubleshooting guide', onClick: () => setShowTroubleshootHelp(true) }]}
+              actions={[{ label: 'Troubleshooting guide', onClick: () => { setShowTroubleshootHelp(true); } }]}
             />
           </>
         )}
@@ -180,7 +180,7 @@ export function StepVerify({
             <input
               type="number"
               value={form.signedUrlTtlSeconds}
-              onChange={(e) => onFormChange({ signedUrlTtlSeconds: Number(e.target.value) })}
+              onChange={(e) => { onFormChange({ signedUrlTtlSeconds: Number(e.target.value) }); }}
               className={inputBaseClassName}
               min={60}
               max={86400}
@@ -194,7 +194,7 @@ export function StepVerify({
             <label className="text-sm font-medium text-slate-300">Public Base URL</label>
             <input
               value={form.publicBaseUrl}
-              onChange={(e) => onFormChange({ publicBaseUrl: e.target.value })}
+              onChange={(e) => { onFormChange({ publicBaseUrl: e.target.value }); }}
               className={inputBaseClassName}
               placeholder="https://downloads.example.com"
             />
@@ -223,7 +223,7 @@ export function StepVerify({
         </div>
 
         <Button
-          onClick={onSave}
+          onClick={() => { void onSave(); }}
           disabled={saveStatus === 'saving' || !form.bucket.trim()}
           className="gap-2"
         >
@@ -243,7 +243,7 @@ export function StepVerify({
 
       <HelpModal
         open={showTroubleshootHelp}
-        onClose={() => setShowTroubleshootHelp(false)}
+        onClose={() => { setShowTroubleshootHelp(false); }}
         title="Troubleshooting Connection Issues"
       >
         <TroubleshootingHelp />

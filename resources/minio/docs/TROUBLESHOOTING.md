@@ -52,28 +52,28 @@ sudo systemctl status docker
 1. **Insufficient Disk Space**:
    ```bash
    # Check disk space
-   df -h ~/.minio/
+   df -h "${MINIO_DATA_DIR}"
    
    # Clean up if needed
    docker system prune -f
-   rm -rf ~/.minio/data/.minio.sys/tmp/*
+   rm -rf "${MINIO_DATA_DIR}/.minio.sys/tmp/"*
    ```
 
 2. **Permission Issues**:
    ```bash
    # Fix directory permissions
-   chmod -R 755 ~/.minio/
-   chmod 600 ~/.minio/config/credentials
+   chmod -R 755 "${MINIO_DATA_DIR}"
+   chmod 600 "${MINIO_CONFIG_DIR}/credentials"
    
    # Ensure Docker can access the directory
-   ls -la ~/.minio/
+   ls -la "${MINIO_DATA_DIR}"
    ```
 
 3. **Corrupted Configuration**:
    ```bash
    # Reset configuration
    resource-minio manage stop
-   rm -rf ~/.minio/config/
+   rm -rf "${MINIO_CONFIG_DIR}/"
    resource-minio manage install
    ```
 
@@ -142,8 +142,8 @@ resource-minio credentials
 resource-minio content execute --name reset-credentials
 
 # Verify credentials file
-cat ~/.minio/config/credentials
-ls -la ~/.minio/config/credentials  # Should be 600 permissions
+cat "${MINIO_CONFIG_DIR}/credentials"
+ls -la "${MINIO_CONFIG_DIR}/credentials"  # Should be 600 permissions
 
 # Test credentials with curl
 curl -u username:password http://localhost:9000/
@@ -220,7 +220,7 @@ resource-minio content execute --name remove-bucket --bucket problem-bucket --fo
 resource-minio test smoke
 
 # Check available space
-df -h ~/.minio/data/
+df -h "${MINIO_DATA_DIR}/"
 
 # Monitor real-time operations
 docker logs -f minio
@@ -233,7 +233,7 @@ docker exec minio find /data -name "*.tmp" -delete
 docker exec minio mc rm --recursive --force local/vrooli-temp-storage/
 
 # Check file permissions
-ls -la ~/.minio/data/bucket-name/
+ls -la "${MINIO_DATA_DIR}/bucket-name/"
 
 # Test with simple file
 echo "test" | docker exec -i minio mc pipe local/test-bucket/test.txt
@@ -260,11 +260,11 @@ dmesg | grep -i error
 ```bash
 # Restore from backup
 resource-minio manage stop
-tar -xzf minio-backup-date.tar.gz -C ~/
+tar -xzf minio-backup-date.tar.gz -C "$(dirname "${MINIO_DATA_DIR}")/"
 resource-minio manage start
 
 # Run file system check
-sudo fsck ~/.minio/data/
+sudo fsck "${MINIO_DATA_DIR}"
 
 # Re-upload corrupted files
 # Check backup sources for original files
@@ -404,7 +404,7 @@ resource-minio manage restart
 
 # Check resource availability
 free -h
-df -h ~/.minio/
+df -h "${MINIO_DATA_DIR}"
 
 # Verify configuration
 resource-minio status --verbose
@@ -450,8 +450,8 @@ docker exec minio sh -c 'echo 3 > /proc/sys/vm/drop_caches'
 **Solutions**:
 ```bash
 # Check disk usage
-df -h ~/.minio/data/
-du -sh ~/.minio/data/*/
+df -h "${MINIO_DATA_DIR}/"
+du -sh "${MINIO_DATA_DIR}/"*/
 
 # Clean temporary files
 docker exec minio find /data/.minio.sys/tmp -type f -mtime +1 -delete
@@ -464,7 +464,7 @@ docker exec minio mc ilm add local/large-bucket --expire-days 30
 
 # Move to larger disk
 # 1. Stop MinIO
-# 2. Move ~/.minio/data to new location
+# 2. Move ${MINIO_DATA_DIR} to new location
 # 3. Create symlink or update mount point
 # 4. Restart MinIO
 ```
@@ -484,7 +484,7 @@ resource-minio manage uninstall --remove-data yes
 
 # 3. Clean up any remaining files
 docker system prune -f
-rm -rf ~/.minio/
+rm -rf "${MINIO_DATA_DIR}" "${MINIO_CONFIG_DIR}" "${MINIO_STATE_DIR}"
 
 # 4. Fresh installation
 resource-minio manage install
@@ -500,15 +500,15 @@ docker exec minio mc mirror /backup/important-bucket local/important-bucket/
 resource-minio manage stop
 
 # Backup current state (just in case)
-mv ~/.minio/data ~/.minio/data.backup.$(date +%s)
+mv "${MINIO_DATA_DIR}" "${MINIO_DATA_DIR}.backup.$(date +%s)"
 
 # Restore from backup
-mkdir -p ~/.minio/data
-tar -xzf minio-backup-20240115.tar.gz -C ~/.minio/
+mkdir -p "${MINIO_DATA_DIR}"
+tar -xzf minio-backup-20240115.tar.gz -C "$(dirname "${MINIO_DATA_DIR}")/"
 
 # Fix permissions
-chmod -R 755 ~/.minio/data
-chmod 600 ~/.minio/config/credentials
+chmod -R 755 "${MINIO_DATA_DIR}"
+chmod 600 "${MINIO_CONFIG_DIR}/credentials"
 
 # Start service
 resource-minio manage start
@@ -531,8 +531,8 @@ resource-minio content list
   echo "=== Resource Usage ==="
   docker stats minio --no-stream
   echo "=== Disk Usage ==="
-  df -h ~/.minio/
-  du -sh ~/.minio/data/*/
+  df -h "${MINIO_DATA_DIR}"
+  du -sh "${MINIO_DATA_DIR}/"*/
   echo "=== Network ==="
   docker network inspect minio-network
   echo "=== Recent Logs ==="
@@ -566,7 +566,7 @@ Before seeking support, collect:
 # System information
 uname -a
 docker --version
-df -h ~/.minio/
+df -h "${MINIO_DATA_DIR}"
 
 # MinIO status
 resource-minio status
@@ -577,8 +577,8 @@ docker ps | grep minio
 docker logs --tail 100 minio
 
 # Configuration
-ls -la ~/.minio/config/
-cat ~/.vrooli/service.json | jq '.services.storage.minio'
+ls -la "${MINIO_CONFIG_DIR}/"
+vrooli resource validate
 ```
 
 ### Quick Fix Summary

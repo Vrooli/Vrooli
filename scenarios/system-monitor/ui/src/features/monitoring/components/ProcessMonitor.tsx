@@ -65,25 +65,15 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
   return (
     <section className="monitoring-panel collapsible card">
       <div 
-        className="panel-header clickable" 
+        className={`panel-header clickable process-monitor-header ${expanded ? 'is-expanded' : ''} ${collapsible ? '' : 'is-static'}`}
         onClick={collapsible ? onToggle : undefined}
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'pointer',
-          marginBottom: expanded ? 'var(--spacing-md)' : 0,
-          ...(collapsible ? {} : {
-            cursor: 'default'
-          })
-        }}
       >
-        <h2 className="icon-text" style={{ margin: 0, color: 'var(--color-text-heading)' }}>
+        <h2 className="icon-text" data-sm-style="sm-style-59e966dafb">
           <Search size={20} />
           PROCESS MONITOR
         </h2>
         {collapsible && (
-          <span className="expand-arrow" style={{ color: 'var(--color-primary)' }}>
+          <span className="expand-arrow" data-sm-style="sm-style-392c7463c7">
             {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </span>
         )}
@@ -92,28 +82,21 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
       {expanded && (
         <div className="panel-content">
           {data ? (
-            <div className="monitor-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: 'var(--spacing-lg)',
-              marginBottom: 'var(--spacing-lg)'
-            }}>
+            <div className="monitor-grid" data-sm-style="sm-style-a894d89c52">
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 data-sm-style="sm-style-68f62fb973">
                   Process Health:
                 </h3>
                 <div className="health-stats">
                   <div className="stat-item">
                     <span className="stat-label">Total Processes:</span>
-                    <span className="stat-value" style={{ color: 'var(--color-primary)' }}>
+                    <span className="stat-value" data-sm-style="sm-style-392c7463c7">
                       {data.processHealth?.totalProcesses}
                     </span>
                   </div>
                   <div className="stat-item">
                     <span className="stat-label">Zombie Processes:</span>
-                    <span className="stat-value" style={{ 
-                      color: (data.processHealth?.zombieProcesses && data.processHealth?.zombieProcesses.length > 0) ? 'var(--color-error)' : 'var(--color-success)'
-                    }}>
+                    <span className={`stat-value ${(data.processHealth?.zombieProcesses?.length ?? 0) > 0 ? 'text-error' : 'text-success'}`}>
                       {data.processHealth?.zombieProcesses?.length ?? 0}
                     </span>
                   </div>
@@ -135,7 +118,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               </div>
               
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 data-sm-style="sm-style-68f62fb973">
                   High Thread Count:
                 </h3>
                 <div className="thread-list">
@@ -153,7 +136,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               </div>
               
               <div className="monitor-section">
-                <h3 style={{ color: 'var(--color-text-heading)', marginBottom: 'var(--spacing-md)' }}>
+                <h3 data-sm-style="sm-style-68f62fb973">
                   Resource Leak Candidates:
                 </h3>
                 <div className="leak-list">
@@ -171,11 +154,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
               </div>
             </div>
           ) : (
-            <div style={{ 
-              textAlign: 'center', 
-              color: 'var(--color-text-secondary)', 
-              padding: 'var(--spacing-xl)' 
-            }}>
+            <div data-sm-style="sm-style-b81eea4ce3">
               SCANNING SYSTEM...
             </div>
           )}
@@ -187,36 +166,25 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
         title="CONFIRM PROCESS TERMINATION"
         variant="danger"
         confirmLabel="TERMINATE PROCESS"
-        onConfirm={confirmKillProcess}
+        onConfirm={() => { void confirmKillProcess(); }}
         onCancel={cancelKillProcess}
         message={
           <>
-            <p style={{ margin: '0 0 var(--spacing-md) 0' }}>
+            <p data-sm-style="sm-style-288cd9d43e">
               Are you sure you want to terminate the following process?
             </p>
-            <div style={{
-              background: 'var(--overlay-medium)',
-              border: '1px solid var(--color-primary)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 'var(--spacing-md)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-sm)'
-            }}>
-              <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+            <div data-sm-style="sm-style-e90d3b2f2f">
+              <div data-sm-style="sm-style-d47aef18a0">
                 <strong>Process:</strong> {confirmDialog.processName}
               </div>
-              <div style={{ marginBottom: 'var(--spacing-xs)' }}>
+              <div data-sm-style="sm-style-d47aef18a0">
                 <strong>PID:</strong> {confirmDialog.processPid}
               </div>
               <div>
                 <strong>Type:</strong> {confirmDialog.processType.replace('_', ' ').toUpperCase()}
               </div>
             </div>
-            <p style={{
-              margin: 'var(--spacing-md) 0 0 0',
-              color: 'var(--color-warning)',
-              fontSize: 'var(--text-sm)'
-            }}>
+            <p data-sm-style="sm-style-010a0542bd">
               <strong>Warning:</strong> This action cannot be undone. The process will be forcefully terminated.
             </p>
           </>

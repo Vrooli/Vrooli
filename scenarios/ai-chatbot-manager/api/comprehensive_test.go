@@ -16,8 +16,9 @@ import (
 func TestConfigLoading(t *testing.T) {
 	t.Run("LoadConfigFromEnv", func(t *testing.T) {
 		// Set required env vars
+		t.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 		t.Setenv("API_PORT", "8080")
-		t.Setenv("DATABASE_URL", "postgres://test:test@localhost/test")
+		t.Setenv("POSTGRES_URL", "postgres://test:test@localhost/test")
 		t.Setenv("OLLAMA_URL", "http://localhost:11434")
 
 		cfg, err := LoadConfig()
@@ -30,7 +31,7 @@ func TestConfigLoading(t *testing.T) {
 		}
 
 		if cfg.DatabaseURL == "" {
-			t.Error("Expected DATABASE_URL to be set")
+			t.Error("Expected POSTGRES_URL to be set")
 		}
 
 		if cfg.OllamaURL == "" {

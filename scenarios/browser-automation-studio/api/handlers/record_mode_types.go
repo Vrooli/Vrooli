@@ -137,11 +137,11 @@ type RecordingStatusResponse struct {
 
 // GetActionsResponse is the response for getting recorded actions.
 type GetActionsResponse struct {
-	SessionID   string                       `json:"session_id"`
-	IsRecording bool                         `json:"is_recording,omitempty"`
+	SessionID   string                  `json:"session_id"`
+	IsRecording bool                    `json:"is_recording,omitempty"`
 	Actions     []driver.RecordedAction `json:"actions"`
-	Count       int                          `json:"count"`
-	Entries     []json.RawMessage            `json:"entries,omitempty"`
+	Count       int                     `json:"count"`
+	Entries     []json.RawMessage       `json:"entries,omitempty"`
 }
 
 // GenerateWorkflowRequest is the request body for generating a workflow from recording.
@@ -173,11 +173,11 @@ type GenerateWorkflowResponse struct {
 
 // ReplayPreviewRequest is the request body for testing recorded actions.
 type ReplayPreviewRequest struct {
-	SessionID     string                       `json:"session_id"`
+	SessionID     string                  `json:"session_id"`
 	Actions       []driver.RecordedAction `json:"actions"`
-	Limit         *int                         `json:"limit,omitempty"`
-	StopOnFailure *bool                        `json:"stop_on_failure,omitempty"`
-	ActionTimeout *int                         `json:"action_timeout,omitempty"`
+	Limit         *int                    `json:"limit,omitempty"`
+	StopOnFailure *bool                   `json:"stop_on_failure,omitempty"`
+	ActionTimeout *int                    `json:"action_timeout,omitempty"`
 }
 
 // ActionReplayError contains error details for a failed action.

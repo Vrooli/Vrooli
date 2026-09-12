@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
+import { selectors } from './consts/selectors';
 import {
   createCheckHistoryResponse,
   createCheckInfo,
@@ -10,6 +11,7 @@ import {
   createStatusResponse,
   createTimelineResponse,
   createUptimeStatsResponse,
+  expectNoA11yViolations,
 } from './test-utils';
 
 vi.mock("./shared/contexts/CheckMetadataContext", async () => {
@@ -20,6 +22,11 @@ vi.mock("./shared/contexts/CheckMetadataContext", async () => {
     useCheckMetadata: useMockCheckMetadata,
   };
 });
+
+vi.mock("./surfaces/trends", () => ({ TrendsSurface: () => <div>Trends surface loaded</div> }));
+vi.mock("./surfaces/timeline", () => ({ TimelineSurface: () => <div>Timeline surface loaded</div> }));
+vi.mock("./surfaces/incidents", () => ({ IncidentsSurface: () => <div>Incidents surface loaded</div> }));
+vi.mock("./surfaces/docs", () => ({ DocsSurface: () => <div>Docs surface loaded</div> }));
 
 // Mock API calls used by App while preserving the rest of the module exports.
 vi.mock('./lib/api', async (importOriginal) => {
@@ -122,6 +129,7 @@ describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mocks for all API calls - can be overridden in specific tests
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
     vi.mocked(api.fetchChecks).mockResolvedValue(mockChecksMetadata);
     vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
@@ -133,6 +141,12 @@ describe('App', () => {
       results: [createHealthResult()],
       timestamp: new Date().toISOString(),
     });
+  });
+
+  it('has no axe-core violations in the default dashboard state', async () => {
+    const { container } = renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByRole('main')).toBeInTheDocument());
+    await expectNoA11yViolations(container);
   });
 
   it('[REQ:UI-HEALTH-001] renders loading state initially', () => {
@@ -188,7 +202,7 @@ describe('App', () => {
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('settings-button')).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.settingsButton)).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: /enable auto refresh|disable auto refresh/i }),
       ).not.toBeInTheDocument();
@@ -201,7 +215,8 @@ describe('App', () => {
     renderWithProviders(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Run Tick')).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.runTickButtonDesktop)).toHaveTextContent('Run Tick');
     });
   });
 
@@ -236,12 +251,43 @@ describe('App', () => {
       expect(screen.getByText('Run Tick')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /run tick/i }));
+    fireEvent.click(screen.getByTestId(selectors.runTickButton));
 
     await waitFor(() => {
       expect(screen.getByText('A health check cycle is already running.')).toBeInTheDocument();
       expect(screen.getByText('Wait for the current operation to complete, then try again.')).toBeInTheDocument();
     });
+  });
+
+  it('shows success feedback after a completed tick', async () => {
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId(selectors.runTickButton));
+    await waitFor(() => expect(screen.getByText(/health check completed/i)).toBeInTheDocument());
+  });
+
+  it('explains gateway, API, and unexpected tick failures', async () => {
+    const cases = [
+      {
+        error: new api.APIError("gateway", "BAD_GATEWAY", 502, "req-502", { action: "retry", retryable: true }),
+        message: /upstream gateway error/i,
+      },
+      {
+        error: new api.APIError("bad request", "BAD_REQUEST", 400, "req-400", { action: "report", retryable: false }),
+        message: /something went wrong/i,
+      },
+      { error: new Error("unexpected failure"), message: /failed to run health check cycle/i },
+    ] as const;
+
+    for (const { error, message } of cases) {
+      cleanup();
+      vi.mocked(api.runTick).mockRejectedValueOnce(error);
+      const rendered = renderWithProviders(<App />);
+      await waitFor(() => expect(rendered.getByTestId(selectors.runTickButton)).toBeInTheDocument());
+      fireEvent.click(rendered.getByTestId(selectors.runTickButton));
+      await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+      rendered.unmount();
+    }
   });
 
   // Platform info display
@@ -274,9 +320,10 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
   });
 
-  it('[REQ:UI-RESPONSIVE-001] renders with responsive grid layout', async () => {
+  it('[REQ:UI-RESPONSIVE-001] renders shell and summary content in a mobile-safe layout contract', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
 
     renderWithProviders(<App />);
@@ -285,9 +332,33 @@ describe('App', () => {
       expect(screen.getByText('Vrooli Autoheal')).toBeInTheDocument();
     }, { timeout: 2000 });
 
-    // Verify responsive container exists with min-h-screen (responsive) class
-    const container = screen.getByTestId('autoheal-dashboard');
-    expect(container).toHaveClass('min-h-screen');
+    const container = screen.getByTestId(selectors.dashboard);
+    const header = screen.getByTestId(selectors.shell.header);
+    const content = screen.getByTestId(selectors.shell.content);
+    const summaryGrid = screen.getByTestId(selectors.summary.grid);
+
+    expect(container).toHaveClass('min-h-full', 'overflow-x-hidden');
+    expect(header).toHaveClass('sticky', 'top-0');
+    expect(content).toHaveClass('min-w-0');
+    expect(summaryGrid).toHaveClass('grid-cols-2', 'md:grid-cols-4');
+    expect(summaryGrid.compareDocumentPosition(header) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  });
+
+  it('[REQ:UI-RESPONSIVE-001] keeps all primary tabs in the selector registry and scrollable shell nav', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
+
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.shell.nav)).toBeInTheDocument();
+    }, { timeout: 2000 });
+
+    expect(screen.getByTestId(selectors.shell.nav)).toHaveClass('overflow-x-auto');
+    expect(screen.getByTestId(selectors.tabs.dashboard)).toHaveTextContent('Dashboard');
+    expect(screen.getByTestId(selectors.tabs.trends)).toHaveTextContent('Trends');
+    expect(screen.getByTestId(selectors.tabs.timeline)).toHaveTextContent('Timeline');
+    expect(screen.getByTestId(selectors.tabs.incidents)).toHaveTextContent('Incidents');
+    expect(screen.getByTestId(selectors.tabs.docs)).toHaveTextContent('Docs');
   });
 
   it('[REQ:UI-EVENTS-001] shows events timeline section', async () => {
@@ -323,5 +394,25 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText('All')).toBeInTheDocument();
     }, { timeout: 2000 });
+  });
+
+  it('switches through every lazy tab surface', async () => {
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByTestId(selectors.tabs.trends)).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId(selectors.settingsButton));
+    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("settings-close"));
+    fireEvent.click(screen.getByTestId(selectors.uptimeStats));
+    await waitFor(() => expect(screen.getByText("Trends surface loaded")).toBeInTheDocument());
+    for (const [selector, text] of [
+      [selectors.tabs.trends, 'Trends surface loaded'],
+      [selectors.tabs.timeline, 'Timeline surface loaded'],
+      [selectors.tabs.incidents, 'Incidents surface loaded'],
+      [selectors.tabs.docs, 'Docs surface loaded'],
+      [selectors.tabs.dashboard, 'Vrooli Autoheal'],
+    ] as const) {
+      fireEvent.click(screen.getByTestId(selector));
+      await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+    }
   });
 });

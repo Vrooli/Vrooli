@@ -106,7 +106,7 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
     setError(null);
     try {
       const { apps } = await listDownloadAppsAdmin();
-      const sorted = [...(apps ?? [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      const sorted = [...apps].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
       const nextForms = sorted.map((app: DownloadApp) => {
         const values = deserializeApp(app);
         return {
@@ -126,7 +126,7 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
 
   // Load apps on mount
   useEffect(() => {
-    loadApps();
+    void loadApps();
   }, [loadApps]);
 
   /**
@@ -188,7 +188,7 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
    * Add a new app form
    */
   const handleAddApp = useCallback(() => {
-    const tempKey = `app-${Date.now()}`;
+    const tempKey = `app-${String(Date.now())}`;
     const nextValues = {
       ...buildDefaultAppValues(tempKey),
       name: 'New Bundle App',

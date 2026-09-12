@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.home_integration;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/home_integration;home_integration_v1";
+
+// HomeIntegrationService exposes actions/events for Home Automation consumers.
+service HomeIntegrationService {
+  rpc ListActions(ListActionsRequest) returns (ListActionsResponse);
+  rpc InvokeAction(InvokeActionRequest) returns (InvokeActionResponse);
+  rpc ListRecentEvents(ListRecentEventsRequest) returns (ListRecentEventsResponse);
+}
+
+message HomeAction {
+  string name = 1;
+  string description = 2;
+  string effect = 3;
+  bool approval_required = 4;
+}
+
+message HomeEvent {
+  string id = 1;
+  string type = 2;
+  string summary = 3;
+  string occurred_at = 4;
+}
+
+message ListActionsRequest {}
+
+message ListActionsResponse {
+  repeated HomeAction actions = 1;
+}
+
+message InvokeActionRequest {
+  string name = 1;
+  map<string, string> params = 2;
+  bool approved = 3;
+}
+
+message InvokeActionResponse {
+  string status = 1;
+  string message = 2;
+  HomeEvent event = 3;
+}
+
+message ListRecentEventsRequest {}
+
+message ListRecentEventsResponse {
+  repeated HomeEvent events = 1;
+}

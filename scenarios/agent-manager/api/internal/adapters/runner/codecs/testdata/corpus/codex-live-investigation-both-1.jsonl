@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"019fac3d-becf-7212-9a87-bd05c57f4b1f"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_16","type":"agent_message","text":"{\"summary\":\"The source task required an in-run identity to create a run, and the API intentionally refused it. The root cause is Both: the enforced policy boundary is operating correctly, while task setup requested an operator-only action.\",\"primaryCategory\":\"Both\",\"confidence\":\"High\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":387522,"cached_input_tokens":345600,"output_tokens":3089,"reasoning_output_tokens":1164}}

@@ -26,7 +26,7 @@ App Monitor provides comprehensive real-time monitoring and control for all runn
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Real-time scenario status monitoring | Display running/stopped/error states for all scenarios with live updates
+- [ ] OT-P0-001 | Real-time scenario status monitoring | Display running/stopped/error states for all scenarios with live updates
 - [x] OT-P0-002 | Application lifecycle control | Start, stop, and restart scenarios through UI and API
 - [x] OT-P0-003 | Resource health tracking | Monitor status of core resources (PostgreSQL, Redis, Ollama, etc.)
 - [x] OT-P0-004 | Performance metrics display | Show CPU, memory, network, and disk usage per scenario

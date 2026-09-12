@@ -1,285 +1,46 @@
+import { librarySelectors } from "./selectors.library.js";
+export { librarySelectors };
 // DOC: docs/internal/SEAMS.md
-/**
- * Vrooli Ascension selector registry
- *
- * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. We deliberately model selectors as two
- * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
- *
- * ## Auto-Generated Manifest
- *
- * The `selectors.manifest.json` file is automatically generated from this file
- * during the testing process. If you need to add or modify selectors:
- *
- * 1. Update the `literalSelectors` object below for static selectors
- * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
- * 3. The manifest will be regenerated automatically when tests run
- *
- * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
+/** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
+ * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
  */
 
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
-type LiteralNode = string | LiteralSelectorTree;
+import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
+export { defineDynamicSelector } from "@vrooli/ui-selectors";
 
-type ParamType = "string" | "number" | "enum";
-
-type ParamDefinition =
-  | { readonly type: "string" }
-  | { readonly type: "number" }
-  | { readonly type: "enum"; readonly values: readonly (string | number)[] };
-
-type ParamSchema = Readonly<Record<string, ParamDefinition>>;
-
-type ParamValueType<T extends ParamDefinition> = T extends { type: "number" }
-  ? number
-  : T extends { type: "enum"; values: readonly (infer V)[] }
-  ? V
-  : string;
-
-type ParamValues<P extends ParamSchema | undefined> = P extends ParamSchema
-  ? { [K in keyof P]: ParamValueType<P[K]> }
-  : Record<string, never>;
-
-interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
-  readonly kind: "dynamic-selector";
-  readonly description: string;
-  readonly params?: P;
-  readonly testIdPattern?: string;
-  readonly selectorPattern?: string;
-}
-
-type DynamicSelectorBranch = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure for generic selector definitions
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
-};
-
-type DynamicSelectorTree = DynamicSelectorBranch;
-
-type DynamicSelectorFn<P extends ParamSchema | undefined> = keyof ParamValues<P> extends never
-  ? () => string
-  : (params: ParamValues<P>) => string;
-
-type DynamicBranchResult<D extends DynamicSelectorTree> = {
-  [K in keyof D]: D[K] extends DynamicSelectorDefinition<infer P>
-  ? DynamicSelectorFn<P>
-  : D[K] extends DynamicSelectorTree
-  ? DynamicBranchResult<D[K]>
-  : never;
-};
-
-type SelectorTreeResult<
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
-> = {
-  [K in keyof L]: L[K] extends string
-    ? string
-    : SelectorTreeResult<
-        Extract<L[K], LiteralSelectorTree>,
-        K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
-      >;
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- intentional empty intersection for conditional type
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
-
-const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
-
-const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
-    if (!(token in values)) {
-      throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
-    }
-    return String(values[token]);
-  });
-
-const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- type guard requires any for generic erasure
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument -- runtime type infrastructure uses intentional any erasure */
-const normalizeParams = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic type erasure at runtime boundary
-  definition: DynamicSelectorDefinition<any>,
-  raw: Record<string, string | number>,
-  path: string,
-) => {
-  const schema: ParamSchema = definition.params ?? ({} as ParamSchema);
-  const normalized: Record<string, string | number> = {};
-
-  for (const key of Object.keys(schema)) {
-    if (!(key in raw)) {
-      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
-    }
-    const definitionEntry = schema[key];
-    const value = raw[key];
-    if (!definitionEntry || value === undefined) continue;
-    if (definitionEntry.type === "number") {
-      if (typeof value !== "number") {
-        throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
-      }
-      normalized[key] = value;
-      continue;
-    }
-    if (definitionEntry.type === "enum") {
-      if (!definitionEntry.values.includes(value)) {
-        throw new Error(
-          `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
-        );
-      }
-      normalized[key] = value;
-      continue;
-    }
-    normalized[key] = value;
-  }
-
-  const extras = Object.keys(raw).filter((key) => !(key in schema));
-  if (extras.length > 0) {
-    throw new Error(`Selector '${path}' received unknown parameter(s): ${extras.join(", ")}`);
-  }
-
-  return normalized;
-};
-
-const flattenLiteralSelectors = (
-  tree: LiteralSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, { testId: string; selector: string }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (typeof value === "string") {
-      const manifestKey = nextPath.join(".");
-      target[manifestKey] = {
-        testId: value,
-        selector: toDataTestIdSelector(value),
-      };
-      continue;
-    }
-    flattenLiteralSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-const flattenDynamicSelectors = (
-  tree: DynamicSelectorTree,
-  prefix: string[] = [],
-  target: Record<string, {
-    description: string;
-    selectorPattern: string;
-    testIdPattern?: string;
-    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
-  }> = {},
-) => {
-  for (const [key, value] of Object.entries(tree)) {
-    const nextPath = [...prefix, key];
-    if (isDynamicDefinition(value)) {
-      const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
-      target[manifestKey] = {
-        description: value.description,
-        selectorPattern:
-          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
-        testIdPattern: value.testIdPattern,
-        params: paramEntries.map(([name, config]) => ({
-          name,
-          type: config.type,
-          values: config.type === "enum" ? config.values : undefined,
-        })),
-      };
-      continue;
-    }
-    flattenDynamicSelectors(value, nextPath, target);
-  }
-  return target;
-};
-
-const mergeLiteralAndDynamicNodes = (
-  literalNode: LiteralSelectorTree | undefined,
-  dynamicNode: DynamicSelectorTree | undefined,
-  path: string[] = [],
-): Record<string, unknown> => {
-  const merged: Record<string, unknown> = {};
-  const keys = new Set([
-    ...Object.keys(literalNode ?? {}),
-    ...Object.keys(dynamicNode ?? {}),
-  ]);
-
-  keys.forEach((key) => {
-    const literalValue: LiteralNode | undefined = literalNode?.[key];
-    const dynamicValue = dynamicNode?.[key];
-    const nextPath = [...path, key];
-
-    if (typeof literalValue === "string") {
-      merged[key] = literalValue;
-      return;
-    }
-
-    if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
-        nextPath,
-      );
-      return;
-    }
-
-    if (dynamicValue) {
-      if (isDynamicDefinition(dynamicValue)) {
-        merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
-        return;
-      }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
-    }
-  });
-
-  return merged;
-};
-
-const createDynamicSelectorFn = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic type erasure at runtime boundary
-  definition: DynamicSelectorDefinition<any>,
-  path: string,
-) => {
-  return (params?: Record<string, string | number>) => {
-    const normalized = normalizeParams(definition, params ?? {}, path);
-    const template = definition.testIdPattern ?? definition.selectorPattern;
-    if (!template) {
-      throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
-    }
-    return formatTemplate(template, normalized, path);
-  };
-};
-
-export const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
-const createSelectorRegistry = <
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
->(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
-  const manifest = {
-    selectors: flattenLiteralSelectors(literalTree),
-    dynamicSelectors: flattenDynamicSelectors(dynamicTree),
-  };
-  return { selectors, manifest };
-};
-
-/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
-
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   workspace: {
+    settings: 'toolbar-settings',
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
     paneContainer: 'terminal-pane-container',
+    sidebarShell: 'workspace-sidebar',
+    sidebarToggle: 'workspace-sidebar-toggle',
+    sidebarBackdrop: 'workspace-sidebar-backdrop',
+    sidebarResizeHandle: 'workspace-sidebar-resize-handle',
+    sidebarTopbar: 'workspace-sidebar-topbar',
+    sidebarActiveTitle: 'workspace-sidebar-active-title',
+    toggleView: 'workspace-toggle-view',
+    topEdge: 'workspace-top-edge',
+  },
+  playback: {
+    pill: 'playback-pill',
+    playPause: 'pill-play-pause',
+    summary: 'pill-summary',
+    label: 'pill-label',
+    time: 'pill-time',
+    equalizer: 'pill-equalizer',
+    progress: 'pill-progress',
+    close: 'pill-close',
+    scrub: 'pill-scrub',
+    previous: 'pill-previous',
+    next: 'pill-next',
+    rate: 'pill-rate',
+    voice: 'pill-voice',
+    jump: 'pill-jump',
+    queued: 'pill-queued',
+    settings: 'pill-settings',
+    settingsDialog: 'pill-settings-dialog',
   },
   terminal: {
     pane: 'terminal-pane',
@@ -289,6 +50,100 @@ const literalSelectors: LiteralSelectorTree = {
     emptyShell: 'launcher-empty-shell',
     customInput: 'launcher-custom-input',
     customLaunch: 'launcher-custom-launch',
+    // Destination and appearance disclosure — the dialog now states where the
+    // session goes and what it will look like before anything is created.
+    destination: 'launcher-destination',
+    destinationTrigger: 'launcher-destination-trigger',
+    appearance: 'launcher-appearance',
+    machinePicker: 'launcher-machine-picker',
+    machineMenu: 'launcher-machine-menu',
+    machineList: 'launcher-machine-list',
+    machineLink: 'launcher-machine-link',
+    machineManage: 'launcher-machine-manage',
+    targetUnavailable: 'launcher-target-unavailable',
+    editShortcuts: 'launcher-edit-shortcuts',
+    editTemplates: 'launcher-edit-templates',
+    appearanceToggle: 'launcher-appearance-toggle',
+    templateMenu: 'launcher-template-menu',
+    groupRoleEmpty: 'launcher-group-role-empty',
+    agentGrid: 'launcher-agent-grid',
+    attributedToggle: 'launcher-attributed-toggle',
+    // Group mode: one dialog trip creates a whole group.
+    modeOneSession: 'launcher-mode-one-session',
+    modeGroup: 'launcher-mode-group',
+    templatePicker: 'launcher-template-picker',
+    groupName: 'launcher-group-name',
+    groupRoleList: 'launcher-group-role-list',
+    groupRoleAdd: 'launcher-group-role-add',
+    createGroup: 'launcher-create-group',
+  },
+  groups: {
+    drawer: 'manage-groups-drawer',
+    filter: 'manage-groups-filter',
+    sectionActive: 'manage-groups-section-active',
+    sectionEmpty: 'manage-groups-section-empty',
+    closeAllEmpty: 'manage-groups-close-all-empty',
+    bulkBar: 'manage-groups-bulk-bar',
+    autoCloseToggle: 'manage-groups-auto-close',
+    summary: 'manage-groups-summary',
+    sort: 'manage-groups-sort',
+    // Closing a group, reachable from the group header on both surfaces.
+    closeMenuItem: 'group-ctx-close-group',
+    closeConfirm: 'close-group-confirm',
+    closeCancel: 'close-group-cancel',
+    closeAlsoSessions: 'close-group-also-sessions',
+    closeSummary: 'close-group-summary',
+    closeConsequence: 'close-group-consequence',
+    // One overlay serves both the launcher destination and the session
+    // menu's assign action, so these ids are shared by both entry points.
+    assignPicker: 'group-assign-picker',
+    pickerList: 'group-picker-list',
+    pickerFilter: 'group-picker-filter',
+    pickerNone: 'group-picker-option-none',
+    pickerEmpty: 'group-picker-empty',
+    pickerNoMatches: 'group-picker-no-matches',
+    pickerEditToggle: 'group-picker-edit-toggle',
+    pickerSectionActive: 'group-picker-section-active',
+    pickerSectionEmpty: 'group-picker-section-empty',
+    pickerCloseAllEmpty: 'group-picker-close-all-empty',
+    pickerUngroupNote: 'group-picker-ungroup-note',
+    pickerCreateSubmit: 'group-picker-create-submit',
+    undoBanner: 'group-undo-banner',
+    undoAction: 'group-undo-action',
+    undoDismiss: 'group-undo-dismiss',
+  },
+  roles: {
+    addDialog: 'role-add-dialog',
+    addLabel: 'role-add-label',
+    addCommand: 'role-add-command',
+    addPrompt: 'role-add-prompt',
+    addSubmit: 'role-add-submit',
+    menu: 'role-menu',
+  },
+  handoff: {
+    composer: 'handoff-composer',
+    trigger: 'handoff-trigger',
+    targets: 'handoff-targets',
+    message: 'handoff-message',
+    send: 'handoff-send',
+    results: 'handoff-results',
+    suggestion: 'handoff-suggestion',
+    suggestionDismiss: 'handoff-suggestion-dismiss',
+    paneHeaderTrigger: 'handoff-pane-header',
+    fileViewerTrigger: 'handoff-file-viewer',
+    pendingStrip: 'pending-input-strip',
+  },
+  templates: {
+    panel: 'group-templates-panel',
+    create: 'group-templates-create',
+    roleList: 'group-templates-role-list',
+    roleAdd: 'group-templates-role-add',
+    saveAs: 'group-templates-save-as',
+  },
+  handoffRules: {
+    panel: 'handoff-rules-panel',
+    create: 'handoff-rules-create',
+    footer: 'handoff-rules-footer',
   },
   nav: {
     settings: 'nav-settings',
@@ -296,11 +151,50 @@ const literalSelectors: LiteralSelectorTree = {
   settings: {
     error: 'settings-error',
     createProfile: 'create-profile',
+    account: 'settings-account',
+    accountTab: 'settings-tab-account',
+    integrationsTab: 'settings-tab-integrations',
+    accountRefreshToken: 'account-refresh-token',
+    accountPlan: 'account-plan',
+    accountCredits: 'account-credits',
+    accountPendingSync: 'account-pending-sync',
+    openRouterKeyInput: 'openrouter-key-input',
+    openRouterKeySave: 'openrouter-key-save',
+    openRouterKeyTest: 'openrouter-key-test',
+    openRouterKeyRemove: 'openrouter-key-remove',
+    accountButton: 'toolbar-account',
+    tunnelManagerAwareness: 'tunnel-manager-awareness',
   },
   toolbar: {
     container: 'mobile-toolbar',
   },
+  fleet: {
+    drawer: 'machines-drawer',
+    // The machines shelf leads: starting a session on a named machine is the
+    // errand that brings anyone to this drawer.
+    railMachines: 'fleet-rail-machines',
+    // "Screens", not "Devices". This shelf lists browsers attached to this
+    // console; the device-control scenario owns the other meaning of the word.
+    railScreens: 'fleet-rail-screens',
+    card: 'fleet-card',
+    deviceCard: '[data-testid^="fleet-card-device-"]',
+    machineCard: '[data-testid^="fleet-card-machine-"]',
+    machineStartSession: '[data-testid^="machines-start-session-"]',
+    machineDetails: '[data-testid^="machines-details-"]',
+    machineIssues: '[data-testid^="machines-issues-"]',
+    machineDetail: '[data-testid^="machine-detail-"]',
+    deviceSilhouette: '[data-testid^="fleet-card-device-"] [data-testid="device-silhouette"]',
+    machineSilhouette: '[data-testid^="fleet-card-machine-"] [data-testid="machine-silhouette"]',
+    deviceFrame: '[data-testid^="device-frame-"]',
+    deviceCaption: '[data-testid^="device-caption-"]',
+    takeOver: 'device-frame-take-over',
+  },
+  voice: {
+    micButton: 'voice-mic-btn',
+    errorTooltip: 'voice-error-tooltip',
+  },
   ai: {
+    open: 'toolbar-ai',
     input: 'ai-input',
     prompt: 'ai-input-prompt',
     generate: 'ai-input-generate',
@@ -308,6 +202,12 @@ const literalSelectors: LiteralSelectorTree = {
     execute: 'ai-input-execute',
     copy: 'ai-input-copy',
     error: 'ai-input-error',
+    resolutionStrip: 'ai-resolution-strip',
+    providerProvenance: 'ai-provider-provenance',
+  },
+  commercial: {
+    sourceProvenanceAligned: 'body[data-source-provenance-aligned="true"]',
+    localVoiceRefusal: 'body[data-local-voice-refusal="false"]',
   },
   provider: {
     refresh: 'provider-refresh',
@@ -321,9 +221,60 @@ const literalSelectors: LiteralSelectorTree = {
   policy: {
     error: 'policy-error',
   },
-};
+  locale: {
+    switcher: 'locale-switcher',
+  },
+  messages: {
+    scrollContainer: 'messages-scroll',
+    actionsInline: 'msg-actions-inline',
+    actionSheet: 'msg-action-sheet',
+    reader: 'messages-reader',
+    readerBody: 'messages-reader-body',
+    readerFindInput: 'reader-find-input',
+    readerMatchCount: 'reader-match-count',
+    readerFindPrev: 'reader-find-prev',
+    readerFindNext: 'reader-find-next',
+    readerCopy: 'reader-copy',
+    readerPlay: 'reader-play',
+    newMessagesPill: 'msg-new-pill',
+    jumpToBottom: 'msg-jump-bottom',
+    searchTrigger: 'messages-search-field',
+    stateSlot: 'messages-state-slot',
+    stateSlotOpenTerminal: 'state-slot-open-terminal',
+    stateSlotAnswerInTerminal: 'state-slot-answer-in-terminal',
+    echoRow: 'msg-echo-row',
+    echoEnter: 'msg-echo-enter',
+    echoOpenTerminal: 'msg-echo-open-terminal',
+    composerStateChip: 'composer-state-chip',
+    sendAndEnter: 'mobile-send-and-enter',
+    historyControl: 'toolbar-history',
+    composerHistory: 'composer-open-history',
+    historySheet: 'sent-history-sheet',
+    historyFilter: 'sent-history-filter',
+    historyRow: 'sent-history-row',
+    historyInsert: 'sent-history-insert',
+    historyResend: 'sent-history-resend',
+    historyClear: 'sent-history-clear',
+    searchMode: 'msg-jump-mode',
+    searchCase: 'msg-jump-case',
+    searchWholeWord: 'msg-jump-whole-word',
+    searchError: 'msg-jump-error',
+    searchTruncated: 'msg-jump-truncated',
+    navPanel: 'msg-jump-list',
+    navScroll: 'msg-jump-scroll',
+    searchInput: 'msg-nav-search',
+    clearSearch: 'msg-nav-clear',
+    resultCount: 'msg-nav-count',
+    filtersToggle: 'msg-jump-filters',
+    advancedPanel: 'msg-nav-advanced',
+    emptyState: 'msg-nav-empty',
+    // Convenience literal for the most common BAS chip; the full chip family
+    // is modeled by the dynamic `messages.navChip` selector below.
+    chipUser: 'msg-nav-chip-user',
+  },
+} satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   provider: {
     card: defineDynamicSelector({
       description: 'Provider health card',
@@ -362,11 +313,133 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       params: { sessionId: { type: 'string' } },
     }),
   },
+  sidebar: {
+    session: defineDynamicSelector({
+      description: 'Session row in workspace sidebar',
+      testIdPattern: 'sidebar-session-${sessionId}',
+      params: { sessionId: { type: 'string' } },
+    }),
+  },
   launcher: {
     shortcut: defineDynamicSelector({
       description: 'Launcher shortcut button',
       testIdPattern: 'launcher-shortcut-${label}',
       params: { label: { type: 'string' } },
+    }),
+    agentCard: defineDynamicSelector({
+      description: 'Launcher agent card in the two-column grid',
+      testIdPattern: 'launcher-agent-${label}',
+      params: { label: { type: 'string' } },
+    }),
+    machineOption: defineDynamicSelector({
+      description: 'Machine row inside the launcher machine picker listbox',
+      testIdPattern: 'launcher-machine-option-${targetId}',
+      params: { targetId: { type: 'string' } },
+    }),
+  },
+  roles: {
+    sidebarRow: defineDynamicSelector({
+      description: 'Waiting role row in the workspace sidebar',
+      testIdPattern: 'sidebar-waiting-role-${roleId}',
+      params: { roleId: { type: 'string' } },
+    }),
+    sidebarStart: defineDynamicSelector({
+      description: 'Start control on a waiting role row',
+      testIdPattern: 'sidebar-waiting-role-start-${roleId}',
+      params: { roleId: { type: 'string' } },
+    }),
+    sidebarHandoff: defineDynamicSelector({
+      description: 'Handoff control on a waiting role row',
+      testIdPattern: 'sidebar-waiting-role-handoff-${roleId}',
+      params: { roleId: { type: 'string' } },
+    }),
+    sidebarMenu: defineDynamicSelector({
+      description: 'Overflow menu control on a waiting role row',
+      testIdPattern: 'sidebar-waiting-role-menu-${roleId}',
+      params: { roleId: { type: 'string' } },
+    }),
+    tabRow: defineDynamicSelector({
+      description: 'Waiting role chip in the tab strip',
+      testIdPattern: 'tab-waiting-role-${roleId}',
+      params: { roleId: { type: 'string' } },
+    }),
+  },
+  handoff: {
+    target: defineDynamicSelector({
+      description: 'Selectable target row in the handoff composer',
+      testIdPattern: 'handoff-target-${targetId}',
+      params: { targetId: { type: 'string' } },
+    }),
+    result: defineDynamicSelector({
+      description: 'Per-target result line after a handoff is sent',
+      testIdPattern: 'handoff-result-${targetId}',
+      params: { targetId: { type: 'string' } },
+    }),
+  },
+  groups: {
+    selectRow: defineDynamicSelector({
+      description: 'Selection checkbox for a group row in the manager',
+      testIdPattern: 'manage-groups-select-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    closeRow: defineDynamicSelector({
+      description: 'Close control for a group row in the manager',
+      testIdPattern: 'manage-groups-close-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    pickerOption: defineDynamicSelector({
+      description: 'Group card in the group picker overlay',
+      testIdPattern: 'group-picker-option-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    pickerEditRow: defineDynamicSelector({
+      description: 'Group row in the picker overlay while editing',
+      testIdPattern: 'group-picker-edit-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    pickerRename: defineDynamicSelector({
+      description: 'Rename field for a group in the picker overlay',
+      testIdPattern: 'group-picker-rename-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    pickerRecolor: defineDynamicSelector({
+      description: 'Colour control for a group in the picker overlay',
+      testIdPattern: 'group-picker-recolor-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+    pickerCloseGroup: defineDynamicSelector({
+      description: 'Close control for a group in the picker overlay',
+      testIdPattern: 'group-picker-close-${groupId}',
+      params: { groupId: { type: 'string' } },
+    }),
+  },
+  templates: {
+    row: defineDynamicSelector({
+      description: 'Template row in the templates panel',
+      testIdPattern: 'group-template-${templateId}',
+      params: { templateId: { type: 'string' } },
+    }),
+    deleteRow: defineDynamicSelector({
+      description: 'Delete control for a template row',
+      testIdPattern: 'group-template-delete-${templateId}',
+      params: { templateId: { type: 'string' } },
+    }),
+  },
+  handoffRules: {
+    row: defineDynamicSelector({
+      description: 'Rule row in the handoff rules panel',
+      testIdPattern: 'handoff-rule-${ruleId}',
+      params: { ruleId: { type: 'string' } },
+    }),
+    toggleRow: defineDynamicSelector({
+      description: 'Enable toggle for a rule row',
+      testIdPattern: 'handoff-rule-toggle-${ruleId}',
+      params: { ruleId: { type: 'string' } },
+    }),
+    deleteRow: defineDynamicSelector({
+      description: 'Delete control for a rule row',
+      testIdPattern: 'handoff-rule-delete-${ruleId}',
+      params: { ruleId: { type: 'string' } },
     }),
   },
   toolbar: {
@@ -444,6 +517,13 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       params: { sessionId: { type: 'string' } },
     }),
   },
+  locale: {
+    toggle: defineDynamicSelector({
+      description: 'Locale switcher toggle button for a specific locale code',
+      testIdPattern: 'locale-toggle-${code}',
+      params: { code: { type: 'string' } },
+    }),
+  },
   messages: {
     pane: defineDynamicSelector({
       description: 'Messages pane for a session',
@@ -453,6 +533,31 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
     card: defineDynamicSelector({
       description: 'Message card by event ID',
       testIdPattern: 'msg-card-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    speaker: defineDynamicSelector({
+      description: 'Speaker name in a message row header',
+      testIdPattern: 'msg-speaker-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    time: defineDynamicSelector({
+      description: 'Time label in a message row header (sequence in its title)',
+      testIdPattern: 'msg-time-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    actionsMore: defineDynamicSelector({
+      description: 'Overflow trigger in a revealed message action cluster',
+      testIdPattern: 'msg-actions-more-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    actionsMenu: defineDynamicSelector({
+      description: 'Full action list for a message (fine pointer)',
+      testIdPattern: 'msg-actions-menu-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    openReader: defineDynamicSelector({
+      description: 'Outline footer that opens a long reply in the reader',
+      testIdPattern: 'msg-open-reader-${eventId}',
       params: { eventId: { type: 'string' } },
     }),
     speakFromHere: defineDynamicSelector({
@@ -465,10 +570,45 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       testIdPattern: 'msg-speak-one-${eventId}',
       params: { eventId: { type: 'string' } },
     }),
+    navResultRow: defineDynamicSelector({
+      description: 'Message navigator result row by event ID',
+      testIdPattern: 'msg-jump-item-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    navChip: defineDynamicSelector({
+      description: 'Message navigator primary filter chip',
+      testIdPattern: 'msg-nav-chip-${id}',
+      params: { id: { type: 'enum', values: ['all', 'user', 'assistant', 'failed', 'unheard'] } },
+    }),
+    navSourceOption: defineDynamicSelector({
+      description: 'Message navigator source filter option',
+      testIdPattern: 'msg-nav-source-${source}',
+      params: { source: { type: 'enum', values: ['claude', 'codex', 'opencode', 'grok'] } },
+    }),
+    navStatusOption: defineDynamicSelector({
+      description: 'Message navigator status filter option',
+      testIdPattern: 'msg-nav-status-${status}',
+      params: { status: { type: 'enum', values: ['all', 'unheard', 'played', 'failed', 'summarized'] } },
+    }),
+    navContentOption: defineDynamicSelector({
+      description: 'Message navigator content filter option',
+      testIdPattern: 'msg-nav-content-${content}',
+      params: { content: { type: 'enum', values: ['all', 'code', 'fileReference', 'long'] } },
+    }),
+    navSortOption: defineDynamicSelector({
+      description: 'Message navigator sort option',
+      testIdPattern: 'msg-nav-sort-${mode}',
+      params: { mode: { type: 'enum', values: ['oldest', 'newest', 'relevance'] } },
+    }),
+    navGroupOption: defineDynamicSelector({
+      description: 'Message navigator grouping option',
+      testIdPattern: 'msg-nav-group-${mode}',
+      params: { mode: { type: 'enum', values: ['turn', 'flat', 'role'] } },
+    }),
   },
-};
+} satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

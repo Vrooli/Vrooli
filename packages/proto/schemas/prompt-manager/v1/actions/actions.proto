@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.actions;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/actions;actions_v1";
+
+service ActionsService {
+  rpc ListActions(ListActionsRequest) returns (ListActionsResponse);
+  rpc GetAction(GetActionRequest) returns (GetActionResponse);
+  rpc AuthorAction(AuthorActionRequest) returns (AuthorActionResponse);
+  rpc UpdateAction(UpdateActionRequest) returns (UpdateActionResponse);
+  rpc DeleteAction(DeleteActionRequest) returns (DeleteActionResponse);
+  rpc ValidateAction(ValidateActionRequest) returns (ValidateActionResponse);
+  rpc RunAction(RunActionRequest) returns (RunActionResponse);
+}
+
+message ActionOwner { string type = 1; string id = 2; }
+message ActionCommand { repeated string argv = 1; }
+message ActionInput {
+  string type = 1;
+  string description = 2;
+  bool required = 3;
+  repeated string enum = 4;
+  google.protobuf.Value default_value = 5;
+  string pattern = 6;
+  optional double min = 7;
+  optional double max = 8;
+  optional int32 max_length = 9;
+  bool allow_multiline = 10;
+}
+message ActionOutput { string type = 1; string description = 2; }
+message ActionPermissions {
+  bool filesystem_read = 1; bool filesystem_write = 2; bool localhost_network = 3;
+  bool external_network = 4; bool api_read = 5; bool api_write = 6;
+  bool process_start = 7; bool process_stop = 8; bool host_configure = 9;
+  bool secret_read = 10; bool secret_write = 11; bool destructive = 12;
+}
+message ActionExample { string description = 1; google.protobuf.Struct input = 2; }
+message ActionExecution { optional int32 timeout_seconds = 1; string output_mode = 2; optional bool run_eligible = 3; }
+message ActionValidation { string mode = 1; repeated string argv = 2; }
+message Action {
+  string id = 1; string name = 2; string description = 3; string status = 4;
+  ActionOwner owner = 5; ActionCommand command = 6;
+  map<string, ActionInput> inputs = 7; map<string, ActionOutput> outputs = 8;
+  ActionPermissions permissions = 9; repeated ActionExample examples = 10;
+  repeated string tags = 11; ActionExecution execution = 12; ActionValidation validation = 13;
+  string created_at = 14; string updated_at = 15; string pack = 16;
+  string kind = 17; int32 schema_version = 18; int32 revision = 19;
+}
+message ValidationCheck { string code = 1; string status = 2; string message = 3; string path = 4; }
+message CommandResolution {
+  string certainty = 1; ActionOwner owner = 2; string target = 3; repeated string command_path = 4;
+  string effect = 5; repeated string permissions = 6; repeated string run_surfaces = 7;
+  bool requires_confirmation = 8; string message = 9;
+}
+message ActionValidationResult {
+  string action_id = 1; bool valid = 2; bool runnable = 3; bool unvalidated = 4;
+  bool requires_confirmation = 5; string status = 6; CommandResolution command = 7;
+  repeated ValidationCheck checks = 8; Action action = 9;
+}
+
+message ListActionsRequest { string pack = 1; string status = 2; string owner = 3; string tag = 4; }
+message ListActionsResponse { repeated Action actions = 1; }
+message GetActionRequest { string id = 1; }
+message GetActionResponse { Action action = 1; }
+
+message InputOverride { string name = 1; string type = 2; optional bool required = 3; string description = 4; }
+message InferenceNote { string field = 1; string message = 2; }
+message SimilarAction { string id = 1; string name = 2; double score = 3; string reason = 4; }
+message AuthorActionRequest {
+  string name = 1; string description = 2; string id = 3; string pack = 4;
+  repeated string argv = 5; repeated InputOverride inputs = 6; Action contract = 7; bool apply = 8;
+}
+message AuthorActionResponse {
+  Action rendered = 1; ActionValidationResult validation = 2; repeated InferenceNote inferred = 3;
+  repeated string warnings = 4; repeated SimilarAction similar = 5; bool applied = 6;
+}
+message UpdateActionRequest { string id = 1; Action action = 2; }
+message UpdateActionResponse { Action action = 1; ActionValidationResult validation = 2; }
+message DeleteActionRequest { string id = 1; bool hard = 2; }
+message DeleteActionResponse { string id = 1; bool deleted = 2; bool archived = 3; }
+message ValidateActionRequest { string id = 1; }
+message ValidateActionResponse { ActionValidationResult validation = 1; }
+message RunActionRequest { string id = 1; google.protobuf.Struct input = 2; bool dry_run = 3; }
+message RunActionResponse {
+  string action_id = 1; string status = 2; optional int32 exit_code = 3; int64 duration_ms = 4;
+  repeated string argv = 5; string stdout = 6; string stderr = 7; bool stdout_truncated = 8;
+  bool stderr_truncated = 9; google.protobuf.Struct output = 10; ActionValidationResult validation = 11; string error = 12;
+}

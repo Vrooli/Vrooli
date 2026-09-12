@@ -8,6 +8,7 @@ import {
   getRecoveryGuidance,
   logError,
   logSuccess,
+  sanitizeErrorMessage,
   RECOVERY_PATHS,
   type ErrorCategory,
   type OperationOutcome,
@@ -206,6 +207,18 @@ describe("createErrorLogEntry", () => {
     expect(entry.message).toContain("[PATH]");
   });
 
+  it("keeps kind/name entity refs intact", () => {
+    // The refs are the actionable part of a domain message. An earlier
+    // pattern matched any run of "/segment" and turned "goal/release-1" into
+    // "goal[PATH]".
+    const error = new Error("cannot queue execute/ship-workspace: blocked by fix/blocker");
+    const entry = createErrorLogEntry(error, "Test");
+
+    expect(entry.message).toContain("execute/ship-workspace");
+    expect(entry.message).toContain("fix/blocker");
+    expect(entry.message).not.toContain("[PATH]");
+  });
+
   it("truncates long messages", () => {
     const longMessage = "a".repeat(300);
     const error = new Error(longMessage);
@@ -381,5 +394,50 @@ describe("logSuccess", () => {
     logSuccess("completed", "Operation complete", "TaskRunner");
     const secondCall = consoleSpy.mock.calls[1];
     expect(secondCall?.[0]).toBe("[COMPLETED]");
+  });
+});
+
+
+describe("sanitizeErrorMessage", () => {
+  it("redacts absolute POSIX paths", () => {
+    expect(sanitizeErrorMessage("Error in /home/user/secret/file.ts")).toBe("Error in [PATH]");
+    expect(sanitizeErrorMessage("config at /etc/vrooli/service.json is invalid"))
+      .toBe("config at [PATH] is invalid");
+  });
+
+  it("redacts a path at the very start of the message", () => {
+    expect(sanitizeErrorMessage("/home/op/.ssh/id_rsa is unreadable")).toBe("[PATH] is unreadable");
+  });
+
+  it("redacts Windows drive paths", () => {
+    expect(sanitizeErrorMessage(String.raw`read C:\Users\op\.ssh\id_rsa failed`))
+      .toBe("read [PATH] failed");
+  });
+
+  it("leaves relative entity refs alone", () => {
+    // These are domain identifiers, not filesystem locations.
+    for (const message of [
+      "milestone not found: goal/release-1",
+      "cannot queue execute/ship-workspace",
+      "blocked by fix/blocker and idea/spike",
+    ]) {
+      expect(sanitizeErrorMessage(message)).toBe(message);
+    }
+  });
+
+  it("does not mistake other slashed or colon-bearing text for a path", () => {
+    expect(sanitizeErrorMessage("ratio 3/4 exceeded")).toBe("ratio 3/4 exceeded");
+    expect(sanitizeErrorMessage("time 12:30 and ratio 3/4")).toBe("time 12:30 and ratio 3/4");
+  });
+
+  it("still redacts URLs", () => {
+    expect(sanitizeErrorMessage("Failed at https://api.example.com/secret?token=abc"))
+      .toBe("Failed at [URL]");
+  });
+
+  it("caps message length", () => {
+    const result = sanitizeErrorMessage("a".repeat(300));
+    expect(result.length).toBeLessThanOrEqual(200);
+    expect(result.endsWith("...")).toBe(true);
   });
 });

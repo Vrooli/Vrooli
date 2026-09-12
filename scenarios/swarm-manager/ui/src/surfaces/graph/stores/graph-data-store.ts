@@ -7,7 +7,7 @@
  */
 
 import { create } from "zustand";
-import { backlogService, graphService, type GraphProjectionMeta } from "../../../services";
+import { graphService, type GraphProjectionMeta } from "../../../services";
 import { computeNodeAttention, type NodeEnrichment } from "../lib/attention";
 import {
   cloneGraphsByLens,
@@ -15,6 +15,7 @@ import {
   type GraphLensSnapshot,
 } from "../lib/snapshot-utils";
 import { useSnoozeStore } from "../../../stores/snooze-store";
+import { reconcileEdges, reconcileNodes } from "../lib/structural-sharing";
 import {
   getGraphNodeData,
   type GraphEdge,
@@ -61,9 +62,9 @@ export interface GraphDataState {
 const GRAPH_SNAPSHOT_STALE_MS = 30_000;
 
 const graphRequestSequence: Record<GraphLens, number> = {
+  plan: 0,
   focus: 0,
   topology: 0,
-  operations: 0,
 };
 
 const graphAbortControllers = new Map<GraphLens, AbortController>();
@@ -73,29 +74,9 @@ const graphInFlightRequests = new Map<GraphLens, Promise<void>>();
 // Snapshot helpers
 // ---------------------------------------------------------------------------
 
-function mergeRuntimeNodeState(currentNodes: GraphNode[], nextNodes: GraphNode[]): GraphNode[] {
-  const pulsingById = new Map<string, boolean>();
-  for (const node of currentNodes) {
-    const pulsing = getGraphNodeData(node).pulsing;
-    if (typeof pulsing === "boolean") {
-      pulsingById.set(node.id, pulsing);
-    }
-  }
-
-  return nextNodes.map((node) => {
-    const pulsing = pulsingById.get(node.id);
-    if (pulsing === undefined) {
-      return node;
-    }
-    return {
-      ...node,
-      data: {
-        ...getGraphNodeData(node),
-        pulsing,
-      },
-    };
-  });
-}
+// Structural-sharing reconciliation now lives in lib/structural-sharing.ts so
+// unchanged nodes and edges keep their refs across polls. That lets downstream
+// useMemo chains in the canvas skip work when the backend reports no-op data.
 
 function syncActiveLensSnapshot(
   lens: GraphLens,
@@ -154,7 +135,7 @@ export function createGraphDataInitialState() {
     meta: null as GraphProjectionMeta | null,
     loading: false,
     error: null as string | null,
-    lens: "topology" as GraphLens,
+    lens: "plan" as GraphLens,
     focusNodeId: null as string | null,
     returnLens: null as GraphLens | null,
     graphsByLens: createEmptyGraphsByLens(),
@@ -169,9 +150,9 @@ export function resetGraphRequestState(): void {
   }
   graphAbortControllers.clear();
   graphInFlightRequests.clear();
+  graphRequestSequence.plan = 0;
   graphRequestSequence.focus = 0;
   graphRequestSequence.topology = 0;
-  graphRequestSequence.operations = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +166,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        nodes: mergeRuntimeNodeState(snapshot.nodes, nodes),
+        nodes: reconcileNodes(snapshot.nodes, nodes),
       })),
     ),
 
@@ -193,7 +174,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        edges,
+        edges: reconcileEdges(snapshot.edges, edges),
       })),
     ),
 
@@ -201,8 +182,8 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        nodes: mergeRuntimeNodeState(snapshot.nodes, nodes),
-        edges,
+        nodes: reconcileNodes(snapshot.nodes, nodes),
+        edges: reconcileEdges(snapshot.edges, edges),
         meta,
         error: null,
       })),
@@ -221,7 +202,17 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
   fetchGraph: async (lensArg, options) => {
     const lens = lensArg ?? get().lens;
 
-    // Focus lens: client-side filter from topology data.
+    // Plan lens: the kanban board owns its data (plan-data-store fetching
+    // GET /api/v1/plan). Delegating here lets the shared /ws/graph
+    // invalidation path ("plan" in the lens payload) refresh the board
+    // without a second socket.
+    if (lens === "plan") {
+      const { usePlanDataStore } = await import("../../plan/stores/plan-data-store");
+      await usePlanDataStore.getState().fetchBoard({ silent: true, force: true });
+      return;
+    }
+
+    // Focus mode: client-side filter from topology data.
     if (lens === "focus") {
       const topoSnapshot = get().graphsByLens.topology;
       // Ensure topology data is fresh first.
@@ -232,35 +223,19 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       const freshTopo = get().graphsByLens.topology;
       const snoozedKeys = useSnoozeStore.getState().snoozedKeys();
 
-      // Fetch enrichment data (feedback + maturity) so we can detect pending
-      // decisions, workshop-needed, and maturity-ready states.
+      // Focus filtering is lifecycle- and decision-driven. Plan acceptance is
+      // enforced by execution preflight rather than a client maturity score.
       const enrichmentMap = new Map<string, NodeEnrichment>();
-      try {
-        const summary = await backlogService.getBacklogSummary();
-        const feedbackByKey = new Map(
-          (summary.feedback?.items ?? []).map((f) => [`${f.kind}/${f.name}`, f]),
-        );
-        const maturityByKey = new Map(
-          (summary.maturity?.items ?? []).map((m) => [`${m.kind}/${m.name}`, m]),
-        );
-        for (const key of new Set([...feedbackByKey.keys(), ...maturityByKey.keys()])) {
-          const fb = feedbackByKey.get(key);
-          const mat = maturityByKey.get(key);
-          enrichmentMap.set(key, {
-            pendingDecisions: fb?.pending_decisions ?? 0,
-            maturityReady: mat ? (mat.ready ?? null) : null,
-            pendingSynthesis: mat?.pending_synthesis ?? false,
-          });
-        }
-      } catch {
-        // If summary fetch fails, fall back to status-only filtering.
-      }
 
       const filteredNodeIds = new Set<string>();
       const filteredNodes: GraphNode[] = [];
 
       for (const node of freshTopo.nodes) {
         const data = getGraphNodeData(node);
+        // Goals and scenarios are structural context — they have no
+        // attention state of their own. They're added in a second pass
+        // below, pulled in whenever they connect to an attention-worthy item.
+        if (data.entityType === "goal" || data.entityType === "scenario") continue;
         let enrichment: NodeEnrichment | undefined;
         if (data.entityType === "backlog" && "kind" in data && "name" in data) {
           enrichment = enrichmentMap.get(`${data.kind}/${data.name}`);
@@ -279,14 +254,33 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
         }
       }
 
+      // Second pass: pull in structural context nodes (goals, scenarios)
+      // that connect to any attention-worthy item. Goals are targets of
+      // member_of edges; scenarios are targets of "targets" edges. Without this,
+      // focus lens drops the surrounding context and shows bare backlog items.
+      const contextNodeIds = new Set<string>();
+      for (const edge of freshTopo.edges) {
+        if (!filteredNodeIds.has(edge.source)) continue;
+        if (edge.type === "member_of" || edge.type === "targets") {
+          contextNodeIds.add(edge.target);
+        }
+      }
+      for (const node of freshTopo.nodes) {
+        const entityType = getGraphNodeData(node).entityType;
+        if (entityType !== "goal" && entityType !== "scenario") continue;
+        if (!contextNodeIds.has(node.id)) continue;
+        filteredNodeIds.add(node.id);
+        filteredNodes.push(node);
+      }
+
       const filteredEdges = freshTopo.edges.filter(
         (edge) => filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target),
       );
 
       set((state) =>
-        updateLensSnapshot(state, "focus", () => ({
-          nodes: filteredNodes,
-          edges: filteredEdges,
+        updateLensSnapshot(state, "focus", (current) => ({
+          nodes: reconcileNodes(current.nodes, filteredNodes),
+          edges: reconcileEdges(current.edges, filteredEdges),
           meta: freshTopo.meta,
           loading: false,
           error: null,
@@ -323,11 +317,9 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       })),
     );
 
-    const focusNodeId = get().focusNodeId;
     const requestPromise = graphService
       .getGraph(lens, {
         signal: controller.signal,
-        focusNodeId: lens === "operations" ? (focusNodeId ?? undefined) : undefined,
       })
       .then((graph) => {
         if (graphRequestSequence[lens] !== requestId) {
@@ -337,8 +329,8 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
         set((state) =>
           updateLensSnapshot(state, lens, (current) => ({
             ...current,
-            nodes: mergeRuntimeNodeState(current.nodes, graph.nodes),
-            edges: graph.edges,
+            nodes: reconcileNodes(current.nodes, graph.nodes),
+            edges: reconcileEdges(current.edges, graph.edges),
             meta: graph.meta,
             loading: false,
             error: null,

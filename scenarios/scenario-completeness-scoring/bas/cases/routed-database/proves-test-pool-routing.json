@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "name": "routed-score-snapshots",
+    "description": "End-to-end proof that test-genie's routed test-database path works for the score snapshot fleet view: the seed inserts scenario 'routed-smoke-001' into the per-run test pool, the browser opens the live scenario UI, and the fleet table must render that scenario. If the API reads from the primary pool instead of the routed test pool, the assertion fails.",
+    "requirement": "REQ-P2-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "routed-test-db-proof",
+      "seed_required": "true",
+      "seed_keys": "routed_smoke_scenario,routed_smoke_digest",
+      "requirements_json": "[\"REQ-P2-001\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-dashboard",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "scenario-completeness-scoring",
+          "scenario_path": "/?vrooli_test_mode=1",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to SCS dashboard (/)" }
+      }
+    },
+    {
+      "id": "wait-fleet-table",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='scoring-fleet-table']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Fleet table visible" }
+      }
+    },
+    {
+      "id": "assert-routed-scenario-present",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='scoring-fleet-table']",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "routed-smoke-001" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Seeded score snapshot 'routed-smoke-001' was not visible in the fleet table. Check that Playwright attaches X-Vrooli-Test-Mode, TestModeMiddleware is mounted, and the score snapshot repository uses *database.RoutedDB."
+        },
+        "metadata": { "label": "Assert seeded routed scenario is rendered" }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-dashboard",
+      "target": "wait-fleet-table",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-fleet-table",
+      "target": "assert-routed-scenario-present",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

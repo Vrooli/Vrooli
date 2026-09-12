@@ -1,0 +1,43 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Author scenario-specific improvement judgment: approved target references, truthful evidence, priorities, and authority-aware repair routes. Author a matching setpoint-read program when setup scope includes it.",
+  "entry": "SKILL.md",
+  "icon": "gauge",
+  "id": "improve-skill-authoring",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "meta"
+  ],
+  "name": "improve-skill-authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "measures-health validate scenario",
+      "program-runtime bindings unbound",
+      "prompt-manager skill-set validate",
+      "vrooli scenario test"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "program-runtime",
+      "measures-health"
+    ]
+  },
+  "revision": 8,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring",
+    "improve",
+    "self-improvement",
+    "control-loop",
+    "setpoint",
+    "meta-optimization"
+  ],
+  "updatedAt": "2026-09-08T00:00:00Z"
+}

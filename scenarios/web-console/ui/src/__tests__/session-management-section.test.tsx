@@ -1,16 +1,35 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import SessionManagementSection from "../components/settings/SessionManagementSection";
-import type { SessionInfo } from "../lib/api";
+import { strings } from "../consts/strings";
+import type { SessionInfo } from "../api/sessions";
 
 let mockUpdateSessionPolicy: ReturnType<typeof vi.fn>;
+let mockGetArchiveRetention: ReturnType<typeof vi.fn>;
+const { mockGetSessionDefaults, mockUpdateSessionDefaults, mockFetchCapabilities } = vi.hoisted(() => ({
+  mockGetSessionDefaults: vi.fn(),
+  mockUpdateSessionDefaults: vi.fn(),
+  mockFetchCapabilities: vi.fn(),
+}));
 
-vi.mock("../lib/api", async () => {
-  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
+vi.mock("../api/sessions", async () => {
+  const actual = await vi.importActual<typeof import("../api/sessions")>("../api/sessions");
   return {
     ...actual,
     updateSessionPolicy: vi.fn(),
+    getArchiveRetention: vi.fn(),
   };
+});
+
+vi.mock("../api/settings", async () => {
+  const actual = await vi.importActual<typeof import("../api/settings")>("../api/settings");
+  return { ...actual, getSessionDefaults: mockGetSessionDefaults, updateSessionDefaults: mockUpdateSessionDefaults };
+});
+
+vi.mock("../api/capabilities", async () => {
+  const actual = await vi.importActual<typeof import("../api/capabilities")>("../api/capabilities");
+  return { ...actual, fetchCapabilities: mockFetchCapabilities };
 });
 
 vi.mock("../hooks/useCountdown", () => ({
@@ -47,8 +66,12 @@ const makeSession = (id: string): SessionInfo => ({
   created_at: "2026-01-15T14:30:00Z",
   cols: 80,
   rows: 24,
+  backend: "standard",
+  survives_restart: false,
   policy: { mode: "never" },
-  busy: false,
+  origin: "ui",
+  owner: "",
+  display_label: "",
 });
 
 describe("SessionManagementSection", () => {
@@ -58,8 +81,21 @@ describe("SessionManagementSection", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mockStoreState.panes = [];
-    const api = await import("../lib/api");
+    const api = await import("../api/sessions");
     mockUpdateSessionPolicy = api.updateSessionPolicy as ReturnType<typeof vi.fn>;
+    mockGetArchiveRetention = api.getArchiveRetention as ReturnType<typeof vi.fn>;
+    mockGetArchiveRetention.mockResolvedValue({
+      policy: { message_less_age_days: 0, agent_home_age_days: 0, max_bytes: 0 },
+      stats: { entry_count: 0, message_count: 0, transcript_bytes: 0, agent_home_bytes: 0, total_bytes: 0 },
+    });
+    mockGetSessionDefaults.mockResolvedValue({ default_backend: "standard", default_policy: { mode: "never" } });
+    mockUpdateSessionDefaults.mockResolvedValue({});
+    mockFetchCapabilities.mockResolvedValue({
+      session_backends: [
+        { id: "standard", available: true },
+        { id: "persistent", available: true },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -68,7 +104,19 @@ describe("SessionManagementSection", () => {
 
   it("shows empty state when no panes are open", () => {
     render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
-    expect(screen.getByText("No terminals open")).toBeTruthy();
+    expect(screen.getByText(strings.settings.sessionsSection.noTerminalsOpen)).toBeTruthy();
+  });
+
+  it("shows measured archive entry count and total storage", async () => {
+    mockGetArchiveRetention.mockResolvedValueOnce({
+      policy: { message_less_age_days: 7, agent_home_age_days: 30, max_bytes: 0 },
+      stats: { entry_count: 12, message_count: 300, transcript_bytes: 1024, agent_home_bytes: 2048, total_bytes: 3072 },
+    });
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("archive-storage-summary").getAttribute("data-entry-count")).toBe("12");
+      expect(screen.getByTestId("archive-storage-summary").getAttribute("data-total-bytes")).toBe("3072");
+    });
   });
 
   it("renders pane list when panes exist", () => {
@@ -124,5 +172,52 @@ describe("SessionManagementSection", () => {
         duration: "1h",
       });
     });
+  });
+
+  it("loads and saves session defaults", async () => {
+    render(<SessionManagementSection sessions={[]} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    await waitFor(() => expect(screen.getByTestId("session-defaults-backend")).toBeTruthy());
+    fireEvent.change(screen.getByTestId("session-defaults-backend"), { target: { value: "persistent" } });
+    fireEvent.change(screen.getByTestId("session-defaults-policy"), { target: { value: "preset:1h" } });
+
+    await waitFor(() => {
+      expect(mockUpdateSessionDefaults).toHaveBeenCalledWith({ default_backend: "persistent" });
+      expect(mockUpdateSessionDefaults).toHaveBeenCalledWith({
+        default_policy: { mode: "preset", duration: "1h" },
+      });
+    });
+  });
+
+  it("edits pane names and synchronizes color changes", () => {
+    mockStoreState.panes = [{ sessionId: "s1", name: "bash", headerColor: "transparent" }];
+    const sessions = [{ session: makeSession("s1") }];
+    render(<SessionManagementSection sessions={sessions} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "bash" }));
+    const input = screen.getByDisplayValue("bash");
+    fireEvent.change(input, { target: { value: "  renamed  " } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(mockStoreState.renamePaneById).toHaveBeenCalledWith("s1", "renamed");
+
+    fireEvent.click(screen.getByTitle("#ff6b6b"));
+    expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("s1", "#ff6b6b");
+  });
+
+  it("cancels a pane rename and clears an empty edit on blur", () => {
+    mockStoreState.panes = [{ sessionId: "s1", name: "bash", headerColor: "transparent" }];
+    const sessions = [{ session: makeSession("s1") }];
+    render(<SessionManagementSection sessions={sessions} onDeleteSession={onDeleteSession} onRequestClose={onRequestClose} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "bash" }));
+    let input = screen.getByDisplayValue("bash");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(mockStoreState.renamePaneById).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "bash" }));
+    input = screen.getByDisplayValue("bash");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "bash" })).toBeTruthy();
   });
 });

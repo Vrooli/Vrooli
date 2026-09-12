@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.freshness-arc",
+    "name": "FreshnessArc",
+    "kind": "component",
+    "surface": "none",
+    "domain": "data-display",
+    "description": "The board's own pulse: a hairline that drains over a source TTL and refills on fetch, dashed when the reading is cached.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.base-styles",
+        "reason": "Composed from the shared honesty and styling foundations."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Composed from the shared honesty and styling foundations."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "default",
+    "stale"
+  ]
+}

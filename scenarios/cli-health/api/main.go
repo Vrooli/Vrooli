@@ -1,0 +1,227 @@
+package main
+
+import (
+	"context"
+	"log"
+	"path/filepath"
+	"time"
+
+	"cli-health/internal/aisearch"
+	"cli-health/internal/commandref"
+	"cli-health/internal/modules"
+	"cli-health/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
+
+	aisearchpkg "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/measures-go/manifestscan"
+	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
+	_ "modernc.org/sqlite"
+
+	commandH "cli-health/handlers/command"
+	healthH "cli-health/handlers/health"
+	searchH "cli-health/handlers/search"
+	searchcontrolH "cli-health/handlers/searchcontrol"
+	validationH "cli-health/handlers/validation"
+)
+
+func main() {
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "cli-health"}) {
+		return
+	}
+
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "cli-health",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	logger := log.Default()
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
+
+	// The scenario-owned search.json is the single source of truth for the search
+	// descriptor + tuning + tests. Both the boot tuning read and the self-register
+	// push read it, and the config-write control RPC rewrites it, so the path is
+	// resolved once here.
+	searchJSONPath := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "search.json")
+
+	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
+	// the search tuning factors (engine shape, embed recipe, rerank policy, floor
+	// band) — read here at boot. The shared engine (packages/ai-go/search) provides
+	// the embedder + vector store + reconciler + sync loop; LoadConfig supplies
+	// only the OPERATIONAL wiring (Qdrant address, sync cadence, parallelism,
+	// reranker resource endpoints), not the tuning. NewServiceForTuning picks dense
+	// vs hybrid from the tuning DATA, so the engine shape is no longer a code
+	// literal. The CLI_HEALTH_{RERANK_*,EMBED_TASK_PREFIX,RELEVANCE_*} tuning env
+	// vars are no longer consulted — search.json replaces them.
+	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
+	engineDeps := aisearchpkg.EngineDeps{
+		QdrantURL:     searchCfg.QdrantURL,
+		QdrantAPIKey:  searchCfg.QdrantAPIKey,
+		Collection:    aisearch.DefaultCollection,
+		EmbedRole:     searchCfg.EmbedRole,
+		RerankerURL:   searchCfg.RerankerURL,
+		RerankerModel: searchCfg.RerankerModel,
+		RerankRole:    searchCfg.RerankRole,
+	}
+	policyCtx, cancelPolicy := context.WithTimeout(context.Background(), 5*time.Second)
+	engineDeps, err = aisearchpkg.ResolveEngineDepsEmbedding(policyCtx, engineDeps)
+	cancelPolicy()
+	if err != nil {
+		log.Fatalf("resolve cli-health embedding policy: %v", err)
+	}
+	tuning := loadSearchTuning(searchJSONPath, commandsProviderID)
+	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
+	// Index the top-level vrooli CLI alongside scenario CLIs. The
+	// records carry Origin="vrooli"; the validation handler rejects
+	// "vrooli" because no proto contract exists for it.
+	discovery.ExternalCLIs = []aisearch.ExternalCLI{{Name: "vrooli", Binary: "vrooli"}}
+	// NewTunedService assembles the engine FROM the tuning (engine shape, embed
+	// recipe, rerank policy, floor band) and retains the builder so the search
+	// control plane's WriteConfig can re-assemble + re-embed in place when a sweep
+	// changes an index-time factor — no restart. The wiring (Qdrant, reranker
+	// resource endpoints, reconcile cadence) stays in EngineDeps/LoadConfig.
+	aiService := aisearch.NewTunedService(tuning, aisearch.TunedOptions{
+		Discovery:        discovery,
+		Parallelism:      searchCfg.ReconcileParallelism,
+		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
+		EngineDeps:       engineDeps,
+	})
+
+	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
+	// scenario still serves text-fallback search and a degraded status.
+	if err := aiService.EnsureCollection(context.Background()); err != nil {
+		logger.Printf("[cli-health] qdrant collection ensure failed (continuing with degraded search): %v", err)
+	}
+
+	// Sync loop drives periodic reconcile against qdrant. Cancelled by the
+	// api-core server's shutdown context.
+	syncCtx, cancelSync := context.WithCancel(context.Background())
+	// Resolve the reconciler each tick (not bound once) so a live ApplyTuning swap
+	// re-points the loop at the new engine — otherwise the loop would keep
+	// reconciling with the old recipe and the drift hash would undo the apply.
+	syncLoop := aisearchpkg.NewSyncLoopFunc("cli-health", aiService.Reconciler, searchCfg)
+	go syncLoop.Start(syncCtx)
+	// Reconcile once at boot so a newly selected collection layout (for example
+	// the non-destructive dense→hybrid sibling) is usable immediately. The
+	// periodic loop remains the repair path for later drift.
+	go func() {
+		if _, _, err := syncLoop.RunOnce(syncCtx); err != nil {
+			logger.Printf("[cli-health] initial search reconcile failed (continuing degraded): %v", err)
+		}
+	}()
+
+	// The override gate is the OUTER security layer of the query-time override
+	// channel: search-hub's sweep/A-B can vary rerank/floor/shortlist per request,
+	// but only when the request carries the control token search-hub minted for
+	// this provider. The token is cached in memory from the self-registration echo
+	// below; until then Get() returns "" and the gate stays closed. Since
+	// search-hub is the only holder of that token, only its sweep can apply
+	// overrides — no env flag is needed (a public request carries no token and
+	// gets ordinary search).
+	controlToken := searchH.NewTokenHolder()
+	overrideGate := &searchH.OverrideGate{Token: controlToken.Get}
+
+	// The control gate guards the SHARED reindex + config-write plane
+	// (search-hub.v1.control.SearchControlService). It shares the same minted
+	// control token; the token alone gates the mutating verbs. A provider that does
+	// not want to be tuned at all omits its control endpoints in search.json (the
+	// control client then gets ErrNoControlPlane) — tunability is declared in the
+	// SSOT, not toggled by an env var.
+	controlGate := &searchcontrolH.Gate{Token: controlToken.Get}
+
+	// Self-register this scenario's search provider(s) AND their evaluation corpus
+	// with search-hub from the same `.vrooli/search.json` SSOT: the descriptor goes
+	// to the registry, the tests block is mirrored into the eval store as
+	// "<provider_id>.primary" (corpusStoreMirrorsFile — the store is a cache of the
+	// file, healed on every boot). search-hub is an OPTIONAL dependency, so this
+	// runs in the background with bounded retry and degrades gracefully — the
+	// scenario serves search whether or not the hub is up. Both upserts are
+	// idempotent, so re-registering on every boot is safe. The returned control
+	// token is cached so the override gate above can validate it.
+	go searchregister.Register(syncCtx, searchregister.Config{
+		ScenarioID:     "cli-health",
+		SearchFilePath: searchJSONPath,
+		Logger:         logger,
+		OnControlToken: func(_ string, token string) { controlToken.Set(token) },
+		// Echo the cached token on re-registration so a different actor can't hijack
+		// the provider_id. Empty until the first registration completes (in-memory
+		// holder); the hub then treats it as first-contact. Single provider, so the
+		// provider id is irrelevant here.
+		ControlToken: func(string) string { return controlToken.Get() },
+	})
+
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: logger},
+		healthH.Module(db, "cli-health-api", "1.0.0"),
+		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
+		commandH.Module(logger, commandref.Service{Discovery: discovery, Schemas: manifestscan.NewDescriptorSchemaReader(repoRoot)}),
+		searchH.Module(logger, aiService, overrideGate),
+		searchcontrolH.Module(logger, searchcontrolH.Deps{
+			Logger:       logger,
+			Reindexer:    searchcontrolH.ServiceAdapter{Service: aiService},
+			ConfigWriter: searchcontrolH.FileConfigWriter{Path: searchJSONPath},
+			CorpusWriter: searchcontrolH.FileCorpusWriter{Path: searchJSONPath},
+			Gate:         controlGate,
+		}),
+	)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: srv.Handler(),
+		// Test Genie gives the contracts provider a 90s budget when
+		// include_execution=true. The runtime CLI probe can legitimately run
+		// longer than api-core's default 30s write timeout while walking a large
+		// command tree, so keep the server-side ceiling above the client budget.
+		WriteTimeout: 2 * time.Minute,
+		Cleanup: func(ctx context.Context) error {
+			cancelSync()
+			return db.Close()
+		},
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+// commandsProviderID is the provider id cli-health owns in its search.json SSOT.
+const commandsProviderID = "cli-health.commands"
+
+// loadSearchTuning reads the search tuning for a provider from the scenario-owned
+// `.vrooli/search.json` (the SSOT). The file is committed and authoritative, so a
+// missing/malformed file or an absent provider is a fatal boot error — there is
+// no env/code fallback by design (greenfield §0).
+func loadSearchTuning(path, providerID string) aisearchpkg.TuningConfig {
+	file, err := aisearchpkg.LoadSearchFile(path)
+	if err != nil {
+		log.Fatalf("load search tuning: %v", err)
+	}
+	provider, ok := file.Provider(providerID)
+	if !ok {
+		log.Fatalf("load search tuning: provider %q not found in %s", providerID, path)
+	}
+	return provider.ResolvedTuning()
+}
+
+func externalCLINames(clis []aisearch.ExternalCLI) []string {
+	out := make([]string, 0, len(clis))
+	for _, c := range clis {
+		out = append(out, c.Name)
+	}
+	return out
+}

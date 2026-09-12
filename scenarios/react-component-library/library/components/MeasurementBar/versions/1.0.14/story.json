@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='data-display.measurement-bar']"
+        }
+      ],
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy"
+    }
+    ,
+    {"id":"empty","name":"Empty measurement","args":{"value":0,"max":0},"expect":[{"kind":"visible","selector":"[data-testid='data-display.measurement-bar']"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long measurement label","args":{"label":"A deliberately long measurement label that must wrap cleanly"},"expect":[{"kind":"visible","selector":"[data-testid='data-display.measurement-bar']"}],"role":"boundary","mode":"pinned"}
+  ]
+}

@@ -26,11 +26,11 @@ type HTTPClient interface {
 type RealNetworkDialer struct{}
 
 func (RealNetworkDialer) Dial(network, address string) (net.Conn, error) {
-	return net.Dial(network, address)
+	return net.Dial(network, address) // #nosec G704 -- injected adapter is the deliberate network boundary; callers validate destinations
 }
 
 func (RealNetworkDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return net.DialTimeout(network, address, timeout)
+	return net.DialTimeout(network, address, timeout) // #nosec G704 -- injected adapter is the deliberate network boundary; callers validate destinations
 }
 
 func (RealNetworkDialer) Listen(network, address string) (net.Listener, error) {
@@ -47,9 +47,9 @@ type RealHTTPClient struct {
 
 func (c *RealHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	if c.Client == nil {
-		return http.DefaultClient.Do(req)
+		return http.DefaultClient.Do(req) // #nosec G704 -- caller constructs the request under runtime policy
 	}
-	return c.Client.Do(req)
+	return c.Client.Do(req) // #nosec G704 -- injected client executes a caller-validated request
 }
 
 // Ensure RealHTTPClient implements HTTPClient.

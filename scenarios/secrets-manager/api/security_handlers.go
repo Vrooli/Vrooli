@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -6,20 +7,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"secrets-manager-api/internal/envx"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/database"
 )
 
 type SecurityHandlers struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
-func NewSecurityHandlers(db *sql.DB, logger *Logger) *SecurityHandlers {
+func NewSecurityHandlers(db *database.RoutedDB, logger *Logger) *SecurityHandlers {
 	return &SecurityHandlers{db: db, logger: logger}
 }
 
@@ -59,15 +62,15 @@ func (h *SecurityHandlers) SecurityScan(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 // Compliance dashboard handler
 func (h *SecurityHandlers) Compliance(w http.ResponseWriter, r *http.Request) {
-	// Get vault secrets status
-	vaultStatus, err := getVaultSecretsStatus("")
+	// Get credential coverage status
+	credentialStatus, err := getCredentialCoverageStatus("")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get vault status: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to get credential coverage: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -78,8 +81,8 @@ func (h *SecurityHandlers) Compliance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	compliance := calculateComplianceMetrics(vaultStatus, securityResults)
-	response := buildComplianceResponse(compliance, vaultStatus, securityResults)
+	compliance := calculateComplianceMetrics(credentialStatus, securityResults)
+	response := buildComplianceResponse(compliance, credentialStatus, securityResults)
 
 	writeJSON(w, http.StatusOK, response)
 }
@@ -102,7 +105,12 @@ func (h *SecurityHandlers) Vulnerabilities(w http.ResponseWriter, r *http.Reques
 	}
 
 	// In quick mode or test mode, return minimal results
-	if quickMode || os.Getenv("SECRETS_MANAGER_TEST_MODE") == "true" {
+	testMode, err := testModeEnabled(envx.OS{})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid test-mode configuration: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if quickMode || testMode {
 		quickResults := buildQuickSecurityScanResult()
 		response := buildVulnerabilityPayload(quickResults, component, severity, "quick")
 		writeJSON(w, http.StatusOK, response)
@@ -210,5 +218,5 @@ func (h *SecurityHandlers) VulnerabilityStatus(w http.ResponseWriter, r *http.Re
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"id": updatedID, "status": status})
+	_ = json.NewEncoder(w).Encode(map[string]string{"id": updatedID, "status": status})
 }

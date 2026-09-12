@@ -7,11 +7,12 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 ## Quickstart
 
 - Edit `.proto` files in `schemas/`.
-- Regenerate: `cd packages/proto && make generate`
+- Regenerate one schema change: `cd packages/proto && make generate SCENARIO=<scenario>`
+- Deliberate full-fleet rebuild: `cd packages/proto && make generate`
 - Lint: `cd packages/proto && make lint`
-- Breaking check (against `master` by default): `cd packages/proto && make breaking`
+- Breaking check: `cd packages/proto && make breaking SCENARIO=<scenario>`
 - Keep `gen/` in sync with `schemas/` before committing.
-- JSON serialization: BAS endpoints use snake_case; when marshaling with Go's `protojson` set `UseProtoNames: true` (and the equivalent options in TS/Python) so you don't emit lowerCamel JSON.
+- JSON serialization: Vrooli HTTP JSON endpoints use proto field names (`snake_case`) on the wire. Go writers use `protojson.MarshalOptions{UseProtoNames: true}`; TypeScript writers use `toJsonString(..., { useProtoFieldName: true })`. TypeScript `fromJson` accepts both proto field names and JSON/lowerCamel names, so UI readers should parse through generated descriptors instead of manually reshaping payloads.
 
 ## Type-safety guidance
 
@@ -23,10 +24,12 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 
 ## JSON casing & compatibility
 
-- BAS APIs/WebSockets and landing-page APIs expect snake_case JSON. Use proto-name casing when marshaling/unmarshaling:
-  - Go: `protojson.MarshalOptions{UseProtoNames: true}`, `protojson.UnmarshalOptions{DiscardUnknown: true}`
-  - TypeScript: `{ jsonOptions: { useProtoNames: true } }` with `fromJson` / `toJsonString`
+- Vrooli APIs/WebSockets expect proto-name JSON (`snake_case`) for structured proto messages. Use generated descriptors and explicit writer options:
+  - Go: `protojson.MarshalOptions{UseProtoNames: true}`, `protojson.UnmarshalOptions{DiscardUnknown: false}` for ingress that must reject unknown fields.
+  - TypeScript read: `fromJson(MessageSchema, payload, { ignoreUnknownFields: true })`
+  - TypeScript write: `toJsonString(MessageSchema, message, { useProtoFieldName: true })`
   - Python: `json_format.ParseDict(..., preserve_proto_field_name=True)`
+- Multipart/form-data and raw file uploads are transport exceptions: keep file bytes in multipart parts or binary streams, and encode any structured metadata part with proto JSON.
 - `Execution.execution_id` keeps `json_name = "id"` for compatibility with existing BAS responses.
 
 ## Usage examples
@@ -37,11 +40,11 @@ import { fromJson, toJsonString } from '@bufbuild/protobuf';
 import { ExecutionTimelineSchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline_pb';
 
 const timeline = fromJson(ExecutionTimelineSchema, apiPayload, {
-  jsonOptions: { useProtoNames: true },
+  ignoreUnknownFields: true,
 });
 
 const serialized = toJsonString(ExecutionTimelineSchema, timeline, {
-  jsonOptions: { useProtoNames: true },
+  useProtoFieldName: true,
 });
 ```
 
@@ -51,7 +54,7 @@ import { fromJson } from '@bufbuild/protobuf';
 import { GetPricingResponseSchema } from '@vrooli/proto-types/landing-page-react-vite/v1/pricing_pb';
 
 const pricing = fromJson(GetPricingResponseSchema, payload, {
-  jsonOptions: { useProtoNames: true },
+  ignoreUnknownFields: true,
 });
 
 const monthlyPlanMetadata = pricing.pricing?.monthly[0]?.metadataTyped;
@@ -81,11 +84,37 @@ parsed = json_format.ParseDict(
 )
 ```
 
-## Workspace usage
+## Adoption
 
-- Go: scenarios that import `github.com/vrooli/vrooli/packages/proto/gen/go/...` should add a `replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto` (path adjusted per module) so local proto iteration does not depend on a repo-wide `go.work`. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
-- TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and linked via the pnpm workspace.
+- Go: scenarios that import `github.com/vrooli/vrooli/packages/proto/gen/go/...` must add a local `replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto` (path adjusted per module) so proto adoption stays explicit and workspace-independent. Go package names mirror scenario slugs with underscores, e.g. `browser_automation_studio_v1` and `landing_page_react_vite_v1`.
+- TypeScript/JavaScript: `@vrooli/proto-types` is published from `gen/typescript` (ESM JS lives under `js/`) and adopted by isolated consumers via governed local `file:` dependencies rather than a shared workspace.
 - Python: generated under `packages/proto/gen/python`; Tier 1 import support is not guaranteed yet (Protovalidate annotations require additional Python packaging), but you can install this directory in editable mode for local experiments.
+
+## Package Governance
+
+`proto` is a governed schema/contract package that owns its generated outputs, including `@vrooli/proto-types`.
+
+- Scenario-adoptable: yes
+- Allowed consumer classes: `scenario_ui`, `template_ui`, `scenario_test`, `scenario_api`, `scenario_cli`, `template_api`, `template_cli`
+- Supported adoption modes: `file_dependency`, `go_module_replace`, `generated_artifact`
+- Refresh strategy: generate first, then apply consumer-specific refresh behavior
+
+Canonical operator flow:
+
+```bash
+vrooli package info proto
+vrooli package generate proto
+vrooli package dependents proto
+vrooli package refresh proto all --no-restart
+```
+
+`make generate` remains useful for deliberate full-fleet rebuilds when working
+directly inside `packages/proto`, but a routine schema edit should use
+`vrooli package generate --scenario <scenario>` or the equivalent
+`make generate SCENARIO=<scenario>`. Generation is staged and advisory-locked;
+unchanged outputs are not rewritten. Scoped runs include reverse dependents and
+shared imports. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1)
+for the canonical policy.
 
 ## Language support matrix
 
@@ -154,10 +183,14 @@ Each file should include a header with `@layer`, `@domain`, `@imports`, and `@st
 ### 3. Regenerate code
 
 ```bash
-cd packages/proto && make generate
+cd packages/proto && make generate SCENARIO=<scenario>
 ```
 
-This regenerates all language outputs (Go, TypeScript, Python) and creates `py.typed` markers.
+This stages and regenerates all language outputs (Go, TypeScript, Python),
+creates `py.typed` markers, rebuilds the descriptor image, and writes
+per-scenario generation manifests under `gen/manifests/` before publishing only
+changed outputs. Use `go run -mod=mod ./cmd/protogen generate --changed` for
+the routine dependency-aware scoped run, or `--scenario` for an explicit scope.
 
 ### 4. Verify your changes
 
@@ -166,15 +199,15 @@ This regenerates all language outputs (Go, TypeScript, Python) and creates `py.t
 make lint
 
 # Check for breaking changes (against master)
-make breaking
+make breaking SCENARIO=<scenario>
 
-# Ensure generated code is in sync
-make check
+# Ensure committed generated code, descriptors, and manifests are in sync
+make verify-committed-gen
 ```
 
 ### 5. Import in your scenario
 
-- **Go**: Add a `replace` directive or use `go.work` to point to local protos
+- **Go**: Add the required local `replace` directive to point at `packages/proto`
 - **TypeScript**: Import from `@vrooli/proto-types/<scenario-name>/v1/<file>_pb`
 - **Python**: Import from `<scenario_name>.v1.<file>_pb2`
 
@@ -207,7 +240,7 @@ message CreatePlanRequest {
 }
 ```
 
-**Note**: For UI applications, Protovalidate is typically used server-side. Client-side validation (Zod) provides immediate feedback to users, while Protovalidate provides a backend safety net. See the `react-stability` skill in prompt-manager for client-side validation patterns.
+**Note**: For UI applications, Protovalidate is typically used server-side. Client-side validation (Zod) provides immediate feedback to users, while Protovalidate provides a backend safety net. See the `ui-health` skill in prompt-manager for client-side validation patterns.
 
 ## Troubleshooting
 
@@ -219,7 +252,8 @@ message CreatePlanRequest {
 
 ### Breaking change detected
 
-`make breaking` compares against `master` by default. If you intentionally made a breaking change:
+`make breaking SCENARIO=<scenario>` asks proto-health to inspect the selected
+scenario's compatibility impact. If you intentionally made a breaking change:
 
 1. Document the change in your PR
 2. Ensure downstream consumers are updated
@@ -228,11 +262,11 @@ message CreatePlanRequest {
 ### Generated code not updating
 
 ```bash
-# Clean and regenerate
-make clean && make generate
+# Regenerate the affected scenario through the staged pipeline
+make generate SCENARIO=<scenario>
 
 # Verify generated code is committed
-make check
+make verify-committed-gen
 ```
 
 ### TypeScript import issues

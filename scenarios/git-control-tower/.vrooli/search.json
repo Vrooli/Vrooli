@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "git-control-tower.git-provenance",
+      "lifecycle": "experimental",
+      "provider_group": "git-control-tower",
+      "bucket": "BUCKET_KNOW",
+      "type": "git-provenance",
+      "description": "Exact and bounded lexical provenance identities owned by Git Control Tower. Scope must carry repo:<numeric-id>; unavailable Workspace Sandbox evidence is not an empty result.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "git-control-tower",
+          "path": "/api/v1/search/provenance",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"{{scope}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "score_field": "score",
+        "path_field": "relativePath",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {"engine": "lexical", "rerank_enabled": false, "rerank_blend": false, "rerank_shortlist": 20, "floor": {"max_gap": 0, "hard_floor": 0}},
+      "tests": {
+        "minimum": {"reviewed_positive": 0, "negative": 1},
+        "suite_id": "git-control-tower.provenance.contract",
+        "name": "Git Control Tower provenance contract",
+        "description": "Positive cases require an operator-supplied repository scope and live evidence; the initial corpus uses only a negative no-scope case until owner-backed IDs are available.",
+        "cases": [{"id": "missing-repository-scope", "query": "run review.go", "tags": ["contract", "negative"], "expect_no_strong_hit": true, "expect_max_score": 0.0}]
+      }
+    }
+  ]
+}

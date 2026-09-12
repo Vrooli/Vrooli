@@ -26,10 +26,12 @@ type BacklogItem struct {
 	Updated         string   `json:"updated"`
 	Kind            string   `json:"kind"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
+	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 }
 
 type BacklogItemResponse struct {
@@ -40,6 +42,30 @@ type ListBacklogResponse struct {
 	Items []BacklogItem `json:"items"`
 }
 
+type PendingQuestion struct {
+	ID            string `json:"id"`
+	Source        string `json:"source"`
+	ItemKind      string `json:"item_kind"`
+	ItemName      string `json:"item_name"`
+	Title         string `json:"title,omitempty"`
+	Description   string `json:"description,omitempty"`
+	Criticality   string `json:"criticality,omitempty"`
+	ReviewStatus  string `json:"review_status,omitempty"`
+	ReviewComment string `json:"review_comment,omitempty"`
+	ReviewType    string `json:"review_type,omitempty"`
+	ModuleID      string `json:"module_id,omitempty"`
+}
+
+type PendingQuestionsItem struct {
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	Questions []PendingQuestion `json:"questions"`
+}
+
+type PendingQuestionsResponse struct {
+	Items []PendingQuestionsItem `json:"items"`
+}
+
 type CreateBacklogRequest struct {
 	Name            string   `json:"name"`
 	Title           string   `json:"title"`
@@ -48,11 +74,20 @@ type CreateBacklogRequest struct {
 	Tags            []string `json:"tags,omitempty"`
 	Kind            string   `json:"kind"`
 	DependsOn       []string `json:"depends_on,omitempty"`
-	Initiative      string   `json:"initiative,omitempty"`
+	Milestone       string   `json:"milestone,omitempty"`
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 	SpawnedFrom     string   `json:"spawned_from,omitempty"`
+	PlanRef         *PlanRef `json:"plan_ref,omitempty"`
+}
+
+type PlanRef struct {
+	Provider string `json:"provider"`
+	PlanID   string `json:"plan_id"`
+	Slug     string `json:"slug"`
+	Role     string `json:"role"`
 }
 
 type UpdateBacklogRequest struct {
@@ -62,10 +97,12 @@ type UpdateBacklogRequest struct {
 	Priority        *int      `json:"priority,omitempty"`
 	Tags            *[]string `json:"tags,omitempty"`
 	DependsOn       *[]string `json:"depends_on,omitempty"`
-	Initiative      *string   `json:"initiative,omitempty"`
+	Milestone       *string   `json:"milestone,omitempty"`
 	Effort          *string   `json:"effort,omitempty"`
 	AcceptanceAllow *[]string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  *[]string `json:"acceptance_deny,omitempty"`
+	Creates         *[]string `json:"creates,omitempty"`
+	PlanRef         *PlanRef  `json:"plan_ref,omitempty"`
 }
 
 func (r UpdateBacklogRequest) Empty() bool {
@@ -75,10 +112,12 @@ func (r UpdateBacklogRequest) Empty() bool {
 		r.Priority == nil &&
 		r.Tags == nil &&
 		r.DependsOn == nil &&
-		r.Initiative == nil &&
+		r.Milestone == nil &&
 		r.Effort == nil &&
 		r.AcceptanceAllow == nil &&
-		r.AcceptanceDeny == nil
+		r.AcceptanceDeny == nil &&
+		r.Creates == nil &&
+		r.PlanRef == nil
 }
 
 type BacklogFile struct {
@@ -113,6 +152,8 @@ type ProcessPreflight struct {
 	SuggestedSteerProfileID  string                    `json:"suggested_steer_profile_id,omitempty"`
 	BlockingReasons          []string                  `json:"blocking_reasons,omitempty"`
 	BlockingQuestions        []ProcessBlockingQuestion `json:"blocking_questions,omitempty"`
+	ForceableBlockingReasons []string                  `json:"forceable_blocking_reasons,omitempty"`
+	Advisories               []string                  `json:"advisories,omitempty"`
 }
 
 type ProcessBlockingQuestion struct {
@@ -139,6 +180,7 @@ type QueueBacklogResponse struct {
 	BlockingReasons     []BlockingReason `json:"blocking_reasons,omitempty"`
 	UnansweredQuestions int              `json:"unanswered_questions,omitempty"`
 	PendingSuggestions  int              `json:"pending_suggestions,omitempty"`
+	Advisories          []string         `json:"advisories,omitempty"`
 }
 
 type ResearchResponse struct {
@@ -181,6 +223,25 @@ type Scenario struct {
 
 type ScenarioResponse struct {
 	Scenario Scenario `json:"scenario"`
+}
+
+// ScenarioFix mirrors the API ScenarioFix shape returned by
+// GET /scenarios/{name}/context.
+type ScenarioFix struct {
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	Milestone  string  `json:"milestone,omitempty"`
+	Updated    string  `json:"updated,omitempty"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+	Path       string  `json:"path"`
+}
+
+// ScenarioFixHistory mirrors the API ScenarioFixHistory shape.
+type ScenarioFixHistory struct {
+	Active   []ScenarioFix `json:"active"`
+	Archived []ScenarioFix `json:"archived"`
 }
 
 type ListScenariosResponse struct {
@@ -368,17 +429,6 @@ type PromptPreviewResponse struct {
 	Prompt    string            `json:"prompt"`
 }
 
-type PromptSimulateResponse struct {
-	EntryID   string            `json:"entry_id"`
-	Group     string            `json:"group"`
-	UsageType string            `json:"usage_type"`
-	Kind      string            `json:"kind"`
-	Mode      string            `json:"mode,omitempty"`
-	SkillID   string            `json:"skill_id"`
-	Variables map[string]string `json:"variables,omitempty"`
-	Prompt    string            `json:"prompt"`
-}
-
 type AgentManagerStatusResponse struct {
 	Enabled   bool    `json:"enabled"`
 	Available bool    `json:"available"`
@@ -405,19 +455,24 @@ type AgentManagerStopResponse struct {
 	Status  string `json:"status"`
 }
 
-// Initiative represents a named grouping of backlog items.
-type Initiative struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Status      string   `json:"status"`
-	Items       []string `json:"items"`
-	Created     string   `json:"created"`
-	Updated     string   `json:"updated"`
+// Milestone represents a named grouping of backlog items.
+type Milestone struct {
+	Name               string   `json:"name"`
+	Title              string   `json:"title"`
+	Description        string   `json:"description,omitempty"`
+	Status             string   `json:"status"`
+	Mode               string   `json:"mode,omitempty"`
+	Priority           int      `json:"priority,omitempty"`
+	DependsOn          []string `json:"depends_on,omitempty"`
+	Items              []string `json:"items"`
+	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
+	Created            string   `json:"created"`
+	Updated            string   `json:"updated"`
+	SpawnedFrom        string   `json:"spawned_from,omitempty"`
 }
 
-// InitiativeRollup provides aggregated status counts for initiative items.
-type InitiativeRollup struct {
+// MilestoneRollup provides aggregated status counts for milestone items.
+type MilestoneRollup struct {
 	Total      int `json:"total"`
 	Completed  int `json:"completed"`
 	InProgress int `json:"in_progress"`
@@ -425,34 +480,99 @@ type InitiativeRollup struct {
 	Pending    int `json:"pending"`
 }
 
-// InitiativeResponse wraps a single initiative with rollup status.
-type InitiativeResponse struct {
-	Initiative Initiative       `json:"initiative"`
-	Rollup     InitiativeRollup `json:"rollup"`
+// MilestoneResponse wraps a single milestone with rollup status and the
+// deduped scenarios its member items target.
+type MilestoneResponse struct {
+	Milestone       Milestone       `json:"milestone"`
+	Rollup          MilestoneRollup `json:"rollup"`
+	TargetScenarios []string        `json:"target_scenarios,omitempty"`
 }
 
-// ListInitiativesResponse wraps the initiative list endpoint response.
-type ListInitiativesResponse struct {
-	Items []InitiativeResponse `json:"items"`
+// ListMilestonesResponse wraps the milestone list endpoint response.
+type ListMilestonesResponse struct {
+	Items []MilestoneResponse `json:"items"`
 }
 
-type InitiativeCreateRequest struct {
+type MilestoneCreateRequest struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	Status      string   `json:"status,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Items       []string `json:"items,omitempty"`
 }
 
-type InitiativeUpdateRequest struct {
+type MilestoneUpdateRequest struct {
 	Title       *string   `json:"title,omitempty"`
 	Description *string   `json:"description,omitempty"`
 	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 	Items       *[]string `json:"items,omitempty"`
 }
 
-func (r InitiativeUpdateRequest) HasChanges() bool {
-	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil
+func (r MilestoneUpdateRequest) HasChanges() bool {
+	return r.Title != nil || r.Description != nil || r.Status != nil ||
+		r.Priority != nil || r.DependsOn != nil || r.Items != nil
+}
+
+// MilestoneContextItem is the compact member-item view returned inside the
+// milestone context payload.
+type MilestoneContextItem struct {
+	Kind       string   `json:"kind"`
+	Name       string   `json:"name"`
+	Title      string   `json:"title"`
+	Status     string   `json:"status"`
+	Priority   int      `json:"priority"`
+	DependsOn  []string `json:"depends_on,omitempty"`
+	Milestone  string   `json:"milestone,omitempty"`
+	ArchivedAt *string  `json:"archived_at,omitempty"`
+}
+
+// ScenarioContextRollup aggregates completion stats across every item
+// (milestone-assigned or orphan) targeting a scenario.
+type ScenarioContextRollup struct {
+	Total      int `json:"total"`
+	Completed  int `json:"completed"`
+	InProgress int `json:"in_progress"`
+	Failed     int `json:"failed"`
+	Pending    int `json:"pending"`
+	Archived   int `json:"archived"`
+}
+
+// ScenarioContextOrphanItem is a backlog item targeting a scenario but not
+// assigned to any milestone. Orphans signal that a readiness-style umbrella
+// milestone may be warranted.
+type ScenarioContextOrphanItem struct {
+	Kind       string  `json:"kind"`
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+}
+
+// ScenarioContextResponse is the full coverage view for a scenario: every
+// milestone whose items target the scenario, every orphan item targeting
+// the scenario, and a combined completion rollup.
+type ScenarioContextResponse struct {
+	ScenarioName string                      `json:"scenario_name"`
+	Milestones   []MilestoneResponse         `json:"milestones"`
+	OrphanItems  []ScenarioContextOrphanItem `json:"orphan_items"`
+	Rollup       ScenarioContextRollup       `json:"rollup"`
+	Fixes        ScenarioFixHistory          `json:"fixes"`
+}
+
+// MilestoneContextResponse pairs an milestone with its immediate
+// neighborhood for single-call loading by agents and the CLI.
+type MilestoneContextResponse struct {
+	Milestone            Milestone              `json:"milestone"`
+	Rollup               MilestoneRollup        `json:"rollup"`
+	Items                []MilestoneContextItem `json:"items"`
+	UpstreamMilestones   []Milestone            `json:"upstream_milestones"`
+	DownstreamMilestones []Milestone            `json:"downstream_milestones"`
+	TargetScenarios      []string               `json:"target_scenarios,omitempty"`
 }
 
 // Capture represents a quick-capture entry.

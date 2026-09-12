@@ -55,7 +55,7 @@ export function ChatHeader({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
 
-  const chatLabelIds = chat.label_ids || [];
+  const chatLabelIds = chat.label_ids;
   const assignedLabels = labels.filter((l) => chatLabelIds.includes(l.id));
   const availableLabels = labels.filter((l) => !chatLabelIds.includes(l.id));
 
@@ -147,7 +147,7 @@ export function ChatHeader({
         </div>
       </header>
 
-      <RenameDialog open={showRenameDialog} onClose={() => setShowRenameDialog(false)} chatName={chat.name ?? ""} onRename={(name) => onUpdateChat({ name })} />
+      <RenameDialog open={showRenameDialog} onClose={() => setShowRenameDialog(false)} chatName={chat.name} onRename={(name) => onUpdateChat({ name })} />
       <DeleteDialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)} chatName={chat.name} onDelete={onDelete} confirmTestId={chatHeaderTestIds.confirmDeleteButton} />
       <ExportDialog open={showExportDialog} onClose={() => setShowExportDialog(false)} chatId={chat.id} chatName={chat.name} />
     </>

@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.notification-queue",
+    "name": "NotificationQueueFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial notification records with categories, read state, grouping, expiry, actions, and entries whose originating object no longer exists.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "Notification"
+      ]
+    },
+    "recordCount": {
+      "typical": 25,
+      "volume": 3000
+    }
+  },
+  "rationale": "Notifications pointing at deleted objects are the common real-world case and the one that produces broken links in practice."
+}

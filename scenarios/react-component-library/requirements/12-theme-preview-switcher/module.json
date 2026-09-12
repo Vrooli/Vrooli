@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "theme-preview-switcher",
+    "description": "Switch the preview iframe's theme between built-in themes and themes derived from a target scenario's DESIGN.md.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TH-001",
+      "title": "Built-in themes are seeded into the registry and selectable from the UI",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "`builtin_themes` (id, name, tokens_json) is seeded and migrated in place at boot with light, dark, and high-contrast token-contract themes. `ThemesService.ListBuiltinThemes` lists them; `GetBuiltinTheme` returns tokens. Seeding/migration is idempotent.",
+      "tags": ["theme", "registry"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Themes service migration/seed tests cover light, dark, and high-contrast contract tokens; UI ThemeSwitcher and preview bridge tests cover selection and follow-app behavior."
+        }
+      ]
+    },
+    {
+      "id": "TH-002",
+      "title": "Target scenario's DESIGN.md is resolved server-side to normalized JSON",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "`ThemesService.GetThemeFromScenario` (Connect-RPC) reads the named scenario's `DESIGN.md` via the storage resolver (path-traversal-guarded under the adoptions scenarios root), parses the YAML front-matter using the canonical `vrooli-default` schema (colors, typography, rounded, spacing), and returns a flat CSS-custom-property token map (e.g. `--color-primary`, `--rounded-sm`, `--typography-body-md-fontfamily`). Malformed front-matter → ErrInvalidDesignMD (Connect InvalidArgument). The client never builds the URL or parses DESIGN.md directly.",
+      "tags": ["theme", "api"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "internal/themes/design_md_test.go covers ExtractFrontMatter (happy + missing + unclosed) and ParseDesignMDToTheme (flow-verifier fixture, empty-shape rejection, bad-YAML rejection). service_test.go::TestResolveFromScenario_OK + Missing pin the wiring."
+        }
+      ]
+    },
+    {
+      "id": "TH-003",
+      "title": "Preview harness mounts the selected theme as CSS custom properties before render",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "theme",
+      "criticality": "P1",
+      "description": "The Appearance & visual checks menu explains and selects token sources. When a built-in pack or a scenario's server-resolved DESIGN.md theme is selected, the host posts normalized tokens via the bridge. The harness child applies them as CSS custom properties on `:root` before mounting the component, then triggers a re-render; this token axis never changes the color-scheme mode.",
+      "tags": ["theme", "iframe-bridge", "preview"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "handlers/preview/module_test.go::TestModule_HarnessHTML asserts the harness installs the rcl-theme-apply listener and uses documentElement.style.setProperty to apply each token. UI: features/components/ThemeSwitcher.test.tsx covers built-in selection + scenario-resolved Apply, verifying the host posts {type:rcl-theme-apply, themeId, tokens} with the expected token map."
+        }
+      ]
+    }
+  ]
+}

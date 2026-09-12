@@ -2,7 +2,6 @@ package captures
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // Handler holds HTTP handlers for the captures domain.
@@ -36,20 +37,20 @@ func (h *Handler) listCaptures(w http.ResponseWriter, r *http.Request) {
 	scenario := mux.Vars(r)["scenario"]
 	caps, err := h.service.Store().List(scenario)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, caps)
+	httputil.WriteJSON(w, http.StatusOK, caps)
 }
 
 func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
 	scenario := mux.Vars(r)["scenario"]
 	s, err := h.service.Store().Summary(scenario)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, s)
+	httputil.WriteJSON(w, http.StatusOK, s)
 }
 
 func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
@@ -60,10 +61,10 @@ func (h *Handler) serveFile(w http.ResponseWriter, r *http.Request) {
 	path, err := h.service.CaptureFilePath(scenario, captureID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			httputil.WriteJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 	http.ServeFile(w, r, path)
@@ -76,29 +77,29 @@ func (h *Handler) deleteCapture(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.service.DeleteCapture(scenario, captureID); err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			httputil.WriteJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 			return
 		}
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 func (h *Handler) deleteAll(w http.ResponseWriter, r *http.Request) {
 	scenario := mux.Vars(r)["scenario"]
 	if err := h.service.CleanAll(scenario); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
 func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 	scenario := mux.Vars(r)["scenario"]
 	idsParam := r.URL.Query().Get("ids")
 	if idsParam == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ids query parameter is required"})
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "ids query parameter is required"})
 		return
 	}
 
@@ -109,10 +110,10 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 		path, err := h.service.CaptureFilePath(scenario, ids[0])
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
-				writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+				httputil.WriteJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 				return
 			}
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
 		http.ServeFile(w, r, path)
@@ -154,10 +155,4 @@ func (h *Handler) download(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(writer, f)
 		f.Close()
 	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }

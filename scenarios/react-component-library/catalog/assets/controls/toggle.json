@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.toggle",
+    "name": "Toggle",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The two-state pressable with selected semantics, optional icon and label, tooltip integration, and controlled or uncontrolled operation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Variant styling is declared as an enumerable recipe so the implementation is checkable against the catalog."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "non-color-status"
+  ]
+}

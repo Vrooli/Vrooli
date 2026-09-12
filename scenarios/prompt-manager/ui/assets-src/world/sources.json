@@ -1,0 +1,117 @@
+{
+  "kits": {
+    "nature-kit": {
+      "name": "Kenney Nature Kit",
+      "author": "Kenney",
+      "license": "CC0 1.0",
+      "url": "https://kenney.nl/assets/nature-kit",
+      "fetched": "2026-09-02"
+    },
+    "furniture-kit": {
+      "name": "Kenney Furniture Kit",
+      "author": "Kenney",
+      "license": "CC0 1.0",
+      "url": "https://kenney.nl/assets/furniture-kit",
+      "fetched": "2026-09-02"
+    }
+  },
+  "props": {
+    "park": {
+      "desk": "furniture-kit/desk.glb",
+      "bench": "furniture-kit/bench.glb",
+      "table_round": "furniture-kit/tableRound.glb",
+      "log_seat": "nature-kit/log.glb",
+      "campfire": "nature-kit/campfire_logs.glb",
+      "lamp_post": "furniture-kit/lampSquareFloor.glb",
+      "sign_board": "nature-kit/sign.glb",
+      "tree_oak": "nature-kit/tree_oak.glb",
+      "tree_pine": "nature-kit/tree_pineRoundA.glb",
+      "tree_default": "nature-kit/tree_default.glb",
+      "rock_small": "nature-kit/rock_smallA.glb",
+      "bush_round": "nature-kit/plant_bushLarge.glb",
+      "flowers": "nature-kit/flower_purpleA.glb",
+      "stump": "nature-kit/stump_round.glb"
+    },
+    "office": {
+      "desk": "furniture-kit/desk.glb",
+      "chair_desk": "furniture-kit/chairDesk.glb",
+      "table_round": "furniture-kit/tableRound.glb",
+      "chair_lounge": "furniture-kit/loungeChair.glb",
+      "coffee_table": "furniture-kit/tableCoffee.glb",
+      "lamp_floor": "furniture-kit/lampRoundFloor.glb",
+      "display_board": "furniture-kit/televisionModern.glb",
+      "plant_small": "furniture-kit/plantSmall1.glb",
+      "bookcase": "furniture-kit/bookcaseOpen.glb",
+      "side_table": "furniture-kit/sideTable.glb",
+      "rug_round": "furniture-kit/rugRound.glb"
+    }
+  },
+  "proceduralAmbient": {
+    "origin": "Original geometry, shaders and animation curves authored in the Vrooli living-world source. No imported wildlife models, textures, rigs or animation clips.",
+    "rights": "Project source terms apply; these are not assets from the CC0 vendor kits.",
+    "runtimeRecipe": "Construct bounded Three.js geometry once per mounted presenter; derive motion from the shared absolute clock and seeded habitat sites. No external asset fetch or skeletal animation bake.",
+    "families": {
+      "fireflies": {
+        "geometry": "src/world/scene/ambient/Fireflies.tsx",
+        "animation": "src/world/sim/ambient/fireflies.ts",
+        "technique": "Point sprites with a procedural halo; vertical sine motion and glow phase."
+      },
+      "butterflies": {
+        "geometry": "src/world/scene/ambient/Butterflies.tsx",
+        "animation": "src/world/sim/ambient/butterflies.ts",
+        "technique": "Original triangulated wings, body and antennae; vertex-shader flapping and terrain-relative figure-eight flight."
+      },
+      "birds": {
+        "geometry": "src/world/scene/ambient/Butterflies.tsx",
+        "animation": "src/world/sim/ambient/birds.ts",
+        "technique": "Original triangulated wings, body, beak and tail; vertex-shader flap/glide blend and circular habitat routes."
+      },
+      "rabbits": {
+        "geometry": "src/world/scene/ambient/Rabbits.tsx",
+        "animation": "src/world/sim/ambient/rabbits.ts",
+        "technique": "Sixteen scaled low-poly sphere instances per rabbit; absolute-time grazing, nibbling, smooth travel and hop curves."
+      },
+      "fish": {
+        "geometry": "src/world/scene/ambient/Fish.tsx",
+        "animation": "src/world/sim/ambient/fish.ts",
+        "technique": "Scaled low-poly spheres for body, tail, eyes and splash drops; ring geometry for ripple; analytic jump, splash and fade curves."
+      },
+      "sky": {
+        "geometry": "src/world/scene/ambient/SkyEvents.tsx",
+        "animation": "src/world/sim/ambient/schedule.ts",
+        "technique": "Pooled planes with original trail/comet fragment shaders and absolute-time deterministic event schedules."
+      },
+      "celestial": {
+        "geometry": [
+          "src/world/scene/Environment.tsx",
+          "src/world/scene/CelestialSky.tsx",
+          "src/world/scene/starField.ts"
+        ],
+        "animation": [
+          "src/world/config/clock.ts",
+          "src/world/config/celestial.ts"
+        ],
+        "technique": "Original camera-centred sky meshes and point field; procedural gradient/cloud noise, lunar shading and galactic dust band; shared civil-time quiet-hours envelope. No imported sky bitmap beyond the existing reflection HDR."
+      },
+      "squirrels": {
+        "geometry": "src/world/scene/ambient/Squirrels.tsx",
+        "animation": "src/world/sim/ambient/squirrels.ts",
+        "technique": "Nineteen scaled primitive parts per squirrel; bounded exposed-trunk habitats, forage, dart, leap, climb and perch poses sampled from absolute time."
+      },
+      "campfires": {
+        "geometry": "src/world/scene/Campfires.tsx",
+        "animation": "src/world/config/architecture.ts",
+        "technique": "Ten low-poly stones, two crossed procedural flame cards, one ember card and six billboard smoke puffs per hearth. Three instanced draws, shared quiet-hour/weather envelope and world clock. Effect meshes explicitly opt out of furniture collision."
+      }
+    },
+    "qualification": "Source provenance only. Final art approval and combined maximum-load qualification are separate requirements."
+  },
+  "proceduralArchitecture": {
+    "geometry": "src/world/scene/SpaceDetails.tsx",
+    "roofGeometry": "src/world/scene/roofGeometry.ts",
+    "layout": "src/world/sim/layout/spaces.ts",
+    "palette": "src/world/config/architecture.ts",
+    "technique": "Original instanced box and gabled-roof geometry with physical text signs; shared structural boxes drive navigation and rendering; camera/body roof collision uses the rendered triangles.",
+    "license": "Project source terms"
+  }
+}

@@ -1,11 +1,17 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"context"
 	"log"
 
-	"scenario-dependency-analyzer/internal/app"
-	appconfig "scenario-dependency-analyzer/internal/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/modules"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
+	_ "modernc.org/sqlite"
+
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 )
 
 func main() {
@@ -18,11 +24,16 @@ func main() {
 
 	cfg := appconfig.Load()
 
-	db, err := appconfig.InitDatabase(cfg.DatabaseURL)
+	db, err := appconfig.InitDatabase(cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
+
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("Failed to initialize schemas: %v", err)
+	}
+	log.Println("Scenario Dependency Analyzer database schemas initialized")
 
 	if err := app.Run(cfg, db); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

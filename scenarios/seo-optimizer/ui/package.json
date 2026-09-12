@@ -4,9 +4,9 @@
   "description": "Professional SEO analysis and optimization platform UI",
   "main": "server.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "build": "bash -c 'set -e; rm -rf dist && mkdir -p dist && for file in index.html styles.css script.js bridge-init.js; do if [ -f \"$file\" ]; then cp -a \"$file\" dist/; fi; done'"
+    "start": "vrooli lifecycle protect -- node server.js",
+    "dev": "vrooli lifecycle protect -- node server.js",
+    "build": "node scripts/build.mjs"
   },
   "dependencies": {
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
@@ -15,5 +15,6 @@
   },
   "author": "Vrooli Team",
   "license": "MIT",
-  "keywords": []
+  "keywords": [],
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
 }

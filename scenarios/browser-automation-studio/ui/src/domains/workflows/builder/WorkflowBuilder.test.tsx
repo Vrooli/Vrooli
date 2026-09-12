@@ -26,7 +26,7 @@
  * - ✅ Unit tests: NodePalette (NodePalette.test.tsx) - drag-drop preparation logic
  * - ✅ Unit tests: Node components (NavigateNode, ClickNode, etc.) - props/data handling
  * - ✅ Unit tests: Store logic (workflowStore.test.ts) - autosave, undo/redo, persistence
- * - 🔄 Integration tests: Use Browserless-driven workflows for WorkflowBuilder interactions:
+ * - 🔄 Integration tests: Use Playwright-driven workflows for WorkflowBuilder interactions:
  *   * Drag node from palette onto canvas
  *   * Connect nodes by dragging from handles
  *   * Select and delete nodes/edges
@@ -47,48 +47,26 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@/test-utils";
 import userEvent from "@testing-library/user-event";
-import type { Node, Edge } from "reactflow";
-import { selectors } from "@constants/selectors";
+import {
+  createWorkflowBuilderStoreState,
+  createWorkflowEdge,
+  createWorkflowNode,
+  createWorkflowValidationResponse,
+  fetchJsonResponse,
+  installDragEventShim,
+  installFetchMock,
+  type FetchMock,
+} from "@/test-utils";
 
 const useWorkflowStoreMock = vi.hoisted(() => vi.fn());
-const getWindowWithDragEvent = (): Window & { DragEvent?: typeof DragEvent } =>
-  window as Window & { DragEvent?: typeof DragEvent };
 
 vi.mock("@stores/workflowStore", () => ({
   useWorkflowStore: useWorkflowStoreMock,
 }));
 
-if (
-  typeof window !== "undefined" &&
-  typeof getWindowWithDragEvent().DragEvent === "undefined"
-) {
-  class DragEventPolyfill extends Event {
-    dataTransfer: DataTransfer;
-    constructor(
-      type: string,
-      eventInitDict?: DragEventInit & { dataTransfer?: DataTransfer },
-    ) {
-      super(type, eventInitDict);
-      this.dataTransfer =
-        eventInitDict?.dataTransfer ??
-        ({
-          dropEffect: "move",
-          effectAllowed: "all",
-          files: [] as unknown as FileList,
-          items: [] as unknown as DataTransferItemList,
-          types: [],
-          setData: () => {},
-          getData: () => "",
-          clearData: () => {},
-          setDragImage: () => {},
-        } as DataTransfer);
-    }
-  }
-  getWindowWithDragEvent().DragEvent = DragEventPolyfill as typeof DragEvent;
-}
+installDragEventShim();
 
 // Mock react-hot-toast
 vi.mock("react-hot-toast", () => ({
@@ -108,152 +86,13 @@ vi.mock("@utils/logger", () => ({
   },
 }));
 
-// Mock Monaco Editor
-vi.mock("@monaco-editor/react", () => ({
-  default: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (value?: string) => void;
-  }) => (
-    <textarea
-      data-testid={selectors.workflowBuilder.monacoEditor}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
-}));
-
-// Mock ReactFlow with minimal implementation
-const mockUseReactFlow = vi.fn(() => ({
-  project: vi.fn((pos: { x: number; y: number }) => pos),
-  zoomIn: vi.fn(),
-  zoomOut: vi.fn(),
-  fitView: vi.fn(),
-  getNodes: vi.fn(() => []),
-  getEdges: vi.fn(() => []),
-  setNodes: vi.fn(),
-  setEdges: vi.fn(),
-}));
-
-const mockUseNodesState = vi.fn((initialNodes: Node[]) => {
-  return useState(initialNodes);
-});
-
-const mockUseEdgesState = vi.fn((initialEdges: Edge[]) => {
-  return useState(initialEdges);
-});
-
-type MockReactFlowProps = {
-  children?: React.ReactNode;
-  onDrop?: React.DragEventHandler<HTMLDivElement>;
-  onDragOver?: React.DragEventHandler<HTMLDivElement>;
-  nodes?: Node[];
-  edges?: Edge[];
-};
-
-vi.mock("reactflow", () => {
-  const MockReactFlow = ({
-    children,
-    onDrop,
-    onDragOver,
-    nodes,
-    edges,
-  }: MockReactFlowProps) => (
-    <div
-      data-testid={selectors.workflowBuilder.canvas.reactFlow}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-      data-nodes-count={nodes?.length || 0}
-      data-edges-count={edges?.length || 0}
-    >
-      {children}
-      {nodes?.map((node: Node) => (
-        <div
-          key={node.id}
-          data-testid={`node-${node.id}`}
-          data-node-type={node.type}
-        >
-          {node.data?.label || node.type}
-        </div>
-      ))}
-    </div>
-  );
-
-  return {
-    __esModule: true,
-    default: MockReactFlow,
-    ReactFlow: MockReactFlow,
-    ReactFlowProvider: ({ children }: { children: React.ReactNode }) => (
-      <div>{children}</div>
-    ),
-    MiniMap: () => <div data-testid={selectors.workflowBuilder.canvas.minimap} />,
-    Background: () => <div data-testid={selectors.app.background} />,
-    BackgroundVariant: { Dots: "dots" },
-    MarkerType: { ArrowClosed: "arrowclosed" },
-    ConnectionMode: { Loose: "loose" },
-    useReactFlow: mockUseReactFlow,
-    useNodesState: mockUseNodesState,
-    useEdgesState: mockUseEdgesState,
-    addEdge: vi.fn((connection, edges) => [
-      ...edges,
-      { ...connection, id: `edge-${Date.now()}` },
-    ]),
-  };
-});
-
-// Test data builders
-const createMockNode = (overrides: Partial<Node> = {}): Node => ({
-  id: `node-${Date.now()}`,
-  type: "navigate",
-  position: { x: 100, y: 100 },
-  data: { label: "Navigate" },
-  ...overrides,
-});
-
-const createMockEdge = (overrides: Partial<Edge> = {}): Edge => ({
-  id: `edge-${Date.now()}`,
-  source: "node-1",
-  target: "node-2",
-  ...overrides,
-});
-
-const createBaseStoreState = () => ({
-  nodes: [],
-  edges: [],
-  workflows: [],
-  currentWorkflow: { id: "workflow-1", name: "Test Workflow" },
-  isDirty: false,
-  hasVersionConflict: false,
-  updateWorkflow: vi.fn(),
-  scheduleAutosave: vi.fn(),
-  cancelAutosave: vi.fn(),
-  loadWorkflows: vi.fn().mockResolvedValue([]),
-});
-
-const mockValidationResponse = () => ({
-  valid: true,
-  errors: [],
-  warnings: [],
-  stats: {
-    node_count: 0,
-    edge_count: 0,
-    selector_count: 0,
-    unique_selector_count: 0,
-    element_wait_count: 0,
-    has_metadata: false,
-    has_execution_viewport: false,
-  },
-  schema_version: "test",
-  checked_at: new Date().toISOString(),
-  duration_ms: 1,
-});
+vi.mock("@monaco-editor/react", async () => await import("@/test-utils/mocks/monaco"));
+vi.mock("reactflow", async () => await import("@/test-utils/mocks/reactflow"));
 
 const applyWorkflowStoreState = (
-  overrides?: Partial<ReturnType<typeof createBaseStoreState>>,
+  overrides?: Partial<ReturnType<typeof createWorkflowBuilderStoreState>>,
 ) => {
-  const state = { ...createBaseStoreState(), ...overrides };
+  const state = { ...createWorkflowBuilderStoreState(), ...overrides };
   useWorkflowStoreMock.mockImplementation(
     <T,>(selector?: (s: typeof state) => T) =>
       selector ? selector(state) : (state as unknown as T),
@@ -264,29 +103,21 @@ const applyWorkflowStoreState = (
 const importWorkflowBuilder = async () =>
   (await import("./WorkflowBuilder")).default;
 
-const originalFetch = global.fetch;
-const globalWithFetch = global as typeof globalThis & { fetch?: typeof fetch };
+let fetchMock: FetchMock;
 
 describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalWithFetch.fetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockValidationResponse()),
-      }),
-    );
+    fetchMock = installFetchMock();
+    fetchMock.mockResolvedValue(fetchJsonResponse(createWorkflowValidationResponse()));
     applyWorkflowStoreState();
   });
 
   afterEach(() => {
+    cleanup();
     useWorkflowStoreMock.mockReset();
     vi.restoreAllMocks();
-    if (originalFetch) {
-      global.fetch = originalFetch;
-    } else {
-      delete globalWithFetch.fetch;
-    }
+    vi.unstubAllGlobals();
   });
 
   describe("Basic Rendering", () => {
@@ -297,7 +128,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
       expect(screen.getByTestId("react-flow-canvas")).toBeInTheDocument();
       expect(screen.getByTestId("minimap")).toBeInTheDocument();
       expect(screen.getByTestId("background")).toBeInTheDocument();
-    });
+    }, 15_000);
 
     it("renders with empty canvas when no workflow loaded [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       applyWorkflowStoreState({ currentWorkflow: null });
@@ -312,8 +143,8 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
 
     it("renders existing nodes from store [REQ:BAS-WORKFLOW-BUILDER-CORE]", async () => {
       const mockNodes = [
-        createMockNode({ id: "node-1", type: "navigate" }),
-        createMockNode({ id: "node-2", type: "click" }),
+        createWorkflowNode({ id: "node-1", type: "navigate" }),
+        createWorkflowNode({ id: "node-2", type: "click" }),
       ];
       applyWorkflowStoreState({ nodes: mockNodes });
 
@@ -358,9 +189,9 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
     });
 
     it("displays workflow JSON in code view [REQ:BAS-WORKFLOW-BUILDER-CODE-VIEW]", async () => {
-      const mockNodes = [createMockNode({ id: "node-1", type: "navigate" })];
+      const mockNodes = [createWorkflowNode({ id: "node-1", type: "navigate" })];
       const mockEdges = [
-        createMockEdge({ id: "edge-1", source: "node-1", target: "node-2" }),
+        createWorkflowEdge({ id: "edge-1", source: "node-1", target: "node-2" }),
       ];
       applyWorkflowStoreState({ nodes: mockNodes, edges: mockEdges });
 
@@ -451,10 +282,24 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
 
       fireEvent(canvas, dropEvent);
 
-      // Note: Due to ReactFlow mocking, we can't fully verify node creation in DOM
-      // But we can verify the drop event is handled
-      expect(canvas).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '1');
+        expect(screen.getByTestId('toolbar-undo-button')).toBeEnabled();
+        expect(screen.getByTestId(/node-node-/)).toHaveClass('workflow-node--navigate');
+      });
+
+      await userEvent.setup().click(screen.getByTestId('toolbar-undo-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '0');
+        expect(screen.getByTestId('toolbar-redo-button')).toBeEnabled();
+      });
+
+      await userEvent.setup().click(screen.getByTestId('toolbar-redo-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('react-flow-canvas')).toHaveAttribute('data-nodes-count', '1');
+      });
     });
+
   });
 
   describe("Autosave Integration", () => {
@@ -536,7 +381,7 @@ describe("WorkflowBuilder [REQ:BAS-WORKFLOW-BUILDER-CORE]", () => {
    * - Selection state tracking
    * - Integration test environment with real ReactFlow instance
    *
-   * Recommendation: Test these behaviors at integration level with Browserless workflows
+   * Recommendation: Test these behaviors at integration level with Playwright workflows
    * or with more sophisticated ReactFlow testing utilities.
    */
 });

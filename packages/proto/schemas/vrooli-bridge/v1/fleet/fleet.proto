@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.fleet;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet;fleet_v1";
+
+// =============================================================================
+// FLEET DOMAIN — fleet-wide version pin / roll (OT-P1-001)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the FleetService: the owner pins the WHOLE fleet (or a
+// named subset) to one target git revision in a single operation, instead of
+// hand-running `provision sync` per node. A RollFleet enumerates the eligible
+// nodes, dispatches a privileged provisioning op to each (delegating to the
+// provision domain — fleet NEVER reimplements provisioning), and records one
+// durable Rollout with a per-node result so the operator sees, at a glance,
+// which nodes were dispatched and which were skipped (and why).
+//
+// Protocol-compatibility gating (OT-P1-001 "keep the fleet coherent"): a node
+// flagged NEEDS_UPDATE / INCOMPATIBLE by the channel handshake is recorded as a
+// SKIPPED result with the reason, not silently mis-driven. An offline or
+// revoked node is likewise skipped with its reason. Each dispatched node gets a
+// provisioning op id the operator blocks on with `provision wait` — the rollout
+// is the fan-out + the per-node ledger, not a second op-lifecycle engine.
+//
+// Dry-run: RollFleet honours X-Dry-Run. It enumerates + classifies every node
+// and returns the per-node results it WOULD dispatch, but creates no rollout,
+// no provisioning op, and pushes nothing.
+//
+// Consumed by:
+//   - API: handlers/fleet/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/fleet/handlers.go via the generated Connect-Go client.
+// =============================================================================
+
+// RolloutStatus is a fleet roll's aggregate disposition, derived from its
+// per-node results at dispatch time.
+enum RolloutStatus {
+  ROLLOUT_STATUS_UNSPECIFIED = 0;
+
+  // Every eligible node was dispatched a provisioning op (none failed to
+  // dispatch). Per-node ops still run asynchronously; the operator waits on
+  // each.
+  ROLLOUT_STATUS_DISPATCHED = 1;
+
+  // Some eligible nodes were dispatched and some failed to dispatch (e.g. a
+  // node dropped between enumeration and push), or some were skipped.
+  ROLLOUT_STATUS_PARTIAL = 2;
+
+  // No node was dispatched (every node was skipped or failed). Nothing was
+  // rolled.
+  ROLLOUT_STATUS_FAILED = 3;
+}
+
+// NodeRolloutDisposition is the per-node outcome of a RollFleet at dispatch
+// time.
+enum NodeRolloutDisposition {
+  NODE_ROLLOUT_DISPOSITION_UNSPECIFIED = 0;
+
+  // A provisioning op was created and pushed to the node (op_id is set).
+  NODE_ROLLOUT_DISPOSITION_DISPATCHED = 1;
+
+  // The node holds no dial-out channel; nothing was dispatched.
+  NODE_ROLLOUT_DISPOSITION_SKIPPED_OFFLINE = 2;
+
+  // The node's agent protocol is NEEDS_UPDATE / INCOMPATIBLE; it is flagged and
+  // excluded rather than mis-driven.
+  NODE_ROLLOUT_DISPOSITION_SKIPPED_NEEDS_UPDATE = 3;
+
+  // The node is revoked; it can be provisioned no further.
+  NODE_ROLLOUT_DISPOSITION_SKIPPED_REVOKED = 4;
+
+  // The provisioning op could not be dispatched (a transient delivery/validation
+  // failure); detail carries the reason.
+  NODE_ROLLOUT_DISPOSITION_FAILED = 5;
+
+  // The node was onboarded from the control plane's working tree (dirty
+  // provenance), so it is pinned to no fetchable commit and a revision roll
+  // cannot converge it. It is excluded and flagged needs-reprovision; re-onboard
+  // it in pinned mode (or provision it to a pushed revision) to make it rollable.
+  NODE_ROLLOUT_DISPOSITION_SKIPPED_WORKING_TREE = 6;
+}
+
+// NodeRolloutResult is one node's line in a rollout's ledger.
+message NodeRolloutResult {
+  string node_id = 1;
+
+  NodeRolloutDisposition disposition = 2;
+
+  // Set when disposition == DISPATCHED: the provisioning op id to wait on.
+  string op_id = 3;
+
+  // Human-readable detail (the skip reason or the dispatch error).
+  string detail = 4;
+}
+
+// Rollout is the durable, server-owned record of one RollFleet.
+message Rollout {
+  // Server-owned rollout id.
+  string id = 1;
+
+  // The git revision every eligible node is being rolled to.
+  string target_revision = 2;
+
+  // Aggregate disposition derived from the per-node results.
+  RolloutStatus status = 3;
+
+  // Counts, for an at-a-glance summary without walking results.
+  int32 total_nodes = 4;
+  int32 dispatched = 5;
+  int32 skipped = 6;
+  int32 failed = 7;
+
+  google.protobuf.Timestamp created_at = 8;
+}
+
+service FleetService {
+  // RollFleet pins the fleet (or the named subset) to target_revision: it
+  // enumerates the eligible nodes, classifies each (online + compatible +
+  // not-revoked → dispatch; otherwise skip with a reason), dispatches a
+  // privileged provisioning op to each eligible node, and records a durable
+  // Rollout with the per-node ledger. Owner-gated. Honours X-Dry-Run. The
+  // response carries the rollout id and the per-node results; the operator then
+  // blocks on each dispatched op with `provision wait`.
+  rpc RollFleet(RollFleetRequest) returns (RollFleetResponse);
+
+  // GetRollout returns one rollout by id with its full per-node ledger.
+  // Owner-gated.
+  rpc GetRollout(GetRolloutRequest) returns (GetRolloutResponse);
+
+  // ListRollouts returns rollouts newest-first. Owner-gated.
+  rpc ListRollouts(ListRolloutsRequest) returns (ListRolloutsResponse);
+}
+
+message RollFleetRequest {
+  // The git revision to bring every eligible node to.
+  string target_revision = 1;
+
+  // Optional explicit node subset (registry ids). Empty rolls every registered,
+  // non-revoked node.
+  repeated string node_ids = 2;
+
+  // Per-node provisioning wall-clock budget passed through to each op. 0 uses
+  // the provision domain's default.
+  int64 timeout_seconds = 3;
+}
+
+message RollFleetResponse {
+  // The server-owned rollout id. Empty on a dry-run.
+  string rollout_id = 1;
+
+  // True when X-Dry-Run short-circuited: every node was classified but no
+  // rollout/op was created and nothing was pushed.
+  bool dry_run = 2;
+
+  RolloutStatus status = 3;
+
+  // The per-node ledger (also persisted on the rollout unless dry-run).
+  repeated NodeRolloutResult results = 4;
+}
+
+message GetRolloutRequest {
+  string id = 1;
+}
+
+message GetRolloutResponse {
+  Rollout rollout = 1;
+  repeated NodeRolloutResult results = 2;
+}
+
+message ListRolloutsRequest {
+  // Optional cap (0 = server default).
+  int32 limit = 1;
+}
+
+message ListRolloutsResponse {
+  repeated Rollout rollouts = 1;
+}

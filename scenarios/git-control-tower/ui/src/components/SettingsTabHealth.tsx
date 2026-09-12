@@ -3,13 +3,28 @@ import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronRight, Info, X } 
 import { Button } from "./ui/button";
 import { useGitignoreHealth, useGitignoreMove, useGroupingRules } from "../lib/hooks";
 import type { GitignoreSuggestion } from "../lib/api";
+import { TrackedBinariesSection } from "./SettingsTabTrackedBinaries";
 
 interface SettingsTabHealthProps {
   isMobile: boolean;
   repoId?: string | null;
 }
 
+/**
+ * The Health tab hosts every repository-hygiene check. Sections are independent:
+ * the .gitignore analysis needs grouping rules configured, but the tracked-binary
+ * scan does not, so they must not share an early return.
+ */
 export function SettingsTabHealth({ isMobile, repoId }: SettingsTabHealthProps) {
+  return (
+    <div className="space-y-8">
+      <GitignoreHealthSection isMobile={isMobile} repoId={repoId} />
+      <TrackedBinariesSection isMobile={isMobile} repoId={repoId} />
+    </div>
+  );
+}
+
+function GitignoreHealthSection({ isMobile, repoId }: SettingsTabHealthProps) {
   const healthQuery = useGitignoreHealth(repoId);
   const moveMutation = useGitignoreMove(repoId);
   const groupingRulesQuery = useGroupingRules(repoId);

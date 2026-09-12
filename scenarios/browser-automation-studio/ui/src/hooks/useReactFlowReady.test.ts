@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { ReactFlowInstance } from 'reactflow';
+import { createReactFlowViewport } from '@/test-utils';
 import { useReactFlowReady } from './useReactFlowReady';
 
 // Mock the logger to avoid console noise
@@ -37,7 +38,7 @@ describe('useReactFlowReady', () => {
   it('returns false when not in visual mode', () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 100, zoom: 0.5 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 100, y: 100, zoom: 0.5 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -66,7 +67,7 @@ describe('useReactFlowReady', () => {
   it('returns true when instance is ready with non-default viewport', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 50, zoom: 0.8 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport()),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -88,7 +89,7 @@ describe('useReactFlowReady', () => {
   it('waits for viewport to change from default for non-empty workflows', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 }), // Default viewport
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(
@@ -108,7 +109,7 @@ describe('useReactFlowReady', () => {
     expect(result.current).toBe(false);
 
     // Simulate fitView completing
-    mockInstance.getViewport = vi.fn().mockReturnValue({ x: 150, y: 100, zoom: 0.7 });
+    mockInstance.getViewport = vi.fn().mockReturnValue(createReactFlowViewport({ x: 150, y: 100, zoom: 0.7 }));
 
     await act(async () => {
       vi.advanceTimersByTime(200);
@@ -120,7 +121,7 @@ describe('useReactFlowReady', () => {
   it('forces ready state after timeout', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 0, y: 0, zoom: 1 }), // Stays default
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport({ x: 0, y: 0, zoom: 1 })),
     } as unknown as ReactFlowInstance;
 
     const { result } = renderHook(() =>
@@ -145,7 +146,7 @@ describe('useReactFlowReady', () => {
   it('resets ready state when workflow changes', async () => {
     const mockInstance = {
       project: vi.fn(),
-      getViewport: vi.fn().mockReturnValue({ x: 100, y: 50, zoom: 0.8 }),
+      getViewport: vi.fn().mockReturnValue(createReactFlowViewport()),
     } as unknown as ReactFlowInstance;
 
     const { result, rerender } = renderHook(

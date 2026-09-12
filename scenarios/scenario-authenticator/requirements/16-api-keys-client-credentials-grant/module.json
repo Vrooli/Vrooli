@@ -1,0 +1,63 @@
+{
+  "description": "Hashed API keys and a client-credentials grant let machine/service principals authenticate without a human session.",
+  "module_id": "MOD-P1-016",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-007",
+        "REQ-P0-009",
+        "REQ-P1-001"
+      ],
+      "description": "Service accounts must be able to authenticate without a human session using either hashed API keys or an OAuth2 client-credentials grant. API keys are generated as cryptographically random strings, displayed once, then stored only as an Argon2id hash. Client-credentials clients are registered per realm with a client ID and secret. Both credential types issue short-lived access tokens with explicitly assigned roles and scopes. API key and client operations are audited.",
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "not_implemented",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Peer-credential machine binding and the owner-only token-file fallback cover the principals in scope; a full apikeys domain is intentionally excluded.",
+      "revisit_trigger": "A third-party integration requires client-credentials authentication without a linked machine or owner session.",
+      "title": "API Keys and Client-Credentials Grant for Machine Principals",
+      "validation": [
+        {
+          "notes": "api/internal/apikey/apikey_test.go: generate API key, verify the returned plaintext matches the stored hash; verify wrong key fails; verify correct key issues a token",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/apikey/apikey_test.go: API key is shown in plaintext only at creation time; subsequent reads return only the key ID and metadata, never the secret",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/apikey/apikey_e2e_test.go: create API key via admin RPC, use it to call an authenticated endpoint → 200 with token; rotate (revoke + create new) → old key rejected, new key accepted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/client_credentials_e2e_test.go: register client, POST client-credentials grant with client ID + secret → access token issued with correct roles; use token on a protected endpoint → 200",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/admin/api_key_management_test: admin creates an API key for a service account, copies the displayed secret, and uses it in a curl command to obtain a token; verifies revocation removes access",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "API Keys + Client-Credentials Grant"
+}

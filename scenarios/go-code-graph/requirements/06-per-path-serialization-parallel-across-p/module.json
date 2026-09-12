@@ -1,0 +1,100 @@
+{
+  "description": "Two concurrent `Extract` calls for the same `module_path` serialize through an in-process queue. Calls for different paths run in parallel. The same rule applies to `Rewrite` apply operations on the same path.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-003"
+      ],
+      "description": "The system must enforce that two concurrent Extract calls for the same module_path are serialized through an in-process per-path mutex/queue, ensuring only one extraction runs at a time per path. Concurrent Extract calls for different paths must run in parallel with no artificial serialization between them. The same serialization rule applies to Rewrite apply operations on the same path. This behavior must be implemented at the scenario service layer, not at the transport layer.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Per-Path Serialization with Cross-Path Parallelism",
+      "validation": [
+        {
+          "notes": "Test that a per-path lock is acquired before extraction begins and released after completion",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that two goroutines calling Extract on the same path are serialized (second blocks until first completes)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that two goroutines calling Extract on different paths run concurrently (both in-flight simultaneously)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that the per-path lock map does not leak entries after extraction completes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test Rewrite apply serialization: two concurrent apply calls on the same path serialize correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent integration test: 10 goroutines call Extract on the same fixture path; all return identical graphs; no data races (run with -race flag)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent integration test: 10 goroutines call Extract on 5 different fixture paths; extractions for different paths overlap in time",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Concurrent Rewrite apply test: two apply calls on the same path do not corrupt filesystem state",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parallel extraction across 5 distinct paths completes faster than 5 sequential extractions (demonstrating actual parallelism)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No data races detected by Go race detector under concurrent load across same and different paths",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "System remains stable and produces correct results under sustained concurrent extraction workload",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Per-Path Serialization, Parallel Across Paths"
+}

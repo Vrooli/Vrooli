@@ -1,7 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { create } from '@bufbuild/protobuf';
+import { ExecutionSchema } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
+import { ExecutionStatus } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
+import { ListExecutionsResponseSchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 
 vi.mock('@/config', () => ({
   getConfig: vi.fn(() => Promise.resolve({ API_URL: 'http://localhost:8080' })),
+}));
+
+const listExecutionsMock = vi.fn();
+
+vi.mock('@/api/executions', () => ({
+  executionsClient: {
+    listExecutions: (...args: unknown[]) => listExecutionsMock(...args),
+  },
 }));
 
 import { fetchExecutionsList } from './executionApi';
@@ -9,37 +21,26 @@ import { fetchExecutionsList } from './executionApi';
 describe('executionApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
   });
 
   it('returns a validated execution list', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        executions: [
-          {
-            execution_id: 'exec-1',
-            workflow_id: 'workflow-1',
-            status: 'running',
-            started_at: '2024-01-01T00:00:00.000Z',
-          },
-        ],
-      }),
-    } as Response);
+    listExecutionsMock.mockResolvedValueOnce(create(ListExecutionsResponseSchema, {
+      executions: [create(ExecutionSchema, {
+        executionId: 'exec-1',
+        workflowId: 'workflow-1',
+        status: ExecutionStatus.RUNNING,
+      })],
+    }));
 
     const executions = await fetchExecutionsList(5);
     expect(executions).toHaveLength(1);
     expect(executions[0]?.execution_id).toBe('exec-1');
+    expect(listExecutionsMock).toHaveBeenCalledWith(expect.objectContaining({ limit: 5 }));
   });
 
-  it('throws when execution list validation fails', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        executions: [{ execution_id: 42 }],
-      }),
-    } as Response);
+  it('propagates typed transport failures', async () => {
+    listExecutionsMock.mockRejectedValueOnce(new Error('transport unavailable'));
 
-    await expect(fetchExecutionsList()).rejects.toThrow('Invalid ExecutionsList response');
+    await expect(fetchExecutionsList()).rejects.toThrow('transport unavailable');
   });
 });

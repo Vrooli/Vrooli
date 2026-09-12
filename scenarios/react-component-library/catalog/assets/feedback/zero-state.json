@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.zero-state",
+    "name": "ZeroState",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "feedback",
+    "description": "The first-use composition that teaches what the surface is for, reduces setup ambiguity, and guides the user to create their first meaningful object.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.empty-state",
+        "reason": "Structure and action treatment are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "empty"
+  ]
+}

@@ -1,7 +1,9 @@
 import datetime
 
+from buf.validate import validate_pb2 as _validate_pb2
+from google.protobuf import empty_pb2 as _empty_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from scenario_to_desktop.v1.base import shared_pb2 as _shared_pb2
+from scenario_to_desktop.v1.shared import common_pb2 as _common_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -147,15 +149,15 @@ class PlatformValidation(_message.Message):
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     TOOLS_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     MISSING_TOOLS_FIELD_NUMBER: _ClassVar[int]
-    platform: _shared_pb2.Platform
+    platform: _common_pb2.Platform
     valid: bool
     enabled: bool
     certificate: CertificateInfo
-    errors: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ValidationError]
-    warnings: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ValidationWarning]
+    errors: _containers.RepeatedCompositeFieldContainer[_common_pb2.ValidationError]
+    warnings: _containers.RepeatedCompositeFieldContainer[_common_pb2.ValidationWarning]
     tools_available: bool
     missing_tools: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, platform: _Optional[_Union[_shared_pb2.Platform, str]] = ..., valid: _Optional[bool] = ..., enabled: _Optional[bool] = ..., certificate: _Optional[_Union[CertificateInfo, _Mapping]] = ..., errors: _Optional[_Iterable[_Union[_shared_pb2.ValidationError, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[_shared_pb2.ValidationWarning, _Mapping]]] = ..., tools_available: _Optional[bool] = ..., missing_tools: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., valid: _Optional[bool] = ..., enabled: _Optional[bool] = ..., certificate: _Optional[_Union[CertificateInfo, _Mapping]] = ..., errors: _Optional[_Iterable[_Union[_common_pb2.ValidationError, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[_common_pb2.ValidationWarning, _Mapping]]] = ..., tools_available: _Optional[bool] = ..., missing_tools: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SigningValidationResult(_message.Message):
     __slots__ = ("valid", "signing_enabled", "platforms", "errors", "warnings", "validated_at")
@@ -175,10 +177,10 @@ class SigningValidationResult(_message.Message):
     valid: bool
     signing_enabled: bool
     platforms: _containers.MessageMap[str, PlatformValidation]
-    errors: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ValidationError]
-    warnings: _containers.RepeatedCompositeFieldContainer[_shared_pb2.ValidationWarning]
+    errors: _containers.RepeatedCompositeFieldContainer[_common_pb2.ValidationError]
+    warnings: _containers.RepeatedCompositeFieldContainer[_common_pb2.ValidationWarning]
     validated_at: _timestamp_pb2.Timestamp
-    def __init__(self, valid: _Optional[bool] = ..., signing_enabled: _Optional[bool] = ..., platforms: _Optional[_Mapping[str, PlatformValidation]] = ..., errors: _Optional[_Iterable[_Union[_shared_pb2.ValidationError, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[_shared_pb2.ValidationWarning, _Mapping]]] = ..., validated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, valid: _Optional[bool] = ..., signing_enabled: _Optional[bool] = ..., platforms: _Optional[_Mapping[str, PlatformValidation]] = ..., errors: _Optional[_Iterable[_Union[_common_pb2.ValidationError, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[_common_pb2.ValidationWarning, _Mapping]]] = ..., validated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class PlatformStatus(_message.Message):
     __slots__ = ("platform", "ready", "enabled", "message")
@@ -186,11 +188,11 @@ class PlatformStatus(_message.Message):
     READY_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
-    platform: _shared_pb2.Platform
+    platform: _common_pb2.Platform
     ready: bool
     enabled: bool
     message: str
-    def __init__(self, platform: _Optional[_Union[_shared_pb2.Platform, str]] = ..., ready: _Optional[bool] = ..., enabled: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    def __init__(self, platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., ready: _Optional[bool] = ..., enabled: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ReadinessResponse(_message.Message):
     __slots__ = ("ready", "platforms", "message")
@@ -209,3 +211,159 @@ class SigningConfigResponse(_message.Message):
     config: SigningConfig
     validation: SigningValidationResult
     def __init__(self, config: _Optional[_Union[SigningConfig, _Mapping]] = ..., validation: _Optional[_Union[SigningValidationResult, _Mapping]] = ...) -> None: ...
+
+class SigningScenarioRequest(_message.Message):
+    __slots__ = ("scenario_name",)
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    def __init__(self, scenario_name: _Optional[str] = ...) -> None: ...
+
+class UpsertSigningConfigRequest(_message.Message):
+    __slots__ = ("scenario_name", "config")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    config: SigningConfig
+    def __init__(self, scenario_name: _Optional[str] = ..., config: _Optional[_Union[SigningConfig, _Mapping]] = ...) -> None: ...
+
+class ValidateSigningRequest(_message.Message):
+    __slots__ = ("scenario_name", "config")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    config: SigningConfig
+    def __init__(self, scenario_name: _Optional[str] = ..., config: _Optional[_Union[SigningConfig, _Mapping]] = ...) -> None: ...
+
+class PatchSigningPlatformRequest(_message.Message):
+    __slots__ = ("scenario_name", "platform", "windows", "macos", "linux")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    MACOS_FIELD_NUMBER: _ClassVar[int]
+    LINUX_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    platform: _common_pb2.Platform
+    windows: WindowsSigningConfig
+    macos: MacOSSigningConfig
+    linux: LinuxSigningConfig
+    def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., windows: _Optional[_Union[WindowsSigningConfig, _Mapping]] = ..., macos: _Optional[_Union[MacOSSigningConfig, _Mapping]] = ..., linux: _Optional[_Union[LinuxSigningConfig, _Mapping]] = ...) -> None: ...
+
+class DeleteSigningConfigRequest(_message.Message):
+    __slots__ = ("scenario_name",)
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    def __init__(self, scenario_name: _Optional[str] = ...) -> None: ...
+
+class DeleteSigningPlatformRequest(_message.Message):
+    __slots__ = ("scenario_name", "platform")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    platform: _common_pb2.Platform
+    def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ...) -> None: ...
+
+class DeleteSigningResponse(_message.Message):
+    __slots__ = ("scenario_name", "platform")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    platform: _common_pb2.Platform
+    def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ...) -> None: ...
+
+class GenerateLinuxSigningKeyRequest(_message.Message):
+    __slots__ = ("scenario_name", "name", "email", "passphrase_env", "key_type", "expiry", "homedir", "force", "export_public")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    EMAIL_FIELD_NUMBER: _ClassVar[int]
+    PASSPHRASE_ENV_FIELD_NUMBER: _ClassVar[int]
+    KEY_TYPE_FIELD_NUMBER: _ClassVar[int]
+    EXPIRY_FIELD_NUMBER: _ClassVar[int]
+    HOMEDIR_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    EXPORT_PUBLIC_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    name: str
+    email: str
+    passphrase_env: str
+    key_type: str
+    expiry: str
+    homedir: str
+    force: bool
+    export_public: bool
+    def __init__(self, scenario_name: _Optional[str] = ..., name: _Optional[str] = ..., email: _Optional[str] = ..., passphrase_env: _Optional[str] = ..., key_type: _Optional[str] = ..., expiry: _Optional[str] = ..., homedir: _Optional[str] = ..., force: _Optional[bool] = ..., export_public: _Optional[bool] = ...) -> None: ...
+
+class GenerateLinuxSigningKeyResponse(_message.Message):
+    __slots__ = ("key_id", "fingerprint", "homedir", "public_key", "public_key_path")
+    KEY_ID_FIELD_NUMBER: _ClassVar[int]
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    HOMEDIR_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_KEY_FIELD_NUMBER: _ClassVar[int]
+    PUBLIC_KEY_PATH_FIELD_NUMBER: _ClassVar[int]
+    key_id: str
+    fingerprint: str
+    homedir: str
+    public_key: str
+    public_key_path: str
+    def __init__(self, key_id: _Optional[str] = ..., fingerprint: _Optional[str] = ..., homedir: _Optional[str] = ..., public_key: _Optional[str] = ..., public_key_path: _Optional[str] = ...) -> None: ...
+
+class SigningToolStatus(_message.Message):
+    __slots__ = ("platform", "tool", "installed", "path", "version", "diagnostic", "remediation")
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    TOOL_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    platform: _common_pb2.Platform
+    tool: str
+    installed: bool
+    path: str
+    version: str
+    diagnostic: str
+    remediation: str
+    def __init__(self, platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., tool: _Optional[str] = ..., installed: _Optional[bool] = ..., path: _Optional[str] = ..., version: _Optional[str] = ..., diagnostic: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
+
+class ListSigningPrerequisitesResponse(_message.Message):
+    __slots__ = ("tools",)
+    TOOLS_FIELD_NUMBER: _ClassVar[int]
+    tools: _containers.RepeatedCompositeFieldContainer[SigningToolStatus]
+    def __init__(self, tools: _Optional[_Iterable[_Union[SigningToolStatus, _Mapping]]] = ...) -> None: ...
+
+class DiscoverSigningCertificatesRequest(_message.Message):
+    __slots__ = ("platform",)
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    platform: _common_pb2.Platform
+    def __init__(self, platform: _Optional[_Union[_common_pb2.Platform, str]] = ...) -> None: ...
+
+class DiscoveredSigningCertificate(_message.Message):
+    __slots__ = ("id", "name", "subject", "issuer", "expires_at", "days_to_expiry", "expired", "code_signing", "type", "platform", "usage_hint")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    ISSUER_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    DAYS_TO_EXPIRY_FIELD_NUMBER: _ClassVar[int]
+    EXPIRED_FIELD_NUMBER: _ClassVar[int]
+    CODE_SIGNING_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    USAGE_HINT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    subject: str
+    issuer: str
+    expires_at: str
+    days_to_expiry: int
+    expired: bool
+    code_signing: bool
+    type: str
+    platform: _common_pb2.Platform
+    usage_hint: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., subject: _Optional[str] = ..., issuer: _Optional[str] = ..., expires_at: _Optional[str] = ..., days_to_expiry: _Optional[int] = ..., expired: _Optional[bool] = ..., code_signing: _Optional[bool] = ..., type: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., usage_hint: _Optional[str] = ...) -> None: ...
+
+class DiscoverSigningCertificatesResponse(_message.Message):
+    __slots__ = ("certificates",)
+    CERTIFICATES_FIELD_NUMBER: _ClassVar[int]
+    certificates: _containers.RepeatedCompositeFieldContainer[DiscoveredSigningCertificate]
+    def __init__(self, certificates: _Optional[_Iterable[_Union[DiscoveredSigningCertificate, _Mapping]]] = ...) -> None: ...

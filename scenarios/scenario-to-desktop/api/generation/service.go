@@ -8,16 +8,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing"
+	"scenario-to-desktop-api/storagepaths"
 
 	"github.com/google/uuid"
 
-	"scenario-to-desktop-api/signing"
 	signinggeneration "scenario-to-desktop-api/signing/generation"
 )
 
 // DefaultService is the default implementation of the generation Service.
 type DefaultService struct {
+	stagingRoot    func() (string, error)
 	vrooliRoot     string
 	templateDir    string
 	builds         BuildStore
@@ -79,6 +83,11 @@ func WithVrooliRoot(root string) ServiceOption {
 	return func(s *DefaultService) {
 		s.vrooliRoot = root
 	}
+}
+
+// WithStagingRoot supplies the canonical staging root, including isolated test storage.
+func WithStagingRoot(resolve func() (string, error)) ServiceOption {
+	return func(s *DefaultService) { s.stagingRoot = resolve }
 }
 
 // WithTemplateDir sets the template directory.
@@ -154,9 +163,13 @@ func NewService(opts ...ServiceOption) *DefaultService {
 
 // QueueBuild queues a desktop build and returns the initial status.
 func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMetadata, includeMetadata bool) *BuildStatus {
+	// Generation continues asynchronously after this method returns. Give the
+	// worker ownership of the request so callers can safely reuse or release
+	// their request object while the build is running.
+	config = cloneDesktopConfigForExecution(config)
 	buildID := uuid.New().String()
 
-	outputPath, destinationPath := s.resolveOutputPath(config, buildID)
+	outputPath, destinationPath, pathErr := s.resolveOutputPath(config, buildID)
 	config.OutputPath = outputPath
 
 	buildStatus := &BuildStatus{
@@ -168,6 +181,15 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 		ErrorLog:   []string{},
 		Artifacts:  map[string]string{},
 		Metadata:   map[string]interface{}{},
+	}
+
+	if pathErr == nil {
+		pathErr = config.ValidateNativeExtension()
+	}
+	if pathErr != nil {
+		buildStatus.Status = "failed"
+		buildStatus.ErrorLog = append(buildStatus.ErrorLog, pathErr.Error())
+		return buildStatus
 	}
 
 	if metadata != nil {
@@ -229,6 +251,74 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	return buildStatus
 }
 
+func cloneDesktopConfigForExecution(config *DesktopConfig) *DesktopConfig {
+	if config == nil {
+		return nil
+	}
+	clone := *config
+	clone.Platforms = append([]string(nil), config.Platforms...)
+	clone.Features = cloneInterfaceMap(config.Features)
+	clone.Window = cloneInterfaceMap(config.Window)
+	clone.Styling = cloneInterfaceMap(config.Styling)
+	if config.Ports != nil {
+		clone.Ports = make(map[string]PortConfig, len(config.Ports))
+		for key, value := range config.Ports {
+			clone.Ports[key] = value
+		}
+	}
+	if config.NativeExtension != nil {
+		extension := *config.NativeExtension
+		extension.Permissions = append([]string(nil), config.NativeExtension.Permissions...)
+		extension.Platforms = append([]string(nil), config.NativeExtension.Platforms...)
+		extension.HelperProviders = append([]HelperProvider(nil), config.NativeExtension.HelperProviders...)
+		clone.NativeExtension = &extension
+	}
+	if config.BundleIPC != nil {
+		bundleIPC := *config.BundleIPC
+		clone.BundleIPC = &bundleIPC
+	}
+	if config.UpdateConfig != nil {
+		update := *config.UpdateConfig
+		if config.UpdateConfig.GitHub != nil {
+			github := *config.UpdateConfig.GitHub
+			update.GitHub = &github
+		}
+		if config.UpdateConfig.Generic != nil {
+			generic := *config.UpdateConfig.Generic
+			update.Generic = &generic
+		}
+		clone.UpdateConfig = &update
+	}
+	if config.CodeSigning != nil {
+		signing := *config.CodeSigning
+		if config.CodeSigning.Windows != nil {
+			windows := *config.CodeSigning.Windows
+			signing.Windows = &windows
+		}
+		if config.CodeSigning.MacOS != nil {
+			macOS := *config.CodeSigning.MacOS
+			signing.MacOS = &macOS
+		}
+		if config.CodeSigning.Linux != nil {
+			linux := *config.CodeSigning.Linux
+			signing.Linux = &linux
+		}
+		clone.CodeSigning = &signing
+	}
+	return &clone
+}
+
+func cloneInterfaceMap(values map[string]interface{}) map[string]interface{} {
+	if values == nil {
+		return nil
+	}
+	clone := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		clone[key] = value
+	}
+	return clone
+}
+
 // Generate generates a desktop application from a config.
 func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 	defer func() {
@@ -242,7 +332,18 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 		}
 	}()
 
-	s.prepareSigningConfig(buildID, config)
+	if err := config.ValidateNativeExtension(); err != nil {
+		s.updateBuildStatus(buildID, func(status *BuildStatus) {
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, err.Error())
+			now := time.Now()
+			status.CompletedAt = &now
+		})
+		return
+	}
+	if err := s.prepareSigningConfig(buildID, config); err != nil {
+		return
+	}
 
 	configPath, err := s.writeConfigFile(buildID, config)
 	if err != nil {
@@ -254,7 +355,7 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 }
 
 // prepareSigningConfig loads and applies signing configuration if needed.
-func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) {
+func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopConfig) error {
 	if config.CodeSigning == nil && config.ScenarioName != "" {
 		signingConfig, err := s.loadSigningConfig(config.ScenarioName)
 		if err != nil {
@@ -270,17 +371,22 @@ func (s *DefaultService) prepareSigningConfig(buildID string, config *DesktopCon
 	}
 
 	if config.CodeSigning == nil || !config.CodeSigning.Enabled {
-		return
+		return nil
 	}
 	if err := s.generateSigningArtifacts(config); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
-			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Warning: Failed to generate signing artifacts: %v", err))
+			status.Status = "failed"
+			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to generate signing artifacts: %v", err))
+			now := time.Now()
+			status.CompletedAt = &now
 		})
+		return err
 	} else {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.BuildLog = append(status.BuildLog, "Generated signing artifacts")
 		})
 	}
+	return nil
 }
 
 // writeConfigFile marshals config to a temp JSON file, returning the path.
@@ -390,7 +496,7 @@ func (s *DefaultService) updateBuildStatus(buildID string, fn func(status *Build
 }
 
 // resolveOutputPath determines where to write the generated app.
-func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string) (string, string) {
+func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string) (string, string, error) {
 	destinationPath := s.StandardOutputPath(config.AppName)
 	mode := config.LocationMode
 	if mode == "" {
@@ -400,33 +506,41 @@ func (s *DefaultService) resolveOutputPath(config *DesktopConfig, buildID string
 	switch mode {
 	case "temp", "staging":
 		if config.OutputPath != "" {
-			return config.OutputPath, destinationPath
+			return config.OutputPath, destinationPath, nil
 		}
-		return s.stagingOutputPath(config.AppName, buildID), destinationPath
+		path, err := s.stagingOutputPath(config.AppName, buildID)
+		return path, destinationPath, err
 	case "custom":
 		if config.OutputPath != "" {
-			return config.OutputPath, destinationPath
+			return config.OutputPath, destinationPath, nil
 		}
-		return destinationPath, destinationPath
+		return destinationPath, destinationPath, nil
 	default: // "proper"
 		if config.OutputPath != "" {
-			return config.OutputPath, destinationPath
+			return config.OutputPath, destinationPath, nil
 		}
-		return destinationPath, destinationPath
+		return destinationPath, destinationPath, nil
 	}
 }
 
-// stagingOutputPath returns the gitignored staging area for temporary desktop outputs.
-func (s *DefaultService) stagingOutputPath(appName, buildID string) string {
-	return filepath.Join(
-		s.vrooliRoot,
-		"scenarios",
-		"scenario-to-desktop",
-		"data",
-		"staging",
-		appName,
-		buildID,
-	)
+// stagingOutputPath resolves temporary outputs through the shared storage locator.
+func (s *DefaultService) stagingOutputPath(appName, buildID string) (string, error) {
+	resolve := s.stagingRoot
+	if resolve == nil {
+		locator, err := storagepaths.NewLocator()
+		if err != nil {
+			return "", err
+		}
+		resolve = locator.StagingRoot
+	}
+	root, err := resolve()
+	if err != nil {
+		return "", err
+	}
+	if !filepath.IsAbs(root) {
+		return "", fmt.Errorf("staging root must be absolute")
+	}
+	return filepath.Join(root, appName, buildID), nil
 }
 
 // loadSigningConfig loads the signing configuration from the file repository for a scenario.
@@ -455,11 +569,12 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	if config.CodeSigning.MacOS != nil {
+	if config.CodeSigning.MacOS != nil || config.CodeSigning.Linux != nil {
 		opts := &signinggeneration.Options{
-			OutputDir:          outputPath,
-			EntitlementsPath:   "entitlements.mac.plist",
-			NotarizeScriptPath: "scripts/notarize.js",
+			OutputDir:               outputPath,
+			EntitlementsPath:        "entitlements.mac.plist",
+			NotarizeScriptPath:      "scripts/notarize.js",
+			LinuxArtifactSignerPath: "scripts/sign-linux-artifacts.js",
 		}
 
 		generator := signinggeneration.NewGenerator(opts)
@@ -469,7 +584,15 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		}
 
 		for relPath, content := range files {
-			fullPath := filepath.Join(outputPath, relPath)
+			fullPath := relPath
+			if !filepath.IsAbs(fullPath) {
+				fullPath = filepath.Join(outputPath, fullPath)
+			}
+			fullPath = filepath.Clean(fullPath)
+			relToOutput, err := filepath.Rel(outputPath, fullPath)
+			if err != nil || relToOutput == ".." || strings.HasPrefix(relToOutput, ".."+string(filepath.Separator)) {
+				return fmt.Errorf("generated signing artifact path escapes output directory: %s", relPath)
+			}
 			dir := filepath.Dir(fullPath)
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)
@@ -479,7 +602,7 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 			}
 		}
 
-		if config.CodeSigning.MacOS.EntitlementsFile == "" {
+		if config.CodeSigning.MacOS != nil && config.CodeSigning.MacOS.EntitlementsFile == "" {
 			config.CodeSigning.MacOS.EntitlementsFile = "entitlements.mac.plist"
 		}
 	}

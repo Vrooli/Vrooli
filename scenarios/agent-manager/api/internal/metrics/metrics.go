@@ -47,6 +47,13 @@ type Metrics struct {
 	// Cost tracking
 	TotalCostUSD *prometheus.CounterVec
 	TokensUsed   *prometheus.CounterVec
+
+	// Sandbox-default rollout adoption metrics (Phase D of
+	// agent-sandbox-audit-foundation). Increment on RecordRunCreated;
+	// scrape via /metrics or `swarm-manager stats sandbox-adoption`.
+	SandboxAdoptionTotal       *prometheus.CounterVec
+	RunsWithProvenanceTotal    prometheus.Counter
+	RunsWithoutProvenanceTotal prometheus.Counter
 }
 
 var (
@@ -232,6 +239,25 @@ func newMetrics() *Metrics {
 			},
 			[]string{"runner_type", "type"}, // type: input, output, cache_read, cache_creation
 		),
+		SandboxAdoptionTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "agent_manager_sandbox_adoption_total",
+				Help: "Run creations broken down by run_mode, sandbox_mode (tracking|protected|n/a) and manual_review (true|false). Used to track sandbox-default rollout per the auditability contract.",
+			},
+			[]string{"run_mode", "sandbox_mode", "manual_review"},
+		),
+		RunsWithProvenanceTotal: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "agent_manager_runs_with_provenance_total",
+				Help: "Runs that produced a provenance write (sandboxed runs that reached apply-at-run-end). Numerator for the run-to-provenance attribution rate.",
+			},
+		),
+		RunsWithoutProvenanceTotal: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "agent_manager_runs_without_provenance_total",
+				Help: "Runs that completed without producing a provenance write (in-place runs or sandboxed runs that took an early-exit path). Denominator partner for runs_with_provenance_total.",
+			},
+		),
 	}
 
 	// Register all metrics
@@ -258,6 +284,9 @@ func newMetrics() *Metrics {
 		m.HTTPResponseSize,
 		m.TotalCostUSD,
 		m.TokensUsed,
+		m.SandboxAdoptionTotal,
+		m.RunsWithProvenanceTotal,
+		m.RunsWithoutProvenanceTotal,
 	)
 
 	return m
@@ -272,6 +301,26 @@ func Handler() http.Handler {
 func (m *Metrics) RecordRunCreated(runnerType, runMode string) {
 	m.RunsTotal.WithLabelValues(runnerType, runMode).Inc()
 	m.RunsActive.Inc()
+}
+
+// RecordSandboxAdoption increments the sandbox-default rollout breakdown.
+// runMode is "sandboxed" or "in_place". sandboxMode is "tracking",
+// "protected", or "n/a" for in-place. manualReview is "true"/"false".
+func (m *Metrics) RecordSandboxAdoption(runMode, sandboxMode, manualReview string) {
+	m.SandboxAdoptionTotal.WithLabelValues(runMode, sandboxMode, manualReview).Inc()
+}
+
+// RecordProvenanceWrite increments the run-to-provenance attribution counter.
+// Call exactly once per run after the apply-at-run-end path completes.
+func (m *Metrics) RecordProvenanceWrite() {
+	m.RunsWithProvenanceTotal.Inc()
+}
+
+// RecordProvenanceSkipped increments the denominator partner. Call when a
+// run terminates without producing a provenance write (in-place runs,
+// manualReview-deferred runs, etc.).
+func (m *Metrics) RecordProvenanceSkipped() {
+	m.RunsWithoutProvenanceTotal.Inc()
 }
 
 // RecordRunCompleted records a run completion.

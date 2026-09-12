@@ -85,8 +85,8 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 			}
 			return "Initial workflow creation"
 		}(),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 		FlowDefinition: def,
 	}
 
@@ -111,7 +111,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 	s.cacheWorkflowPath(workflowID, absPath, relPath)
 
 	return &basapi.CreateWorkflowResponse{
-		Workflow:      summary,
+		Workflow:       summary,
 		FlowDefinition: summary.FlowDefinition,
 	}, nil
 }
@@ -191,18 +191,16 @@ func (s *WorkflowService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWor
 		return &basapi.GetWorkflowResponse{Workflow: versionWf}, nil
 	}
 
+	// GetWorkflow does NOT trigger a filesystem sync: API writes (Create/
+	// Update) keep the canonical .workflow.json file in lockstep with the
+	// DB index, so the DB row already points at fresh content. Out-of-
+	// band disk edits are reconciled by the explicit ResyncProjectFiles
+	// RPC, not by every read. The previous always-sync pattern produced
+	// disk-overwrites-DB races where in-flight updates were lost between
+	// the write and the next Get.
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return nil, err
-	}
-	if index.ProjectID != nil {
-		if err := s.syncProjectWorkflows(ctx, *index.ProjectID); err != nil {
-			return nil, err
-		}
-		index, err = s.repo.GetWorkflow(ctx, workflowID)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	summary, err := s.hydrateWorkflowSummary(ctx, index)
@@ -229,15 +227,19 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	if currentIndex.ProjectID == nil {
 		return nil, fmt.Errorf("workflow %s is not associated with a project", workflowID)
 	}
+	// Serialize revision checks with API updates and filesystem reconciliation.
+	lock := s.getProjectLock(*currentIndex.ProjectID)
+	lock.Lock()
+	defer lock.Unlock()
 	project, err := s.repo.GetProject(ctx, *currentIndex.ProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.syncProjectWorkflows(ctx, *currentIndex.ProjectID); err != nil {
-		return nil, err
-	}
-
+	// UpdateWorkflow is the source of truth: hydrate from the canonical
+	// disk file (kept in lockstep by every Create/Update), then write
+	// the new version back. No pre-flight sync — that pattern raced with
+	// in-flight writes and resurrected stale disk content.
 	currentSummary, err := s.hydrateWorkflowSummary(ctx, currentIndex)
 	if err != nil {
 		return nil, err
@@ -291,7 +293,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	}
 
 	return &basapi.UpdateWorkflowResponse{
-		Workflow:      updated,
+		Workflow:       updated,
 		FlowDefinition: updated.FlowDefinition,
 	}, nil
 }

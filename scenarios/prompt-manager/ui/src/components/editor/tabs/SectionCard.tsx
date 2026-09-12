@@ -10,10 +10,10 @@ import {
   ExternalLink,
   FileText,
   GitBranch,
-  Network,
   Heart,
   Inbox,
   Users,
+  Map,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PromptSection } from '@/lib/schemas'
@@ -32,10 +32,15 @@ const KIND_META: Record<
     color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
     badgeLabel: 'Agent file',
   },
-  'team-shared-charter': {
+  'active-task-brief': {
+    icon: Heart,
+    color: 'bg-sky-500/15 text-sky-400 border-sky-500/25',
+    badgeLabel: 'Brief',
+  },
+  'team-operating-policy': {
     icon: FileText,
-    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    badgeLabel: 'Team',
+    color: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
+    badgeLabel: 'Policy',
   },
   'team-responsibilities': {
     icon: Users,
@@ -47,20 +52,15 @@ const KIND_META: Record<
     color: 'bg-purple-500/15 text-purple-400 border-purple-500/25',
     badgeLabel: 'Team',
   },
-  'team-coordination': {
-    icon: Network,
-    color: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
-    badgeLabel: 'Team',
-  },
   'team-inbox': {
     icon: Inbox,
     color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
     badgeLabel: 'Team',
   },
-  'team-durable-state': {
-    icon: Network,
+  'team-storage-map': {
+    icon: Map,
     color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
-    badgeLabel: 'Team',
+    badgeLabel: 'Storage',
   },
   'last-handoff': {
     icon: GitBranch,
@@ -71,6 +71,11 @@ const KIND_META: Record<
     icon: Heart,
     color: 'bg-red-500/15 text-red-400 border-red-500/25',
     badgeLabel: 'Team',
+  },
+  'task-reminder': {
+    icon: Heart,
+    color: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
+    badgeLabel: 'Reminder',
   },
 }
 

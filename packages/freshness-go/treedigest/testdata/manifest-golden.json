@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "identity": "ci:v1:14a858103c7e54767d9fcbf7551a07a14788a2c0f1a0f390dd45d5d65035a4e9",
+  "roots": [
+    {
+      "name": "scenario",
+      "identity": "ri:v1:9fa4c6e558cdfa25152273b0222d66a14334b647b8c8dc20e1f454074766e5ab",
+      "files": [
+        {
+          "path": "src/tracked.go",
+          "digest": "sha256:949772dd6b96cd83991f94277164dabcbe0a16acbddb66f36fd592c834c0519a",
+          "size": 15
+        },
+        {
+          "path": "src/untracked.txt",
+          "digest": "sha256:90b82580a0ea516e3021fbd5ccfd4775012eb9c729a26aa2167d75b4ec887c5f",
+          "size": 9
+        }
+      ]
+    }
+  ],
+  "attribution": {}
+}

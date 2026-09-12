@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "primitives.cluster",
+    "name": "Cluster",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The wrapping group primitive for tags, actions, metadata, and controls whose items must keep useful spacing at any available width.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "reading-order-honest"
+  ]
+}

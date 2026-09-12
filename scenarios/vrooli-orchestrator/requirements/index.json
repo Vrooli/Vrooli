@@ -131,7 +131,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "initialization/storage/postgres/seed.sql",
+          "ref": "api/internal/<domain>/storage/postgres/seed.sql",
           "phase": "business",
           "status": "pending",
           "notes": "Seeded profile templates validation"
@@ -143,7 +143,7 @@
       "category": "automation.browser",
       "prd_ref": "Operational Targets > P1 > OT-P1-002",
       "title": "Auto-open browser tabs for configured dashboards",
-      "description": "Profiles can launch web interfaces automatically using browserless",
+      "description": "Profiles surface web interface URLs for the user to open",
       "status": "pending",
       "validation": [
         {

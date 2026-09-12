@@ -1,3 +1,23 @@
+---
+name: "video-studio"
+description: "AI-driven video production combining browser recording, desktop recording, and compositing for marketing and demo content. Draft: no video-studio scenario exists, so this skill is not currently executable — pending an owner decision to build, retire, or rescope it."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["skill","marketing","video","content-creation"]
+  icon: "video"
+  status: "draft"
+  revision: 2
+  createdAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-07-28T00:00:00Z"
+  requires:
+    scenarios: ["swarm-manager"]
+    commands: ["swarm-manager backlog"]
+  origin:
+    kind: "authored"
+---
 ## Tools focus: Video Studio
 
 Produce marketing videos, product demos, and promotional content by combining AI-driven scripting with browser recording, desktop recording, and video compositing.
@@ -8,7 +28,7 @@ Produce marketing videos, product demos, and promotional content by combining AI
 
 | Use when | Don't use when |
 |----------|----------------|
-| Creating a product demo for a scenario's UI | Writing text-based content (use x-dev-log, campaign-content-studio) |
+| Creating a product demo for a scenario's UI | Writing text-based content (use x-dev-log) |
 | Recording a multi-step feature walkthrough | Running automated UI tests (use browser-automation-studio directly) |
 | Producing a promotional clip for social media | Creating static screenshots or images |
 | Generating a tutorial showing how to use a tool | Need real-time live streaming |

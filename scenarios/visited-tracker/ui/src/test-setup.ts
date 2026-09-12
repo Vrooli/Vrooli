@@ -16,10 +16,12 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
+globalThis.IntersectionObserver = class IntersectionObserver {
+  root: Element | Document | null = null;
+  rootMargin = "";
+  thresholds: ReadonlyArray<number> = [];
   disconnect() {}
   observe() {}
-  takeRecords() { return []; }
+  takeRecords(): IntersectionObserverEntry[] { return []; }
   unobserve() {}
-} as any;
+};

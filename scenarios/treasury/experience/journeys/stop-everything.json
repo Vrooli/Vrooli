@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "stop-everything",
+    "title": "Stop all spending immediately",
+    "purpose": "Something is wrong and the operator wants spending to stop now, before understanding why. This journey is measured in seconds and must work from any device, so it is the one path optimised for speed over context.",
+    "prd_refs": [
+      "OT-P1-006"
+    ]
+  },
+  "steps": [
+    {
+      "page": "settings",
+      "state": "default",
+      "intent": "Reach the global freeze without scrolling past unrelated preferences."
+    },
+    {
+      "page": "settings",
+      "state": "saving",
+      "intent": "Freeze everything in one action, with the control stating that authorization stops immediately rather than at next settlement.",
+      "via": "the global freeze control"
+    },
+    {
+      "page": "activity",
+      "state": "default",
+      "intent": "Confirm no authorization has succeeded since the freeze took effect.",
+      "via": "the confirmation's link to activity"
+    },
+    {
+      "page": "budgets",
+      "state": "default",
+      "intent": "See every budget showing frozen, so the freeze's reach is verified rather than assumed."
+    }
+  ]
+}

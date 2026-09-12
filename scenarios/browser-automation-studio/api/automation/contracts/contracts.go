@@ -1,7 +1,7 @@
 // Package contracts defines engine-agnostic payloads and interfaces used by
 // automation engines, executors, recorders, and event sinks. The goal is to
 // keep these shapes stable so multiple engine implementations (e.g.,
-// Browserless, Desktop/Playwright) can plug in without changing downstream
+// Playwright, Desktop) can plug in without changing downstream
 // consumers.
 //
 // PROTO TYPE STRATEGY:
@@ -248,7 +248,7 @@ const (
 // automation/events/unified_convert.go. New UI-facing code should work with
 // TimelineEntry directly.
 //
-// See: docs/plans/bas-unified-timeline-workflow-types.md
+// Related design work is historical; current plans are owned by Plan Manager.
 type StepOutcome struct {
 	SchemaVersion      string             `json:"schema_version"`
 	PayloadVersion     string             `json:"payload_version"`
@@ -263,6 +263,8 @@ type StepOutcome struct {
 	StartedAt          time.Time          `json:"started_at"`                     // UTC, monotonic per attempt.
 	CompletedAt        *time.Time         `json:"completed_at,omitempty"`         // UTC, nil if never completed.
 	DurationMs         int                `json:"duration_ms,omitempty"`          // Derived; CompletedAt-StartedAt preferred source.
+	RecordingID        string             `json:"recording_id,omitempty"`         // Target-owned device recording identity.
+	RecordingOffsetMs  *int64             `json:"recording_offset_ms,omitempty"`  // Offset from recording start; never synthesized by storage.
 	FinalURL           string             `json:"final_url,omitempty"`            // Normalized URL after navigation.
 	Screenshot         *Screenshot        `json:"screenshot,omitempty"`           // Final screenshot for the attempt.
 	DOMSnapshot        *DOMSnapshot       `json:"dom_snapshot,omitempty"`         // DOM snapshot/html; apply size limits.

@@ -1,0 +1,28 @@
+{
+  "required_read": [
+    {
+      "prefix": "toolchain-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "self-health/test-genie/YYYY-MM-DD"
+    },
+    {
+      "prefix": "friction-report/toolchain/<YYYY-MM-DD>/<slug>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "toolchain-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "self-health/test-genie/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator"
+  ]
+}

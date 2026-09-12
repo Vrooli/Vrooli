@@ -1,0 +1,19 @@
+{
+  "required_read": [],
+  "evidence_consumed": [
+    {
+      "prefix": "monetization-benchmark-record/*"
+    }
+  ],
+  "output": [
+    {
+      "prefix": "monetization-canon/*",
+      "destination_kind": "por_file",
+      "destination_path": "docs/monetization/catalogs/CATALOG.md"
+    }
+  ],
+  "external_producers": [
+    "operator",
+    "vision-walk"
+  ]
+}

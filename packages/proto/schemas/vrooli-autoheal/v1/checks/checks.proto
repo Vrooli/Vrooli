@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package vrooli.vrooli_autoheal.v1.checks;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks;checks_v1";
+
+service ChecksService {
+  rpc ListChecks(ListChecksRequest) returns (ListChecksResponse);
+  rpc GetCheck(GetCheckRequest) returns (GetCheckResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc GetTransitions(GetTransitionsRequest) returns (GetTransitionsResponse);
+  rpc GetReconcile(GetReconcileRequest) returns (GetReconcileResponse);
+  rpc ListShelves(ListShelvesRequest) returns (ListShelvesResponse);
+  rpc GetSaturation(GetSaturationRequest) returns (GetSaturationResponse);
+  // ListSaturation answers the same question as GetSaturation for every
+  // registered check in one call. Per-check saturation reads force a caller
+  // holding a bounded per-source deadline into an N+1 fan-out, where the
+  // checks that do not fit the deadline are indistinguishable from checks
+  // that genuinely could not be read. Saturation is a property of the whole
+  // transition window, so it is computed once here instead.
+  rpc ListSaturation(ListSaturationRequest) returns (ListSaturationResponse);
+}
+
+enum CheckStatus {
+  CHECK_STATUS_UNSPECIFIED = 0;
+  CHECK_STATUS_OK = 1;
+  CHECK_STATUS_WARNING = 2;
+  CHECK_STATUS_CRITICAL = 3;
+  CHECK_STATUS_NOT_APPLICABLE = 4;
+}
+
+message CheckInfo {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string importance = 4;
+  string category = 5;
+  int32 interval_seconds = 6;
+  // platforms lists the host operating systems this check applies to, exactly
+  // as the check declares them. An EMPTY list means the check applies to every
+  // platform — it is not "unknown" and must not be read as one. Exposing the
+  // declaration is what lets a reader distinguish a check that is silent
+  // because it does not apply here from one that is silent because it broke.
+  repeated string platforms = 7;
+}
+
+message CheckResult {
+  string check_id = 1;
+  CheckStatus status = 2;
+  string message = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  int64 duration_ms = 5;
+  string details_json = 6;
+}
+
+message Transition {
+  string check_id = 1;
+  CheckStatus from_status = 2;
+  CheckStatus to_status = 3;
+  string message = 4;
+  google.protobuf.Timestamp observed_at = 5;
+}
+
+message ListChecksRequest {}
+message ListChecksResponse { repeated CheckInfo checks = 1; }
+
+message GetCheckRequest { string check_id = 1; }
+message GetCheckResponse { CheckResult result = 1; }
+
+message GetHistoryRequest {
+  string check_id = 1;
+  int32 limit = 2;
+}
+message GetHistoryResponse { repeated CheckResult results = 1; }
+
+message GetStatusRequest {}
+message GetStatusResponse {
+  CheckStatus status = 1;
+  int32 total_count = 2;
+  int32 ok_count = 3;
+  int32 warning_count = 4;
+  int32 critical_count = 5;
+  int32 not_applicable_count = 6;
+  repeated CheckResult checks = 7;
+  google.protobuf.Timestamp computed_at = 8;
+}
+
+message GetTransitionsRequest {
+  int32 window_hours = 1;
+  int32 limit = 2;
+}
+message GetTransitionsResponse { repeated Transition transitions = 1; }
+
+message Reconcile {
+  // ghost_check_ids are checks whose target no longer exists. Their readings
+  // carry no information about the plant and are excluded from aggregates.
+  repeated string ghost_check_ids = 1;
+  // unsupervised_plant are members of the derived should-be-supervised set
+  // that have no registered check.
+  repeated string unsupervised_plant = 2;
+  bool available = 3;
+  string unavailable_reason = 4;
+  google.protobuf.Timestamp computed_at = 5;
+  // out_of_scope_check_ids are checks whose target exists but is outside the
+  // derived should-be-supervised set. They are a supervision-scope signal,
+  // NOT ghosts: the reading is about a real element and stays in every
+  // aggregate. Conflating the two silently drops live plant from uptime.
+  repeated string out_of_scope_check_ids = 6;
+  // ghost_detection_available reports whether the installed-target set could
+  // be read. When false, no check may be called a ghost, because absence from
+  // an unavailable set is not evidence that a target is gone.
+  bool ghost_detection_available = 7;
+  string ghost_unavailable_reason = 8;
+}
+
+message GetReconcileRequest {}
+message GetReconcileResponse { Reconcile reconcile = 1; }
+
+message Shelf {
+  string check_id = 1;
+  string reason = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string set_by = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message ListShelvesRequest { bool include_expired = 1; }
+message ListShelvesResponse { repeated Shelf shelves = 1; }
+
+message Saturation {
+  string check_id = 1;
+  bool transitioned = 2;
+  int32 transition_count = 3;
+  // current_status at the end of the window. Reported so a caller never has to
+  // infer saturation from the transition count alone.
+  CheckStatus current_status = 4;
+  // saturated means the check is pinned in a NON-NORMAL state for the whole
+  // window: no transition AND a current status of WARNING or CRITICAL. A check
+  // steady at OK has also not transitioned, but it is simply healthy — it is
+  // the desired state, not an alarm carrying no information. Deriving
+  // saturation from `!transitioned` alone marks every healthy check saturated
+  // and, because saturated readings are excluded from aggregates, empties the
+  // uptime figure of exactly the checks that were fine.
+  bool saturated = 5;
+}
+
+message ListSaturationRequest { int32 window_hours = 1; }
+message ListSaturationResponse {
+  repeated Saturation saturations = 1;
+  int32 window_hours = 2;
+  google.protobuf.Timestamp computed_at = 3;
+  // truncated reports that the transition window was capped before every
+  // registered check could be tallied. A capped tally cannot distinguish
+  // "no transition" from "not read", so callers must not derive saturation
+  // from it.
+  bool truncated = 4;
+}
+
+message GetSaturationRequest { string check_id = 1; int32 window_hours = 2; }
+message GetSaturationResponse {
+  string check_id = 1;
+  bool transitioned = 2;
+  int32 transition_count = 3;
+  int32 window_hours = 4;
+  google.protobuf.Timestamp computed_at = 5;
+}

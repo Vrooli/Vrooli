@@ -1,12 +1,16 @@
 import { LayoutList, Terminal } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import HeaderColorPicker from "../appearance/HeaderColorPicker";
 import ThemePicker from "../appearance/ThemePicker";
 import FontSizeStepper from "../appearance/FontSizeStepper";
-import { SettingsCard, SettingsRow, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 export default function NewPaneDefaultsSection() {
+  const { t } = useTranslation();
   const defaultHeaderColor = useWorkspaceStore((state) => state.defaultHeaderColor);
   const defaultThemeId = useWorkspaceStore((state) => state.defaultThemeId);
   const defaultFontSize = useWorkspaceStore((state) => state.defaultFontSize);
@@ -17,14 +21,14 @@ export default function NewPaneDefaultsSection() {
   const setPlusButtonBehavior = useWorkspaceStore((state) => state.setPlusButtonBehavior);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
-        eyebrow="Appearance"
-        title="New pane defaults"
-        description="Set the baseline look for every new terminal pane without affecting existing sessions."
+    <SettingsList>
+      <SettingsList.Intro
+        eyebrow={t(strings.settings.newPaneDefaultsSection.eyebrow)}
+        title={t(strings.settings.newPaneDefaultsSection.title)}
+        description={t(strings.settings.newPaneDefaultsSection.description)}
       />
 
-      <SettingsCard className="space-y-5">
+      <SettingsList.Group>
         <HeaderColorPicker
           currentColor={defaultHeaderColor}
           onSelectColor={setDefaultHeaderColor}
@@ -40,10 +44,9 @@ export default function NewPaneDefaultsSection() {
           onChangeSize={setDefaultFontSize}
           testIdPrefix="defaults"
         />
-        <SettingsRow
-          label="Plus button default"
-          hint="Quick-tap action. The other moves to long-press."
-          control={(
+        <SettingsList.Row
+          label={t(strings.settings.newPaneDefaultsSection.plusButtonLabel)}
+          hint={t(strings.settings.newPaneDefaultsSection.plusButtonHint)} control="compact">{(
             <div className="flex items-center gap-2">
               <Button
                 data-testid="plus-behavior-launcher"
@@ -52,8 +55,8 @@ export default function NewPaneDefaultsSection() {
                 className="h-8 px-3"
                 onClick={() => setPlusButtonBehavior("launcher")}
               >
-                <LayoutList className="mr-1 h-3.5 w-3.5" />
-                Launcher
+                <LayoutList className="me-1 h-3.5 w-3.5" />
+                {t(strings.settings.newPaneDefaultsSection.launcher)}
               </Button>
               <Button
                 data-testid="plus-behavior-new-terminal"
@@ -62,13 +65,12 @@ export default function NewPaneDefaultsSection() {
                 className="h-8 px-3"
                 onClick={() => setPlusButtonBehavior("new-terminal")}
               >
-                <Terminal className="mr-1 h-3.5 w-3.5" />
-                Empty terminal
+                <Terminal className="me-1 h-3.5 w-3.5" />
+                {t(strings.settings.newPaneDefaultsSection.emptyTerminal)}
               </Button>
             </div>
-          )}
-        />
-      </SettingsCard>
-    </div>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

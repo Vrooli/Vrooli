@@ -1,0 +1,140 @@
+{
+  "schema_version": "v1",
+  "runner": "opencode",
+  "provenance": {"source": "OpenCode models listing and OpenRouter model catalog; refreshed 2026-09-11; added multi-source models", "observed_at": "2026-09-11"},
+  "billing": {
+    "mode": "unknown",
+    "source": "operator-not-declared",
+    "sources": [
+      {"id": "opencode-go", "label": "OpenCode Go", "billing_mode": "subscription", "credential_key": "OPENCODE_GO_KEY", "endpoint": "https://opencode.ai/zen/go/v1"},
+      {"id": "openrouter", "label": "OpenRouter", "billing_mode": "metered", "credential_key": "OPENROUTER_API_KEY", "endpoint": "https://openrouter.ai/api/v1"},
+      {"id": "ollama", "label": "Local Ollama", "billing_mode": "local", "credential_key": "", "endpoint": "http://localhost:11434"}
+    ]
+  },
+  "live_catalog_mode": "curated",
+  "model_aliases": {
+    "openrouter/deepseek/deepseek-v4.1-flash": {"canonical_model": "openrouter/deepseek/deepseek-v4.1-flash", "provider": "openrouter"},
+    "openrouter/deepseek/deepseek-v4-flash-0731": {"canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731", "provider": "openrouter"},
+    "openrouter/deepseek/deepseek-v4-pro": {"canonical_model": "openrouter/deepseek/deepseek-v4-pro", "provider": "openrouter"},
+    "openrouter/anthropic/claude-opus-5": {"canonical_model": "openrouter/anthropic/claude-opus-5", "provider": "openrouter"},
+    "openrouter/anthropic/claude-opus-4.8": {"canonical_model": "openrouter/anthropic/claude-opus-4.8", "provider": "openrouter"},
+    "openrouter/moonshotai/kimi-k3": {"canonical_model": "openrouter/moonshotai/kimi-k3", "provider": "openrouter"},
+    "ollama/gemma4:12b": {"canonical_model": "ollama/gemma4:12b", "provider": "ollama"},
+    "opencode-go/deepseek-v4.1-flash": {"canonical_model": "opencode-go/deepseek-v4.1-flash", "provider": "opencode-go"},
+    "opencode-go/mimo-v2.5": {"canonical_model": "opencode-go/mimo-v2.5", "provider": "opencode-go"},
+    "opencode-go/longcat-2.0": {"canonical_model": "opencode-go/longcat-2.0", "provider": "opencode-go"},
+    "opencode-go/muse-spark-1.2": {"canonical_model": "opencode-go/muse-spark-1.2", "provider": "opencode-go"},
+    "opencode-go/glm-5.3-flash": {"canonical_model": "opencode-go/glm-5.3-flash", "provider": "opencode-go"},
+    "opencode-go/kimi-k2.7-code": {"canonical_model": "opencode-go/kimi-k2.7-code", "provider": "opencode-go"}
+  },
+  "roles": {
+    "code.default": {
+      "models": [
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null},
+        {"model": "gemma4:12b", "source": "ollama", "effort": null}
+      ],
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-flash-0731", "ollama/gemma4:12b"],
+      "description": "Balanced OpenCode implementation work with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.fast": {
+      "models": [
+        {"model": "opencode-go/mimo-v2.5", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null},
+        {"model": "gemma4:12b", "source": "ollama", "effort": null}
+      ],
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-flash-0731", "ollama/gemma4:12b"],
+      "description": "Low-latency OpenCode edits with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.cheap": {
+      "models": [
+        {"model": "opencode-go/mimo-v2.5", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null},
+        {"model": "gemma4:12b", "source": "ollama", "effort": null}
+      ],
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-flash-0731", "ollama/gemma4:12b"],
+      "description": "Cost-conscious OpenCode tasks with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.inspection": {
+      "models": [
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null},
+        {"model": "gemma4:12b", "source": "ollama", "effort": null}
+      ],
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-flash-0731", "ollama/gemma4:12b"],
+      "description": "Code inspection, reproduction, execution, and evidence gathering with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.longrun": {
+      "models": [
+        {"model": "opencode-go/longcat-2.0", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null},
+        {"model": "gemma4:12b", "source": "ollama", "effort": null}
+      ],
+      "model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-pro", "openrouter/deepseek/deepseek-v4-flash-0731", "ollama/gemma4:12b"],
+      "description": "Long-horizon autonomous coding work with multi-source fallback chain.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.smart": {
+      "models": [
+        {"model": "opencode-go/grok-4.6", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/anthropic/claude-opus-5", "source": "openrouter", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4-pro", "source": "openrouter", "effort": null}
+      ],
+      "model": "openrouter/anthropic/claude-opus-5",
+      "canonical_model": "openrouter/anthropic/claude-opus-5",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"],
+      "description": "Highest-capability OpenCode reasoning with multi-source fallback chain.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.ux": {
+      "models": [
+        {"model": "opencode-go/grok-4.6", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/anthropic/claude-opus-5", "source": "openrouter", "effort": null},
+        {"model": "openrouter/anthropic/claude-opus-4.8", "source": "openrouter", "effort": null}
+      ],
+      "model": "openrouter/anthropic/claude-opus-5",
+      "canonical_model": "openrouter/anthropic/claude-opus-5",
+      "fallbacks": ["openrouter/anthropic/claude-opus-4.8"],
+      "description": "User-facing interaction and frontend work where quality matters most.",
+      "capabilities": ["code", "tools", "ux"]
+    },
+    "code.judgment": {
+      "models": [
+        {"model": "opencode-go/grok-4.6", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/anthropic/claude-opus-5", "source": "openrouter", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4-pro", "source": "openrouter", "effort": null}
+      ],
+      "model": "openrouter/anthropic/claude-opus-5",
+      "canonical_model": "openrouter/anthropic/claude-opus-5",
+      "fallbacks": ["openrouter/deepseek/deepseek-v4-pro"],
+      "description": "High-level judgment and strategic reasoning work.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "write.default": {
+      "models": [
+        {"model": "opencode-go/kimi-k2.7-code", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/moonshotai/kimi-k3", "source": "openrouter", "effort": null},
+        {"model": "openrouter/anthropic/claude-opus-5", "source": "openrouter", "effort": null}
+      ],
+      "model": "openrouter/moonshotai/kimi-k3",
+      "canonical_model": "openrouter/moonshotai/kimi-k3",
+      "fallbacks": ["openrouter/anthropic/claude-opus-5"],
+      "description": "Natural-prose writing and editorial work.",
+      "capabilities": ["writing", "tools"]
+    }
+  }
+}

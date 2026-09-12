@@ -76,13 +76,36 @@ describe('ExecutionEventsClient', () => {
     expect(ctx.fallbackProgress).toBeDefined();
   });
 
-  it('dispatches legacy updates when envelopes are absent', () => {
-    const onLegacy = vi.fn();
-    const client = new ExecutionEventsClient({ onEvent: vi.fn(), onLegacy });
+  it('ignores a legacy payload attached to a typed stream message', () => {
+    const onEvent = vi.fn();
+    const client = new ExecutionEventsClient({ onEvent });
+    const listener = client.createMessageListener();
+    const envelope = create(TimelineStreamMessageSchema, {
+      type: TimelineMessageType.TIMELINE_MESSAGE_TYPE_STATUS,
+      payload: {
+        case: 'status',
+        value: { id: 'exec-2', status: ExecutionStatus.RUNNING, progress: 10 },
+      },
+    });
+
+    listener({
+      data: JSON.stringify({
+        data: toJson(TimelineStreamMessageSchema, envelope),
+        legacy_payload: { secret: 'must-not-be-consumed' },
+      }),
+    } as unknown as MessageEvent);
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent.mock.calls[0][0].payload).toBeUndefined();
+  });
+
+  it('ignores legacy updates when no typed stream message is present', () => {
+    const onEvent = vi.fn();
+    const client = new ExecutionEventsClient({ onEvent });
     const listener = client.createMessageListener();
 
     listener({ data: JSON.stringify({ type: 'completed' }) } as unknown as MessageEvent);
 
-    expect(onLegacy).toHaveBeenCalledWith({ type: 'completed' });
+    expect(onEvent).not.toHaveBeenCalled();
   });
 });

@@ -10,6 +10,7 @@ import { getLandingConfig, listVariants } from '../../../shared/api';
 import {
   loadSectionEditor,
   persistExistingSectionContent,
+  createSection,
   loadVariantContext,
   updateSectionOrder,
   type SectionEditorState,
@@ -46,8 +47,7 @@ export function useSectionForm({
 }: UseSectionFormProps) {
   const navigate = useNavigate();
   const isNew = sectionId === 'new';
-  const parsedSectionId = !isNew && sectionId ? Number(sectionId) : NaN;
-  const numericSectionId = Number.isNaN(parsedSectionId) ? null : parsedSectionId;
+  const sectionKey = !isNew && sectionId?.trim() ? sectionId.trim() : null;
 
   // Section data state
   const [section, setSection] = useState<ContentSection | null>(null);
@@ -78,7 +78,7 @@ export function useSectionForm({
   const compareConfigCache = useRef<Map<string, LandingConfigResponse>>(new Map());
 
   // Reorder state
-  const [reorderingSectionId, setReorderingSectionId] = useState<number | null>(null);
+  const [reorderingSectionId, setReorderingSectionId] = useState<string | null>(null);
   const [reorderError, setReorderError] = useState<string | null>(null);
 
   // Form state
@@ -105,13 +105,13 @@ export function useSectionForm({
    * Fetch section data
    */
   const fetchSection = useCallback(async () => {
-    if (isNew || numericSectionId === null) {
+    if (isNew || !variantSlug || !sectionKey) {
       return;
     }
 
     try {
       setLoading(true);
-      const state = await loadSectionEditor(numericSectionId);
+      const state = await loadSectionEditor(variantSlug, sectionKey);
       applySectionState(state);
       setError(null);
     } catch (err) {
@@ -120,7 +120,7 @@ export function useSectionForm({
     } finally {
       setLoading(false);
     }
-  }, [isNew, numericSectionId, applySectionState]);
+  }, [isNew, variantSlug, sectionKey, applySectionState]);
 
   /**
    * Load preview config for variant
@@ -199,17 +199,28 @@ export function useSectionForm({
       setSaving(true);
 
       if (isNew) {
-        onError?.('Creating new sections requires variant ID. This is a placeholder.');
+        const created = await createSection(variantSlug, {
+          section_type: sectionType,
+          content,
+          order,
+          enabled,
+        });
+        if (!created.key) {
+          throw new Error('Created section did not include a stable key');
+        }
+        setError(null);
+        onSuccess?.(`${sectionType} section created`, 'Section created');
+        navigate(`/admin/customization/variants/${variantSlug}/sections/${encodeURIComponent(created.key)}`);
         return;
       }
 
-      if (numericSectionId === null) {
-        setError('Section ID is missing.');
-        onError?.('Cannot save: section ID is missing');
+      if (!sectionKey) {
+        setError('Section key is missing.');
+        onError?.('Cannot save: section key is missing');
         return;
       }
 
-      const state = await persistExistingSectionContent(numericSectionId, content);
+      const state = await persistExistingSectionContent(variantSlug, sectionKey, content);
       applySectionState(state);
       setError(null);
       onSuccess?.(`${sectionType} section saved`, 'Section updated');
@@ -220,7 +231,7 @@ export function useSectionForm({
     } finally {
       setSaving(false);
     }
-  }, [variantSlug, isNew, numericSectionId, content, sectionType, applySectionState, onSuccess, onError]);
+  }, [variantSlug, isNew, sectionKey, content, sectionType, order, enabled, applySectionState, navigate, onSuccess, onError]);
 
   /**
    * Update a content field
@@ -239,8 +250,8 @@ export function useSectionForm({
     if (!variantSlug) {
       return;
     }
-    const targetPath = target.id
-      ? `/admin/customization/variants/${variantSlug}/sections/${target.id}`
+    const targetPath = target.key
+      ? `/admin/customization/variants/${variantSlug}/sections/${encodeURIComponent(target.key)}`
       : `/admin/customization/variants/${variantSlug}/sections/new`;
     navigate(targetPath);
   }, [variantSlug, navigate]);
@@ -260,26 +271,26 @@ export function useSectionForm({
     async (target: LandingSection, direction: 'up' | 'down') => {
       const timelineSections = sortSectionsByOrder(previewConfig?.sections ?? []);
 
-      if (!target.id || !timelineSections.length) {
+      if (!variantSlug || !target.key || !timelineSections.length) {
         return;
       }
-      const currentIndex = timelineSections.findIndex((s) => s.id === target.id);
+      const currentIndex = timelineSections.findIndex((s) => s.key === target.key);
       if (currentIndex === -1) {
         return;
       }
       const neighborIndex = currentIndex + (direction === 'up' ? -1 : 1);
       const neighbor = timelineSections[neighborIndex];
-      if (!neighbor || !neighbor.id || typeof neighbor.order !== 'number' || typeof target.order !== 'number') {
+      if (!neighbor?.key || typeof neighbor.order !== 'number' || typeof target.order !== 'number') {
         setReorderError('Unable to move section. Missing neighbor information.');
         return;
       }
 
       try {
-        setReorderingSectionId(target.id);
+        setReorderingSectionId(target.key);
         setReorderError(null);
         await Promise.all([
-          updateSectionOrder(target.id, neighbor.order),
-          updateSectionOrder(neighbor.id, target.order),
+          updateSectionOrder(variantSlug, target.key, neighbor.order),
+          updateSectionOrder(variantSlug, neighbor.key, target.order),
         ]);
         await refreshPreviewConfig();
         onSuccess?.(`Section moved ${direction}`, 'Order updated');
@@ -291,7 +302,7 @@ export function useSectionForm({
         setReorderingSectionId(null);
       }
     },
-    [previewConfig, refreshPreviewConfig, onSuccess, onError]
+    [previewConfig, variantSlug, refreshPreviewConfig, onSuccess, onError]
   );
 
   // Computed values
@@ -300,7 +311,7 @@ export function useSectionForm({
   }, [previewConfig]);
 
   const previewVariantLabel = useMemo(() => {
-    return previewConfig?.variant?.name || variantContext?.variant?.name || variantSlug || 'Active variant';
+    return previewConfig?.variant.name || variantContext?.variant.name || variantSlug || 'Active variant';
   }, [previewConfig, variantContext, variantSlug]);
 
   const comparisonVariantLabel = useMemo(() => {
@@ -315,7 +326,7 @@ export function useSectionForm({
     if (!compareConfig) {
       return null;
     }
-    return findSectionByType(compareConfig.sections ?? [], sectionType);
+    return findSectionByType(compareConfig.sections, sectionType);
   }, [compareConfig, sectionType]);
 
   const comparisonContent = comparisonSection?.content ?? {};
@@ -323,10 +334,10 @@ export function useSectionForm({
 
   // Load section on mount
   useEffect(() => {
-    if (!isNew && numericSectionId !== null) {
-      fetchSection();
+    if (!isNew && sectionKey && variantSlug) {
+      void fetchSection();
     }
-  }, [isNew, numericSectionId, fetchSection]);
+  }, [isNew, sectionKey, variantSlug, fetchSection]);
 
   // Load variant context
   useEffect(() => {
@@ -357,7 +368,7 @@ export function useSectionForm({
         }
       }
     };
-    fetchContext();
+    void fetchContext();
 
     return () => {
       cancelled = true;
@@ -366,7 +377,7 @@ export function useSectionForm({
 
   // Load preview config
   useEffect(() => {
-    loadPreviewConfig(variantSlug);
+    void loadPreviewConfig(variantSlug);
   }, [variantSlug, loadPreviewConfig]);
 
   // Load variant options
@@ -391,7 +402,7 @@ export function useSectionForm({
         }
       }
     };
-    fetchVariantOptions();
+    void fetchVariantOptions();
     return () => {
       cancelled = true;
     };
@@ -403,7 +414,7 @@ export function useSectionForm({
       return;
     }
 
-    if (isNew || numericSectionId === null) {
+    if (isNew || !sectionKey) {
       rememberVariantSession({
         slug: variantSlug,
         name: variantContext.variant.name,
@@ -416,17 +427,17 @@ export function useSectionForm({
       slug: variantSlug,
       name: variantContext.variant.name,
       surface: 'section',
-      sectionId: numericSectionId,
+      sectionKey,
       sectionType,
     });
-  }, [variantSlug, variantContext, numericSectionId, isNew, sectionType]);
+  }, [variantSlug, variantContext, sectionKey, isNew, sectionType]);
 
   // Load saved comparison preference
   useEffect(() => {
     if (!variantSlug) return;
     const saved = loadComparePreference(variantSlug);
     if (saved && saved !== compareVariantSlug) {
-      handleCompareVariantChange(saved);
+      void handleCompareVariantChange(saved);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variantSlug]);
@@ -444,7 +455,7 @@ export function useSectionForm({
     saving,
     error,
     isNew,
-    numericSectionId,
+    sectionKey,
 
     // Form state
     sectionType,

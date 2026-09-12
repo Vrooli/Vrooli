@@ -1,12 +1,29 @@
 import { useEffect, useCallback } from "react";
 
+/**
+ * Action handler signature.
+ *
+ * We use an interface with an explicit call signature returning `void` so
+ * TypeScript accepts handlers that return nothing, boolean, or anything
+ * else — the return value is discarded unless it strictly equals `false`.
+ * This avoids `void | boolean` which runs afoul of no-invalid-void-type.
+ */
+export interface KeyboardShortcutAction {
+  (): unknown;
+}
+
 export interface KeyboardShortcut {
   key: string;
   ctrlKey?: boolean;
   metaKey?: boolean;
   shiftKey?: boolean;
   description: string;
-  action: () => void | boolean;
+  /**
+   * Action handler. Return `false` to mark the shortcut as unhandled
+   * (triggers `onUnhandledShortcut`). Any other return value (including
+   * nothing) counts as handled.
+   */
+  action: KeyboardShortcutAction;
   /** If true, prevent default browser behavior */
   preventDefault?: boolean;
   /** Allow this shortcut to fire while an input/textarea/contentEditable has focus */
@@ -78,7 +95,11 @@ export function formatShortcutKey(shortcut: KeyboardShortcut): string {
 
   if (shortcut.ctrlKey) {
     // Show Cmd on Mac, Ctrl on Windows/Linux
-    const isMac = typeof navigator !== "undefined" && navigator.platform.includes("Mac");
+    // Prefer userAgentData (modern) with userAgent fallback (widely supported).
+    const nav: { userAgentData?: { platform?: string }; userAgent?: string } =
+      typeof navigator !== "undefined" ? navigator : {};
+    const platformString = nav.userAgentData?.platform ?? nav.userAgent ?? "";
+    const isMac = platformString.toLowerCase().includes("mac");
     parts.push(isMac ? "Cmd" : "Ctrl");
   }
 

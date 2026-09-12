@@ -1,0 +1,49 @@
+package host
+
+import (
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+)
+
+func NewKernelErrorSignalsCheck(collector hostinventory.IntegrityCollector) checks.Check {
+	return &inventoryCheck{
+		id:          "host-kernel-error-signals",
+		title:       "Host Kernel Error Signals",
+		description: "Detects recent high-signal kernel and device errors from the host log stream.",
+		importance:  "Kernel reset, machine-check, bus, and filesystem signals often precede hard crashes.",
+		collector:   collector,
+		run:         runKernelErrorSignals,
+	}
+}
+
+func runKernelErrorSignals(inv hostinventory.HostInventory) checks.Result {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+		return naResult("Host kernel error signals are not applicable on this platform", "native kernel event/log backend", inv)
+	}
+	var evidence []map[string]any
+	critical := 0
+	warning := 0
+	for _, signal := range inv.Signals {
+		kind := "kernel_signal"
+		if signal.Category == "data_fabric_sync_flood" {
+			kind = "data_fabric_sync_flood"
+		}
+		if signal.Severity == "critical" {
+			critical++
+		} else {
+			warning++
+		}
+		evidence = append(evidence, map[string]any{"kind": kind, "severity": signal.Severity, "signal": signal})
+	}
+	if len(evidence) == 0 {
+		return okResult("No recent high-signal kernel errors detected", inv)
+	}
+	return checks.Result{
+		Status:  statusFromCounts(critical, warning),
+		Message: summarizeEvidence("Recent kernel/device error signals", critical, warning),
+		Details: baseDetails(inv, evidence, []string{
+			"Review recent kernel signals alongside boot history and host inventory drift.",
+			"Correlate repeated device reset or machine-check categories with workloads running before crashes.",
+		}),
+	}
+}

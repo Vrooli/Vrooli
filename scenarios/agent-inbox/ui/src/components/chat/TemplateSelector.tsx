@@ -146,8 +146,8 @@ export function TemplateSelector({
     if (focusedIndex === -1) {
       searchInputRef.current?.focus();
     } else if (templateRefs.current[focusedIndex]) {
-      templateRefs.current[focusedIndex]?.focus();
-      templateRefs.current[focusedIndex]?.scrollIntoView({
+      templateRefs.current[focusedIndex].focus();
+      templateRefs.current[focusedIndex].scrollIntoView({
         block: "nearest",
         behavior: "smooth",
       });
@@ -252,10 +252,10 @@ export function TemplateSelector({
                     <p className="text-sm text-slate-400 mt-1 line-clamp-2">
                       {template.description}
                     </p>
-                    {(template.variables?.length ?? 0) > 0 && (
+                    {template.variables.length > 0 && (
                       <p className="text-xs text-slate-500 mt-2">
-                        {template.variables?.length ?? 0} variable
-                        {(template.variables?.length ?? 0) !== 1 ? "s" : ""} to fill
+                        {template.variables.length} variable
+                        {template.variables.length !== 1 ? "s" : ""} to fill
                       </p>
                     )}
                   </div>

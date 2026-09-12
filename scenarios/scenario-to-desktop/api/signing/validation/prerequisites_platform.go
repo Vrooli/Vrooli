@@ -64,7 +64,20 @@ func (c *PrerequisiteChecker) checkMacOSPrerequisites(ctx context.Context, confi
 		}
 	}
 
-	// Check API key file if using API key auth
+	// Check API key bindings if using API key auth. The generated hook needs
+	// all three public identifiers plus the private file path; a partial
+	// binding must not look like a usable notarization method.
+	hasAPIKeyBinding := config.AppleAPIKeyID != "" || config.AppleAPIKeyFile != "" || config.AppleAPIIssuerID != ""
+	hasCompleteAPIKey := config.AppleAPIKeyID != "" && config.AppleAPIKeyFile != "" && config.AppleAPIIssuerID != ""
+	if hasAPIKeyBinding && !hasCompleteAPIKey {
+		addError(result, types.ValidationError{
+			Code:        "MACOS_API_KEY_BINDING_INCOMPLETE",
+			Platform:    types.PlatformMacOS,
+			Message:     "Apple API-key notarization requires a key ID, issuer ID, and private .p8 file path",
+			Remediation: "Set apple_api_key_id, apple_api_issuer_id, and apple_api_key_file together, or use the Apple ID app-password method",
+		})
+		pv.Errors = append(pv.Errors, "Apple API key binding incomplete")
+	}
 	if config.AppleAPIKeyFile != "" {
 		if !c.fs.Exists(config.AppleAPIKeyFile) {
 			addError(result, types.ValidationError{
@@ -78,22 +91,29 @@ func (c *PrerequisiteChecker) checkMacOSPrerequisites(ctx context.Context, confi
 		}
 	}
 
-	// Check environment variables
-	if config.AppleIDEnv != "" {
-		if _, exists := c.env.LookupEnv(config.AppleIDEnv); !exists {
+	// Check app-password environment variables when API-key notarization is not
+	// selected. Empty config fields intentionally use the generator defaults.
+	if (config.Notarize || config.AppleIDEnv != "" || config.AppleIDPasswordEnv != "") && !hasCompleteAPIKey {
+		appleIDEnv := config.AppleIDEnv
+		if appleIDEnv == "" {
+			appleIDEnv = types.DefaultAppleIDEnv
+		}
+		appleIDPasswordEnv := config.AppleIDPasswordEnv
+		if appleIDPasswordEnv == "" {
+			appleIDPasswordEnv = types.DefaultAppleIDPasswordEnv
+		}
+		if _, exists := c.env.LookupEnv(appleIDEnv); !exists {
 			addWarning(result, types.ValidationWarning{
 				Code:     "MACOS_APPLE_ID_ENV_NOT_SET",
 				Platform: types.PlatformMacOS,
-				Message:  fmt.Sprintf("Environment variable %s is not set", config.AppleIDEnv),
+				Message:  fmt.Sprintf("Environment variable %s is not set", appleIDEnv),
 			})
 		}
-	}
-	if config.AppleIDPasswordEnv != "" {
-		if _, exists := c.env.LookupEnv(config.AppleIDPasswordEnv); !exists {
+		if _, exists := c.env.LookupEnv(appleIDPasswordEnv); !exists {
 			addWarning(result, types.ValidationWarning{
 				Code:     "MACOS_APPLE_PASSWORD_ENV_NOT_SET",
 				Platform: types.PlatformMacOS,
-				Message:  fmt.Sprintf("Environment variable %s is not set", config.AppleIDPasswordEnv),
+				Message:  fmt.Sprintf("Environment variable %s is not set", appleIDPasswordEnv),
 			})
 		}
 	}

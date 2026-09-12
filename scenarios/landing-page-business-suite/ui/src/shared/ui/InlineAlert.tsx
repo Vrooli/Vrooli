@@ -121,7 +121,7 @@ export function InlineAlert({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRetry}
+            onClick={() => { void handleRetry(); }}
             disabled={retrying}
             className="gap-1"
             data-testid={testId ? `${testId}-retry` : undefined}

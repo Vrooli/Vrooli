@@ -1,0 +1,167 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Device Control のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Device Control"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "flows": "フロー",
+      "evidence": "証拠",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+    "description": "デバイスが証明できること、実行中の操作、ライブセッションを確認します。",
+    "onboardingReport": "接続レポート",
+    "onboardingProbeComplete": "接続確認が完了しました",
+    "devicesAvailable": "利用可能なデバイス",
+    "unavailablePrerequisites": "利用できない前提条件",
+    "liveLeases": "ライブリース",
+    "fleetSnapshot": "フリートの機能スナップショット",
+    "noDevices": "まだデバイスを検出していません。",
+    "reprobe": "接続を再確認",
+    "acquireLease": "リースを取得",
+    "probePassed": "プローブ成功。ヘルス警告はありません。",
+    "osUnavailable": "OSバージョンを取得できません",
+    "localTransport": "ローカル",
+    "strategyMatrix": "ストラテジー適合マトリクス",
+    "status": "状態",
+    "tiers": "ティア",
+    "unknown": "不明",
+    "promotable": "昇格可能",
+    "yes": "はい",
+    "no": "いいえ",
+    "liveSessionControls": "ライブセッション操作",
+    "noLiveSessions": "ライブセッションはありません。デバイス操作にはリースが必要です。",
+    "leaseExpires": "リースの期限: {{timestamp}}",
+    "killImmediately": "直ちに停止",
+    "killSession": "セッション {{id}} を停止",
+    "leaseFailed": "リースの取得に失敗しました",
+    "onboardingFailed": "接続プローブに失敗しました",
+    "lanDiscovery": "LAN 検出",
+    "discoverDevices": "デバイスを検出",
+    "addDevice": "デバイスを追加",
+    "knownDevice": "既知のデバイス",
+    "notInInventory": "まだインベントリにありません",
+    "unnamedDevice": "名前のないデバイス",
+    "modelUnavailable": "モデル情報なし",
+    "txtMetadata": "TXT: {{metadata}}",
+    "pairTransport": "トランスポートをペアリング",
+    "pairDevice": "{{name}} をペアリング",
+    "pairingStarted": "ハンドシェイクが始まりました。テレビに表示された6文字の16進数コードを入力してください。",
+    "pairingStarting": "ペアリングのハンドシェイクを開始中…",
+    "pair": "ペアリング",
+    "cancel": "キャンセル"
+    },
+    "auth": {
+      "title": "デバイス認証",
+      "none": "認証プロファイルは登録されていません。",
+      "provider": "プロバイダー: {{state}}",
+      "lastOutcome": "最終結果: {{outcome}}",
+      "reference": "認証情報参照: {{identity}}:{{field}}",
+      "configured": "認証情報が設定されています。検証済みアンロックには保持中のリースを使用してください。",
+      "unconfigured": "認証情報が設定されていません。CLIの標準入力ワークフローで登録してください。"
+    },
+    "flows": {
+      "title": "フロー",
+      "acquireAndRun": "リースを取得して実行",
+    "running": "実行中…",
+    "liveSession": "ライブセッション: {{id}}",
+    "killAvailable": "フロー実行中は停止できます。",
+    "killActiveSession": "アクティブなセッションを停止",
+    "description": "リースを取得する前に必要な機能を検証します。",
+    "flowDefinition": "フロー定義",
+    "strategy": "ストラテジー",
+    "device": "デバイス",
+    "json": "JSON",
+    "validate": "実行前に検証",
+    "capabilityGapReport": "機能ギャップレポート",
+    "runnable": "実行可能",
+    "blockedBeforeExecution": "実行前にブロック",
+    "noValidation": "まだ検証を実行していません。",
+    "runReview": "実行レビュー",
+    "noRun": "実行は送信されていません。",
+    "retainedEvidence": "保持された証拠: {{count}}",
+    "checksumUnavailable": "チェックサムを取得できません",
+    "bytes": "バイト",
+    "redactionVerified": "境界確認済み: {{verified}}",
+    "retainedEvidenceAlt": "保持された証拠 {{id}}",
+    "invalidFlow": "フローJSONが無効です",
+    "flowFailed": "フローの実行に失敗しました",
+    "sessionKillFailed": "セッションの停止に失敗しました",
+    "strategyOption": "{{id}} · {{status}}",
+    "deviceOption": "{{name}} · {{id}}",
+    "chapterSummary": "{{id}}: {{disposition}} — {{message}}",
+    "resolutionSummary": "{{target}}: ランク{{rung}}、信頼度{{confidence}}",
+    "degradedEvidence": "低下: {{reason}}",
+    "dispositionReasonUnavailable": "主張の最低基準未満"
+    },
+    "evidence": {
+      "title": "証拠と監査",
+      "description": "送信されたすべての操作は、実行者、デバイス、リースに追跡できます。",
+      "recentVerbs": "最近のデバイス操作",
+      "noVerbs": "デバイス操作はまだ送信されていません。",
+      "verb": "操作",
+      "device": "デバイス",
+      "actor": "実行者",
+      "outcome": "結果",
+      "created": "作成日時"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

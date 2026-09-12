@@ -10,6 +10,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execSync } from 'child_process';
+import { NativeExtension, validateNativeExtension } from './native-extension';
 
 interface DesktopConfig {
     // Application identity (matching Go JSON tags)
@@ -51,8 +52,10 @@ interface DesktopConfig {
     lpbs_url?: string; // Vrooli platform URL for auth (defaults to https://vrooli.com)
 
     // Template configuration
-    framework: 'electron' | 'tauri' | 'neutralino';
+    framework: 'electron';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
+
+    native_extension?: NativeExtension;
 
     // Features
     features: {
@@ -109,6 +112,16 @@ interface DesktopConfig {
         auto_check?: boolean;
     };
 
+    // Signing configuration is prepared by the Go signing owner. The Linux
+    // hook is referenced here so electron-builder actually executes the
+    // generated detached-signature step.
+    code_signing?: {
+        enabled?: boolean;
+        linux?: {
+            gpg_key_id?: string;
+        };
+    };
+
     // Port configuration for all service ports
     // Key is the port name (e.g., "api", "ui", "websocket")
     // Value includes env_var and default port
@@ -131,6 +144,7 @@ class DesktopTemplateGenerator {
     private outputPath: string;
     
     constructor(config: DesktopConfig) {
+        validateNativeExtension(config.native_extension, config.framework, config.platforms);
         this.config = config;
         // SECURITY: __dirname is controlled by the build system (not user input).
         // This path traversal is safe as it navigates from build-tools/dist/ to templates/.
@@ -360,6 +374,7 @@ class DesktopTemplateGenerator {
         const currentYear = new Date().getFullYear();
         
         const variables: Record<string, any> = {
+            NATIVE_EXTENSION_CONFIG: JSON.stringify(JSON.stringify(this.config.native_extension ?? null)).slice(1, -1),
             // Basic app info
             APP_NAME: this.config.app_name,
             APP_DISPLAY_NAME: this.config.app_display_name,
@@ -388,7 +403,9 @@ class DesktopTemplateGenerator {
             BUNDLED_RUNTIME_SUPPORTED: this.config.deployment_mode === 'bundled',
             BUNDLED_RUNTIME_ROOT: this.config.bundle_runtime_root || 'bundle',
             BUNDLED_RUNTIME_IPC_HOST: this.config.bundle_ipc?.host || '127.0.0.1',
-            BUNDLED_RUNTIME_IPC_PORT: this.config.bundle_ipc?.port || 47710,
+            // No BUNDLED_RUNTIME_IPC_PORT: baking a port here turned a bundle's
+            // "0 = allocate" declaration into a fixed number. The staged bundle
+            // manifest carries the declaration; the runtime publishes the result.
             // CRITICAL: Token path must match bundle.json exactly!
             // If bundle_ipc.auth_token_path is not provided, we use a default.
             // This default MUST match what the runtime creates, or the desktop app will timeout.
@@ -439,6 +456,12 @@ class DesktopTemplateGenerator {
             UPDATE_PROVIDER: this.getEffectiveUpdateProvider(),
             UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
             UPDATE_SERVER_URL: this.getUpdateServerUrl(),
+
+            LINUX_ARTIFACT_SIGNER_HOOK: JSON.stringify(
+                this.config.code_signing?.enabled && this.config.code_signing.linux
+                    ? 'scripts/sign-linux-artifacts.js'
+                    : null
+            ),
 
             // Auth configuration
             LPBS_URL: this.config.lpbs_url || 'https://vrooli.com',
@@ -500,6 +523,7 @@ class DesktopTemplateGenerator {
                 owner: github?.owner || "your-organization",
                 repo: github?.repo || `${this.config.app_name}-desktop`,
                 releaseType: channel === 'stable' ? 'release' : 'prerelease',
+                channel,
             };
 
             // Add private repo support if needed
@@ -536,6 +560,7 @@ class DesktopTemplateGenerator {
             return {
                 provider: "generic",
                 url: fullUrl,
+                channel,
                 useMultipleRangeRequest: false, // Better compatibility
             };
         }
@@ -611,6 +636,15 @@ class DesktopTemplateGenerator {
     }
     
     private async generateAdditionalFiles(templateConfig: any): Promise<void> {
+        if (this.config.native_extension) {
+            await fs.writeFile(path.join(this.outputPath, 'native-extension.json'), JSON.stringify({
+                ...this.config.native_extension,
+                main_entrypoint: 'dist/native/presentation.js',
+                renderer_bridge: 'desktopPresentation',
+                helper_providers: this.config.native_extension.helper_providers ?? [],
+                native_dependencies: [],
+            }, null, 2) + '\n');
+        }
         // Generate README.md
         await this.generateReadme();
         
@@ -754,7 +788,10 @@ exports.default = async function notarizing(context) {
         appBundleId: '${this.config.app_id}',
         appPath: \`\${appOutDir}/\${appName}.app\`,
         appleId: process.env.APPLE_ID,
-        appleIdPassword: process.env.APPLE_ID_PASSWORD,
+        // Keep the template generator aligned with the shared desktop
+        // credential declaration. The API generator accepts a custom env
+        // binding, while this legacy template uses the canonical default.
+        appleIdPassword: process.env.APPLE_APP_SPECIFIC_PASSWORD,
         teamId: process.env.APPLE_TEAM_ID,
     });
 };`;
@@ -796,6 +833,7 @@ exports.default = async function notarizing(context) {
         const dirsToMove = [
             'auth',          // Authentication (magic link, token management)
             // 'bundle' intentionally excluded - see comment above
+            'native',        // Governed built-in native extensions
             'ipc',           // Inter-process communication handlers
             'runtime',       // Bundled runtime process management
             'splash',        // Splash screen lifecycle

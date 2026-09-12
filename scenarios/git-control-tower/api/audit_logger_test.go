@@ -4,9 +4,166 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
 // [REQ:GCT-OT-P0-007] SQLite audit logging tests
+
+func newTestSQLiteAuditLogger(t *testing.T) *SQLiteAuditLogger {
+	t.Helper()
+
+	db := testdb.OpenSQLiteFile(t, "audit.db")
+	if err := ensureAuditSchema(db); err != nil {
+		t.Fatalf("ensure audit schema: %v", err)
+	}
+	return NewSQLiteAuditLogger(db)
+}
+
+func TestSQLiteAuditLogger_LogAndQueryFilters(t *testing.T) {
+	logger := newTestSQLiteAuditLogger(t)
+	ctx := context.Background()
+	baseTime := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+
+	entries := []AuditEntry{
+		{
+			Operation:     AuditOpStage,
+			RepoDir:       "/work/repo",
+			Branch:        "main",
+			Paths:         []string{"a.go", "b.go"},
+			CommitHash:    "abc123",
+			CommitMessage: "stage changes",
+			Success:       true,
+			Timestamp:     baseTime,
+			Metadata:      map[string]interface{}{"source": "test"},
+		},
+		{
+			Operation: AuditOpCommit,
+			RepoDir:   "/work/repo",
+			Branch:    "feature",
+			Success:   false,
+			Error:     "commit failed",
+			Timestamp: baseTime.Add(time.Minute),
+		},
+		{
+			Operation: AuditOpStage,
+			RepoDir:   "/work/repo",
+			Branch:    "feature",
+			Success:   true,
+			Timestamp: baseTime.Add(2 * time.Minute),
+		},
+	}
+
+	for _, entry := range entries {
+		if err := logger.Log(ctx, entry); err != nil {
+			t.Fatalf("log %s: %v", entry.Operation, err)
+		}
+	}
+
+	resp, err := logger.Query(ctx, AuditQueryRequest{Operation: AuditOpStage})
+	if err != nil {
+		t.Fatalf("query stage entries: %v", err)
+	}
+	if resp.Total != 2 {
+		t.Fatalf("Total = %d, want 2", resp.Total)
+	}
+	if len(resp.Entries) != 2 {
+		t.Fatalf("len(Entries) = %d, want 2", len(resp.Entries))
+	}
+	if resp.Entries[0].Branch != "feature" {
+		t.Fatalf("first Branch = %q, want newest feature entry", resp.Entries[0].Branch)
+	}
+	if resp.Entries[1].Paths[0] != "a.go" {
+		t.Fatalf("oldest stage paths = %#v, want persisted paths", resp.Entries[1].Paths)
+	}
+	if resp.Entries[1].Metadata["source"] != "test" {
+		t.Fatalf("metadata = %#v, want source=test", resp.Entries[1].Metadata)
+	}
+
+	resp, err = logger.Query(ctx, AuditQueryRequest{
+		Branch: "feature",
+		Since:  baseTime.Add(30 * time.Second),
+		Until:  baseTime.Add(90 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("query time window: %v", err)
+	}
+	if resp.Total != 1 {
+		t.Fatalf("Total = %d, want 1", resp.Total)
+	}
+	if resp.Entries[0].Operation != AuditOpCommit {
+		t.Fatalf("Operation = %q, want commit", resp.Entries[0].Operation)
+	}
+	if resp.Entries[0].Error != "commit failed" {
+		t.Fatalf("Error = %q, want commit failed", resp.Entries[0].Error)
+	}
+}
+
+func TestSQLiteAuditLogger_QueryPaginationAndGracefulDegradation(t *testing.T) {
+	logger := newTestSQLiteAuditLogger(t)
+	ctx := context.Background()
+
+	for i := 0; i < 4; i++ {
+		if err := logger.Log(ctx, AuditEntry{
+			Operation: AuditOpStage,
+			RepoDir:   "/work/repo",
+			Success:   true,
+			Timestamp: time.Date(2026, 5, 1, 12, i, 0, 0, time.UTC),
+		}); err != nil {
+			t.Fatalf("log entry %d: %v", i, err)
+		}
+	}
+
+	resp, err := logger.Query(ctx, AuditQueryRequest{Limit: 2, Offset: 1})
+	if err != nil {
+		t.Fatalf("query paginated entries: %v", err)
+	}
+	if resp.Total != 4 {
+		t.Fatalf("Total = %d, want 4", resp.Total)
+	}
+	if len(resp.Entries) != 2 {
+		t.Fatalf("len(Entries) = %d, want 2", len(resp.Entries))
+	}
+
+	if NewSQLiteAuditLogger(nil) != nil {
+		t.Fatal("NewSQLiteAuditLogger(nil) returned logger, want nil")
+	}
+	var unconfigured *SQLiteAuditLogger
+	if unconfigured.IsConfigured() {
+		t.Fatal("nil SQLiteAuditLogger IsConfigured = true, want false")
+	}
+	if err := unconfigured.Log(ctx, AuditEntry{Operation: AuditOpStage}); err != nil {
+		t.Fatalf("nil SQLiteAuditLogger Log() error = %v, want nil", err)
+	}
+	empty, err := unconfigured.Query(ctx, AuditQueryRequest{})
+	if err != nil {
+		t.Fatalf("nil SQLiteAuditLogger Query() error = %v, want nil", err)
+	}
+	if len(empty.Entries) != 0 {
+		t.Fatalf("nil SQLiteAuditLogger entries = %d, want 0", len(empty.Entries))
+	}
+}
+
+func TestAuditTimestampAndJSONHelpers(t *testing.T) {
+	ts := time.Date(2026, 5, 1, 12, 13, 14, 15, time.FixedZone("offset", -4*60*60))
+	formatted := formatTimestamp(ts)
+	parsed := parseTimestamp(formatted)
+	if !parsed.Equal(ts.UTC()) {
+		t.Fatalf("parseTimestamp(formatTimestamp(ts)) = %s, want %s", parsed, ts.UTC())
+	}
+	if !parseTimestamp("").IsZero() {
+		t.Fatal("parseTimestamp(empty) = non-zero, want zero")
+	}
+	if !parseTimestamp("not a timestamp").IsZero() {
+		t.Fatal("parseTimestamp(invalid) = non-zero, want zero")
+	}
+	if got := nullableJSON(nil); got != nil {
+		t.Fatalf("nullableJSON(nil) = %#v, want nil", got)
+	}
+	if got := nullableJSON([]byte(`{"ok":true}`)); got != `{"ok":true}` {
+		t.Fatalf("nullableJSON(payload) = %#v, want JSON string", got)
+	}
+}
 
 func TestFakeAuditLogger_Log(t *testing.T) {
 	logger := NewFakeAuditLogger()

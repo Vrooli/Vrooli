@@ -1,1 +1,1 @@
-export { WineInstallDialog } from './WineInstallDialog';
+export { WineInstallDialog } from "./WineInstallDialog";

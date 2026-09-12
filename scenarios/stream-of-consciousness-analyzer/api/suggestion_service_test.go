@@ -70,32 +70,6 @@ func TestGetActiveProviderPrimary(t *testing.T) {
 	}
 }
 
-// [REQ:P2-001] Test env seam: custom OLLAMA_URL via EnvReader
-func TestSuggestionServiceWithEnv_CustomOllamaURL(t *testing.T) {
-	env := func(key string) string {
-		if key == "OLLAMA_URL" {
-			return "http://custom-ollama:9999"
-		}
-		return ""
-	}
-
-	svc := NewSuggestionServiceWithEnv(nil, env)
-	providers := svc.GetProviders()
-
-	found := false
-	for _, p := range providers {
-		if p.Name == "ollama" {
-			found = true
-			if p.URL != "http://custom-ollama:9999" {
-				t.Errorf("expected custom URL, got %s", p.URL)
-			}
-		}
-	}
-	if !found {
-		t.Error("expected ollama provider")
-	}
-}
-
 // [REQ:P2-001] Test env seam: OpenRouter activates when API key is set
 func TestSuggestionServiceWithEnv_OpenRouterActive(t *testing.T) {
 	env := func(key string) string {
@@ -164,15 +138,16 @@ func TestSuggestionServiceWithEnv_NoProviders(t *testing.T) {
 	}
 }
 
-// [REQ:P2-001] Test env seam: default Ollama URL when env var is empty
-func TestSuggestionServiceWithEnv_DefaultOllamaURL(t *testing.T) {
+// [REQ:P2-001] Ollama provider advertises the resource-ollama gateway transport
+// regardless of env vars (no per-call URL toggle — gateway CLI owns transport).
+func TestSuggestionServiceWithEnv_OllamaTransport(t *testing.T) {
 	env := func(key string) string { return "" }
 
 	svc := NewSuggestionServiceWithEnv(nil, env)
 	for _, p := range svc.providers {
 		if p.Name == "ollama" {
-			if p.URL != "http://localhost:11434" {
-				t.Errorf("expected default URL, got %s", p.URL)
+			if p.URL != OllamaProviderTransport {
+				t.Errorf("expected gateway transport, got %s", p.URL)
 			}
 			return
 		}

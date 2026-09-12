@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Deployment Manager UI manifest",
+  "description": "Declares the governed navigated-console shell for Deployment Manager.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/features/shared/Layout.tsx",
+    "export": "Layout"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "slots": {
+    "layout-shell": { "dir": "ui/src/features/shared" }
+  }
+}

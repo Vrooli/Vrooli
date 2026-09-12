@@ -1,3 +1,4 @@
+// DOC: docs/internal/COHERENCE-NOTES.md
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

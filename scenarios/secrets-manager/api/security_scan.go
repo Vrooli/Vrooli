@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"secrets-manager-api/internal/envx"
 
 	"github.com/google/uuid"
 )
@@ -37,18 +40,11 @@ type vrooliPaths struct {
 
 // getVrooliPaths resolves the VROOLI_ROOT and derived paths.
 func getVrooliPaths() (vrooliPaths, error) {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return vrooliPaths{}, fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		vrooliRoot = filepath.Join(home, "Vrooli")
-	}
+	vrooliRoot := getVrooliRoot()
 	return vrooliPaths{
 		root:      vrooliRoot,
-		scenarios: filepath.Join(vrooliRoot, "scenarios"),
-		resources: filepath.Join(vrooliRoot, "resources"),
+		scenarios: resolveTopLevelDir("scenarios"),
+		resources: resolveTopLevelDir("resources"),
 	}, nil
 }
 
@@ -185,7 +181,6 @@ func walkAndScan(ctx context.Context, cfg scanWalkConfig) scanWalkResult {
 
 		return nil
 	})
-
 	if err != nil {
 		logger.Warning("failed to walk %s directory: %v", cfg.componentType, err)
 		result.errors = append(result.errors, fmt.Sprintf("Failed to walk %s directory: %v", cfg.componentType, err))
@@ -210,99 +205,7 @@ var (
 	securityScanCacheMu   sync.Mutex
 	scanRefreshInFlight   = map[string]bool{}
 	scanRefreshInFlightMu sync.Mutex
-
-	activeScansMutex sync.RWMutex
-	activeScans      = make(map[string]*ProgressiveScanResult)
 )
-
-// Progressive security scanner - returns immediate results and continues in background
-func startProgressiveScan(componentFilter, componentTypeFilter, severityFilter string) (*ProgressiveScanResult, error) {
-	scanID := uuid.New().String()
-	startTime := time.Now()
-
-	// Initialize progressive scan
-	progressiveScan := &ProgressiveScanResult{
-		ScanID:          scanID,
-		Status:          "running",
-		StartTime:       startTime,
-		LastUpdate:      startTime,
-		ComponentFilter: componentFilter,
-		ComponentType:   componentTypeFilter,
-		Vulnerabilities: []SecurityVulnerability{},
-		ScanMetrics: ScanMetrics{
-			ScanErrors:       []string{},
-			ScanComplete:     false,
-			BatchesProcessed: 0,
-			LastBatchTime:    startTime.Format(time.RFC3339),
-		},
-		EstimatedProgress: 0.0,
-	}
-
-	// Store in active scans
-	activeScansMutex.Lock()
-	activeScans[scanID] = progressiveScan
-	activeScansMutex.Unlock()
-
-	// Start background scanning
-	go performProgressiveScan(progressiveScan, componentFilter, componentTypeFilter, severityFilter)
-
-	// Return immediate partial results (empty initially)
-	return progressiveScan, nil
-}
-
-// Background progressive scanning with batching
-func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, componentTypeFilter, severityFilter string) {
-	defer func() {
-		// Mark scan as complete
-		activeScansMutex.Lock()
-		scan.Status = "completed"
-		scan.ScanMetrics.ScanComplete = true
-		scan.LastUpdate = time.Now()
-		scan.EstimatedProgress = 1.0
-		activeScansMutex.Unlock()
-
-		logger.Info("Progressive scan %s completed: %d vulnerabilities found", scan.ScanID, len(scan.Vulnerabilities))
-	}()
-
-	paths, err := getVrooliPaths()
-	if err != nil {
-		scan.Status = "failed"
-		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, err.Error())
-		return
-	}
-
-	// Estimate total files for progress tracking
-	estimatedFiles := estimateFileCount(paths.scenarios, paths.resources, componentTypeFilter)
-	scan.ScanMetrics.EstimatedTotalFiles = estimatedFiles
-
-	var allVulnerabilities []SecurityVulnerability
-	var resourcesScanned, scenariosScanned int
-
-	// TODO: Progressive scanning implementation - for now use existing method
-	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
-	if err != nil {
-		scan.Status = "failed"
-		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Scan failed: %v", err))
-		return
-	}
-
-	allVulnerabilities = result.Vulnerabilities
-	resourcesScanned = result.ComponentsSummary.ResourcesScanned
-	scenariosScanned = result.ComponentsSummary.ScenariosScanned
-
-	// Final update
-	activeScansMutex.Lock()
-	scan.Vulnerabilities = allVulnerabilities
-	scan.RiskScore = calculateRiskScore(allVulnerabilities)
-	scan.Recommendations = generateRemediationSuggestions(allVulnerabilities)
-	scan.ComponentsSummary = ComponentScanSummary{
-		ResourcesScanned: resourcesScanned,
-		ScenariosScanned: scenariosScanned,
-		TotalComponents:  resourcesScanned + scenariosScanned,
-	}
-	scan.ScanMetrics.TotalScanTimeMs = int(time.Since(scan.StartTime).Milliseconds())
-	activeScansMutex.Unlock()
-}
 
 // Original function modified to work with the new progressive system
 func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
@@ -311,7 +214,11 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 		return cached, nil
 	}
 
-	if os.Getenv("SECRETS_MANAGER_TEST_MODE") == "true" {
+	testMode, err := testModeEnabled(envx.OS{})
+	if err != nil {
+		return nil, fmt.Errorf("invalid test-mode configuration: %w", err)
+	}
+	if testMode {
 		result := buildEmptySecurityScan(componentFilter, componentTypeFilter, severityFilter, true)
 		storeCachedSecurityScan(cacheKey, result)
 		return result, nil
@@ -495,7 +402,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 			Pattern:        `(PASSWORD|SECRET|TOKEN|KEY|API_KEY)\s*=\s*[\"'](?!.*\$|.*env|.*getenv)[^\"']{8,}[\"']`,
 			Description:    "Hardcoded secret found in resource configuration",
 			Title:          "Hardcoded Secret in Resource",
-			Recommendation: "Move secret to vault using resource-vault CLI",
+			Recommendation: "Provision the credential with vrooli credentials provision and inject it at runtime",
 			CanAutoFix:     false,
 		},
 		{
@@ -504,7 +411,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 			Pattern:        `(DATABASE_URL|DB_URL|POSTGRES_URL)\s*=\s*[\"'](?!.*\$)[^\"']*://[^\"']*:[^\"']*@[^\"']+`,
 			Description:    "Database URL with hardcoded credentials",
 			Title:          "Hardcoded Database Credentials",
-			Recommendation: "Use environment variables or vault for database credentials",
+			Recommendation: "Use the credential authority and process-scoped injection for database credentials",
 			CanAutoFix:     false,
 		},
 		{
@@ -577,7 +484,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 	count := 0
 
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
-		filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}
@@ -590,7 +497,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 	}
 
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
-		filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}

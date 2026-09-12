@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.api;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// RelatedService exposes explainable related work for a backlog item or goal.
+service RelatedService {
+  rpc GetRelated(GetRelatedRequest) returns (GetRelatedResponse);
+}
+
+message RelatedBacklogTarget {
+  string kind = 1;
+  string name = 2;
+}
+message RelatedGoalTarget {
+  string name = 1;
+}
+
+message GetRelatedRequest {
+  oneof target {
+    RelatedBacklogTarget backlog = 1;
+    RelatedGoalTarget goal = 2;
+  }
+  // Historical work is included unless this is true.
+  bool exclude_historical = 3;
+  repeated string entity_kinds = 4;
+  int32 limit = 5;
+}
+
+message RelatedEntity {
+  string entity_kind = 1;
+  string key = 2;
+  string title = 3;
+  string status = 4;
+  bool archived = 5;
+  repeated string reasons = 6;
+  optional int32 score_percent = 7;
+}
+
+message RelatedGroup {
+  string name = 1;
+  repeated RelatedEntity entities = 2;
+  bool degraded = 3;
+}
+message GetRelatedResponse {
+  repeated RelatedGroup groups = 1;
+}

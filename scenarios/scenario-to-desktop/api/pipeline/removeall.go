@@ -15,7 +15,7 @@ import (
 // directory itself, since that contains source/config (package.json, src/, etc.).
 //
 // For staging/temp location modes, it is safe to remove the entire framework directory because it is
-// generated under scenario-to-desktop/data/staging.
+// generated under the scenario-to-desktop cache staging root.
 func cleanDesktopOutputs(desktopPath string, locationMode string) error {
 	p := strings.TrimSpace(desktopPath)
 	if p == "" {

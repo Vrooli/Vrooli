@@ -66,10 +66,6 @@ Per-step execution parameters for VPS deployment operations. Controls command ti
 
 SSH host key verification model used by scenario-to-cloud. On first connection to a new host, the key is accepted and saved. On subsequent connections, a changed key triggers a warning. Controlled by the `StrictHostKey` option.
 
-## Tool Execution Protocol
-
-A standardized interface for other agents and scenarios to programmatically invoke scenario-to-cloud capabilities. Tools are discovered via `GET /tools` and executed via `POST /tools/execute`.
-
 ## VPS (Virtual Private Server)
 
 A remote server where your scenario is deployed. Scenario-to-Cloud supports any Linux VPS with SSH access.

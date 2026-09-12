@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "primitives.surface",
+    "name": "Surface",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The canonical background and elevation primitive for panels, menus, overlays, and grouped content, pairing surface colour, border, and shadow as one elevation token.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "contrast-floor",
+    "dark-parity",
+    "forced-colors-legibility",
+    "ramp-conformance"
+  ],
+  "rationale": "Elevation is a paired token rather than a shadow: in dark operational UIs depth reads through surface lightness far more than through shadow, so the two must move together."
+}

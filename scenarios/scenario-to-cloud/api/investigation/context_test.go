@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestBuildPromptAndContext_DefaultsAndNote(t *testing.T) {
@@ -72,6 +72,19 @@ func TestExtractErrorSummary(t *testing.T) {
 	}
 }
 
+func TestBuildDiagnosticChecklistAttachment_UsesContractNeutralScenarioGuidance(t *testing.T) {
+	att := buildDiagnosticChecklistAttachment()
+	if att == nil {
+		t.Fatal("expected attachment")
+	}
+	if strings.Contains(att.Content, "<workdir>/scenarios/<scenario>/.vrooli/service.json") {
+		t.Fatalf("diagnostic checklist should not hard-code scenario path layout: %q", att.Content)
+	}
+	if !strings.Contains(att.Content, "contract-defined scenario root") {
+		t.Fatalf("diagnostic checklist should reference contract-defined scenario root: %q", att.Content)
+	}
+}
+
 func validDeploymentForContext() *domain.Deployment {
 	errStep := "preflight"
 	errMsg := "Cannot negotiate ALPN protocol"
@@ -84,7 +97,6 @@ func validDeploymentForContext() *domain.Deployment {
 				Host:    "138.197.95.182",
 				Port:    22,
 				User:    "root",
-				KeyPath: "~/.ssh/id_ed25519",
 				Workdir: "/root/Vrooli",
 			},
 		},

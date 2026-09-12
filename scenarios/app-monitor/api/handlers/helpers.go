@@ -59,7 +59,7 @@ func HandleServiceCall[T any](
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -95,7 +95,7 @@ func HandleServiceCallRaw[T any](
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -134,7 +134,7 @@ func HandleServiceAction(
 			status = http.StatusServiceUnavailable
 		case errors.Is(err, services.ErrScenarioAuditorUnavailable):
 			status = http.StatusServiceUnavailable
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 

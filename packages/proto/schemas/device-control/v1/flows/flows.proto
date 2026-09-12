@@ -1,0 +1,112 @@
+syntax = "proto3";
+package vrooli.device_control.v1.flows;
+
+import "device-control/v1/shared/flow.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows;flows_v1";
+service FlowService {
+  rpc ValidateFlow(ValidateFlowRequest) returns (CapabilityGapReport);
+  rpc RunFlow(RunFlowRequest) returns (RunResult);
+  rpc ListSavedFlows(ListSavedFlowsRequest) returns (ListSavedFlowsResponse);
+  rpc GetSavedFlow(GetSavedFlowRequest) returns (SavedFlow);
+  rpc SaveValidatedFlow(SaveValidatedFlowRequest) returns (SavedFlow);
+  rpc RunSavedFlow(RunSavedFlowRequest) returns (RunResult);
+}
+message ValidateFlowRequest {
+  shared.Flow flow = 1;
+  string strategy_id = 2;
+  string baseline_id = 3;
+  int32 expected_version = 4;
+  bool require_assertion = 5;
+}
+message RunFlowRequest {
+  shared.Flow flow = 1;
+  string device_id = 2;
+  string actor = 3;
+  string lease_token = 4;
+}
+message CapabilityGapReport {
+  bool runnable = 1;
+  repeated string gaps = 2;
+  repeated string warnings = 3;
+}
+message RunResult {
+  string run_id = 1;
+  string disposition = 2;
+  repeated Chapter chapters = 3;
+  repeated Resolution resolutions = 4;
+  repeated EvidenceReference evidence = 5;
+  bool incomplete = 6;
+  string disconnect_reason = 7;
+ string disconnect_step = 8;
+ RunBinding binding = 9;
+}
+message RunBinding {
+ string device_id = 1;
+ string transport = 2;
+ string lease_id = 3;
+ uint64 lease_epoch = 4;
+ string application_id = 5;
+ string application_revision = 6;
+}
+message Chapter {
+ string id = 1;
+ string title = 2;
+ string disposition = 3;
+ string message = 4;
+ repeated string evidence_ids = 5;
+ string failure_class = 6;
+ int32 attempts = 7;
+}
+message Resolution {
+  string target = 1;
+  string rung = 2;
+  double confidence = 3;
+}
+message EvidenceReference {
+  string id = 1;
+  string sha256 = 2;
+  int64 size_bytes = 3;
+  string created_at = 4;
+  bool redaction_verified = 5;
+  string recording_method = 6;
+  double effective_fps = 7;
+  string producer = 8;
+  string kind = 9;
+  repeated string applied_rules = 10;
+  bool opted_out = 11;
+  string claim_class = 12;
+  double minimum_useful_fps = 13;
+  string disposition = 14;
+  string disposition_reason = 15;
+}
+
+
+// A saved revision is reusable only for the exact device and comparison context.
+message SavedFlow {
+ string id = 1;
+ int32 version = 2;
+ string device_id = 3;
+ string context_key = 4;
+ string source_run_id = 5;
+ shared.Flow flow = 6;
+ string created_at = 7;
+}
+message ListSavedFlowsRequest { string device_id = 1; string context_key = 2; }
+message ListSavedFlowsResponse { repeated SavedFlow flows = 1; }
+message GetSavedFlowRequest { string id = 1; int32 version = 2; }
+message SaveValidatedFlowRequest {
+ string run_id = 1;
+ string device_id = 2;
+ string context_key = 3;
+ // Empty creates a new flow. A repair supplies both id and expected_version.
+ string id = 4;
+ int32 expected_version = 5;
+}
+message RunSavedFlowRequest {
+ string id = 1;
+ int32 version = 2;
+ string device_id = 3;
+ string context_key = 4;
+ string actor = 5;
+}

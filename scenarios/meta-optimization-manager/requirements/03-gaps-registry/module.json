@@ -1,0 +1,72 @@
+{
+  "_metadata": {
+    "description": "OT-P0-003 — honest gaps registry with qualitative notes/approaches.",
+    "last_validated_at": "2026-09-02T19:08:01-04:00",
+    "module": "gaps-registry",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-GAPS-001",
+      "title": "gaps registry persists and surfaces qualitative notes/approaches per gap",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "focus",
+      "description": "The gaps command/RPC surfaces every known gap with notes/approaches/context (not just a percentage). Cross-cutting/global gaps and explored-but-unbuilt ideas are persisted in SQLite and surfaced via `gaps [--projection] [--cell]`.",
+      "tags": [
+        "gaps",
+        "registry",
+        "storage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API: SQLite store round-trips notes/approaches; target api/internal/gaps."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI: gaps list/filter output; target cli/domains/gaps."
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "E2E: gaps surfaced with qualitative context."
+        }
+      ]
+    },
+    {
+      "id": "MOM-GAPS-002",
+      "title": "append explored approaches to a gap (the store-our-thinking write verb)",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-003",
+      "category": "focus",
+      "description": "`gaps note \u003cid\u003e --add \"\u003capproach\u003e\"` appends an explored-but-unbuilt idea/approach to a gap, and `gaps show \u003cid\u003e` returns the full gap with its accumulated notes/approaches. The one focus write verb; lets the team durably store thinking on a known gap without implementing it.",
+      "tags": [
+        "gaps",
+        "write",
+        "notes"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "API: AddGapNote appends + GetGap round-trips; target api/internal/gaps."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI: gaps note/show; target cli/domains/gaps."
+        }
+      ]
+    }
+  ]
+}

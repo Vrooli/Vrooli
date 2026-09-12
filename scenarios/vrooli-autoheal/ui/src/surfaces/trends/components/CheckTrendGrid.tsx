@@ -1,6 +1,7 @@
 // Per-check trend grid showing individual check health over time
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
-import { useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState, useCallback } from "react";
+import type { KeyboardEvent } from "react";
 import { TimelineEvent, HealthStatus, CheckTrend as APICheckTrend, normalizeHealthStatus } from "../../../lib/api";
 import { StatusIcon, StatusSparkline } from "../../../shared/components";
 import { useCheckMetadata } from "../../../shared/contexts/CheckMetadataContext";
@@ -31,7 +32,16 @@ type SortKey = "checkId" | "total" | "ok" | "warning" | "critical" | "uptimePerc
 type SortDirection = "asc" | "desc";
 
 // Sortable column header component
-function SortableHeader({
+const EMPTY_STATUSES: HealthStatus[] = [];
+const TREND_VISIBLE_STEP = 100;
+
+function getUptimeTextClass(uptimePercent: number) {
+  if (uptimePercent >= 99) return "text-accent-success";
+  if (uptimePercent >= 90) return "text-accent-warning";
+  return "text-accent-danger";
+}
+
+const SortableHeader = memo(function SortableHeader({
   label,
   sortKey,
   currentSort,
@@ -62,12 +72,98 @@ function SortableHeader({
       </span>
     </button>
   );
+});
+
+interface CheckTrendRowProps {
+  trend: LocalCheckTrend;
+  getTitle: (checkId: string) => string;
+  onCheckClick?: (checkId: string) => void;
 }
+
+const CheckTrendRow = memo(function CheckTrendRow({
+  trend,
+  getTitle,
+  onCheckClick,
+}: CheckTrendRowProps) {
+  const title = getTitle(trend.checkId);
+  const showCheckId = title !== trend.checkId;
+  const clickable = Boolean(onCheckClick);
+
+  const handleClick = useCallback(() => {
+    onCheckClick?.(trend.checkId);
+  }, [onCheckClick, trend.checkId]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTableRowElement>) => {
+    if (onCheckClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onCheckClick(trend.checkId);
+    }
+  }, [onCheckClick, trend.checkId]);
+
+  return (
+    <tr
+      onClick={clickable ? handleClick : undefined}
+      className={`border-b border-border-default/30 transition-colors hover:bg-surface-overlay/30 ${
+        clickable ? "cursor-pointer" : ""
+      }`}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? handleKeyDown : undefined}
+    >
+      <td className="py-2 pr-4">
+        <div className="flex items-center gap-2">
+          <StatusIcon status={trend.currentStatus} size={14} />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-text-primary" title={trend.checkId}>
+              {title}
+            </div>
+            {showCheckId && (
+              <div className="truncate font-mono text-xs text-text-muted/80">{trend.checkId}</div>
+            )}
+          </div>
+        </div>
+      </td>
+
+      <td className="py-2 px-2">
+        <StatusSparkline statuses={trend.recentStatuses} />
+      </td>
+
+      <td className="py-2 px-2 text-right">
+        <span
+          className={`text-sm font-medium ${getUptimeTextClass(trend.uptimePercent)}`}
+        >
+          {trend.uptimePercent.toFixed(0)}%
+        </span>
+      </td>
+
+      <td className="py-2 px-2 text-right">
+        <span className="text-sm text-accent-success">{trend.ok}</span>
+      </td>
+
+      <td className="py-2 px-2 text-right">
+        <span className={`text-sm ${trend.warning > 0 ? "text-accent-warning" : "text-text-muted/60"}`}>
+          {trend.warning}
+        </span>
+      </td>
+
+      <td className="py-2 px-2 text-right">
+        <span className={`text-sm ${trend.critical > 0 ? "text-accent-danger" : "text-text-muted/60"}`}>
+          {trend.critical}
+        </span>
+      </td>
+
+      <td className="py-2 pl-2 text-right">
+        <span className="text-sm text-text-muted">{trend.total}</span>
+      </td>
+    </tr>
+  );
+});
 
 export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClick }: CheckTrendGridProps) {
   const { getTitle } = useCheckMetadata();
   const [sortKey, setSortKey] = useState<SortKey>("uptimePercent");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [visibleCount, setVisibleCount] = useState(TREND_VISIBLE_STEP);
 
   // Handle sort column click
   const handleSort = useCallback((key: SortKey) => {
@@ -97,7 +193,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
         currentStatus: normalizeHealthStatus(t.currentStatus, "ok"),
         recentStatuses: Array.isArray(t.recentStatuses)
           ? t.recentStatuses.map((status) => normalizeHealthStatus(status, "ok"))
-          : [],
+          : EMPTY_STATUSES,
       }));
     }
 
@@ -117,10 +213,16 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
-      const ok = sorted.filter((e) => e.status === "ok").length;
-      const warning = sorted.filter((e) => e.status === "warning").length;
-      const critical = sorted.filter((e) => e.status === "critical").length;
-      const total = sorted.length;
+      let ok = 0;
+      let warning = 0;
+      let critical = 0;
+      const applicable = sorted.filter((event) => event.status !== "not-applicable");
+      for (const event of applicable) {
+        if (event.status === "ok") ok += 1;
+        else if (event.status === "warning") warning += 1;
+        else if (event.status === "critical") critical += 1;
+      }
+      const total = applicable.length;
 
       checkTrends.push({
         checkId,
@@ -129,8 +231,10 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
         warning,
         critical,
         uptimePercent: total > 0 ? (ok / total) * 100 : 100,
-        currentStatus: normalizeHealthStatus(sorted[0]?.status, "ok"),
-        recentStatuses: sorted.slice(0, 12).map((e) => normalizeHealthStatus(e.status, "ok")),
+        currentStatus: normalizeHealthStatus(sorted[0]?.status, "not-applicable"),
+        recentStatuses: sorted.length > 0
+          ? sorted.slice(0, 12).map((e) => normalizeHealthStatus(e.status, "ok"))
+          : EMPTY_STATUSES,
       });
     });
 
@@ -167,6 +271,18 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
     });
   }, [baseTrends, sortKey, sortDirection]);
 
+  const visibleTrends = useMemo(() => trends.slice(0, visibleCount), [trends, visibleCount]);
+  const hiddenTrendCount = Math.max(0, trends.length - visibleTrends.length);
+
+  const showMore = useCallback(() => {
+    setVisibleCount((count) => Math.min(count + TREND_VISIBLE_STEP, trends.length));
+  }, [trends.length]);
+
+  const sortAndResetVisibleCount = useCallback((key: SortKey) => {
+    setVisibleCount(TREND_VISIBLE_STEP);
+    handleSort(key);
+  }, [handleSort]);
+
   if (trends.length === 0) {
     return (
       <div className="py-8 text-center text-text-muted">
@@ -187,7 +303,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="checkId"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
               />
             </th>
             <th className="pb-2 px-2 text-center w-16">
@@ -199,7 +315,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="uptimePercent"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
                 align="right"
               />
             </th>
@@ -209,7 +325,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="ok"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
                 align="right"
               />
             </th>
@@ -219,7 +335,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="warning"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
                 align="right"
               />
             </th>
@@ -229,7 +345,7 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="critical"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
                 align="right"
               />
             </th>
@@ -239,91 +355,34 @@ export function CheckTrendGrid({ trends: backendTrends, events = [], onCheckClic
                 sortKey="total"
                 currentSort={sortKey}
                 currentDirection={sortDirection}
-                onSort={handleSort}
+                onSort={sortAndResetVisibleCount}
                 align="right"
               />
             </th>
           </tr>
         </thead>
         <tbody>
-          {trends.map((trend) => (
-            <tr
+          {visibleTrends.map((trend) => (
+            <CheckTrendRow
               key={trend.checkId}
-              onClick={() => onCheckClick?.(trend.checkId)}
-              className={`border-b border-border-default/30 transition-colors hover:bg-surface-overlay/30 ${
-                onCheckClick ? "cursor-pointer" : ""
-              }`}
-              role={onCheckClick ? "button" : undefined}
-              tabIndex={onCheckClick ? 0 : undefined}
-              onKeyDown={(e) => {
-                if (onCheckClick && (e.key === "Enter" || e.key === " ")) {
-                  e.preventDefault();
-                  onCheckClick(trend.checkId);
-                }
-              }}
-            >
-              {/* Check name with status icon */}
-              <td className="py-2 pr-4">
-                <div className="flex items-center gap-2">
-                  <StatusIcon status={trend.currentStatus} size={14} />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-text-primary" title={trend.checkId}>
-                      {getTitle(trend.checkId)}
-                    </div>
-                    {getTitle(trend.checkId) !== trend.checkId && (
-                      <div className="truncate font-mono text-xs text-text-muted/80">{trend.checkId}</div>
-                    )}
-                  </div>
-                </div>
-              </td>
-
-              {/* Sparkline */}
-              <td className="py-2 px-2">
-                <StatusSparkline statuses={trend.recentStatuses} />
-              </td>
-
-              {/* Uptime percentage */}
-              <td className="py-2 px-2 text-right">
-                <span
-                  className={`text-sm font-medium ${
-                    trend.uptimePercent >= 99
-                      ? "text-emerald-400"
-                      : trend.uptimePercent >= 90
-                      ? "text-amber-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {trend.uptimePercent.toFixed(0)}%
-                </span>
-              </td>
-
-              {/* OK count */}
-              <td className="py-2 px-2 text-right">
-                <span className="text-sm text-emerald-400">{trend.ok}</span>
-              </td>
-
-              {/* Warning count */}
-              <td className="py-2 px-2 text-right">
-                <span className={`text-sm ${trend.warning > 0 ? "text-amber-400" : "text-text-muted/60"}`}>
-                  {trend.warning}
-                </span>
-              </td>
-
-              {/* Critical count */}
-              <td className="py-2 px-2 text-right">
-                <span className={`text-sm ${trend.critical > 0 ? "text-red-400" : "text-text-muted/60"}`}>
-                  {trend.critical}
-                </span>
-              </td>
-
-              {/* Total count */}
-              <td className="py-2 pl-2 text-right">
-                <span className="text-sm text-text-muted">{trend.total}</span>
-              </td>
-            </tr>
+              trend={trend}
+              getTitle={getTitle}
+              onCheckClick={onCheckClick}
+            />
           ))}
         </tbody>
       </table>
+      {hiddenTrendCount > 0 && (
+        <div className="border-t border-border-default/40 pt-3 text-center">
+          <button
+            type="button"
+            onClick={showMore}
+            className="rounded border border-border-default/70 px-3 py-1.5 text-sm text-text-secondary transition-colors hover:border-accent-primary/70 hover:text-text-primary"
+          >
+            Show more ({hiddenTrendCount} remaining)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

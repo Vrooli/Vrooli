@@ -1,13 +1,38 @@
-# Git Control Tower (Scaffold)
+# Git Control Tower
 
-Git Control Tower is being re-built from scratch using the modern `react-vite` scenario template.
+Agents use `prompt-manager skill read git-control-tower` for immutable capture,
+collection, diff, and wait decisions. Reliability regulation uses
+`prompt-manager skill read git-control-tower-improve`.
 
-This directory currently contains **scaffolding only** (PRD + requirements + lifecycle wiring). The operational targets are defined in `PRD.md` and tracked via `requirements/`, but business logic is intentionally not implemented yet.
+Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI for structured git operations and change review.
 
-## What This Scenario Will Become
-- REST API for structured git operations (status, diff, stage/unstage, commit, branches, conflicts, previews)
-- CLI wrapper for agent-friendly invocation
-- Web UI dashboard for interactive review (diff viewer, staging, health)
+## What This Scenario Provides
+- **Git advisory and human-control API + CLI**: status, diff, history, blame, content search, and explicit operator controls — structured for bounded invocation (`git-control-tower --help`). Agents may read and draft; stage/unstage, commit, branch/worktree, discard, push, pull, and merge actions require verified human intent.
+- **Web UI**: Changes tab (optimistic staging, commit panel), diff viewer, history/blame, branch selector, file search.
+- **Baselines**: the primary review primitive — see below.
+- **Scenario review panel**: readiness reviews per scenario (`git-control-tower review {run,summary,status}`) running test-genie phases plus standards/tidiness/auditor dimensions.
+- **Managed pre-commit hook**: configurable hook kinds (none/gct/user/framework) running exactly one command (default `vrooli hygiene`), with one-shot skip.
+- **Sandbox attribution**: changed files from sandbox runs carry their run, owner, timestamp, and line totals in the Changes surface; selection remains the operator's review gesture.
+- **Credentials**: git credential/SSH resolution for fetch/push operations.
+
+Host-neutral advisory drafts, provenance, trailer resolution, and constrained review are implemented as the maturity work advances. Provider authentication and host mutation remain owned by Integration Hub, and live publication remains a separate human acceptance gate.
+
+## Baselines — the primary review primitive
+
+A **baseline** anchors one comprehensive Test Genie run at a point in time so
+you can answer *"did my change
+cause this failure, or was it already failing?"* without touching the working
+tree — the regression-diagnosis replacement for `git stash`.
+
+- **UI**: the **Baselines tab** captures, compares, and deletes immutable run
+  anchors. Review panels render Test Genie's dynamic phase diffs and select
+  typed evidence such as workflow videos by artifact kind.
+- **CLI** (agent surface): `git-control-tower baseline {snapshot,diff,list,show,delete}`.
+
+A baseline owns no artifacts. Test Genie owns the anchored run, descriptors,
+comparison semantics, evidence catalog, and opaque artifact access. See
+[`docs/baseline-model.md`](docs/baseline-model.md) for the architecture,
+branch scoping, migration rules, and concurrent-agent safety.
 
 ## Operational Targets
 See `scenarios/git-control-tower/PRD.md:1`.
@@ -20,13 +45,9 @@ Useful commands:
 - `vrooli scenario requirements report git-control-tower --format markdown`
 - `vrooli scenario requirements sync git-control-tower`
 
-## Running (Lifecycle Only)
+## Running
 Use the scenario Makefile:
 - `make start`
 - `make stop`
 - `make logs`
 - `make test`
-
-## Notes
-- No packages were installed as part of re-scaffolding; run lifecycle `setup` when you’re ready to install/build.
-- The legacy implementation was moved to `/tmp` on this machine for reference/backups.

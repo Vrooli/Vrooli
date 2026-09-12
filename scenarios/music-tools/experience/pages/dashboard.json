@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Operations",
+    "routes": ["/"],
+    "purpose": "Show what the scenario can do right now given installed models and available GPU headroom, and make the next action obvious without hiding why an operation is unavailable.",
+    "prd_refs": ["OT-P0-001", "OT-P0-003"]
+  },
+  "priorities": [
+    { "statement": "An operation that cannot run right now says why — missing model, insufficient VRAM, or restricted licence lane — rather than failing after submission." },
+    { "statement": "GPU headroom is visible before work is submitted, not discovered through an out-of-memory failure." }
+  ],
+  "states": [
+    { "id": "ready", "example": "ready", "description": "Models installed and GPU headroom available." },
+    { "id": "contended", "example": "contended", "description": "Another tenant holds the VRAM this operation needs." },
+    { "id": "no-models", "example": "empty", "description": "No models installed; only deterministic operations are available." },
+    { "id": "degraded", "example": "degraded", "description": "Operations available only at a reduced profile rung." }
+  ],
+  "elements": [
+    { "id": "operation-list", "role": "list", "description": "Available operation families." },
+    { "id": "headroom-meter", "role": "meter", "description": "Current GPU headroom against what the selected operation requires." },
+    { "id": "blocked-reason", "role": "status", "description": "Why an unavailable operation cannot run." }
+  ],
+  "claims": [
+    {
+      "id": "headroom-visible-before-submit",
+      "type": "element-present",
+      "statement": "GPU headroom is shown on the operations surface before any operation is submitted.",
+      "tier": "machine",
+      "elements": ["headroom-meter"],
+      "states": ["ready", "contended", "degraded"]
+    },
+    {
+      "id": "blocked-operations-explain",
+      "type": "element-present",
+      "statement": "When an operation is unavailable the surface names the specific reason.",
+      "tier": "machine",
+      "elements": ["blocked-reason"],
+      "states": ["contended", "no-models", "degraded"]
+    },
+    {
+      "id": "deterministic-ops-survive-empty-registry",
+      "type": "element-present",
+      "statement": "Deterministic operations remain listed and usable when no models are installed.",
+      "tier": "machine",
+      "elements": ["operation-list"],
+      "states": ["no-models"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "operation-list": { "testid": "operations-list" },
+      "headroom-meter": { "testid": "gpu-headroom-meter" },
+      "blocked-reason": { "testid": "operation-blocked-reason" }
+    }
+  }
+}

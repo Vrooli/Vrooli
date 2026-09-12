@@ -1,0 +1,298 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "search-hub",
+  "generator": "v1.0.0",
+  "manifest_hash": "79483105397841f5660f87cfeb173c0141debbc791b8fb5790ba60bd3353e7f9",
+  "commands": [
+    {
+      "path": "embedding abort",
+      "group": "embedding",
+      "command": "abort",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding apply-shadow",
+      "group": "embedding",
+      "command": "apply-shadow",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding cutover",
+      "group": "embedding",
+      "command": "cutover",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding inventory",
+      "group": "embedding",
+      "command": "inventory",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding record-compare",
+      "group": "embedding",
+      "command": "record-compare",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding retarget-plan",
+      "group": "embedding",
+      "command": "retarget-plan",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "embedding rollback",
+      "group": "embedding",
+      "command": "rollback",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "evals compare",
+      "group": "evals",
+      "command": "compare",
+      "binding": "EvalService.CompareRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals compare-strategies",
+      "group": "evals",
+      "command": "compare-strategies",
+      "binding": "EvalService.CompareStrategies",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "evals generate",
+      "group": "evals",
+      "command": "generate",
+      "binding": "EvalService.Generate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals list",
+      "group": "evals",
+      "command": "list",
+      "binding": "EvalService.ListSuites",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals promote",
+      "group": "evals",
+      "command": "promote",
+      "binding": "EvalService.PromoteCases",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals reap-orphans",
+      "group": "evals",
+      "command": "reap-orphans",
+      "binding": "EvalService.ReapOrphanSuites",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals register",
+      "group": "evals",
+      "command": "register",
+      "binding": "EvalService.RegisterSuite",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "evals run",
+      "group": "evals",
+      "command": "run",
+      "binding": "EvalService.RunSuite",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "evals runs",
+      "group": "evals",
+      "command": "runs",
+      "binding": "EvalService.ListRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals show",
+      "group": "evals",
+      "command": "show",
+      "binding": "EvalService.GetSuite",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals show-run",
+      "group": "evals",
+      "command": "show-run",
+      "binding": "EvalService.GetRun",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals sweep",
+      "group": "evals",
+      "command": "sweep",
+      "binding": "EvalService.Sweep",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals validate",
+      "group": "evals",
+      "command": "validate",
+      "binding": "EvalService.ValidateCorpus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "federation repromote",
+      "group": "federation",
+      "command": "repromote",
+      "binding": "RoutingService.Repromote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "federation status",
+      "group": "federation",
+      "command": "status",
+      "binding": "RoutingService.Status",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "insights insights",
+      "group": "insights",
+      "command": "insights",
+      "binding": "MetricsService.Insights",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "maturity fix",
+      "group": "maturity",
+      "command": "fix",
+      "binding": "ScenarioValidationService.PreviewFix",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "maturity scan",
+      "group": "maturity",
+      "command": "scan",
+      "binding": "ScenarioValidationService.ValidateScenario",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "metrics degraded-query-rate",
+      "group": "metrics",
+      "command": "degraded-query-rate",
+      "binding": "MeasuresService.DegradedQueryRate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "metrics federated-latency",
+      "group": "metrics",
+      "command": "federated-latency",
+      "binding": "MeasuresService.FederatedLatency",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "metrics provider-degradation-rate",
+      "group": "metrics",
+      "command": "provider-degradation-rate",
+      "binding": "MeasuresService.ProviderDegradationRate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "providers list",
+      "group": "providers",
+      "command": "list",
+      "binding": "RegistryService.ListProviders",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "providers register",
+      "group": "providers",
+      "command": "register",
+      "binding": "RegistryService.RegisterProvider",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "providers remove",
+      "group": "providers",
+      "command": "remove",
+      "binding": "RegistryService.DeregisterProvider",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "query query",
+      "group": "query",
+      "command": "query",
+      "binding": "RoutingService.Query",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategy benchmark",
+      "group": "strategy",
+      "command": "benchmark",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "strategy compare",
+      "group": "strategy",
+      "command": "compare",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "strategy list",
+      "group": "strategy",
+      "command": "list",
+      "binding": ".",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "strategy show",
+      "group": "strategy",
+      "command": "show",
+      "binding": ".",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

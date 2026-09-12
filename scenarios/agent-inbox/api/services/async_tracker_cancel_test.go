@@ -4,21 +4,19 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // TestProcessStatusResult_InProgress verifies non-terminal status handling.
 func TestProcessStatusResult_InProgress(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
 		ChatID:     "chat-1",
 		Status:     "starting",
 		UpdatedAt:  time.Now(),
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			CompletionConditions: &toolspb.CompletionConditions{
+		AsyncBehavior: &AsyncBehavior{
+			CompletionConditions: &CompletionConditions{
 				StatusField:   "status",
 				SuccessValues: []string{"completed"},
 				FailureValues: []string{"failed"},
@@ -47,19 +45,19 @@ func TestProcessStatusResult_InProgress(t *testing.T) {
 
 // TestProcessStatusResult_WithProgressTracking verifies progress extraction.
 func TestProcessStatusResult_WithProgressTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
 		ChatID:     "chat-1",
 		Status:     "starting",
 		UpdatedAt:  time.Now(),
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			CompletionConditions: &toolspb.CompletionConditions{
+		AsyncBehavior: &AsyncBehavior{
+			CompletionConditions: &CompletionConditions{
 				StatusField:   "status",
 				SuccessValues: []string{"completed"},
 			},
-			ProgressTracking: &toolspb.ProgressTracking{
+			ProgressTracking: &ProgressTracking{
 				ProgressField: "progress",
 				MessageField:  "message",
 				PhaseField:    "phase",
@@ -91,7 +89,7 @@ func TestProcessStatusResult_WithProgressTracking(t *testing.T) {
 
 // TestProcessStatusResult_InvalidResult verifies handling of non-map results.
 func TestProcessStatusResult_InvalidResult(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
@@ -100,7 +98,7 @@ func TestProcessStatusResult_InvalidResult(t *testing.T) {
 	}
 	svc.AddTestOperation(op)
 
-	conditions := &toolspb.CompletionConditions{
+	conditions := &CompletionConditions{
 		StatusField:   "status",
 		SuccessValues: []string{"completed"},
 	}
@@ -122,7 +120,7 @@ func TestProcessStatusResult_InvalidResult(t *testing.T) {
 
 // TestHandleTimeout verifies timeout handling.
 func TestHandleTimeout(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Register completion callback
 	completionCh := svc.RegisterCompletionCallback("chat-1")
@@ -176,7 +174,7 @@ func TestHandleTimeout(t *testing.T) {
 
 // TestCancelOperation_NoCancelTool verifies operation with no cancel tool configured.
 func TestCancelOperation_NoCancelTool(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Create operation without cancellation config
 	op := &AsyncOperation{
@@ -184,7 +182,7 @@ func TestCancelOperation_NoCancelTool(t *testing.T) {
 		ChatID:        "chat-1",
 		ToolName:      "test_tool",
 		Status:        "running",
-		AsyncBehavior: &toolspb.AsyncBehavior{}, // No cancellation config
+		AsyncBehavior: &AsyncBehavior{}, // No cancellation config
 	}
 	svc.AddTestOperation(op)
 
@@ -203,7 +201,7 @@ func TestCancelOperation_NoCancelTool(t *testing.T) {
 
 // TestCancelOperation_NotFound verifies error for non-existent operation.
 func TestCancelOperation_NotFound(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	err := svc.CancelOperation(context.Background(), "nonexistent")
 	if err == nil {
@@ -219,7 +217,7 @@ func TestCancelOperation_NotFound(t *testing.T) {
 func TestCancelOperation_WithCancelTool_NilExecutor(t *testing.T) {
 	t.Skip("Skipping: CancelOperation panics with nil executor when cancel tool configured - known limitation")
 
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID:    "tc-1",
@@ -227,8 +225,8 @@ func TestCancelOperation_WithCancelTool_NilExecutor(t *testing.T) {
 		ToolName:      "test_tool",
 		ExternalRunID: "run-123",
 		Status:        "running",
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			Cancellation: &toolspb.CancellationBehavior{
+		AsyncBehavior: &AsyncBehavior{
+			Cancellation: &CancellationBehavior{
 				CancelTool:        "cancel_run",
 				CancelToolIdParam: "run_id",
 			},
@@ -252,14 +250,14 @@ func TestCancelOperation_WithCancelTool_NilExecutor(t *testing.T) {
 
 // TestSnapshotOperation_BackoffDefaults verifies default backoff values.
 func TestSnapshotOperation_BackoffDefaults(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Operation with no backoff config
 	svc.mu.Lock()
 	svc.operations["tc-1"] = &AsyncOperation{
 		ToolCallID: "tc-1",
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			StatusPolling: &toolspb.StatusPolling{
+		AsyncBehavior: &AsyncBehavior{
+			StatusPolling: &StatusPolling{
 				PollIntervalSeconds: 5,
 			},
 		},

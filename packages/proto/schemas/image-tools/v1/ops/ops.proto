@@ -1,0 +1,527 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.ops;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops;ops_v1";
+
+// =============================================================================
+// OPS DOMAIN — deterministic image operations (zero-download, headless)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the deterministic image-editing operations: resize, crop,
+// rotate, flip, deskew, thumbnail, canvas, adjust, filter, convert, compress,
+// overlay, and metadata. These run on any host with no model download, no GPU,
+// and no ComfyUI (the IMG-P0-001 headless-completeness tenet) — pure Go pixel
+// transforms over the codec layer in api/internal/ops.
+//
+// Transport split (see docs/concepts/ARCHITECTURE.md):
+//   - DISCOVERY is Connect-RPC: OpsService.ListOperations returns the op
+//     catalog + supported formats so the CLI/UI can build their surfaces.
+//   - EXECUTION is a REST multipart edge (RESTReasonMultipartUpload):
+//     POST /api/v1/ops/{operation} accepts the image bytes (a `file` part) +
+//     the typed parameters (a `params` part carrying OpParams as protojson) +
+//     an optional `overlay` image part. Image bytes cannot ride a proto field,
+//     but the PARAMETERS stay proto-typed (OpParams) and the RESULT metadata is
+//     proto-typed (RunOpResponse) — only the transport is REST.
+//
+// Every execution is routed through the server-owned durable job Manager (the
+// same one JobsService observes), so even instant deterministic ops show up in
+// `jobs list` and the UI job monitor with a uniform lifecycle.
+//
+// Consumed by:
+//   - API: handlers/ops/connect_handler.go (ListOperations) +
+//          handlers/ops/rest.go (the multipart run edge + blob serve).
+//   - CLI: cli/domains/ops invokes the REST run edge and writes results locally.
+//   - UI:  ui/src/api/ops.ts wraps the discovery client + the run edge.
+// =============================================================================
+
+service OpsService {
+  // ListOperations returns the deterministic operation catalog (stable order)
+  // plus the formats the codec layer can decode and encode.
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+}
+
+// OperationInfo describes one deterministic operation for discovery.
+message OperationInfo {
+  // Canonical operation name (e.g. "resize"); the {operation} path segment.
+  string name = 1;
+  // Grouping for UIs: geometry, color, format, compose, metadata.
+  string category = 2;
+  // One-line human summary.
+  string summary = 3;
+}
+
+message ListOperationsRequest {}
+
+message ListOperationsResponse {
+  repeated OperationInfo operations = 1;
+  // Formats Decode accepts (incl. svg input, heic decode-only).
+  repeated string decodable_formats = 2;
+  // Formats Encode can write (heic/svg are intentionally absent).
+  repeated string encodable_formats = 3;
+}
+
+// =============================================================================
+// Execution payloads (REST multipart edge)
+// =============================================================================
+
+// OpParams is the typed parameter envelope sent as the `params` multipart part
+// (protojson). Exactly one case is set, matching the {operation} in the path.
+message OpParams {
+  oneof op {
+    ResizeParams resize = 1;
+    CropParams crop = 2;
+    RotateParams rotate = 3;
+    FlipParams flip = 4;
+    DeskewParams deskew = 5;
+    ThumbnailParams thumbnail = 6;
+    CanvasParams canvas = 7;
+    AdjustParams adjust = 8;
+    FilterParams filter = 9;
+    ConvertParams convert = 10;
+    CompressParams compress = 11;
+    OverlayParams overlay = 12;
+    MetadataParams metadata = 13;
+    DuotoneParams duotone = 14;
+    PosterizeParams posterize = 15;
+    HalftoneParams halftone = 16;
+    DitherParams dither_ordered = 17;
+    DitherParams dither_diffusion = 18;
+    GrainParams grain = 19;
+    ScrimParams scrim = 20;
+    LineScreenParams line_screen = 21;
+    StippleParams stipple = 22;
+    EngravingParams engraving = 23;
+    AberrationParams aberration = 24;
+    BloomParams bloom = 25;
+    CurveParams curve = 26;
+    DefocusParams defocus = 27;
+    MotionBlurParams motion_blur = 28;
+    AsciiMosaicParams ascii_mosaic = 29;
+    PixelSortParams pixel_sort = 30;
+    DisplacementParams displacement = 31;
+    CompositeParams composite = 32;
+  }
+
+  // Space no colour operation may print into, whichever one is selected above.
+  //
+  // A sibling of the oneof rather than a field repeated across every parameter
+  // message, because reserving space is a property of the picture being made
+  // and not of the treatment making it: a caller declares where the headline
+  // goes once, and every operation in the chain honours the same rectangle. The
+  // alternative — the same five fields on seventeen messages — guarantees that
+  // some of them eventually differ.
+  Knockout knockout = 33;
+}
+
+// Knockout reserves an area of the frame that must come out as paper.
+//
+// The printer's term, and the printer's mechanism: a hole left in an ink layer
+// so something else can occupy that space. It exists so a headline can be laid
+// over a picture and still be read, which on a screened or dithered backdrop is
+// otherwise close to impossible — a screen puts ink and paper everywhere, so
+// dark type always meets a dot somewhere inside its own box and worst-pixel
+// contrast collapses however light the area looks on average.
+//
+// Honoured by lifting the area to the top of the tonal ramp BEFORE the
+// operation runs. Fed white, a tone-driven operation lays no ink and returns
+// its own paper colour, so the reserve comes out as the same cream or blue the
+// rest of the picture is printed on rather than as a white hole.
+//
+// Geometry operations ignore it. A resize or a crop moves the frame underneath
+// the rectangle, so a reserve declared against the old frame would name the
+// wrong part of the new one; declare it against the frame the treatment runs on.
+message Knockout {
+  // Bounds as fractions of the frame, so one declaration survives every
+  // delivery size. Zero width or height reserves nothing.
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  // How far the reserve eases back into the picture, as a fraction of the SHORT
+  // edge so its softness is the same shape on a hero and on a phone. Zero takes
+  // a default rather than a hard rectangle: a visible box is worse than no
+  // reserve at all.
+  //
+  // It also does load-bearing work beyond softness. Operations that read
+  // neighbouring pixels — defocus, motion blur, displacement — drag ink inward
+  // from outside the edge, and this margin is what absorbs it before it reaches
+  // the copy.
+  double feather = 5;
+  // solid cuts the reserve the other way: full ink instead of none.
+  //
+  // The two are one decision in opposite directions, and which one is right is
+  // decided by the copy, not by the picture. Dark copy needs light ground and
+  // the plate carries no ink there — a knockout. Light copy needs dark ground
+  // and the plate carries full ink — a solid. Offering only the first would
+  // reserve space for light copy by making it harder to read, not easier.
+  //
+  // Honoured by pushing the area to the BOTTOM of the tonal ramp before the
+  // operation runs, exactly as the default pushes it to the top. Fed black, a
+  // tone-driven operation lays its heaviest ink and returns its own darkest
+  // value, so the area comes out as the picture's own ink rather than as a
+  // black rectangle dropped onto it.
+  bool solid = 6;
+}
+
+// CompositeParams merges an ordered stack of plates into one raster.
+//
+// A plate is one depth layer of a picture — a sky, a sea, a colonnade, a figure
+// — carried separately so a consumer can move them against each other and so a
+// treatment can be applied to one without touching the others. The flat raster
+// this returns stays the default deliverable: everything downstream decodes one
+// image, and a stack that could not be flattened would be a contract change
+// rather than a capability.
+//
+// The plates themselves arrive as multipart parts named `plate0`, `plate1`, …
+// in the same order as this list, because a stack of full-size rasters does not
+// belong in a JSON parameter.
+message CompositeParams {
+  repeated Plate plates = 1;
+  // Output geometry. Zero takes the first plate's size, which is the common
+  // case: every plate of one picture is drawn at the delivery size.
+  int32 width = 2;
+  int32 height = 3;
+  // Background painted before the first plate, as #rrggbb or #rrggbbaa. Empty
+  // leaves it transparent — which is correct when the first plate is opaque and
+  // visible when it is not, rather than silently filling with a colour nobody
+  // chose.
+  string background = 4;
+}
+
+// Plate is one layer in a composite stack.
+message Plate {
+  // Human-readable name of what this layer depicts ("sky", "colonnade"). It is
+  // carried through so an operator reading a job can tell which layer misbehaved
+  // without counting indices.
+  string name = 1;
+  // Depth orders the stack, lowest first. It is explicit rather than implied by
+  // list position so a caller can reorder plates without rebuilding the list,
+  // and so two plates cannot silently claim the same layer.
+  int32 depth = 2;
+  // blend is how this plate merges with everything beneath it: "normal",
+  // "multiply" or "screen". Empty means normal.
+  //
+  // The three are not an arbitrary subset. Normal is placement; multiply is how
+  // ink sits on paper, which is what every screen and duotone in this system
+  // models; screen is how light adds, which is what a glow or a star field
+  // needs. A blend mode outside this set is refused rather than approximated.
+  string blend = 3;
+  // opacity scales this plate's contribution, 0..1. Zero means fully
+  // transparent; a caller wanting the default must send 1.
+  double opacity = 4;
+}
+
+// ResizeParams: width/height in px (0 = derive from aspect). fit is
+// "fit" (contain), "fill" (cover+crop), or "stretch" (exact). gravity anchors a
+// fill crop.
+message ResizeParams {
+  int32 width = 1;
+  int32 height = 2;
+  string fit = 3;
+  string gravity = 4;
+}
+
+// CropParams cuts the x,y,width,height rectangle; with gravity set and x=y=0 it
+// crops an anchored width×height region.
+message CropParams {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+  string gravity = 5;
+}
+
+// RotateParams rotates by angle degrees counter-clockwise. background fills
+// exposed corners for non-90° angles (hex, e.g. "#ffffff").
+message RotateParams {
+  double angle = 1;
+  bool expand = 2;
+  string background = 3;
+}
+
+// FlipParams mirrors along axis "horizontal" or "vertical".
+message FlipParams {
+  string axis = 1;
+}
+
+// DeskewParams auto-straightens a skewed scan; background fills exposed corners.
+message DeskewParams {
+  string background = 1;
+}
+
+// ThumbnailParams produces a width×height fill-cropped thumbnail.
+message ThumbnailParams {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+// CanvasParams pads/extends onto a width×height background, anchored by gravity.
+message CanvasParams {
+  int32 width = 1;
+  int32 height = 2;
+  string background = 3;
+  string gravity = 4;
+}
+
+// AdjustParams applies tonal/color deltas (percent; 0 = no change). gamma 0 or
+// 1 = identity; hue is degrees -180..180.
+message AdjustParams {
+  double brightness = 1;
+  double contrast = 2;
+  double gamma = 3;
+  double saturation = 4;
+  double hue = 5;
+}
+
+// FilterParams applies one effect: grayscale|sepia|invert|blur|sharpen. amount
+// is the gaussian sigma for blur/sharpen.
+message FilterParams {
+  string filter = 1;
+  double amount = 2;
+}
+
+// ConvertParams re-encodes to format (png|jpeg|gif|webp|tiff|bmp|avif) at the
+// given quality (lossy formats) or lossless (webp).
+message ConvertParams {
+  string format = 1;
+  int32 quality = 2;
+  bool lossless = 3;
+}
+
+// CompressParams re-encodes at quality, or — when target_bytes > 0 — searches
+// quality for the best result under that byte budget (lossy formats).
+message CompressParams {
+  string format = 1;
+  int32 quality = 2;
+  bool lossless = 3;
+  int64 target_bytes = 4;
+}
+
+// OverlayParams composites a text watermark (text + color + font_size) or an
+// image watermark (sent as the `overlay` multipart part). position anchors it;
+// opacity (0..1) blends an image overlay.
+message OverlayParams {
+  string text = 1;
+  string position = 2;
+  double opacity = 3;
+  string color = 4;
+  double font_size = 5;
+}
+
+// MetadataParams reads (default), strips, or auto-orients image metadata.
+message MetadataParams {
+  bool strip_all = 1;
+  bool strip_gps = 2;
+  bool auto_orient = 3;
+}
+
+message DuotoneParams {
+  string dark = 1;
+  string light = 2;
+  string mid = 3;
+  double mid_low = 4;
+  double mid_high = 5;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 6;
+}
+
+message PosterizeParams {
+  int32 levels = 1;
+  string dark = 2;
+  string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
+}
+
+// Relative spatial parameters
+//
+// Every spatial parameter below carries an absolute pixel form and a `_rel`
+// form. A relative value is a fraction of the image's SHORT edge:
+//
+//   px = round(rel * min(width, height))
+//
+// clamped up to the operation's minimum legal value. So `spacing_rel: 0.02` is
+// 9px on a 448px-tall frame and 27px on a 1344px-tall one, which is the same
+// screen density to the eye. An absolute value means pixels and keeps meaning
+// pixels; when both are set the relative form wins, and the resolved pixel
+// value is reported in OpResult.resolved_params so a caller can see what ran.
+//
+// HalftoneParams.lpi is deliberately absent from this scheme: it is a count of
+// screen lines across the image WIDTH (the implementation computes the cell as
+// width/lpi), so it is already resolution-independent and needs no relative
+// twin. See scenarios/backdrop-studio/docs/evidence/treatments/resolution-proof/.
+message HalftoneParams {
+  // lpi is the number of screen lines across the image width, not a pixel
+  // measurement — the same lpi yields the same screen coarseness at any size.
+  int32 lpi = 1;
+  double angle = 2;
+  string dot = 3;
+  string dark = 4;
+  string light = 5;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 6;
+}
+
+message DitherParams {
+  string dark = 1;
+  string light = 2;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 3;
+}
+
+message GrainParams {
+  int64 seed = 1;
+  double amount = 2;
+  double contrast_multiplier = 3;
+}
+
+message ScrimParams {
+  string color = 1;
+  double opacity = 2;
+  string direction = 3;
+  // A region-scoped scrim shades only where copy actually sits, as fractions
+  // of the frame. Zero width or height leaves the whole-frame directional
+  // gradient a scrim has always been.
+  //
+  // The whole-frame gradient is the right tool for setting a mood and the wrong
+  // one for making a headline readable: it dims a picture chosen for its beauty
+  // everywhere in order to fix one corner. Shading the region is what every
+  // design system that puts type on photography actually does.
+  double region_x = 4;
+  double region_y = 5;
+  double region_width = 6;
+  double region_height = 7;
+  // How far the pool eases out past the region, as a fraction of the SHORT
+  // edge so its softness is the same shape on a hero and on a phone. Zero
+  // takes a default rather than a hard rectangle: a visible box is worse than
+  // no scrim, because a reader sees the box before they read the headline.
+  double region_feather = 8;
+}
+
+message LineScreenParams {
+  double spacing = 1;
+  double angle = 2;
+  string dark = 3;
+  string light = 4;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 5;
+  // spacing_rel is the line pitch as a fraction of the short edge.
+  double spacing_rel = 6;
+}
+message StippleParams {
+  double spacing = 1;
+  int64 seed = 2;
+  string dark = 3;
+  string light = 4;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 5;
+  // spacing_rel is the stipple cell pitch as a fraction of the short edge.
+  double spacing_rel = 6;
+}
+message EngravingParams {
+  double spacing = 1;
+  string dark = 2;
+  string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
+  // spacing_rel is the hatching period as a fraction of the short edge.
+  double spacing_rel = 5;
+}
+message AberrationParams {
+  double amplitude = 1;
+  // distance is the radial channel separation in px, which is what the
+  // implementation consumes; amplitude is retained for wire compatibility.
+  int32 distance = 2;
+  // distance_rel is the radial channel separation as a fraction of the short
+  // edge. It wins over both distance and amplitude when set.
+  double distance_rel = 3;
+}
+message BloomParams {
+  int32 radius = 1;
+  double threshold = 2;
+  // radius_rel is the bloom blur radius as a fraction of the short edge.
+  double radius_rel = 3;
+}
+message CurveParams {
+  double exponent = 1;
+}
+message DefocusParams {
+  int32 radius = 1;
+  int32 blade_count = 2;
+  // radius_rel is the defocus blur radius as a fraction of the short edge.
+  double radius_rel = 3;
+}
+message MotionBlurParams {
+  int32 distance = 1;
+  double angle = 2;
+  // distance_rel is the smear length as a fraction of the short edge.
+  double distance_rel = 3;
+}
+message AsciiMosaicParams {
+  int32 block_size = 1;
+  string dark = 2;
+  string light = 3;
+  // normalize auto-levels the source p1-p99 tonal range onto the full ink
+  // ramp before mapping, so a low-contrast source still uses the whole ramp.
+  bool normalize = 4;
+  // block_size_rel is the character cell width as a fraction of the short
+  // edge. The operation blits a 7x13 bitmap face, so the resolved value snaps
+  // to the NEAREST whole multiple of the 7px glyph advance (minimum 7) — a
+  // cell that is not a whole multiple resamples the glyph and smears the
+  // characters the operation exists to draw. The advance is a coarse quantum
+  // at small cells, so this treatment holds density across resolutions less
+  // tightly than the screens do.
+  double block_size_rel = 5;
+}
+message PixelSortParams {
+  double threshold = 1;
+  string axis = 2;
+}
+message DisplacementParams {
+  double amplitude = 1;
+  int64 seed = 2;
+  double spacing = 3;
+  // spacing_rel is the displacement-field wavelength as a fraction of the
+  // short edge.
+  double spacing_rel = 4;
+  // amplitude_rel is the peak displacement as a fraction of the short edge.
+  double amplitude_rel = 5;
+}
+
+// OpResult is the proto-typed result metadata of a run. ref is the managed blob
+// key (or the caller-supplied local path) holding the output bytes.
+message OpResult {
+  string ref = 1;
+  string format = 2;
+  string mime = 3;
+  int32 width = 4;
+  int32 height = 5;
+  int64 size_bytes = 6;
+  // resolved_params reports the pixel value every relative spatial parameter
+  // resolved to for this image, keyed by the absolute field's name ("spacing",
+  // "radius", "distance", "block_size"). It is empty when the request sent no
+  // relative parameter. Without it a caller sending `spacing_rel` has no way to
+  // learn what actually ran, which is how a mistuned screen stays invisible.
+  map<string, double> resolved_params = 7;
+}
+
+// RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
+// reference to the durable job the op was recorded as, plus the typed result
+// metadata. Deterministic ops run synchronously and the response always
+// reflects a succeeded job, so a job id (resolvable via JobsService.GetJob) is
+// sufficient — the full Job is not duplicated here (it lives in the jobs
+// domain, the single owner of that type).
+message RunOpResponse {
+  string job_id = 1;
+  OpResult result = 2;
+}

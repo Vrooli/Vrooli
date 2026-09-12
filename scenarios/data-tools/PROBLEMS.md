@@ -339,7 +339,7 @@ Data-tools is in excellent shape. All core functionality works, performance exce
 1. **Database Transformation Constraint (RESOLVED)**
    - **Problem**: `data_transformations` table constraint didn't include 'sort' type, causing violations
    - **Solution**: Updated database constraint and added TransformSort implementation in transformer.go
-   - **Files Changed**: `initialization/storage/postgres/data-tools-schema.sql`, `api/internal/dataprocessor/transformer.go`
+   - **Files Changed**: `api/internal/<domain>/storage/postgres/data-tools-schema.sql`, `api/internal/dataprocessor/transformer.go`
    - **Result**: Sort transformations now work correctly
 
 2. **Missing Format Validation (RESOLVED)**

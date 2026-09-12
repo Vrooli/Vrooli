@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.testing;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/testing;testing_v1";
+
+service TestingService {
+  rpc RunSkillTest(RunSkillTestRequest) returns (SkillTestResponse);
+  rpc ListSkillTestHistory(ListSkillTestHistoryRequest) returns (ListSkillTestHistoryResponse);
+}
+message RunSkillTestRequest { string skill_id = 1; string role = 2; map<string, string> variables = 3; optional int32 max_tokens = 4; optional double temperature = 5; }
+message SkillTestResponse { string test_id = 1; string role = 2; string response = 3; double response_time = 4; int32 token_count = 5; string tested_at = 6; }
+message SkillTestResult { string id = 1; string skill_id = 2; string role = 3; optional string input_variables = 4; optional string response = 5; optional double response_time = 6; optional int32 token_count = 7; optional int32 rating = 8; optional string notes = 9; string tested_at = 10; }
+message ListSkillTestHistoryRequest { string skill_id = 1; int32 limit = 2; }
+message ListSkillTestHistoryResponse { repeated SkillTestResult results = 1; }

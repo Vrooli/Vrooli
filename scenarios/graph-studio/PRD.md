@@ -87,7 +87,7 @@ Graph-studio provides a unified, extensible platform for creating, validating, c
 
 **Launch Sequencing**:
 1. Ensure postgres resource is running and initialized
-2. Apply database schema via initialization/postgres/schema.sql
+2. Apply database schema via api/internal/<domain>/schema.sql
 3. Start API service with environment configuration
 4. Seed initial plugin registry
 5. Launch UI dashboard for visual access

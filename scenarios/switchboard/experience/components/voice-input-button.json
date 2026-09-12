@@ -1,0 +1,141 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "voice-input-button",
+    "title": "Voice input button",
+    "purpose": "Starts and stops speech capture in the composer and in call mode, showing which engine is actually running so a silent downgrade is impossible.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.4/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "idle",
+      "description": "Ready to capture."
+    },
+    {
+      "id": "loading",
+      "example": "preparing",
+      "description": "Acquiring the microphone."
+    },
+    {
+      "id": "submitting",
+      "example": "recording",
+      "description": "Capturing speech."
+    },
+    {
+      "id": "retry",
+      "example": "recovering",
+      "description": "Recovering from an interruption."
+    },
+    {
+      "id": "partial",
+      "example": "transcribing",
+      "description": "Transcribing captured speech."
+    },
+    {
+      "id": "offline",
+      "example": "unavailable",
+      "description": "No capture device or engine is available; the reason is stated."
+    },
+    {
+      "id": "stale",
+      "example": "timeout",
+      "description": "Capture stopped on a timeout."
+    }
+  ],
+  "elements": [
+    {
+      "id": "voice-root",
+      "role": "button",
+      "name": "Start voice input"
+    },
+    {
+      "id": "engine-note",
+      "role": "note",
+      "name": "Transcription engine"
+    }
+  ],
+  "claims": [
+    {
+      "id": "engine-is-named",
+      "type": "element-present",
+      "statement": "The transcription engine actually in use is stated, so a downgrade to a weaker engine is visible.",
+      "tier": "aspirational",
+      "elements": [
+        "engine-note"
+      ],
+      "states": [
+        "submitting",
+        "partial"
+      ],
+      "rationale": "Dictation has previously run on a fallback engine while every signal read healthy; naming the engine is what makes that impossible to repeat."
+    },
+    {
+      "id": "unavailable-states-why",
+      "type": "element-present",
+      "statement": "An unavailable capture device states the reason and the recovery step.",
+      "tier": "aspirational",
+      "elements": [
+        "voice-root"
+      ],
+      "states": [
+        "offline"
+      ]
+    },
+    {
+      "id": "states-distinct",
+      "type": "state-distinct",
+      "statement": "Idle, recording and transcribing are perceivably different without reading a label.",
+      "tier": "aspirational",
+      "elements": [
+        "voice-root"
+      ],
+      "states": [
+        "default",
+        "submitting",
+        "partial"
+      ]
+    },
+    {
+      "id": "reduced-motion",
+      "type": "custom",
+      "statement": "The recording animation degrades to a static indicator under reduced motion.",
+      "tier": "manual",
+      "elements": [
+        "voice-root"
+      ],
+      "states": [
+        "submitting"
+      ]
+    },
+    {
+      "id": "tap-target",
+      "type": "tap-target-size",
+      "statement": "The control meets the minimum tap target size at every viewport.",
+      "tier": "aspirational",
+      "elements": [
+        "voice-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "voice-root": {
+        "testid": "voice-input-button"
+      },
+      "engine-note": {
+        "testid": "voice-engine-note"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Whether it is currently listening"
+    },
+    {
+      "statement": "Which engine is running"
+    }
+  ]
+}

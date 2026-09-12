@@ -5,14 +5,18 @@ import { trackMetric, type MetricEvent as APIMetricEvent } from '../api';
 
 const SESSION_STORAGE_KEY = 'metrics_session_id';
 const VISITOR_STORAGE_KEY = 'metrics_visitor_id';
+const CAMPAIGN_STORAGE_KEY = 'metrics_campaign';
 
 let fallbackSessionId: string | null = null;
 let fallbackVisitorId: string | null = null;
 let sessionWarningLogged = false;
 let visitorWarningLogged = false;
+const activePageViews = new Map<string, number>();
+const trackedScrollDepth = new Map<string, Set<number>>();
+const activeScrollListeners = new Map<string, { count: number; handler: () => void }>();
 
 function generateId(prefix: string) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+	return `${prefix}_${Date.now().toString()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
 function logStorageWarning(kind: 'session' | 'local', error: unknown) {
@@ -95,6 +99,27 @@ function getVisitorID(): string {
   }
 }
 
+function getPageMetricKey(variantSlug: string) {
+  const path = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
+  return `${variantSlug}:${path}`;
+}
+
+type CampaignAttribution = { utm_source: string; utm_medium: string; utm_campaign: string; landing_path: string; referrer: string };
+
+function getCampaignAttribution(): CampaignAttribution {
+  const empty = { utm_source: '', utm_medium: '', utm_campaign: '', landing_path: typeof window === 'undefined' ? '/' : window.location.pathname, referrer: '' };
+  const storage = getStorage('session');
+  if (!storage) return empty;
+  try {
+    const existing = storage.getItem(CAMPAIGN_STORAGE_KEY);
+    if (existing) return JSON.parse(existing) as CampaignAttribution;
+    const params = new URLSearchParams(window.location.search);
+    const value = { utm_source: params.get('utm_source') ?? '', utm_medium: params.get('utm_medium') ?? '', utm_campaign: params.get('utm_campaign') ?? '', landing_path: window.location.pathname, referrer: document.referrer };
+    storage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(value));
+    return value;
+  } catch { return empty; }
+}
+
 type MetricEventPayload = APIMetricEvent & {
   event_id?: string;
 };
@@ -110,7 +135,6 @@ export function useMetrics() {
   const previewMode = metricsMode === 'preview';
   const sessionID = useRef(getSessionID());
   const visitorID = useRef(getVisitorID());
-  const scrollDepthTracked = useRef<Set<number>>(new Set());
 
   // Track event to API
   const trackEvent = useCallback(async (
@@ -120,17 +144,20 @@ export function useMetrics() {
     if (previewMode) {
       return;
     }
-    if (!variant) {
+    if (!variant?.slug) {
       console.warn('[useMetrics] No variant selected, skipping event tracking');
       return;
     }
 
+    const attribution = getCampaignAttribution();
     const event: MetricEventPayload = {
       event_type: eventType,
-      variant_id: variant.id ?? 0,
+      variant_slug: variant.slug,
       session_id: sessionID.current,
       visitor_id: visitorID.current,
       event_data: eventData,
+      ...attribution,
+      referrer: eventType === 'page_view' ? attribution.referrer : '',
     };
 
     try {
@@ -142,68 +169,110 @@ export function useMetrics() {
 
   // Track page view on mount
   useEffect(() => {
-    if (previewMode || !variant) {
+    if (previewMode || !variant?.slug) {
       return;
     }
-    if (variant) {
-      trackEvent('page_view', {
+    const pageKey = getPageMetricKey(variant.slug);
+    const currentCount = activePageViews.get(pageKey) ?? 0;
+    activePageViews.set(pageKey, currentCount + 1);
+    if (currentCount === 0) {
+      void trackEvent('page_view', {
         page: window.location.pathname,
         referrer: document.referrer,
       });
     }
+    return () => {
+      const nextCount = (activePageViews.get(pageKey) ?? 1) - 1;
+      if (nextCount <= 0) {
+        activePageViews.delete(pageKey);
+      } else {
+        activePageViews.set(pageKey, nextCount);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id, previewMode]);
+  }, [variant?.slug, previewMode]);
 
   // Track scroll depth (bands: 25%, 50%, 75%, 100%)
   useEffect(() => {
-    if (previewMode || !variant) return;
+    if (previewMode || !variant?.slug) return;
+
+    const pageKey = getPageMetricKey(variant.slug);
+    const existing = activeScrollListeners.get(pageKey);
+    if (existing) {
+      existing.count += 1;
+      return () => {
+        const current = activeScrollListeners.get(pageKey);
+        if (!current) return;
+        current.count -= 1;
+        if (current.count <= 0) {
+          window.removeEventListener('scroll', current.handler);
+          activeScrollListeners.delete(pageKey);
+          trackedScrollDepth.delete(pageKey);
+        }
+      };
+    }
 
     const handleScroll = () => {
       const scrollPercentage = (window.scrollY + window.innerHeight) / document.documentElement.scrollHeight * 100;
       const bands = [25, 50, 75, 100];
+      let trackedBands = trackedScrollDepth.get(pageKey);
+      if (!trackedBands) {
+        trackedBands = new Set();
+        trackedScrollDepth.set(pageKey, trackedBands);
+      }
 
       for (const band of bands) {
-        if (scrollPercentage >= band && !scrollDepthTracked.current.has(band)) {
-          scrollDepthTracked.current.add(band);
-          trackEvent('scroll_depth', { depth: band });
+        if (scrollPercentage >= band && !trackedBands.has(band)) {
+          trackedBands.add(band);
+          void trackEvent('scroll_depth', { depth: band });
         }
       }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    activeScrollListeners.set(pageKey, { count: 1, handler: handleScroll });
+    return () => {
+      const current = activeScrollListeners.get(pageKey);
+      if (!current) return;
+      current.count -= 1;
+      if (current.count <= 0) {
+        window.removeEventListener('scroll', current.handler);
+        activeScrollListeners.delete(pageKey);
+        trackedScrollDepth.delete(pageKey);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant?.id, previewMode]);
+  }, [variant?.slug, previewMode]);
 
   // Track CTA clicks
-  const trackCTAClick = (elementId: string, elementData?: Record<string, unknown>) => {
+  const trackCTAClick = useCallback((elementId: string, elementData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('click', {
+    void trackEvent('click', {
       element_id: elementId,
       element_type: 'cta',
       ...elementData,
     });
-  };
+  }, [previewMode, trackEvent]);
 
   // Track form submission
-  const trackFormSubmit = (formId: string, formData?: Record<string, unknown>) => {
+  const trackFormSubmit = useCallback((formId: string, formData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('form_submit', {
+    void trackEvent('form_submit', {
       form_id: formId,
       ...formData,
     });
-  };
+  }, [previewMode, trackEvent]);
 
   // Track conversion (e.g., Stripe checkout success)
-  const trackConversion = (conversionData?: Record<string, unknown>) => {
+  const trackConversion = useCallback((conversionData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('conversion', conversionData);
-  };
+    void trackEvent('conversion', conversionData);
+  }, [previewMode, trackEvent]);
 
-  const trackDownload = (downloadData?: Record<string, unknown>) => {
+  const trackDownload = useCallback((downloadData?: Record<string, unknown>) => {
     if (previewMode) return;
-    trackEvent('download', downloadData);
-  };
+    void trackEvent('download', downloadData);
+  }, [previewMode, trackEvent]);
 
   return {
     trackCTAClick,

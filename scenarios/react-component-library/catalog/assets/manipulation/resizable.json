@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "manipulation.resizable",
+    "name": "Resizable",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The resize primitive with handles, axis constraints, snapping, keyboard resizing, minimum and maximum sizes, and persisted dimensions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      },
+      {
+        "asset": "hooks.use-element-rect",
+        "reason": "Measurement batches reads rather than forcing layout per frame."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "content-reflow"
+  ]
+}

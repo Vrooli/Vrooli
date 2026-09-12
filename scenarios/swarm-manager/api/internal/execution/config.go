@@ -24,6 +24,68 @@ type FinalizationConfig struct {
 	// MaxRestartAttempts is how many times to retry restarting a scenario
 	// before giving up.
 	MaxRestartAttempts int
+
+	// BaselineDiffEnabled turns the before/after baseline-diff feature on.
+	// When true (and a BaselineClient is configured), execution captures a
+	// pre-execution GCT baseline for each declared scenario and diffs it
+	// during finalization so the review agent can tell regressions this item
+	// caused apart from pre-existing failures. Acts as a kill-switch: when
+	// false, the pipeline degrades to the absolute-threshold review only.
+	BaselineDiffEnabled bool
+
+	// BaselineRetainAfterFinalization keeps pre-execution baselines on disk
+	// after finalization instead of deleting them. Default false (delete) so
+	// baselines do not accumulate; set true for debugging or audit.
+	BaselineRetainAfterFinalization bool
+
+	// BaselineRegressionGateEnabled makes a detected regression — a surface
+	// that passed in the pre-execution baseline and fails now — gate the
+	// finalization outcome: the item is routed to needs-fixup / hand-back
+	// (and auto-fixup when policy allows) instead of being accepted, even when
+	// the absolute review came back ready. This is the swarm-manager half of
+	// the Baseline Modes promote gate (plan P6 §200-201): the before/after
+	// verdict is no longer merely recorded for the review agent, it decides
+	// whether the change keeps or is handed back.
+	//
+	// Subordinate to BaselineDiffEnabled (no diff is computed ⇒ nothing to
+	// gate). Only a genuine "regression" verdict gates; new-failure,
+	// pre-existing, and not-comparable verdicts do not (they are not
+	// attributable to this change). Default true; set false to observe
+	// regressions (still recorded + warned) without enforcing the gate — the
+	// shadow-observe-then-enforce rollout lever for the reflexive kernel.
+	BaselineRegressionGateEnabled bool
+
+	// BaselineDiffTimeout bounds a single baseline diff call during
+	// finalization (the diff re-runs test-genie surfaces against the working
+	// tree and can take minutes).
+	BaselineDiffTimeout time.Duration
+
+	// BaselineEngagementEnabled turns on Baseline Modes engagements for backlog
+	// execution (plan P6 §200 — the swarm-manager promote half). When set, each
+	// declared (acceptance_allow) scenario an execution may touch is fronted with
+	// a `git-control-tower baseline start --mode live` engagement: a git-free
+	// restore point is captured before the agent's edits merge to the working
+	// tree, and at finalization the engagement is closed terminally — promoted
+	// (green: the change is accepted and the safety net dropped) or abandoned
+	// (terminal hand-back: live is rolled back to the restore point so a botched
+	// change can never strand the scenario broken). The whole point of Baseline
+	// Modes is that swarm-manager can improve a scenario without leaving it in an
+	// unrecoverable state; this is that net for the live-edit flow.
+	//
+	// Default false (opt-in). The mechanism is best-effort throughout: a failed
+	// `baseline start` degrades to the existing in-place edit (no net) and never
+	// blocks the spawn; a failed promote/abandon is logged and the orphaned
+	// engagement is reclaimed by the recovery-floor reaper/TTL. Scenarios routed
+	// away from a live engagement by the decision tree (trusted-base / reflexive
+	// without an operator nod) simply get no engagement — shadow-mode engagement
+	// for those is a fast-follow that requires routing finalization's
+	// restart/health to the shadow variant.
+	//
+	// Only acts when an engagement actually opened (recorded on the Record). When
+	// false, or when no engagement opened, finalization behaves exactly as before
+	// — this flag adds a terminal promote/abandon step, it does not change the
+	// restart/health/review/regression-gate pipeline.
+	BaselineEngagementEnabled bool
 }
 
 // DefaultFinalizationConfig returns the production defaults for finalization
@@ -35,5 +97,10 @@ func DefaultFinalizationConfig() FinalizationConfig {
 		ReviewPollInterval: 5 * time.Second,
 		ReviewPollTimeout:  10 * time.Minute,
 		MaxRestartAttempts: 2,
+
+		BaselineDiffEnabled:             true,
+		BaselineRetainAfterFinalization: false,
+		BaselineRegressionGateEnabled:   true,
+		BaselineDiffTimeout:             15 * time.Minute,
 	}
 }

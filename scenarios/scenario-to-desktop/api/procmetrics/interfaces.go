@@ -32,8 +32,17 @@ type ProcReader interface {
 	IsAlive(pid int) bool
 }
 
+// ProcessTreeReader is optional. Platforms without a process-tree adapter
+// must report unsupported attribution instead of treating the root as the
+// complete application.
+type ProcessTreeReader interface {
+	ProcessTree(rootPID int) ([]ProcessInfo, error)
+}
+
 // WindowGeometry describes the size of a detected window.
 type WindowGeometry struct {
+	X      int
+	Y      int
 	Width  int
 	Height int
 }

@@ -25,3 +25,15 @@ export {
     createNodeStorageFileSystem,
     createNodeStoragePathUtils,
 } from "./app-storage";
+
+export {
+    clearUpdateIntent,
+    consumeUpdateIntent,
+    markUpdateIntentApplying,
+    readUpdateIntent,
+    writeInstalledUpdateReceipt,
+    writeUpdateIntent,
+    writeUpdateState,
+} from "./update-recovery";
+
+export type { InstalledUpdateReceipt, UpdateIntent, UpdateRecovery, UpdateRecoveryFileSystem, UpdateState, UpdateStateName } from "./update-recovery";

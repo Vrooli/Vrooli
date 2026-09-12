@@ -90,6 +90,8 @@ export interface UseFrameStreamOptions {
   onStatsUpdate?: (stats: FrameStats) => void;
   onPageMetadataChange?: (metadata: PageMetadata) => void;
   onConnectionStatusChange?: (status: StreamConnectionStatus) => void;
+  /** Keep frame timestamp in React state. Disable when no timestamp UI is rendered. */
+  enableTimestampState?: boolean;
 }
 
 export interface UseFrameStreamResult {
@@ -130,6 +132,7 @@ export function useFrameStream({
   onStatsUpdate,
   onPageMetadataChange,
   onConnectionStatusChange,
+  enableTimestampState = true,
 }: UseFrameStreamOptions): UseFrameStreamResult {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const backBufferRef = useRef<HTMLCanvasElement | null>(null);
@@ -150,6 +153,7 @@ export function useFrameStream({
   const hasFrameRef = useRef(false);
   const [displayDimensions, setDisplayDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const isFetchingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const errorRef = useRef<string | null>(null); // Track error in ref for guarded updates
   const [isTabVisible, setIsTabVisible] = useState(!document.hidden);
@@ -160,16 +164,19 @@ export function useFrameStream({
   const frameCountRef = useRef(0);
   const droppedFramesRef = useRef(0);
   const [displayedTimestamp, setDisplayedTimestamp] = useState<string | null>(null);
+  const displayedTimestampRef = useRef<string | null>(null);
+  const lastTimestampStateUpdateRef = useRef(0);
 
   // Latency tracking for research spike
   const latencyLoggerRef = useRef(new LatencyLogger('API Relay', 200));
-  const [latencyStats, setLatencyStats] = useState<LatencyStats | null>(null);
+  const latencyStatsRef = useRef<LatencyStats | null>(null);
 
   const inFlightRef = useRef(false);
   const lastSessionRef = useRef<string | null>(null);
   const lastETagRef = useRef<string | null>(null);
   const lastContentHashRef = useRef<string | null>(null);
   const lastPageIdRef = useRef<string | undefined>(pageId);
+  const lastConnectionStatusRef = useRef<string | null>(null);
 
   // WebSocket context no longer needed for frame streaming (direct connection to playwright-driver)
   // Keeping the import in case other parts of the app need it, but not using it here
@@ -192,6 +199,27 @@ export function useFrameStream({
   const pollInterval = useMemo(() => Math.max(300, Math.floor(1000 / fps)), [fps]);
   const pollIntervalRef = useRef(pollInterval);
   pollIntervalRef.current = pollInterval;
+  const enableTimestampStateRef = useRef(enableTimestampState);
+  enableTimestampStateRef.current = enableTimestampState;
+
+  const setFetchingState = useCallback((next: boolean) => {
+    if (isFetchingRef.current === next) return;
+    isFetchingRef.current = next;
+    setIsFetching(next);
+  }, []);
+
+  const publishFrameTimestamp = useCallback((timestamp: string, force = false) => {
+    displayedTimestampRef.current = timestamp;
+    if (!enableTimestampStateRef.current) {
+      return;
+    }
+    const now = performance.now();
+    if (!force && now - lastTimestampStateUpdateRef.current < 1000) {
+      return;
+    }
+    lastTimestampStateUpdateRef.current = now;
+    setDisplayedTimestamp(timestamp);
+  }, []);
 
   // Track tab visibility
   useEffect(() => {
@@ -243,11 +271,17 @@ export function useFrameStream({
   // Push connection status to parent
   useEffect(() => {
     if (onConnectionStatusChangeRef.current) {
-      onConnectionStatusChangeRef.current({
+      const status: StreamConnectionStatus = {
         isConnected: hasFrame,
         isWebSocket: isWsFrameActive,
         lastFrameTime: displayedTimestamp ?? undefined,
-      });
+      };
+      const key = `${status.isConnected}:${status.isWebSocket}:${status.lastFrameTime ?? ''}`;
+      if (lastConnectionStatusRef.current === key) {
+        return;
+      }
+      lastConnectionStatusRef.current = key;
+      onConnectionStatusChangeRef.current(status);
     }
   }, [hasFrame, isWsFrameActive, displayedTimestamp]);
 
@@ -305,6 +339,7 @@ export function useFrameStream({
   // since decoding happens during the RAF wait, not after RAF fires.
   const pendingBitmapRef = useRef<ImageBitmap | null>(null);
   const pendingFrameSizeRef = useRef<number>(0);
+  const pendingFrameTimestampRef = useRef<string | null>(null);
   const latestFrameIdRef = useRef<number>(0);
   const rafIdRef = useRef<number | null>(null);
   const isWsFrameActiveRef = useRef(isWsFrameActive);
@@ -319,9 +354,11 @@ export function useFrameStream({
 
     const bitmap = pendingBitmapRef.current;
     const frameSize = pendingFrameSizeRef.current;
+    const frameTimestamp = pendingFrameTimestampRef.current;
     if (!bitmap) return;
 
     pendingBitmapRef.current = null;
+    pendingFrameTimestampRef.current = null;
 
     const drawn = drawFrameToCanvas(bitmap);
     if (!drawn) {
@@ -362,14 +399,15 @@ export function useFrameStream({
 
     // Track successful frame processing
     frameCountRef.current++;
+    publishFrameTimestamp(frameTimestamp ?? newDimensions.capturedAt);
     recordFrame(frameSize);
-  }, [drawFrameToCanvas, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
+  }, [drawFrameToCanvas, publishFrameTimestamp, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
 
   /**
    * Decode a blob and queue it for drawing.
    * Decoding happens immediately (in parallel with RAF wait), not after RAF fires.
    */
-  const decodeAndQueueFrame = useCallback(async (blob: Blob, frameId: number, frameSize: number) => {
+  const decodeAndQueueFrame = useCallback(async (blob: Blob, frameId: number, frameSize: number, capturedAt: string) => {
     try {
       const bitmap = await createImageBitmap(blob);
 
@@ -387,6 +425,7 @@ export function useFrameStream({
 
       pendingBitmapRef.current = bitmap;
       pendingFrameSizeRef.current = frameSize;
+      pendingFrameTimestampRef.current = capturedAt;
 
       // Schedule RAF if not already scheduled
       if (rafIdRef.current === null) {
@@ -461,7 +500,7 @@ export function useFrameStream({
           latencyLoggerRef.current.record(latency);
           // Update stats every 10 frames to reduce state updates
           if (latencyLoggerRef.current.getSampleCount() % 10 === 0) {
-            setLatencyStats(latencyLoggerRef.current.getStats());
+            latencyStatsRef.current = latencyLoggerRef.current.getStats();
           }
         }
       }
@@ -479,7 +518,7 @@ export function useFrameStream({
 
       // Start decoding immediately - this happens in parallel with RAF wait
       // The decoded bitmap will be ready when RAF fires, reducing latency by ~2-5ms
-      void decodeAndQueueFrame(blob, frameId, frameSize);
+      void decodeAndQueueFrame(blob, frameId, frameSize, sentTimestamp !== null ? new Date(sentTimestamp).toISOString() : new Date().toISOString());
     };
 
     const connect = async () => {
@@ -601,7 +640,7 @@ export function useFrameStream({
   const fetchFrame = useCallback(async () => {
     if (inFlightRef.current || !sessionId) return;
     inFlightRef.current = true;
-    setIsFetching(true);
+    setFetchingState(!hasFrameRef.current);
     const started = performance.now();
 
     try {
@@ -693,7 +732,7 @@ export function useFrameStream({
             storeSetFrameDimensions({ width: newDimensions.width, height: newDimensions.height });
             storeSetDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
           }
-          setDisplayedTimestamp(data.captured_at);
+          publishFrameTimestamp(data.captured_at);
           if (errorRef.current !== null) {
             errorRef.current = null;
             setError(null);
@@ -714,7 +753,7 @@ export function useFrameStream({
         onStreamError(message);
       }
     } finally {
-      setIsFetching(false);
+      setFetchingState(false);
       inFlightRef.current = false;
       const elapsed = performance.now() - started;
       if (elapsed > pollInterval) {
@@ -723,7 +762,7 @@ export function useFrameStream({
         pollIntervalRef.current = nextInterval;
       }
     }
-  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
+  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, publishFrameTimestamp, recordFrame, setFetchingState, storeSetFrameDimensions, storeSetDisplayDimensions]);
 
   // Track if we've received at least one WebSocket frame
   const hasReceivedWsFrameRef = useRef(false);
@@ -776,6 +815,7 @@ export function useFrameStream({
         hasFrameRef.current = false;
         setHasFrame(false);
         setDisplayDimensions(null);
+        displayedTimestampRef.current = null;
         setDisplayedTimestamp(null);
         // Clear store dimensions
         storeSetFrameDimensions(null);
@@ -823,7 +863,7 @@ export function useFrameStream({
     isPageSwitching,
     frameStats,
     frameDimensionsRef,
-    latencyStats,
+    latencyStats: latencyStatsRef.current,
     logLatencyStats,
   };
 }

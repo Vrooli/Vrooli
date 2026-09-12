@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "code": "proto.shared_type_misplaced",
+      "message_full_names": [
+        "browser_automation_studio.v1.ActionDefinition",
+        "browser_automation_studio.v1.ActionMetadata",
+        "browser_automation_studio.v1.BrowserProfile",
+        "browser_automation_studio.v1.BoundingBox",
+        "browser_automation_studio.v1.Dimensions",
+        "browser_automation_studio.v1.ElementFocus",
+        "browser_automation_studio.v1.ElementMeta",
+        "browser_automation_studio.v1.ElementSelector",
+        "browser_automation_studio.v1.ExecuteWorkflowOptions",
+        "browser_automation_studio.v1.ExecutionParameters",
+        "browser_automation_studio.v1.ExecutionMetadata",
+        "browser_automation_studio.v1.FrameData",
+        "browser_automation_studio.v1.HighlightRegion",
+        "browser_automation_studio.v1.ListWorkflowsResponse",
+        "browser_automation_studio.v1.MaskRegion",
+        "browser_automation_studio.v1.Point",
+        "browser_automation_studio.v1.RecordingMetadata",
+        "browser_automation_studio.v1.TimelineEntry",
+        "browser_automation_studio.v1.TimelineScreenshot",
+        "browser_automation_studio.v1.Viewport",
+        "browser_automation_studio.v1.WorkflowDefinition",
+        "browser_automation_studio.v1.WorkflowDefinitionV2",
+        "browser_automation_studio.v1.WorkflowMetadata",
+        "browser_automation_studio.v1.WorkflowNode",
+        "browser_automation_studio.v1.WorkflowSettings",
+        "browser_automation_studio.v1.WorkflowSummary"
+      ],
+      "reason": "These V1 generated type identities are consumed by deployed driver, UI, CLI, and external clients; migration to v1/shared requires a separately versioned compatibility program.",
+      "expires": "V2 contract migration"
+    }
+  ]
+}

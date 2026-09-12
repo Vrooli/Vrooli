@@ -33,19 +33,31 @@ func (s *Server) fetchCodeQualityDimension(ctx context.Context, scenarioName str
 }
 
 // fetchTestsDimension queries test-genie for test execution data.
-func (s *Server) fetchTestsDimension(ctx context.Context, scenarioName string, detailCount int) (*TestsDimension, bool) {
+func (s *Server) fetchTestsDimension(ctx context.Context, scenarioName, executionID string, detailCount int) (*TestsDimension, bool) {
 	available := s.capabilities.IsAvailable(ctx, "test-genie")
 	if !available {
 		return nil, false
 	}
 
 	dim := &TestsDimension{Available: true}
-	list, err := s.testGenieClient.ListExecutions(ctx, scenarioName, 1)
-	if err != nil || list == nil || len(list.Items) == 0 {
+	var latest TestExecutionResult
+	var err error
+	if executionID != "" {
+		result, getErr := s.testGenieClient.GetExecution(ctx, executionID)
+		err = getErr
+		if result != nil {
+			latest = *result
+		}
+	} else {
+		list, listErr := s.testGenieClient.ListExecutions(ctx, scenarioName, 1)
+		err = listErr
+		if list != nil && len(list.Items) > 0 {
+			latest = list.Items[0]
+		}
+	}
+	if err != nil || latest.ExecutionID == "" {
 		return dim, true
 	}
-
-	latest := list.Items[0]
 	dim.Passed = latest.Success
 	dim.Total = latest.PhaseSummary.Total
 	dim.PassedCount = latest.PhaseSummary.Passed

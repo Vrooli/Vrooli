@@ -47,6 +47,34 @@ func TestCORSMiddlewareAllowsAppMonitorByDefault(t *testing.T) {
 	}
 }
 
+func TestCORSMiddlewareAllowsOriginlessLocalProbe(t *testing.T) {
+	ResetCorsConfigForTesting()
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")
+	t.Setenv("ALLOWED_ORIGINS", "")
+	t.Setenv("CORS_ALLOWED_ORIGIN", "")
+
+	log := logrus.New()
+	middleware := CorsMiddleware(log)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	called := false
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(rr, req)
+
+	if !called || rr.Code != http.StatusOK {
+		t.Fatalf("expected originless probe to reach handler with 200, called=%t status=%d", called, rr.Code)
+	}
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("originless probe must not receive an allow-origin header, got %q", got)
+	}
+}
+
 func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
 	ResetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")
@@ -75,7 +103,7 @@ func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
 	}
 }
 
-func TestCORSMiddlewareWildcardAllowsAll(t *testing.T) {
+func TestCORSMiddlewareRejectsWildcardConfiguration(t *testing.T) {
 	ResetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "*")
 
@@ -87,20 +115,16 @@ func TestCORSMiddlewareWildcardAllowsAll(t *testing.T) {
 	req.Header.Set("Origin", "https://any.example")
 
 	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusCreated)
+		t.Fatal("wildcard CORS configuration must not reach the handler")
 	}))
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusCreated {
-		t.Fatalf("expected status created, got %d", rr.Code)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected status forbidden, got %d", rr.Code)
 	}
 
-	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "*" {
-		t.Fatalf("expected wildcard origin, got %q", got)
-	}
-
-	if got := rr.Header().Get("Access-Control-Allow-Credentials"); got != "" {
-		t.Fatalf("expected credentials header to be empty when wildcard is used, got %q", got)
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("expected no wildcard origin header, got %q", got)
 	}
 }

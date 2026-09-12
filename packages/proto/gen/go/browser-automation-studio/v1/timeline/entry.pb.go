@@ -28,8 +28,6 @@ const (
 )
 
 // TimelineMessageType enumerates WebSocket message types for streaming.
-//
-// @usage TimelineStreamMessage.type
 type TimelineMessageType int32
 
 const (
@@ -87,8 +85,6 @@ func (TimelineMessageType) EnumDescriptor() ([]byte, []int) {
 
 // TimelineEntry captures a single action in the timeline.
 // This is the unified format for both streaming and batch access.
-//
-// @usage ExecutionTimeline.entries, GetActionsResponse.entries, TimelineStreamMessage.entry
 type TimelineEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// === IDENTITY ===
@@ -258,8 +254,6 @@ func (x *TimelineEntry) GetCorrelationId() string {
 // TimelineEntryAggregates contains computed/derived data for batch responses.
 // This data is calculated when an execution completes and is NOT populated
 // during real-time streaming.
-//
-// @usage TimelineEntry.aggregates
 type TimelineEntryAggregates struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Step execution status (pending, running, completed, failed, etc.).
@@ -370,8 +364,6 @@ func (x *TimelineEntryAggregates) GetProgress() int32 {
 
 // TimelineArtifact represents a stored artifact from execution.
 // Examples: screenshots, console logs, network traces, DOM snapshots.
-//
-// @usage TimelineEntryAggregates.artifacts, TimelineEntryAggregates.dom_snapshot
 type TimelineArtifact struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique artifact identifier.
@@ -491,8 +483,6 @@ func (x *TimelineArtifact) GetPayload() map[string]*v1.JsonValue {
 }
 
 // ElementFocus captures focus metadata for screenshot framing and highlighting.
-//
-// @usage TimelineEntryAggregates.focused_element
 type ElementFocus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// CSS selector of the focused element.
@@ -548,8 +538,6 @@ func (x *ElementFocus) GetBoundingBox() *base.BoundingBox {
 }
 
 // TimelineLog captures execution log output for the timeline.
-//
-// @usage ExecutionTimeline.logs, TimelineStreamMessage.log
 type TimelineLog struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique log entry identifier.
@@ -634,8 +622,6 @@ func (x *TimelineLog) GetTimestamp() *timestamppb.Timestamp {
 
 // TimelineStreamMessage wraps timeline data for WebSocket transport.
 // This is the envelope format for all streaming timeline messages.
-//
-// @usage WebSocket timeline streaming endpoint
 type TimelineStreamMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Message type for routing and parsing.
@@ -762,8 +748,6 @@ func (*TimelineStreamMessage_Heartbeat) isTimelineStreamMessage_Payload() {}
 func (*TimelineStreamMessage_Log) isTimelineStreamMessage_Payload() {}
 
 // TimelineStatusUpdate reports overall session/execution status.
-//
-// @usage TimelineStreamMessage.status
 type TimelineStatusUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Session ID (recording) or Execution ID (playback).
@@ -847,8 +831,6 @@ func (x *TimelineStatusUpdate) GetError() string {
 }
 
 // TimelineHeartbeat keeps WebSocket connection alive.
-//
-// @usage TimelineStreamMessage.heartbeat
 type TimelineHeartbeat struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Heartbeat timestamp.

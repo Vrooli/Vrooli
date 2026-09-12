@@ -1,0 +1,233 @@
+{
+  "service": {
+    "name": "scenario-to-android",
+    "displayName": "Scenario To Android",
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "deployment",
+    "tags": [],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/scenario-to-android"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    },
+    "description": "Transform Vrooli scenarios into native Android applications with full device capabilities",
+    "version": "1.0.0"
+  },
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Android build API server port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "20000-24999",
+      "description": "Android build UI server port"
+    }
+  },
+  "lifecycle": {
+    "health": {
+      "description": "Scenario to Android health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 45000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize scenario-to-android",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-android-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "scenario-to-android",
+            "targets": [
+              "scenario-to-android"
+            ]
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o scenario-to-android-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build production UI"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start scenario-to-android services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-android-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-android-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-to-android-api\" || true; sleep 1; pkill -9 -f \"scenario-to-android-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/scenario-to-android/ui\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-android/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for scenario-to-android",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute scenario-to-android --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "ollama": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "purpose": "AI-powered code generation for Android app templates and build scripts",
+        "model_roles": [
+          "chat.small"
+        ]
+      },
+      "minio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Store generated APKs and build artifacts",
+        "degraded_behavior": "Falls back to local filesystem storage"
+      },
+      "redis": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Cache build configurations and templates",
+        "degraded_behavior": "Build configuration cache is recomputed on demand"
+      },
+      "postgres": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "purpose": "Track build history and app metadata",
+        "degraded_behavior": "Falls back to JSON file storage"
+      }
+    }
+  },
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-android",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-android"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

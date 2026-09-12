@@ -1,8 +1,10 @@
 # Bundle Manifest Schema Reference
 
-> **Complete reference for the desktop bundle manifest (`bundle.json`) schema v0.1.**
+> **Reference for the desktop bundle manifest (`bundle.json`) schema v0.1.**
 >
-> This document defines all fields, validation rules, and usage patterns for the manifest that drives bundled desktop deployments.
+> The checked-in JSON Schema at `schemas/bundle-schema.desktop.v0.1.json` is
+> authoritative for machine validation. This page explains the fields and
+> runtime meaning. It is not the target resource-plan schema.
 
 ## Overview
 
@@ -39,6 +41,7 @@ The schema version determines validation rules and supported features. Always sp
   "target": "desktop",
   "app": { ... },
   "ipc": { ... },
+  "authentication": { ... },
   "telemetry": { ... },
   "ports": { ... },
   "swaps": [ ... ],
@@ -53,6 +56,7 @@ The schema version determines validation rules and supported features. Always sp
 | `target` | string | **Yes** | Must be `"desktop"` for tier 2 |
 | `app` | object | **Yes** | Application metadata |
 | `ipc` | object | **Yes** | Inter-process communication configuration |
+| `authentication` | object | No (required for new authenticated bundles) | Human identity, provider, and offline-mode contract |
 | `telemetry` | object | **Yes** | Telemetry collection settings |
 | `ports` | object | No | Port allocation rules |
 | `swaps` | array | No | Dependency swaps applied |
@@ -116,6 +120,59 @@ Configuration for communication between Electron and the runtime supervisor.
 - `port` must be greater than 0
 
 **Security note:** The runtime control API uses Bearer token authentication. The token is generated on first run and stored at `auth_token_path`.
+
+---
+
+## Authentication Object
+
+The authentication object declares the human identity and provider behavior of
+the bundled application. It does not contain passwords, private keys, refresh
+tokens, provider management credentials, or LPBS website sessions.
+
+```json
+{
+  "authentication": {
+    "version": 1,
+    "mode": "personal_local",
+    "human_sign_in": "disabled",
+    "offline": true,
+    "resource": "git-control-tower",
+    "audience": "scenario:git-control-tower",
+    "public_routes": ["/healthz"],
+    "protected_routes": ["/api"],
+    "requires_authenticator": false
+  }
+}
+```
+
+| Field | Values | Meaning |
+|---|---|---|
+| `version` | `1` | Authentication profile schema version |
+| `mode` | `personal_local`, `local_multi_user`, `remote_vrooli`, `shared_provider` | Selected deployment authentication mode |
+| `mode_profiles` | map of mode to non-secret profile | Explicit alternate modes available through the protected runtime settings surface; omitted means the bundle is fixed to `mode` |
+| `provider` | declared provider name | Identity authority; required by networked modes |
+| `resource` | scenario/resource slug | Resource identity used for provider and capability planning |
+| `audience` | string | Target resource audience; it is not a credential |
+| `provider_endpoint` | HTTP(S) URL | Explicit remote/shared provider endpoint; credentials in URLs are rejected |
+| `provider_service_id` | bundled service ID | Authenticator service required for local startup |
+| `human_sign_in` | `disabled`, `optional`, `required` | Human sign-in policy |
+| `offline` | boolean | Whether the declared product path works without network access |
+| `public_routes`, `protected_routes` | arrays of safe paths | Route classes exposed by the profile |
+| `lease_path` | relative path | Shared-provider lease metadata; stale or absent leases fail closed |
+| `recovery_url` | URI | Declared recovery location, if applicable |
+| `requires_authenticator` | boolean | Whether the bundle must include its declared authenticator service |
+
+Mode invariants are enforced by deployment-manager and the runtime. Personal
+local is provider-free, offline-capable, and sign-in-free by default. Local
+multi-user requires the bundled `scenario-authenticator`. Remote mode requires
+the declared scenario-authenticator endpoint. Shared-provider mode requires a
+declared provider endpoint and a current broker-issued lease. No mode may fall
+back to an undeclared provider or use the supervisor bearer token as a human
+identity.
+
+The manifest is a deployment contract. A runtime must fail with a clear
+configuration state when a required provider is unavailable; it must not
+silently fall back to an unauthenticated shared mode.
 
 ---
 
@@ -651,63 +708,20 @@ Rust target mapping:
 
 ---
 
-## Code Signing (Future)
+## Trust and signing
 
-> **Note**: Code signing configuration is planned but not yet implemented in v0.1. See [ROADMAP.md](../ROADMAP.md).
+The manifest may describe build-time signing configuration, but it is not the
+release trust root. Keep these concerns separate:
 
-When implemented, code signing will be configured as:
+- `scenario-to-desktop` owns platform installer signing and notarization;
+- `vrooli release-authority` signs the exact staged release manifest and its
+  listed bytes;
+- deployment-manager records the trust and promotion decision.
 
-```json
-{
-  "code_signing": {
-    "enabled": true,
-    "windows": {
-      "certificate_file": "./certs/windows.pfx",
-      "certificate_password_env": "WIN_CERT_PASSWORD",
-      "timestamp_server": "http://timestamp.digicert.com"
-    },
-    "macos": {
-      "identity": "Developer ID Application: Your Name (TEAMID)",
-      "team_id": "TEAMID",
-      "hardened_runtime": true,
-      "notarize": true,
-      "apple_id_env": "APPLE_ID",
-      "apple_id_password_env": "APPLE_APP_PASSWORD"
-    },
-    "linux": {
-      "gpg_key_id": "YOUR_GPG_KEY",
-      "gpg_key_passphrase_env": "GPG_PASSPHRASE"
-    }
-  }
-}
-```
-
-**Current workaround**: Configure signing directly in `package.json`:
-
-```json
-{
-  "build": {
-    "win": {
-      "certificateFile": "./cert.pfx",
-      "certificatePassword": "${WIN_CSC_KEY_PASSWORD}",
-      "signAndEditExecutable": true
-    },
-    "mac": {
-      "hardenedRuntime": true,
-      "gatekeeperAssess": true,
-      "entitlements": "build/entitlements.mac.plist"
-    }
-  }
-}
-```
-
-**Platform requirements:**
-
-| Platform | Requirement | Cost |
-|----------|-------------|------|
-| Windows | Authenticode certificate | $200-400/year |
-| macOS | Apple Developer account | $99/year |
-| Linux | GPG key (optional) | Free |
+Private signing material must remain in the appropriate secure authority. It
+must not be placed in `bundle.json`, source control, or a command argument. See
+the [managed release authority](../../../../docs/configuration/release-authority.md)
+and the [scenario-to-desktop signing guide](../../../scenario-to-desktop/docs/guides/code-signing.md).
 
 ---
 
@@ -752,7 +766,7 @@ See [API Reference - Bundles](../api/bundles.md) for details.
 
 ## Related Documentation
 
-- [Example Manifests](../examples/manifests/README.md) - Working examples
+- [Example Manifests](../examples/manifests/desktop-happy.json) - Working example
 - [Secrets Management](secrets-management.md) - Secret classification and handling
 - [Desktop Workflow](../workflows/desktop-deployment.md) - End-to-end deployment guide
 - [Fitness Scoring](fitness-scoring.md) - How compatibility is calculated

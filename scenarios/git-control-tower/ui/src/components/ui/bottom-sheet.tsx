@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useGlobalKeydown } from "../../hooks/useGlobalKeydown";
 
 interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  /** Height preset: "auto" fits content, "half" is 50vh, "full" is 100vh minus safe area */
+  /** Height preset: "auto" fits content, "half" is 50vh, "full" is 100% minus safe area */
   height?: "auto" | "half" | "full";
 }
 
@@ -22,19 +23,11 @@ export function BottomSheet({
   const startYRef = useRef<number>(0);
   const currentYRef = useRef<number>(0);
 
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  useGlobalKeydown((e) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
+  }, { disabled: !isOpen, target: document });
 
   // Prevent body scroll when open
   useEffect(() => {
@@ -84,7 +77,7 @@ export function BottomSheet({
 
   const heightClass =
     height === "full"
-      ? "h-[calc(100vh-env(safe-area-inset-top))]"
+      ? "h-[calc(100%-env(safe-area-inset-top))]"
       : height === "half"
         ? "max-h-[50vh]"
         : "max-h-[85vh]";
@@ -148,6 +141,7 @@ interface BottomSheetActionProps {
   onClick: () => void;
   variant?: "default" | "danger" | "success";
   disabled?: boolean;
+  testId?: string;
 }
 
 export function BottomSheetAction({
@@ -156,7 +150,8 @@ export function BottomSheetAction({
   description,
   onClick,
   variant = "default",
-  disabled = false
+  disabled = false,
+  testId,
 }: BottomSheetActionProps) {
   const variantClasses = {
     default: "text-slate-200 hover:bg-slate-800/60 active:bg-slate-700",
@@ -169,6 +164,7 @@ export function BottomSheetAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-testid={testId}
       className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]}`}
     >
       {icon && (

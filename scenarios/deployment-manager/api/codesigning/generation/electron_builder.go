@@ -1,6 +1,8 @@
 package generation
 
 import (
+	"fmt"
+
 	"deployment-manager/codesigning"
 )
 
@@ -21,7 +23,7 @@ func generateWindowsConfig(config *codesigning.WindowsSigningConfig, opts *Optio
 		win.CertificateFile = config.CertificateFile
 		// Use environment variable reference for password
 		if config.CertificatePasswordEnv != "" {
-			win.CertificatePassword = "${" + config.CertificatePasswordEnv + "}"
+			win.CertificatePassword = environmentReference(config.CertificatePasswordEnv)
 		}
 	case codesigning.CertSourceStore:
 		win.CertificateSha1 = config.CertificateThumbprint
@@ -50,6 +52,14 @@ func generateWindowsConfig(config *codesigning.WindowsSigningConfig, opts *Optio
 	}
 
 	return win
+}
+
+// environmentReference returns the electron-builder syntax for a value that
+// must be read from the process environment at signing time. Keeping this
+// formatting separate also makes it explicit that no credential value is
+// materialized in the generated configuration.
+func environmentReference(name string) string {
+	return "${" + name + "}"
 }
 
 // generateMacOSConfig creates electron-builder macOS signing configuration.
@@ -104,6 +114,9 @@ func GenerateElectronBuilderJSON(config *codesigning.SigningConfig, opts *Option
 	if config == nil || !config.Enabled {
 		return nil, nil
 	}
+	if config.Windows != nil && !isSupportedWindowsCertificateSource(config.Windows.CertificateSource) {
+		return nil, fmt.Errorf("unsupported Windows certificate source %q: use %q or %q", config.Windows.CertificateSource, codesigning.CertSourceFile, codesigning.CertSourceStore)
+	}
 
 	if opts == nil {
 		opts = DefaultOptions()
@@ -133,4 +146,8 @@ func GenerateElectronBuilderJSON(config *codesigning.SigningConfig, opts *Option
 	}
 
 	return result, nil
+}
+
+func isSupportedWindowsCertificateSource(source string) bool {
+	return source == codesigning.CertSourceFile || source == codesigning.CertSourceStore
 }

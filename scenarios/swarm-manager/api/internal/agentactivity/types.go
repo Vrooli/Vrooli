@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"swarm-manager/internal/identity"
 )
@@ -22,25 +23,33 @@ const pendingSpawnTTL = 5 * time.Minute
 type OwnerType string
 
 const (
-	OwnerBacklog  OwnerType = "backlog"
-	OwnerCapture  OwnerType = "capture"
-	OwnerScenario OwnerType = "scenario"
+	OwnerBacklog   OwnerType = "backlog"
+	OwnerCapture   OwnerType = "capture"
+	OwnerScenario  OwnerType = "scenario"
+	OwnerMilestone OwnerType = "milestone"
+	OwnerSession   OwnerType = "session"
 )
 
 type Purpose string
 
 const (
-	PurposeInitialize Purpose = "initialize"
-	PurposeWorkshop   Purpose = "workshop"
-	PurposeFinalize   Purpose = "finalize"
-	PurposeResearch   Purpose = "research"
-	PurposeProcess    Purpose = "process"
-	PurposeFixup      Purpose = "fixup"
-	PurposeFollowUp   Purpose = "followup"
-	PurposeSpecSync   Purpose = "spec_sync"
-	PurposeClassify   Purpose = "classify"
-	PurposeClarify    Purpose = "clarify"
-	PurposeReview     Purpose = "review"
+	PurposeInitialize        Purpose = "initialize"
+	PurposeWorkshop          Purpose = "workshop"
+	PurposeFinalize          Purpose = "finalize"
+	PurposeResearch          Purpose = "research"
+	PurposeProcess           Purpose = "process"
+	PurposeFixup             Purpose = "fixup"
+	PurposeFollowUp          Purpose = "followup"
+	PurposeSpecSync          Purpose = "spec_sync"
+	PurposeClassify          Purpose = "classify"
+	PurposeClarify           Purpose = "clarify"
+	PurposeReview            Purpose = "review"
+	PurposeFeedback          Purpose = "feedback"
+	PurposeFeedbackContinue  Purpose = "feedback_continue"
+	PurposeMilestoneReview   Purpose = "milestone_review"
+	PurposeMetaOrchestration Purpose = "meta_orchestration"
+	PurposeSwarmOperations   Purpose = "swarm_operations"
+	PurposeWorkflowAuthoring Purpose = "workflow_authoring"
 )
 
 type InteractionType string
@@ -53,22 +62,29 @@ const (
 type Status string
 
 const (
-	StatusPending     Status = "pending"
-	StatusStarting    Status = "starting"
-	StatusRunning     Status = "running"
-	StatusNeedsReview Status = "needs_review"
-	StatusComplete    Status = "complete"
-	StatusFailed      Status = "failed"
-	StatusCancelled   Status = "cancelled"
-	StatusUnspecified Status = "unspecified"
+	StatusPending         Status = "pending"
+	StatusStarting        Status = "starting"
+	StatusRunning         Status = "running"
+	StatusNeedsReview     Status = "needs_review"
+	StatusComplete        Status = "complete"
+	StatusAbstained       Status = "abstained"
+	StatusBudgetExhausted Status = "budget_exhausted"
+	StatusFailed          Status = "failed"
+	StatusCancelled       Status = "cancelled"
+	StatusUnspecified     Status = "unspecified"
 )
 
 type Record struct {
-	ActivityID      string            `json:"activity_id"`
-	OwnerType       OwnerType         `json:"owner_type"`
-	OwnerKind       string            `json:"owner_kind,omitempty"`
-	OwnerName       string            `json:"owner_name"`
-	OwnerTitle      string            `json:"owner_title,omitempty"`
+	ActivityID string    `json:"activity_id"`
+	OwnerType  OwnerType `json:"owner_type"`
+	OwnerKind  string    `json:"owner_kind,omitempty"`
+	OwnerName  string    `json:"owner_name"`
+	OwnerTitle string    `json:"owner_title,omitempty"`
+	// PhaseKind classifies the spawn for lane bookkeeping. Persisted on
+	// every record; the operations aggregator joins on (Purpose, PhaseKind)
+	// to compute lane utilization. Empty values are tolerated for
+	// historical records written before lane plumbing landed.
+	PhaseKind       string            `json:"phase_kind,omitempty"`
 	ExecutionID     string            `json:"execution_id,omitempty"`
 	Purpose         Purpose           `json:"purpose"`
 	InteractionType InteractionType   `json:"interaction_type"`
@@ -91,6 +107,12 @@ type Spec struct {
 	OwnerTitle  string
 	ExecutionID string
 	Purpose     Purpose
+	// PhaseKind classifies the spawn for lane bookkeeping. Mirrors
+	// a persisted phase kind as a string. Empty is allowed in
+	// P1 — P2 introduces a lane policy that consumes this field and
+	// rejects unrecognized values. Call sites should pass
+	// historical activity records.
+	PhaseKind   string
 	RequestedBy string
 	Metadata    map[string]string
 }
@@ -104,6 +126,12 @@ type ListFilters struct {
 	Status      string
 	RunID       string
 	ActiveOnly  bool
+	// ActiveOrFinishedSince, when non-zero, restricts results to records that
+	// are either currently active (pending / starting / running / needs_review)
+	// or finished after this instant. Used by the operations aggregator to
+	// bound the wire payload at "now-window" (default 3 hours, max 24 hours)
+	// without an in-handler post-filter pass.
+	ActiveOrFinishedSince time.Time
 }
 
 func (s Spec) normalized() (Spec, error) {
@@ -113,22 +141,23 @@ func (s Spec) normalized() (Spec, error) {
 	s.OwnerTitle = strings.TrimSpace(s.OwnerTitle)
 	s.ExecutionID = strings.TrimSpace(s.ExecutionID)
 	s.Purpose = Purpose(strings.ToLower(strings.TrimSpace(string(s.Purpose))))
+	s.PhaseKind = strings.ToLower(strings.TrimSpace(s.PhaseKind))
 	s.RequestedBy = strings.TrimSpace(s.RequestedBy)
 	if s.Metadata == nil {
 		s.Metadata = map[string]string{}
 	}
 
 	switch s.OwnerType {
-	case OwnerBacklog, OwnerCapture, OwnerScenario:
+	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerMilestone, OwnerSession:
 	default:
-		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, or scenario")
+		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, milestone, or session")
 	}
 
-	switch s.Purpose {
-	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
-		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview:
-	default:
-		return Spec{}, fmt.Errorf("purpose is required")
+	if !isValidPurpose(s.Purpose) {
+		return Spec{}, fmt.Errorf("purpose must be a snake-case token")
+	}
+	if s.OwnerType != OwnerMilestone && s.OwnerType != OwnerSession && !isKnownPurpose(s.Purpose) {
+		return Spec{}, fmt.Errorf("purpose %q is not registered for owner_type %q", s.Purpose, s.OwnerType)
 	}
 
 	if s.OwnerName == "" {
@@ -151,6 +180,31 @@ func (s Spec) normalized() (Spec, error) {
 	}
 	s.Metadata = copied
 	return s, nil
+}
+
+func isValidPurpose(purpose Purpose) bool {
+	value := string(purpose)
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if unicode.IsLower(r) || unicode.IsDigit(r) || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// isKnownPurpose reports whether the purpose is registered with a lane in
+// purposeLane (lanes.go). Lane registration is the canonical "is this
+// purpose recognized" check — adding a Purpose constant without a lane
+// makes it unspawnable for non-milestone/non-session owners (and panics
+// at init for anything in allRegisteredPurposes), which is the desired
+// fail-loud behavior for forgotten lane coverage.
+func isKnownPurpose(purpose Purpose) bool {
+	_, ok := purposeLane[purpose]
+	return ok
 }
 
 func isActiveStatus(status Status) bool {
@@ -180,6 +234,10 @@ type contextKey struct{}
 
 func WithSpec(ctx context.Context, spec Spec) context.Context {
 	return context.WithValue(ctx, contextKey{}, spec)
+}
+
+func SpecFromContext(ctx context.Context) (Spec, error) {
+	return specFromContext(ctx)
 }
 
 func specFromContext(ctx context.Context) (Spec, error) {

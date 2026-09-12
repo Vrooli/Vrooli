@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"pathology-ambiguous"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"candidate-a","type":"agent_message","text":"first terminal candidate"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"candidate-b","type":"agent_message","text":"second terminal candidate"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}

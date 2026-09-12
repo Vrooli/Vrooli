@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
+# shellcheck source=install/platform.sh
+source "${SCRIPT_DIR}/install/platform.sh"
 
 usage() {
-    echo "Usage: $0 <module_path> [--name binary-name] [--install-dir path]"
+    echo "Usage: $0 <module_path> [--name binary-name] [--manifest path] [--install-dir path] [--context-root path] [--freshness-input pattern]"
     echo
     echo "Examples:"
     echo "  $0 scenarios/scenario-completeness-scoring/cli --name scenario-completeness-scoring"
@@ -20,7 +23,10 @@ MODULE_PATH="$1"
 shift
 
 NAME=""
-INSTALL_DIR="${HOME}/.vrooli/bin"
+MANIFEST=""
+INSTALL_DIR="$(vrooli_default_install_dir)"
+CONTEXT_ROOT=""
+FRESHNESS_INPUTS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -40,6 +46,30 @@ while [[ $# -gt 0 ]]; do
             INSTALL_DIR="$2"
             shift 2
             ;;
+        --manifest)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --manifest"
+                exit 1
+            fi
+            MANIFEST="$2"
+            shift 2
+            ;;
+        --context-root)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --context-root"
+                exit 1
+            fi
+            CONTEXT_ROOT="$2"
+            shift 2
+            ;;
+        --freshness-input)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --freshness-input"
+                exit 1
+            fi
+            FRESHNESS_INPUTS+=("$2")
+            shift 2
+            ;;
         *)
             echo "Unknown argument: $1"
             usage
@@ -54,7 +84,7 @@ if ! command -v go >/dev/null; then
 fi
 
 if [[ "${MODULE_PATH}" != /* ]]; then
-    MODULE_ABS="${APP_ROOT}/${MODULE_PATH}"
+    MODULE_ABS="${REPO_ROOT}/${MODULE_PATH}"
 else
     MODULE_ABS="${MODULE_PATH}"
 fi
@@ -74,19 +104,61 @@ if [[ ! -f "${MODULE_ABS}/go.mod" ]]; then
     exit 1
 fi
 
+MANIFEST_ABS=""
+if [[ -n "${MANIFEST}" ]]; then
+    if [[ "${MANIFEST}" != /* ]]; then
+        MANIFEST_ABS="${REPO_ROOT}/${MANIFEST}"
+    else
+        MANIFEST_ABS="${MANIFEST}"
+    fi
+    if [[ ! -f "${MANIFEST_ABS}" ]]; then
+        echo "Manifest path must contain a file: ${MANIFEST_ABS}"
+        exit 1
+    fi
+fi
+
+if [[ -z "${CONTEXT_ROOT}" && "$(basename "${MODULE_ABS}")" == "cli" ]]; then
+    CONTEXT_ROOT="$(dirname "${MODULE_ABS}")"
+fi
+
+if [[ ${#FRESHNESS_INPUTS[@]} -eq 0 && -n "${MANIFEST_ABS}" && -n "${CONTEXT_ROOT}" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+        while IFS= read -r input; do
+            if [[ -n "${input}" ]]; then
+                FRESHNESS_INPUTS+=("${input}")
+            fi
+        done < <(jq -r '.cli.freshness.inputs[]? // empty' "${MANIFEST_ABS}")
+    fi
+    if [[ ${#FRESHNESS_INPUTS[@]} -eq 0 && "${MANIFEST_ABS}" == "${CONTEXT_ROOT}/.vrooli/service.json" ]]; then
+        FRESHNESS_INPUTS=("cli/**" ".vrooli/service.json")
+    fi
+fi
+
 INSTALLER_TARGET="${CLI_CORE_VERSION:+github.com/vrooli/cli-core/cmd/cli-installer@${CLI_CORE_VERSION}}"
-INSTALLER_DIR="${APP_ROOT}"
+INSTALLER_DIR="${REPO_ROOT}"
 
 if [[ -z "${INSTALLER_TARGET}" ]]; then
     INSTALLER_TARGET="./cmd/cli-installer"
-    INSTALLER_DIR="${APP_ROOT}/packages/cli-core"
+    INSTALLER_DIR="${REPO_ROOT}/packages/cli-core"
 fi
 
 echo "Building ${NAME} from ${MODULE_ABS}..."
 (
     cd "${INSTALLER_DIR}"
-    go run "${INSTALLER_TARGET}" \
-        --module "${MODULE_ABS}" \
-        --name "${NAME}" \
+    cmd=(
+        go run "${INSTALLER_TARGET}"
+        --module "${MODULE_ABS}"
+        --name "${NAME}"
         --install-dir "${INSTALL_DIR}"
+    )
+    if [[ -n "${MANIFEST_ABS}" ]]; then
+        cmd+=(--manifest "${MANIFEST_ABS}")
+    fi
+    if [[ -n "${CONTEXT_ROOT}" ]]; then
+        cmd+=(--context-root "${CONTEXT_ROOT}")
+    fi
+    for input in "${FRESHNESS_INPUTS[@]}"; do
+        cmd+=(--freshness-input "${input}")
+    done
+    "${cmd[@]}"
 )

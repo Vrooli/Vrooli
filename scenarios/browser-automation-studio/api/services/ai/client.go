@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/vrooli/envkit-go"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/logutil"
 )
@@ -21,71 +21,64 @@ type OpenRouterClient struct {
 	model string
 }
 
-const (
-	openRouterDefaultModel = "openai/gpt-4o-mini"
-	openRouterCommand      = "resource-openrouter"
-)
+const openRouterCommand = "resource-openrouter"
 
 // NewOpenRouterClient initializes an OpenRouter client instance.
+//
+// No concrete model slug is baked in: the client's model is left unset and the
+// effective model is resolved per call via the OpenRouter resource policy (role
+// based) unless an explicit model override is configured on the client.
 func NewOpenRouterClient(log *logrus.Logger) *OpenRouterClient {
-	model := os.Getenv("BAS_OPENROUTER_MODEL")
-	if strings.TrimSpace(model) == "" {
-		model = openRouterDefaultModel
-	}
-
 	return &OpenRouterClient{
-		log:   log,
-		model: model,
+		log: log,
 	}
 }
 
 // ExecutePrompt sends a prompt through resource-openrouter and returns the raw response text.
+//
+// The model is resolved in order: explicit client model override → role-based
+// resolution via the OpenRouter resource policy. If neither yields a model the
+// call fails — there is no hard-coded fallback slug.
 func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (string, error) {
 	if strings.TrimSpace(prompt) == "" {
 		return "", errors.New("prompt is required")
 	}
 
-	rootDir := os.Getenv("VROOLI_ROOT")
-	if rootDir == "" {
-		cwd, err := os.Getwd()
+	model := strings.TrimSpace(c.model)
+	if model == "" {
+		resolved, err := resolveRoleModel(ctx, openRouterRole())
 		if err != nil {
-			return "", fmt.Errorf("failed to resolve project root: %w", err)
+			return "", err
 		}
-		rootDir = cwd
+		model = resolved
 	}
+	return c.executePromptWithModel(ctx, model, prompt)
+}
 
-	promptDir := filepath.Join(rootDir, "data", "resources", "openrouter", "content", "prompts")
-	if err := os.MkdirAll(promptDir, 0o775); err != nil {
-		return "", fmt.Errorf("failed to ensure prompt directory: %w", err)
+// ExecutePromptWithModel sends a prompt through resource-openrouter using an
+// explicit, already-resolved model slug. The caller is responsible for supplying
+// a non-empty model (typically resolved through the OpenRouter resource policy).
+func (c *OpenRouterClient) ExecutePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
+	if strings.TrimSpace(prompt) == "" {
+		return "", errors.New("prompt is required")
 	}
-
-	promptID := "bas-ai-" + uuid.NewString()
-	promptFile := filepath.Join(promptDir, promptID+".txt")
-
-	if err := os.WriteFile(promptFile, []byte(prompt), 0o600); err != nil {
-		return "", fmt.Errorf("failed to write prompt file: %w", err)
+	if strings.TrimSpace(model) == "" {
+		return "", errors.New("model is required")
 	}
-	// Clean up the temp file regardless of success/failure.
-	defer func() {
-		if removeErr := os.Remove(promptFile); removeErr != nil && !os.IsNotExist(removeErr) {
-			c.log.WithError(removeErr).WithField("prompt_file", promptFile).Warn("Failed to remove temp OpenRouter prompt file")
-		}
-	}()
+	return c.executePromptWithModel(ctx, strings.TrimSpace(model), prompt)
+}
 
-	name := promptID // resource-openrouter strips extension internally
-	cmd := exec.CommandContext(ctx, openRouterCommand, "content", "execute", "--name", name, "--model", c.model)
-	cmd.Dir = rootDir
-	cmd.Env = os.Environ()
-	if os.Getenv("VROOLI_ROOT") == "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VROOLI_ROOT=%s", rootDir))
-	}
+func (c *OpenRouterClient) executePromptWithModel(ctx context.Context, model, prompt string) (string, error) {
+	cmd := exec.CommandContext(ctx, openRouterCommand, "generate", "--model", model)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
+	cmd.Stdin = strings.NewReader(prompt)
 
 	start := time.Now()
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(start)
 
 	fields := logrus.Fields{
-		"model":    c.model,
+		"model":    model,
 		"duration": duration.Milliseconds(),
 		"cmd":      strings.Join(cmd.Args, " "),
 	}

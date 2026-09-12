@@ -1,0 +1,160 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-037",
+      "title": "API/CLI parity over generated clients",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "operator-surfaces",
+      "description": "CLI commands use generated clients, expose identities consistently, render plan effects before apply, implement durable wait/resume without polling and return stable JSON with correct exit codes.",
+      "tags": [
+        "cli",
+        "api"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/parity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-037] execute = CompilePlan -\u003e printed review -\u003e ApplyPlan(exact digest) -\u003e WaitOperation once (no polling); plan/apply two-step with plan_digest_mismatch exit 2; no_op exit 0 'no change'; needs_input exit 3 with the onboarding handoff; ambiguous selector exit 2 with candidates and zero compile/apply calls; failed operation exit 1; observer timeout exit 124 with reattach command and no cancel; API-started operation resumed by id; --json round-trips the generated proto message; bearer token on Connect calls; logs bounded (--tail cap, --max-bytes) and canary-free; removed aliases refused."
+        },
+        {
+          "type": "test",
+          "ref": "cli/operation/command_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-037] exit contract 0/1/3/124 over the generated OperationsService client, timeout forwarded as timeout_seconds, lossless proto JSON, shared operationstanding renderer with identities, list by every selector form, cancel records intent once."
+        },
+        {
+          "type": "test",
+          "ref": "cli/manifest_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-037] scopecatalog.Build over cli/manifest.json yields scenario-to-cloud:read|write|destructive with an authentication profile equal to service.json; secrets, recovery-points, rollback, credential, apply/execute/start verbs are non-read and not agent run-eligible; every manifest group/command is dispatched by the built CLI; docs/reference/cli-commands.md is generated from the manifest (STC_WRITE_CLI_DOC=1) and fails when stale."
+        },
+        {
+          "type": "test",
+          "ref": "cli/redeploy/command_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-037] redeploy is create -\u003e plan -\u003e apply(exact digest) -\u003e wait; the --if-needed/--force-run/--target selector modes are gone."
+        },
+        {
+          "type": "test",
+          "ref": "cli/preflight/command_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-037] host fixes resolve their selector through DeploymentsService (ResolveDeployment then GetDeployment) instead of a client-side list scan."
+        },
+        {
+          "type": "test",
+          "ref": "cli/authz_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-012] operator token attached on REST and Connect; typed unauthenticated refusal (REST envelope and Connect error detail) exits 2 with the sign-in next action; exit-code map for refused/pending codes."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-038",
+      "title": "Deployment console answers the five operator questions",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "operator-surfaces",
+      "description": "The deployment page shows environment and machine identity, desired versus observed release, health age and source, running or waiting operation with next step, and safe recovery actions, with progressive disclosure of raw surfaces.",
+      "tags": [
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/deployments/console/console-panels.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/deployments/console/DeploymentConsole.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/consoleActions.test.ts",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/operator-orchestration-coverage.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/19-console/ui/console-five-questions.json",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "docs/reference/console-experience.md",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-039",
+      "title": "Accessible and interruption-safe recovery UX",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "operator-surfaces",
+      "description": "Keyboard order, focus restoration, status announcements, contrast, reduced motion and narrow viewports are verified; interrupted wizards and operations resume from durable state.",
+      "tags": [
+        "ui",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/deployments/console/DestructiveActionDialog.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/deployments/console/DeploymentConsole.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/App.a11y.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/hooks/useConsole.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/consoleApi.test.ts",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/StepDeploy.test.tsx",
+          "status": "implemented"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/19-console/ui/console-narrow-viewport.json",
+          "status": "implemented"
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/19-console/ui/wizard-review-path.json",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

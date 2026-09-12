@@ -94,12 +94,12 @@ standard_interfaces:
   management:
     - cli: cli.sh (using CLI framework)
     - actions: [help, install, uninstall, start, stop, restart, status, validate, test, content, run]
-    - configuration: config/defaults.sh
+    - configuration: cli/internal/config/
     - documentation: README.md + docs/
     
   networking:
     - docker_networks: [vrooli-network]
-    - port_registry: Port 8096 defined in scripts/resources/port_registry.sh
+    - ports: Port 8096 declared in resource.json
     - hostname: vrooli-k6
     
   monitoring:
@@ -131,7 +131,7 @@ integration_patterns:
 resource_configuration:
   defaults:
     enabled: true
-    port: 8096  # Retrieved from port_registry.sh
+    port: 8096  # Declared in resource.json
     networks: [vrooli-network]
     volumes: 
       - k6-scripts:/scripts
@@ -265,7 +265,7 @@ resource_specific_actions:
 ```yaml
 implementation_requirements:
   - cli_location: cli.sh (uses CLI framework)
-  - configuration: config/defaults.sh
+  - configuration: cli/internal/config/
   - dependencies: lib/ directory with modular functions
   - error_handling: Exit codes (0=success, 1=error, 2=config error)
   - logging: Structured output with levels (INFO, WARN, ERROR)
@@ -298,12 +298,12 @@ networking:
     
   port_allocation:
     - internal: 8096
-    - external: 8096 (retrieved from port_registry.sh)
+    - external: 8096 (declared in resource.json)
     - protocol: tcp
     - purpose: API and health checks
     - registry_integration:
-        definition: Port defined in scripts/resources/port_registry.sh
-        retrieval: Use port_registry functions to get assigned port
+        definition: Port declared in resource.json
+        retrieval: Resolve through the Go resource manifest reader
         no_hardcoding: Never hardcode ports in resource code
     
 data_management:
@@ -637,7 +637,7 @@ release_management:
 - README.md - Quick start and overview
 - docs/writing-tests.md - Test script authoring guide
 - docs/metrics.md - Understanding K6 metrics
-- config/defaults.sh - Configuration options
+- cli/internal/config/ - Typed configuration options
 - lib/execution.sh - Test execution implementation
 
 ### Related Resources

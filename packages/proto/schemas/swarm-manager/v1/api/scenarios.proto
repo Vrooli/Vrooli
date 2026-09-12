@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/scenario.proto";
+import "swarm-manager/v1/shared/health.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -11,9 +12,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // SCENARIOS API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports scenarios
 // @stability beta
 //
 // HTTP API contracts for Swarm Manager scenario catalog management.
@@ -26,12 +24,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 
 // ListScenariosResponse returns all scenarios.
 message ListScenariosResponse {
-  repeated Scenario scenarios = 1;
+  repeated domain.Scenario scenarios = 1;
 }
 
 // ScenarioResponse returns a single scenario.
 message ScenarioResponse {
-  Scenario scenario = 1;
+  domain.Scenario scenario = 1;
 }
 
 // UpdateScenarioMetadataRequest wraps metadata updates for PATCH.
@@ -46,13 +44,15 @@ message PreserveFilesRequest {
   repeated string paths = 1;
 
   // Preset name: "documentation", "requirements", "planning", "all-planning".
-  optional string preset = 2 [(buf.validate.field).string = { in: [
-    "",
-    "documentation",
-    "requirements",
-    "planning",
-    "all-planning"
-  ] }];
+  optional string preset = 2 [(buf.validate.field).string = {
+    in: [
+      "",
+      "documentation",
+      "requirements",
+      "planning",
+      "all-planning"
+    ]
+  }];
 }
 
 // DeleteScenarioRequest specifies options for scenario deletion.
@@ -88,7 +88,12 @@ message ScenarioFile {
   string path = 2 [(buf.validate.field).string.min_len = 1];
 
   // Type: "file" or "directory".
-  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+  string type = 3 [(buf.validate.field).string = {
+    in: [
+      "file",
+      "directory"
+    ]
+  }];
 
   // File size in bytes (only for files).
   optional int64 size = 4;
@@ -124,7 +129,10 @@ message SpecSyncArchiveResponse {
 // ScenarioReviewQueueRequest configures the review queue query.
 message ScenarioReviewQueueRequest {
   // Maximum scenarios to return (1-50, default 5).
-  optional int32 limit = 1 [(buf.validate.field).int32 = { gte: 1, lte: 50 }];
+  optional int32 limit = 1 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 50
+  }];
 
   // Tag used to identify QA-created fix items for exclusion (default: "preemptive-qa").
   optional string exclude_tag = 2;
@@ -132,7 +140,7 @@ message ScenarioReviewQueueRequest {
 
 // ScenarioReviewQueueItem represents a single scenario's review priority.
 message ScenarioReviewQueueItem {
-  // Scenario name.
+  // domain.Scenario name.
   string scenario_name = 1;
 
   // Number of pending (non-terminal) backlog items targeting this scenario.
@@ -167,4 +175,90 @@ message ScenarioReviewQueueResponse {
 
   // Number of scenarios excluded due to pending QA fix items.
   int32 excluded_count = 3;
+}
+
+// ScenarioRemediationTarget names one stable provider-owned phase/capability
+// target. It intentionally cannot carry raw findings or locally computed
+// scores, which prevents Swarm from becoming a competing evidence authority.
+message ScenarioRemediationTarget {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string provider_phase = 2 [(buf.validate.field).string.min_len = 1];
+  string capability_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// ScenarioRemediationProposal is the source-neutral vocabulary for preview and
+// later apply flows. The same fingerprint must be emitted for equivalent
+// manual and automated inputs.
+message ScenarioRemediationProposal {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+  string provenance = 3 [(buf.validate.field).string.min_len = 1];
+  string title = 4 [(buf.validate.field).string.min_len = 1];
+  string description = 5 [(buf.validate.field).string.min_len = 1];
+  repeated string acceptance_criteria = 6;
+  repeated string acceptance_allow = 7;
+  repeated string recommended_workflows = 8;
+}
+
+message PreviewScenarioRemediationRequest {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+}
+
+message PreviewScenarioRemediationResponse {
+  ScenarioRemediationProposal proposal = 1 [(buf.validate.field).required = true];
+  // Existing reconciliation state is returned rather than silently creating
+  // a duplicate proposal or work item.
+  optional shared.ScenarioRemediationSummary existing = 2;
+}
+
+message ApplyScenarioRemediationRequest {
+  ScenarioRemediationTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ApplyScenarioRemediationResponse {
+  ScenarioRemediationProposal proposal = 1 [(buf.validate.field).required = true];
+  string work_ref = 2 [(buf.validate.field).string.min_len = 1];
+  bool created = 3;
+}
+
+// ScenarioMaturityCampaignTarget is an operator-selected broad outcome. It is
+// intentionally separate from a provider phase/capability remediation target.
+message ScenarioMaturityCampaignTarget {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string maturity_target = 2 [(buf.validate.field).string.min_len = 1];
+  repeated string provider_phases = 3;
+}
+
+message ScenarioMaturityCampaignProposal {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+  string description = 4 [(buf.validate.field).string.min_len = 1];
+  repeated string acceptance_criteria = 5;
+  string declared_workflow = 6 [(buf.validate.field).string.min_len = 1];
+  string tracker_availability = 7 [(buf.validate.field).string.min_len = 1];
+  optional string tracker_ref = 8;
+}
+
+message PreviewScenarioMaturityCampaignRequest {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+}
+
+message PreviewScenarioMaturityCampaignResponse {
+  ScenarioMaturityCampaignProposal proposal = 1 [(buf.validate.field).required = true];
+  optional string existing_goal_ref = 2;
+}
+
+message ApplyScenarioMaturityCampaignRequest {
+  ScenarioMaturityCampaignTarget target = 1 [(buf.validate.field).required = true];
+  string fingerprint = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ApplyScenarioMaturityCampaignResponse {
+  ScenarioMaturityCampaignProposal proposal = 1 [(buf.validate.field).required = true];
+  string goal_ref = 2 [(buf.validate.field).string.min_len = 1];
+  bool created = 3;
+  string tracker_availability = 4 [(buf.validate.field).string.min_len = 1];
+  optional string tracker_ref = 5;
 }

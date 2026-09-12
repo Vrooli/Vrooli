@@ -586,13 +586,11 @@ describe('workflowNodesToTimelineItems', () => {
     const nodes = [
       {
         id: 'node-1',
-        type: 'navigate',
-        data: { label: 'Go to homepage', url: 'https://example.com' },
+        action: { type: 'ACTION_TYPE_NAVIGATE', metadata: { label: 'Go to homepage' }, navigate: { url: 'https://example.com' } },
       },
       {
         id: 'node-2',
-        type: 'click',
-        data: { label: 'Click login', selector: 'button#login' },
+        action: { type: 'ACTION_TYPE_CLICK', metadata: { label: 'Click login' }, click: { selector: 'button#login' } },
       },
     ];
 
@@ -612,9 +610,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('filters out non-action nodes (start, end, etc.)', () => {
     const nodes = [
-      { id: 'start-1', type: 'start', data: {} },
-      { id: 'node-1', type: 'click', data: { selector: 'button' } },
-      { id: 'end-1', type: 'end', data: {} },
+      { id: 'start-1' },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } } },
+      { id: 'end-1' },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);
@@ -650,9 +648,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('assigns sequential sequence numbers', () => {
     const nodes = [
-      { id: 'node-1', type: 'click', data: {} },
-      { id: 'node-2', type: 'input', data: {} },
-      { id: 'node-3', type: 'click', data: {} },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.one' } } },
+      { id: 'node-2', action: { type: 'ACTION_TYPE_INPUT', input: { selector: '.two', value: 'text' } } },
+      { id: 'node-3', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.three' } } },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);

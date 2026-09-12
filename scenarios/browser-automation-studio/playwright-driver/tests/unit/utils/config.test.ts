@@ -61,6 +61,13 @@ describe('Config', () => {
       expect(config.browser.executablePath).toBe('/path/to/chrome');
     });
 
+    it('loads an opt-in deterministic microphone fixture path', () => {
+      process.env.BAS_FAKE_MICROPHONE_FILE = ' /fixtures/reference.wav ';
+      const config = loadConfig();
+
+      expect(config.browser.fakeMicrophoneFile).toBe('/fixtures/reference.wav');
+    });
+
     it('should set ignoreHTTPSErrors when enabled', () => {
       process.env.IGNORE_HTTPS_ERRORS = 'true';
       const config = loadConfig();

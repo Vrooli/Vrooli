@@ -55,9 +55,6 @@ func TestHealthHandler(t *testing.T) {
 		if !ok {
 			t.Error("Expected resources field to be an object")
 		} else {
-			if _, exists := resources["browserless"]; !exists {
-				t.Error("Expected browserless health check in resources")
-			}
 			if _, exists := resources["templates"]; !exists {
 				t.Error("Expected templates health check in resources")
 			}

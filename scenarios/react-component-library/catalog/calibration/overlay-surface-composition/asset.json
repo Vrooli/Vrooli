@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "overlays.calibration-surface", "name": "Overlay surface calibration", "kind": "component", "domain": "overlays", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P0", "maturity": "verified" } }
+}

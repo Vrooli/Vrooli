@@ -1,0 +1,14 @@
+{
+  "metadata": {"name":"scenario-to-desktop-signing-forms","description":"Given an operator opens signing configuration for a selected scenario, when the configuration forms load, then Windows, macOS, and Linux signing controls are available.","labels":{"reset":"none","requirements_json":"[\"SCENARIO-P1-001\"]","purpose":"desktop-signing-forms","requires_confirmation":"true","routed_isolation":"true"},"execution_mode":"mutating"},
+  "settings":{"viewport_width":1440,"viewport_height":900},
+  "nodes":[
+    {"id":"navigate","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"scenario-to-desktop","scenario_path":"/?view=signing&scenario=scenario-to-desktop","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"Open signing configuration"}}},
+    {"id":"assert-select","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/signing.scenarioSelect","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Signing target selector renders"}}},
+    {"id":"enable-signing","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/signing.enabled"},"metadata":{"label":"Enable signing for the selected scenario"}}},
+    {"id":"assert-windows","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/signing.windowsForm","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Windows signing form renders"}}},
+    {"id":"assert-macos","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/signing.macosForm","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"macOS signing form renders"}}},
+    {"id":"assert-linux","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"@selector/signing.linuxForm","mode":"ASSERTION_MODE_EXISTS","timeout_ms":10000},"metadata":{"label":"Linux signing form renders"}}},
+    {"id":"capture","action":{"type":"ACTION_TYPE_SCREENSHOT","screenshot":{"full_page":true},"metadata":{"label":"Capture platform signing forms"}}}
+  ],
+  "edges":[{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000001","source":"navigate","target":"assert-select"},{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000002","source":"assert-select","target":"enable-signing"},{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000003","source":"enable-signing","target":"assert-windows"},{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000004","source":"assert-windows","target":"assert-macos"},{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000005","source":"assert-macos","target":"assert-linux"},{"id":"c7c1c1e0-77f1-4b39-9f21-6f0000000006","source":"assert-linux","target":"capture"}]
+}

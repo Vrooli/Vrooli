@@ -59,7 +59,7 @@ SEO Optimizer provides automated search engine optimization analysis and recomme
 
 **Integration Strategy**:
 - Shared n8n workflows (ollama.json) for AI analysis
-- Browserless CLI for web scraping and screenshots
+- browser-automation-studio CLI for web scraping and screenshots
 - Direct PostgreSQL connections for complex queries
 - API-first design for cross-scenario consumption
 
@@ -73,7 +73,7 @@ SEO Optimizer provides automated search engine optimization analysis and recomme
 **Required Resources**:
 - **n8n**: Workflow orchestration for SEO pipelines
 - **ollama**: AI-powered analysis via shared workflow
-- **browserless**: Web page scraping and screenshot capture
+- **browser-automation-studio**: Web page scraping and screenshot capture
 - **postgres**: Audit result persistence
 
 **Optional Resources**:
@@ -82,14 +82,14 @@ SEO Optimizer provides automated search engine optimization analysis and recomme
 
 **Launch Sequence**:
 1. Verify required resources are running
-2. Initialize PostgreSQL schema (initialization/postgres/schema.sql)
+2. Initialize PostgreSQL schema (api/internal/<domain>/schema.sql)
 3. Deploy n8n SEO audit workflow
 4. Start API service with health checks
 5. Validate end-to-end audit flow
 6. Deploy UI for visual access
 
 **Risks**:
-- Browserless instability may affect scraping reliability (mitigation: retry logic)
+- browser-automation-studio instability may affect scraping reliability (mitigation: retry logic)
 - Ollama response times vary with model size (mitigation: timeout configuration)
 - Rate limiting from search engines (mitigation: respectful crawl delays)
 

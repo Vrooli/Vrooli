@@ -20,10 +20,7 @@ export function buildTaskDirective(contextItems: AgentContextItem[]): string {
 
   const labelMap: Record<string, string> = {
     "test-failure": "test failures",
-    "code-quality-issue": "code quality issues",
     "scenario-quality": "code quality violations",
-    "rule-violation": "rule violations",
-    "rules-summary": "standards compliance violations",
   };
   const issueLabels = actionable.map((k) => labelMap[k] ?? k).join(" and ");
 

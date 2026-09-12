@@ -1,0 +1,10 @@
+{
+  "gate": "token-fallback-literal",
+  "assetId": "calibration.token-fallback-literal",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.token-fallback-literal",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Uses a literal fallback for a shared design token."
+}

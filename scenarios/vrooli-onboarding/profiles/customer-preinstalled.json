@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "customer-preinstalled",
+  "version": "1.0.0",
+  "titleKey": "profiles.customerPreinstalled.title",
+  "descriptionKey": "profiles.customerPreinstalled.description",
+  "owner": "vrooli-onboarding",
+  "compatibleCatalogMajor": 1,
+  "questions": [
+    {
+      "id": "optionalCapabilities",
+      "type": "multi-select",
+      "promptKey": "setup.customer.optionalCapabilities",
+      "required": false,
+      "options": [
+        {"id": "development", "labelKey": "setup.customer.development"},
+        {"id": "managed-hosting", "labelKey": "setup.customer.managedHosting"}
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "customer-application",
+      "recommend": [
+        {"capabilityRef": "customer.application", "scenarioRefs": ["landing-page-business-suite", "scenario-authenticator"], "reasonKey": "setup.reason.customerApplication"}
+      ]
+    },
+    {
+      "id": "customer-development-override",
+      "when": {"contains": {"answer": "optionalCapabilities", "value": "development"}},
+      "recommend": [
+        {"capabilityRef": "development.local", "scenarioRefs": ["vrooli-onboarding"], "reasonKey": "setup.reason.localDevelopment"}
+      ]
+    },
+    {
+      "id": "customer-managed-hosting",
+      "when": {"contains": {"answer": "optionalCapabilities", "value": "managed-hosting"}},
+      "recommend": [
+        {"capabilityRef": "release.hosted", "scenarioRefs": ["scenario-to-cloud"], "reasonKey": "setup.reason.hosting"}
+      ]
+    }
+  ],
+  "manualSelection": {"available": true},
+  "provenance": {"source": "customer-preset", "reviewRevision": "customer-preinstalled-r1"}
+}

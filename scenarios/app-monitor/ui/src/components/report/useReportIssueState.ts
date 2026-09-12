@@ -178,7 +178,6 @@ const useReportIssueState = ({
   const consoleLogs = useReportConsoleLogsData({
     app,
     appId,
-    activePreviewUrl,
     bridgeSupported: bridgeState.isSupported,
     bridgeCaps: bridgeState.caps,
     logState,
@@ -190,7 +189,6 @@ const useReportIssueState = ({
   const network = useReportNetworkData({
     app,
     appId,
-    activePreviewUrl,
     bridgeSupported: bridgeState.isSupported,
     bridgeCaps: bridgeState.caps,
     networkState,
@@ -475,8 +473,8 @@ const useReportIssueState = ({
 
       progressSnackId = snackPublisher.publish({
         variant: 'loading',
-        title: 'Reporting issue',
-        message: `Creating issue for ${issueSubject}…`,
+        title: 'Creating fix',
+        message: `Creating fix backlog item for ${issueSubject}…`,
         autoDismiss: false,
         dismissible: false,
         metadata: snackMetadata,
@@ -484,28 +482,28 @@ const useReportIssueState = ({
 
       const response = await appService.reportAppIssue(targetAppId, payload);
 
-      const issueId = response.data?.issue_id;
-      const issueUrl = response.data?.issue_url;
-      const successMessage = issueId
-        ? `Issue ${issueId} created for ${issueSubject}.`
-        : `Issue created for ${issueSubject}.`;
+      const fixName = response.data?.name;
+      const fixUrl = response.data?.url;
+      const successMessage = fixName
+        ? `Fix ${fixName} created for ${issueSubject}.`
+        : `Fix backlog item created for ${issueSubject}.`;
 
       const successDescriptor: SnackPublishOptions = {
         variant: 'success',
-        title: 'Issue reported',
+        title: 'Fix created',
         message: successMessage,
         dismissible: true,
         autoDismiss: true,
         durationMs: 7000,
-        action: issueUrl
+        action: fixUrl
           ? {
               label: 'View details',
               handler: () => {
-                window.open(issueUrl, '_blank', 'noopener');
+                window.open(fixUrl, '_blank', 'noopener');
               },
             }
           : undefined,
-        metadata: { ...snackMetadata, issueId, issueUrl },
+        metadata: { ...snackMetadata, fixName, fixUrl },
       };
 
       const successPatch: SnackUpdateOptions = {
@@ -535,11 +533,11 @@ const useReportIssueState = ({
       screenshot.cleanupAfterDialogClose(canCaptureScreenshot);
       setShouldResetOnNextOpen(true);
     } catch (error: unknown) {
-      const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to send issue report.';
+      const fallbackMessage = (error as { message?: string })?.message ?? 'Failed to create fix report.';
       setReportError(fallbackMessage);
       const errorDescriptor: SnackPublishOptions = {
         variant: 'error',
-        title: 'Issue report failed',
+        title: 'Fix report failed',
         message: issueSubject ? `${fallbackMessage} (${issueSubject})` : fallbackMessage,
         dismissible: true,
         autoDismiss: false,

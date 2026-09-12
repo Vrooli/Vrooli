@@ -1,0 +1,22 @@
+{
+  "GET /health": {
+    "reason": "Health is a standard service endpoint without a domain CLI command.",
+    "status": "intentionally-absent"
+  },
+  "GET /config/budgets": {
+    "reason": "AI-search budget configuration is an operator/UI configuration surface.",
+    "status": "intentionally-absent"
+  },
+  "PUT /config/budgets": {
+    "reason": "AI-search budget configuration is an operator/UI configuration surface.",
+    "status": "intentionally-absent"
+  },
+  "GET /config/discover-filters": {
+    "reason": "Discovery filter configuration is an operator/UI configuration surface.",
+    "status": "intentionally-absent"
+  },
+  "PUT /config/discover-filters": {
+    "reason": "Discovery filter configuration is an operator/UI configuration surface.",
+    "status": "intentionally-absent"
+  }
+}

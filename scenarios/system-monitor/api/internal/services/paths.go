@@ -1,56 +1,44 @@
 package services
 
 import (
-	"os"
 	"path/filepath"
+
+	"github.com/vrooli/api-core/storage"
 )
+
+func resolveSystemMonitorStorage() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return storage.Paths{}, err
+	}
+	return resolver.Resolve(storage.Options{ScenarioID: "system-monitor"})
+}
 
 // ResolveConfigBasePath returns the base path for configuration files.
 func ResolveConfigBasePath() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root"
-		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	paths, err := resolveSystemMonitorStorage()
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(vrooliRoot, "scenarios", "system-monitor", "initialization", "configuration")
+	return paths.ConfigDir
+}
+
+// ResolveRuntimeStateBasePath returns the api-core storage directory for
+// mutable system-monitor settings. Runtime state must not be written into the
+// repository working tree.
+func ResolveRuntimeStateBasePath() string {
+	paths, err := resolveSystemMonitorStorage()
+	if err != nil {
+		return ""
+	}
+	return paths.StateDir
 }
 
 // ResolvePromptBasePath returns the base path for prompt templates.
 func ResolvePromptBasePath() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir := os.Getenv("HOME")
-		if homeDir == "" {
-			homeDir = "/root"
-		}
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	paths, err := resolveSystemMonitorStorage()
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(vrooliRoot, "scenarios", "system-monitor", "initialization", "claude-code")
-}
-
-// ResolveScriptsDir finds the investigations/active directory on disk.
-func ResolveScriptsDir() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		if homeDir, err := os.UserHomeDir(); err == nil {
-			vrooliRoot = filepath.Join(homeDir, "Vrooli")
-		}
-	}
-	if vrooliRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			vrooliRoot = cwd
-		} else {
-			return "."
-		}
-	}
-
-	scriptsPath := filepath.Join(vrooliRoot, "scenarios", "system-monitor", "investigations", "active")
-	if info, err := os.Stat(scriptsPath); err == nil && info.IsDir() {
-		return scriptsPath
-	}
-
-	return filepath.Join(vrooliRoot, "investigations", "active")
+	return filepath.Join(paths.ConfigDir, "prompts")
 }

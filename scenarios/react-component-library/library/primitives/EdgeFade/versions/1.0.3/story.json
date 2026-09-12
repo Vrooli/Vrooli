@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "side": "inline-start"
+      },
+      "id": "side-inline-start",
+      "mode": "pinned",
+      "name": "side inline-start",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-edge-fade]"
+        }
+      ]
+    },
+    {
+      "args": {
+        "side": "inline-end"
+      },
+      "id": "side-inline-end",
+      "mode": "pinned",
+      "name": "side inline-end",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-edge-fade]"
+        }
+      ],
+      "role": "axis",
+      "axis": "side",
+      "covers": {
+        "side": [
+          "inline-start",
+          "inline-end"
+        ]
+      }
+    }
+  ],
+  "title": "EdgeFade"
+}

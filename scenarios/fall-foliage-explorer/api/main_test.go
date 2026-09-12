@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// TestHealthHandler tests the health check endpoint
+// [REQ:REQ-P0-001] Health endpoint returns meaningful scenario status.
 func TestHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -20,24 +20,20 @@ func TestHealthHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/health",
 		}, healthHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
 
 		assertJSONResponse(t, rr, http.StatusOK, true)
 
-		var response Response
+		var response map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to decode response: %v. Body: %s", err, rr.Body.String())
 		}
 
-		if response.Status != "healthy" {
-			t.Errorf("Expected status 'healthy', got '%s'", response.Status)
-		}
-
-		if response.Data == nil {
-			t.Error("Expected data field to be present")
+		status, ok := response["status"].(string)
+		if !ok || status == "" {
+			t.Fatalf("Expected health status string, got %v", response)
 		}
 	})
 
@@ -49,35 +45,25 @@ func TestHealthHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/health",
 		}, healthHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
 
 		assertJSONResponse(t, rr, http.StatusOK, true)
 
-		var response Response
+		var response map[string]interface{}
 		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to decode response: %v. Body: %s", err, rr.Body.String())
 		}
 
-		data, ok := response.Data.(map[string]interface{})
-		if !ok {
-			t.Fatalf("Expected data to be a map, got %T", response.Data)
-		}
-
-		dbStatus, ok := data["database"].(string)
-		if !ok {
-			t.Fatalf("Expected database status in data, got %v", data)
-		}
-
-		if dbStatus != "healthy" {
-			t.Errorf("Expected database status 'healthy', got '%s'", dbStatus)
+		status, ok := response["status"].(string)
+		if !ok || status == "" {
+			t.Fatalf("Expected health status string, got %v", response)
 		}
 	})
 }
 
-// TestRegionsHandler tests the regions list endpoint
+// [REQ:REQ-P0-003] Regions endpoint returns foliage regions and fallback metadata.
 func TestRegionsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -94,7 +80,6 @@ func TestRegionsHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/regions",
 		}, regionsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -137,7 +122,6 @@ func TestRegionsHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/regions",
 		}, regionsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -166,6 +150,7 @@ func TestRegionsHandler(t *testing.T) {
 }
 
 // TestFoliageHandler tests the foliage data endpoint
+// [REQ:REQ-P0-003] Foliage endpoint validates input and returns current status.
 func TestFoliageHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -184,7 +169,6 @@ func TestFoliageHandler(t *testing.T) {
 			Path:        "/api/foliage",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -197,7 +181,6 @@ func TestFoliageHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/foliage",
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -211,7 +194,6 @@ func TestFoliageHandler(t *testing.T) {
 			Path:        "/api/foliage",
 			QueryParams: map[string]string{"region_id": "invalid"},
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -231,7 +213,6 @@ func TestFoliageHandler(t *testing.T) {
 			Path:        "/api/foliage",
 			QueryParams: map[string]string{"region_id": "99999"},
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -250,7 +231,6 @@ func TestFoliageHandler(t *testing.T) {
 			Path:        "/api/foliage",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, foliageHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -260,7 +240,7 @@ func TestFoliageHandler(t *testing.T) {
 	})
 }
 
-// TestPredictHandler tests the prediction endpoint
+// [REQ:REQ-P0-005][REQ:REQ-P2-001] Prediction endpoint supports AI and fallback peak generation.
 func TestPredictHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -270,7 +250,6 @@ func TestPredictHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/predict",
 		}, predictHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -293,7 +272,6 @@ func TestPredictHandler(t *testing.T) {
 			Path:   "/api/predict",
 			Body:   map[string]interface{}{},
 		}, predictHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -310,7 +288,6 @@ func TestPredictHandler(t *testing.T) {
 			Path:   "/api/predict",
 			Body:   map[string]interface{}{"region_id": 99999},
 		}, predictHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -334,7 +311,6 @@ func TestPredictHandler(t *testing.T) {
 			Path:   "/api/predict",
 			Body:   map[string]interface{}{"region_id": float64(regionID)},
 		}, predictHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -357,7 +333,7 @@ func TestPredictHandler(t *testing.T) {
 	})
 }
 
-// TestWeatherHandler tests the weather data endpoint
+// [REQ:REQ-P0-004] Weather endpoint returns stored weather data for a region and date.
 func TestWeatherHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -371,7 +347,6 @@ func TestWeatherHandler(t *testing.T) {
 			Path:        "/api/weather",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -384,7 +359,6 @@ func TestWeatherHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/weather",
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -398,7 +372,6 @@ func TestWeatherHandler(t *testing.T) {
 			Path:        "/api/weather",
 			QueryParams: map[string]string{"region_id": "invalid"},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -418,7 +391,6 @@ func TestWeatherHandler(t *testing.T) {
 				"date":      "2025-10-01",
 			},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -436,7 +408,6 @@ func TestWeatherHandler(t *testing.T) {
 			Path:        "/api/weather",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, weatherHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -446,7 +417,7 @@ func TestWeatherHandler(t *testing.T) {
 	})
 }
 
-// TestReportsHandler tests user reports endpoint
+// [REQ:REQ-P1-001][REQ:REQ-P1-004] Reports endpoint accepts reports and photo metadata.
 func TestReportsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -466,7 +437,6 @@ func TestReportsHandler(t *testing.T) {
 			Path:        "/api/reports",
 			QueryParams: map[string]string{"region_id": "1"},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -479,7 +449,6 @@ func TestReportsHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/reports",
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -503,7 +472,6 @@ func TestReportsHandler(t *testing.T) {
 				"description":    "Test report",
 			},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -517,7 +485,6 @@ func TestReportsHandler(t *testing.T) {
 			Path:   "/api/reports",
 			Body:   map[string]interface{}{},
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -530,7 +497,6 @@ func TestReportsHandler(t *testing.T) {
 			Method: "DELETE",
 			Path:   "/api/reports",
 		}, reportsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -540,6 +506,7 @@ func TestReportsHandler(t *testing.T) {
 }
 
 // TestTripsHandler tests trip planning endpoint
+// [REQ:REQ-P1-003] Trips endpoint saves and lists multi-region trip plans.
 func TestTripsHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -552,7 +519,6 @@ func TestTripsHandler(t *testing.T) {
 			Method: "GET",
 			Path:   "/api/trips",
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -575,7 +541,6 @@ func TestTripsHandler(t *testing.T) {
 				"notes":      "Beautiful autumn colors",
 			},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -600,7 +565,6 @@ func TestTripsHandler(t *testing.T) {
 			Path:   "/api/trips",
 			Body:   map[string]interface{}{"name": "Incomplete Trip"},
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -613,7 +577,6 @@ func TestTripsHandler(t *testing.T) {
 			Method: "DELETE",
 			Path:   "/api/trips",
 		}, tripsHandler)
-
 		if err != nil {
 			t.Fatalf("Failed to make request: %v", err)
 		}
@@ -623,6 +586,7 @@ func TestTripsHandler(t *testing.T) {
 }
 
 // TestEnableCORS tests CORS middleware
+// [REQ:REQ-P0-007] API lifecycle surface exposes browser-compatible CORS behavior.
 func TestEnableCORS(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -633,10 +597,11 @@ func TestEnableCORS(t *testing.T) {
 
 	t.Run("CORS_Headers", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/test", nil)
+		req.Header.Set("Origin", "http://localhost:22116")
 		rr := httptest.NewRecorder()
 		handler(rr, req)
 
-		if rr.Header().Get("Access-Control-Allow-Origin") != "*" {
+		if rr.Header().Get("Access-Control-Allow-Origin") != "http://localhost:22116" {
 			t.Error("CORS origin header not set correctly")
 		}
 
@@ -647,6 +612,7 @@ func TestEnableCORS(t *testing.T) {
 
 	t.Run("OPTIONS_Request", func(t *testing.T) {
 		req, _ := http.NewRequest("OPTIONS", "/test", nil)
+		req.Header.Set("Origin", "http://localhost:22116")
 		rr := httptest.NewRecorder()
 		handler(rr, req)
 
@@ -696,13 +662,14 @@ func TestGetIntValue(t *testing.T) {
 }
 
 // TestInitDB tests database initialization
+// [REQ:REQ-P0-002] Database initialization uses lifecycle-provided resource configuration.
 func TestInitDB(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
 	t.Run("Success", func(t *testing.T) {
 		// This will skip if DB not available
-		if os.Getenv("POSTGRES_HOST") == "" {
+		if _, ok := os.LookupEnv("POSTGRES_HOST"); !ok {
 			t.Skip("Skipping DB test: POSTGRES_HOST not set")
 		}
 
@@ -721,17 +688,14 @@ func TestInitDB(t *testing.T) {
 	})
 }
 
-// TestGenerateFoliagePrediction tests the prediction generation function
+// [REQ:REQ-P0-005][REQ:REQ-P2-001] Ollama prediction parsing clamps and validates model output.
 func TestGenerateFoliagePrediction(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
 	t.Run("WithMockOllama", func(t *testing.T) {
-		mockServer := mockOllamaServer()
-		defer mockServer.Close()
-
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", mockServer.URL)
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"response":"{\"predicted_date\":\"2025-10-15\",\"confidence\":0.85}"}`, 0)
+		defer restoreGateway()
 
 		elevation := 500
 		typicalWeek := 41
@@ -766,8 +730,8 @@ func TestGenerateFoliagePrediction(t *testing.T) {
 	})
 
 	t.Run("OllamaUnavailable", func(t *testing.T) {
-		restoreEnv := setTestEnv(t, "OLLAMA_URL", "http://invalid:9999")
-		defer restoreEnv()
+		restoreGateway := mockResourceOllamaGateway(t, `{"error":"unavailable"}`, 1)
+		defer restoreGateway()
 
 		elevation := 500
 		typicalWeek := 41

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/testutil"
 )
@@ -257,6 +258,86 @@ New description that was edited offline
 	if item.Description != "New description that was edited offline" {
 		t.Errorf("expected updated description, got %q", item.Description)
 	}
+}
+
+func TestImport_Apply_RefreshNoteAdvancesItemFreshness(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+
+	const oldUpdated = "2026-02-15T00:00:00Z"
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:        "stale-app",
+		Title:       "Stale Application",
+		Description: "Still relevant",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{"saas"},
+		Created:     "2026-02-10T00:00:00Z",
+		Updated:     oldUpdated,
+	})
+
+	md := `---
+version: 1
+items_count: 1
+---
+
+<!-- item:idea/stale-app -->
+## Stale Application
+
+| Field | Value |
+|-------|-------|
+| **Status** | backlog |
+| **Priority** | 5 |
+| **Tags** | saas |
+
+### Description
+
+Still relevant
+
+### Notes
+
+<!-- notes:idea/stale-app -->
+Refreshed because the acceptance path remains valid.
+`
+	req := postImportRequest(t, md, true)
+	w := httptest.NewRecorder()
+	h.Import(w, req)
+
+	resp := parseImportResp(t, w)
+	if len(resp.Errors) != 0 {
+		t.Fatalf("unexpected import errors: %v", resp.Errors)
+	}
+	if len(resp.Changes) != 1 || !slicesContain(resp.Changes[0].Details, "notes updated") {
+		t.Fatalf("expected one notes update, got %+v", resp.Changes)
+	}
+
+	item, err := h.store.LoadItem(KindIdea, "stale-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := time.Parse(time.RFC3339, item.Updated)
+	if err != nil {
+		t.Fatalf("parse updated timestamp %q: %v", item.Updated, err)
+	}
+	old, _ := time.Parse(time.RFC3339, oldUpdated)
+	if !updated.After(old) {
+		t.Fatalf("refresh note did not advance item freshness: got %s, old %s", item.Updated, oldUpdated)
+	}
+	notes, err := os.ReadFile(filepath.Join(tmpDir, backlogKindDirs[KindIdea], "stale-app", "notes.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(notes)) != "Refreshed because the acceptance path remains valid." {
+		t.Fatalf("unexpected notes content: %q", notes)
+	}
+}
+
+func slicesContain(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestImport_Apply_UpdateStatusAndPriority(t *testing.T) {
@@ -568,7 +649,7 @@ Original description
 }
 
 // TestRoundTrip_ExportEditImport is the main round-trip test:
-// 1. Create items with questions and suggestions
+// 1. Create items
 // 2. Export them to markdown
 // 3. Edit the markdown (answer questions, accept suggestions, modify description, add new item)
 // 4. Import with dry-run -> verify change list
@@ -586,18 +667,6 @@ func TestRoundTrip_ExportEditImport(t *testing.T) {
 		Tags:        []string{"saas", "tools"},
 		Created:     "2026-02-10T00:00:00Z",
 		Updated:     "2026-02-15T00:00:00Z",
-	})
-
-	createWorkshopRound(t, tmpDir, KindIdea, "my-app", WorkshopRound{
-		RoundNum:    1,
-		GeneratedAt: "2026-01-01T00:00:00Z",
-		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
-		Items: []WorkshopItem{
-			{ID: "w1", Type: "decision", Topic: "What auth method?", Options: []WorkshopOption{{Key: "A", Label: "OAuth 2.0", Rationale: "Industry standard"}, {Key: "B", Label: "JWT tokens", Rationale: "Stateless auth"}, {Key: "C", Label: "Session-based", Rationale: "Traditional approach"}}},
-			{ID: "w2", Type: "decision", Topic: "Target platform?", Options: []WorkshopOption{{Key: "A", Label: "Web", Rationale: "Broad reach"}, {Key: "B", Label: "Mobile", Rationale: "On the go"}, {Key: "C", Label: "Both", Rationale: "Maximum coverage"}}},
-			{ID: "w3", Type: "decision", Topic: "Use WebSocket", Context: "Reduces latency by 10x", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Real-time benefits"}, {Key: "B", Label: "No", Rationale: "Added complexity"}}},
-			{ID: "w4", Type: "decision", Topic: "Add caching", Context: "Improves mobile experience", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Performance boost"}, {Key: "B", Label: "No", Rationale: "Simplicity"}}},
-		},
 	})
 
 	createTestItem(t, tmpDir, KindFix, BacklogItem{

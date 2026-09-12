@@ -4,6 +4,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/sidecar/health"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Client represents a WebSocket client
@@ -95,10 +98,10 @@ func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID) {
 	now := time.Now()
 	if now.Sub(h.lastDropLogTime) >= time.Second {
 		h.log.WithFields(logrus.Fields{
-			"session_id":          sessionID,
-			"client_id":           clientID,
-			"total_dropped":       h.droppedFrameCount,
-			"reason":              "client_buffer_full",
+			"session_id":    sessionID,
+			"client_id":     clientID,
+			"total_dropped": h.droppedFrameCount,
+			"reason":        "client_buffer_full",
 		}).Warn("Frame dropped: client buffer full")
 		h.lastDropLogTime = now
 	}
@@ -172,30 +175,6 @@ func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
 }
 
-// TimelineAction represents an action in the unified timeline format.
-// This matches the UI's expected format for timeline entries.
-type TimelineAction struct {
-	ID          string         `json:"id"`
-	ActionType  string         `json:"actionType"`
-	SequenceNum int            `json:"sequenceNum"`
-	Timestamp   string         `json:"timestamp"`
-	Confidence  float64        `json:"confidence"`
-	URL         string         `json:"url,omitempty"`
-	PageTitle   string         `json:"pageTitle,omitempty"`
-	Selector    map[string]any `json:"selector,omitempty"`
-	Payload     map[string]any `json:"payload,omitempty"`
-}
-
-// UnifiedTimelineEntry represents a unified timeline entry for WebSocket broadcast.
-// This is the single format used for recording actions, replacing the legacy dual-format.
-type UnifiedTimelineEntry struct {
-	ID        string          `json:"id"`
-	Type      string          `json:"type"` // "action" or "page_event"
-	Timestamp string          `json:"timestamp"`
-	PageID    string          `json:"pageId"`
-	Action    *TimelineAction `json:"action,omitempty"`
-}
-
 // BroadcastResult contains metrics from a broadcast operation.
 // Used for observability to track whether broadcasts succeed and reach subscribers.
 //
@@ -209,53 +188,44 @@ type BroadcastResult struct {
 	DroppedCount int
 }
 
-// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
-// This replaces the legacy dual-format broadcasting (action + timeline_entry).
-// Returns BroadcastResult with metrics for observability.
-func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult {
+// BroadcastTimelineEntry streams the canonical TimelineEntry protobuf value in
+// the TimelineStreamMessage JSON representation. This is intentionally
+// separate from the retired recording_action envelope so callers cannot
+// accidentally flatten typed actions into a legacy payload.
+func (h *Hub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.TimelineEntry) BroadcastResult {
 	result := BroadcastResult{}
-
 	if entry == nil {
-		h.log.WithField("session_id", sessionID).Warn("BroadcastRecordingEntry: nil entry")
+		h.log.WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: nil entry")
 		return result
 	}
-
-	message := map[string]any{
-		"type":       "recording_action",
-		"session_id": sessionID,
-		"entry":      entry,
-		"timestamp":  getCurrentTimestamp(),
+	encoded, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(entry)
+	if err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: marshal entry")
+		return result
 	}
-
+	var payload map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		h.log.WithError(err).WithField("session_id", sessionID).Warn("BroadcastTimelineEntry: decode entry")
+		return result
+	}
+	message := map[string]any{
+		"type":       "TIMELINE_MESSAGE_TYPE_ENTRY",
+		"session_id": sessionID,
+		"entry":      payload,
+	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-
 	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
 			result.SubscriberCount++
 			select {
 			case client.Send <- message:
 				result.SentCount++
 			default:
-				// Client buffer full, skip
 				result.DroppedCount++
-				h.log.WithFields(logrus.Fields{
-					"client_id":  client.ID,
-					"session_id": sessionID,
-					"entry_id":   entry.ID,
-				}).Warn("BroadcastRecordingEntry: client buffer full, message dropped")
 			}
 		}
 	}
-
-	if result.SubscriberCount == 0 {
-		h.log.WithFields(logrus.Fields{
-			"session_id": sessionID,
-			"entry_id":   entry.ID,
-		}).Debug("BroadcastRecordingEntry: no subscribers")
-	}
-
 	return result
 }
 

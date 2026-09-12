@@ -49,7 +49,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dir := h.captureDir(id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		apierr.MapError(w, "[captures] create", apierr.Internal("failed to create capture directory"))
 		return
 	}
@@ -60,14 +60,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		mediaType, _, _ := mime.ParseMediaType(fh.Header.Get("Content-Type"))
 		if !allowedImageTypes[mediaType] {
 			// Clean up the capture directory on rejection.
-			_ = os.RemoveAll(dir)
+			cleanupCaptureDir(dir)
 			apierr.MapError(w, "[captures] create", apierr.BadRequest("unsupported file type: %s", mediaType))
 			return
 		}
 
 		attDir := filepath.Join(dir, "attachments")
-		if err := os.MkdirAll(attDir, 0o755); err != nil {
-			_ = os.RemoveAll(dir)
+		if err := os.MkdirAll(attDir, 0o750); err != nil {
+			cleanupCaptureDir(dir)
 			apierr.MapError(w, "[captures] create", apierr.Internal("failed to create attachments directory"))
 			return
 		}
@@ -77,24 +77,24 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 		src, err := fh.Open()
 		if err != nil {
-			_ = os.RemoveAll(dir)
+			cleanupCaptureDir(dir)
 			apierr.MapError(w, "[captures] create", apierr.Internal("failed to read uploaded file"))
 			return
 		}
 
 		dst, err := os.Create(destPath)
 		if err != nil {
-			src.Close()
-			_ = os.RemoveAll(dir)
+			closeBestEffort(src, "captures: close uploaded source")
+			cleanupCaptureDir(dir)
 			apierr.MapError(w, "[captures] create", apierr.Internal("failed to save uploaded file"))
 			return
 		}
 
 		_, copyErr := io.Copy(dst, src)
-		src.Close()
-		dst.Close()
+		closeBestEffort(src, "captures: close uploaded source")
+		closeBestEffort(dst, "captures: close attachment file")
 		if copyErr != nil {
-			_ = os.RemoveAll(dir)
+			cleanupCaptureDir(dir)
 			apierr.MapError(w, "[captures] create", apierr.Internal("failed to write uploaded file"))
 			return
 		}
@@ -106,10 +106,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] create", apierr.Internal("failed to write capture"))
 		return
 	}
+	h.indexCapture(&cap)
 
-	// Auto-trigger classification agent.
+	// Auto-trigger the declared classification workflow. Its typed output is
+	// applied separately, so the workflow never receives filesystem authority.
 	resp := map[string]any{"capture": cap}
-	runResult, err := h.spawnClassifyAgent(r, &cap)
+	if h.transitionRunner == nil {
+		apierr.MapError(w, "[captures] create", apierr.Unavailable("agent-manager is not available — try again once it's running"))
+		return
+	}
+	start, err := h.transitionRunner.Start(r.Context(), "capture.classify", cap.ID)
 	if err != nil {
 		// Classification failed to start, but capture was created. Mark as failed
 		// with a categorized reason so the UI can show actionable guidance.
@@ -120,16 +126,20 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			"failure_reason", cap.FailureReason,
 			"error", err,
 		)
-		_ = h.writeCapture(&cap)
+		if writeErr := h.writeCapture(&cap); writeErr != nil {
+			slog.Warn("captures: persist failed-status capture failed", "err", writeErr, "capture_id", cap.ID)
+		}
 		resp["capture"] = cap
 	} else {
-		resp["task_id"] = runResult.TaskID
-		resp["run_id"] = runResult.RunID
-		resp["base_url"] = runResult.BaseURL
+		resp["capture"] = cap
+		resp["workflow_execution_id"] = start.ExecutionID
+		resp["workflow_definition_digest"] = start.DefinitionDigest
 	}
 
 	h.invalidateTopologyGraph()
-	_ = httputil.JSONWithStatus(w, http.StatusCreated, resp)
+	if writeErr := httputil.JSONWithStatus(w, http.StatusCreated, resp); writeErr != nil {
+		slog.Debug("captures: write create response failed", "err", writeErr)
+	}
 }
 
 // sanitizeFilename removes path separators and dangerous characters from a filename.
@@ -148,4 +158,16 @@ func sanitizeFilename(name string) string {
 		name = "unnamed"
 	}
 	return name
+}
+
+func cleanupCaptureDir(dir string) {
+	if err := os.RemoveAll(dir); err != nil {
+		slog.Debug("captures: cleanup capture dir failed", "err", err, "dir", dir)
+	}
+}
+
+func closeBestEffort(c io.Closer, msg string) {
+	if err := c.Close(); err != nil {
+		slog.Debug(msg, "err", err)
+	}
 }

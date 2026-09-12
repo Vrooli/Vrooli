@@ -1,0 +1,76 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "channel-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "3820109eb8de6c7570bff073199a770b1b2e689b9418511117d8e53c1e100f20",
+  "commands": [
+    {
+      "path": "channel assign-automation",
+      "group": "channel",
+      "command": "assign-automation",
+      "binding": "ChannelManagerService.AssignAutomation"
+    },
+    {
+      "path": "channel complete",
+      "group": "channel",
+      "command": "complete",
+      "binding": "."
+    },
+    {
+      "path": "channel create",
+      "group": "channel",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "channel dispatch-browser",
+      "group": "channel",
+      "command": "dispatch-browser",
+      "binding": "ChannelManagerService.DispatchBrowserAction"
+    },
+    {
+      "path": "channel edit",
+      "group": "channel",
+      "command": "edit",
+      "binding": "."
+    },
+    {
+      "path": "channel observe",
+      "group": "channel",
+      "command": "observe",
+      "binding": "."
+    },
+    {
+      "path": "channel overview",
+      "group": "channel",
+      "command": "overview",
+      "binding": "ChannelManagerService.GetOverview"
+    },
+    {
+      "path": "channel queue",
+      "group": "channel",
+      "command": "queue",
+      "binding": "."
+    },
+    {
+      "path": "channel retire",
+      "group": "channel",
+      "command": "retire",
+      "binding": "."
+    },
+    {
+      "path": "channel start",
+      "group": "channel",
+      "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "channel timeline",
+      "group": "channel",
+      "command": "timeline",
+      "binding": "."
+    }
+  ]
+}

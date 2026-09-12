@@ -96,7 +96,7 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	taskResp, err := s.agentManagerClient.CreateTask(hctx.Ctx, agentTaskCreateRequest{
-		Task: buildAgentTaskData(req),
+		Task: buildAgentTaskData(hctx.RepoDir, req),
 	})
 	if err != nil {
 		hctx.Resp.InternalError(fmt.Sprintf("create task: %s", err.Error()))
@@ -115,11 +115,15 @@ func (s *Server) handleAgentRunCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func buildAgentTaskData(req AgentRunRequest) agentTaskData {
+func buildAgentTaskData(repoDir string, req AgentRunRequest) agentTaskData {
+	scopePath := ""
+	if resolved, err := resolveScopePath(repoDir, "scenario", req.ScenarioSlug); err == nil {
+		scopePath = resolved
+	}
 	taskData := agentTaskData{
 		Title:       fmt.Sprintf("GCT review: %s", req.ScenarioSlug),
 		Description: req.Prompt,
-		ScopePath:   fmt.Sprintf("scenarios/%s/", req.ScenarioSlug),
+		ScopePath:   scopePath,
 	}
 	for _, aid := range req.AttachmentIDs {
 		taskData.ContextAttachments = append(taskData.ContextAttachments, agentContextAttachment{
@@ -141,6 +145,8 @@ func buildAgentRunRequest(taskID string, req AgentRunRequest) agentRunCreateInte
 		runReq.AgentProfileID = req.ProfileID
 	} else if req.ProfileKey != "" {
 		runReq.ProfileRef = &agentProfileRef{ProfileKey: req.ProfileKey}
+	} else {
+		runReq.ProfileRef = &agentProfileRef{ProfileKey: "git-control-tower/reviewer"}
 	}
 	return runReq
 }

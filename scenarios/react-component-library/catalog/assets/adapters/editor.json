@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.editor",
+    "name": "EditorAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects rich text, Markdown, code, and JSON fields to lazily loaded editor implementations behind one value, selection, and validation contract.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "editor-adapter"
+  ],
+  "rationale": "Lazy loading is enforced at this seam. Editor implementations are the single largest thing that can end up in a base bundle, and the adapter boundary is what keeps them out of it."
+}

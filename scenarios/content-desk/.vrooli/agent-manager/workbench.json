@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "content-desk-workbench",
+  "profileKey": "content-desk/workbench",
+  "description": "Read-only editorial assistance for Content Desk drafts, evidence discovery, and review suggestions. Output is returned for an operator to edit; this profile cannot approve or publish.",
+  "roleRef": "code.cheap",
+  "maxTurns": 8,
+  "timeout": "90s",
+  "allowedTools": ["read", "glob", "grep"],
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF"
+  },
+  "createdBy": "content-desk",
+  "effort": "medium"
+}

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os/exec"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // InspectorHandler exposes scenario/resource inspection data by delegating to the Vrooli CLI.
@@ -18,20 +20,13 @@ func NewInspectorHandler() *InspectorHandler {
 	return &InspectorHandler{}
 }
 
-// scenarioStatusResponse mirrors the output of `vrooli scenario status --json`.
-type scenarioStatusResponse struct {
-	Success bool `json:"success"`
-	Summary struct {
-		TotalScenarios int `json:"total_scenarios"`
-		Running        int `json:"running"`
-		Stopped        int `json:"stopped"`
-	} `json:"summary"`
-	Scenarios      []map[string]any `json:"scenarios"`
-	SystemHealth   string           `json:"system_health"`
-	SystemWarnings []map[string]any `json:"system_warnings"`
-}
-
 // GetScenarioSummary returns the orchestrator summary section from the CLI output.
+//
+// `system_health`/`system_warnings` are not part of the `scenario status`
+// contract (cliv1.ScenarioStatusListResponse carries summary + scenarios +
+// discovery_failures). They were always empty in the previous implementation
+// and are preserved as empty placeholders here to keep the response shape
+// stable for the UI.
 func (h *InspectorHandler) GetScenarioSummary(c *gin.Context) {
 	resp, err := fetchScenarioStatus(c.Request.Context())
 	if err != nil {
@@ -42,10 +37,15 @@ func (h *InspectorHandler) GetScenarioSummary(c *gin.Context) {
 		return
 	}
 
+	summary := resp.GetSummary()
 	c.JSON(http.StatusOK, gin.H{
-		"summary":         resp.Summary,
-		"system_health":   resp.SystemHealth,
-		"system_warnings": resp.SystemWarnings,
+		"summary": gin.H{
+			"total_scenarios": summary.GetTotalScenarios(),
+			"running":         summary.GetRunning(),
+			"stopped":         summary.GetStopped(),
+		},
+		"system_health":   "",
+		"system_warnings": []any{},
 	})
 }
 
@@ -60,23 +60,29 @@ func (h *InspectorHandler) GetScenarios(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, resp.Scenarios)
+	scenarios := make([]map[string]any, 0, len(resp.GetScenarios()))
+	for _, item := range resp.GetScenarios() {
+		scenarios = append(scenarios, scenarioItemToMap(item))
+	}
+	c.JSON(http.StatusOK, scenarios)
 }
 
-func fetchScenarioStatus(parentCtx context.Context) (*scenarioStatusResponse, error) {
+func fetchScenarioStatus(parentCtx context.Context) (*cliv1.ScenarioStatusListResponse, error) {
 	ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 	defer cancel()
+	return cliClient.ScenarioStatuses(ctx)
+}
 
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", "--json")
-	output, err := cmd.Output()
+// scenarioItemToMap projects a typed scenario-status row back to a generic map
+// (snake_case keys via protojson) for the raw passthrough the UI consumes.
+func scenarioItemToMap(item *cliv1.ScenarioStatusItem) map[string]any {
+	out, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}.Marshal(item)
 	if err != nil {
-		return nil, err
+		return map[string]any{}
 	}
-
-	var resp scenarioStatusResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
+	var m map[string]any
+	if err := json.Unmarshal(out, &m); err != nil {
+		return map[string]any{}
 	}
-
-	return &resp, nil
+	return m
 }

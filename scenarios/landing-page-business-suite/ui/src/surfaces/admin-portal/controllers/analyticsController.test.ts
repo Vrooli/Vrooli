@@ -11,8 +11,8 @@ import {
 type GetMetricsSummaryFn = typeof getMetricsSummary;
 type GetVariantMetricsFn = typeof getVariantMetrics;
 
-const getMetricsSummaryMock = vi.fn<Parameters<GetMetricsSummaryFn>, ReturnType<GetMetricsSummaryFn>>();
-const getVariantMetricsMock = vi.fn<Parameters<GetVariantMetricsFn>, ReturnType<GetVariantMetricsFn>>();
+const getMetricsSummaryMock = vi.fn<GetMetricsSummaryFn>();
+const getVariantMetricsMock = vi.fn<GetVariantMetricsFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

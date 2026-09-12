@@ -1,0 +1,298 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "tunnel-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "08cff3d5381e258bebe1fe1f0b5ff476c342b3140ce6f125107a68d4199ccfed",
+  "commands": [
+    {
+      "path": "access status",
+      "group": "access",
+      "command": "status",
+      "binding": "ConfigService.GetAccessStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "audit run",
+      "group": "audit",
+      "command": "run",
+      "binding": "AuditService.RunAudit",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "config bootstrap",
+      "group": "config",
+      "command": "bootstrap",
+      "binding": "ConfigService.BootstrapCloudflare",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config credentials-clear",
+      "group": "config",
+      "command": "credentials-clear",
+      "binding": "ConfigService.ClearCloudflareCredentials",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config credentials-set",
+      "group": "config",
+      "command": "credentials-set",
+      "binding": "ConfigService.SetCloudflareCredentials",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config credentials-status",
+      "group": "config",
+      "command": "credentials-status",
+      "binding": "ConfigService.GetCredentialStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "config get",
+      "group": "config",
+      "command": "get",
+      "binding": "ConfigService.GetConfig",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "config mode",
+      "group": "config",
+      "command": "mode",
+      "binding": "ConfigService.SwitchMode",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config public-exposure",
+      "group": "config",
+      "command": "public-exposure",
+      "binding": "ConfigService.SetPublicExposure",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "config sync",
+      "group": "config",
+      "command": "sync",
+      "binding": "ConfigService.Sync",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "drift adopt",
+      "group": "drift",
+      "command": "adopt",
+      "binding": "ConfigService.AdoptIngress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "drift ignore",
+      "group": "drift",
+      "command": "ignore",
+      "binding": "ConfigService.IgnoreIngress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "drift list",
+      "group": "drift",
+      "command": "list",
+      "binding": "ConfigService.GetDrift",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "drift prune",
+      "group": "drift",
+      "command": "prune",
+      "binding": "ConfigService.PruneIngress",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "exposure check",
+      "group": "exposure",
+      "command": "check",
+      "binding": "ExposureService.IsExposed",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "exposure expose",
+      "group": "exposure",
+      "command": "expose",
+      "binding": "ExposureService.Expose",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "exposure extend",
+      "group": "exposure",
+      "command": "extend",
+      "binding": "ExposureService.ExtendLease",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "exposure leases",
+      "group": "exposure",
+      "command": "leases",
+      "binding": "ExposureService.ListLeases",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "exposure list",
+      "group": "exposure",
+      "command": "list",
+      "binding": "ExposureService.ListExposures",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "exposure reconcile",
+      "group": "exposure",
+      "command": "reconcile",
+      "binding": "ExposureService.Reconcile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "exposure revoke",
+      "group": "exposure",
+      "command": "revoke",
+      "binding": "ExposureService.RevokeLease",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "exposure unexpose",
+      "group": "exposure",
+      "command": "unexpose",
+      "binding": "ExposureService.Unexpose",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "probes classify",
+      "group": "probes",
+      "command": "classify",
+      "binding": "ProbesService.Classify",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "probes history",
+      "group": "probes",
+      "command": "history",
+      "binding": "ProbesService.ListProbes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "probes run",
+      "group": "probes",
+      "command": "run",
+      "binding": "ProbesService.RunProbes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "recovery events",
+      "group": "recovery",
+      "command": "events",
+      "binding": "RecoveryService.ListEvents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recovery run",
+      "group": "recovery",
+      "command": "run",
+      "binding": "RecoveryService.Recover",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "recovery state",
+      "group": "recovery",
+      "command": "state",
+      "binding": "RecoveryService.GetState",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "routes create",
+      "group": "routes",
+      "command": "create",
+      "binding": "RoutesService.CreateRoute",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "routes delete",
+      "group": "routes",
+      "command": "delete",
+      "binding": "RoutesService.DeleteRoute",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "routes get",
+      "group": "routes",
+      "command": "get",
+      "binding": "RoutesService.GetRoute",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "routes list",
+      "group": "routes",
+      "command": "list",
+      "binding": "RoutesService.ListRoutes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "routes update",
+      "group": "routes",
+      "command": "update",
+      "binding": "RoutesService.UpdateRoute",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "tunnel metrics",
+      "group": "tunnel",
+      "command": "metrics",
+      "binding": "TunnelService.ListMetrics",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "tunnel scrape",
+      "group": "tunnel",
+      "command": "scrape",
+      "binding": "TunnelService.Scrape",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "tunnel status",
+      "group": "tunnel",
+      "command": "status",
+      "binding": "TunnelService.GetStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

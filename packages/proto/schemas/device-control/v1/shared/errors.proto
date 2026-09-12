@@ -1,0 +1,9 @@
+syntax = "proto3";
+package vrooli.device_control.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared;shared_v1";
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}

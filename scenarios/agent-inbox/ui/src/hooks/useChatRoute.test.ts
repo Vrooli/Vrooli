@@ -8,11 +8,12 @@ import { useChatRoute, usePopStateListener } from "./useChatRoute";
 
 // Mock window.history and location
 const originalLocation = window.location;
-const _originalHistory = window.history;
 
 describe("useChatRoute", () => {
   let mockPathname = "/";
   let historyStack: { chatId: string; path: string }[] = [];
+  let pushStateSpy: ReturnType<typeof vi.spyOn>;
+  let replaceStateSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockPathname = "/";
@@ -20,22 +21,23 @@ describe("useChatRoute", () => {
 
     // Mock location.pathname
     Object.defineProperty(window, "location", {
-      value: {
-        ...originalLocation,
-        get pathname() {
-          return mockPathname;
+      value: Object.create(originalLocation, {
+        pathname: {
+          get() {
+            return mockPathname;
+          },
         },
-      },
+      }),
       writable: true,
     });
 
     // Mock history.pushState and replaceState
-    vi.spyOn(window.history, "pushState").mockImplementation((state, _unused, url) => {
+    pushStateSpy = vi.spyOn(window.history, "pushState").mockImplementation((state, _unused, url) => {
       mockPathname = url as string;
       historyStack.push({ chatId: (state as { chatId: string }).chatId, path: url as string });
     });
 
-    vi.spyOn(window.history, "replaceState").mockImplementation((_state, _unused, url) => {
+    replaceStateSpy = vi.spyOn(window.history, "replaceState").mockImplementation((_state, _unused, url) => {
       mockPathname = url as string;
     });
   });
@@ -103,7 +105,7 @@ describe("useChatRoute", () => {
         result.current.setChatInUrl("my-chat-id");
       });
 
-      expect(window.history.pushState).toHaveBeenCalledWith(
+      expect(pushStateSpy).toHaveBeenCalledWith(
         { chatId: "my-chat-id" },
         "",
         "/chat/my-chat-id"
@@ -118,7 +120,7 @@ describe("useChatRoute", () => {
         result.current.setChatInUrl("");
       });
 
-      expect(window.history.pushState).toHaveBeenCalledWith({ chatId: "" }, "", "/");
+      expect(pushStateSpy).toHaveBeenCalledWith({ chatId: "" }, "", "/");
     });
 
     it("does not push if path unchanged", () => {
@@ -129,7 +131,7 @@ describe("useChatRoute", () => {
         result.current.setChatInUrl("abc123");
       });
 
-      expect(window.history.pushState).not.toHaveBeenCalled();
+      expect(pushStateSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -142,7 +144,7 @@ describe("useChatRoute", () => {
         result.current.replaceChatInUrl("replacement-chat");
       });
 
-      expect(window.history.replaceState).toHaveBeenCalledWith(
+      expect(replaceStateSpy).toHaveBeenCalledWith(
         { chatId: "replacement-chat" },
         "",
         "/chat/replacement-chat"
@@ -157,7 +159,7 @@ describe("useChatRoute", () => {
         result.current.replaceChatInUrl("abc123");
       });
 
-      expect(window.history.replaceState).not.toHaveBeenCalled();
+      expect(replaceStateSpy).not.toHaveBeenCalled();
     });
   });
 });
@@ -171,12 +173,13 @@ describe("usePopStateListener", () => {
     popStateHandler = null;
 
     Object.defineProperty(window, "location", {
-      value: {
-        ...originalLocation,
-        get pathname() {
-          return mockPathname;
+      value: Object.create(originalLocation, {
+        pathname: {
+          get() {
+            return mockPathname;
+          },
         },
-      },
+      }),
       writable: true,
     });
 

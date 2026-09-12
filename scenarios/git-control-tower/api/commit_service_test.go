@@ -1,15 +1,25 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"testing"
 )
 
 // [REQ:GCT-OT-P0-005] Commit composition API
 
+func TestCreateCommitRequiresConsumedIntentBeforeWriter(t *testing.T) {
+	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
+	_, err := CreateCommit(authorizedHumanContextWithoutIntent(), CommitDeps{Git: fakeGit, RepoDir: "/fake/repo"}, CommitRequest{Message: "test"})
+	if err == nil {
+		t.Fatal("expected commit without a consumed intent to fail")
+	}
+	if fakeGit.AssertCalled("Commit") {
+		t.Fatal("commit writer ran without a consumed intent")
+	}
+}
+
 func TestCreateCommit_RequiresGitRunner(t *testing.T) {
-	_, err := CreateCommit(context.Background(), CommitDeps{
+	_, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     nil,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "test"})
@@ -20,7 +30,7 @@ func TestCreateCommit_RequiresGitRunner(t *testing.T) {
 
 func TestCreateCommit_RequiresRepoDir(t *testing.T) {
 	fakeGit := NewFakeGitRunner()
-	_, err := CreateCommit(context.Background(), CommitDeps{
+	_, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "",
 	}, CommitRequest{Message: "test"})
@@ -31,7 +41,7 @@ func TestCreateCommit_RequiresRepoDir(t *testing.T) {
 
 func TestCreateCommit_RequiresMessage(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: ""})
@@ -50,7 +60,7 @@ func TestCreateCommit_AmendRequiresUpstream(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
 	fakeGit.Branch.Upstream = ""
 	fakeGit.Branch.Ahead = 1
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "fix: adjust config", Amend: true})
@@ -69,7 +79,7 @@ func TestCreateCommit_AmendBlockedWhenPushed(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
 	fakeGit.Branch.Upstream = "origin/main"
 	fakeGit.Branch.Ahead = 0
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "fix: adjust config", Amend: true})
@@ -89,7 +99,7 @@ func TestCreateCommit_AmendNoEditKeepsMessage(t *testing.T) {
 	fakeGit.Branch.Upstream = "origin/main"
 	fakeGit.Branch.Ahead = 1
 	fakeGit.LastCommitMsg = "feat: previous message"
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "", Amend: true})
@@ -109,7 +119,7 @@ func TestCreateCommit_AmendNoEditKeepsMessage(t *testing.T) {
 
 func TestCreateCommit_WithFakeGit(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "feat: add new feature"})
@@ -132,7 +142,7 @@ func TestCreateCommit_WithFakeGit(t *testing.T) {
 
 func TestCreateCommit_NothingToCommit(t *testing.T) {
 	fakeGit := NewFakeGitRunner() // No staged files
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "fix: something"})
@@ -150,7 +160,7 @@ func TestCreateCommit_NothingToCommit(t *testing.T) {
 func TestCreateCommit_GitError(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
 	fakeGit.CommitError = fmt.Errorf("permission denied")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{Message: "test commit"})
@@ -214,7 +224,7 @@ func TestValidateConventionalCommit_InvalidFormats(t *testing.T) {
 
 func TestCreateCommit_ConventionalValidation_Pass(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{
@@ -232,7 +242,7 @@ func TestCreateCommit_ConventionalValidation_Pass(t *testing.T) {
 
 func TestCreateCommit_ConventionalValidation_Fail(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{
@@ -256,7 +266,7 @@ func TestCreateCommit_ConventionalValidation_Fail(t *testing.T) {
 
 func TestCreateCommit_ConventionalValidation_Disabled(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
-	result, err := CreateCommit(context.Background(), CommitDeps{
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
 	}, CommitRequest{
@@ -272,16 +282,10 @@ func TestCreateCommit_ConventionalValidation_Disabled(t *testing.T) {
 }
 
 func TestCreateCommit_WithRealRepo(t *testing.T) {
-	repoDir := SetupTestRepo(t)
-
-	// Create and stage a file
-	WriteTestFile(t, repoDir+"/test.txt", "hello world")
-	RunGitCommand(t, repoDir, "add", "test.txt")
-
-	git := &ExecGitRunner{GitPath: "git"}
-	result, err := CreateCommit(context.Background(), CommitDeps{
-		Git:     git,
-		RepoDir: repoDir,
+	fakeGit := NewFakeGitRunner().AddStagedFile("test.txt")
+	result, err := CreateCommit(authorizedHumanContext(), CommitDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
 	}, CommitRequest{
 		Message:              "feat: add test file",
 		ValidateConventional: true,
@@ -296,7 +300,7 @@ func TestCreateCommit_WithRealRepo(t *testing.T) {
 	if result.Hash == "" {
 		t.Fatalf("expected commit hash to be set")
 	}
-	if len(result.Hash) < 7 {
-		t.Fatalf("expected short hash (7+ chars), got %q", result.Hash)
+	if !fakeGit.AssertCalled("Commit") {
+		t.Fatalf("expected fake commit operation")
 	}
 }

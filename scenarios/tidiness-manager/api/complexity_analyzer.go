@@ -97,10 +97,12 @@ func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []s
 		}, nil
 	}
 
-	// Convert relative paths to absolute paths
-	absPaths := make([]string, len(files))
-	for i, relPath := range files {
-		absPaths[i] = filepath.Join(ca.scenarioPath, relPath)
+	absPaths, err := resolveScenarioFiles(ca.scenarioPath, files)
+	if err != nil {
+		return &ComplexityResult{
+			Skipped:    true,
+			SkipReason: err.Error(),
+		}, nil
 	}
 
 	// Run gocyclo with threshold (default 10 for high complexity)
@@ -110,7 +112,7 @@ func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []s
 
 	// gocyclo -over <threshold> <files...>
 	args := append([]string{"-over", fmt.Sprintf("%d", threshold)}, absPaths...)
-	cmd := exec.CommandContext(cmdCtx, "gocyclo", args...)
+	cmd := exec.CommandContext(cmdCtx, "gocyclo", args...) // #nosec G204 G702 -- executable is fixed and file args are constrained to scenario root.
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -127,7 +129,7 @@ func (ca *ComplexityAnalyzer) analyzeGoComplexity(ctx context.Context, files []s
 	cmdCtx2, cancel2 := context.WithTimeout(ctx, ca.timeout)
 	defer cancel2()
 
-	cmd2 := exec.CommandContext(cmdCtx2, "gocyclo", absPaths...)
+	cmd2 := exec.CommandContext(cmdCtx2, "gocyclo", absPaths...) // #nosec G204 G702 -- executable is fixed and file args are constrained to scenario root.
 	var stdout2 bytes.Buffer
 	cmd2.Stdout = &stdout2
 	_ = cmd2.Run()
@@ -290,10 +292,4 @@ func (ca *ComplexityAnalyzer) parseGoCycloPerFile(output string) map[string]File
 	}
 
 	return result
-}
-
-// commandExists checks if a command is available in PATH
-func commandExists(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
 }

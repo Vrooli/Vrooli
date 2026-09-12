@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Activity list",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "LongContent",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "A descriptive activity"
+        }
+      ],
+      "id": "long-content",
+      "mode": "live",
+      "name": "Long content",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "empty",
+      "mode": "live",
+      "name": "Empty collection",
+      "role": "boundary"
+    },
+    {"id":"one","name":"One list item","args":{"items":[{"id":"deploy","label":"Deploy completed"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"},
+    {"id":"many","name":"Many list items","args":{"items":[{"id":"one","label":"Deploy completed"},{"id":"two","label":"Review queued"},{"id":"three","label":"Evidence captured"},{"id":"four","label":"Release published"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long list item","args":{"items":[{"id":"long","label":"A deliberately long list item label that must wrap without clipping"}]},"expect":[{"kind":"text","value":"Deploy completed"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "List"
+}

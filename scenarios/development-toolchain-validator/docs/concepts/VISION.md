@@ -1,127 +1,115 @@
 # Vision & Purpose
 
+> **Rewritten 2026-05-18** to match the new "execute skill on pristine golden, evaluate sandbox diff against expected-diff manifest" model. The prior framing (declarative structural expectations + CLI assertions) has been retired. See `../../PRD.md` Appendix → *Why the vision changed* for the full rationale.
+
 ## The Problem
 
-The Vrooli ecosystem uses **steer skills** to guide AI agents during scenario development. There are 45+ steer skills, each focusing on one architectural dimension: API design, storage patterns, CLI structure, testing architecture, documentation, UX, security, and more.
+The Vrooli ecosystem applies a large catalog of **steer skills** to scenarios during agent-driven development. Each skill exists to nudge a scenario along one dimension (API shape, storage, CLI surface, tests, UX, security, …).
 
-These skills are managed by **prompt-manager** and applied during **ecosystem-manager** development loops. When an agent runs a loop iteration with a steer skill active, the skill's guidance focuses the agent on one specific dimension of scenario quality.
+Two compounding failure modes accumulate silently:
 
-### The Cross-Steer Coherence Gap
-
-While individual steer skills can be improved in isolation (via prompt-manager's meta optimization team), **there is no mechanism to detect cross-steer conflicts**. Consider:
-
-- `api-steer` says "organize endpoints by bounded context/domain"
-- `storage-steer` says "use repository pattern with these conventions" — but might imply a different module decomposition
-- `cli-steer` says "thin wrapper over the API" — but its command grouping might not align with how `api-steer` organized the endpoints
-- `interoperability-steer` defines contract rules that might conflict with how `api-steer` handles error shapes
-
-Each skill converges the scenario toward its own ideal state, but those ideals might pull the scenario in **incompatible directions**. An agent running under `api-steer` makes structural decisions that a later `cli-steer` pass fights against, and the next `api-steer` pass fights back — **oscillation instead of convergence**.
-
-### The Tooling Accuracy Gap
-
-The ecosystem-manager's scenario-improver loop uses several tools in its Quick Validation Loop:
-
-1. `vrooli scenario status` — lifecycle health
-2. `scenario-completeness-scoring score` — quality scoring (0-100)
-3. `scenario-auditor audit` — standards violations
-4. `vrooli scenario test` (test-genie) — 11-phase test suite
-5. `vrooli scenario ui-smoke` — UI validation
-
-If any of these tools produce **false positives** (reporting issues that don't exist) or **false negatives** (missing real issues), the development loop makes wrong decisions. But there's no systematic way to detect these tooling bugs — they're discovered incidentally during agent iterations.
-
-### The Skill Maturity Gap
-
-Some steer skills are well-structured with clear convergence patterns, decision trees, and audit checklists. Others are more prose-heavy and vague. There's no way to measure this difference or systematically drive skills toward greater structure.
+1. **Skills drift away from the template.** As `templates/scenarios/react-vite` matures, more of what a steer skill *says to do* becomes already true by default in newly generated scenarios. A skill that once meant "add a real change" might now mean "make no change at all" against a pristine golden — but nobody is checking.
+2. **Skill behaviour is not regression-tested.** A skill edit can quietly break the agent's behaviour against a scenario that previously worked. There is no end-to-end test that runs each skill against a known-good baseline and compares the result to what was expected.
 
 ## The Solution
 
-### Reference Scenarios as Ground Truth
+Execute every steer skill against template-pristine **golden scenarios**, in a sandboxed agent run, and compare the resulting filesystem diff against a per-skill **expected-diff manifest**. The verdict is a function of the diff vs the manifest — not of any declarative structural assertion.
 
-A **reference scenario** is a full, known-good implementation that lives in `scenarios/` and uses all standard Vrooli tooling. It demonstrates what a fully-developed scenario looks like when all applicable steer skills are properly followed.
+```
+golden  ──┐
+          ├──► sandboxed agent run with skill active ──► diff ──► compare to manifest ──► verdict
+skill   ──┘
+```
 
-Reference scenarios serve as **two-directional validators**:
+Four verdicts:
 
-- **Inward (skill validation)**: If steer skills conflict when mapped to a reference, the skills are wrong — not the reference.
-- **Outward (tool validation)**: If scenario-auditor reports violations on a known-good reference, the auditor rule is wrong. If test-genie fails a phase, the test logic is wrong. If completeness scoring gives a low score, the model is miscalibrated.
+- **pass** — the observed diff matches the manifest's allowed shape.
+- **unexpected-mutation** — the run touched paths or contents the manifest does not allow. **Either the template is missing something the skill keeps adding, OR the skill has a bug.** Operator decides which.
+- **run-failure** — the agent run failed (errored, timed out, exhausted budget). Distinct from a mutation mismatch.
+- **stale** — the manifest is pinned to a template-version or skill-version that has moved since it was recorded; the manifest is treated as unreliable until refreshed.
 
-### Skill Connections with Declarative Expectations
+### Why pristine goldens
 
-Instead of *executing* steer skills (which would be expensive and could modify references), we store **declarative mappings** of what each skill expects:
+A golden is a freshly generated scenario that conforms to the current `templates/scenarios/<template-id>` at a known version. Goldens are committed under `scenarios/reference-<template>/` so they can be inspected, versioned, and re-registered, but the contract is that they were created by the template and not subsequently modified by hand.
 
-- **Structural expectations**: Required/optional folders, files matching patterns, content snippets at specific locations
-- **CLI tool assertions**: Read-only validation commands with expected JSON output (path + operator + value)
+This makes the diff a meaningful signal:
 
-These expectations are the bridge between prose guidance (the skill's SKILL.md) and programmatic validation (this scenario's engine).
+- A no-op skill that produces no diff against a pristine golden is **doing its job already through the template**.
+- A skill that always produces a large diff against a pristine golden tells us the template should be absorbing that change.
+- A skill that produces an *unexpected* diff (vs. its manifest) tells us either the template gap shifted or the skill itself regressed.
 
-### Configuration as Maturity Metric
+### Why expected-diff manifests, not declarative structural assertions
 
-A skill with no structural config means we cannot programmatically describe what it does to a scenario. **The ability to define config IS the maturity metric.** Skills that are too vague or prose-heavy for programmatic validation are the lowest maturity — directly informing the meta optimization team about what to improve.
+A declarative assertion ("file X exists, content matches Y") asks: *does this scenario look right?* That question is too coarse — it does not catch a skill that *quietly stopped doing what it used to do*. The right question is: *did running this skill produce the file changes we expected it to produce?*
+
+A manifest records exactly which paths a skill may touch and how (path patterns, optional content rules). Anything outside the manifest is a regression signal.
+
+### Staleness
+
+Each manifest is pinned to **both** the template version (because the golden was generated from that template) **and** the skill version it was recorded against:
+
+- Template bump → all manifests against that golden become stale until refreshed.
+- Skill bump → only that skill's manifest becomes stale.
+
+Stale manifests are not deleted; they are flagged so the operator can confirm and re-record.
+
+### Exemptions
+
+Some skills are not meant to converge on a no-op against a pristine golden. They are framework primitives — `progress`, `bundle-integration-steer`, `progress-continuity-interruption-resilience` — that always mutate the scenario (advance a progress log, record continuity, etc.) regardless of how mature the template is. These are flagged as **always-mutator** in the catalog and their manifests are expected to keep allowing those mutations indefinitely. The remaining skills are tracked toward eventual no-op against a mature template.
 
 ## The Promotion-Retirement Vision
 
-This scenario is part of a larger system goal: **migrating AI-powered (expensive, slow) quality checks to programmatic (fast, deterministic) quality checks**.
+This scenario accelerates the migration of agent guidance from expensive prose to cheap, programmatic, template-encoded defaults:
 
 ```
-Stage 1: Steer skills are markdown guidance
-         Agent reads, interprets, does open-ended assessment
-         → Expensive (LLM tokens), slow (reasoning loops)
+Stage 1: Skill says "add X". Agent reads, interprets, edits files.
+         → Expensive (LLM tokens), slow (reasoning loops).
 
-Stage 2: Skill expectations configured as structural checks + CLI assertions
-         Validation is programmatic and fast
-         → This scenario enables this stage
+Stage 2: Template starts including X by default in fresh scenarios.
+         → DTV detects the skill is now producing a smaller diff.
 
-Stage 3: Meta optimization team uses DTV CLI to identify poorly-configured skills
-         Improves skills to be more structured
-         Builds/enhances CLI tools that encode prose into checks
-         → Autonomous improvement loop
+Stage 3: Template fully covers X. Skill is documented as a no-op against
+         the pristine golden — its manifest is empty.
+         → DTV verdicts the skill as "absorbed by template".
 
-Stage 4: Steer skill becomes a single CLI call
-         Programmatically assesses and potentially fixes a scenario
-         → Deterministic, fast, cheap
+Stage 4: Skill is retired (or kept only for legacy-fix workflows).
+         The template carries the behaviour permanently.
 ```
 
-Each stage represents a reduction in the **search space** that agents must navigate. The easier it is to determine the current state of a scenario, the faster an agent can make progress.
+DTV's job is to make every step of that progression *visible and verifiable*.
 
 ## Ecosystem Integration
 
 ```
-prompt-manager (skill source)
-      │
-      │ API: read skills, versions, content
-      ▼
-development-toolchain-validator (this scenario)
-      │
-      │ CLI: validate references against skill configs
-      │ CLI: run tooling baselines (auditor, test-genie, completeness)
-      │
-      ├──► reference-react-vite (first reference)
-      ├──► reference-cli-only (future)
-      ├──► reference-landing-page (future)
-      │
-      ▼
-prompt-manager meta optimization team
-      │
-      │ Uses DTV CLI output to prioritize skill improvements
-      │ and tooling fixes
-      ▼
-ecosystem-manager
-      │
-      │ Uses improved skills and validated tools
-      │ in scenario development loops
-      ▼
-All scenarios benefit from higher-quality steers and tools
+prompt-manager (skill source)              templates/scenarios/* (golden source)
+       │                                          │
+       │  read skill manifests + versions         │  read template versions
+       ▼                                          ▼
+              development-toolchain-validator (this scenario)
+                              │
+                              │  execute (skill, golden) under sandbox via agent-manager
+                              ▼
+                       agent-manager (sandboxed run + diff capture)
+                              │
+                              │  diff + run summary (tokens, cost, duration)
+                              ▼
+                       compare to expected-diff manifest → verdict
+                              │
+              ┌───────────────┼────────────────┐
+              ▼               ▼                ▼
+        validation         CLI (dtv)         UI dashboard
+        records DB                           (all-scenarios grid)
 ```
 
 ### Dependency Direction
 
-- **This scenario depends on**: prompt-manager API (read skills), scenario CLIs (run validations)
-- **prompt-manager does NOT depend on this scenario**: The meta optimization team uses DTV's CLI as a consumer, configured in agent instructions — not in code.
-- **ecosystem-manager does NOT depend on this scenario**: It benefits indirectly from improved skills and tools.
+- **DTV depends on**: prompt-manager (read skill catalog), agent-manager (execute sandboxed run + return diff), `templates/scenarios/*` (regenerate goldens), and the scenario CLIs being validated.
+- **Nothing in the broader ecosystem depends on DTV.** It is a verification layer; prompt-manager, agent-manager, and swarm-manager all function without it.
 
 ## What Success Looks Like
 
-1. **Every steer skill** applicable to the react-vite template has a connection to `reference-react-vite` with at least structural expectations defined.
-2. **All structural validations pass** — the reference satisfies every skill's expectations simultaneously (proving no cross-steer conflicts).
-3. **All tooling baselines pass** — scenario-auditor, test-genie, and completeness scoring produce correct results on the reference.
-4. **Skill maturity is visible** — a dashboard shows which skills have robust configs and which are too vague.
-5. **The meta optimization team** routinely uses DTV output to drive skill improvements, steadily increasing the ratio of programmatic to AI-powered validation.
+1. Every template (starting with `react-vite`) has a committed golden under `scenarios/reference-<template>/`, registered with DTV and re-generable on demand.
+2. Every applicable steer skill has an expected-diff manifest pinned to a specific template version and skill version, with explicit verdicts on every (skill, golden) tuple.
+3. The all-scenarios dashboard shows verdicts at a glance: passes, mutations, run failures, stale flags.
+4. When a skill or template is bumped, DTV surfaces the staleness immediately, so the operator can re-record manifests with intent rather than discovering drift weeks later.
+5. The catalog of "absorbed by template" skills grows over time, measurable as a ratio: the closer it gets to 1.0, the more of agent guidance has been promoted into the template.

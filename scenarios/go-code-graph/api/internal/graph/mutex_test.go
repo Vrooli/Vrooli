@@ -1,0 +1,116 @@
+package graph_test
+
+import (
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	intgraph "go-code-graph/internal/graph"
+)
+
+// TestPathMutexSerializesSameKey asserts that two goroutines locking
+// the same absolute path proceed in strict serial order — the second
+// goroutine cannot enter the critical section until the first has
+// released.
+func TestPathMutexSerializesSameKey(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutex()
+
+	var inCS atomic.Int32
+	var maxObserved atomic.Int32
+	var wg sync.WaitGroup
+	const N = 8
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			unlock := mu.Lock("/same/path")
+			defer unlock()
+			cur := inCS.Add(1)
+			if cur > maxObserved.Load() {
+				maxObserved.Store(cur)
+			}
+			// Brief work window so concurrency would be observable
+			// if the mutex weren't doing its job.
+			time.Sleep(2 * time.Millisecond)
+			inCS.Add(-1)
+		}()
+	}
+	wg.Wait()
+	if got := maxObserved.Load(); got > 1 {
+		t.Fatalf("same-key acquisitions ran concurrently (max observed=%d, want 1)", got)
+	}
+}
+
+// TestPathMutexParallelDifferentKeys asserts that two goroutines
+// locking different paths actually run concurrently — total wall-clock
+// is bounded by the slower one, not the sum.
+func TestPathMutexParallelDifferentKeys(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutex()
+
+	const hold = 30 * time.Millisecond
+	start := time.Now()
+	var wg sync.WaitGroup
+	for _, key := range []string{"/a", "/b", "/c"} {
+		wg.Add(1)
+		go func(k string) {
+			defer wg.Done()
+			unlock := mu.Lock(k)
+			defer unlock()
+			time.Sleep(hold)
+		}(key)
+	}
+	wg.Wait()
+	elapsed := time.Since(start)
+
+	// Allow a generous margin for scheduler jitter. Three serial
+	// holds would be 90ms; we expect the parallel total to be well
+	// under that.
+	if elapsed >= 3*hold-5*time.Millisecond {
+		t.Fatalf("different-key acquisitions did not run in parallel: elapsed=%v", elapsed)
+	}
+}
+
+// TestPathMutexLRUEvictsIdle verifies that once idle-entry count exceeds
+// the configured capacity, the LRU idle entry is evicted on the next
+// release. Held entries (refs > 0) are exempt.
+func TestPathMutexLRUEvictsIdle(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutexWithCapacity(2)
+
+	// Lock+release three distinct keys in order. After the third
+	// release the LRU ("/a") must be evicted, leaving "/b" and "/c".
+	for _, k := range []string{"/a", "/b", "/c"} {
+		mu.Lock(k)()
+	}
+	if got, want := mu.Len(), 2; got != want {
+		t.Fatalf("Len after 3 distinct idle entries: got %d want %d", got, want)
+	}
+}
+
+// TestPathMutexLRUKeepsHeld verifies that held entries are never
+// evicted even when the registry is over capacity, while the LRU
+// idle entry is the one to go.
+func TestPathMutexLRUKeepsHeld(t *testing.T) {
+	t.Parallel()
+	mu := intgraph.NewPathMutexWithCapacity(2)
+
+	// Hold "/a" for the duration of the test.
+	releaseA := mu.Lock("/a")
+	defer releaseA()
+
+	// "/b" goes idle, then "/c" goes idle. With cap=2 and "/a" held,
+	// the LRU eviction on "/c" release must drop "/b" (LRU idle), not
+	// "/a" (held).
+	mu.Lock("/b")()
+	mu.Lock("/c")()
+
+	// Expect {/a (held), /c (MRU idle)}; /b evicted.
+	if got := mu.Len(); got != 2 {
+		t.Fatalf("Len after over-cap release with one held: got %d want 2", got)
+	}
+	// Re-locking "/b" must succeed (it just creates a new entry).
+	mu.Lock("/b")()
+}

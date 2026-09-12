@@ -1,0 +1,548 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.authoring;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring;authoring_v1";
+
+// =============================================================================
+// AUTHORING DOMAIN — the guided composer wizard
+// =============================================================================
+//
+// @stability draft
+//
+// AuthoringService walks a plan's sections in order, validates structure as it
+// goes (a structure-validation gate rejects empty mandatory sections), captures
+// the regression anchor behind seams, and bootstraps relevant-context skills as
+// an auto-added prompt-manager skill pack. The produced plan is written through
+// the plans domain; this service does not own the record.
+// Autofill covers only the mechanical regression-anchor intent. References stay
+// authored: agents run search-hub directly when they need native confidence and
+// attribution, then submit durable references or context with the existing CRUD.
+// See docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
+// =============================================================================
+
+service AuthoringService {
+  // StartSession begins a new authoring session for a plan title/slug
+  // (PM-AUTHOR-001).
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  // GetSession returns the full authoring session state. This is the explicit
+  // full-state read endpoint: normal mutations return only focused progress and
+  // a mutation summary, so a UI/operator that needs the whole session graph must
+  // ask for it deliberately (read-after-write) rather than relying on a session
+  // echo from every mutation.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  // GetSection returns one section's current state.
+  rpc GetSection(GetSectionRequest) returns (GetSectionResponse);
+  // SubmitSection records authored content for a section and re-validates it.
+  rpc SubmitSection(SubmitSectionRequest) returns (SubmitSectionResponse);
+  // SubmitFields applies a BATCH of section/phase-field writes under one
+  // session lock with one save — one call can carry a single field, a whole
+  // phase, or the whole plan. Items apply independently (never
+  // all-or-nothing): each returns accepted/rejected + violations + a one-line
+  // parse summary. The single-field RPCs (SubmitSection/SubmitPhaseField)
+  // remain as wrappers over the same apply path.
+  rpc SubmitFields(SubmitFieldsRequest) returns (SubmitFieldsResponse);
+  // Next returns the next section that still needs author input (or signals the
+  // session is structurally complete).
+  rpc Next(NextRequest) returns (NextResponse);
+  // ContinueAuthoring returns the single recommended next wizard action across
+  // section, context, phase, validation-review, and finalize states.
+  rpc ContinueAuthoring(ContinueAuthoringRequest) returns (ContinueAuthoringResponse);
+  // ValidateStructure runs the structure-validation gate over the whole session
+  // (PM-AUTHOR-002).
+  rpc ValidateStructure(ValidateStructureRequest) returns (ValidateStructureResponse);
+  // Autofill orchestrates the mechanical-section autofill behind seams.
+  rpc Autofill(AutofillRequest) returns (AutofillResponse);
+  // SubmitRelevantContextItem records one global or phase-scoped setup item in
+  // the authoring session. Accepted items finalize into the plans domain's
+  // shared RelevantContextItem contract.
+  rpc SubmitRelevantContextItem(SubmitRelevantContextItemRequest) returns (SubmitRelevantContextItemResponse);
+  // ListRelevantContext returns accepted context items from the session without
+  // changing wizard position.
+  rpc ListRelevantContext(ListRelevantContextRequest) returns (ListRelevantContextResponse);
+  // UpdateRelevantContextItem replaces one accepted global or phase-scoped
+  // context item in place (by item id) so a bad accepted item discovered in
+  // preview is corrected without deleting the whole phase/session. Legal only
+  // before finalize.
+  rpc UpdateRelevantContextItem(UpdateRelevantContextItemRequest) returns (UpdateRelevantContextItemResponse);
+  // RemoveRelevantContextItem deletes one accepted global or phase-scoped context
+  // item (by item id) before finalize, recomputing structure violations so a
+  // resulting gate (e.g. removing the only phase context) is reported with its
+  // recovery action.
+  rpc RemoveRelevantContextItem(RemoveRelevantContextItemRequest) returns (RemoveRelevantContextItemResponse);
+  // DiscoverSkillPack runs prompt-manager skill discovery for one or more
+  // concepts and auto-upserts the returned skill pack into global relevant
+  // context. Search-hub is intentionally not mirrored here; agents should run it
+  // directly and submit durable references/context when useful.
+  rpc DiscoverSkillPack(DiscoverSkillPackRequest) returns (DiscoverSkillPackResponse);
+  // AddPhase appends one structured phase draft to the session.
+  rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
+  // MovePhase reorders a structured phase draft before or after another draft
+  // without rewriting the phase's authored content.
+  rpc MovePhase(MovePhaseRequest) returns (MovePhaseResponse);
+  // GetPhase returns one structured phase draft plus the API-owned guided step
+  // for its next missing field.
+  rpc GetPhase(GetPhaseRequest) returns (GetPhaseResponse);
+  // SubmitPhaseField records one structured phase field and validates that
+  // phase immediately.
+  rpc SubmitPhaseField(SubmitPhaseFieldRequest) returns (SubmitPhaseFieldResponse);
+  // NextPhase returns the first structured phase that still needs input.
+  rpc NextPhase(NextPhaseRequest) returns (NextPhaseResponse);
+  // PreviewPlan renders the in-progress session to its markdown review artifact
+  // WITHOUT persisting, so a human/agent can review the plan before finalize.
+  rpc PreviewPlan(PreviewPlanRequest) returns (PreviewPlanResponse);
+
+  // Finalize validates structure then writes the produced plan through the plans
+  // domain, returning the persisted plan.
+  rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
+}
+
+// Section is one authored or auto-filled section of a plan-in-progress.
+message Section {
+  // Stable key, e.g. "purpose", "scope", "regression_anchor", "phases".
+  string key = 1;
+  string label = 2;
+  string content = 3;
+  // Mandatory sections must be non-empty for the structure gate to pass.
+  bool mandatory = 4;
+  bool filled = 5;
+  // True when the section was produced by autofill rather than the author.
+  bool autofilled = 6;
+}
+
+// AuthoringSession is the transient state of a guided authoring flow. The plan
+// it produces is owned by the plans domain (plan_id set after Finalize).
+message AuthoringSession {
+  string id = 1;
+  string title = 2;
+  string plan_slug = 3;
+  repeated Section sections = 4;
+  // The key of the section the wizard is currently pointing at.
+  string current_section_key = 5;
+  bool finalized = 6;
+  // Set after Finalize: the id of the persisted plan in the plans domain.
+  string plan_id = 7;
+  repeated PhaseDraft phase_drafts = 8;
+  string current_phase_id = 9;
+  repeated shared.RelevantContextItem relevant_context = 10;
+}
+
+// StructureViolation is one structure-gate failure (e.g. empty mandatory section
+// or an empty regression anchor).
+message StructureViolation {
+  string section_key = 1;
+  string message = 2;
+}
+
+// AutofillResult reports the outcome of one autofill source.
+message AutofillResult {
+  // "regression_anchor" — the only mechanical autofill source. References are
+  // provided by the author after direct search-hub discovery, not autofill.
+  string source = 1;
+  string section_key = 2;
+  bool filled = 3;
+  // True when the backing dependency was down and the section was left for the
+  // author (never a false "filled").
+  bool degraded = 4;
+  string detail = 5;
+}
+
+// PhaseDraft is the structured pre-finalize phase object owned by an authoring
+// session. Finalize maps these into shared.Phase records in the plans domain.
+// The canonical phase fields (affected_areas/steps/expected_outputs/validation/
+// risks_hazards/handoff_notes) are carried on the wire so GetPhase and the
+// SubmitPhaseField acknowledgement echo exactly what was parsed.
+message PhaseDraft {
+  string id = 1;
+  int32 order = 2;
+  string title = 3;
+  string intent = 4;
+  repeated shared.Reference references = 5;
+  // Legacy migration input. Finalize converts these lines into relevant_context.
+  repeated string required_reading = 6;
+  repeated string reminders = 7;
+  string acceptance = 8;
+  string no_code_refs_reason = 9;
+  repeated shared.RelevantContextItem relevant_context = 10;
+  repeated string affected_areas = 11;
+  repeated string steps = 12;
+  repeated string expected_outputs = 13;
+  string validation = 14;
+  repeated string risks_hazards = 15;
+  string handoff_notes = 16;
+  shared.ValidationScope validation_scope = 17;
+}
+
+// AuthoringProgress is the compact navigation snapshot returned by every normal
+// wizard mutation so a small-context agent can choose its next action WITHOUT
+// the full session graph. Full state is available only via GetSession/
+// PreviewPlan.
+message AuthoringProgress {
+  string session_id = 1;
+  string current_section_key = 2;
+  string current_phase_id = 3;
+  int32 mandatory_sections_total = 4;
+  int32 mandatory_sections_filled = 5;
+  int32 phases_total = 6;
+  int32 phases_complete = 7;
+  // Human-readable labels of the inputs still required before the structure gate
+  // would pass (mandatory sections, references/no-code-refs, global context
+  // checkpoint, and per-phase completeness).
+  repeated string remaining_required_inputs = 8;
+  // True when no remaining_required_inputs block finalize (command-reference
+  // validation still runs at Finalize and may surface late issues).
+  bool ready_to_finalize = 9;
+}
+
+// AuthoringMutationSummary acknowledges exactly what one mutation changed without
+// echoing accumulated session state.
+message AuthoringMutationSummary {
+  // section | phase | context | autofill
+  string object_kind = 1;
+  // section key, phase id, or context item id.
+  string object_id = 2;
+  // field name when the mutation targeted one field (e.g. "steps").
+  string field = 3;
+  // short human summary, e.g. "parsed 4 steps" or "references parsed: 6".
+  string summary = 4;
+}
+
+message StartSessionRequest {
+  string title = 1;
+  string slug = 2;
+  // Optional template to pre-scaffold the section skeleton.
+  string template_id = 3;
+}
+
+message StartSessionResponse {
+  AuthoringSession session = 1;
+  shared.GuidedStep step = 2;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+}
+
+message GetSessionResponse {
+  AuthoringSession session = 1;
+  shared.GuidedStep step = 2;
+}
+
+message GetSectionRequest {
+  string session_id = 1;
+  string section_key = 2;
+}
+
+message GetSectionResponse {
+  Section section = 1;
+  shared.GuidedStep step = 2;
+}
+
+message SubmitSectionRequest {
+  string session_id = 1;
+  string section_key = 2;
+  string content = 3;
+}
+
+message SubmitSectionResponse {
+  AuthoringMutationSummary summary = 1;
+  AuthoringProgress progress = 2;
+  // Violations specific to the submitted section (empty when it passes).
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
+}
+
+// PhaseFieldRef addresses one phase-native field.
+message PhaseFieldRef {
+  // Phase id or authored order number.
+  string phase_ref = 1;
+  // Phase field name (same vocabulary as SubmitPhaseFieldRequest.field).
+  string field = 2;
+}
+
+// FieldWrite is one item in a batch submission: exactly one of a whole
+// session section or one phase-native field.
+message FieldWrite {
+  oneof scope {
+    string section_key = 1;
+    PhaseFieldRef phase = 2;
+  }
+  string content = 3;
+}
+
+message SubmitFieldsRequest {
+  string session_id = 1;
+  // Applied in order under one session lock; must not be empty.
+  repeated FieldWrite items = 2;
+}
+
+// FieldWriteResult is the per-item outcome: each line names exactly what was
+// parsed, or why the item was rejected (unknown target, unparsable content,
+// or a field-level quality violation). Rejected items are NOT applied; the
+// rest of the batch still lands.
+message FieldWriteResult {
+  int32 index = 1;
+  bool accepted = 2;
+  string summary = 3;
+  repeated StructureViolation violations = 4;
+}
+
+message SubmitFieldsResponse {
+  repeated FieldWriteResult results = 1;
+  AuthoringProgress progress = 2;
+  // Guided step for the resulting session state, carrying the
+  // full-disclosure checklist.
+  shared.GuidedStep step = 3;
+}
+
+message NextRequest {
+  string session_id = 1;
+}
+
+message NextResponse {
+  Section section = 1;
+  // True when no section still needs author input.
+  bool complete = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ContinueAuthoringRequest {
+  string session_id = 1;
+}
+
+message ContinueAuthoringResponse {
+  // The single focused current work item — exactly one of section/phase is set
+  // (both empty at the review/finalize step). The full session is NOT returned;
+  // call GetSession for the whole graph.
+  Section section = 1;
+  PhaseDraft phase = 2;
+  AuthoringProgress progress = 3;
+  bool ready_to_finalize = 4;
+  repeated StructureViolation violations = 5;
+  shared.GuidedStep step = 6;
+}
+
+message ValidateStructureRequest {
+  string session_id = 1;
+}
+
+message ValidateStructureResponse {
+  bool valid = 1;
+  repeated StructureViolation violations = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AutofillRequest {
+  string session_id = 1;
+  // Which sources to run; empty runs all available autofill sources.
+  repeated string sources = 2;
+}
+
+message AutofillResponse {
+  repeated AutofillResult results = 1;
+  AuthoringProgress progress = 2;
+  shared.GuidedStep step = 3;
+}
+
+message SubmitRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. When set, the item is stored on
+  // that phase draft and finalized as phase-scoped context.
+  string phase_id = 2;
+  shared.RelevantContextItem item = 3;
+}
+
+message SubmitRelevantContextItemResponse {
+  shared.RelevantContextItem item = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+  // True only when the item was actually appended to the session. A submission
+  // rejected by content violations leaves the session unchanged and the phase
+  // gate open — accepted=false makes that unmissable (the CLI exits non-zero).
+  bool accepted = 6;
+}
+
+message ListRelevantContextRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty returns global context.
+  string phase_id = 2;
+}
+
+message ListRelevantContextResponse {
+  repeated shared.RelevantContextItem items = 1;
+  shared.GuidedStep step = 2;
+}
+
+message UpdateRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty targets global context.
+  string phase_id = 2;
+  string item_id = 3;
+  shared.RelevantContextItem item = 4;
+}
+
+message UpdateRelevantContextItemResponse {
+  shared.RelevantContextItem item = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message RemoveRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty targets global context.
+  string phase_id = 2;
+  string item_id = 3;
+}
+
+message RemoveRelevantContextItemResponse {
+  AuthoringMutationSummary summary = 1;
+  AuthoringProgress progress = 2;
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
+}
+
+message DiscoverSkillPackRequest {
+  string session_id = 1;
+  // Decomposed discovery concepts (domain / technology / problem type /
+  // scenario surface lenses). Empty falls back to the plan title.
+  repeated string concepts = 2;
+  // Optional prompt-manager discovery complexity: minor|moderate|major|architectural.
+  // Synonyms low/medium/high are normalized; omit to use prompt-manager's default.
+  string complexity = 3;
+  // Optional phase id or authored order number. When set, the discovered pack
+  // is added as phase-scoped context on that phase instead of global context.
+  string phase_id = 4;
+}
+
+message DiscoverSkillPackResponse {
+  repeated shared.RelevantContextItem added_items = 1;
+  repeated shared.RelevantContextItem kept_items = 2;
+  string read_command = 3;
+  string recommended_read_command = 4;
+  string budget_status = 5;
+  string results_summary = 6;
+  AuthoringProgress progress = 7;
+  shared.GuidedStep step = 8;
+  repeated StructureViolation violations = 9;
+  bool degraded = 10;
+  string degraded_reason = 11;
+}
+
+message AddPhaseRequest {
+  string session_id = 1;
+  string title = 2;
+  string intent = 3;
+}
+
+message AddPhaseResponse {
+  // The single new phase draft (existing phases are not echoed).
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message MovePhaseRequest {
+  string session_id = 1;
+  // Phase id or authored order number to move.
+  string phase_id = 2;
+  // Move phase_id before this phase id/order. Mutually exclusive with after_phase_id.
+  string before_phase_id = 3;
+  // Move phase_id after this phase id/order. Mutually exclusive with before_phase_id.
+  string after_phase_id = 4;
+}
+
+message MovePhaseResponse {
+  // The moved phase draft after order renumbering.
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message GetPhaseRequest {
+  string session_id = 1;
+  // Phase id or authored order number.
+  string phase_id = 2;
+}
+
+message GetPhaseResponse {
+  PhaseDraft phase = 1;
+  shared.GuidedStep step = 2;
+}
+
+message SubmitPhaseFieldRequest {
+  string session_id = 1;
+  // Phase id or authored order number.
+  string phase_id = 2;
+  // title | intent | references | relevant_context | reminders | acceptance |
+  // no_code_refs_reason. required_reading is accepted only as legacy migration
+  // input.
+  string field = 3;
+  string content = 4;
+}
+
+message SubmitPhaseFieldResponse {
+  // The single updated phase draft so the caller can read exactly what was
+  // parsed (other phases are not echoed).
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message NextPhaseRequest {
+  string session_id = 1;
+}
+
+message NextPhaseResponse {
+  PhaseDraft phase = 1;
+  bool complete = 2;
+  shared.GuidedStep step = 3;
+}
+
+message PreviewPlanRequest {
+  string session_id = 1;
+}
+
+message PreviewPlanResponse {
+  // The rendered markdown review artifact for the in-progress plan.
+  string markdown = 1;
+  shared.GuidedStep step = 2;
+}
+
+message FinalizeRequest {
+  string session_id = 1;
+  // Workspace root to stamp on the produced plan (usually the caller's repo
+  // root) so workspace-scoped reads (`plans get`/`list` run from that root)
+  // resolve it. Empty leaves the plan unscoped.
+  string workspace_root = 2;
+}
+
+message FinalizeResponse {
+  shared.Plan plan = 1;
+  shared.GuidedStep step = 2;
+  // Honest persistence report: the resolved physical SQLite path the plan row
+  // was written to. Empty only when the server was wired without a store path.
+  string store_path = 3;
+  // COMPUTED mirror publish result, threaded from the write itself — never the
+  // read-model default. For a plan this call just created the status is one of
+  // fresh/write_failed/missing/stale, never unknown.
+  shared.RenderedPlanMirror mirror = 4;
+  // True when the session was already finalized and this call short-circuited
+  // idempotently (no new plan row was written).
+  bool already_finalized = 5;
+  // Session timestamp of the finalize that persisted the plan.
+  string finalized_at = 6;
+  // Canonical workspace root stamped on the persisted plan ("" = unscoped).
+  string workspace_root = 7;
+}

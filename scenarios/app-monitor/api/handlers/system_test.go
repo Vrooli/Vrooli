@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 func TestNewSystemHandler(t *testing.T) {
@@ -73,6 +76,9 @@ func TestGetResources(t *testing.T) {
 	t.Run("FirstCall", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatuses = func(context.Context) (*cliv1.ResourceStatusesResponse, error) {
+			return &cliv1.ResourceStatusesResponse{Success: true, Resources: []*cliv1.ResourceStatus{{Resource: &cliv1.Resource{Name: "postgres"}, Running: true}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources", handler.GetResources)
@@ -81,9 +87,11 @@ func TestGetResources(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on whether vrooli CLI is available
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d (expected 200 or 500)", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic success, got %d: %s", w.Code, w.Body.String())
+		}
+		if !strings.Contains(w.Body.String(), "postgres") {
+			t.Fatalf("success omitted resource payload: %s", w.Body.String())
 		}
 
 		// Response should be JSON
@@ -96,6 +104,9 @@ func TestGetResources(t *testing.T) {
 	t.Run("CachedCall", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatuses = func(context.Context) (*cliv1.ResourceStatusesResponse, error) {
+			return &cliv1.ResourceStatusesResponse{Success: true, Resources: []*cliv1.ResourceStatus{{Resource: &cliv1.Resource{Name: "postgres"}, Running: true}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources", handler.GetResources)
@@ -110,11 +121,11 @@ func TestGetResources(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		router.ServeHTTP(w2, req2)
 
-		// If both succeeded, responses should be similar
-		if w1.Code == http.StatusOK && w2.Code == http.StatusOK {
-			if w1.Body.String() != w2.Body.String() {
-				t.Log("Note: Cached responses may differ slightly")
-			}
+		if w1.Code != http.StatusOK || w2.Code != http.StatusOK {
+			t.Fatalf("cached success calls failed: %d, %d", w1.Code, w2.Code)
+		}
+		if w1.Body.String() != w2.Body.String() {
+			t.Fatalf("cached response changed: %s vs %s", w1.Body, w2.Body)
 		}
 	})
 }
@@ -145,6 +156,9 @@ func TestGetResourceStatus(t *testing.T) {
 	t.Run("ValidID", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatus = func(context.Context, string) (*cliv1.ResourceStatusResponse, error) {
+			return &cliv1.ResourceStatusResponse{Success: true, Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres"}}}, nil
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources/:id/status", handler.GetResourceStatus)
@@ -153,9 +167,8 @@ func TestGetResourceStatus(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on CLI availability
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d", w.Code)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected deterministic resource status success, got %d: %s", w.Code, w.Body.String())
 		}
 	})
 }
@@ -182,6 +195,9 @@ func TestGetResourceDetails(t *testing.T) {
 	t.Run("ValidID", func(t *testing.T) {
 		metricsService := services.NewMetricsService()
 		handler := NewSystemHandler(metricsService)
+		handler.resourceStatus = func(context.Context, string) (*cliv1.ResourceStatusResponse, error) {
+			return nil, errors.New("resource dependency unavailable")
+		}
 
 		router := gin.New()
 		router.GET("/api/v1/resources/:id/details", handler.GetResourceDetails)
@@ -190,9 +206,8 @@ func TestGetResourceDetails(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// May succeed or fail depending on CLI availability
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Logf("Got status: %d", w.Code)
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected controlled dependency failure, got %d", w.Code)
 		}
 	})
 }
@@ -334,61 +349,51 @@ func TestLookupValue(t *testing.T) {
 	})
 }
 
-func TestTransformResource(t *testing.T) {
-	handler := NewSystemHandler(nil)
-
-	t.Run("ValidResource", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Name":    "postgres",
-			"Type":    "database",
-			"Enabled": "true",
-			"Running": "true",
-			"Status":  "online",
+func TestResourceStatusToMap(t *testing.T) {
+	t.Run("OnlineResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource: &cliv1.Resource{Name: "postgres", Driver: "compose-service", Registered: true, Enabled: true},
+			Running:  true,
 		}
-
-		transformed, valid := handler.transformResource(raw)
-
-		if !valid {
-			t.Fatal("Expected valid transformation")
+		m := resourceStatusToMap(rs)
+		if m["id"] != "postgres" || m["name"] != "postgres" {
+			t.Errorf("Expected id/name 'postgres', got %v", m)
 		}
-
-		if transformed["id"] != "postgres" {
-			t.Errorf("Expected id 'postgres', got %v", transformed["id"])
+		if m["type"] != "compose-service" {
+			t.Errorf("Expected type to carry the driver, got %v", m["type"])
 		}
-
-		if transformed["status"] != "online" {
-			t.Errorf("Expected status 'online', got %v", transformed["status"])
+		if m["status"] != "online" {
+			t.Errorf("Expected status 'online', got %v", m["status"])
+		}
+		if m["enabled"] != true || m["running"] != true || m["enabled_known"] != true {
+			t.Errorf("Expected enabled/running/enabled_known true, got %v", m)
 		}
 	})
 
-	t.Run("MissingName", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Type": "database",
+	t.Run("StoppedResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource: &cliv1.Resource{Name: "redis", Registered: true, Enabled: true},
+			Running:  false,
 		}
-
-		_, valid := handler.transformResource(raw)
-
-		if valid {
-			t.Error("Expected invalid transformation for missing name")
+		if got := resourceStatusToMap(rs)["status"]; got != "stopped" {
+			t.Errorf("Expected status 'stopped', got %v", got)
 		}
 	})
 
-	t.Run("OfflineResource", func(t *testing.T) {
-		raw := map[string]interface{}{
-			"Name":    "redis",
-			"Enabled": "true",
-			"Running": "false",
-			"Status":  "stopped",
+	t.Run("UnregisteredResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "ghost", Registered: false}}
+		if got := resourceStatusToMap(rs)["status"]; got != "unregistered" {
+			t.Errorf("Expected status 'unregistered', got %v", got)
 		}
+	})
 
-		transformed, valid := handler.transformResource(raw)
-
-		if !valid {
-			t.Fatal("Expected valid transformation")
+	t.Run("ErrorResource", func(t *testing.T) {
+		rs := &cliv1.ResourceStatus{
+			Resource:   &cliv1.Resource{Name: "broken", Registered: true, Enabled: true},
+			ProbeError: "boom",
 		}
-
-		if transformed["status"] != "stopped" {
-			t.Errorf("Expected status 'stopped', got %v", transformed["status"])
+		if got := resourceStatusToMap(rs)["status"]; got != "error" {
+			t.Errorf("Expected status 'error', got %v", got)
 		}
 	})
 }

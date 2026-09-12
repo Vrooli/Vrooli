@@ -4,14 +4,20 @@ import (
 	"context"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/systemevents"
 )
 
 // mockStore implements StoreInterface for testing.
 type mockStore struct {
-	pingErr          error
+	pingErr error
+	// pingDelay simulates a database that is reachable but slow, which is what
+	// a live retention cycle looks like from the health probe.
+	pingDelay        time.Duration
 	saveErr          error
 	recentResults    []checks.Result
 	recentErr        error
@@ -23,11 +29,55 @@ type mockStore struct {
 	uptimeHistoryErr error
 	checkTrends      *persistence.CheckTrendsResponse
 	checkTrendsErr   error
-	incidents        *persistence.IncidentsResponse
+	transitions      *persistence.TransitionsResponse
+	transitionsErr   error
+	actionLogs       *persistence.ActionLogsResponse
+	actionLogsErr    error
+	systemEvents     *systemevents.Response
+	systemEventsErr  error
 	incidentsErr     error
+	incident         *incidents.Incident
+	recordedArtifact *incidents.RemediationArtifact
+	recordedOutcome  *incidents.Outcome
+	savedInventories int
+	retentionCalls   int
+	retentionBefore  time.Time
+	actionLogCalls   int
+	lastActionLog    persistence.ActionLog
+	outageSummary    *persistence.OutageSummary
+	outageErr        error
+	outageObserved   []checks.Result
+}
+
+func (m *mockStore) ObserveSupervisedAvailability(_ context.Context, result checks.Result) error {
+	m.outageObserved = append(m.outageObserved, result)
+	return m.outageErr
+}
+
+func (m *mockStore) GetOutageSummary(_ context.Context, memberID string, from, to time.Time) (*persistence.OutageSummary, error) {
+	if m.outageErr != nil {
+		return nil, m.outageErr
+	}
+	if m.outageSummary != nil {
+		return m.outageSummary, nil
+	}
+	return &persistence.OutageSummary{MemberID: memberID, WindowStart: from, WindowEnd: to}, nil
+}
+
+func (m *mockStore) PruneOperationalHistory(_ context.Context, before time.Time, _ int) (persistence.RetentionResult, error) {
+	m.retentionCalls++
+	m.retentionBefore = before
+	return persistence.RetentionResult{}, nil
 }
 
 func (m *mockStore) Ping(ctx context.Context) error {
+	if m.pingDelay > 0 {
+		select {
+		case <-time.After(m.pingDelay):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return m.pingErr
 }
 
@@ -92,26 +142,119 @@ func (m *mockStore) GetCheckTrends(ctx context.Context, windowHours int) (*persi
 	}, nil
 }
 
-func (m *mockStore) GetIncidents(ctx context.Context, windowHours, limit int) (*persistence.IncidentsResponse, error) {
-	if m.incidentsErr != nil {
-		return nil, m.incidentsErr
+func (m *mockStore) GetTransitions(ctx context.Context, windowHours, limit int) (*persistence.TransitionsResponse, error) {
+	if m.transitionsErr != nil {
+		return nil, m.transitionsErr
 	}
-	if m.incidents != nil {
-		return m.incidents, nil
+	if m.transitions != nil {
+		return m.transitions, nil
 	}
-	return &persistence.IncidentsResponse{
-		Incidents:   []persistence.Incident{},
+	return &persistence.TransitionsResponse{
+		Transitions: []persistence.Transition{},
 		WindowHours: windowHours,
 		Total:       0,
 	}, nil
 }
 
+func (m *mockStore) UpsertSystemEvents(ctx context.Context, events []systemevents.Event) (int, int, error) {
+	return len(events), 0, nil
+}
+
+func (m *mockStore) UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error {
+	return nil
+}
+
+func (m *mockStore) ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error) {
+	if m.systemEventsErr != nil {
+		return nil, m.systemEventsErr
+	}
+	if m.systemEvents != nil {
+		return m.systemEvents, nil
+	}
+	return &systemevents.Response{Events: []systemevents.Event{}, Sources: []systemevents.SourceStatus{}, Filters: systemevents.FiltersEcho{Limit: filters.Limit}}, nil
+}
+
+func (m *mockStore) GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error) {
+	return []systemevents.SourceStatus{}, nil
+}
+
+func (m *mockStore) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
+	m.savedInventories++
+	return &hostinventory.SnapshotRecord{ID: "test", Inventory: inv}, nil, nil
+}
+
+func (m *mockStore) GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
+	return nil, nil
+}
+
+func (m *mockStore) GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error) {
+	return []hostinventory.Change{}, nil
+}
+
+func (m *mockStore) UpsertIncident(ctx context.Context, input incidents.UpsertInput) (*incidents.Incident, error) {
+	return &incidents.Incident{ID: "inc_test", Fingerprint: input.Fingerprint, Type: input.Type, Severity: input.Severity, Status: incidents.StatusOpen, EventCount: 1, ObservationCount: 1}, nil
+}
+
+func (m *mockStore) ListIncidents(ctx context.Context, filters incidents.ListFilters) (*incidents.ListResponse, error) {
+	if m.incidentsErr != nil {
+		return nil, m.incidentsErr
+	}
+	return &incidents.ListResponse{Incidents: []incidents.Incident{}, Filters: filters}, nil
+}
+
+func (m *mockStore) GetIncident(ctx context.Context, id string) (*incidents.Incident, error) {
+	if m.incident != nil {
+		incident := *m.incident
+		return &incident, nil
+	}
+	return nil, nil
+}
+
+func (m *mockStore) ListIncidentObservations(ctx context.Context, incidentID string, limit int) ([]incidents.Observation, error) {
+	return []incidents.Observation{}, nil
+}
+
+func (m *mockStore) UpdateIncidentStatus(ctx context.Context, incidentID string, status incidents.Status, note string) (*incidents.Incident, error) {
+	return &incidents.Incident{ID: incidentID, Status: status}, nil
+}
+
+func (m *mockStore) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
+	m.recordedArtifact = &artifact
+	if m.incident == nil {
+		return &incidents.Incident{ID: incidentID, RemediationArtifacts: []incidents.RemediationArtifact{artifact}}, nil
+	}
+	incident := *m.incident
+	incident.RemediationArtifacts = append(incident.RemediationArtifacts, artifact)
+	return &incident, nil
+}
+
+func (m *mockStore) RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error) {
+	m.recordedOutcome = &outcome
+	if m.incident == nil {
+		return &incidents.Incident{ID: incidentID, Outcome: &outcome}, nil
+	}
+	incident := *m.incident
+	incident.Outcome = &outcome
+	return &incident, nil
+}
+
 // Action log mock methods [REQ:HEAL-ACTION-001].
-func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success bool, message, output, errMsg string, durationMs int64) error {
+func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
+	m.actionLogCalls++
+	m.lastActionLog = persistence.ActionLog{
+		CheckID: checkID, ActionID: actionID, Success: success,
+		Message: message, Output: output, Error: errMsg, DurationMs: durationMs,
+	}
 	return nil
 }
 
 func (m *mockStore) GetActionLogs(ctx context.Context, limit int) (*persistence.ActionLogsResponse, error) {
+	if m.actionLogsErr != nil {
+		return nil, m.actionLogsErr
+	}
+	if m.actionLogs != nil {
+		return m.actionLogs, nil
+	}
 	return &persistence.ActionLogsResponse{
 		Logs:  []persistence.ActionLog{},
 		Total: 0,
@@ -168,7 +311,9 @@ func setupTestHandlers(store StoreInterface) *Handlers {
 		message: "Test OK",
 	})
 
-	return NewWithInterface(registry, store, caps)
+	h := NewWithInterface(registry, store, caps)
+	h.hostCollector = fakeHostCollector{}
+	return h
 }
 
 // mockHealableCheck implements checks.HealableCheck for testing actions.
@@ -218,7 +363,27 @@ func setupTestHandlersWithHealable(store StoreInterface) *Handlers {
 		},
 	})
 
-	return NewWithInterface(registry, store, caps)
+	h := NewWithInterface(registry, store, caps)
+	h.hostCollector = fakeHostCollector{}
+	return h
+}
+
+type fakeHostCollector struct{}
+
+func (fakeHostCollector) Collect(ctx context.Context) (hostinventory.HostInventory, error) {
+	return hostinventory.HostInventory{
+		CollectedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		BootID:      "boot-test",
+		Kernel: hostinventory.KernelInfo{
+			Release:           "test-kernel",
+			ModuleTreePresent: true,
+		},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"test": hostinventory.IntegrityProbeOK},
+		Fingerprint: "test-fingerprint",
+	}, nil
 }
 
 // mockHealableCheckCritical implements a critical healable check for auto-heal testing.

@@ -65,7 +65,11 @@ describe("formSelectors", () => {
   describe("selectConnectionDecision", () => {
     it("returns bundled-runtime for bundled deployment mode", () => {
       const state = createTestState({
-        deployment: { mode: "bundled", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "bundled",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       const decision = selectConnectionDecision(state);
@@ -77,7 +81,11 @@ describe("formSelectors", () => {
 
     it("returns remote-server for external-server with external server type", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       const decision = selectConnectionDecision(state);
@@ -89,7 +97,11 @@ describe("formSelectors", () => {
 
     it("returns local-embedded for external-server with node server type", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "node", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "node",
+          framework: "electron",
+        },
       });
 
       const decision = selectConnectionDecision(state);
@@ -101,7 +113,11 @@ describe("formSelectors", () => {
 
     it("returns local-embedded for external-server with static server type", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "static", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "static",
+          framework: "electron",
+        },
       });
 
       const decision = selectConnectionDecision(state);
@@ -111,7 +127,11 @@ describe("formSelectors", () => {
 
     it("returns bundled-runtime for cloud-api mode", () => {
       const state = createTestState({
-        deployment: { mode: "cloud-api", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "cloud-api",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       // cloud-api should behave like bundled for now
@@ -126,7 +146,11 @@ describe("formSelectors", () => {
   describe("selectIsBundled", () => {
     it("returns true for bundled deployment mode", () => {
       const state = createTestState({
-        deployment: { mode: "bundled", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "bundled",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectIsBundled(state)).toBe(true);
@@ -134,7 +158,11 @@ describe("formSelectors", () => {
 
     it("returns false for external-server deployment mode", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectIsBundled(state)).toBe(false);
@@ -142,7 +170,11 @@ describe("formSelectors", () => {
 
     it("returns false for cloud-api deployment mode", () => {
       const state = createTestState({
-        deployment: { mode: "cloud-api", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "cloud-api",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectIsBundled(state)).toBe(false);
@@ -152,7 +184,11 @@ describe("formSelectors", () => {
   describe("selectRequiresRemoteConfig", () => {
     it("returns false for bundled mode", () => {
       const state = createTestState({
-        deployment: { mode: "bundled", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "bundled",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectRequiresRemoteConfig(state)).toBe(false);
@@ -160,7 +196,11 @@ describe("formSelectors", () => {
 
     it("returns true for external-server with external server type", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectRequiresRemoteConfig(state)).toBe(true);
@@ -168,7 +208,11 @@ describe("formSelectors", () => {
 
     it("returns false for external-server with node server type", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "node", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "node",
+          framework: "electron",
+        },
       });
 
       expect(selectRequiresRemoteConfig(state)).toBe(false);
@@ -178,7 +222,11 @@ describe("formSelectors", () => {
   describe("selectAllowedServerTypes", () => {
     it("returns only external for bundled mode", () => {
       const state = createTestState({
-        deployment: { mode: "bundled", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "bundled",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectAllowedServerTypes(state)).toEqual(["external"]);
@@ -186,7 +234,11 @@ describe("formSelectors", () => {
 
     it("returns only external for cloud-api mode", () => {
       const state = createTestState({
-        deployment: { mode: "cloud-api", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "cloud-api",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       expect(selectAllowedServerTypes(state)).toEqual(["external"]);
@@ -194,7 +246,11 @@ describe("formSelectors", () => {
 
     it("returns all server types for external-server mode", () => {
       const state = createTestState({
-        deployment: { mode: "external-server", serverType: "external", framework: "electron" },
+        deployment: {
+          mode: "external-server",
+          serverType: "external",
+          framework: "electron",
+        },
       });
 
       const allowed = selectAllowedServerTypes(state);
@@ -274,13 +330,17 @@ describe("formSelectors", () => {
     it("returns correct path for scenario", () => {
       const path = selectStagingPreviewPath("my-scenario");
 
-      expect(path).toBe("scenarios/scenario-to-desktop/data/staging/my-scenario/<build-id>");
+      expect(path).toBe(
+        "<cache-root>/vrooli/scenario-to-desktop/staging/my-scenario/<build-id>",
+      );
     });
 
     it("returns placeholder for empty scenario name", () => {
       const path = selectStagingPreviewPath("");
 
-      expect(path).toBe("scenarios/scenario-to-desktop/data/staging/<scenario>/<build-id>");
+      expect(path).toBe(
+        "<cache-root>/vrooli/scenario-to-desktop/staging/<scenario>/<build-id>",
+      );
     });
   });
 
@@ -350,7 +410,9 @@ describe("formSelectors", () => {
 
     it("returns true when validation errors exist", () => {
       const state = createTestState({
-        validationErrors: [{ id: "1", field: "scenarioName", message: "Required" }],
+        validationErrors: [
+          { id: "1", field: "scenarioName", message: "Required" },
+        ],
       });
 
       expect(selectHasValidationErrors(state)).toBe(true);
@@ -371,7 +433,9 @@ describe("formSelectors", () => {
   describe("selectFieldErrors", () => {
     it("returns empty array when no errors for field", () => {
       const state = createTestState({
-        validationErrors: [{ id: "1", field: "scenarioName", message: "Required" }],
+        validationErrors: [
+          { id: "1", field: "scenarioName", message: "Required" },
+        ],
       });
 
       const selector = selectFieldErrors("platforms");
@@ -446,7 +510,7 @@ describe("formSelectors", () => {
       const customDeployment = {
         mode: "external-server" as const,
         serverType: "node" as const,
-        framework: "tauri",
+        framework: "electron" as const,
       };
       const state = createTestState({
         deployment: customDeployment,

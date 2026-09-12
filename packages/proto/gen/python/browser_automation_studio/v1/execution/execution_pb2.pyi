@@ -213,16 +213,84 @@ class Execution(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., result: _Optional[_Union[ExecutionResult, _Mapping]] = ..., trigger_metadata: _Optional[_Union[TriggerMetadata, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., request_id: _Optional[str] = ..., resumed_from: _Optional[str] = ...) -> None: ...
 
 class ExecuteAdhocRequest(_message.Message):
-    __slots__ = ("flow_definition", "wait_for_completion", "metadata", "parameters")
+    __slots__ = ("flow_definition", "wait_for_completion", "metadata", "parameters", "options")
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
     flow_definition: _definition_pb2.WorkflowDefinitionV2
     wait_for_completion: bool
     metadata: ExecutionMetadata
     parameters: ExecutionParameters
-    def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ...) -> None: ...
+    options: ExecuteWorkflowOptions
+    def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., options: _Optional[_Union[ExecuteWorkflowOptions, _Mapping]] = ...) -> None: ...
+
+class ExecuteWorkflowOptions(_message.Message):
+    __slots__ = ("requires_video", "requires_trace", "requires_har", "frame_streaming", "frame_streaming_quality", "frame_streaming_fps", "seed_mode", "seed_scenario", "app_target", "validation_context")
+    REQUIRES_VIDEO_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_TRACE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_HAR_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    FRAME_STREAMING_FPS_FIELD_NUMBER: _ClassVar[int]
+    SEED_MODE_FIELD_NUMBER: _ClassVar[int]
+    SEED_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    APP_TARGET_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    requires_video: bool
+    requires_trace: bool
+    requires_har: bool
+    frame_streaming: bool
+    frame_streaming_quality: int
+    frame_streaming_fps: int
+    seed_mode: str
+    seed_scenario: str
+    app_target: AppTarget
+    validation_context: ValidationContext
+    def __init__(self, requires_video: _Optional[bool] = ..., requires_trace: _Optional[bool] = ..., requires_har: _Optional[bool] = ..., frame_streaming: _Optional[bool] = ..., frame_streaming_quality: _Optional[int] = ..., frame_streaming_fps: _Optional[int] = ..., seed_mode: _Optional[str] = ..., seed_scenario: _Optional[str] = ..., app_target: _Optional[_Union[AppTarget, _Mapping]] = ..., validation_context: _Optional[_Union[ValidationContext, _Mapping]] = ...) -> None: ...
+
+class AppTarget(_message.Message):
+    __slots__ = ("target_kind", "target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "cdp_transport")
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    CDP_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_ID_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_URL_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_TITLE_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
+    CDP_TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    target_kind: str
+    target_id: str
+    cdp_endpoint: str
+    renderer_id: str
+    renderer_url: str
+    renderer_title: str
+    scenario_name: str
+    artifact_digest: str
+    context_id: str
+    cdp_transport: str
+    def __init__(self, target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ...) -> None: ...
+
+class ValidationContext(_message.Message):
+    __slots__ = ("context_id", "scenario_name", "artifact_digest", "target_id", "workflow_id", "profile_id", "isolation_lease_id")
+    CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    ISOLATION_LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    context_id: str
+    scenario_name: str
+    artifact_digest: str
+    target_id: str
+    workflow_id: str
+    profile_id: str
+    isolation_lease_id: str
+    def __init__(self, context_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., target_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., profile_id: _Optional[str] = ..., isolation_lease_id: _Optional[str] = ...) -> None: ...
 
 class ExecutionMetadata(_message.Message):
     __slots__ = ("name", "description")

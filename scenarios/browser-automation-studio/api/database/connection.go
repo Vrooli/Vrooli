@@ -2,29 +2,34 @@ package database
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"database/sql"
 	"fmt"
-	"io"
-	"math/rand"
+	"math/big"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
-	_ "modernc.org/sqlite"
+	repocontract "github.com/vrooli/repo-contract-go"
+
+	_ "modernc.org/sqlite" // registers the pure-Go sqlite driver for database/sql
 )
 
 // DB wraps sqlx.DB with additional functionality
 type DB struct {
 	*sqlx.DB
-	log     *logrus.Logger
-	dialect Dialect
+	// Routed is the request-context-aware persistence seam used by domains that
+	// participate in Test Genie lease isolation. The embedded sqlx handle remains
+	// temporarily for repository code that has not yet completed its sqlx-to-
+	// domain-repository migration.
+	Routed *coredb.RoutedDB
+	log    *logrus.Logger
 }
 
 // Note: As of Go 1.20, the global random generator is automatically seeded.
@@ -32,9 +37,7 @@ type DB struct {
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	dialect := parseDialect(os.Getenv("BAS_DB_BACKEND"))
-
-	var db *sqlx.DB
+	var routed *coredb.RoutedDB
 	var err error
 
 	// Load configuration from control surface
@@ -47,23 +50,16 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 	jitterFactor := cfg.Database.RetryJitterFactor
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		switch dialect {
-		case DialectPostgres:
-			db, err = connectPostgres(log)
-		case DialectSQLite:
-			db, err = connectSQLite(log)
-		default:
-			return nil, fmt.Errorf("unsupported BAS_DB_BACKEND: %s (expected postgres|sqlite)", dialect)
-		}
+		routed, err = connectRoutedSQLite(log)
 
 		if err == nil {
 			// Test the connection
 			ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseQueryTimeout)
-			err = db.PingContext(ctx)
+			err = routed.PingContext(ctx)
 			cancel()
 
 			if err == nil {
-				log.WithField("dialect", dialect).Info("Successfully connected to database")
+				log.Info("Successfully connected to database")
 				break
 			}
 		}
@@ -73,7 +69,15 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		if delay > maxDelay {
 			delay = maxDelay
 		}
-		jitter := time.Duration(float64(delay) * jitterFactor * rand.Float64())
+		jitterMax := int64(float64(delay) * jitterFactor)
+		jitter := time.Duration(0)
+		if jitterMax > 0 {
+			value, randomErr := cryptorand.Int(cryptorand.Reader, big.NewInt(jitterMax+1))
+			if randomErr != nil {
+				return nil, fmt.Errorf("generate retry jitter: %w", randomErr)
+			}
+			jitter = time.Duration(value.Int64())
+		}
 		actualDelay := delay + jitter
 
 		log.WithFields(logrus.Fields{
@@ -90,137 +94,111 @@ func NewConnection(log *logrus.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
-	if dialect == DialectSQLite {
-		db.SetMaxOpenConns(1) // SQLite only supports a single connection
+	if routed == nil {
+		return nil, fmt.Errorf("database connection did not initialize a routed pool")
 	}
 
+	// Keep the existing sqlx repository surface on top of the routed primary
+	// pool while domain-owned consumers migrate to DB.Routed. The one-writer
+	// SQLite policy is configured in connectRoutedSQLite.
+	db := sqlx.NewDb(routed.Primary(), "sqlite")
+	db.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
+
 	dbWrapper := &DB{
-		DB:      db,
-		log:     log,
-		dialect: dialect,
+		DB:     db,
+		Routed: routed,
+		log:    log,
 	}
 
 	// Initialize database schema
-	if err := dbWrapper.initSchema(); err != nil {
+	if err := dbWrapper.EnsureSchemas(); err != nil {
 		log.WithError(err).Error("Failed to initialize database schema")
 		return nil, fmt.Errorf("failed to initialize database schema: %w", err)
 	}
+	// A leased Test Genie pool must receive the same schema before requests are
+	// allowed to route to it. The initializer runs before installation becomes
+	// visible, so no request can observe an uninitialized test database.
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		testDB := &DB{DB: sqlx.NewDb(pool, "sqlite"), log: log}
+		return testDB.EnsureSchemas()
+	})
 
 	return dbWrapper, nil
 }
 
-func connectPostgres(log *logrus.Logger) (*sqlx.DB, error) {
-	// Check for individual PostgreSQL environment variables (preferred)
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
-
-	// Override database name for this scenario if not specifically set
-	if dbName == "vrooli" || dbName == "" {
-		dbName = "browser_automation_studio"
-	}
-
-	var databaseURL string
-	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
-		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			dbUser, dbPassword, dbHost, dbPort, dbName)
-		log.WithFields(logrus.Fields{
-			"host":     dbHost,
-			"port":     dbPort,
-			"user":     dbUser,
-			"database": dbName,
-		}).Info("Using individual PostgreSQL environment variables")
-	} else {
-		databaseURL = os.Getenv("DATABASE_URL")
-		if databaseURL == "" {
-			return nil, fmt.Errorf("PostgreSQL configuration not found. Set DATABASE_URL or POSTGRES_HOST/PORT/USER/PASSWORD/DB")
-		}
-		log.Info("Using DATABASE_URL environment variable")
-	}
-
-	return sqlx.Connect("postgres", databaseURL)
-}
-
-func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
+func connectRoutedSQLite(log *logrus.Logger) (*coredb.RoutedDB, error) {
 	dsn, err := sqliteDSN(log)
 	if err != nil {
 		return nil, err
 	}
-
-	// Best-effort invoke sqlite resource install
-	if err := ensureSQLiteResource(log); err != nil {
-		log.WithError(err).Debug("SQLite resource install check failed; continuing")
-	}
-
-	return sqlx.Connect("sqlite", dsn)
+	return coredb.Open(context.Background(), coredb.Config{
+		Driver:       coredb.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 }
 
+// connectSQLite is retained for focused database tests that exercise the
+// sqlx-specific compatibility helpers. Production startup uses
+// connectRoutedSQLite so request-scoped test routing remains the sole runtime
+// connection path.
+func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
+	routed, err := connectRoutedSQLite(log)
+	if err != nil {
+		return nil, err
+	}
+	return sqlx.NewDb(routed.Primary(), "sqlite"), nil
+}
+
+// sqliteTuning is the driver configuration this scenario needs on top of the
+// shared defaults api-core/storage already applies (foreign_keys, WAL,
+// busy_timeout, cache_size, synchronous, temp_store).
+//
+// _time_format=sqlite makes the modernc.org/sqlite driver bind time.Time values
+// as "2006-01-02 15:04:05.999999999-07:00" (one of its built-in parseable
+// layouts). Without it the driver falls back to time.Time.String()
+// ("2026-05-20 14:42:49.49 +0000 UTC"), which the same driver cannot read back
+// into *time.Time — every SELECT into a timestamp field 500s with "unsupported
+// Scan". See modernc.org/sqlite@v1.40.1/sqlite.go formatTime() for the upstream
+// default.
+var sqliteTuning = storage.SQLiteTuning{
+	PageSizeBytes: 4096,
+	MMapSizeBytes: 268435456,
+	TimeFormat:    "sqlite",
+}
+
+// sqliteDSN resolves this scenario's database through api-core/storage.
+//
+// The path comes from the scenario naming ITSELF, never from a generic
+// environment variable. A variable that does not identify a scenario cannot be
+// scoped to one: any process exporting it redirects the database of every
+// scenario it goes on to start. BAS_SQLITE_PATH remains because it names this
+// scenario and the desktop bundle sets it deliberately (bundle/bundle.json);
+// it is passed as an argument rather than read as ambient configuration.
 func sqliteDSN(log *logrus.Logger) (string, error) {
-	root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH"))
-	if root == "" {
-		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
-			return custom, nil
-		}
-		dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-		if dataRoot == "" {
-			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
-		}
-		if dataRoot == "" {
-			home, _ := os.UserHomeDir()
-			if home == "" {
-				home = "."
-			}
-			dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-		}
-		root = filepath.Join(dataRoot, "browser-automation-studio.db")
-	}
-
-	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-
-	if log != nil {
-		log.WithField("path", root).Info("Using SQLite database")
-	}
-
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
-		root,
-	), nil
-}
-
-func ensureSQLiteResource(log *logrus.Logger) error {
-	cli := strings.TrimSpace(os.Getenv("SQLITE_CLI_PATH"))
-	if cli == "" {
-		cli = filepath.Join("resources", "sqlite", "cli.sh")
-		if _, err := os.Stat(cli); err != nil {
-			cli = "resource-sqlite"
-		}
-	}
-	cmd := exec.Command(cli, "manage", "install")
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	if err := cmd.Run(); err != nil {
+	var (
+		dsn string
+		err error
+	)
+	if root := strings.TrimSpace(os.Getenv("BAS_SQLITE_PATH")); root != "" {
 		if log != nil {
-			log.WithError(err).Debug("resource-sqlite manage install failed or missing")
+			log.WithField("path", root).Info("Using SQLite database")
 		}
-		return err
+		dsn, err = storage.SQLiteDSNAt(root, sqliteTuning)
+	} else {
+		dsn, err = storage.SQLiteDSN(storage.SQLiteConfig{
+			Scenario: "browser-automation-studio",
+			Tuning:   sqliteTuning,
+		})
+		if err == nil && log != nil {
+			log.WithField("dsn", dsn).Info("Using SQLite database")
+		}
 	}
-	return nil
-}
-
-// Dialect returns the active dialect for this DB
-func (db *DB) Dialect() Dialect {
-	if db == nil {
-		return DialectPostgres
+	if err != nil {
+		return "", fmt.Errorf("resolve sqlite dsn: %w", err)
 	}
-	return db.dialect
+	return dsn, nil
 }
 
 // RawDB returns the underlying *sql.DB for direct database access
@@ -242,7 +220,11 @@ func (db *DB) HealthCheck() error {
 
 // WithTransaction executes a function within a database transaction
 func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
-	tx, err := db.Beginx()
+	// sqlx does not expose a safe constructor for wrapping a transaction
+	// selected by RoutedDB. This compatibility helper is not used by the
+	// request-facing repository; migrate its remaining callers before routing
+	// transaction-based domain work through this method.
+	tx, err := db.DB.BeginTxx(context.Background(), nil)
 	if err != nil {
 		return err
 	}
@@ -274,47 +256,26 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 }
 
 // initSchema initializes the database schema
-func (db *DB) initSchema() error {
-	filename := "schema.sql"
-	if db.dialect == DialectSQLite {
-		filename = "schema_sqlite.sql"
-	}
-
-	// Resolve schema path from standard location: initialization/postgres/
-	// This uses the scenario root, resolved from VROOLI_ROOT or executable path
-	scenarioRoot := os.Getenv("VROOLI_ROOT")
-	if scenarioRoot != "" {
-		scenarioRoot = filepath.Join(scenarioRoot, "scenarios", "browser-automation-studio")
-	} else {
-		// Fallback: resolve from executable location
-		// Expected structure: {scenario}/api/binary -> go up 1 level to scenario root
-		if execPath, err := os.Executable(); err == nil {
-			scenarioRoot = filepath.Join(filepath.Dir(execPath), "..")
-			scenarioRoot, _ = filepath.Abs(scenarioRoot)
-		} else {
-			// Last resort: use relative path from current working directory
-			scenarioRoot = "."
-		}
-	}
-	schemaPath := filepath.Join(scenarioRoot, "initialization", "postgres", filename)
-
-	schemaBytes, err := os.ReadFile(schemaPath)
+// EnsureSchemas creates or updates the schema for this database pool. It is
+// used for both the primary pool and each leased Test Genie pool before that
+// pool is made available to request routing.
+func (db *DB) EnsureSchemas() error {
+	scenarioRoot, err := resolveScenarioRoot()
 	if err != nil {
-		db.log.WithError(err).WithField("path", schemaPath).Error("Failed to read schema file")
-		return fmt.Errorf("failed to read schema file at %s: %w", schemaPath, err)
+		return fmt.Errorf("resolve browser-automation-studio scenario root: %w", err)
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), constants.DatabaseMigrationTimeout)
 	defer cancel()
 
-	_, err = db.ExecContext(ctx, string(schemaBytes))
+	providers, err := SchemaProviders(scenarioRoot)
 	if err != nil {
-		db.log.WithError(err).Error("Failed to execute schema initialization")
-		return err
+		return fmt.Errorf("load domain schema registry: %w", err)
+	}
+	if err := coredb.EnsureSchemas(ctx, db.DB, providers...); err != nil {
+		return fmt.Errorf("initialize domain schema registry: %w", err)
 	}
 
-	if err := db.applyIndexSchemaMigrations(ctx); err != nil {
-		db.log.WithError(err).Error("Failed to apply index schema migrations")
+	if err := db.ensureSchemaCompatibility(ctx); err != nil {
 		return err
 	}
 
@@ -322,220 +283,132 @@ func (db *DB) initSchema() error {
 	return nil
 }
 
-func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
-	// Check if we're using the new comprehensive schema (has workflow_folders table).
-	// If so, skip legacy migrations designed for the old simplified schema.
-	var hasNewSchema bool
-	if db.dialect == DialectPostgres {
-		err := db.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_folders')`).Scan(&hasNewSchema)
-		if err != nil {
-			db.log.WithError(err).Warn("Failed to check for new schema, skipping legacy migrations")
-			return nil
-		}
-		if hasNewSchema {
-			db.log.Debug("Using comprehensive schema, skipping legacy migrations")
-			return nil
-		}
+func (db *DB) ensureSchemaCompatibility(ctx context.Context) error {
+	if err := db.ensureWorkflowSchemaCompatibility(ctx); err != nil {
+		return err
 	}
-
-	// Legacy database instances may already have tables created without newer index columns.
-	// Avoid SELECT * scan breakages by ensuring expected columns exist.
-
-	// First, migrate the unique constraint on workflows table.
-	// Old constraint: UNIQUE(name, folder_path) - global uniqueness
-	// New constraint: UNIQUE(project_id, name, folder_path) - per-project uniqueness
-	if err := db.migrateWorkflowUniqueConstraint(ctx); err != nil {
-		return fmt.Errorf("migrate workflow unique constraint: %w", err)
+	if err := db.ensureExecutionSchemaCompatibility(ctx); err != nil {
+		return err
 	}
-
-	if db.dialect != DialectPostgres {
-		return nil
-	}
-
-	statements := []string{
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-		`ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS project_id UUID`,
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS folder_path VARCHAR(500)`,
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS file_path VARCHAR(1000)`,
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1`,
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-		`ALTER TABLE workflows ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS status VARCHAR(50)`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS error_message TEXT`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS result_path VARCHAR(1000)`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-		`ALTER TABLE executions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS name VARCHAR(255)`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS cron_expression VARCHAR(100)`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC'`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS parameters_json TEXT DEFAULT '{}'`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMP`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMP`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-		`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
-	}
-
-	for _, statement := range statements {
-		if _, err := db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("schema migration failed: %w", err)
-		}
-	}
-
 	return nil
 }
 
-// migrateWorkflowUniqueConstraint migrates the workflows table unique constraint
-// from (name, folder_path) to (project_id, name, folder_path).
-// This allows different projects to have workflows with the same name.
-func (db *DB) migrateWorkflowUniqueConstraint(ctx context.Context) error {
-	switch db.dialect {
-	case DialectPostgres:
-		return db.migrateWorkflowUniqueConstraintPostgres(ctx)
-	case DialectSQLite:
-		return db.migrateWorkflowUniqueConstraintSQLite(ctx)
-	default:
+func (db *DB) ensureWorkflowSchemaCompatibility(ctx context.Context) error {
+	hasWorkflows, err := db.tableExists(ctx, "workflows")
+	if err != nil {
+		return fmt.Errorf("check workflows table: %w", err)
+	}
+	if !hasWorkflows {
 		return nil
 	}
+
+	hasFilePath, err := db.columnExists(ctx, "workflows", "file_path")
+	if err != nil {
+		return fmt.Errorf("check workflows.file_path column: %w", err)
+	}
+	if hasFilePath {
+		return nil
+	}
+
+	if err := db.ensureColumnCompatibility(ctx, "workflows", "file_path", "TEXT"); err != nil {
+		return fmt.Errorf("ensure workflows.file_path column: %w", err)
+	}
+	return nil
 }
 
-func (db *DB) migrateWorkflowUniqueConstraintPostgres(ctx context.Context) error {
-	// Check if the old constraint exists and drop it
-	// PostgreSQL constraint names from different schema files:
-	// - "unique_workflow_name_in_folder" (initialization schema)
-	// - "workflows_name_folder_path_key" (auto-generated from UNIQUE(name, folder_path))
-	dropStatements := []string{
-		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS unique_workflow_name_in_folder`,
-		`ALTER TABLE workflows DROP CONSTRAINT IF EXISTS workflows_name_folder_path_key`,
+func (db *DB) ensureExecutionSchemaCompatibility(ctx context.Context) error {
+	hasExecutions, err := db.tableExists(ctx, "executions")
+	if err != nil {
+		return fmt.Errorf("check executions table: %w", err)
+	}
+	if !hasExecutions {
+		return nil
 	}
 
-	for _, stmt := range dropStatements {
-		if _, err := db.ExecContext(ctx, stmt); err != nil {
-			// Log but don't fail - constraint might not exist
-			if db.log != nil {
-				db.log.WithError(err).Debug("Constraint drop statement (may not exist)")
-			}
+	requiredColumns := map[string]string{
+		"error_message":   "TEXT",
+		"result_path":     "TEXT",
+		"resumed_from_id": "TEXT",
+	}
+	for columnName, columnDef := range requiredColumns {
+		if err := db.ensureColumnCompatibility(ctx, "executions", columnName, columnDef); err != nil {
+			return fmt.Errorf("ensure executions.%s column: %w", columnName, err)
 		}
 	}
+	return nil
+}
 
-	// Add the new constraint if it doesn't exist
-	// Note: PostgreSQL doesn't have "ADD CONSTRAINT IF NOT EXISTS", so we check first
-	checkConstraint := `
-		SELECT 1 FROM pg_constraint
-		WHERE conname = 'unique_workflow_name_in_project_folder'
-		AND conrelid = 'workflows'::regclass
-	`
-	var exists int
-	if err := db.GetContext(ctx, &exists, checkConstraint); err != nil {
-		// Constraint doesn't exist, add it
-		addConstraint := `
-			ALTER TABLE workflows
-			ADD CONSTRAINT unique_workflow_name_in_project_folder
-			UNIQUE (project_id, name, folder_path)
-		`
-		if _, err := db.ExecContext(ctx, addConstraint); err != nil {
-			return fmt.Errorf("add new unique constraint: %w", err)
-		}
+func (db *DB) ensureColumnCompatibility(ctx context.Context, tableName, columnName, columnDefinition string) error {
+	hasColumn, err := db.columnExists(ctx, tableName, columnName)
+	if err != nil {
+		return fmt.Errorf("check %s.%s column: %w", tableName, columnName, err)
+	}
+	if hasColumn {
+		return nil
+	}
+
+	statement := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnDefinition)
+	if _, err := db.ExecContext(ctx, statement); err != nil {
 		if db.log != nil {
-			db.log.Info("Migrated workflow unique constraint to include project_id")
+			db.log.WithError(err).Warnf("Failed to add %s.%s compatibility column", tableName, columnName)
 		}
+		return fmt.Errorf("add %s.%s column: %w", tableName, columnName, err)
 	}
-
+	if db.log != nil {
+		db.log.Warnf("Added missing %s.%s column for SQLite compatibility", tableName, columnName)
+	}
 	return nil
 }
 
-func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
-	// SQLite doesn't support ALTER TABLE to modify constraints directly.
-	// We need to check if the constraint is already correct by examining the schema.
+func (db *DB) tableExists(ctx context.Context, tableName string) (bool, error) {
+	var count int
+	if err := db.GetContext(ctx, &count, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, tableName); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
 
-	// Get the current table schema
-	var tableSQL string
-	err := db.GetContext(ctx, &tableSQL, "SELECT sql FROM sqlite_master WHERE type='table' AND name='workflows'")
+func (db *DB) columnExists(ctx context.Context, tableName, columnName string) (bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
-			// Table doesn't exist yet, will be created with correct schema
-			return nil
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			dataType   string
+			notNull    int
+			defaultVal sql.NullString
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultVal, &primaryKey); err != nil {
+			return false, err
 		}
-		return fmt.Errorf("get workflows table schema: %w", err)
+		if name == columnName {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
+func resolveScenarioRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		repoRoot, err := repocontract.FindRepoRootFromPath(root)
+		if err != nil {
+			return "", err
+		}
+		return repocontract.ResolveScenarioPath(repoRoot, "browser-automation-studio")
 	}
 
-	// Check if the constraint already includes project_id
-	if strings.Contains(tableSQL, "UNIQUE(project_id, name, folder_path)") {
-		// Already migrated
-		return nil
-	}
-
-	// Check if this is the old constraint that needs migration
-	if !strings.Contains(tableSQL, "UNIQUE(name, folder_path)") {
-		// Neither old nor new constraint - might be a different schema
-		return nil
-	}
-
-	// SQLite requires recreating the table to change constraints
-	// This is a destructive operation, so we use a transaction
-	tx, err := db.Beginx()
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return "", err
 	}
-	committed := false
-	defer func() {
-		if committed {
-			return
-		}
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
-			if db.log != nil {
-				db.log.WithError(rollbackErr).Warn("Failed to rollback workflow constraint migration")
-			}
-		}
-	}()
-
-	migrationStatements := []string{
-		// Rename old table
-		`ALTER TABLE workflows RENAME TO workflows_old`,
-		// Create new table with correct constraint
-		`CREATE TABLE workflows (
-			id TEXT PRIMARY KEY,
-			project_id TEXT REFERENCES projects(id) ON DELETE CASCADE,
-			name TEXT NOT NULL,
-			folder_path TEXT NOT NULL,
-			file_path TEXT,
-			version INTEGER DEFAULT 1,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(project_id, name, folder_path)
-		)`,
-		// Copy data
-		`INSERT INTO workflows SELECT * FROM workflows_old`,
-		// Drop old table
-		`DROP TABLE workflows_old`,
-		// Recreate indexes
-		`CREATE INDEX IF NOT EXISTS idx_workflows_project_id ON workflows(project_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path)`,
-		`CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name)`,
-	}
-
-	for _, stmt := range migrationStatements {
-		if _, err := tx.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("migrate workflow table: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit migration: %w", err)
-	}
-	committed = true
-
-	if db.log != nil {
-		db.log.Info("Migrated SQLite workflow unique constraint to include project_id")
-	}
-
-	return nil
+	return repocontract.ResolveScenarioPath(repoRoot, "browser-automation-studio")
 }

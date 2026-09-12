@@ -33,10 +33,24 @@ const FALLBACK_CONFIG: GraphHealthConfigResponse = {
     teamMemberCountBalance: 0,
     teamRoleCoverage: 0,
   },
+  action: {
+    outgoingEdges: 1,
+    incomingEdges: 1,
+    codeUsage: 0,
+    recentActivity: 0.5,
+    skillContentLength: 0,
+    agentContextLoad: 0,
+    teamMemberCountBalance: 0,
+    teamRoleCoverage: 0,
+    actionContract: 1,
+    actionCommand: 1,
+    actionExamples: 0.75,
+    actionOwner: 0.75,
+  },
   cli: { neutralCommands: ['vrooli'], externalToolScore: 0, scenarioFallbackScore: 0 },
 }
 
-type EntityKey = 'team' | 'agent' | 'skill'
+type EntityKey = 'team' | 'agent' | 'skill' | 'action'
 type WeightKey =
   | 'outgoingEdges'
   | 'incomingEdges'
@@ -46,6 +60,10 @@ type WeightKey =
   | 'agentContextLoad'
   | 'teamMemberCountBalance'
   | 'teamRoleCoverage'
+  | 'actionContract'
+  | 'actionCommand'
+  | 'actionExamples'
+  | 'actionOwner'
 
 interface GraphHealthConfigStore {
   config: GraphHealthConfigResponse

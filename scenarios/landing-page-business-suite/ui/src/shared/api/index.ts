@@ -7,7 +7,6 @@ export * from './remoteProfiles';
 export * from './account';
 export * from './auth';
 export * from './variants';
-export * from './sections';
 export * from './metrics';
 export * from './customization';
 export * from './billing';

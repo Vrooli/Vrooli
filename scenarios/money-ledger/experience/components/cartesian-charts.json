@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "cartesian-charts",
+    "title": "Cartesian Charts",
+    "purpose": "Present version progression with a readable chart and tabular equivalent.",
+    "storyRef": "../../../react-component-library/library/components/CartesianCharts/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A populated progression chart."
+    }
+  ],
+  "elements": [
+    { "id": "chart", "role": "img", "description": "The named chart plot." },
+    {
+      "id": "values",
+      "role": "table",
+      "description": "The accessible tabular equivalent."
+    }
+  ],
+  "claims": [
+    {
+      "id": "chart-present",
+      "type": "element-present",
+      "statement": "The chart plot is named and present.",
+      "tier": "manual",
+      "elements": ["chart"],
+      "states": ["default"],
+      "rationale": "The reusable chart is rendered as three named instances on the dashboard; the page-level machine contract verifies the composed trend surface, while this single-instance component claim is manually attested because the route capture cannot select one instance without collapsing the repeated series."
+    },
+    {
+      "id": "table-present",
+      "type": "element-present",
+      "statement": "Every plotted value has an accessible tabular equivalent.",
+      "tier": "machine",
+      "elements": ["values"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "chart": { "testid": "cartesian-chart" },
+      "values": { "selector": "[data-rcl-chart-table]" }
+    }
+  }
+}

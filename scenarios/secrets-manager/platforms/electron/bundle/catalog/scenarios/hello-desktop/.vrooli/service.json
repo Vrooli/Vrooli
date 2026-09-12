@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "maturity": "greenfield",
+  "service": {
+    "parent": "vrooli",
+    "name": "hello-desktop",
+    "displayName": "Hello Desktop",
+    "description": "Minimal self-contained fixture for verifying the Vrooli desktop delivery pipeline.",
+    "version": "0.1.0",
+    "type": "helper",
+    "category": "deployment",
+    "capabilities": ["desktop-delivery-fixture"]
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Hello Desktop API",
+      "range": "23100-23200"
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "deployment": {
+    "dependencies": {
+      "resources": {}
+    }
+  }
+}

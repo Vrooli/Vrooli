@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "cloud-localds",
+  "description": "cloud-init seed image generator used by the disposable local-QEMU validation lane",
+  "commands": [
+    "cloud-localds"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "defaultPackage": "cloud-image-utils",
+  "packages": {
+    "apt": "cloud-image-utils",
+    "apt-get": "cloud-image-utils",
+    "dnf": "cloud-utils-growpart",
+    "pacman": "cloud-init"
+  },
+  "installHint": "Install cloud-image-utils so local-qemu can create a cloud-init seed disk.",
+  "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    }
+  }
+}

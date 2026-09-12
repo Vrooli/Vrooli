@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package vrooli.signal_inbox.v1.signals;
+
+import "signal-inbox/v1/shared/signals.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/signal-inbox/v1/signals;signals_v1";
+
+// SignalsService owns the immutable journal. A signal is appended once and is
+// never updated or deleted; later domains attach their own records instead.
+service SignalsService {
+  rpc CaptureSignal(CaptureSignalRequest) returns (CaptureSignalResponse);
+  rpc GetSignal(GetSignalRequest) returns (GetSignalResponse);
+  rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
+}
+
+// Exactly one source payload is supplied. The service infers SourceKind from
+// the populated variant; callers never declare it.
+message CaptureSignalRequest {
+  oneof source {
+    string url = 1;
+    string text = 2;
+    string image_payload_ref = 3;
+  }
+  string capture_note = 4;
+  repeated string tags = 5;
+}
+
+message CaptureSignalResponse {
+  vrooli.signal_inbox.v1.shared.Signal signal = 1;
+  // True means the content hash was already present and no journal row was
+  // appended by this request.
+  bool duplicate = 2;
+}
+
+// ImageUpload is the proto-typed metadata response for the multipart REST
+// exception. Image bytes remain in BlobStore and never enter a Connect payload.
+message ImageUpload {
+  string payload_ref = 1;
+  string content_type = 2;
+  int64 size_bytes = 3;
+}
+
+message UploadImageResponse {
+  ImageUpload image = 1;
+}
+
+message GetSignalRequest {
+  string id = 1;
+}
+
+message GetSignalResponse {
+  vrooli.signal_inbox.v1.shared.Signal signal = 1;
+}
+
+message ListSignalsRequest {
+  uint32 page_size = 1;
+}
+
+message ListSignalsResponse {
+  repeated vrooli.signal_inbox.v1.shared.Signal signals = 1;
+}

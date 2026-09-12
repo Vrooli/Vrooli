@@ -1,70 +1,53 @@
-import { buildUrl, throwIfNotOk } from "./client";
-import type {
-  AgentManagerStatus,
-  CreateTaskRequest,
-  CreateTaskResponse,
-  GetTaskResponse,
-  Investigation,
-  InvestigationSummary,
-  ListTasksResponse,
-} from "../../types/investigation";
+import type { MessageInitShape } from "@bufbuild/protobuf";
+import {
+  CreateTaskRequestSchema,
+  type AgentManagerStatusResponse,
+  type Investigation,
+  type InvestigationSummary,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/tasks_pb";
+import { taskConnectClient } from "./connect";
 
-export async function getAgentManagerStatus(): Promise<AgentManagerStatus> {
-  const response = await fetch(buildUrl("/agent-manager/status"));
-  await throwIfNotOk(response);
-  return await response.json() as AgentManagerStatus;
+export type CreateTaskInput = Omit<
+  MessageInitShape<typeof CreateTaskRequestSchema>,
+  "pipelineId" | "$typeName"
+>;
+
+export async function getAgentManagerStatus(): Promise<AgentManagerStatusResponse> {
+  return taskConnectClient.getAgentManagerStatus({});
 }
 
 export async function createTask(
   pipelineId: string,
-  request: CreateTaskRequest
+  request: CreateTaskInput,
 ): Promise<Investigation> {
-  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
+  const response = await taskConnectClient.createTask({
+    pipelineId,
+    ...request,
   });
-  await throwIfNotOk(response);
-  const data = await response.json() as CreateTaskResponse;
-  return data.task;
+  if (!response.task) throw new Error("Task service returned no investigation");
+  return response.task;
 }
 
 export async function listTasks(
   pipelineId: string,
-  limit?: number
+  limit?: number,
 ): Promise<InvestigationSummary[]> {
-  const params = new URLSearchParams();
-  if (limit) {
-    params.set("limit", String(limit));
-  }
-  const url = buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks`) +
-    (params.toString() ? `?${params.toString()}` : "");
-  const response = await fetch(url);
-  await throwIfNotOk(response);
-  const data = await response.json() as ListTasksResponse;
-  return data.tasks;
+  const response = await taskConnectClient.listTasks({ pipelineId, limit });
+  return response.tasks;
 }
 
 export async function getTask(
   pipelineId: string,
-  taskId: string
+  taskId: string,
 ): Promise<Investigation> {
-  const response = await fetch(
-    buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks/${encodeURIComponent(taskId)}`)
-  );
-  await throwIfNotOk(response);
-  const data = await response.json() as GetTaskResponse;
-  return data.task;
+  const response = await taskConnectClient.getTask({ pipelineId, taskId });
+  if (!response.task) throw new Error("Task service returned no investigation");
+  return response.task;
 }
 
 export async function stopTask(
   pipelineId: string,
-  taskId: string
+  taskId: string,
 ): Promise<void> {
-  const response = await fetch(
-    buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/tasks/${encodeURIComponent(taskId)}/stop`),
-    { method: "POST" }
-  );
-  await throwIfNotOk(response);
-  // Note: We don't need to check data.success since throwIfNotOk already handles errors
+  await taskConnectClient.stopTask({ pipelineId, taskId });
 }

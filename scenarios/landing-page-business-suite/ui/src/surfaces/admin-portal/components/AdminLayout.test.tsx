@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen } from "@testing-library/react";
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminLayout } from './AdminLayout';
@@ -111,6 +112,6 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
   it('should display brand name in header', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
 
-    expect(screen.getByText('Landing Manager')).toBeInTheDocument();
+    expect(screen.getByText('Landing Page Business Suite')).toBeInTheDocument();
   });
 });

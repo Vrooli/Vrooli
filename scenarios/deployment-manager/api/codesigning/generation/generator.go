@@ -6,6 +6,8 @@
 package generation
 
 import (
+	"fmt"
+
 	"deployment-manager/codesigning"
 )
 
@@ -77,6 +79,9 @@ func NewGenerator(opts *Options) Generator {
 func (g *DefaultGenerator) GenerateElectronBuilder(config *codesigning.SigningConfig) (*codesigning.ElectronBuilderSigningConfig, error) {
 	if config == nil || !config.Enabled {
 		return nil, nil
+	}
+	if config.Windows != nil && !isSupportedWindowsCertificateSource(config.Windows.CertificateSource) {
+		return nil, fmt.Errorf("unsupported Windows certificate source %q: use %q or %q", config.Windows.CertificateSource, codesigning.CertSourceFile, codesigning.CertSourceStore)
 	}
 
 	result := &codesigning.ElectronBuilderSigningConfig{}

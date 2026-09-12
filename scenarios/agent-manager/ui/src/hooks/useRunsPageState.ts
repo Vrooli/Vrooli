@@ -8,9 +8,22 @@ interface RunListItem {
 }
 
 export function useRunsPageState() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("newest");
+  const initialParams = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQueryState] = useState(initialParams.get("q") ?? "");
+  const [statusFilter, setStatusFilterState] = useState<string>(initialParams.get("status") ?? "all");
+  const [sortBy, setSortByState] = useState<string>(initialParams.get("sort") ?? "newest");
+
+  const updateUrl = useCallback((key: string, value: string, defaultValue: string) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!value || value === defaultValue) params.delete(key);
+    else params.set(key, value);
+    const query = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  }, []);
+  const setSearchQuery = useCallback((value: string) => { setSearchQueryState(value); updateUrl("q", value, ""); }, [updateUrl]);
+  const setStatusFilter = useCallback((value: string) => { setStatusFilterState(value); updateUrl("status", value, "all"); }, [updateUrl]);
+  const setSortBy = useCallback((value: string) => { setSortByState(value); updateUrl("sort", value, "newest"); }, [updateUrl]);
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());

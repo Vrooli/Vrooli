@@ -1,0 +1,29 @@
+{
+  "source": "copy of shared/operator-inputs.json",
+  "declared_paths": 13,
+  "dry_run": {
+    "read": 13,
+    "applied": false,
+    "pending_and_not_applicable_are_absent": true
+  },
+  "populated_negative_and_classification_drill": {
+    "monetary_fields": 8,
+    "measure_fields": 4,
+    "derived_rate_fields": 1,
+    "derived_rate_findings": 1,
+    "written_monetary_fields": 8,
+    "measure_postings": 0,
+    "mrr_postings": 0
+  },
+  "staleness_drill": {
+    "expired_field_status": "stale",
+    "observation_date_reported": true,
+    "stale_field_written": false
+  },
+  "live_result": {
+    "goals": 4,
+    "weekly_and_monthly_units_present": true,
+    "journal_postings_after_populated_apply": 10,
+    "time_and_hours_categories_in_journal": 0
+  }
+}

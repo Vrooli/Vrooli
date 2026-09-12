@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.attestation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/attestation;attestation_v1";
+
+// PLG-ATT-SCAN, PLG-ATT-SIGN, PLG-ATT-SBOM, PLG-ATT-PROVENANCE.
+service AttestationService {
+  // Produces digest-bound supply-chain evidence after conformance passes.
+  rpc Attest(AttestRequest) returns (AttestResponse);
+}
+message AttestRequest { string package_id = 1; bool dry_run = 2; }
+message AttestResponse { bool passed = 1; string artifact_digest = 2; repeated Evidence evidence = 3; repeated Finding findings = 4; }
+message Evidence { string kind = 1; string digest = 2; string reference = 3; }
+message Finding { string code = 1; string message = 2; string path = 3; }

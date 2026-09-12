@@ -54,20 +54,21 @@ func TestPlanVPSBundleGC_ScopesByScenario(t *testing.T) {
 	}
 }
 
-func TestIsSafeBundleFilename(t *testing.T) {
-	cases := []struct {
-		name string
-		ok   bool
-	}{
-		{"mini-vrooli_app_abcdef.tar.gz", true},
-		{"../mini-vrooli_app_abcdef.tar.gz", false},
-		{"mini-vrooli_app/evil.tar.gz", false},
-		{"not-a-bundle.tar.gz", false},
+// [REQ:STC-P0-026] The owner's active and previous roles are kept by the
+// planner regardless of age or keep count.
+func TestPlanVPSBundleGC_KeepsOwnerRolesRegardlessOfAge(t *testing.T) {
+	rows := []domain.VPSBundleInfo{
+		{Filename: "r4", ScenarioID: "app", ModTime: "2026-02-11T03:00:00Z"},
+		{Filename: "r3", ScenarioID: "app", ModTime: "2026-02-10T03:00:00Z"},
+		{Filename: "r2", ScenarioID: "app", ModTime: "2026-02-09T03:00:00Z", Role: "previous"},
+		{Filename: "r1", ScenarioID: "app", ModTime: "2026-02-08T03:00:00Z", Role: "active"},
+		{Filename: "r0", ScenarioID: "app", ModTime: "2026-02-07T03:00:00Z", State: "staging"},
 	}
-	for _, tc := range cases {
-		if got := isSafeBundleFilename(tc.name); got != tc.ok {
-			t.Fatalf("isSafeBundleFilename(%q)=%v, want %v", tc.name, got, tc.ok)
-		}
+	kept, deleted, _ := PlanVPSBundleGC(rows, "app", 1, nil)
+	if len(deleted) != 1 || deleted[0].Filename != "r3" {
+		t.Fatalf("deleted = %+v, want only r3", deleted)
+	}
+	if len(kept) != 4 {
+		t.Fatalf("kept = %+v", kept)
 	}
 }
-

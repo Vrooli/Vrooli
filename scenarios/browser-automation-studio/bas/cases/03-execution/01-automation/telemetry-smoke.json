@@ -33,11 +33,14 @@
   ],
   "metadata": {
     "description": "Validates that workflow execution produces telemetry artifacts (screenshots, logs, progress updates)",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Telemetry Smoke",
+    "version": "1"
   },
   "nodes": [
     {
@@ -118,7 +121,7 @@
         "assert": {
           "failure_message": "Execution viewer should render with tabs",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/executions.tabs.logs, @selector/executions.tabs.screenshots",
+          "selector": "@selector/executions.tabs.replay, @selector/executions.tabs.artifacts",
           "timeout_ms": 5000
         },
         "metadata": {

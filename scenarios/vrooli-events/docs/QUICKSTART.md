@@ -62,9 +62,9 @@ In another terminal, emit another event — you'll see it arrive in the SSE stre
 ## 6. Use the CLI
 
 ```bash
-vrooli-events stats          # Store health and metrics
-vrooli-events query --limit 5   # Recent events
-vrooli-events subscribe --type "**"  # Live stream
+vrooli-events stats
+vrooli-events query --limit 5
+vrooli-events subscribe --type "**"
 ```
 
 ## What's Next

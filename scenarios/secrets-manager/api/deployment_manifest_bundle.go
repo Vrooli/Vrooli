@@ -10,11 +10,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
 // BundlePlanBuilder derives bundle secret plans from deployment entries.
 type BundlePlanBuilder struct{}
+
+var bundlePlanWarning = func(format string, args ...interface{}) { log.Printf(format, args...) }
 
 // NewBundlePlanBuilder creates a new BundlePlanBuilder instance.
 func NewBundlePlanBuilder() *BundlePlanBuilder {
@@ -44,8 +47,32 @@ func (b *BundlePlanBuilder) bundleSecretFromEntry(entry DeploymentSecretEntry) *
 		return nil
 	}
 
+	owner := strings.TrimSpace(entry.LogicalID)
+	usedFallback := owner == ""
+	if owner == "" {
+		owner = strings.ToLower(strings.TrimSpace(entry.ResourceName))
+	}
+	if owner == "" {
+		owner = "bundle"
+	}
+	if !strings.Contains(owner, "/") {
+		owner = "vrooli/" + owner
+	}
+	field := strings.TrimSpace(entry.Field)
+	if field == "" {
+		usedFallback = true
+		field = strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(strings.TrimSpace(entry.SecretKey)))
+	}
+	if field == "" {
+		field = "value"
+	}
+	if usedFallback {
+		bundlePlanWarning("WARNING: bundle secret %q has no declaration-backed logical_id/field; using fallback %s:%s", entry.SecretKey, owner, field)
+	}
 	plan := &BundleSecretPlan{
 		ID:          b.deriveSecretID(entry),
+		LogicalID:   owner,
+		Field:       field,
 		Class:       class,
 		Required:    entry.Required,
 		Description: entry.Description,
@@ -183,7 +210,7 @@ func (b *BundlePlanBuilder) derivePrompt(entry DeploymentSecretEntry) *PromptMet
 // deriveGenerator creates a generator template for per_install_generated secrets.
 // Uses the entry's generator template if available, otherwise provides defaults.
 func (b *BundlePlanBuilder) deriveGenerator(entry DeploymentSecretEntry) map[string]interface{} {
-	if entry.GeneratorTemplate != nil && len(entry.GeneratorTemplate) > 0 {
+	if len(entry.GeneratorTemplate) > 0 {
 		return entry.GeneratorTemplate
 	}
 

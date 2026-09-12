@@ -1,186 +1,205 @@
-/**
- * BacklogTab - Lists backlog items with rich action cards.
- *
- * Uses the shared BacklogCard component, providing inline
- * decision answering, run/workshop/finalize actions, and follow-up/archive.
- */
-
-import { useState } from "react";
-import { ListTodo } from "lucide-react";
+/** Backlog collection surface; BacklogCard remains scenario-owned content. */
+import { Profiler, memo, useCallback, useMemo, useState, type MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { CollectionList } from "@vrooli/react-component-library/CollectionList/1";
+import { onProfilerRender } from "../../../../lib/profiler";
+import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
-import { getItemActions } from "../../../../lib";
+import { itemActionsFromNextAction } from "../../../../lib";
 import { buildBacklogCompareFn, sortBacklogItems } from "../../../../lib/backlog-sort";
 import { computeUnblockingMap } from "../../../../lib/dependency-sort";
 import { filterSnoozed, snoozeKeyForBacklog } from "../../../../lib/snooze-utils";
 import { buildBacklogNodeId } from "../../lib/node-id-parser";
 import { matchesSearch } from "./useSidebarSearch";
 import { BacklogCard } from "../../../../components/backlog/backlog-card";
-import { RunBacklogModal } from "../../../../components/backlog/run-backlog-modal";
-import type { RunBacklogTarget } from "../../../../components/backlog/run-backlog-modal";
-import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
-import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
-import type { BacklogItem } from "../../../../types";
+import { RunSheet, type RunSheetTarget } from "../../../../components/backlog/run-sheet";
+import { Button } from "../../../../components/ui/button";
+import { CollectionRow } from "../../../../components/ui/collection-row";
+import { backlogService, autoFilerService } from "../../../../services";
+import { backlogDetailPath } from "../../../../app/routes/route-paths";
+import { nextActionDetailTab } from "../../../../lib/backlog-next-action";
+import { SidebarEmptyState } from "./SidebarEmptyState";
+import { shouldOpenBacklogRow } from "./backlog-row-interaction";
+import { useCommandPostItemActions, type StableItemCallbacks } from "../../../../hooks/useCommandPostItemActions";
+import type { BacklogItem, PendingQuestion } from "../../../../types";
+import type { BacklogNextAction } from "../../../../services/backlog";
 import type { BacklogFilters, SortConfig } from "./types";
-
-interface PlanValidationSummary {
-  passed: boolean;
-}
-
-function parsePlanValidationSummary(validationJson: string): PlanValidationSummary | null {
-  try {
-    const parsed: unknown = JSON.parse(validationJson);
-    if (
-      typeof parsed === "object"
-      && parsed !== null
-      && "passed" in parsed
-      && typeof parsed.passed === "boolean"
-    ) {
-      return { passed: parsed.passed };
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
+import type { AttentionReason } from "../../../../lib/attention";
+import type { StepperCompletionResult } from "../../../../components/backlog/inline-question-stepper";
 
 interface BacklogTabProps {
   searchQuery: string;
   filters: BacklogFilters;
   sort: SortConfig;
   onItemClick: (nodeId: string) => void;
+  onClearSearch?: () => void;
+  onCreateBacklog?: () => void;
+  onCreateFromPlan?: () => void;
 }
 
-function applyFilters(items: BacklogItem[], filters: BacklogFilters): BacklogItem[] {
-  return items.filter((item) => {
-    // Hide archived items unless showArchived is on
-    if (item.archivedAt != null && !filters.showArchived) return false;
-    if (filters.statuses.length > 0 && !filters.statuses.includes(item.status)) return false;
-    if (filters.kinds.length > 0 && !filters.kinds.includes(item.kind)) return false;
-    if (filters.priorityMin !== null && item.priority < filters.priorityMin) return false;
-    if (filters.priorityMax !== null && item.priority > filters.priorityMax) return false;
-    if (filters.validationStatus) {
-      const json = item.planValidationJson;
-      if (filters.validationStatus === "none") {
-        if (json) return false;
-      } else if (filters.validationStatus === "passed") {
-        if (!json) return false;
-        const validation = parsePlanValidationSummary(json);
-        if (!validation?.passed) return false;
-      } else if (filters.validationStatus === "failed") {
-        if (!json) return false;
-        const validation = parsePlanValidationSummary(json);
-        if (validation?.passed !== false) return false;
-      }
-    }
-    return true;
-  });
+const EMPTY_REASONS: AttentionReason[] = [];
+const NO_NEXT_ACTIONS: Record<string, BacklogNextAction> = {};
+const itemKey = (item: BacklogItem) => `${item.kind}/${item.name}`;
+
+function applyFilters(items: BacklogItem[], filters: BacklogFilters) {
+  return items.filter(
+    (item) =>
+      (filters.showArchived || item.archivedAt == null) &&
+      (filters.statuses.length === 0 || filters.statuses.includes(item.status)) &&
+      (filters.kinds.length === 0 || filters.kinds.includes(item.kind)) &&
+      (filters.priorityMin === null || item.priority >= filters.priorityMin) &&
+      (filters.priorityMax === null || item.priority <= filters.priorityMax),
+  );
 }
 
-function applySort(items: BacklogItem[], sort: SortConfig, allItems: BacklogItem[]): BacklogItem[] {
-  const unblockingMap = computeUnblockingMap(allItems);
-  return sortBacklogItems(items, buildBacklogCompareFn(sort, unblockingMap), allItems);
-}
-
-function hasActiveFilters(filters: BacklogFilters): boolean {
-  return filters.statuses.length > 0 || filters.kinds.length > 0 || filters.priorityMin !== null || filters.priorityMax !== null || filters.showArchived || filters.validationStatus !== "";
-}
-
-export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
+function BacklogTabImpl({
+  searchQuery,
+  filters,
+  sort,
+  onItemClick,
+  onClearSearch,
+  onCreateBacklog,
+  onCreateFromPlan,
+}: BacklogTabProps) {
+  const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
-  const blockingMap = useBacklogStore((s) => s.blockingMap);
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const snoozedKeys = useSnoozedKeys();
+  const [runModalTarget, setRunModalTarget] = useState<RunSheetTarget>();
+  const [pendingDismissKey, setPendingDismissKey] = useState<string | null>(null);
 
-  const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
+  const unblockingMap = useMemo(() => computeUnblockingMap(items), [items]);
+  const sorted = useMemo(
+    () =>
+      sortBacklogItems(
+        filterSnoozed(
+          applyFilters(items, filters).filter(
+            (item) =>
+              !searchQuery ||
+              matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
+          ),
+          (item) => snoozeKeyForBacklog(item.kind, item.name),
+          snoozedKeys,
+        ),
+        buildBacklogCompareFn(sort, unblockingMap),
+        items,
+      ),
+    [filters, items, searchQuery, snoozedKeys, sort, unblockingMap],
+  );
 
-  // ── Shared action wiring ────────────────────────────────────────────
-  const {
-    getItemCallbacks,
-    activeRunKeys,
-    readinessMap,
-    pendingQuestionsMap,
-    attentionReasonsMap,
-    completedSteppers,
-    transitionItems,
-    handleStepperCompleted,
-    workshopBlockingConfirm,
-    setWorkshopBlockingConfirm,
-    confirmWorkshopOverride,
-  } = useCommandPostItemActions({
-    onSelectBacklog: (kind, name) => selectBacklog(kind, name),
-    onRunItem: (kind, name, title) => setRunModalTarget({ kind, name, title }),
+  const handleSelect = useCallback(
+    (kind: string, name: string) => navigate(backlogDetailPath(kind as BacklogItem["kind"], name)),
+    [navigate],
+  );
+  const handleRun = useCallback(
+    (kind: BacklogItem["kind"], name: string, title?: string) => setRunModalTarget({ kind, name, title: title ?? "" }),
+    [],
+  );
+  const callbacks = useCommandPostItemActions({ onSelectBacklog: handleSelect, onRunItem: handleRun });
+  // Keyed on the whole backlog rather than the filtered view, so a search or
+  // filter change reuses the answer instead of refetching it.
+  const itemKeys = useMemo(() => items.map(itemKey), [items]);
+  const { data: nextActions = NO_NEXT_ACTIONS } = useQuery({
+    queryKey: ["backlog", "next-actions", itemKeys],
+    queryFn: () => backlogService.getNextActions(items),
+    enabled: items.length > 0,
   });
 
-  // ── Filter, search, snooze, sort ─────────────────────────────────────
-  let filtered = applyFilters(items, filters);
-  if (searchQuery) {
-    filtered = filtered.filter((item) =>
-      matchesSearch(searchQuery, item.title, item.name, item.description, ...(item.tags ?? [])),
-    );
-  }
-  filtered = filterSnoozed(filtered, (item) => snoozeKeyForBacklog(item.kind, item.name), snoozedKeys);
-  const sorted = applySort(filtered, sort, items);
+  const dismiss = useCallback(
+    async (item: BacklogItem) => {
+      setPendingDismissKey(itemKey(item));
+      try {
+        await autoFilerService.dismissSuggestion(item.kind, item.name);
+        await fetchBacklog({ force: true });
+      } finally {
+        setPendingDismissKey(null);
+      }
+    },
+    [fetchBacklog],
+  );
 
   if (sorted.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-        <ListTodo className="mb-2 h-8 w-8" />
-        <p className="text-sm">{searchQuery || hasActiveFilters(filters) ? "No backlog items match your filters." : "No backlog items."}</p>
-      </div>
+      <SidebarEmptyState
+        icon={SIDEBAR_TAB_ICONS.backlog}
+        title={searchQuery ? "No backlog items match your filters." : "No backlog items yet."}
+        hint="Capture an idea or chore to get started."
+        query={searchQuery}
+        onClearSearch={onClearSearch}
+        action={
+          onCreateBacklog || onCreateFromPlan ? (
+            <div className="mt-1 flex gap-2">
+              {onCreateBacklog ? (
+                <Button size="sm" data-testid="backlog-tab-create-item" onClick={onCreateBacklog}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Create item
+                </Button>
+              ) : null}
+              {onCreateFromPlan ? (
+                <Button size="sm" variant="outline" onClick={onCreateFromPlan}>
+                  Create from plan
+                </Button>
+              ) : null}
+            </div>
+          ) : undefined
+        }
+      />
     );
   }
 
   return (
     <>
-      <div className="space-y-2">
-        {sorted.map((item) => {
-          const nodeId = buildBacklogNodeId(item.kind, item.name);
-          const itemKey = `${item.kind}/${item.name}`;
-          const readiness = readinessMap.get(itemKey);
-          const reasons = attentionReasonsMap.get(itemKey) ?? [];
-          const callbacks = getItemCallbacks(item);
-
+      <CollectionList
+        items={sorted}
+        getKey={itemKey}
+        label="Backlog"
+        virtualize
+        selection={{ mode: "none", enterOn: ["shortcut"] }}
+        actions={[
+          {
+            id: "open",
+            label: "Open",
+            onSelect: ([item]) => {
+              if (item) onItemClick(buildBacklogNodeId(item.kind, item.name));
+            },
+          },
+          {
+            id: "archive",
+            label: "Archive",
+            tone: "destructive",
+            bulk: true,
+            disabled: (item) => (item.archivedAt == null ? false : "Already archived"),
+            onSelect: async (rows) => {
+              for (const item of rows) await backlogService.archiveItem(item.kind, item.name);
+            },
+          },
+        ]}
+        renderItem={(item) => {
+          const key = itemKey(item);
           return (
-            <button
-              key={nodeId}
-              type="button"
-              onClick={() => onItemClick(nodeId)}
-              className="group w-full rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-left transition-colors hover:border-slate-700/80 hover:bg-slate-800/60"
-              data-testid="sidebar-backlog-item"
-            >
-              <BacklogCard
-                item={item}
-                allItems={items}
-                readinessData={readiness}
-                itemActions={getItemActions({
-                  item,
-                  blockingInfo: blockingMap[itemKey] ?? null,
-                  readinessReady: readiness ? readiness.ready : null,
-                  pendingSynthesis: readiness?.pendingSynthesis ?? false,
-                  agentRunning: activeRunKeys.has(itemKey),
-                  hasPendingDecisions: (pendingQuestionsMap.get(itemKey)?.length ?? 0) > 0,
-                  hasExecutionHistory: item.status === "completed" || item.status === "failed",
-                })}
-                attentionReasons={reasons}
-                pendingQuestions={pendingQuestionsMap.get(itemKey)}
-                isStepperCompleted={completedSteppers.has(itemKey)}
-                transitionResult={transitionItems.get(itemKey)}
-                onStepperCompleted={(result) => handleStepperCompleted(itemKey, item, result)}
-                batchMode={false}
-                isSelected={false}
-                onToggleSelection={() => {}}
-                {...callbacks}
-              />
-            </button>
+            <BacklogRow
+              item={item}
+              nextAction={nextActions[key]}
+              callbacks={callbacks.getItemCallbacks(item)}
+              attentionReasons={callbacks.attentionReasonsMap.get(key) ?? EMPTY_REASONS}
+              pendingQuestions={callbacks.pendingQuestionsMap.get(key)}
+              agentRunning={callbacks.activeRunKeys.has(key)}
+              isStepperCompleted={callbacks.completedSteppers.has(key)}
+              archivePending={callbacks.pendingArchiveKey === key}
+              dismissPending={pendingDismissKey === key}
+              statusChangePending={callbacks.pendingStatusKey === key}
+              runningLabel={callbacks.activeRunLabels.get(key)}
+              handleStepperCompleted={callbacks.handleStepperCompleted}
+              onDismiss={dismiss}
+              onItemClick={onItemClick}
+            />
           );
-        })}
-      </div>
-
-      {/* Run modal */}
-      <RunBacklogModal
+        }}
+      />
+      <RunSheet
         isOpen={!!runModalTarget}
         onClose={() => setRunModalTarget(undefined)}
         target={runModalTarget}
@@ -189,20 +208,107 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
           void fetchBacklog({ force: true });
         }}
       />
-
-      {/* Workshop blocking override confirmation */}
-      <ConfirmDialog
-        isOpen={!!workshopBlockingConfirm}
-        onClose={() => setWorkshopBlockingConfirm(null)}
-        onConfirm={confirmWorkshopOverride}
-        title="Dependencies Not Ready"
-        description={
-          workshopBlockingConfirm?.blockingDepKeys.length
-            ? `This item is blocked by incomplete dependencies: ${workshopBlockingConfirm.blockingDepKeys.join(", ")}. Do you want to proceed anyway?`
-            : "This item has incomplete dependencies. Do you want to proceed anyway?"
-        }
-        confirmLabel="Override and Proceed"
-      />
     </>
   );
 }
+
+interface BacklogRowProps {
+  item: BacklogItem;
+  nextAction?: BacklogNextAction;
+  attentionReasons: AttentionReason[];
+  pendingQuestions?: PendingQuestion[];
+  agentRunning: boolean;
+  isStepperCompleted: boolean;
+  callbacks: StableItemCallbacks;
+  archivePending: boolean;
+  dismissPending: boolean;
+  statusChangePending: boolean;
+  runningLabel?: string;
+  handleStepperCompleted: (key: string, item: BacklogItem, result: StepperCompletionResult) => void;
+  onDismiss: (item: BacklogItem) => Promise<void>;
+  onItemClick: (id: string) => void;
+}
+
+// Memoized with stable handlers so a poll that changes one row, or none,
+// re-renders only that row rather than every visible card.
+const BacklogRow = memo(function BacklogRow({
+  item,
+  nextAction,
+  attentionReasons,
+  pendingQuestions,
+  agentRunning,
+  isStepperCompleted,
+  callbacks,
+  archivePending,
+  dismissPending,
+  statusChangePending,
+  runningLabel,
+  handleStepperCompleted,
+  onDismiss,
+  onItemClick,
+}: BacklogRowProps) {
+  const navigate = useNavigate();
+  const itemActions = useMemo(
+    () => itemActionsFromNextAction(item, nextAction, { agentRunning }),
+    [agentRunning, item, nextAction],
+  );
+  const handleNext = useCallback(() => {
+    if (nextAction?.id === "run") return callbacks.onRun();
+    if (nextAction?.id === "archive") return callbacks.onArchive();
+    if (nextAction?.id === "accept_suggestion") return callbacks.onStatusChange("backlog");
+    if (nextAction?.id === "retry") {
+      void backlogService
+        .retry(item.kind, item.name)
+        .then(() => useBacklogStore.getState().fetchBacklog({ force: true }));
+      return;
+    }
+    const tab = nextAction && nextActionDetailTab(nextAction);
+    navigate(backlogDetailPath(item.kind, item.name, tab ? { tab } : undefined));
+  }, [callbacks, item.kind, item.name, navigate, nextAction]);
+  const handleStepperDone = useCallback(
+    (result: StepperCompletionResult) => handleStepperCompleted(itemKey(item), item, result),
+    [handleStepperCompleted, item],
+  );
+  const acceptSuggestion = useCallback(() => callbacks.onStatusChange("backlog"), [callbacks]);
+  const dismissSuggestion = useCallback(() => void onDismiss(item), [item, onDismiss]);
+
+  // BacklogCard contains its own controls (next action, status chip, stepper),
+  // so the row opens only when the click lands on content rather than one of
+  // them. Keyboard opening is the list's job: Enter runs the "open" action.
+  const handleClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (shouldOpenBacklogRow(event.target)) onItemClick(buildBacklogNodeId(item.kind, item.name));
+  };
+
+  return (
+    <CollectionRow className="group" data-testid="sidebar-backlog-item" onClick={handleClick}>
+      <BacklogCard
+        item={item}
+        nextAction={nextAction}
+        itemActions={itemActions}
+        attentionReasons={attentionReasons}
+        pendingQuestions={pendingQuestions}
+        isStepperCompleted={isStepperCompleted}
+        onStepperCompleted={handleStepperDone}
+        onRun={callbacks.onRun}
+        onNextAction={handleNext}
+        onArchive={callbacks.onArchive}
+        onFollowUp={callbacks.onFollowUp}
+        onAcceptSuggestion={acceptSuggestion}
+        onDismissSuggestion={dismissSuggestion}
+        onStatusChange={callbacks.onStatusChange}
+        archivePending={archivePending}
+        dismissPending={dismissPending}
+        statusChangePending={statusChangePending}
+        runningLabel={runningLabel}
+      />
+    </CollectionRow>
+  );
+});
+
+export const BacklogTab = memo(function BacklogTab(props: BacklogTabProps) {
+  return (
+    <Profiler id="BacklogTab" onRender={onProfilerRender}>
+      <BacklogTabImpl {...props} />
+    </Profiler>
+  );
+});

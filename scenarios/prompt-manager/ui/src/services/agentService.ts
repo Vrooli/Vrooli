@@ -237,13 +237,3 @@ export async function deleteAgent(id: string): Promise<void> {
 }
 
 // Re-export animation utilities from agentAnimationService for convenience
-export {
-  AgentStateMachine,
-  calculateLookRotation,
-  calculateIdleSway,
-  calculateWaveAnimation,
-  calculateCelebrationAnimation,
-  easing,
-  lerp,
-  lerpPosition,
-} from './agentAnimationService'

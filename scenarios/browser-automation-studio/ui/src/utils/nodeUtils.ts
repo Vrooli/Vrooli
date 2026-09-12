@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
-import { getConfig } from '../config';
 import { ACTION_TYPES, type ActionDefinition } from './actionBuilder';
+import { scenariosClient } from '../api/scenarios';
 
 // Cache for resolved scenario URLs to avoid redundant API calls
 const scenarioUrlCache = new Map<string, { url: string; timestamp: number }>();
@@ -82,17 +82,11 @@ const extractScreenshotFromNode = (node: Node): NodeScreenshot | null => {
 };
 
 /**
- * Checks if a node is a navigate node by examining its action type.
- * Falls back to checking node.type for legacy compatibility.
+ * Checks if a node is a navigate node by examining its canonical action type.
  */
 function isNavigateNode(node: Node): boolean {
-  // Check action.type first (V2 format - canonical source of truth)
   const action = (node as Node & { action?: ActionDefinition }).action;
-  if (action?.type) {
-    return action.type === ACTION_TYPES.NAVIGATE;
-  }
-  // Fallback to node.type for legacy format
-  return node.type?.toLowerCase() === 'navigate';
+  return action?.type === ACTION_TYPES.NAVIGATE;
 }
 
 /**
@@ -107,22 +101,11 @@ async function resolveScenarioUrl(scenarioName: string, scenarioPath?: string): 
   }
 
   try {
-    const config = await getConfig();
-    const response = await fetch(`${config.API_URL}/scenarios/${encodeURIComponent(scenarioName)}/port`);
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const info: unknown = await response.json();
-    const infoRecord = info && typeof info === 'object' ? (info as Record<string, unknown>) : null;
-    const urlCandidate = infoRecord ? pickString(infoRecord, 'url') : null;
-    const portCandidate = infoRecord?.port;
-    const portValue = typeof portCandidate === 'number' ? portCandidate : null;
-    const baseUrl: string | undefined = urlCandidate
-      ? urlCandidate
-      : portValue
-        ? `http://localhost:${portValue}`
+    const info = await scenariosClient.getPort({ name: scenarioName });
+    const baseUrl: string | undefined = info.url
+      ? info.url
+      : info.port > 0
+        ? `http://localhost:${info.port}`
         : undefined;
 
     if (!baseUrl) {

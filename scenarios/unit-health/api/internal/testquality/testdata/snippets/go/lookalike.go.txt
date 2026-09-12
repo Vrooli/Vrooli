@@ -1,0 +1,8 @@
+package example
+import "testing"
+type localRequire struct{}
+func (localRequire) Equal(a,b int) {}
+func TestLookalike(t *testing.T) {
+ require := localRequire{}
+ require.Equal(2, 3)
+}

@@ -38,16 +38,12 @@ export interface Chat {
   is_starred: boolean;
   /** IDs of labels assigned to this chat */
   label_ids: string[];
-  /** Whether AI can use tools in this chat (tool calling) */
-  tools_enabled: boolean;
   /** Default web search setting for new messages in this chat */
   web_search_enabled: boolean;
   /** Current position in message tree (for branching/regeneration) */
   active_leaf_message_id?: string;
-  /** Currently active template (suggests tools to use) */
+  /** Currently active template */
   active_template_id?: string;
-  /** Tool IDs suggested by the active template */
-  active_template_tool_ids?: string[];
   /** Chat mode - "llm" for normal chat or "agent" for agent-manager integration */
   chat_mode: "llm" | "agent";
   /** Agent run ID when in agent mode */
@@ -225,7 +221,6 @@ export interface ToolCallRecord {
 }
 
 // Approval override for tool configurations (three-state)
-export type ApprovalOverride = "" | "require" | "skip";
 
 export interface Label {
   id: string;

@@ -137,7 +137,7 @@ func TestSetOverride_ValidPayload(t *testing.T) {
 	}
 
 	// Cleanup the override
-	_, _ = db.Exec("DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
+	_, _ = db.ExecContext(context.Background(), "DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
 }
 
 // TestSetOverride_InvalidStrategy tests rejection of invalid handling strategy.
@@ -513,7 +513,7 @@ func TestListOverrides_WithData(t *testing.T) {
 		t.Fatalf("failed to create test override: %v", err)
 	}
 	defer func() {
-		_, _ = db.Exec("DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM scenario_secret_strategy_overrides WHERE id = $1", override.ID)
 	}()
 
 	handlers := NewScenarioOverrideHandlers(db, &Logger{})

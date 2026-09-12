@@ -40,12 +40,12 @@ func assertTargetField(t *testing.T, repo *TargetRepository, key, fieldName, wan
 
 func TestTargetRepositoryCRUD(t *testing.T) {
 	tmpDir := t.TempDir()
-	vrooliDir := filepath.Join(tmpDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+	filePath := filepath.Join(tmpDir, "deploy-targets.json")
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 		t.Fatalf("create .vrooli dir: %v", err)
 	}
 
-	repo := NewTargetRepository(tmpDir)
+	repo := NewTargetRepository(filePath)
 
 	t.Run("list empty", func(t *testing.T) {
 		assertListLen(t, repo, 0, "empty")
@@ -104,7 +104,7 @@ func TestTargetRepositoryCRUD(t *testing.T) {
 
 func TestTargetRepositoryFileNotExist(t *testing.T) {
 	tmpDir := t.TempDir()
-	repo := NewTargetRepository(tmpDir)
+	repo := NewTargetRepository(filepath.Join(tmpDir, "deploy-targets.json"))
 
 	// List when file doesn't exist yet (should return empty)
 	targets, err := repo.List()
@@ -118,8 +118,8 @@ func TestTargetRepositoryFileNotExist(t *testing.T) {
 
 func TestTargetRepositoryCreatesDir(t *testing.T) {
 	tmpDir := t.TempDir()
-	// .vrooli dir doesn't exist yet
-	repo := NewTargetRepository(tmpDir)
+	filePath := filepath.Join(tmpDir, "nested", "deploy-targets.json")
+	repo := NewTargetRepository(filePath)
 
 	err := repo.Save("test", &DeployTarget{
 		Label:         "Test",
@@ -131,7 +131,7 @@ func TestTargetRepositoryCreatesDir(t *testing.T) {
 	}
 
 	// Verify file was created
-	data, err := os.ReadFile(filepath.Join(tmpDir, ".vrooli", "deploy-targets.json"))
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		t.Fatalf("read file: %v", err)
 	}
@@ -142,9 +142,10 @@ func TestTargetRepositoryCreatesDir(t *testing.T) {
 
 func TestTargetRepositoryPersistence(t *testing.T) {
 	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "deploy-targets.json")
 
 	// Save with one repo instance
-	repo1 := NewTargetRepository(tmpDir)
+	repo1 := NewTargetRepository(filePath)
 	err := repo1.Save("prod", &DeployTarget{
 		Label:         "Production",
 		ScenarioName:  "lpbs",
@@ -155,7 +156,7 @@ func TestTargetRepositoryPersistence(t *testing.T) {
 	}
 
 	// Read with a fresh instance
-	repo2 := NewTargetRepository(tmpDir)
+	repo2 := NewTargetRepository(filePath)
 	target, err := repo2.Get("prod")
 	if err != nil {
 		t.Fatalf("Get from fresh repo: %v", err)

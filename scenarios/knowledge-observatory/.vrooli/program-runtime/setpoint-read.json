@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "knowledge-observatory.setpoint-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read index availability, scoped documentation findings, a selected immutable retrieval evaluation, and routes to comparable usage evidence.",
+  "inputs": {
+    "base_path": {
+      "type": "string",
+      "default": "scenarios/knowledge-observatory/docs"
+    },
+    "eval_run_id": {
+      "type": "string"
+    }
+  },
+  "assumptions": [
+    "Source owners retain knowledge authority; no search score establishes acceptance.",
+    "Knowledge Observatory and declared read dependencies are running."
+  ],
+  "invariants": [
+    "One bounded envelope on every path; no writes, retries, or shell access.",
+    "Unknown applicability and unavailable reads remain explicit.",
+    "The caller owns final task verification and one learning capture; no memory writes inside these programs."
+  ],
+  "bindings": [
+    {
+      "id": "knowledge-observatory/knowledge-base/status",
+      "effect": "read"
+    },
+    {
+      "id": "knowledge-observatory/knowledge-base/health",
+      "effect": "read"
+    },
+    {
+      "id": "search-hub/evals/show-run",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/bindings/condition",
+      "effect": "read"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "refused",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "Index availability target true; scoped reference findings target zero; retrieval and learning comparisons require comparable windows.",
+      "capture_required": "Caller records improve-cycle work evidence."
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "no_match",
+        "verification_failed",
+        "revision_changed",
+        "output_bound",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Repository-relative paths and source revisions or owner run IDs; no private corpus dump."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 12,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "unexpected": true
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "knowledge-observatory"
+      ]
+    },
+    {
+      "id": "live-board",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "knowledge-observatory",
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "knowledge-observatory-improve",
+  "verbs": [
+    "agent.collect",
+    "agent.run",
+    "capture",
+    "lib",
+    "tasks.get",
+    "tasks.run",
+    "validate"
+  ]
+}

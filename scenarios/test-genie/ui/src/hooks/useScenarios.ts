@@ -20,10 +20,7 @@ export function useScenarios() {
 
     return summaries
       .map((summary) => {
-        const lastActivity = Math.max(
-          timestampOrZero(summary.lastExecutionAt),
-          timestampOrZero(summary.lastRequestAt)
-        );
+        const lastActivity = timestampOrZero(summary.lastExecutionAt);
         return { ...summary, lastActivity };
       })
       .sort((a, b) => b.lastActivity - a.lastActivity);
@@ -31,15 +28,14 @@ export function useScenarios() {
 
   const catalogStats = useMemo(() => {
     if (scenarioDirectoryEntries.length === 0) {
-      return { tracked: 0, pending: 0, failing: 0, idle: 0 };
+      return { tracked: 0, failing: 0, idle: 0 };
     }
     const tracked = scenarioDirectoryEntries.length;
-    const pending = scenarioDirectoryEntries.filter((entry) => entry.pendingRequests > 0).length;
     const failing = scenarioDirectoryEntries.filter((entry) => entry.lastExecutionSuccess === false).length;
     const idle = scenarioDirectoryEntries.filter(
-      (entry) => entry.pendingRequests === 0 && !entry.lastExecutionAt
+      (entry) => !entry.lastExecutionAt
     ).length;
-    return { tracked, pending, failing, idle };
+    return { tracked, failing, idle };
   }, [scenarioDirectoryEntries]);
 
   return {

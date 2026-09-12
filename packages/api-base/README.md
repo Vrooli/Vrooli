@@ -91,15 +91,15 @@ This automatically sets up:
 - Static file serving from `./dist` (hashed assets served with immutable caching, SPA shell stays no-store)
 - SPA fallback routing
 
-## Propagating Changes to Scenarios
+## Propagating Changes To Scenarios
 
-After editing `@vrooli/api-base`, run the refresh helper so scenarios rebuild with the updated bundle:
+Package refresh is governed natively:
 
 ```bash
-./scripts/scenarios/tools/refresh-shared-package.sh api-base <scenario|all> [--no-restart]
+vrooli package refresh api-base all
 ```
 
-The script rebuilds this package, finds every targeted scenario that actually depends on `@vrooli/api-base`, runs `vrooli scenario setup`, and automatically restarts only the scenarios that were already running (unless you pass `--no-restart`). Stopped scenarios stay stopped after setup.
+That rebuilds `@vrooli/api-base`, discovers governed dependents, runs `vrooli scenario setup` for affected scenarios, and restarts only consumers that were already running.
 
 ## API Server Requirements
 

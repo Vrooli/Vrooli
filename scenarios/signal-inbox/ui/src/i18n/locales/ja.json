@@ -1,0 +1,78 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Signal Inbox のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Signal Inbox",
+    "eyebrow": "シナリオテンプレート",
+    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "categories": {
+    "title": "カテゴリ", "description": "助言的な分類に使うカテゴリを定義します。廃止してもシグナルや履歴は削除されません。", "name": "カテゴリ名", "descriptionInput": "任意の説明", "newName": "新しいカテゴリ名", "newDescription": "新しいカテゴリの説明", "create": "カテゴリを作成", "creating": "作成中…", "save": "カテゴリを保存", "retire": "廃止", "reserved": "予約済み", "fallback": "未分類のシグナルのフォールバックです。", "load": "カテゴリを読み込み中…", "loadError": "カテゴリを読み込めませんでした。", "createError": "カテゴリを作成できませんでした。もう一度試してください。", "changeError": "カテゴリの変更に失敗しました。もう一度試してください。", "activeList": "有効なカテゴリ", "nameFor": "{{name}} の名前", "descriptionFor": "{{name}} の説明", "classificationLoading": "分類中…", "classificationPending": "分類待ちです。", "proposed": "提案カテゴリ", "confirmed": "確認済みカテゴリ", "confidence": "信頼度 {{value}}%", "choose": "カテゴリを選択", "categoryFor": "シグナル {{id}} のカテゴリ", "confirm": "カテゴリを確認", "change": "カテゴリを変更", "confirmError": "カテゴリの決定を保存できませんでした。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

@@ -5,23 +5,16 @@
     "schema_version": "1.0.0"
   },
   "imports": [
-    "OT-P0-001.json",
-    "OT-P0-002.json",
-    "OT-P0-003.json",
-    "OT-P0-004.json",
-    "OT-P0-005.json",
-    "OT-P0-006.json",
-    "OT-P0-007.json",
-    "OT-P0-008.json",
-    "OT-P0-009.json",
-    "OT-P0-010.json",
-    "OT-P0-011.json",
-    "OT-P0-012.json",
-    "OT-P1-001.json",
-    "OT-P1-002.json",
-    "OT-P1-003.json",
-    "OT-P1-004.json",
-    "OT-P2-001.json",
-    "OT-P2-002.json"
+    "01-brands/module.json",
+    "02-assignments/module.json",
+    "03-assets/module.json",
+    "04-contrast/module.json",
+    "05-generation/module.json",
+    "06-apply/module.json",
+    "07-discovery/module.json",
+    "08-validation/module.json",
+    "09-cli/module.json",
+    "10-ui/module.json",
+    "11-future/module.json"
   ]
 }

@@ -20,7 +20,7 @@ export default defineConfig({
   // Reporter
   reporter: [
     ['list'],
-    ['json', { outputFile: 'test/artifacts/playwright-results.json' }],
+    ['json', { outputFile: 'test-results/playwright-results.json' }],
   ],
 
   use: {

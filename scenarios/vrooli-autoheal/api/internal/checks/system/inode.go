@@ -5,10 +5,9 @@ package system
 import (
 	"context"
 	"fmt"
-	"runtime"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // InodeCheck monitors inode usage on specified partitions.
@@ -81,11 +80,11 @@ func (c *InodeCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	if runtime.GOOS == "windows" {
-		// Windows doesn't have inodes
-		result.Status = checks.StatusOK
-		result.Message = "Inode check not applicable on Windows"
-		result.Details["platform"] = "windows"
+	if checkOS != "linux" {
+		// Inodes are not available through this Linux implementation.
+		result.Status = checks.StatusNotApplicable
+		result.Message = "Inode check not applicable on this platform"
+		result.Details["platform"] = checkOS
 		return result
 	}
 

@@ -1,3 +1,4 @@
 cli/cli
 cli/swarm-manager
 cli/swarm-manager-cli
+api/swarm-manager

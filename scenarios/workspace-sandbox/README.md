@@ -148,7 +148,7 @@ Sandboxed processes run under bubblewrap (bwrap) with:
 - **Linux kernel 5.11+** (recommended) - Enables unprivileged overlayfs via user namespaces
 - Linux kernel 4.0+ (minimum) - Falls back to copy driver if user namespaces unavailable
 - bubblewrap package (`apt install bubblewrap`)
-- PostgreSQL for metadata storage
+- SQLite for metadata storage
 
 ### Driver Selection
 
@@ -156,33 +156,40 @@ workspace-sandbox automatically selects the best available driver:
 
 | Priority | Driver | Requirements | Performance |
 |----------|--------|--------------|-------------|
-| 1 | Native overlayfs | Kernel 5.11+, user namespaces enabled | Best (~1-2s creation) |
-| 2 | Copy driver | Any Linux | Slower (copies files) |
+| 1 | `overlayfs-userns` | Linux kernel 5.11+, user namespaces enabled, launcher/safeguard satisfied | Best (~1-2s creation) |
+| 2 | `fuse-overlayfs` | Linux with fuse-overlayfs, FUSE, and fusermount | Good, higher memory under load |
+| 3 | `overlayfs-root` | Linux with root or CAP_SYS_ADMIN | Fast, privileged |
+| 4 | `copy` | Any OS | Slowest, copies files |
 
 **How it works:**
 
-On kernel 5.11+, the API automatically enters a user namespace at startup. Inside this namespace, it appears as UID 0 and can mount overlayfs without actual root privileges. This is the same mechanism used by rootless Podman/Docker.
+On kernel 5.11+, the lifecycle starts `workspace-sandbox-launcher`,
+which reads `driver-preference.json` and places the API inside
+`unshare -U -m -r` when the selected/default driver is
+`overlayfs-userns`. Inside that namespace, the API appears as UID 0
+and can mount overlayfs without actual root privileges.
 
 ```
 $ vrooli scenario logs workspace-sandbox --step start-api --tail 5
-2025/12/18 09:40:57 entering user namespace for unprivileged overlayfs | kernel=6.14.0-33-generic
-2025/12/18 09:40:57 running in user namespace | kernel=6.14.0-33-generic overlayfs=true
-2025/12/18 09:40:57 driver: using native overlayfs (optimal performance)
+2026/05/08 09:40:57 os=linux driverPreference=default launchMode=apparmor-unshare
+2026/05/08 09:40:57 running in user namespace | kernel=6.14.0-33-generic
+2026/05/08 09:40:57 driver: selected=overlayfs-userns inUserNamespace=true preferenceUsed=false
 ```
 
 **Troubleshooting driver selection:**
 
-If you see "falling back to copy driver", check:
+If `overlayfs-userns` fails to launch, check:
 1. Kernel version: `uname -r` (should be 5.11+)
 2. User namespaces enabled: `cat /proc/sys/kernel/unprivileged_userns_clone` (should be 1)
 3. unshare command available: `which unshare`
+4. setup safeguard status: `vrooli setup status --environment development --resources none --scenarios workspace-sandbox`
 
-**Environment variables for driver control:**
-
-| Variable | Purpose |
-|----------|---------|
-| `WORKSPACE_SANDBOX_DISABLE_USERNS` | Set to `1` to skip user namespace (use fallback) |
-| `SANDBOX_BASE_DIR` | Override base directory for sandbox storage |
+Driver storage is resolved by the service-owned platform path policy. It is
+created and permission-checked before the API serves traffic; there is no
+application-level storage override or alternate-path fallback. The copy
+driver is the portable execution path on platforms without a supported mount
+backend. Protected execution is reported as unavailable when its selected
+backend cannot be provided.
 
 ### Environment Variables
 
@@ -190,8 +197,6 @@ If you see "falling back to copy driver", check:
 |----------|---------|
 | `API_PORT` | Port for the Go API server |
 | `UI_PORT` | Port for the Vite dev server |
-| `WS_PORT` | WebSocket for live updates |
-| `DATABASE_URL` | PostgreSQL connection string |
 | `PROJECT_ROOT` | Root path for sandboxable directories |
 
 ## Documentation

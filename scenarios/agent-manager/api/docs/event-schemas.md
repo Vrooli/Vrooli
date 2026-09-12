@@ -26,6 +26,16 @@ All events share a common envelope:
 | timestamp | datetime | When the event occurred |
 | data | object | Event-specific payload |
 
+## Durability and Ordering Contract
+
+Persisted run events are the source of truth. WebSocket delivery is an optimization for live clients.
+
+- Durable events are appended before they are broadcast to subscribers.
+- SQLite sequence allocation is protected by a write transaction, so one run's events receive unique contiguous sequence numbers even under concurrent appenders.
+- `sequence` is the canonical ordering field within a run. Clients should use timestamp only as a defensive tie-breaker for malformed data.
+- `GET /api/v1/runs/{id}/events?after_sequence=N` is the canonical gap-fill API and returns events with `sequence > N`.
+- Clients should dedupe by event ID first and sequence second when merging REST gap-fill with live WebSocket delivery.
+
 ## Event Types
 
 ### tool_call
@@ -117,9 +127,10 @@ Emitted for conversation messages.
 
 ### metric
 
-Emitted for usage and cost data.
+Emitted as separate usage and charge payloads. Usage is always emitted;
+charge evidence is optional and may have a nil amount when pricing is unknown.
 
-**Payload: CostEventData**
+**Usage payload: `payloadKind: "usage"`**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -127,12 +138,17 @@ Emitted for usage and cost data.
 | outputTokens | int | Yes | Output tokens generated |
 | cacheReadTokens | int | No | Tokens read from cache |
 | cacheCreationTokens | int | No | Tokens written to cache |
-| inputCostUsd | float | No | Cost attributed to input tokens |
-| outputCostUsd | float | No | Cost attributed to output tokens |
-| cacheReadCostUsd | float | No | Cost attributed to cache read tokens |
-| cacheCreationCostUsd | float | No | Cost attributed to cache write tokens |
-| totalCostUsd | float | Yes | Estimated cost in USD |
 | model | string | No | Model used (if available) |
+| runnerType | string | No | Runner that produced the usage |
+
+**Charge payload: `payloadKind: "charge"`**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| basis | string | `metered`, `subscription`, `local`, `unpriced`, or `unknown` |
+| amountMicroUsd | int64/null | Billable amount in micro-USD, or null when unavailable |
+| currency | string | Currency code, currently USD |
+| model | string | Model associated with the charge |
 | costSource | string | No | Cost provenance (runner_reported, provider_usage_api, pricing_table_estimate, unknown) |
 | pricingProvider | string | No | Pricing source for estimates (e.g., openrouter) |
 | pricingModel | string | No | Model ID used for pricing lookup |

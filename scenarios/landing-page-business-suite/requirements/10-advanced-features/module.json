@@ -23,7 +23,7 @@
     {
       "id": "TMPL-MARKET",
       "title": "Template marketplace",
-      "prd_ref": "OT-P2-001",
+      "prd_ref": "OT-P2-002",
       "description": "Community-contributed templates with ratings and reviews",
       "validation": [
         {
@@ -58,7 +58,7 @@
     {
       "id": "AB-AUTO-WINNER",
       "title": "Automatic winner selection",
-      "prd_ref": "OT-P2-003",
+      "prd_ref": "OT-P2-004",
       "description": "System automatically promotes winning variant after reaching significance threshold",
       "validation": [
         {
@@ -77,7 +77,7 @@
     {
       "id": "AB-BANDIT",
       "title": "Multi-armed bandit",
-      "prd_ref": "OT-P2-003",
+      "prd_ref": "OT-P2-005",
       "description": "Implement Thompson sampling or UCB for dynamic traffic allocation",
       "validation": [
         {
@@ -109,7 +109,7 @@
     {
       "id": "METRIC-REPLAY",
       "title": "Session replay",
-      "prd_ref": "OT-P2-006",
+      "prd_ref": "OT-P2-007",
       "description": "Record and replay user sessions for UX analysis",
       "validation": [
         {
@@ -125,7 +125,7 @@
     {
       "id": "METRIC-FUNNEL",
       "title": "Funnel analysis",
-      "prd_ref": "OT-P2-006",
+      "prd_ref": "OT-P2-008",
       "description": "Multi-step conversion funnel tracking (landing → CTA → checkout → success)",
       "validation": [
         {
@@ -157,7 +157,7 @@
     {
       "id": "AGENT-MVT",
       "title": "Multivariate testing",
-      "prd_ref": "OT-P2-009",
+      "prd_ref": "OT-P2-010",
       "description": "Test multiple elements simultaneously (hero copy + CTA button + pricing)",
       "validation": [
         {
@@ -173,7 +173,7 @@
     {
       "id": "AGENT-PERSONA",
       "title": "Persona-based variants",
-      "prd_ref": "OT-P2-009",
+      "prd_ref": "OT-P2-011",
       "description": "Generate variants optimized for different user personas",
       "validation": [
         {
@@ -205,7 +205,7 @@
     {
       "id": "INTEG-EMAIL",
       "title": "Email marketing integration",
-      "prd_ref": "OT-P2-012",
+      "prd_ref": "OT-P2-013",
       "description": "Sync subscribers to Mailchimp, ConvertKit, etc.",
       "validation": [
         {

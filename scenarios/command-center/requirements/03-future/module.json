@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "description": "Requirements derived from the P2 operational targets: prediction binding, reading history, and the two upstream instrument dependencies this board cannot satisfy on its own.",
+    "last_validated_at": "2026-09-03T20:44:22-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CC-P2-001",
+      "title": "Metrics show their live prediction",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "description": "A metric named by an unscored prediction block renders its target, direction and remaining horizon beside the value. A prediction whose horizon has passed and whose metric is not measurable resolves to unmeasurable and names the missing sensor, matching prediction-ledger rule 4.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/predictions_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Prediction join and the unmeasurable resolution path [REQ:CC-P2-001]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P2-002",
+      "title": "Reading history with recomputed verdicts",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-002",
+      "criticality": "P2",
+      "description": "Persist readings and their trust verdicts but never band verdicts, so in-band status is recomputed against the current setpoint at query time and tightening a target re-grades its own history. Retention floor derives from the longest declared window.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/cache_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verdicts recompute at query time; no band verdict is stored [REQ:CC-P2-002]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P2-003",
+      "title": "Consume the monetization revenue surface",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "criticality": "P2",
+      "description": "Read revenue and subscription readings from the monetization instrument once it exposes them, retiring the Ledger room's authored samples. Until then the room reports IN-REACH with the named missing surface rather than an error.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/SOURCE-MAP.md",
+          "phase": "review",
+          "status": "not_implemented",
+          "notes": "Blocked on an upstream surface; tracked as a source binding, not as scenario work [REQ:CC-P2-003]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P2-004",
+      "title": "Consume a marketing aggregator",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "criticality": "P2",
+      "description": "Read marketing readings once marketing-crew declares an aggregator. Until then the Broadcast room reports the team's absent instrument as one finding with one owner, rather than presenting six unrelated pipeline gaps that imply six separate pieces of work.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/concepts/SOURCE-MAP.md",
+          "phase": "review",
+          "status": "not_implemented",
+          "notes": "Blocked on a team instrument decision recorded in that team's record [REQ:CC-P2-004]."
+        }
+      ]
+    }
+  ]
+}

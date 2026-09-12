@@ -20,7 +20,9 @@ function createMatchMediaStub(initialMatch: boolean) {
   let currentMatches = initialMatch;
 
   const mql: MediaQueryList = {
-    get matches() { return currentMatches; },
+    get matches() {
+      return currentMatches;
+    },
     media: "",
     onchange: null,
     addEventListener(_type: string, cb: EventListenerOrEventListenerObject) {
@@ -86,7 +88,9 @@ describe("useMediaQuery", () => {
     const { result } = renderHook(() => useMediaQuery("(max-width: 767px)"));
     expect(result.current).toBe(false);
 
-    act(() => fire(true));
+    act(() => {
+      fire(true);
+    });
     expect(result.current).toBe(true);
   });
 
@@ -97,7 +101,9 @@ describe("useMediaQuery", () => {
     const { result } = renderHook(() => useMediaQuery("(max-width: 767px)"));
     expect(result.current).toBe(true);
 
-    act(() => fire(false));
+    act(() => {
+      fire(false);
+    });
     expect(result.current).toBe(false);
   });
 

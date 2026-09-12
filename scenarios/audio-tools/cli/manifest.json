@@ -1,0 +1,1825 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "audio-tools",
+  "description": "Audio Tools CLI \u2014 speech-to-text, text-to-speech, summarization, audio processing, provider lifecycle, and diagnostics over the audio-tools Connect-RPC API.",
+  "exceptions": [
+    {
+      "command": "settings providers",
+      "class": "passthrough",
+      "reason": "Composes SettingsService.GetProviderConfig and TTSService.GetStatus; no single RPC owns the availability matrix."
+    }
+  ],
+  "groups": [
+    {
+      "name": "validation",
+      "description": "Expensive out-of-band audio validation and evidence freshness",
+      "commands": [
+        {
+          "name": "run-expensive",
+          "description": "Run the hour-scale TTS and continuous synthetic-dictation qualification and record evidence",
+          "flags": [
+            {
+              "name": "duration-minutes",
+              "description": "Qualification duration; must be at least 60 minutes"
+            },
+            {
+              "name": "evidence-path",
+              "description": "Optional evidence JSON path (defaults to the scenario requirements evidence directory)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "check-freshness",
+          "description": "Fail when any out-of-band audio validation is missing or stale",
+          "flags": [
+            {
+              "name": "requirements-path",
+              "description": "Optional requirements directory (defaults to the scenario requirements directory)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "soak",
+      "description": "Real browser-to-composer long-form dictation qualification",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Drive Dictation Studio through BAS and emit one conformance.Run document",
+          "flags": [
+            {"name": "driver-url", "description": "Playwright driver URL (defaults to PLAYWRIGHT_DRIVER_URL)"},
+            {"name": "ui-url", "description": "Audio-tools UI URL (defaults to AUDIO_TOOLS_UI_URL or UI_BASE_URL)"},
+            {"name": "surface", "description": "Product surface: audio-tools or swarm-manager (defaults to audio-tools)"},
+            {"name": "fixture", "description": "Absolute WAV fixture path used by BAS fake_media"},
+            {"name": "lane", "description": "accelerated or realtime"},
+            {"name": "profile", "description": "realistic or continuous"},
+            {"name": "turns", "description": "Number of product turns"},
+            {"name": "feed-ms", "description": "Wall-clock fixture feed time per turn"},
+            {"name": "fault", "description": "Optional leased fault profile"},
+            {"name": "reference-text", "description": "Reference transcript for realtime quality assertions"},
+            {"name": "engine-id", "description": "Exact provider engine id"},
+            {"name": "model-id", "description": "Exact provider model id"},
+            {"name": "strategy", "description": "Streaming strategy"},
+            {"name": "policy", "description": "Dictation policy profile"},
+            {"name": "shape", "description": "Accelerated virtual corpus shape: burst or chunked; realtime shape: realistic or continuous"},
+            {"name": "evidence-path", "description": "Evidence JSON path (defaults to coverage/<run-id>.json)"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "stt",
+      "description": "Speech-to-text operations",
+      "commands": [
+        {
+          "name": "transcribe",
+          "description": "Transcribe an audio file",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Audio file path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "language",
+              "description": "Language hint (empty = auto-detect)"
+            },
+            {
+              "name": "format",
+              "description": "Audio format hint (default wav)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTService",
+            "method": "Transcribe"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "transcribe-stream",
+          "description": "Stream-transcribe an audio file (emits one line per stream event)",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Audio file path",
+              "local_only": true
+            },
+            {
+              "name": "language",
+              "description": "Language hint (empty = auto-detect)"
+            },
+            {
+              "name": "chunk-bytes",
+              "description": "Chunk size to feed the stream in bytes (default 32768)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTService",
+            "method": "TranscribeStream"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "formats",
+          "description": "Show the STT ingress audio-format capability matrix (accepted input codecs + ffmpeg/canonical-PCM status).",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTService",
+            "method": "GetSupportedFormats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "engines",
+          "description": "List selectable STT engines (manifest-derived) with availability and the active selection.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTService",
+            "method": "ListEngines"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "engine-impact",
+          "description": "Show the shared-resource impact of switching away from an engine (which other scenarios still use its resource + the stop command). Never stops anything.",
+          "positionals": [
+            {
+              "name": "engine",
+              "required": true,
+              "description": "Engine id to assess (see `stt engines`)",
+              "bind": {
+                "field": "from_engine_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "GetEngineSwitchImpact"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stream-config",
+          "description": "Show the resolved streaming STT configuration (engine + operator levers + egress gate + legacy partial-window fields).",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "GetStreamConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stream-config-set",
+          "description": "Update one or more streaming STT levers. Only provided flags are mutated.",
+          "flags": [
+            {
+              "name": "engine",
+              "description": "Active STT engine id (see `stt engines`); only the Local tier honors it"
+            },
+            {
+              "name": "streaming-mode",
+              "description": "auto|off \u2014 master switch (default auto)"
+            },
+            {
+              "name": "strategy-preference",
+              "description": "auto|vad|overlap|passthrough \u2014 strategy hint (default auto)"
+            },
+            {
+              "name": "vad-silence-ms",
+              "description": "VAD silence window in ms; range 200\u20133000 (default 1200)"
+            },
+            {
+              "name": "overlap-window-ms",
+              "description": "Sliding-window size for overlap-and-agree; range 1000\u20135000 (default 2000)"
+            },
+            {
+              "name": "overlap-commit-runs",
+              "description": "Consecutive agreeing runs to commit a prefix; range 2\u20134 (default 2)"
+            },
+            {
+              "name": "overlap-max-stall-rejects",
+              "description": "Force-commit the freshest hypothesis tail after N consecutive overlap divergence-rejects (bounds tail growth before the max_window_ms net); range 1\u201310, 0 disables (default 0; safer quality-first mode)"
+            },
+            {
+              "name": "hallucination-filter",
+              "description": "true|false \u2014 drop known Whisper silence-hallucination phrases (default true)"
+            },
+            {
+              "name": "vad-filter",
+              "description": "true|false \u2014 enable the Whisper-compatible silence-filter control on batch /asr calls (default true)"
+            },
+            {
+              "name": "no-speech-threshold",
+              "description": "Egress drop when mean no_speech_prob exceeds this AND avg_logprob is below logprob-threshold; range (0,1] (default 0.6)"
+            },
+            {
+              "name": "logprob-threshold",
+              "description": "Paired with no-speech-threshold; range [-10,0) (default -1.0)"
+            },
+            {
+              "name": "denoise",
+              "description": "true|false \u2014 pre-recognition ffmpeg afftdn denoise on the canonical-PCM stream (Whisper vad/overlap only; needs ffmpeg). Default off"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "UpdateStreamConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "speaker-status",
+          "description": "Show speaker-verification config, resource capability, and enrolled profiles. Notes the Whisper-only protection caveat.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "GetSpeakerStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "speaker-config",
+          "description": "Update speaker-verification config. Only provided flags are mutated.",
+          "flags": [
+            {
+              "name": "mode",
+              "description": "off|filter|advisory \u2014 verification mode (off disables gating)"
+            },
+            {
+              "name": "threshold",
+              "description": "Cosine-similarity accept threshold; 0..1 (default 0.5; same-speaker high, different low)"
+            },
+            {
+              "name": "enabled",
+              "description": "true|false \u2014 master enable for speaker verification"
+            },
+            {
+              "name": "profiles",
+              "description": "Comma-separated profile ids to set as the active binding (replaces the list)"
+            },
+            {
+              "name": "bind-profile",
+              "description": "Append a single profile id to the active binding (reads current list first)"
+            },
+            {
+              "name": "reject-behavior",
+              "description": "drop|show-muted \u2014 what to do with a rejected segment (default drop)"
+            },
+            {
+              "name": "fallback",
+              "description": "true|false \u2014 let audio through when no profile/resource is available"
+            },
+            {
+              "name": "extraction-enabled",
+              "description": "true|false \u2014 isolate the enrolled speaker's voice BEFORE recognition (ingress target extraction; needs an enrolled profile + the extraction-capable resource; default false)"
+            },
+            {
+              "name": "min-decision-seconds",
+              "description": "Warm-up window: voiced seconds that must accrue before the session verifier may reject (0 = server default)"
+            },
+            {
+              "name": "score-smoothing",
+              "description": "EMA alpha 0..1 applied to per-segment scores so the session decision stops swinging (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "UpdateSpeakerConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "speaker-enroll",
+          "description": "Append one or more enrollment clips to a voice profile. --file is comma-separated for multi-clip enroll; --activate binds+enables in one step.",
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Audio file path(s); comma-separated to enroll several clips in one call (each appended)"
+            },
+            {
+              "name": "profile",
+              "description": "Profile id (empty = server-generated; reused across the batch)"
+            },
+            {
+              "name": "name",
+              "description": "Human display name for the profile"
+            },
+            {
+              "name": "label",
+              "description": "Condition label for the clip(s), e.g. laptop-normal or phone-whisper"
+            },
+            {
+              "name": "notes",
+              "description": "Optional notes stored with the profile"
+            },
+            {
+              "name": "format",
+              "description": "Audio format hint (default wav)"
+            },
+            {
+              "name": "activate",
+              "description": "true|false \u2014 bind as active profile and enable verification (default off)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "EnrollSpeakerProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "speaker-clips",
+          "description": "List the enrollment clips of a speaker profile.",
+          "flags": [
+            {
+              "name": "profile",
+              "required": true,
+              "description": "Profile id",
+              "bind": {
+                "field": "profile_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "ListSpeakerProfileClips"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "speaker-delete-clip",
+          "description": "Delete one enrollment clip from a profile (recomputes the centroid; deleting the last clip deletes the profile).",
+          "flags": [
+            {
+              "name": "profile",
+              "required": true,
+              "description": "Profile id"
+            },
+            {
+              "name": "clip",
+              "required": true,
+              "description": "Clip id to delete"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "STTAdminService",
+            "method": "DeleteSpeakerProfileClip"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "tts",
+      "description": "Text-to-speech operations",
+      "commands": [
+        {
+          "name": "synthesize",
+          "description": "Synthesize speech audio from text",
+          "flags": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Text to synthesize"
+            },
+            {
+              "name": "voice",
+              "description": "Canonical voice id (default voice.neutral.default)"
+            },
+            {
+              "name": "speed",
+              "description": "Playback speed (default 1.0)"
+            },
+            {
+              "name": "format",
+              "description": "Output format mp3|wav|opus|flac (default mp3)",
+              "bind": {
+                "field": "response_format"
+              },
+              "bind_waiver": "format selects the requested TTS audio encoding and is genuine request data"
+            },
+            {
+              "name": "out",
+              "description": "Output file path (default stdout)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TTSService",
+            "method": "Synthesize"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "synthesize-stream",
+          "description": "Stream-synthesize speech audio (writes frames to --out as they arrive)",
+          "flags": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Text to synthesize"
+            },
+            {
+              "name": "voice",
+              "description": "Canonical voice id (default voice.neutral.default)"
+            },
+            {
+              "name": "speed",
+              "description": "Playback speed (default 1.0)"
+            },
+            {
+              "name": "format",
+              "description": "Output format mp3|wav|opus|flac (default mp3)",
+              "bind": {
+                "field": "response_format"
+              },
+              "bind_waiver": "format selects the requested TTS audio encoding and is genuine request data"
+            },
+            {
+              "name": "out",
+              "description": "Output file path (default stdout)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TTSService",
+            "method": "SynthesizeStream"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "voices",
+          "description": "List canonical voices",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TTSService",
+            "method": "ListVoices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "formats",
+          "description": "Show the TTS egress audio-format capability matrix (producible output containers).",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TTSService",
+            "method": "GetSupportedFormats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "summarize",
+      "description": "Text summarization via the audio-tools summarize chain",
+      "commands": [
+        {
+          "name": "text",
+          "description": "Summarize text from --text or stdin",
+          "flags": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Text to summarize"
+            },
+            {
+              "name": "level",
+              "description": "light|moderate|heavy (default moderate)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SummarizeService",
+            "method": "Summarize"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "description": "Audio processing (transcode, trim, merge, ...)",
+      "commands": [
+        {
+          "name": "transcode",
+          "description": "Transcode an audio file to WAV (16 kHz mono)",
+          "flags": [
+            {
+              "name": "input",
+              "required": true,
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output path",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AudioProcessingService",
+            "method": "Transcode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Provider routing, BYOK credentials, voice overrides",
+      "commands": [
+        {
+          "name": "provider",
+          "description": "Show the current provider routing config",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "GetProviderConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "byok-list",
+          "description": "List stored BYOK credentials (redacted)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "ListBYOKCredentials"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "byok-upsert",
+          "description": "Add or replace a BYOK credential",
+          "flags": [
+            {
+              "name": "provider",
+              "required": true,
+              "description": "Provider id (e.g. openai-tts)"
+            },
+            {
+              "name": "capability",
+              "required": true,
+              "description": "stt | tts | summarize"
+            },
+            {
+              "name": "key",
+              "required": true,
+              "description": "API key value"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "UpsertBYOKCredential"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "byok-delete",
+          "description": "Delete a BYOK credential",
+          "flags": [
+            {
+              "name": "provider",
+              "required": true,
+              "description": "Provider id"
+            },
+            {
+              "name": "capability",
+              "required": true,
+              "description": "stt | tts | summarize"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "DeleteBYOKCredential"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "usage",
+      "description": "Inspect usage rows recorded by the provider chains",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recent usage rows",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UsageService",
+            "method": "ListRecent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "summary",
+          "description": "Show usage summary for the last 24h",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "UsageService",
+            "method": "GetSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "diagnostics",
+      "description": "Operator-facing capability suite (STT/TTS/Summarize/Transcode) against bundled fixtures",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run the diagnostics suite and print the per-capability result table (or --json envelope)",
+          "flags": [
+            {
+              "name": "capability",
+              "description": "Comma-separated subset (stt,tts,summarize,transcode); empty runs all",
+              "bind": {
+                "field": "capabilities"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiagnosticsService",
+            "method": "RunSuite"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "last",
+          "description": "Print the most recent suite result (or --json envelope)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiagnosticsService",
+            "method": "GetLastRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Show per-capability provider health (capability/provider/tier/state table; `show` for one snapshot, `watch` to stream)",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Print the cached per-capability provider health (use --refresh to bypass the cache)",
+          "flags": [
+            {
+              "name": "refresh",
+              "bool": true,
+              "description": "Bypass the cache and re-run every checker before printing",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HealthStatusService",
+            "method": "GetProviderHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Stream rollup events; exits on Ctrl-C",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HealthStatusService",
+            "method": "StreamProviderHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "provider",
+      "description": "Lifecycle actions on local-tier providers (start/stop/restart, pull-model on ollama, stream logs)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List local providers, their current process_state, and supported actions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "ListLocalProviders"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a local provider (use --dry-run to preview)",
+          "positionals": [
+            {
+              "name": "provider-id",
+              "required": true,
+              "description": "Provider id (e.g. whisper-stt, kokoro-tts, ollama, speaker-verification)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "StartProvider"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a local provider (use --dry-run to preview)",
+          "positionals": [
+            {
+              "name": "provider-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "StopProvider"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Restart a local provider (use --dry-run to preview)",
+          "positionals": [
+            {
+              "name": "provider-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "RestartProvider"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "pull-model",
+          "description": "Pull a model on the ollama provider (ollama-only; use --dry-run to preview)",
+          "positionals": [
+            {
+              "name": "model-name",
+              "required": true,
+              "description": "Model identifier accepted by `ollama pull` (e.g. phi3:mini)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "PullModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Stream stdout/stderr lines from a provider's backing resource",
+          "positionals": [
+            {
+              "name": "provider-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "follow",
+              "bool": true,
+              "description": "Keep the stream open (tail -f behavior)"
+            },
+            {
+              "name": "tail",
+              "description": "Number of historical lines to emit before tailing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProviderLifecycleService",
+            "method": "GetProviderLogs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "corpus",
+      "description": "Manage the speech-eval clip corpus (record-import, list, get, delete). Audio bytes live in the git-ignored blob store; metadata in the corpus SQLite domain.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List corpus clips (newest first), optionally filtered by tag",
+          "flags": [
+            {
+              "name": "tag",
+              "description": "Only clips whose tags contain this substring",
+              "bind": {
+                "field": "tag_contains"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Max clips to return (0 = no limit)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CorpusService",
+            "method": "ListClips"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import an s16le-mono-PCM audio file + reference transcript as a corpus clip",
+          "positionals": [
+            {
+              "name": "audio-file",
+              "required": true,
+              "description": "Path to the audio file (s16le mono PCM preferred \u2014 the recorder's format)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reference",
+              "description": "Ground-truth transcript text (inline)"
+            },
+            {
+              "name": "reference-file",
+              "description": "Path to a file holding the ground-truth transcript"
+            },
+            {
+              "name": "tags",
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "format",
+              "description": "Audio format hint (default pcm_s16le)"
+            },
+            {
+              "name": "sample-rate",
+              "description": "Sample rate in Hz (default 16000)"
+            },
+            {
+              "name": "scripted",
+              "bool": true,
+              "description": "Mark the clip as a scripted-prompt reading (default free-form)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CorpusService",
+            "method": "CreateClip"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one corpus clip's metadata",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Clip id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CorpusService",
+            "method": "GetClip"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a corpus clip (metadata row + audio blob)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Clip id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CorpusService",
+            "method": "DeleteClip"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "experiment",
+      "description": "Manage persisted async STT experiments: start, watch, wait, report, and compare runs. --json uses proto snake_case and emits default scalar metrics so zero WER/latency/deltas are explicit.",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Enqueue an async STT experiment and return immediately with its persisted id. Boolean flags (--long-form, --speaker-extraction, --speaker-verification, --speaker-fallback, --speaker-ablation) accept true|false; passing the flag with no value means true. Example: audio-tools experiment start --name baseline --strategies batch,vad_segment,overlap_agree --clip-ids c1,c2 --json Pass --dry-run to validate/resolve a recipe without enqueuing.",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Human label for the experiment"
+            },
+            {
+              "name": "strategies",
+              "description": "Comma-separated strategy kinds (batch,vad_segment,overlap_agree); default server trio"
+            },
+            {
+              "name": "clip-ids",
+              "description": "Comma-separated corpus clip ids to evaluate (default: whole corpus)"
+            },
+            {
+              "name": "realtime-repeats",
+              "description": "Real-time-paced runs per clip for latency p50/p95 (0 = quality only)"
+            },
+            {
+              "name": "latency-tail-seconds",
+              "description": "When realtime repeats are enabled, fast-feed the prefix and pace only the final N seconds at 1x (0 = full real-time pacing)"
+            },
+            {
+              "name": "chunk-ms",
+              "description": "Replay chunk size in ms (default 100)"
+            },
+            {
+              "name": "dropped-span-threshold",
+              "description": "Contiguous deleted reference-word threshold for the safety gate (default 4)"
+            },
+            {
+              "name": "overlap-max-window-ms",
+              "description": "Overlap-agree max uncommitted tail window in ms before force-commit (default 25000)"
+            },
+            {
+              "name": "overlap-max-stall-rejects",
+              "description": "Overlap-agree stall-fallback rejected-window limit; 0 disables, absent uses stream-config default"
+            },
+            {
+              "name": "overlap-window-ms",
+              "description": "Overlap-agree comparison window in ms (0 = stream-config default)"
+            },
+            {
+              "name": "overlap-commit-runs",
+              "description": "Overlap-agree matching-run count required before commit (0 = stream-config default)"
+            },
+            {
+              "name": "vad-silence-ms",
+              "description": "VAD segment silence threshold in ms (0 = stream-config default)"
+            },
+            {
+              "name": "seed",
+              "description": "Seed for deterministic long-form clip ordering (default 1 when long-form is enabled)"
+            },
+            {
+              "name": "long-form",
+              "description": "true|false \u2014 concatenate selected corpus clips into one seeded long-form input"
+            },
+            {
+              "name": "target-duration-seconds",
+              "description": "Keep concatenating seeded corpus clips until this approximate input duration is reached"
+            },
+            {
+              "name": "gap-ms",
+              "description": "Silence gap inserted between clips in long-form inputs (default 5000)"
+            },
+            {
+              "name": "tag-contains",
+              "description": "Restrict long-form source clips to corpus clips whose tags contain this substring"
+            },
+            {
+              "name": "sweep-durations",
+              "description": "Comma-separated long-form input durations in SECONDS to evaluate as separate length conditions (e.g. 30,60,120,300); setting this implies --long-form"
+            },
+            {
+              "name": "noise-types",
+              "description": "Comma-separated generated noise beds to mix across the full input; one of: white, fan, percussive, music (unknown types are rejected up front)"
+            },
+            {
+              "name": "snr-db",
+              "description": "Comma-separated SNR levels in dB for augmentation conditions; 0 = noise as loud as speech, negative = noise louder (default 12 when augmentation is enabled)"
+            },
+            {
+              "name": "competing-voices",
+              "description": "Comma-separated Kokoro voice ids to synthesize as competing speakers"
+            },
+            {
+              "name": "competing-text",
+              "description": "Text spoken by each synthesized competing voice"
+            },
+            {
+              "name": "target-profile-id",
+              "description": "Speaker profile id for target-speaker extraction/verification experiment conditions"
+            },
+            {
+              "name": "speaker-extraction",
+              "description": "true|false \u2014 enable target-speaker extraction for the recipe condition"
+            },
+            {
+              "name": "speaker-verification",
+              "description": "true|false \u2014 enable egress speaker verification for the recipe condition"
+            },
+            {
+              "name": "speaker-mode",
+              "description": "Speaker verification mode: off, filter, or advisory"
+            },
+            {
+              "name": "speaker-threshold",
+              "description": "Speaker verification cosine threshold (default 0.5)"
+            },
+            {
+              "name": "speaker-fallback",
+              "description": "true|false \u2014 allow unverified text when the speaker resource cannot decide"
+            },
+            {
+              "name": "speaker-ablation",
+              "description": "true|false \u2014 evaluate extraction/verification off/on combinations for attribution"
+            },
+            {
+              "name": "estimated-seconds",
+              "description": "Optional client-visible runtime estimate in seconds"
+            },
+            {
+              "name": "recipe-json",
+              "description": "Inline JSON ExperimentRecipe (protojson) used as the BASE recipe; any individual --flags you also pass override its fields. Mutually exclusive with --recipe-file"
+            },
+            {
+              "name": "recipe-file",
+              "description": "Path to a JSON file holding an ExperimentRecipe (protojson) used as the BASE recipe; individual --flags override its fields. Mutually exclusive with --recipe-json"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Validate and resolve the recipe and print the preview WITHOUT enqueuing anything"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "StartExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one experiment's persisted lifecycle state and run cells.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "GetExperiment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until an experiment reaches a terminal state; canceling the client does not abort the run. With --json, terminal experiments include the stored report envelope (experiment, report, runs) when available; otherwise the lifecycle envelope is returned. Example: audio-tools experiment wait <id> --json",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "WaitExperiment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List persisted experiments newest first, optionally filtered by status.",
+          "flags": [
+            {
+              "name": "status",
+              "description": "queued|running|succeeded|failed|canceled"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum experiments to return (0 = server default)"
+            },
+            {
+              "name": "offset",
+              "description": "Pagination offset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "ListExperiments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a queued or running experiment.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "CancelExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a terminal experiment, its run rows, and its stored report blob. Requires --yes confirmation.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "yes",
+              "bool": true,
+              "description": "Confirm deletion"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "DeleteExperiment"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "watch",
+          "description": "Stream in-memory progress events for one active experiment.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "StreamExperimentEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "report",
+          "description": "Fetch an experiment's stored report artifact and run-cell condition rows. --json returns {experiment, report, runs}; report metrics use snake_case with zero/default scalar fields emitted. Example: audio-tools experiment report <id> --json",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Experiment id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "GetExperimentReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compare",
+          "description": "Compare two or more experiments by id, showing each one's winning strategy, WER, p95 latency, calls, RTF, and safety gate, with deltas vs the best (lowest-WER) experiment. Ids may be space-separated AND/OR comma-separated. Experiments still running (no report) appear as a row with their status. Use --json for full recipes and reports with explicit zero/default scalar metrics. Example: audio-tools experiment compare <id-a> <id-b> --json",
+          "positionals": [
+            {
+              "name": "ids",
+              "required": true,
+              "repeated": true,
+              "description": "Experiment ids, space- and/or comma-separated (e.g. `id-a id-b` or `id-a,id-b`)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "CompareExperiments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "record-evidence",
+          "description": "Persist a transcript-free qualification artifact for one exact provider model/strategy/policy cell. A passed artifact can credit only its matching cell; failures remain visible in its promotion verdict. Example: audio-tools experiment record-evidence --engine-id kyutai --model-id kyutai/stt-1b-en_fr --strategy passthrough --kind fault --fault-profile provider_busy --outcome passed --artifact-ref bas:run-id",
+          "flags": [
+            {
+              "name": "engine-id",
+              "description": "Provider engine id (for example kyutai or whisper-local)"
+            },
+            {
+              "name": "model-id",
+              "description": "Exact provider model id from the qualification artifact (required)"
+            },
+            {
+              "name": "strategy",
+              "description": "Streaming strategy for the qualified provider cell"
+            },
+            {
+              "name": "policy-profile",
+              "description": "Optional dictation policy profile; empty is the default profile"
+            },
+            {
+              "name": "kind",
+              "description": "interval_accounting|bounded_recovery|fault|browser_product_path|device"
+            },
+            {
+              "name": "fault-profile",
+              "description": "Required trust-floor fault id when --kind=fault; omitted for other kinds"
+            },
+            {
+              "name": "outcome",
+              "description": "passed|failed"
+            },
+            {
+              "name": "artifact-ref",
+              "description": "Durable BAS run id, experiment id, or equivalent artifact reference"
+            },
+            {
+              "name": "notes",
+              "description": "Optional concise operator notes"
+            },
+            {
+              "name": "machine-json",
+              "description": "Optional JSON host/goos/goarch identity for an externally run artifact; local records are stamped by the API"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "RecordQualificationEvidence"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list-evidence",
+          "description": "List persisted qualification artifacts, optionally narrowed to one provider strategy/policy cell. Use --json for machine identity, notes, and exact timestamps.",
+          "flags": [
+            {
+              "name": "engine-id",
+              "description": "Optional provider engine id filter"
+            },
+            {
+              "name": "model-id",
+              "description": "Optional exact provider model id filter"
+            },
+            {
+              "name": "strategy",
+              "description": "Optional strategy filter"
+            },
+            {
+              "name": "policy-profile",
+              "description": "Optional policy profile filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExperimentService",
+            "method": "ListQualificationEvidence"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "HealthStatusService",
+      "method": "RefreshProviderHealth",
+      "reason": "Reached via `health show --refresh`, which shares the `health show` command with GetProviderHealth; cli-manifest/v1 binds one method per command."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Trim",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Merge",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Split",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Fade",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Volume",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "Normalize",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "AudioProcessingService",
+      "method": "ExtractMetadata",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "DiagnosticsService",
+      "method": "ListFixtures",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SessionService",
+      "method": "OpenSession",
+      "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today."
+    },
+    {
+      "service": "SessionService",
+      "method": "CloseSession",
+      "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today."
+    },
+    {
+      "service": "SessionService",
+      "method": "SendText",
+      "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today."
+    },
+    {
+      "service": "CorpusService",
+      "method": "GetClipAudio",
+      "reason": "Streams raw audio bytes for UI playback and internal experiment evaluation; no standalone CLI command (use the UI to audition a clip)."
+    },
+    {
+      "service": "SessionService",
+      "method": "SendCancel",
+      "reason": "Real-time bidirectional session RPC for the UI/WebSocket bridge; no CLI command today."
+    },
+    {
+      "service": "SessionService",
+      "method": "Subscribe",
+      "reason": "Server-streaming session feed for the UI/WebSocket bridge; no CLI command today."
+    },
+    {
+      "service": "SettingsService",
+      "method": "UpdateProviderConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SettingsService",
+      "method": "GetVoiceOverrides",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SettingsService",
+      "method": "SetVoiceOverride",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "GetSpeakerConfig",
+      "reason": "Read internally by `stt speaker-config` to merge unspecified fields before UpdateSpeakerConfig; not a standalone CLI command."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "GetWakeWordConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "UpdateWakeWordTemplate",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "DeleteWakeWordTemplate",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "ListSpeakerProfiles",
+      "reason": "Surfaced inside `stt speaker-status`; no standalone CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "ClearSpeakerProfileBinding",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "DeleteSpeakerProfile",
+      "reason": "Exposed via API/UI only; no CLI command today (clip-level deletion is `stt speaker-delete-clip`)."
+    },
+    {
+      "service": "STTAdminService",
+      "method": "UnbindSpeakerProfile",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SummarizeService",
+      "method": "GetSummarizeConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SummarizeService",
+      "method": "UpdateSummarizeConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "SummarizeService",
+      "method": "ListSummarizeModels",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "GetCache",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "GetConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "UpdateConfig",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "GetStatus",
+      "reason": "Read internally by `settings providers` to compute TTS reachability; not a standalone CLI command."
+    },
+    {
+      "service": "TTSService",
+      "method": "RecordPlaybackEvent",
+      "reason": "Telemetry sink called by the UI playback path; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "NormalizeForSpeech",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    },
+    {
+      "service": "TTSService",
+      "method": "SplitParagraphs",
+      "reason": "Exposed via API/UI only; no CLI command today."
+    }
+  ]
+}

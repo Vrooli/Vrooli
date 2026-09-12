@@ -1,6 +1,7 @@
 package deployments
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -13,13 +14,22 @@ import (
 
 // ApprovalsHandler handles HTTP endpoints for deployment approval gating.
 type ApprovalsHandler struct {
-	repo ApprovalsRepository
-	log  func(string, map[string]interface{})
+	repo  ApprovalsRepository
+	log   func(string, map[string]interface{})
+	actor func(context.Context) (string, error)
 }
 
 // NewApprovalsHandler creates a new approvals handler.
 func NewApprovalsHandler(repo ApprovalsRepository, log func(string, map[string]interface{})) *ApprovalsHandler {
 	return &ApprovalsHandler{repo: repo, log: log}
+}
+
+// WithActorResolver binds approval attribution to the verified caller. The
+// request reviewer field remains a display hint and cannot authorize a
+// decision when the production boundary is configured.
+func (h *ApprovalsHandler) WithActorResolver(resolve func(context.Context) (string, error)) *ApprovalsHandler {
+	h.actor = resolve
+	return h
 }
 
 // Create handles POST /api/v1/profiles/{id}/approvals
@@ -123,12 +133,21 @@ func (h *ApprovalsHandler) Decide(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"decision must be 'approved' or 'rejected'"}`, http.StatusBadRequest)
 		return
 	}
-	if req.Reviewer == "" {
+	reviewer := req.Reviewer
+	if h.actor != nil {
+		resolved, err := h.actor(r.Context())
+		if err != nil || resolved == "" {
+			http.Error(w, `{"error":"verified reviewer identity is required"}`, http.StatusForbidden)
+			return
+		}
+		reviewer = resolved
+	}
+	if reviewer == "" {
 		http.Error(w, `{"error":"reviewer is required"}`, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.repo.UpdateDecision(r.Context(), id, req.Decision, req.Reviewer, req.Notes); err != nil {
+	if err := h.repo.UpdateDecision(r.Context(), id, req.Decision, reviewer, req.Notes); err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
 		return
 	}
@@ -136,7 +155,7 @@ func (h *ApprovalsHandler) Decide(w http.ResponseWriter, r *http.Request) {
 	h.log("approval decided", map[string]interface{}{
 		"approval_id": id,
 		"decision":    req.Decision,
-		"reviewer":    req.Reviewer,
+		"reviewer":    reviewer,
 	})
 
 	// Return the updated approval
@@ -212,6 +231,35 @@ func (h *ApprovalsHandler) GetRequiredPlatforms(w http.ResponseWriter, r *http.R
 		"profile_id": profileID,
 		"platforms":  platforms,
 	})
+}
+
+// SetRequiredTargets configures the exact target set whose evidence must pass
+// before a release can be approved.
+func (h *ApprovalsHandler) SetRequiredTargets(w http.ResponseWriter, r *http.Request) {
+	profileID := mux.Vars(r)["id"]
+	var req SetRequiredTargetsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"invalid JSON: %v"}`, err), http.StatusBadRequest)
+		return
+	}
+	if err := h.repo.SetRequiredTargets(r.Context(), profileID, req.Targets); err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"profile_id": profileID, "targets": req.Targets})
+}
+
+func (h *ApprovalsHandler) GetRequiredTargets(w http.ResponseWriter, r *http.Request) {
+	profileID := mux.Vars(r)["id"]
+	targets, err := h.repo.GetRequiredTargets(r.Context(), profileID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	if targets == nil {
+		targets = []RequiredTarget{}
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"profile_id": profileID, "targets": targets})
 }
 
 // writeJSON sends a JSON response.

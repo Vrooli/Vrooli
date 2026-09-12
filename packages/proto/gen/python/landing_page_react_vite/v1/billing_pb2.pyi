@@ -250,3 +250,7 @@ class BillingPortalResponse(_message.Message):
     URL_FIELD_NUMBER: _ClassVar[int]
     url: str
     def __init__(self, url: _Optional[str] = ...) -> None: ...
+
+class GetBillingPortalRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

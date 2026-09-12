@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-network-status",
+    "name": "useNetworkStatus",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A best-effort connectivity primitive combining browser signals with optional application health checks, rather than treating the navigator online flag as authoritative.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "requiredCapabilities": [
+    "offline-behavior"
+  ]
+}

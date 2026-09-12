@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.log-viewer",
+    "name": "LogViewer",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The virtualized streaming log surface with pause and follow, search, severity filters, timestamps, wrapping, selection, and export.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.code",
+        "reason": "Monospace rendering is shared."
+      },
+      {
+        "asset": "data-display.virtual-list",
+        "reason": "Windowing and focus preservation are shared."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status",
+    "status-announced",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "offline"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Scrolling up pauses the follow automatically and a single clear control resumes it, so a streaming log can be read without fighting the stream."
+    }
+  },
+  "rationale": "The most demanding performance case in the catalog: unbounded append at high frequency, where a naive implementation re-renders the window on every line and becomes unusable within a minute."
+}

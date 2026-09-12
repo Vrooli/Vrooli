@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { TaskKanbanCard } from './TaskKanbanCard'
 import type { TeamTask } from '@/services/heartbeatService'
 import type { TeamMember } from '@/types/team'

@@ -1,0 +1,1060 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "brand-manager",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "brands",
+      "description": "Manage brand identities (CRUD + immutable version history)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brands (newest-updated first)",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Filter by case-insensitive name substring",
+              "bind": {
+                "field": "name_contains"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows to return (default 100, max 500)"
+            },
+            {
+              "name": "offset",
+              "description": "Rows to skip (pagination)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "ListBrands"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a brand",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Brand name"
+            },
+            {
+              "name": "description",
+              "description": "Brand description"
+            },
+            {
+              "name": "notes",
+              "description": "Authoring notes"
+            },
+            {
+              "name": "display-name",
+              "description": "Identity: display name"
+            },
+            {
+              "name": "tagline",
+              "description": "Identity: tagline"
+            },
+            {
+              "name": "primary",
+              "description": "Colors: primary (CSS color)"
+            },
+            {
+              "name": "secondary",
+              "description": "Colors: secondary (CSS color)"
+            },
+            {
+              "name": "accent",
+              "description": "Colors: accent (CSS color)"
+            },
+            {
+              "name": "background",
+              "description": "Colors: background (CSS color)"
+            },
+            {
+              "name": "surface",
+              "description": "Colors: surface (CSS color)"
+            },
+            {
+              "name": "text",
+              "description": "Colors: text (CSS color)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "CreateBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a brand by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "GetBrand"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a brand (partial; only provided fields change)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Brand name"
+            },
+            {
+              "name": "description",
+              "description": "Brand description"
+            },
+            {
+              "name": "notes",
+              "description": "Authoring notes"
+            },
+            {
+              "name": "display-name",
+              "description": "Identity: display name"
+            },
+            {
+              "name": "tagline",
+              "description": "Identity: tagline"
+            },
+            {
+              "name": "primary",
+              "description": "Colors: primary (CSS color)"
+            },
+            {
+              "name": "secondary",
+              "description": "Colors: secondary (CSS color)"
+            },
+            {
+              "name": "accent",
+              "description": "Colors: accent (CSS color)"
+            },
+            {
+              "name": "background",
+              "description": "Colors: background (CSS color)"
+            },
+            {
+              "name": "surface",
+              "description": "Colors: surface (CSS color)"
+            },
+            {
+              "name": "text",
+              "description": "Colors: text (CSS color)"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic lock: reject unless this matches the current version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "UpdateBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a brand (idempotent)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "DeleteBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List a brand's immutable version history",
+          "positionals": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "ListBrandVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "tokens",
+          "description": "Project a brand's color system into stable $brand.* design tokens",
+          "positionals": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "GetTokens"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "assignments",
+      "description": "Assign brands to scenarios and inspect a scenario's branding status",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brand assignments (newest-applied first)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "description": "Filter to assignments for one brand"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "ListAssignments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Assign a brand to a scenario (upsert; pins the brand's current version)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to brand",
+              "bind": {
+                "field": "scenario_name"
+              }
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated applied elements (e.g. logo,colors)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "AssignBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show a scenario's branding status",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "GetScenarioStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unassign",
+          "description": "Remove a scenario's brand assignment (idempotent)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "UnassignScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "assets",
+      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, \u2026)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brand assets (newest-uploaded first)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "description": "Filter to assets for one brand"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "ListAssets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "upload",
+          "description": "Upload (or replace) a brand asset file from local disk",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id that owns the asset"
+            },
+            {
+              "name": "file",
+              "required": true,
+              "description": "Path to the local file to upload",
+              "local_only": true
+            },
+            {
+              "name": "filename",
+              "description": "Override the stored filename (defaults to the file's basename)"
+            },
+            {
+              "name": "mime-type",
+              "description": "Override the mime type (inferred from the extension when unset)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "UploadAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show an asset's catalog entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "GetAsset"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "download",
+          "description": "Download an asset's bytes to a local file",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "out",
+              "description": "Output path (defaults to the stored filename in the working directory)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "DownloadAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an asset (idempotent)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "DeleteAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "generation",
+      "description": "Generate brand text facets (Ollama \u2192 OpenRouter) and brand images via image-tools",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Report which text AI providers are currently available",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GetProviderStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "image-status",
+          "description": "Report image-tools readiness for logo/icon operations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GetImageBackendStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "elements",
+          "description": "Generate brand text facets (colors, typography, voice) and apply them to a brand",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to generate facets for"
+            },
+            {
+              "name": "elements",
+              "required": true,
+              "description": "Comma-separated facets: colors,typography,voice"
+            },
+            {
+              "name": "model",
+              "description": "Provider model/role override (optional)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GenerateBrandElements"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "image",
+          "description": "Generate a brand image (logo or favicon) via image-tools and store it as a brand asset",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to generate the image for"
+            },
+            {
+              "name": "type",
+              "required": true,
+              "description": "Image type: logo or favicon"
+            },
+            {
+              "name": "model",
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
+            },
+            {
+              "name": "seed",
+              "description": "RNG seed for reproducibility (optional; 0 = random)"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only",
+              "bind": {
+                "field": "allow_byok"
+              }
+            },
+            {
+              "name": "quality-policy",
+              "description": "Image quality policy: quality, balanced, or fast (default: quality)"
+            },
+            {
+              "name": "fallback-policy",
+              "description": "Provider fallback policy: any, cloud_allowed, or local_only (default: any)"
+            },
+            {
+              "name": "priority",
+              "description": "Capacity priority: service, interactive, or batch (default: service)"
+            },
+            {
+              "name": "no-reclaim",
+              "bool": true,
+              "description": "Do not reclaim cold-idle local resources for this generation",
+              "bind": {
+                "field": "allow_reclaim"
+              }
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the canonical logo.png/favicon.png asset"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GenerateBrandImage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit-image",
+          "description": "Edit an existing brand image by instruction via image-tools (edit_instruct)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the image belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Existing brand asset id to edit"
+            },
+            {
+              "name": "instruction",
+              "aliases": ["prompt"],
+              "required": true,
+              "description": "Natural-language edit instruction"
+            },
+            {
+              "name": "model",
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
+            },
+            {
+              "name": "seed",
+              "description": "RNG seed for reproducibility (optional; 0 = random)"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only",
+              "bind": {
+                "field": "allow_byok"
+              }
+            },
+            {
+              "name": "quality-policy",
+              "description": "Image quality policy: quality, balanced, or fast (default: quality)"
+            },
+            {
+              "name": "fallback-policy",
+              "description": "Provider fallback policy: any, cloud_allowed, or local_only (default: any)"
+            },
+            {
+              "name": "priority",
+              "description": "Capacity priority: service, interactive, or batch (default: service)"
+            },
+            {
+              "name": "no-reclaim",
+              "bool": true,
+              "description": "Do not reclaim cold-idle local resources for this edit",
+              "bind": {
+                "field": "allow_reclaim"
+              }
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the edited result as canonical logo.png"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "EditBrandImage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove-background",
+          "description": "Isolate the mark in a brand image via image-tools (background_removal)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the image belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Existing brand asset id to cut out"
+            },
+            {
+              "name": "model",
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback",
+              "bind": {
+                "field": "allow_byok"
+              }
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the result as canonical logo-transparent.png"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "RemoveBrandImageBackground"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "derive-icons",
+          "description": "Derive a deterministic platform icon set (favicons + apple-touch + maskable) from a source asset",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the source asset belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Source brand asset id (typically the transparent logo)"
+            },
+            {
+              "name": "favicon",
+              "bool": true,
+              "description": "Emit transparent favicon PNGs (16/32/196). If no include flag is set, all families are produced",
+              "bind": {
+                "field": "include_favicon"
+              }
+            },
+            {
+              "name": "apple-touch",
+              "bool": true,
+              "description": "Emit an opaque Apple-touch icon (180)",
+              "bind": {
+                "field": "include_apple_touch"
+              }
+            },
+            {
+              "name": "maskable",
+              "bool": true,
+              "description": "Emit maskable launcher icons (192/512, solid background)",
+              "bind": {
+                "field": "include_maskable"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "DeriveBrandIcons"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "apply",
+      "description": "Apply a brand identity into a target scenario source tree (CSS, manifest.json, logo/favicon)",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview which files applying a brand to a scenario would write (makes no changes)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "PreviewApply"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Apply a brand to a scenario source tree and record the assignment",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "ApplyBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery",
+      "description": "Scan an existing scenario for branding state and import it as a brand",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan a scenario for branding state and show the draft brand it would import (makes no changes)",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name to scan (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "DiscoverScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Scan a scenario and create a new brand from the discovered branding state",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name to scan and import from (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "ImportBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "design",
+      "description": "Render a brand's identity as a canonical DESIGN.md document",
+      "commands": [
+        {
+          "name": "generate",
+          "description": "Render a brand as a DESIGN.md document and print the markdown (makes no changes)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to render"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignService",
+            "method": "GenerateDesignLanguage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "provider",
+      "description": "Shared ScenarioValidationService provider surface",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a scenario through Brand Manager's delegated ScenarioValidationService contract.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Render the raw shared validation response as JSON",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}

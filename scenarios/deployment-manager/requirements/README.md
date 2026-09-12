@@ -1,13 +1,13 @@
 # Requirements Registry: deployment-manager
 
-**Total**: 99 requirements (37 P0, 36 P1, 26 P2)
+**Total**: 104 requirements (39 P0, 36 P1, 29 P2)
 **Last Updated**: 2025-11-21 (Generator Phase)
 
 ---
 
 ## Module Structure
 
-Requirements organized by PRD operational targets into 14 functional modules:
+Requirements organized by PRD operational targets into 15 functional modules:
 
 | Module | Directory | Count | Priority | PRD Section |
 |--------|-----------|-------|----------|-------------|
@@ -25,14 +25,15 @@ Requirements organized by PRD operational targets into 14 functional modules:
 | Enterprise Compliance & Licensing | `12-enterprise-compliance` | 8 | P2 | License validation, audit logging, approval workflows |
 | CLI Automation & CI/CD | `13-cli-automation` | 4 | P2 | Headless deployment, machine-readable output, exit codes |
 | Advanced Features & Visual Builder | `14-advanced-features` | 14 | P2 | Cost tracking, visual editor, templates, tier recommendations |
+| Evidence-Backed Release Governance | `15-evidence-governance` | 2 | P0 | Shared contract validation and decision-grade desktop evidence |
 
 ---
 
 ## Requirement ID Pattern
 
-- **P0 (Core)**: `REQ-P0-001` through `REQ-P0-037` — Must ship for viability
-- **P1 (Enhanced)**: `REQ-P1-001` through `REQ-P1-036` — Should have post-launch
-- **P2 (Advanced)**: `REQ-P2-001` through `REQ-P2-026` — Future/expansion ideas
+- **P0 (Core)**: `DM-P0-001` through `DM-P0-039` — Must ship for viability
+- **P1 (Enhanced)**: `DM-P1-001` through `DM-P1-036` — Should have post-launch
+- **P2 (Advanced)**: `DM-P2-001` through `DM-P2-029` — Future/expansion ideas
 
 Each requirement links to its PRD operational target via `prd_ref` field (e.g., `OT-P0-001`).
 
@@ -44,19 +45,19 @@ Tag all tests with `[REQ:ID]` for automated tracking:
 
 **Go (API tests)**:
 ```go
-// [REQ:REQ-P0-001] Dependency Aggregation
+// [REQ:DM-P0-001] Dependency Aggregation
 func TestDependencyAggregation(t *testing.T) { ... }
 ```
 
 **TypeScript (UI tests)**:
 ```typescript
-// [REQ:REQ-P0-035] Interactive Dependency Graph
-it('[REQ:REQ-P0-035] renders graph in <3s for 100 deps', () => { ... });
+// [REQ:DM-P0-035] Interactive Dependency Graph
+it('[REQ:DM-P0-035] renders graph in <3s for 100 deps', () => { ... });
 ```
 
 **Bash (Integration)**:
 ```bash
-# [REQ:REQ-P0-028] One-Click Deployment Trigger
+# [REQ:DM-P0-028] One-Click Deployment Trigger
 test_one_click_deployment() { ... }
 ```
 
@@ -109,11 +110,11 @@ Focus: Enterprise compliance, CLI automation, visual builder
 
 ## Key Integration Points
 
-- **scenario-dependency-analyzer**: Dependency tree data source (REQ-P0-001, REQ-P1-031)
-- **secrets-manager**: Secret classification and templates (REQ-P0-018 through REQ-P0-022)
-- **app-issue-tracker**: Migration task creation when swaps approved (REQ-P1-022, REQ-P1-024, REQ-P1-035)
-- **scenario-to-*** packagers: Platform-specific deployment execution (REQ-P0-033, REQ-P0-034)
-- **claude-code/ollama**: AI migration strategy suggestions (REQ-P1-020, REQ-P1-021)
+- **scenario-dependency-analyzer**: Dependency tree data source (DM-P0-001, DM-P1-031)
+- **secrets-manager**: Secret classification and templates (DM-P0-018 through DM-P0-022)
+- **app-issue-tracker**: Migration task creation when swaps are approved (DM-P1-022, DM-P1-024, DM-P1-035)
+- **scenario-to-*** packagers: Platform-specific deployment execution (DM-P0-033, DM-P0-034)
+- **claude-code/ollama**: AI migration strategy suggestions (DM-P1-020, DM-P1-021)
 
 ---
 

@@ -1,7 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 import type { ExecutionViewportSettings } from '../types';
 import type { ActionDefinition } from '../../../utils/actionBuilder';
-import { buildActionDefinition } from '../../../utils/actionBuilder';
 import { isPlainObject } from './viewport';
 
 // ============================================================================
@@ -165,17 +164,22 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
     }
 
     const nodeRecord = node as Node & Record<string, unknown>;
+    const existingAction = (nodeRecord as Node & { action?: ActionDefinition }).action;
+    if (!existingAction || typeof existingAction !== 'object' || typeof existingAction.type !== 'string') {
+      throw new Error(`workflow node ${nodeRecord.id ?? '<unknown>'} is missing a V2 action`);
+    }
     const cleaned: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(nodeRecord)) {
+		// ReactFlow renderer and inspector state are not part of the V2 workflow
+		// contract. The action is the executable node representation.
+		if (key === 'type' || key === 'data') {
+			continue;
+		}
       if (TRANSIENT_NODE_KEYS.has(key)) {
         continue;
       }
       if (typeof value === 'function') {
-        continue;
-      }
-      if (key === 'data' && value && typeof value === 'object') {
-        cleaned[key] = deepClone(value);
         continue;
       }
       // Preserve V2 action field for type-safe execution
@@ -197,12 +201,6 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
     if (!('id' in cleaned)) {
       cleaned.id = nodeRecord.id;
     }
-    if (!('type' in cleaned) && 'type' in nodeRecord) {
-      cleaned.type = nodeRecord.type;
-    }
-    if (!('data' in cleaned)) {
-      cleaned.data = {};
-    }
     if (!('position' in cleaned)) {
       const pos = nodeRecord.position as unknown as Record<string, unknown> | undefined;
       cleaned.position = {
@@ -211,17 +209,8 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
       };
     }
 
-    // V2 Compatibility: Ensure action field exists for all nodes
-    // If an action already exists, preserve it as the source of truth
-    // If no action exists, generate one from type/data for V2 compatibility
-    const existingAction = (nodeRecord as Node & { action?: ActionDefinition }).action;
-    if (existingAction && typeof existingAction === 'object') {
-      cleaned.action = deepClone(existingAction);
-    } else if (nodeRecord.type) {
-      // Generate V2 action from V1 type/data for backwards compatibility
-      const nodeData = (cleaned.data as Record<string, unknown>) || {};
-      cleaned.action = buildActionDefinition(nodeRecord.type, nodeData);
-    }
+
+    cleaned.action = deepClone(existingAction);
 
     return deepClone(cleaned);
   });

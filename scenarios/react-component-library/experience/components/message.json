@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "message",
+    "title": "Message",
+    "purpose": "Present an attributed message with accessible content, actions and recovery.",
+    "storyRef": "../../library/components/Message/versions/1.2.0/story.json"
+  },
+  "states": [
+    {
+      "id": "user",
+      "example": "user",
+      "description": "User message specimen."
+    },
+    {
+      "id": "assistant",
+      "example": "assistant",
+      "description": "Assistant response specimen."
+    },
+    {
+      "id": "streaming",
+      "example": "streaming",
+      "description": "Streaming response specimen."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "Loading response specimen."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Response error specimen."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Retry available specimen."
+    },
+    {
+      "id": "transcript",
+      "example": "transcript",
+      "description": "Unframed conversation transcript specimen."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "article",
+      "description": "The component surface and its semantic descendants."
+    }
+  ],
+  "claims": [
+    {
+      "id": "composition-preserves-behavior",
+      "type": "manual-review",
+      "statement": "Transcript presentation removes the standalone frame while retaining attribution, message content, status and recovery semantics.",
+      "tier": "manual",
+      "states": [
+        "transcript"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-rcl-message]"
+      }
+    }
+  }
+}

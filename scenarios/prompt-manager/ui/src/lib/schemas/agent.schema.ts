@@ -227,17 +227,7 @@ export type PromptPreviewResponse = z.infer<typeof PromptPreviewResponseSchema>
  * A single section of a structured prompt preview.
  */
 export const PromptSectionSchema = z.object({
-  kind: z.enum([
-    'agent-file',
-    'team-shared-charter',
-    'team-responsibilities',
-    'team-org-context',
-    'team-coordination',
-    'team-durable-state',
-    'team-inbox',
-    'last-handoff',
-    'heartbeat-task',
-  ]),
+  kind: z.string(),
   label: z.string(),
   sourcePath: z.string().optional().default(''),
   content: z.string(),

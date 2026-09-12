@@ -11,7 +11,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
-// getElementAtCoordinate uses browserless to get element candidates at specific coordinates.
+// getElementAtCoordinate uses the Playwright driver to get element candidates at specific coordinates.
 // It returns a selection result containing the element at the coordinate and nearby ancestor candidates.
 func (h *ElementAnalysisHandler) getElementAtCoordinate(ctx context.Context, url string, x, y int) (*ElementSelectionResult, error) {
 	if h.runner == nil {

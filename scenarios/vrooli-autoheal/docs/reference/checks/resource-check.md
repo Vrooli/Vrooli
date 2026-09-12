@@ -13,16 +13,19 @@ Monitors Vrooli resources (PostgreSQL, Redis, Ollama, etc.) via the vrooli CLI.
 
 ## What It Monitors
 
-Resource checks run `vrooli resource status {name}` and interpret the output to determine health:
+Resource checks consume the typed fleet contract from `vrooli resource status
+--json`. A shared in-process snapshot provider refreshes the supervised fleet
+once per bounded TTL and projects only the requested resource into each check.
+It never parses human-oriented output:
 
 ```mermaid
 flowchart TD
-    A[Run vrooli resource status] --> B{Exit Code?}
-    B -->|Non-zero| C[Critical: Command Failed]
-    B -->|Zero| D{Output Contains?}
-    D -->|"running"| E[OK: Resource Healthy]
-    D -->|"not running"/"stopped"| F[Critical: Resource Stopped]
-    D -->|Other| G[Warning: Unclear Status]
+    A[Read typed fleet snapshot] --> B{Fresh and complete for resource?}
+    B -->|No| C[Undetermined: stale, missing, or failed source]
+    B -->|Yes| D{Fast observation anomalous?}
+    D -->|No| E[Classify stable resource]
+    D -->|Yes| F[Run one named deep status]
+    F --> G[Preserve existing health classification]
 ```
 
 ## Known Resources
@@ -41,8 +44,36 @@ flowchart TD
 | **OK** | Resource is running and healthy |
 | **Warning** | Resource status is unclear or partially degraded |
 | **Critical** | Resource is stopped or unhealthy |
+| **Undetermined** | The source is stale, incomplete for this resource, timed out, or unavailable; it is never treated as healthy |
 
 Resources are treated as **critical infrastructure** - a stopped resource triggers critical status because many scenarios depend on them.
+
+## Snapshot and escalation policy
+
+The default snapshot TTL is 20 seconds, the refresh cycle budget is 30 seconds,
+and a failed refresh is backed off for 5 seconds. These are bounded internal
+defaults, not per-resource knobs. Fresh fast results classify stable resources.
+Anomaly, mode-drift, reacquisition, and recovery paths retain the named typed
+deep status safeguard. Recovery verification explicitly bypasses both the
+fleet and named-status caches, so a pre-action healthy result cannot certify
+recovery. A stale healthy result cannot suppress an anomaly. Result details include observed time, age, expiry,
+completeness, source, probe level, refresh error, and bounded provider metrics.
+
+The `snapshotMetrics` details are the operator signal for fleet refreshes,
+named deep checks, coalesced callers, refresh failures, stale reads, incomplete
+responses, and accumulated refresh/deep latency. Process and CPU attribution
+is reported only by control-plane/platform surfaces that support it; Autoheal
+does not read `/proc`, service managers, containers, or host sockets directly.
+
+| Control | Default | Accepted test range | Impact |
+|---|---:|---:|---|
+| Snapshot TTL | 20s | positive duration | Longer values reduce fleet calls but delay stable-state changes. |
+| Refresh cycle budget | 30s | positive duration | Caps one typed fleet acquisition before it becomes undetermined. |
+| Failed-refresh backoff | 5s | positive duration | Prevents a failed control-plane call from becoming a hot retry loop. |
+| Recurring scheduler jitter | 0–10% of interval | bounded by `DefaultRecurringJitterFraction` | Spreads aligned checks without materially changing configured cadence. |
+
+The controls are provider/registry seams used by startup wiring and deterministic
+tests; they are not arbitrary per-resource configuration fields.
 
 ## Why It Matters
 
@@ -87,8 +118,8 @@ sudo ss -tlnp | grep 6379  # Redis
 # Check disk usage
 df -h /var/lib/docker
 
-# Clean up Docker
-docker system prune
+# Preview reclaim candidates through storage-manager
+storage-manager cleanup plan
 ```
 
 ### 5. Out of Memory

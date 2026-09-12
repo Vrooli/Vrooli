@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
-import { parseMetricsTimelineResponse } from '../../../shared/api/proto-contracts';
 import type {
   MetricHistory,
   ChartDataPoint,
@@ -12,6 +11,7 @@ import type {
 export interface UseMetricHistoryReturn {
   metricHistory: MetricHistory | null;
   fetchMetricsTimeline: (windowSeconds?: number) => Promise<void>;
+  clearHistory: () => void;
   appendGpuPoint: (timestamp: string, value: number) => void;
   appendDiskPoints: (timestamp: string, readRate: number, writeRate: number) => void;
   appendDiskUsagePoint: (timestamp: string, value: number) => void;
@@ -36,8 +36,22 @@ const cloneSeries = (series?: ChartDataPoint[]) => (series ? [...series] : undef
 const ensureHistoryBase = (history: MetricHistory | null): MetricHistory => ({
   windowSeconds: history?.windowSeconds ?? 0,
   sampleIntervalSeconds: history?.sampleIntervalSeconds ?? 0,
-  cpu: history?.cpu ? [...history.cpu] : [],
+	cpu: history?.cpu ? [...history.cpu] : [],
+	cpuContextSwitches: cloneSeries(history?.cpuContextSwitches),
+	cpuInterrupts: cloneSeries(history?.cpuInterrupts),
+	cpuNormalizedLoad1: cloneSeries(history?.cpuNormalizedLoad1),
+	cpuNormalizedLoad5: cloneSeries(history?.cpuNormalizedLoad5),
+	cpuRunQueue: cloneSeries(history?.cpuRunQueue),
+	cpuStallSome: cloneSeries(history?.cpuStallSome),
+	cpuStallFull: cloneSeries(history?.cpuStallFull),
+	cpuCoreImbalance: cloneSeries(history?.cpuCoreImbalance),
+	cpuModeIowait: cloneSeries(history?.cpuModeIowait),
+	cpuModeSteal: cloneSeries(history?.cpuModeSteal),
   memory: history?.memory ? [...history.memory] : [],
+  swap: history?.swap ? [...history.swap] : [],
+  swapTraffic: history?.swapTraffic ? [...history.swapTraffic] : [],
+  majorFaults: history?.majorFaults ? [...history.majorFaults] : [],
+  fragmentation: history?.fragmentation ? [...history.fragmentation] : [],
   network: history?.network ? [...history.network] : [],
   gpu: history?.gpu ? [...history.gpu] : [],
   diskUsage: cloneSeries(history?.diskUsage),
@@ -57,6 +71,7 @@ export const useMetricHistory = (
 
   const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
     try {
+      const { parseMetricsTimelineResponse } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch(`/metrics/timeline?window=${windowSeconds}`, parseMetricsTimelineResponse);
       if (!mountedRef.current || !data || !data.samples) return;
 
@@ -69,23 +84,42 @@ export const useMetricHistory = (
           ...base,
           windowSeconds: data.windowSeconds,
           sampleIntervalSeconds: data.sampleIntervalSeconds,
-          cpu: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.cpuUsage
-          })),
-          memory: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.memoryUsage
-          })),
-          network: data.samples.map(sample => ({
-            timestamp: toIso(sample.timestamp),
-            value: sample.tcpConnections
-          })),
+			cpu: data.samples
+				.filter(sample => sample.cpu?.state.case === 'measured')
+				.map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpu?.state.value) })),
+			cpuContextSwitches: data.samples.filter(sample => sample.cpuContextSwitchesPerSecond?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuContextSwitchesPerSecond?.state.value) })),
+			cpuInterrupts: data.samples.filter(sample => sample.cpuInterruptsPerSecond?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuInterruptsPerSecond?.state.value) })),
+			cpuNormalizedLoad1: data.samples.filter(sample => sample.cpuNormalizedLoad1?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuNormalizedLoad1?.state.value) })),
+			cpuNormalizedLoad5: data.samples.filter(sample => sample.cpuNormalizedLoad5?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuNormalizedLoad5?.state.value) })),
+			cpuRunQueue: data.samples.filter(sample => sample.cpuRunQueueDepth?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuRunQueueDepth?.state.value) })),
+			cpuStallSome: data.samples.filter(sample => sample.cpuStallSomeAvg10?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuStallSomeAvg10?.state.value) })),
+			cpuStallFull: data.samples.filter(sample => sample.cpuStallFullAvg10?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuStallFullAvg10?.state.value) })),
+			cpuCoreImbalance: data.samples.filter(sample => sample.cpuCoreImbalanceIndex?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuCoreImbalanceIndex?.state.value) })),
+			cpuModeIowait: data.samples.filter(sample => sample.cpuModeIowait?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuModeIowait?.state.value) })),
+			cpuModeSteal: data.samples.filter(sample => sample.cpuModeSteal?.state.case === 'measured').map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.cpuModeSteal?.state.value) })),
+          memory: data.samples
+            .filter(sample => sample.memory?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.memory?.state.value) })),
+          swap: data.samples
+            .filter(sample => sample.swap?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.swap?.state.value) })),
+          swapTraffic: data.samples
+            .filter(sample => sample.swapTraffic?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.swapTraffic?.state.value) })),
+          majorFaults: data.samples
+            .filter(sample => sample.majorFaults?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.majorFaults?.state.value) })),
+          fragmentation: data.samples
+            .filter(sample => sample.fragmentationIndex?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.fragmentationIndex?.state.value) })),
+          network: data.samples
+            .filter(sample => sample.connections?.state.case === 'measured')
+            .map(sample => ({ timestamp: toIso(sample.timestamp), value: Number(sample.connections?.state.value) })),
           gpu: data.samples
-            .filter(sample => typeof sample.gpuUsage === 'number' && Number.isFinite(sample.gpuUsage))
+            .filter(sample => sample.gpu?.state.case === 'measured')
             .map(sample => ({
               timestamp: toIso(sample.timestamp),
-              value: sample.gpuUsage as number
+              value: Number(sample.gpu?.state.value)
             }))
         };
       });
@@ -131,9 +165,12 @@ export const useMetricHistory = (
     });
   }, []);
 
+  const clearHistory = useCallback(() => { setMetricHistory(null); }, []);
+
   return {
     metricHistory,
     fetchMetricsTimeline,
+    clearHistory,
     appendGpuPoint,
     appendDiskPoints,
     appendDiskUsagePoint

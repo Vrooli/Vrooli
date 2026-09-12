@@ -1,0 +1,68 @@
+{
+  "_metadata": {
+    "module": "push-pull-status",
+    "description": "OT-P0-006 Push/pull status",
+    "last_updated": "2026-09-07"
+  },
+  "requirements": [
+    {
+      "id": "GCT-OT-P0-006",
+      "category": "operational_target.p0",
+      "prd_ref": "OT-P0-006",
+      "title": "Push/pull status",
+      "description": "When a push is requested, the system MUST inspect outgoing historical file sizes and refuse blocked or incomplete scans before transfer. When a human approves an exact eligible preview, the system MUST prepare verified isolated recovery artifacts without modifying the source repository.",
+      "status": "pending",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/push_pull_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers remote readiness, upstream selection, and safe fake-runner outcomes."
+        },
+        {
+          "type": "test",
+          "ref": "api/push_safety_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Refusal before writer for blocked, incomplete and stale previews."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/pushsafety/inspect_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Historical deletion, exact thresholds, unknown host, source drift and incomplete metadata."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/pushsafety/prepare_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Command and storage failures, durable reservation and interrupted operation idempotency."
+        },
+        {
+          "type": "test",
+          "ref": "api/git_runner_push_safety_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Temporary repositories prove independent backup restore, four-commit repair, dirty workspace preservation and exact push source."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/PushSafetyDialog.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Consent, honest backup scope, stale/unknown outcomes, repository switching and read-only recovery status."
+        },
+        {
+          "type": "test",
+          "ref": "api/push_recovery_http_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ephemeral HTTP handlers, request-bound human intents, leased artifacts, retained-operation discovery, remote drift and bundle corruption; optional BAS fixture uses the production dialog."
+        }
+      ]
+    }
+  ]
+}

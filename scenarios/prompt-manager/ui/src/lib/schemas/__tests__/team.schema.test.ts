@@ -80,7 +80,7 @@ describe('buildDefaultCreateTeamRequest', () => {
     expect(result.coordination.messagingMode).toBe('disabled')
     expect(result.execution.queuePolicy).toBe('bounded-parallel')
     expect(result.execution.maxConcurrentRuns).toBe(2)
-    expect(result.decisionMode).toBe('yolo')
+    expect(result.operatingContract.schemaVersion).toBe(1)
   })
 })
 
@@ -93,7 +93,7 @@ describe('TeamDetailsSchema', () => {
       runtime: { mode: 'multi-process' },
       coordination: buildIndependentCoordination(),
       execution: buildBoundedParallelExecution(2),
-      decisionMode: 'yolo',
+      operatingContract: buildDefaultCreateTeamRequest('Scenario QA').operatingContract,
       memberCount: 0,
       roles: null,
       members: null,

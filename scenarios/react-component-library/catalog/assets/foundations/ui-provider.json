@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.ui-provider",
+    "name": "UIProvider",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The single composition root that resolves theme, locale, direction, motion policy, density, portal host, interaction modality, and telemetry, and supplies them to every descendant through one stable boundary.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "provider",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Supplies the active token set to descendants."
+      },
+      {
+        "asset": "foundations.themes",
+        "reason": "Resolves and switches the active theme."
+      },
+      {
+        "asset": "foundations.capability-detection",
+        "reason": "Reads platform capabilities to seed motion policy and interaction modality."
+      }
+    ]
+  },
+  "satisfies": [
+    "ui-provider",
+    "reduced-motion",
+    "density-preference"
+  ],
+  "requiredCapabilities": [
+    "reduced-motion",
+    "density-preference"
+  ],
+  "rationale": "Its absence is the highest-value adoption-scanner finding: components appear to work while silently losing theming, direction, and motion policy."
+}

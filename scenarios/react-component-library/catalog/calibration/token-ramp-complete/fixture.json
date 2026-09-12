@@ -1,0 +1,1 @@
+{"gate":"token-ramp-complete","assetId":"calibration-token-ramp","kind":"component","runner":"static","requiredFailureCode":"catalog.token_ramp_complete","catalogAsset":"asset.json","source":"broken.tsx","description":"Consumes a custom property absent from the canonical ramp."}

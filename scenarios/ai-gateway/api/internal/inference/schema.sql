@@ -1,0 +1,2 @@
+-- Typed inference is stateless. Usage is returned with each response and is
+-- owned by the caller's budget ledger; no gateway table is required here.

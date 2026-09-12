@@ -1,0 +1,137 @@
+# API Endpoints — Device Control
+
+Human-readable reference for the API. The machine-readable
+source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
+doc generators, Postman collection builders, and SDK stubs read it
+directly. The CI gate fails if the JSON drifts from the registered
+handlers or from the CLI commands it claims to mirror.
+
+Wire shapes for every endpoint live in
+`packages/proto/schemas/device-control/v1/<domain>/<file>.proto`.
+Proto-typed calls use generated Connect-RPC handlers and clients.
+Tests, handlers, UI clients, and CLI handlers all consume generated
+types — no hand-written struct mirror exists to drift.
+
+Connect-RPC errors use Connect's canonical error envelope and code set.
+REST exceptions, such as multipart uploads, use the template error
+envelope (`packages/proto/schemas/device-control/v1/shared/errors.proto`):
+
+```json
+{ "code": "<canonical_code>", "message": "<human readable>", "details": [...] }
+```
+
+Canonical REST codes used today: `invalid_request` (400),
+`not_found` (404), `internal` (500). Add to the proto enum when a new
+REST-exception failure mode appears.
+
+---
+
+## System
+
+### `GET /health`
+
+Service health check. Returns API readiness plus dependency status.
+Also mounted at `/api/v1/health` for client callers.
+This is an operational REST exception by design: lifecycle systems,
+load balancers, and curl probes must be able to read it without a Connect
+client.
+
+| | |
+|---|---|
+| **Auth** | None |
+| **Response** | `Response { status: string, readiness: bool, service: string, timestamp: string, version: string, uptime_seconds: int64, dependencies: map<string, DependencyStatus> }` |
+| **Errors** | None — always returns 200 and reports an unhealthy status if a dependency fails |
+| **CLI** | `device-control status` |
+
+```bash
+curl "http://localhost:${API_PORT}/health"
+```
+
+The proto type lives at `packages/proto/schemas/device-control/v1/shared/health.proto`
+and mirrors `api-core/health.Response` field-for-field.
+
+---
+
+## LAN device operations
+
+`GET /api/v1/devices/discover` performs a bounded DNS-SD browse and returns
+every service instance with its transport, endpoint, and TXT-derived identity
+keys. A browse failure returns `health: unreachable` and a named `reason`.
+
+`POST /api/v1/devices/{id}/pair/start` opens the Android TV Remote handshake
+through the configuration acknowledgement and returns a short-lived pairing
+session id. The television displays its six-character hexadecimal pairing code
+at this boundary.
+
+`POST /api/v1/devices/{id}/pair/complete` accepts the session id and the
+owner-entered pairing code, completes the exchange, and stores the resulting
+certificate. The code is passed only through the pairing request, then
+discarded; it is not logged, audited, serialized in declarations, or returned
+in the response. The legacy `POST /api/v1/devices/{id}/pair` route remains
+available for non-interactive callers, and the CLI `--pin-stdin` path uses the
+two-stage handshake.
+
+`POST /api/v1/devices/{id}/actuate` accepts exactly one lease-owned direct key,
+text, media, or property command. Media uses `{ "media": "pause" }`; a key may
+include a bounded `repeat` count. It writes exactly one interactive audit
+record and produces no flow document or evidence artifact. A lease token is
+required.
+
+`POST /api/v1/devices/{id}/merge` accepts `{ "member_id": "…", "claim":
+"cast-id=…" }` and records the claim as `owner-asserted` before combining the
+two identities. `POST /api/v1/devices/{id}/split` restores the snapshots from
+the most recent merge. Historical audit aliases remain queryable from both
+resulting identities.
+
+`GET /api/v1/devices/{id}/events` streams `text/event-stream` state-change
+events from the existing local event bus. Each event is emitted as an SSE
+`data:` record.
+
+## Domain endpoints — `<domain>`
+
+Each product domain exposes its endpoints under
+`POST /vrooli.device_control.v1.<domain>.<Domain>Service/<Method>`
+for proto-typed Connect-RPC calls, with REST exceptions (such as
+multipart uploads) mounted at explicit REST paths. Document your
+domain's endpoints here as you build them — one section per RPC, with
+its auth, request/response proto shapes, error codes, and CLI mirror.
+
+The scaffold ships one fully worked CRUD vertical slice as a copyable
+reference (see the fenced example below); `template-manager detemplate
+<scenario>` removes it once your real domains are green.
+
+---
+
+## Adding a new endpoint
+
+For a new domain, copy the worked vertical slice in the fenced example
+above first, then replace it once your real domain is green.
+
+For an endpoint inside an existing domain:
+
+1. Add or extend the `.proto` messages and service in
+   `packages/proto/schemas/device-control/v1/<domain>/`, then run
+   `make generate`.
+2. Implement the generated handler method in
+   `handlers/<domain>/connect_handler.go`; keep it thin.
+3. Update endpoint metadata in `handlers/<domain>/module.go`.
+4. If the endpoint has a CLI mirror, bind it (or list it in `omitted[]`
+   with a reason) in `cli/manifest.json` — the single source of truth for
+   the CLI surface.
+5. Run `make endpoints`; do not edit
+   [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
+6. Update this document and add tests for the touched layers.
+7. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
+   introduced a new interface that production wires once and tests
+   substitute.
+
+The CI gate enforces endpoint-manifest freshness and the API↔CLI mapping
+contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
+
+## Cross-references
+
+- [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints
+- [`configuration.md`](configuration.md) — env vars (e.g., `API_PORT`)
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
+- [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns

@@ -1,0 +1,58 @@
+{
+  "description": "Roles and scopes are defined per realm (beyond admin/user); definitions are owned here and emitted as claims, with enforcement delegated to RPs.",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-009",
+        "REQ-P1-001"
+      ],
+      "description": "Beyond the built-in admin/user roles, each realm must support custom role and scope definitions (name, description, permissions). Roles are assigned to users within a realm; scopes are requested by clients. Issued tokens carry roles and scopes as claims. Enforcement of scope-based access control is delegated to relying parties using the claims; the authenticator's responsibility is correct definition, assignment, and emission.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Per-Realm Roles and Scopes RBAC with Claims Emission",
+      "validation": [
+        {
+          "notes": "api/internal/rbac/scoped_rbac_test.go: define a custom role in realm-A, assign it to a user, issue token → token roles claim includes the custom role",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/rbac/scoped_rbac_test.go: custom role defined in realm-A does not appear in tokens issued for the same user in realm-B (realm isolation)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/rbac/realm_roles_e2e_test.go: create custom role via admin RPC, assign to user, user logs in, decode token → custom role in claims; remove role, user re-authenticates → role absent from new token",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/rbac/realm_roles_e2e_test.go: scope requested in client-credentials grant is included in token only if the client is authorized for that scope in the realm",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/admin/roles_scopes_test: admin creates a custom role, assigns it to a user, user logs out and back in, and the admin can verify the role appears in the user's token via a token inspect panel",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scopes/Permissions RBAC per Realm"
+}

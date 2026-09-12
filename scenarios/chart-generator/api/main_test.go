@@ -22,7 +22,7 @@ func TestHealthHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(healthHandler)
+	handler := createHealthHandler(nil)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -765,7 +765,7 @@ func TestHealthEndpointSchema(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(healthHandler)
+	handler := createHealthHandler(nil)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {

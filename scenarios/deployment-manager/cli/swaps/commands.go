@@ -1,23 +1,54 @@
 package swaps
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"deployment-manager/cli/cmdutil"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	swapsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/swaps/swapsv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Commands struct {
-	api *cliutil.APIClient
+	api           *cliutil.APIClient
+	connectClient swapsconnect.SwapsServiceClient
 }
 
 func New(api *cliutil.APIClient) *Commands {
 	return &Commands{api: api}
+}
+
+// NewWithConnectClient binds supported swap operations to the generated
+// service. New remains available for focused compatibility fixtures.
+func NewWithConnectClient(api *cliutil.APIClient, client swapsconnect.SwapsServiceClient) *Commands {
+	return &Commands{api: api, connectClient: client}
+}
+
+type swapCall func(context.Context, *connect.Request[structpb.Value]) (*connect.Response[structpb.Value], error)
+
+func (c *Commands) typedRequest(payload map[string]interface{}, call swapCall) ([]byte, error) {
+	request, err := structpb.NewValue(payload)
+	if err != nil {
+		return nil, fmt.Errorf("encode swap request: %w", err)
+	}
+	response, err := call(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("swap operation", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("typed swap response was empty")
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
 }
 
 type SwapSuggestion struct {
@@ -61,13 +92,19 @@ func (c *Commands) list(args []string) error {
 		return errors.New("scenario is required")
 	}
 	scenario := remaining[0]
-	body, err := c.api.Get("/api/v1/swaps/suggest/"+scenario, nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"scenario": scenario}, c.connectClient.List)
+	} else {
+		body, err = c.api.Get("/api/v1/swaps/suggest/"+scenario, nil)
+	}
 	if err != nil {
 		return err
 	}
 	formatVal := cmdutil.ResolveFormat(*format)
 	if strings.ToLower(formatVal) == "table" {
-		if err := printSwapTable(body); err == nil {
+		if err := renderSwapListReport(scenario, body); err == nil {
 			return nil
 		}
 	}
@@ -92,7 +129,13 @@ func (c *Commands) analyze(args []string) error {
 	}
 	from := remaining[0]
 	to := remaining[1]
-	body, err := c.api.Get("/api/v1/swaps/analyze/"+from+"/"+to, nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"from": from, "to": to}, c.connectClient.Analyze)
+	} else {
+		body, err = c.api.Get("/api/v1/swaps/analyze/"+from+"/"+to, nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -112,7 +155,13 @@ func (c *Commands) cascade(args []string) error {
 	}
 	from := remaining[0]
 	to := remaining[1]
-	body, err := c.api.Get("/api/v1/swaps/cascade/"+from+"/"+to, nil)
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(map[string]interface{}{"from": from, "to": to}, c.connectClient.Cascade)
+	} else {
+		body, err = c.api.Get("/api/v1/swaps/cascade/"+from+"/"+to, nil)
+	}
 	if err != nil {
 		return err
 	}
@@ -131,6 +180,9 @@ func (c *Commands) info(args []string) error {
 		return errors.New("swap id is required")
 	}
 	id := remaining[0]
+	if c.connectClient != nil {
+		return errors.New("swap info is not available in the typed service; use swaps list, analyze, or cascade")
+	}
 	body, err := c.api.Get("/api/v1/swaps/"+id, nil)
 	if err != nil {
 		return err
@@ -154,12 +206,22 @@ func (c *Commands) apply(args []string) error {
 	from := remaining[1]
 	to := remaining[2]
 
-	payload := map[string]string{"from": from, "to": to}
-	_, err := c.api.Request("POST", "/api/v1/profiles/"+profileID+"/swaps", nil, payload)
+	payload := map[string]interface{}{"profile_id": profileID, "from": from, "to": to}
+	var body []byte
+	var err error
+	if c.connectClient != nil {
+		body, err = c.typedRequest(payload, c.connectClient.ApplyToProfile)
+	} else {
+		body, err = c.api.Request("POST", "/api/v1/profiles/"+profileID+"/swaps", nil, map[string]string{"from": from, "to": to})
+	}
 	if err != nil {
 		return err
 	}
 	if *showFitness {
+		if c.connectClient != nil {
+			cmdutil.PrintByFormat(*format, body)
+			return nil
+		}
 		body, err := c.api.Get("/api/v1/profiles/"+profileID, nil)
 		if err != nil {
 			return err
@@ -167,24 +229,44 @@ func (c *Commands) apply(args []string) error {
 		cmdutil.PrintByFormat(*format, body)
 		return nil
 	}
-	fmt.Println("Swap applied successfully")
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			"Swap applied successfully",
+		},
+		Changes: []string{
+			fmt.Sprintf("Profile: %s", profileID),
+			fmt.Sprintf("From: %s", from),
+			fmt.Sprintf("To: %s", to),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", profileID),
+			fmt.Sprintf("deployment-manager swaps list %s", profileID),
+		},
+	})
 }
 
-func printSwapTable(body []byte) error {
+func renderSwapListReport(scenario string, body []byte) error {
 	var suggestions []SwapSuggestion
 	if err := json.Unmarshal(body, &suggestions); err != nil {
 		return err
 	}
-	rows := make([][]string, 0, len(suggestions))
-	for _, s := range suggestions {
-		rows = append(rows, []string{
-			s.From,
-			s.To,
-			s.Impact,
-			s.Reason,
-		})
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Scenario: %s", scenario),
+			fmt.Sprintf("Suggestions: %d", len(suggestions)),
+		},
+		ResultsHeading: "Suggested Swaps",
+		RetrievalHints: []string{
+			"deployment-manager swaps analyze <from> <to>",
+			"deployment-manager swaps apply <profile> <from> <to>",
+		},
 	}
-	cmdutil.PrintTable([]string{"From", "To", "Impact", "Reason"}, rows)
-	return nil
+	for _, s := range suggestions {
+		line := fmt.Sprintf("%s -> %s impact=%s", s.From, s.To, s.Impact)
+		if strings.TrimSpace(s.Reason) != "" {
+			line += fmt.Sprintf(" reason=%s", s.Reason)
+		}
+		report.Results = append(report.Results, line)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }

@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.guidance;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/guidance;guidance_v1";
+
+// GuidanceService exposes machine-readable initialization work orders for
+// generated scenarios.
+service GuidanceService {
+  rpc NextGate(NextGateRequest) returns (NextGateResponse);
+}
+
+message NextGateRequest {
+  string scenario = 1;
+}
+
+message NextGateResponse {
+  string scenario = 1;
+  bool finalized = 2;
+  bool complete = 3;
+  bool finalize_required = 4;
+  int32 completed = 5;
+  int32 required = 6;
+  OrientationGate gate = 7;
+  string message = 8;
+}
+
+message OrientationGate {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  bool required = 4;
+  bool complete = 5;
+  repeated string docs = 6;
+  repeated OrientationCheck checks = 7;
+  repeated string remediation = 8;
+}
+
+message OrientationCheck {
+  string kind = 1;
+  string label = 2;
+  bool passed = 3;
+  bool skipped = 4;
+  bool optional = 5;
+  string message = 6;
+}

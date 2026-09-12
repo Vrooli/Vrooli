@@ -4,39 +4,18 @@ This document captures references, patterns, and learnings discovered during sec
 
 ---
 
-## 🔐 Vault Integration
+## 🔐 Credential Authority
 
-### HashiCorp Vault CLI Patterns
-**Reference**: `resource-vault` CLI implementation in `/resources/vault/`
+**Reference**: resource `resource.json` descriptors and `vrooli credentials`.
 
 **Key Learnings**:
-- Use `resource-vault secrets validate` for canonical status checks
-- Fall back to local file parsing when Vault is unavailable (dev/CI scenarios)
-- Never log secret values - only keys and validation status
-- Temp files for CLI output should have 0600 permissions
-
-**CLI Command Reference**:
-```bash
-# List all secrets in a path
-resource-vault secrets list secret/resources/postgres
-
-# Validate a specific secret exists
-resource-vault secrets check secret/resources/postgres/db_password
-
-# Get secret metadata (without value)
-resource-vault secrets info secret/resources/postgres/db_password
-```
-
-**Fallback Strategy**:
-```go
-// Try Vault CLI first
-output, err := exec.Command("resource-vault", "secrets", "validate").Output()
-if err != nil {
-    // Fall back to local secrets file
-    secrets, err := loadLocalSecretsFile()
-    // Use secrets map for validation
-}
-```
+- Manifests declare the logical identity, field, environment name, and required status.
+- `vrooli credentials status --format json` reports metadata only; it never returns a value, and it carries the provider state so `configured: false` cannot be misread while the store is down.
+- `vrooli credentials provision --identity <logical-id> --field <field>` accepts a value on stdin only; secrets-manager owns inventory, keyring, and backup operations.
+- `vrooli credentials doctor` diagnoses the host backend; `secrets-manager backup status` reports recovery coverage without printing a value.
+- Availability is probed lazily and read-shaped, on first use rather than at construction, and cached for the process lifetime. Read paths degrade: a missing or unreachable credential never blocks a scenario start, and the declaring resource reports unhealthy instead. Write paths (recovery export/restore, Vault bootstrap) still fail closed.
+- Three conditions stay distinct end to end and each has its own operator action: value unconfigured, provider unreachable, provider absent on this host.
+- Vault may be a capability-specific service or explicit mirror, never an ordinary credential fallback.
 
 ---
 
@@ -167,7 +146,7 @@ export function useVaultStatus(resourceFilter?: string) {
 ## 📊 PostgreSQL Schema Design
 
 ### Metadata Storage Strategy
-**Reference**: `initialization/storage/postgres/schema.sql`
+**Reference**: `api/internal/<domain>/storage/postgres/schema.sql`
 
 **Core Tables**:
 1. **resource_secrets**: Secret definitions (key, type, required, validation pattern)
@@ -318,7 +297,7 @@ fi
 - UI: Must include `status`, `api_connectivity`, `bundle_exists`
 
 ### PRD Structure Requirements
-**Reference**: `scripts/scenarios/templates/react-vite/PRD.md`
+**Reference**: `templates/scenarios/react-vite/PRD.md`
 
 **Required Sections**:
 - 🎯 Capability Definition

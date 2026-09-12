@@ -95,10 +95,12 @@ func (d *Driver) CreateSession(ctx context.Context, spec driver.SessionSpec) (dr
 
 	// Create session wrapper
 	sess := &session{
-		id:        resp.SessionID,
-		client:    d.client,
-		log:       d.log,
-		recording: spec.Recording,
+		id:          resp.SessionID,
+		executionID: spec.ExecutionID.String(),
+		leaseID:     resp.LeaseID,
+		client:      d.client,
+		log:         d.log,
+		recording:   spec.Recording,
 	}
 
 	// Store session
@@ -107,8 +109,8 @@ func (d *Driver) CreateSession(ctx context.Context, spec driver.SessionSpec) (dr
 	d.mu.Unlock()
 
 	d.log.WithFields(logrus.Fields{
-		"session_id":   sess.id,
-		"execution_id": spec.ExecutionID,
+		"session_id":    sess.id,
+		"execution_id":  spec.ExecutionID,
 		"has_recording": spec.Recording != nil,
 	}).Debug("Created playwright session")
 
@@ -148,12 +150,14 @@ func (d *Driver) Client() *driver.Client {
 
 // session implements driver.Session for Playwright.
 type session struct {
-	id        string
-	client    *driver.Client
-	log       *logrus.Logger
-	recording *driver.RecordingConfig
-	mu        sync.RWMutex
-	closed    bool
+	id          string
+	executionID string
+	leaseID     string
+	client      *driver.Client
+	log         *logrus.Logger
+	recording   *driver.RecordingConfig
+	mu          sync.RWMutex
+	closed      bool
 }
 
 // ID returns the session ID.
@@ -491,7 +495,7 @@ func (s *session) Close(ctx context.Context) error {
 	s.closed = true
 	s.mu.Unlock()
 
-	_, err := s.client.CloseSession(ctx, s.id)
+	_, err := s.client.CloseSessionWithLease(ctx, s.id, s.executionID, s.leaseID)
 	return err
 }
 
@@ -502,5 +506,7 @@ func (s *session) isClosed() bool {
 }
 
 // Compile-time interface compliance
-var _ driver.Driver = (*Driver)(nil)
-var _ driver.Session = (*session)(nil)
+var (
+	_ driver.Driver  = (*Driver)(nil)
+	_ driver.Session = (*session)(nil)
+)

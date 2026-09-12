@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "API Library UI manifest",
+  "description": "Declares the governed navigated-console shell for API Library.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/App.js",
+    "export": "default"
+  },
+  "contract": {
+    "kind": "scenario-ui",
+    "schema": "scenario-ui-manifest/v2",
+    "template": "legacy-react"
+  },
+  "slots": {
+    "layout-shell": {
+      "dir": "ui/src"
+    }
+  }
+}

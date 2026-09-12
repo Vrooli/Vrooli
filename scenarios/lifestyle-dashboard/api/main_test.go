@@ -190,7 +190,6 @@ func TestEventStorage_SQLitePersistence(t *testing.T) {
 		SELECT id, domain, event_type, payload
 		FROM events WHERE id = ?
 	`, created.ID).Scan(&stored.ID, &stored.Domain, &stored.EventType, &payload)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-STORAGE] Event not found in SQLite: %v", err)
 	}
@@ -948,7 +947,6 @@ func TestEventIndex_HypothesisPartialIndex(t *testing.T) {
 		SELECT sql FROM sqlite_master
 		WHERE type = 'index' AND name = 'idx_events_hypothesis'
 	`).Scan(&sql)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-INDEX] Failed to get index definition: %v", err)
 	}
@@ -1012,7 +1010,6 @@ func TestEventIndex_QueryPerformance(t *testing.T) {
 		EXPLAIN QUERY PLAN
 		SELECT * FROM events WHERE domain = 'sleep' ORDER BY timestamp DESC
 	`).Scan(&id, &parent, &notUsed, &detail)
-
 	if err != nil {
 		t.Fatalf("[REQ:LD-EVENT-INDEX] EXPLAIN failed: %v", err)
 	}

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks"
+
+	"github.com/gorilla/mux"
 )
 
 // handleCreateTask triggers a new task (investigate or fix) for a deployment.

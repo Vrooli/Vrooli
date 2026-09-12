@@ -11,8 +11,8 @@ import {
 type GetDocsTreeFn = typeof getDocsTree;
 type GetDocContentFn = typeof getDocContent;
 
-const getDocsTreeMock = vi.fn<Parameters<GetDocsTreeFn>, ReturnType<GetDocsTreeFn>>();
-const getDocContentMock = vi.fn<Parameters<GetDocContentFn>, ReturnType<GetDocContentFn>>();
+const getDocsTreeMock = vi.fn<GetDocsTreeFn>();
+const getDocContentMock = vi.fn<GetDocContentFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

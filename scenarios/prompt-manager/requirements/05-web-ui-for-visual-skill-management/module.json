@@ -13,7 +13,7 @@
       "description": "Implement web-based dashboard for skill management with visual interface and 3D world for agents",
       "id": "REQ-P0-006",
       "prd_ref": "prompt-manager-must-have-web-ui-for-visual-skill-management",
-      "status": "draft",
+      "status": "planned",
       "title": "Web UI Dashboard",
       "validation": [
         {

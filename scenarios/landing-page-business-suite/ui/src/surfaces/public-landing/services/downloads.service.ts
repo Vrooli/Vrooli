@@ -6,18 +6,17 @@ import type { DownloadAsset } from '../../../shared/api';
 export type DetectedPlatform = 'windows' | 'mac' | 'linux' | 'unknown';
 
 /**
- * Detects the current platform based on user agent and navigator platform
+ * Detects the current platform based on the user agent.
  * @returns The detected platform identifier
  */
 export function detectPlatform(): DetectedPlatform {
   if (typeof navigator === 'undefined') return 'unknown';
 
   const ua = navigator.userAgent.toLowerCase();
-  const platform = (navigator.platform || '').toLowerCase();
 
-  if (platform.includes('win') || ua.includes('windows')) return 'windows';
-  if (platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
-  if (platform.includes('linux') || ua.includes('linux')) return 'linux';
+  if (ua.includes('windows')) return 'windows';
+  if (ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
+  if (ua.includes('linux')) return 'linux';
 
   return 'unknown';
 }
@@ -29,7 +28,7 @@ export function detectPlatform(): DetectedPlatform {
  */
 export function getDownloadAssetKey(download: DownloadAsset): string {
   if (typeof download.id === 'number') {
-    return `asset-${download.id}`;
+    return `asset-${String(download.id)}`;
   }
   const version = download.release_version || 'unknown';
   const artifact = download.artifact_url || 'na';
@@ -69,7 +68,7 @@ export function openDownloadWindow(url: string): boolean {
  * @returns Human-readable variant label
  */
 export function getVariantLabel(installer: DownloadAsset): string {
-  const url = installer.artifact_url?.toLowerCase() ?? '';
+  const url = installer.artifact_url.toLowerCase();
   const notes = installer.release_notes?.toLowerCase() ?? '';
 
   // Check for specific formats

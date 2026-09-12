@@ -12,8 +12,45 @@
            fixed-position layout.
          Do NOT remove these without also updating useAppViewport.ts and styles.css. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="color-scheme" content="dark" />
     <meta name="description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
-    <title>Web Console UI</title>
+    <meta name="application-name" content="Web Console" />
+
+    <!-- Installable PWA / iOS standalone.
+         apple-mobile-web-app-status-bar-style only takes effect when the app is
+         web-app-capable; without these two metas iOS ignores black-translucent
+         and draws an opaque system status bar that cannot show the tinted body
+         (see docs/guides/ADAPTIVE_CHROME.md). -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Web Console" />
+
+    <!-- Icons + manifest. Generated from public/public/logo.svg via brand-manager.
+         Assets are served under the URL prefix /public/* (the world-readable
+         convention — see docs/concepts/PUBLIC_ASSETS.md). The crossorigin on the
+         manifest is intentional: desktop Chromium installs DO carry the cookie. -->
+    <link rel="icon" type="image/svg+xml" href="/public/logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />
+    <link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />
+
+    <!-- Open Graph / Twitter link-preview cards. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Web Console" />
+    <meta property="og:title" content="Web Console" />
+    <meta property="og:description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
+    <meta property="og:image" content="/public/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Web Console" />
+    <meta name="twitter:description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
+    <meta name="twitter:image" content="/public/og-image.png" />
+
+    <title>Web Console</title>
   </head>
   <body>
     <div id="root"></div>

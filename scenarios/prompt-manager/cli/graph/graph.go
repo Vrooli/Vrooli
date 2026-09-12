@@ -10,10 +10,10 @@ import (
 	"sort"
 	"strings"
 
+	"prompt-manager/cli/internal/appctx"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // --- API response types (mirroring api/graph/models.go) ---
@@ -73,7 +73,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|objectives|orientation-cost|instruments|audit|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -115,6 +115,26 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdCircularRefs(ctx, subArgs)
 	case "health":
 		return cmdHealth(ctx, subArgs)
+	case "topics":
+		return cmdTopics(ctx, subArgs)
+	case "runtime":
+		return cmdRuntime(ctx, subArgs)
+	case "rules":
+		return cmdRules(ctx, subArgs)
+	case "operating-model":
+		return cmdOperatingModel(ctx, subArgs)
+	case "map":
+		return cmdMap(ctx, subArgs)
+	case "objectives":
+		return cmdObjectives(ctx, subArgs)
+	case "orientation-cost":
+		return cmdOrientationCost(ctx, subArgs)
+	case "instruments":
+		return cmdInstruments(ctx, subArgs)
+	case "audit":
+		return cmdAudit(ctx, subArgs)
+	case "drain-status":
+		return cmdDrainStatus(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", sub, usageText())
 	}
@@ -140,14 +160,52 @@ Subcommands:
   cliless-skills [--limit N]          Skills not referencing CLIs
   popular [--limit 10] [--type X]     Most referenced nodes
   circular-refs                       Circular reference detection
-  health [--type X | <id>]            Health scores`
+  health [--type a,b] [--team X] [--worst N] [--json] | <id>
+                                      Health scores, sorted lowest first.
+                                      Synthetic cli nodes are excluded unless
+                                      --type names cli explicitly.
+  topics [--team X] [--json] [--findings-out PATH]
+                                      Member topic-flow graph + DECLARATION
+                                      validation. Exits non-zero on declaration
+                                      errors only, so it can gate CI
+                                      (--findings-out writes a stable JSON
+                                      artifact for CI diff telemetry)
+  rules [--json]                      The validation rule catalog: id, group,
+                                      severity, kind, description, actuator, and
+                                      how many findings each produced this run.
+                                      The generated doc tables render from this
+  runtime [--team X] [--json]         Runtime observations: what agents actually
+                                      wrote, versus what they declared. Always
+                                      exits 0 — no edit to the tree clears a
+                                      runtime finding
+  operating-model <list|validate|diff|coverage> [--team X] [--id ID] [--json]
+                                      Plan-of-record Mermaid contract checks
+  objectives [--json]                 Objective coverage: OBJECTIVES.md against
+                                      team.json::objectivesServed, both directions
+  orientation-cost [--json]           Per-team orientation cost and its
+                                      components, read against scenario coverage
+  instruments [--json]                Per-team instrument declaration: one
+                                      address per team, or a dated hole
+  drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)
+  audit [--json] [--out PATH]         Framework-health sweep: every sensor in
+                                      FRAMEWORK_HEALTH.md read in one call`
 }
 
 // cmdShow prints a summary of graph counts by type.
-func cmdShow(ctx appctx.Context, _ []string) error {
+func cmdShow(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("show", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
 	var idx graphIndex
 	if err := ctx.Get("/graph", &idx); err != nil {
 		return fmt.Errorf("failed to fetch graph: %w", err)
+	}
+	if *jsonOut {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(idx)
 	}
 
 	g := idx.Graph
@@ -573,14 +631,22 @@ func cmdCircularRefs(ctx appctx.Context, args []string) error {
 // cmdHealth shows health scores.
 func cmdHealth(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("health", flag.ContinueOnError)
-	nodeType := fs.String("type", "", "Filter by node type (team|agent|skill|cli)")
+	nodeType := fs.String("type", "", "Filter by node type, comma-separated (team|agent|skill|action|cli). Default excludes cli.")
+	teamID := fs.String("team", "", "Filter to a team and its members")
+	worst := fs.Int("worst", 0, "Show the N lowest-scoring nodes")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
+	if *worst < 0 {
+		return fmt.Errorf("--worst must be non-negative")
+	}
 
 	// If a positional argument is provided, treat it as a node ID
 	if fs.NArg() > 0 {
+		if *nodeType != "" || *teamID != "" || *worst != 0 {
+			return fmt.Errorf("a node ID cannot be combined with --type, --team, or --worst")
+		}
 		return cmdHealthNode(ctx, fs.Arg(0), *jsonOut)
 	}
 
@@ -589,46 +655,141 @@ func cmdHealth(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("failed to fetch health scores: %w", err)
 	}
 
-	// For type filtering we need the graph to know node types
-	if *nodeType != "" {
-		var idx graphIndex
-		if err := ctx.Get("/graph", &idx); err != nil {
-			return fmt.Errorf("failed to fetch graph: %w", err)
+	var idx graphIndex
+	if err := ctx.Get("/graph", &idx); err != nil {
+		return fmt.Errorf("failed to fetch graph: %w", err)
+	}
+	nodeTypes := make(map[string]string, len(idx.Graph.Nodes))
+	for _, n := range idx.Graph.Nodes {
+		nodeTypes[n.ID] = n.Type
+	}
+	allowedByTeam := healthTeamNodeIDs(idx.Graph, *teamID)
+	wantType := healthTypeFilter(*nodeType)
+	filtered := make([]healthScore, 0, len(scores))
+	for _, hs := range scores {
+		if !wantType[nodeTypes[hs.NodeID]] {
+			continue
 		}
-		nodeTypes := make(map[string]string)
-		for _, n := range idx.Graph.Nodes {
-			nodeTypes[n.ID] = n.Type
+		if *teamID != "" && !allowedByTeam[hs.NodeID] {
+			continue
 		}
-		var filtered []healthScore
-		for _, hs := range scores {
-			if nodeTypes[hs.NodeID] == *nodeType {
-				filtered = append(filtered, hs)
-			}
+		filtered = append(filtered, hs)
+	}
+	scores = filtered
+	sort.Slice(scores, func(i, j int) bool {
+		if scores[i].Score != scores[j].Score {
+			return scores[i].Score < scores[j].Score
 		}
-		scores = filtered
+		return scores[i].NodeID < scores[j].NodeID
+	})
+	if len(scores) == 0 {
+		if *jsonOut {
+			return encodeJSON([]healthScore{})
+		}
+		fmt.Println("No health scores available")
+		return nil
+	}
+
+	// Summarise the whole filtered corpus before --worst truncates the rows.
+	// Summarising after truncation would report the mean of the worst N, which
+	// reads as a corpus-wide score and understates system health.
+	var sum float64
+	belowThreshold := 0
+	for _, hs := range scores {
+		sum += hs.Score
+		if hs.Score < 0.3 {
+			belowThreshold++
+		}
+	}
+	scored := len(scores)
+	mean := sum / float64(scored)
+
+	if *worst > 0 && len(scores) > *worst {
+		scores = scores[:*worst]
 	}
 
 	if *jsonOut {
 		return encodeJSON(scores)
 	}
 
-	if len(scores) == 0 {
-		fmt.Println("No health scores available")
+	fmt.Printf("Health summary: %d scored nodes | mean %.2f | below 0.30: %d\n", scored, mean, belowThreshold)
+	if *worst > 0 {
+		fmt.Printf("\nLowest %d scores:\n", len(scores))
+		for _, hs := range scores {
+			printHealthScoreRow(hs)
+		}
 		return nil
 	}
 
-	fmt.Printf("Health Scores (%d nodes):\n", len(scores))
+	byType := make(map[string][]healthScore)
 	for _, hs := range scores {
-		topReason := ""
-		if len(hs.Messages) > 0 {
-			topReason = " - " + hs.Messages[0].Summary
+		byType[nodeTypes[hs.NodeID]] = append(byType[nodeTypes[hs.NodeID]], hs)
+	}
+	for _, kind := range []string{"team", "agent", "skill", "action", "cli", ""} {
+		group := byType[kind]
+		if len(group) == 0 {
+			continue
 		}
-		fmt.Printf("  %-30s %.2f%s\n", hs.NodeID, hs.Score, topReason)
+		label := kind
+		if label == "" {
+			label = "unknown"
+		}
+		fmt.Printf("\n%s (%d):\n", strings.ToUpper(label[:1])+label[1:], len(group))
+		for _, hs := range group {
+			printHealthScoreRow(hs)
+		}
 	}
 	return nil
 }
 
+func printHealthScoreRow(hs healthScore) {
+	topReason := ""
+	if len(hs.Messages) > 0 {
+		topReason = " - " + hs.Messages[0].Summary
+	}
+	fmt.Printf("  %-30s %.2f%s\n", hs.NodeID, hs.Score, topReason)
+}
+
+func healthTeamNodeIDs(g graph, teamID string) map[string]bool {
+	allowed := make(map[string]bool)
+	if teamID == "" {
+		return allowed
+	}
+	allowed[teamID] = true
+	for _, edge := range g.Edges {
+		if edge.Kind == "membership" && edge.From == teamID {
+			allowed[edge.To] = true
+		}
+	}
+	return allowed
+}
+
 // cmdHealthNode shows health details for a single node.
+// healthTypeFilter resolves the --type flag into the set of node types to
+// score. CLI nodes are synthetic — they are created from edges rather than
+// authored — and score 0 by construction, so an unfiltered ranking returns
+// `cli:cat` and `cli:awk` ahead of every real finding. They are therefore
+// excluded unless the caller names `cli` explicitly.
+func healthTypeFilter(nodeType string) map[string]bool {
+	authored := []string{"team", "agent", "skill", "action"}
+	trimmed := strings.TrimSpace(nodeType)
+	if trimmed == "" {
+		allowed := make(map[string]bool, len(authored))
+		for _, kind := range authored {
+			allowed[kind] = true
+		}
+		return allowed
+	}
+
+	allowed := make(map[string]bool)
+	for _, part := range strings.Split(trimmed, ",") {
+		if kind := strings.TrimSpace(part); kind != "" {
+			allowed[kind] = true
+		}
+	}
+	return allowed
+}
+
 func cmdHealthNode(ctx appctx.Context, id string, jsonOut bool) error {
 	var scores []healthScore
 	if err := ctx.Get("/graph/health", &scores); err != nil {

@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // =============================================================================
@@ -308,6 +308,19 @@ func (f *MockFileSystem) Remove(path string) error {
 	defer f.mu.Unlock()
 	delete(f.Files, path)
 	delete(f.Dirs, path)
+	return nil
+}
+
+// Rename atomically moves a file in the mock filesystem.
+func (f *MockFileSystem) Rename(oldPath, newPath string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	data, ok := f.Files[oldPath]
+	if !ok {
+		return fs.ErrNotExist
+	}
+	f.Files[newPath] = data
+	delete(f.Files, oldPath)
 	return nil
 }
 
@@ -669,7 +682,7 @@ func (m *MockSecretStore) SetSecrets(secrets map[string]string) {
 // SetMissingRequired configures the missing required secrets.
 func (m *MockSecretStore) SetMissingRequired(missing []string) {
 	m.mu.Lock()
-	m.missingRequired = missing
+	m.missingRequired = append([]string(nil), missing...)
 	m.mu.Unlock()
 }
 
@@ -740,14 +753,14 @@ func (m *MockSecretStore) Set(secrets map[string]string) {
 func (m *MockSecretStore) MissingRequired() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.missingRequired
+	return append([]string(nil), m.missingRequired...)
 }
 
 // MissingRequiredFrom checks a secrets map for missing required values.
 func (m *MockSecretStore) MissingRequiredFrom(secrets map[string]string) []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.missingRequired
+	return append([]string(nil), m.missingRequired...)
 }
 
 // FindSecret looks up a secret definition by ID.

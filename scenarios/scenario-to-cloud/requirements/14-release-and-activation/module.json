@@ -1,0 +1,133 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-026",
+      "title": "One verified release identity",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "release-and-activation",
+      "description": "Bundle, native control-plane binaries, dependency closure and configuration schema are bound by one artifact-set digest with recorded provenance; mismatched CLI or tampered content is refused before extraction.",
+      "tags": [
+        "release",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/release/release_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Two builds from equal pinned inputs yield one release digest (P10-A01); native binary reproducibility verified twice and recorded (reproducible on the reference host); configuration digest ignores locator and secrets; tampered bundle byte, native CLI sha mismatch, edited identity, wrong architecture (unsupported_capability naming the artifact), undeclared provenance policy, production signature verified through the release-authority seam, untrusted signer, tampered signed copy, unsigned development release refused in production, signer failure leaves no release; credential canary absent from every emitted file including bundle entries (P10-A06). Shared-seam evidence outside this scenario: packages/cloudrelease/cloudrelease_test.go (Canonical bytes and digest pinned; provenance and limits outside the identity; manifest shape refusals. Shared by internal/cloudtarget (target-side verify).)"
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/native_cli_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Delivery copies the release-bound binary and verifies remote sha256sum before chmod; remote digest mismatch, wrong architecture, tampered local binary and a bundle outside a release are refused (P10-A02); no deploy-time compile path exists."
+        },
+        {
+          "type": "test",
+          "ref": "api/bundle/release_protection_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "GC honours unexpired artifact leases of active and predecessor releases; unreadable leases refuse GC."
+        },
+        {
+          "type": "test",
+          "ref": "api/releasesvc/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Connect ReleasesService build/get/verify with typed error details."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_release_test.go",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "REST build/get/verify; tampered binary yields 422 release_verification_failed naming the check. Shared-seam evidence outside this scenario: internal/cloudtarget/cloudtarget_test.go (Target-side verify over the same manifest (P08 evidence).)"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-027",
+      "title": "Safe bounded extraction into owned staging",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "release-and-activation",
+      "description": "Archive traversal, escaping symlinks, absolute paths, oversized expansion and incomplete stages are rejected; the active release is never modified before a candidate is validated.",
+      "tags": [
+        "release",
+        "extraction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/release/release_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Traversal, absolute path, escaping symlink, device entry, entry-count bomb, oversized entry and oversized expansion archives are refused through the release's declared limits before any write; the store tree is byte-identical after verification (P10-A04). An incomplete stage (no .complete) is refused by Verify, Store.Load and the delivery resolver (P10-A05). Shared-seam evidence outside this scenario: packages/binaryfetch/archive_bounded_test.go (Bounded walker refusals shared by cloud verify and target stage.)"
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-028",
+      "title": "Explicit activation with retained predecessor",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "release-and-activation",
+      "description": "Activation commits runtime and edge state with recoverable ordering, records old and new release identities, retains a compatible predecessor and reports rollback eligibility.",
+      "tags": [
+        "release",
+        "activation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/vps/execute_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-028] Every fixture x scope executes through typed target verbs with the operation id and fence (no shell syntax reaches reach.Command.Args: reach.ValidateCommand over every dispatched call); activation ordering stage -\u003e recovery point -\u003e runtime -\u003e pointer -\u003e route; crashes before the verb, after the verb and inside the target between runtime and pointer are reconciled by a successor attempt to the candidate with the predecessor retained and one pointer commit; seeded data survives an update and a failed activation; two deployments sharing postgres keep the resource when one is retired; legacy conversion binds recorded mappings first and never deletes unmapped directories; a start uses the active pointer and refuses an interrupted activation. Shared-seam evidence outside this scenario: internal/cloudtarget/persistent_data_test.go (target owner adopts legacy data by rename into persistent-data/\u003cbinding\u003e, links the release tree, leaves unmapped directories untouched, pins ports as environment, --restart keeps the predecessor) and internal/cli/cloudtargethandlers/argv_flags_test.go (b64 JSON flag spelling, activate flags)."
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/stop_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-028] workload.stop is one scoped lifecycle stop (privilegebroker process.stop.scoped) without process patterns or ports; retirement runs route -\u003e runtime -\u003e grants -\u003e data -\u003e artifacts, refuses an irreversible data disposition without a target owner, and reports active/previous artifacts as retained."
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/native_cli_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-027] Delivery negotiates the platform, places bundle + release manifest + native control plane through reach.Deliver with the manifest digest, refuses a platform mismatch before any byte moves and a bare bundle before staging; a Bridge-bound target gets a typed reach_unavailable instead of an SSH fallback."
+        },
+        {
+          "type": "test",
+          "ref": "api/reconcile/reconcile_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-028] Desired vs observed reconciliation with separate revision/timestamps; intentional stop never restarted; drift corrections are plan-scoped proposals; reboot policy follows declared supervision; retirement plan lists retained/deleted objects in owner order and blocks without an explicit data policy; cleanup protection is reference-based (stale leases do not expose active, previous or recovery-referenced artifacts)."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_reconcile_test.go",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "[REQ:STC-P0-028] GET/PUT desired-state contract (observation_may_restart, reboot policy), POST reconcile proposes then admits only the reviewed digest through the operation owner, retire/plan and retire/apply, data-bindings inventory (read-only) and adopt (declared bindings only, no data moved, mapping reaches the next plan)."
+        },
+        {
+          "type": "test",
+          "ref": "docs/reference/activation-and-reconciliation.md",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Strategies, declared downtime, rollback eligibility, retirement order, desired-state contract for vrooli-autoheal, protected cleanup."
+        }
+      ]
+    }
+  ]
+}

@@ -4,12 +4,15 @@ package executor
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/state"
+	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // LoopContext bundles all state needed for loop execution.
@@ -93,9 +96,11 @@ type repeatHandler struct{}
 
 func (h *repeatHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loopExecutionResult, error) {
 	result := loopExecutionResult{session: lctx.Session}
-	stepParams := PlanStepParams(lctx.Step)
-
-	desiredIterations := state.IntValue(stepParams, "loopCount")
+	loop := lctx.Step.Action.GetLoop()
+	if loop == nil {
+		return result, fmt.Errorf("loop node %s is missing typed loop params", lctx.Step.NodeID)
+	}
+	desiredIterations := int(loop.GetCount())
 	if desiredIterations <= 0 {
 		return result, fmt.Errorf("loop node %s repeat requires loopCount > 0", lctx.Step.NodeID)
 	}
@@ -112,6 +117,7 @@ func (h *repeatHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loo
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession
@@ -131,24 +137,20 @@ type forEachHandler struct{}
 
 func (h *forEachHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loopExecutionResult, error) {
 	result := loopExecutionResult{session: lctx.Session}
-	stepParams := PlanStepParams(lctx.Step)
-
-	items := state.ExtractLoopItems(stepParams, lctx.State)
+	loop := lctx.Step.Action.GetLoop()
+	if loop == nil {
+		return result, fmt.Errorf("loop node %s is missing typed loop params", lctx.Step.NodeID)
+	}
+	items := loopItems(loop, lctx.State)
 	if len(items) == 0 {
 		return result, nil
 	}
 
-	itemVar := state.StringValue(stepParams, "loopItemVariable")
-	if itemVar == "" {
-		itemVar = state.StringValue(stepParams, "itemVariable")
-	}
+	itemVar := loop.GetItemVariable()
 	if itemVar == "" {
 		itemVar = defaultLoopItemVar
 	}
-	indexVar := state.StringValue(stepParams, "loopIndexVariable")
-	if indexVar == "" {
-		indexVar = state.StringValue(stepParams, "indexVariable")
-	}
+	indexVar := loop.GetIndexVariable()
 	if indexVar == "" {
 		indexVar = defaultLoopIndexVar
 	}
@@ -165,6 +167,7 @@ func (h *forEachHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (lo
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession
@@ -185,12 +188,15 @@ type whileHandler struct{}
 
 func (h *whileHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loopExecutionResult, error) {
 	result := loopExecutionResult{session: lctx.Session}
-	stepParams := PlanStepParams(lctx.Step)
+	loop := lctx.Step.Action.GetLoop()
+	if loop == nil {
+		return result, fmt.Errorf("loop node %s is missing typed loop params", lctx.Step.NodeID)
+	}
 
 	activeSession := lctx.Session
 	iterations := 0
 	for iterations < lctx.MaxIterations {
-		if !state.EvaluateLoopCondition(stepParams, lctx.State) {
+		if !evaluateLoopCondition(loop.GetCondition(), lctx.State) {
 			break
 		}
 
@@ -199,6 +205,7 @@ func (h *whileHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loop
 			activeSession, lctx.Step.Loop, lctx.State, lctx.ReuseMode,
 		)
 		if err != nil {
+			result.session = nextSession
 			return result, err
 		}
 		activeSession = nextSession
@@ -212,6 +219,49 @@ func (h *whileHandler) Execute(executor *SimpleExecutor, lctx LoopContext) (loop
 	result.iterations = iterations
 	result.session = activeSession
 	return result, nil
+}
+
+func loopItems(loop *basactions.LoopParams, execState *state.ExecutionState) []any {
+	if loop == nil || execState == nil || strings.TrimSpace(loop.GetArraySource()) == "" {
+		return nil
+	}
+	value, ok := execState.Get(loop.GetArraySource())
+	if !ok || value == nil {
+		return nil
+	}
+	rv := reflect.ValueOf(value)
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return nil
+	}
+	items := make([]any, rv.Len())
+	for i := range items {
+		items[i] = rv.Index(i).Interface()
+	}
+	return items
+}
+
+func evaluateLoopCondition(condition *basactions.LoopCondition, execState *state.ExecutionState) bool {
+	if condition == nil || execState == nil {
+		return false
+	}
+	switch condition.GetType() {
+	case basactions.LoopConditionType_LOOP_CONDITION_TYPE_VARIABLE:
+		name := strings.TrimSpace(condition.GetVariable())
+		if name == "" {
+			return false
+		}
+		current, ok := execState.Get(name)
+		if !ok {
+			return false
+		}
+		op := strings.ToLower(strings.TrimPrefix(condition.GetOperator().String(), "LOOP_CONDITION_OPERATOR_"))
+		return state.CompareValues(current, typeconv.JsonValueToAny(condition.GetValue()), op)
+	case basactions.LoopConditionType_LOOP_CONDITION_TYPE_EXPRESSION:
+		result, ok := state.NewInterpolator(execState).EvaluateExpression(strings.TrimSpace(condition.GetExpression()))
+		return ok && result
+	default:
+		return false
+	}
 }
 
 // =============================================================================

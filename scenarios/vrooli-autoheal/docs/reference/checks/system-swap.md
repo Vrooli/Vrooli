@@ -18,14 +18,25 @@ This check reads `/proc/meminfo` to measure:
 - Total swap space
 - Used swap space
 - Swap usage percentage
+- Swap paging traffic (pages per second)
+
+## Level and rate matrix
+
+Swap level is a stock; paging traffic is the flow used for severity. A high
+level with near-zero traffic is healthy because cold pages are parked. High
+traffic is critical at either level; lower active traffic is a warning. If the
+rate source is unavailable the check warns with the reason instead of
+escalating from level alone. The named thresholds are 1 page/sec for
+near-zero and 128 pages/sec for high traffic, based on the incident host's
+observed steady-state paging rates.
 
 ## Status Meanings
 
 | Status | Meaning |
 |--------|---------|
-| **OK** | Swap usage below 50% |
-| **Warning** | Swap usage between 50-80% (or no swap configured) |
-| **Critical** | Swap usage above 80% |
+| **OK** | Swap level is below 50% with quiet traffic, or a high level has near-zero traffic |
+| **Warning** | Swap level is at least 50%, traffic is active but below the high-rate threshold, or the rate source is unavailable |
+| **Critical** | Swap level is at least 80% or paging traffic is at least 128 pages/sec |
 
 ## Why It Matters
 
@@ -141,6 +152,10 @@ The check accepts the following options:
   "swapConfigured": true,
   "warningThreshold": 50,
   "criticalThreshold": 80
+  ,"swapTrafficPagesPerSecond": 0
+  ,"swapTrafficRateAvailable": true
+  ,"nearZeroRateThreshold": 1
+  ,"highRateThreshold": 128
 }
 ```
 

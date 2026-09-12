@@ -1,7 +1,9 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import TabBar from "../components/TabBar";
 import { useWorkspaceStore, type PaneMetadata, type TabGroupMeta } from "../stores/useWorkspaceStore";
+import { HEADER_COLORS } from "../consts/config";
 
 // [REQ:P0-001a] Tab rename + group creation — regression tests
 
@@ -20,7 +22,7 @@ const mockCreateTabGroup = vi.fn().mockResolvedValue({
 });
 const mockUpdateTabGroup = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("../lib/api", () => ({
+vi.mock("../api/workspace", () => ({
   saveWorkspaceLayout: vi.fn().mockResolvedValue(undefined),
   updateWorkspacePane: (...args: unknown[]) => mockUpdateWorkspacePane(...args) as unknown,
   createTabGroup: (...args: unknown[]) => mockCreateTabGroup(...args) as unknown,
@@ -37,6 +39,7 @@ const makePanes = (...ids: string[]): PaneMetadata[] =>
     fontSize: 14,
     groupId: null,
     supportsMessagesView: false,
+  manuallyUnread: false,
   }));
 
 const renderTabBar = () =>
@@ -47,6 +50,9 @@ const renderTabBar = () =>
       onNewTerminal={vi.fn()}
       onOpenLauncher={vi.fn()}
       onClosePane={vi.fn()}
+      onDeletePanePermanently={vi.fn()}
+      onStartRole={vi.fn()}
+      onOpenRoleMenu={vi.fn()}
     />,
   );
 
@@ -121,49 +127,70 @@ describe("TabBar rename", () => {
   });
 });
 
-describe("TabBar create group", () => {
+describe("TabBar group quick paths", () => {
+  const groupMeta: TabGroupMeta = { id: "g1", name: "Work", color: HEADER_COLORS[0] ?? "#123456", isCollapsed: false };
+
   beforeEach(() => {
     vi.clearAllMocks();
     useWorkspaceStore.setState({
       panes: makePanes("a", "b"),
       activePane: "a",
-      groups: [] as TabGroupMeta[],
+      groups: [groupMeta],
       displayMode: "tabs",
       tabContextMenu: null,
+      manageGroupsOpen: false,
     });
   });
 
-  it("creates group via API, assigns pane, and enters group rename mode", async () => {
+  // Assignment opens the shared group overlay, not a trip through the
+  // administration drawer.
+  it("Add to Group opens the group overlay, not the manager", () => {
     renderTabBar();
 
-    // Open context menu on tab "a"
     fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    expect(screen.queryByTestId("tab-ctx-group-g1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("tab-ctx-remove-from-group")).not.toBeInTheDocument();
 
-    // Hover "Add to Group" to open submenu
-    const addToGroupBtn = screen.getByTestId("tab-ctx-add-to-group");
-    fireEvent.pointerEnter(addToGroupBtn);
+    fireEvent.click(screen.getByTestId("tab-ctx-add-to-group"));
 
-    // Click "New Group..."
-    const newGroupBtn = screen.getByTestId("tab-ctx-new-group");
-    fireEvent.click(newGroupBtn);
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
+    expect(useWorkspaceStore.getState().manageGroupsOpen).toBe(false);
+  });
 
-    // Wait for async group creation
+  it("grouped panes get one-tap remove plus the Manage Groups entry point", async () => {
+    const panes = useWorkspaceStore.getState().panes.map((p) =>
+      p.sessionId === "a" ? { ...p, groupId: "g1" } : p,
+    );
+    useWorkspaceStore.setState({ panes });
+    renderTabBar();
+
+    fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    expect(screen.queryByTestId("tab-ctx-add-to-group")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("tab-ctx-remove-from-group"));
+
     await waitFor(() => {
-      expect(mockCreateTabGroup).toHaveBeenCalledWith({ name: "New Group", color: "#3b82f6" });
+      const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a");
+      expect(pane?.groupId).toBeNull();
     });
-
-    // Group should be added to store
-    await waitFor(() => {
-      const groups = useWorkspaceStore.getState().groups;
-      expect(groups).toHaveLength(1);
-      expect(groups[0]?.id).toBe("g-new");
+    // Leaving a group is a move: the pane's membership and its color are
+    // persisted together, so the surviving members stay a contiguous block.
+    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", {
+      group_id: null,
+      header_color: "transparent",
     });
+  });
 
-    // Pane "a" should be assigned to the group
-    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a");
-    expect(pane?.groupId).toBe("g-new");
+  it("moves a grouped pane through the same group overlay", () => {
+    const panes = useWorkspaceStore.getState().panes.map((p) =>
+      p.sessionId === "a" ? { ...p, groupId: "g1" } : p,
+    );
+    useWorkspaceStore.setState({ panes });
+    renderTabBar();
 
-    // Backend sync for pane update should have been called
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", { group_id: "g-new" });
+    fireEvent.contextMenu(screen.getByTestId("tab-a"), { clientX: 50, clientY: 10 });
+    fireEvent.click(screen.getByTestId("tab-ctx-move-to-group"));
+
+    expect(screen.getByTestId("group-assign-picker")).toBeInTheDocument();
   });
 });

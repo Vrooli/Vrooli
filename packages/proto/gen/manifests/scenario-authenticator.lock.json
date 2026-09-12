@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "scenario": "scenario-authenticator",
+  "input_digest": "sha256:0d7518f27501c1955ac25e3412c4209f0b0cf1675997d78b298a76cb3cf59efd",
+  "input_files": [
+    "schemas/scenario-authenticator/v1/accounts/accounts.proto",
+    "schemas/scenario-authenticator/v1/errors/errors.proto",
+    "schemas/scenario-authenticator/v1/health/health.proto",
+    "schemas/scenario-authenticator/v1/mfa/mfa.proto",
+    "schemas/scenario-authenticator/v1/sessions/sessions.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/scenario-authenticator/v1/accounts/accounts.pb.go": "sha256:3d830e343c0e67fb076286b485ed32a0463bbbce80ea8987394817b4a265143a",
+    "gen/go/scenario-authenticator/v1/accounts/accounts_v1connect/accounts.connect.go": "sha256:b0919ec23bc2dc799d63a987a0a95a6baf490ec3da43e7f6f414391bb4833094",
+    "gen/go/scenario-authenticator/v1/errors/errors.pb.go": "sha256:aeca959868aaf8acfe81ee2a6865e5dcb719d851dd1dcf030d9b8d92d526cc05",
+    "gen/go/scenario-authenticator/v1/health/health.pb.go": "sha256:f0bf96e3a7a9d44ab2cb87077c0db90aa04fc13252f9def41c433013375a9ef0",
+    "gen/go/scenario-authenticator/v1/mfa/mfa.pb.go": "sha256:77dd3f61eccbdb1755c898b0066ede324ca48855b915c9f979a029ecd1f94e69",
+    "gen/go/scenario-authenticator/v1/mfa/mfa_v1connect/mfa.connect.go": "sha256:4c7e3e806869aa624f10ec1607b2e5131b1561540761160747d2035ff7557b01",
+    "gen/go/scenario-authenticator/v1/sessions/sessions.pb.go": "sha256:0304c25458c77d751f39e45ab4f1b26c81ee0473ce650280f606bbbcd7eecfd3",
+    "gen/go/scenario-authenticator/v1/sessions/sessions_v1connect/sessions.connect.go": "sha256:73fdbae97f1cb67ffff2dcc425fd61b9a305757196fb4eca9f8cdcffc53302c4",
+    "gen/python/scenario_authenticator/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.py": "sha256:ceb9b673c65b41aae7630b8dbe054f28043dc4dc11b9d3ba582a3892c79332da",
+    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.pyi": "sha256:bf6a89d99dfa01ca26d1cbfb1aa25304d63ca9fdb1c516fd9713f896b3f6fbe1",
+    "gen/python/scenario_authenticator/v1/accounts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/errors/errors_pb2.py": "sha256:c59b073a5176b381e848ca5639136c6d4b4e6f848249b4119f1b4ca5fd496bac",
+    "gen/python/scenario_authenticator/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/scenario_authenticator/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/health/health_pb2.py": "sha256:94b7bc00fff0865949257cafb1a40527143b3008d65e7d39988e0e596f9dd4d6",
+    "gen/python/scenario_authenticator/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/scenario_authenticator/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/mfa/mfa_pb2.py": "sha256:9a5eb7c49c41fe36dbe65b4bd37599a2320a2b43e99bf5c00bc5ce5d91187539",
+    "gen/python/scenario_authenticator/v1/mfa/mfa_pb2.pyi": "sha256:7f0fe2d151b9472abb657aca8002ba6f1df6830ed6387f6a4744964544d84ca4",
+    "gen/python/scenario_authenticator/v1/mfa/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/sessions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_authenticator/v1/sessions/sessions_pb2.py": "sha256:a05af33e9867c164d83bb8051ffdb3deeda80b0b3d0e72e5526c34f98d3ecaf0",
+    "gen/python/scenario_authenticator/v1/sessions/sessions_pb2.pyi": "sha256:29f9d58e2acd771bf200c7e4087f9ac893a4fd1bb4d0c1898becf96831d8743a",
+    "gen/typescript/scenario-authenticator/v1/accounts/accounts_pb.ts": "sha256:51201df48cc8890d36c948203340948a0a2fd44a8e4a87bfbbefd1211f085d74",
+    "gen/typescript/scenario-authenticator/v1/errors/errors_pb.ts": "sha256:754768724049441d7cc120faf2be688044e59b2fe243d4459fc3a36fbf75e57e",
+    "gen/typescript/scenario-authenticator/v1/health/health_pb.ts": "sha256:5aa4cf734d2e7227357f86400fc7966ab3cf5400a41d9db81f9c166024e523ea",
+    "gen/typescript/scenario-authenticator/v1/mfa/mfa_pb.ts": "sha256:860a496d56989d30a54022852366bec772b3aa70141151b2a480862c2b0b4121",
+    "gen/typescript/scenario-authenticator/v1/sessions/sessions_pb.ts": "sha256:58e2f2c0c6c0321ab8463ef6d365b97288f2fac10a3bf332f50c5a7b8140b51d"
+  }
+}

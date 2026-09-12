@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/scenario_list.proto";
+import "cli/v1/scenario_status.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// Typed control-plane surface consumed by program-runtime. The request
+// messages deliberately stay small and reuse the established scenario output
+// contracts rather than creating a parallel lifecycle model.
+message ListScenariosRequest {
+  bool include_ports = 1;
+}
+
+message GetScenarioStatusRequest {
+  string name = 1;
+}
+
+message GetScenarioLogsRequest {
+  string name = 1;
+  int32 tail_lines = 2;
+  string step = 3;
+  bool runtime = 4;
+  bool lifecycle = 5;
+  bool previous = 6;
+}
+
+message StartScenarioRequest {
+  string name = 1;
+  int32 timeout_seconds = 2;
+  string path = 3;
+  bool best_effort = 4;
+  bool clean_stale = 5;
+  bool force = 6;
+  bool accept_credential_loss = 7;
+  // Caller must retain renewable demand while using this instance.
+  bool demand_managed = 8;
+}
+
+message StopScenarioRequest {
+  string name = 1;
+}
+
+message RestartScenarioRequest {
+  string name = 1;
+  int32 timeout_seconds = 2;
+  string path = 3;
+  bool best_effort = 4;
+  bool clean_stale = 5;
+  bool force = 6;
+  bool accept_credential_loss = 7;
+  // Caller must retain renewable demand while using this instance.
+  bool demand_managed = 8;
+}
+
+message SetupScenarioRequest {
+  string name = 1;
+  string path = 2;
+}
+
+service ScenarioControlPlaneService {
+  rpc ListScenarios(ListScenariosRequest) returns (ScenarioListResponse);
+  rpc GetScenarioStatus(GetScenarioStatusRequest) returns (ScenarioStatusSingle);
+  rpc GetScenarioLogs(GetScenarioLogsRequest) returns (ScenarioLogsResponse);
+  rpc StartScenario(StartScenarioRequest) returns (ScenarioLifecycleResponse);
+  rpc StopScenario(StopScenarioRequest) returns (ScenarioLifecycleResponse);
+  rpc RestartScenario(RestartScenarioRequest) returns (ScenarioLifecycleResponse);
+  rpc SetupScenario(SetupScenarioRequest) returns (ScenarioSetupResponse);
+}

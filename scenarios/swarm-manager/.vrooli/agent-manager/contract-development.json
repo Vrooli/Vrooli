@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "agent-workflow/v1",
+  "owner": "swarm-manager",
+  "key": "swarm-manager/contract-development",
+  "version": "1.0.0",
+  "description": "Run a bounded successive-repair scenario improvement campaign from one retained contract-development approval and reconstructable checkpoint.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "entity": { "type": "object", "additionalProperties": false },
+      "development": {
+        "type": "object",
+        "properties": {
+          "workItem": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "approvalDigest": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "goalMessage": { "type": "string", "maxLength": 16384 },
+          "proposal": { "type": "object" },
+          "artifacts": { "type": "array", "maxItems": 64 },
+          "checkpoint": {
+            "type": "object",
+            "properties": {
+              "digest": { "type": "string", "minLength": 1, "maxLength": 256 },
+              "approval_digest": { "type": "string", "minLength": 1, "maxLength": 256 },
+              "attempt_key": { "type": "string", "maxLength": 128 },
+              "owner_execution_id": { "type": "string", "maxLength": 256 },
+              "pending": { "type": "boolean" },
+              "required_outcome_ids": { "type": "array", "items": { "type": "string" }, "maxItems": 32 },
+              "completed_outcome_ids": { "type": "array", "items": { "type": "string" }, "maxItems": 32 },
+              "remaining_outcome_ids": { "type": "array", "items": { "type": "string" }, "maxItems": 32 },
+              "last_outcome": { "type": "string", "maxLength": 256 },
+              "last_checkpoint": { "type": "object" },
+              "no_progress_cycles": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["digest", "approval_digest", "pending", "required_outcome_ids", "completed_outcome_ids", "remaining_outcome_ids"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["workItem", "approvalDigest", "checkpoint"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["entity", "development"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "result": {
+        "type": "object",
+        "properties": {
+          "outcome": { "type": "string", "enum": ["repaired", "needs_attention", "abstained", "budget_exhausted", "failed"] },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 16384 }
+        },
+        "required": ["outcome", "summary"],
+        "additionalProperties": false
+      }
+    },
+    "required": ["result"],
+    "additionalProperties": false
+  },
+  "nodes": [
+    {
+      "id": "campaign",
+      "kind": "run",
+      "run": {
+        "profileKey": "swarm-manager/deep-work",
+        "resultSpec": {
+          "version": "result-spec/v1",
+          "kind": "json_schema",
+          "extractionMode": "deterministic_only",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "outcome": { "type": "string", "enum": ["repaired", "needs_attention", "abstained", "budget_exhausted", "failed"] },
+              "summary": { "type": "string", "minLength": 1, "maxLength": 16384 }
+            },
+            "required": ["outcome", "summary"],
+            "additionalProperties": false
+          }
+        },
+        "bindings": [
+          { "name": "entity", "source": "workflow_input", "selector": "$.entity", "limit": 1, "maxBytes": 2048, "renderAs": "json", "missingPolicy": "error" },
+          { "name": "development", "source": "workflow_input", "selector": "$.development", "limit": 1, "maxBytes": 65536, "renderAs": "json", "missingPolicy": "error" }
+        ],
+        "maxTurns": 18,
+        "timeoutSeconds": 1800,
+        "promptRef": { "skillId": "scenario-improvement-campaign" }
+      }
+    }
+  ],
+  "budgets": {
+    "wallTimeSeconds": 3600,
+    "maxTurns": 18,
+    "maxTokens": 900000,
+    "maxChargeMicroUsd": 6000000,
+    "maxNodeAttempts": 3,
+    "maxChildren": 1,
+    "maxConcurrency": 1,
+    "maxRecursion": 1,
+    "maxRetries": 2,
+    "maxWaitSeconds": 60
+  },
+  "metadata": { "consumerMutationOwner": "swarm-manager", "workShape": "contract-development" }
+}

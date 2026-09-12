@@ -1,6 +1,70 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "swarm-manager",
+    "audience": "scenario-authenticator:swarm-manager",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "swarm-manager:read", "effect": "read", "agent_eligible": true},
+      {"id": "swarm-manager:write", "effect": "write", "agent_eligible": false},
+      {"id": "swarm-manager:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/swarm-manager/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/swarm-manager-improve/SKILL.md",
+      "programs": []
+    },
+    "feature": [],
+    "learning": {
+      "scope": "swarm-manager-usage"
+    },
+    "waivers": {}
+  },
+  "storage": {
+    "entries": {
+      "events-db": {
+        "rung": "owned", "class": "data", "subpath": "events.db", "kind": "file", "format": "sqlite", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "512MiB", "rationale": "Observed 2564096 bytes on 2026-09-08 before development approvals. This is a review threshold, not permission to prune authoritative events or approved snapshots."},
+        "rationale": "Authoritative event/evidence history and development approvals, snapshots and aggregate accounting; resolved through api-core/storage and routed database pools."
+      },
+      "events-db-wal": {
+        "rung": "owned", "class": "data", "subpath": "events.db-wal", "kind": "file", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "128MiB", "rationale": "Observed 0 bytes on 2026-09-08. A live SQLite WAL must not be pruned independently."},
+        "rationale": "Live SQLite write-ahead log; preserve with its database."
+      },
+      "events-db-shm": {
+        "rung": "owned", "class": "data", "subpath": "events.db-shm", "kind": "file", "regenerable": false, "sensitive": true,
+        "budget": {"max_bytes": "1MiB", "rationale": "Observed 32768 bytes on 2026-09-08. A live SQLite shared-memory sidecar must not be pruned independently."},
+        "rationale": "Live SQLite shared-memory sidecar; preserve with its database."
+      }
+    },
+    "rationale": "The event database and its live sidecars are declared here. Other existing file stores still require a separate storage-accountability adoption pass; this is not a complete inventory."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "swarm-manager",
@@ -35,6 +99,10 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -43,13 +111,8 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36234,
+      "port": 21234,
       "description": "React UI"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
     }
   },
   "lifecycle": {
@@ -79,158 +142,179 @@
           "critical": false
         }
       ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/swarm-manager-api"]
-          },
-          {
-            "type": "cli",
-            "command": "swarm-manager"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o swarm-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and Vite dev server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./swarm-manager-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/swarm-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute swarm-manager --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'swarm-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {
-    "resources": {},
+    "resources": {
+      "ollama": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding model (nomic-embed-text) for AI search"
+      },
+      "qdrant": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector store for AI search over backlog items and goals"
+      }
+    },
     "scenarios": {
       "agent-manager": {
         "enabled": true,
         "required": true,
-        "description": "Spawning agents for automated work"
+        "startup_policy": "must_start",
+        "description": "Spawning agents for automated work",
+        "degraded_behavior": "Without agent-manager, swarm-manager refuses to dispatch new agent runs while existing records remain viewable.",
+        "config": {
+          "declarations": {
+            "reconcile": true,
+            "profileMode": "update_if_unmodified",
+            "sources": [
+              ".vrooli/agent-manager/default.json",
+              ".vrooli/agent-manager/session.json",
+              ".vrooli/agent-manager/deep-work.json",
+              ".vrooli/agent-manager/analysis.json",
+              ".vrooli/agent-manager/review-evidence.json",
+              ".vrooli/agent-manager/plan-workshop-review.json",
+              ".vrooli/agent-manager/plan-workshop-reconcile.json",
+              ".vrooli/agent-manager/plan-author.json",
+              ".vrooli/agent-manager/phased-plan-slice-review.json",
+              ".vrooli/agent-manager/phased-plan-drain.json",
+              ".vrooli/agent-manager/goal-work.json",
+              ".vrooli/agent-manager/goal-session-drain.json",
+              ".vrooli/agent-manager/plan-repair.json",
+              ".vrooli/agent-manager/capture-classify.json",
+              ".vrooli/agent-manager/independent-review.json",
+              ".vrooli/agent-manager/work-follow-up.json",
+              ".vrooli/agent-manager/work-correct.json",
+              ".vrooli/agent-manager/scenario-spec-sync.json",
+              ".vrooli/agent-manager/evidence-request.json",
+              ".vrooli/agent-manager/goal-discover.json",
+              ".vrooli/agent-manager/goal-plan.json",
+              ".vrooli/agent-manager/milestone-review.json",
+              ".vrooli/agent-manager/readiness-review.json",
+              ".vrooli/agent-manager/contract-development.json"
+            ]
+          }
+        }
       },
-      "ecosystem-manager": {
-        "enabled": true,
-        "required": true,
-        "description": "Scenario initialization and improvement"
-      },
+    "plan-manager": {
+      "enabled": true,
+      "required": true,
+      "startup_policy": "must_start",
+      "description": "Canonical plan authoring, rendering, and execution-plan validation",
+      "degraded_behavior": "Without plan-manager, swarm-manager preserves existing plans but disables plan creation and reconciliation."
+    },
+    "scenario-authenticator": {
+      "enabled": true,
+      "required": true,
+      "startup_policy": "must_start",
+      "description": "Verified human identity and scoped operator authority for protected Swarm decisions.",
+      "degraded_behavior": "Without scenario-authenticator, Swarm Manager keeps read surfaces available but refuses human-authorized development decisions."
+    },
       "knowledge-observatory": {
         "enabled": false,
         "required": false,
-        "description": "PROBLEMS.md management (P1)"
+        "startup_policy": "try_start",
+        "description": "PROBLEMS.md management (P1)",
+        "degraded_behavior": "Without knowledge-observatory, durable problem observations remain local and are not synchronized."
       },
       "visited-tracker": {
         "enabled": false,
         "required": false,
-        "description": "Context cleanup campaigns (P1)"
+        "startup_policy": "try_start",
+        "description": "Context cleanup campaigns (P1)",
+        "degraded_behavior": "Without visited-tracker, navigation continues without cross-session visited-state cleanup."
       },
       "scenario-completeness-scoring": {
         "enabled": false,
         "required": false,
-        "description": "Completeness metrics (P1)"
-      },
-      "app-issue-tracker": {
-        "enabled": false,
-        "required": false,
-        "description": "Issue management (P1)"
+        "startup_policy": "try_start",
+        "description": "Completeness metrics (P1)",
+        "degraded_behavior": "Without scenario-completeness-scoring, swarm-manager omits completeness scoring while retaining core work management."
       },
       "test-genie": {
-        "enabled": false,
-        "required": false,
-        "description": "Test execution and reporting (P1)"
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Validation runs, baseline evidence, and completion gates",
+        "degraded_behavior": "Without test-genie, swarm-manager can edit and inspect work but cannot execute server-owned validation runs."
       },
       "prompt-manager": {
         "enabled": true,
         "required": true,
-        "description": "Skill prompt templates for backlog research and processing"
+        "startup_policy": "must_start",
+        "description": "Skill prompt templates for backlog research and processing",
+        "degraded_behavior": "Without prompt-manager, swarm-manager keeps direct work flows available but loses skill discovery and reusable prompt guidance."
       },
       "git-control-tower": {
-        "enabled": false,
-        "required": false,
-        "description": "Post-execution code review and readiness validation"
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Required admission, regression evidence, and review provider for plan execution and work review",
+        "degraded_behavior": "Without git-control-tower, plan execution and review transitions remain parked until regression and readiness evidence can be obtained."
+      },
+      "audio-tools": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "STT (mic input in MessageComposer + QuickCapture) and TTS (assistant message playback in Session Details) flow through audio-tools via the audio-integration UI module and the discovery Connect handler. swarm-manager contains zero audio synthesis/transcription code.",
+        "degraded_behavior": "If audio-tools is unreachable, the discovery handler returns available:false; the UI hides the mic button and renders an unavailable banner in the Audio settings tab. The API still boots.",
+        "supervision_precedence": "required"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "swarm-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "swarm-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
       }
     }
   }

@@ -1,0 +1,1 @@
+{"type":"error","message":"Couldn't set model 'no-such-model-xyz': Invalid params: \"unknown model id\". Run 'grok models' to see available models."}

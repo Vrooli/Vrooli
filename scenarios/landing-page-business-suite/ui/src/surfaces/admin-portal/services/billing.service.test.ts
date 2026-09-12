@@ -34,11 +34,11 @@ type UpdateBundlePriceFn = typeof updateBundlePrice;
 type VerifyStripePriceFn = typeof verifyStripePrice;
 type UpdateBundlePriceResult = Awaited<ReturnType<UpdateBundlePriceFn>>;
 
-const getStripeSettingsMock = vi.fn<Parameters<GetStripeSettingsFn>, ReturnType<GetStripeSettingsFn>>();
-const updateStripeSettingsMock = vi.fn<Parameters<UpdateStripeSettingsFn>, ReturnType<UpdateStripeSettingsFn>>();
-const getBundleCatalogMock = vi.fn<Parameters<GetBundleCatalogFn>, ReturnType<GetBundleCatalogFn>>();
-const updateBundlePriceMock = vi.fn<Parameters<UpdateBundlePriceFn>, ReturnType<UpdateBundlePriceFn>>();
-const verifyStripePriceMock = vi.fn<Parameters<VerifyStripePriceFn>, ReturnType<VerifyStripePriceFn>>();
+const getStripeSettingsMock = vi.fn<GetStripeSettingsFn>();
+const updateStripeSettingsMock = vi.fn<UpdateStripeSettingsFn>();
+const getBundleCatalogMock = vi.fn<GetBundleCatalogFn>();
+const updateBundlePriceMock = vi.fn<UpdateBundlePriceFn>();
+const verifyStripePriceMock = vi.fn<VerifyStripePriceFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

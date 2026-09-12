@@ -36,7 +36,7 @@ export function loadGeneratorAppState(): GeneratorAppState | null {
     const raw = storage.getItem(APP_STATE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GeneratorAppState;
-    if (!parsed || parsed.version !== APP_STATE_VERSION) return null;
+    if (parsed.version !== APP_STATE_VERSION) return null;
     return parsed;
   } catch {
     return null;

@@ -1,0 +1,100 @@
+{
+  "description": "The primary interface is a full-screen split — Receive pane on top, Send pane on bottom — with image thumbnails, per-item retention and target controls, and correct empty, loading, and error states; the layout is fully usable from small phone widths through desktop.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-009",
+        "REQ-P0-010"
+      ],
+      "description": "The primary interface renders as a full-screen vertical split with a Receive pane occupying the top half and a Send pane occupying the bottom half. The Receive pane displays received items with image thumbnails, retention policy badges, per-item action controls (download, pin, delete, target), and correct empty, loading, and error states. The Send pane provides input for files and text snippets, per-item retention and target controls, and a send action. The layout is fully usable from 320px phone width through desktop viewport widths. All interactive controls are keyboard navigable and have appropriate ARIA attributes and data-testid selectors.",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Polished Responsive Split-Screen UI with Receive and Send Panes",
+      "validation": [
+        {
+          "notes": "Vitest: ReceivePane renders empty state with correct aria-label when items list is empty",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: ReceivePane renders loading skeleton when isLoading=true",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: ReceivePane renders error banner with retry action when error prop is set",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: SendPane renders per-item retention selector and target selector for each staged item",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: image item renders thumbnail img element with non-empty src and descriptive alt text",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: layout component applies correct CSS classes for split-screen at 320px, 768px, and 1440px breakpoints via snapshot test",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: upload a file; assert image thumbnail is visible in Receive pane within 2 seconds",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: empty Receive pane displays correct empty-state illustration and copy",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "BAS smoke: navigate to main UI; confirm split-screen layout renders on mobile (375px) and desktop (1440px) without horizontal scroll",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessibility audit: axe-core scan on main view returns zero critical violations",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: tab through all interactive elements in Send and Receive panes; confirm logical focus order",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Polished Responsive Split-Screen UI"
+}

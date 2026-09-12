@@ -7,14 +7,14 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,111 +23,940 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "brand-manager status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.brand_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.brand_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
-      "id": "brands-list",
-      "path": "/api/v1/brands",
-      "method": "GET",
-      "summary": "List all brands",
-      "description": "Returns all brands with optional name filter, limit, and offset",
-      "category": "brands",
-      "parameters": [
-        { "name": "name", "in": "query", "type": "string", "description": "Filter by name (contains)" },
-        { "name": "limit", "in": "query", "type": "integer", "description": "Max results" },
-        { "name": "offset", "in": "query", "type": "integer", "description": "Pagination offset" }
-      ],
-      "cli_mapping": { "command": "brand-manager list" }
-    },
-    {
-      "id": "brands-create",
-      "path": "/api/v1/brands",
+      "id": "apply_preview",
+      "path": "/vrooli.brand_manager.v1.apply.ApplyService/PreviewApply",
       "method": "POST",
-      "summary": "Create a new brand",
-      "description": "Creates a brand with identity, colors, typography, voice, and notes",
-      "category": "brands",
-      "cli_mapping": { "command": "brand-manager create --name <name>" }
+      "summary": "Preview applying a brand to a scenario",
+      "description": "Computes exactly which files applying a brand to a scenario would write (CSS, manifest.json, copied logo/favicon), WITHOUT touching the filesystem or recording an assignment.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, identity, favicon, logo; empty = all)",
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<ApplyAction>",
+          "brand_version": "int32",
+          "dry_run": "bool (always true)",
+          "scenario": "string",
+          "skipped": "array<SkipReason>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such brand, or the scenario directory does not exist"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview apply",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.apply.ApplyService/PreviewApply -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\"}'"
+        }
+      ]
     },
     {
-      "id": "brands-get",
-      "path": "/api/v1/brands/{id}",
-      "method": "GET",
-      "summary": "Get a brand by ID",
-      "description": "Returns a single brand with all facets",
-      "category": "brands",
-      "cli_mapping": { "command": "brand-manager get <id>" }
+      "id": "apply_brand",
+      "path": "/vrooli.brand_manager.v1.apply.ApplyService/ApplyBrand",
+      "method": "POST",
+      "summary": "Apply a brand to a scenario",
+      "description": "Writes the requested brand elements into the scenario's source tree (CSS custom properties, a manifest.json merge, copied logo/favicon bytes) and records the brand↔scenario assignment. Convergent: re-applying overwrites the same managed files.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, identity, favicon, logo; empty = all)",
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<ApplyAction>",
+          "brand_version": "int32",
+          "dry_run": "bool (always false)",
+          "scenario": "string",
+          "skipped": "array<SkipReason>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such brand, or the scenario directory does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Writing a file or recording the assignment failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Apply brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.apply.ApplyService/ApplyBrand -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\",\"elements\":[\"colors\",\"logo\"]}'"
+        }
+      ]
     },
     {
-      "id": "brands-update",
-      "path": "/api/v1/brands/{id}",
-      "method": "PUT",
-      "summary": "Update a brand",
-      "description": "Updates brand fields and increments version, creating a version snapshot",
-      "category": "brands"
+      "id": "assets_list",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/ListAssets",
+      "method": "POST",
+      "summary": "List brand assets",
+      "description": "Returns asset catalog entries ordered newest-uploaded first, optionally filtered to one brand.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (optional filter; empty = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<Asset>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List assets",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/ListAssets -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
     },
     {
-      "id": "brands-delete",
-      "path": "/api/v1/brands/{id}",
-      "method": "DELETE",
-      "summary": "Delete a brand",
-      "description": "Deletes a brand and all associated versions and assignments",
-      "category": "brands"
+      "id": "assets_upload",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/UploadAsset",
+      "method": "POST",
+      "summary": "Upload (or replace) a brand asset",
+      "description": "Writes the file bytes and upserts the catalog row keyed by (brand_id, filename). Re-uploading the same filename replaces the bytes and keeps the asset id. The brand must exist, the mime type must be an allowed image type, and the payload must be non-empty and within 32 MiB.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "content": "bytes (required, non-empty, <= 32 MiB)",
+          "filename": "string (required, bare basename)",
+          "mime_type": "string (optional; inferred from extension when empty)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "Asset"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/invalid field, unknown brand, unsupported mime, or oversized payload"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Blob write or repository failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Upload asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/UploadAsset -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"filename\":\"logo.png\",\"content\":\"<base64>\"}'"
+        }
+      ]
     },
     {
-      "id": "versions-list",
-      "path": "/api/v1/brands/{id}/versions",
-      "method": "GET",
-      "summary": "List brand versions",
-      "description": "Returns all version snapshots for a brand",
-      "category": "brands"
+      "id": "assets_get",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/GetAsset",
+      "method": "POST",
+      "summary": "Get an asset catalog entry by id",
+      "description": "Returns the asset metadata matching the request id (no bytes; use DownloadAsset for bytes).",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "Asset"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/GetAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
     },
     {
-      "id": "assignments-create",
-      "path": "/api/v1/assignments",
+      "id": "assets_download",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/DownloadAsset",
+      "method": "POST",
+      "summary": "Download an asset's bytes",
+      "description": "Returns the stored file bytes plus its filename and mime type.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "bytes",
+          "filename": "string",
+          "mime_type": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Blob read or repository failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Download asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/DownloadAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assets_delete",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/DeleteAsset",
+      "method": "POST",
+      "summary": "Delete an asset (idempotent)",
+      "description": "Removes the catalog row and best-effort removes the on-disk file. Deleting a missing asset returns success.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/DeleteAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_list",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/ListAssignments",
+      "method": "POST",
+      "summary": "List brand assignments",
+      "description": "Returns assignments ordered newest-applied first, optionally filtered to one brand.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (optional filter; empty = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assignments": "array<Assignment>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List assignments",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/ListAssignments -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_assign",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/AssignBrand",
       "method": "POST",
       "summary": "Assign a brand to a scenario",
-      "description": "Links a brand to a scenario name with element selection",
-      "category": "assignments"
+      "description": "Upserts a scenario's brand link and pins the brand's current version. Re-assigning replaces the prior link. brand_id and scenario_name are required and the brand must exist.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (optional applied elements)",
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assignment": "Assignment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id/scenario_name or unknown brand"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Assign brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/AssignBrand -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\"}'"
+        }
+      ]
     },
     {
-      "id": "assignments-delete",
-      "path": "/api/v1/assignments/{id}",
-      "method": "DELETE",
-      "summary": "Remove a brand assignment",
-      "description": "Removes the brand assignment from a scenario",
-      "category": "assignments"
+      "id": "assignments_status",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/GetScenarioStatus",
+      "method": "POST",
+      "summary": "Get a scenario's branding status",
+      "description": "Returns whether a scenario has a brand assigned and, if so, the pinned brand id/version, applied elements, and applied-at time. An unbranded scenario yields has_brand=false (not an error).",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "ScenarioStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Scenario status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/GetScenarioStatus -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
     },
     {
-      "id": "scenario-status",
-      "path": "/api/v1/scenarios/{name}/status",
-      "method": "GET",
-      "summary": "Get scenario branding status",
-      "description": "Returns whether a scenario has a brand assigned and which version",
-      "category": "assignments"
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "assignments_unassign",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/UnassignScenario",
+      "method": "POST",
+      "summary": "Unassign a scenario's brand (idempotent)",
+      "description": "Removes a scenario's brand assignment. Unassigning a scenario with no brand returns success.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Unassign scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/UnassignScenario -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
     },
     {
-      "name": "create",
-      "description": "Create a new brand",
-      "endpoint_id": "brands-create"
+      "id": "brands_list",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrands",
+      "method": "POST",
+      "summary": "List brands",
+      "description": "Returns brands ordered newest-updated first, with optional name-substring filter and pagination.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (default 100, max 500)",
+          "name_contains": "string (case-insensitive substring filter)",
+          "offset": "int32 (rows to skip)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brands": "array<Brand>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List brands",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrands -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
     },
     {
-      "name": "list",
-      "description": "List all brands",
-      "endpoint_id": "brands-list"
+      "id": "brands_create",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand",
+      "method": "POST",
+      "summary": "Create a brand",
+      "description": "Persists a new brand at version 1 and snapshots that version. Name is required.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "colors": "Colors",
+          "identity": "Identity",
+          "name": "string (required, non-whitespace)",
+          "typography": "Typography",
+          "voice": "Voice"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand -H 'Content-Type: application/json' -d '{\"name\":\"Acme\"}'"
+        }
+      ]
     },
     {
-      "name": "get",
-      "description": "Get a brand by ID",
-      "endpoint_id": "brands-get"
+      "id": "brands_get",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/GetBrand",
+      "method": "POST",
+      "summary": "Get a brand by id",
+      "description": "Returns the brand matching the request id.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/GetBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "brands_update",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/UpdateBrand",
+      "method": "POST",
+      "summary": "Update a brand (partial)",
+      "description": "Merges non-empty fields onto the stored brand, increments the version, and snapshots it. expected_version (when > 0) enforces optimistic locking.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "expected_version": "int32 (optional optimistic lock)",
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Resulting name is empty"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "expected_version does not match current version"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/UpdateBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\",\"description\":\"updated\"}'"
+        }
+      ]
+    },
+    {
+      "id": "brands_delete",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/DeleteBrand",
+      "method": "POST",
+      "summary": "Delete a brand (idempotent)",
+      "description": "Removes the brand. Deleting a missing brand returns success.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/DeleteBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "brands_versions",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions",
+      "method": "POST",
+      "summary": "List a brand's version history",
+      "description": "Returns the brand's immutable version snapshots, newest-first.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<BrandVersion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List versions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "design_generate",
+      "path": "/vrooli.brand_manager.v1.design.DesignService/GenerateDesignLanguage",
+      "method": "POST",
+      "summary": "Render a brand as a DESIGN.md document",
+      "description": "Reads a brand and renders a canonical DESIGN.md document — front matter, identity, a color-system table, typography, voice, derived visual patterns, and notes. Read-only: writes nothing; the markdown is returned in the response.",
+      "category": "design",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, brand must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (echoes the request)",
+          "markdown": "string (the complete DESIGN.md document)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand matches the id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate DESIGN.md",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.design.DesignService/GenerateDesignLanguage -H 'Content-Type: application/json' -d '{\"brand_id\":\"brand-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_scan",
+      "path": "/vrooli.brand_manager.v1.discovery.DiscoveryService/DiscoverScenario",
+      "method": "POST",
+      "summary": "Scan a scenario for branding state",
+      "description": "Reads a scenario's .vrooli/service.json, .vrooli/branding.json, ui/public/manifest.json, theme CSS, and ui/public assets, infers a draft brand from whatever it finds, and reports each source with a confidence score. Read-only: creates nothing.",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "confidence": "double (0.0-1.0)",
+          "draft_brand": "DraftBrand (null when no sources matched)",
+          "scenario": "string",
+          "sources": "array<DiscoverySource>",
+          "suggestions": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The scenario directory does not exist"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Discover scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.discovery.DiscoveryService/DiscoverScenario -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_import",
+      "path": "/vrooli.brand_manager.v1.discovery.DiscoveryService/ImportBrand",
+      "method": "POST",
+      "summary": "Import a brand from discovered state",
+      "description": "Re-scans a scenario and persists the inferred draft as a new brand through the brands domain. A scenario with no branding state yields FAILED_PRECONDITION (nothing to import).",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string",
+          "brand_name": "string",
+          "brand_version": "int32 (always 1)",
+          "confidence": "double (0.0-1.0)",
+          "sources": "array<DiscoverySource>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The scenario directory does not exist"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No branding state found to import"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Creating the brand failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Import brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.discovery.DiscoveryService/ImportBrand -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "generation_provider_status",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GetProviderStatus",
+      "method": "POST",
+      "summary": "Report AI provider availability",
+      "description": "Returns whether at least one AI provider in the chain is reachable, plus per-provider status (Ollama first, then OpenRouter).",
+      "category": "generation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "bool (at least one provider reachable)",
+          "providers": "array<ProviderStatus>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Provider status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GetProviderStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "generation_elements",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandElements",
+      "method": "POST",
+      "summary": "Generate brand text facets",
+      "description": "Generates the requested facets (colors, typography, voice) via the AI chain and merges them onto the brand (partial-merge; each apply bumps the version). Per-element provider/parse failures are reported per-element, not as a call error.",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, voice)",
+          "model": "string (optional provider model/role override)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<string>",
+          "brand_version": "int32 (0 when nothing applied)",
+          "model": "string",
+          "provider": "string",
+          "results": "array<ElementResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or empty elements"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "No AI provider is currently reachable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Applying generated facets failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate colors",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandElements -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"elements\":[\"colors\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "generation_image",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandImage",
+      "method": "POST",
+      "summary": "Generate a brand image",
+      "description": "Generates a logo or favicon via the AI chain and stores it as a brand asset (upsert by brand_id + derived filename, so regenerating replaces the bytes in place).",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "model": "string (optional provider model override)",
+          "type": "string (logo | favicon)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "filename": "string",
+          "mime_type": "string",
+          "model": "string",
+          "provider": "string",
+          "size": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or type not in {logo, favicon}"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "No AI provider is currently reachable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Image generation or asset write failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate logo",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandImage -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"type\":\"logo\"}'"
+        }
+      ]
     }
   ]
 }

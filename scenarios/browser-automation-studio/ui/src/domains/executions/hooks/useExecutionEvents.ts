@@ -4,13 +4,9 @@ import { useExecutionStore, type Execution } from '../store';
 import {
   parseStreamMessage,
   streamMessageToExecutionEvent,
-  parseLegacyUpdate,
-  type ExecutionUpdateMessage,
 } from '../live/executionEvents';
 import {
   processExecutionEvent,
-  createId,
-  parseTimestamp,
   type ExecutionEventHandlers,
 } from '../utils/eventProcessor';
 import { logger } from '@utils/logger';
@@ -34,6 +30,7 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   const addLog = useExecutionStore(s => s.addLog);
   const addScreenshot = useExecutionStore(s => s.addScreenshot);
   const recordHeartbeat = useExecutionStore(s => s.recordHeartbeat);
+  const refreshTimeline = useExecutionStore(s => s.refreshTimeline);
 
   // Track current subscription to avoid duplicate subscribe messages
   const subscribedIdRef = useRef<string | null>(null);
@@ -47,53 +44,6 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
     addScreenshot,
     recordHeartbeat,
   }), [updateExecutionStatus, updateProgress, addLog, addScreenshot, recordHeartbeat]);
-
-  // Handle legacy message format (backwards compatibility)
-  const handleLegacyUpdate = useCallback((raw: ExecutionUpdateMessage) => {
-    const progressValue = typeof raw.progress === 'number' ? raw.progress : undefined;
-    const currentStep = raw.current_step;
-
-    switch (raw.type) {
-      case 'connected':
-        // Acknowledgment - no action needed
-        return;
-      case 'progress':
-        if (typeof progressValue === 'number') {
-          updateProgress(progressValue, currentStep);
-        }
-        return;
-      case 'log': {
-        const message = raw.message ?? 'Execution log entry';
-        addLog({
-          id: createId(),
-          level: 'info',
-          message,
-          timestamp: parseTimestamp(raw.timestamp),
-        });
-        return;
-      }
-      case 'failed':
-        updateExecutionStatus('failed', raw.message);
-        return;
-      case 'completed':
-        updateExecutionStatus('completed');
-        return;
-      case 'cancelled':
-        updateExecutionStatus('cancelled', raw.message ?? 'Execution cancelled');
-        return;
-      case 'event':
-        // Nested event - process through standard handler
-        if (raw.data) {
-          processExecutionEvent(handlers, raw.data, {
-            fallbackTimestamp: raw.timestamp,
-            fallbackProgress: progressValue,
-          });
-        }
-        return;
-      default:
-        return;
-    }
-  }, [updateExecutionStatus, updateProgress, addLog, handlers]);
 
   // Process a WebSocket message for execution events
   const processMessage = useCallback((message: WebSocketMessage) => {
@@ -123,12 +73,7 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
       }
     }
 
-    // Fall back to legacy format
-    const legacy = parseLegacyUpdate(message);
-    if (legacy) {
-      handleLegacyUpdate(legacy);
-    }
-  }, [handlers, handleLegacyUpdate]);
+  }, [handlers]);
 
   // Subscribe/unsubscribe based on execution state
   useEffect(() => {
@@ -169,6 +114,22 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
       }
     };
   }, [execution?.id, execution?.status, send]);
+
+  // WebSocket events provide the low-latency path, but short workflows can
+  // finish before the subscription handshake completes. Polling only while a
+  // run is active closes that race and keeps the inline viewer authoritative
+  // even when a socket reconnects or an event is missed.
+  useEffect(() => {
+    const executionId = execution?.id;
+    const isActive = execution?.status === 'pending' || execution?.status === 'running';
+    if (!executionId || !isActive) {
+      return;
+    }
+
+    const refresh = () => void refreshTimeline(executionId);
+    const interval = window.setInterval(refresh, 1000);
+    return () => window.clearInterval(interval);
+  }, [execution?.id, execution?.status, refreshTimeline]);
 
   // Process incoming messages for this execution
   useEffect(() => {

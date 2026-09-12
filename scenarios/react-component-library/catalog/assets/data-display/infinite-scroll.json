@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.infinite-scroll",
+    "name": "InfiniteScroll",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The pagination primitive loading further results near the viewport boundary while preserving restoration, retries, an end state, and an accessible manual alternative.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-intersection-observer",
+        "reason": "Boundary observation is pooled rather than per-list."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "The manual fallback is not optional: an infinitely scrolling list with no explicit load control is unusable by keyboard and unreachable past the first window for assistive technology."
+}

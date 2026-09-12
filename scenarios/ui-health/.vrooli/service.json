@@ -1,0 +1,193 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "ui-health",
+    "displayName": "UI Health",
+    "description": "Framework-agnostic UI manifest validation and UI-surface AI search for Vrooli scenarios",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-20T17:46:24Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "ca838bb742f506197576c04dc9ba6ee67836665a69f357018d8df61f0a7413cc"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "ui-health",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "ui-health"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "react-component-library": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Implements InventoryService.ScanScenario for React scenarios; ui-health dispatches per-scenario UI scans to it over Connect-RPC.",
+        "degraded_behavior": "React scenarios are skipped during reindex; validation findings still emit."
+      },
+      "browser-automation-studio": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Drives the target UI in a real browser over Connect-RPC (CaptureService.Capture + Workflows/Executions) for the runtime/render check group: handshake, storage-shim, console errors, asset/proxy load, theme apply, axe/WCAG, shortcut relay, spatial focus.",
+        "degraded_behavior": "Runtime/render checks are reported skipped (resource unavailable); all static check groups still run and report."
+      },
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Static UI-existence / framework authority (CodeFactsService.DescribeCodeFacts) used to gate UI checks by surface presence and framework, replacing hand-rolled directory/port probing.",
+        "degraded_behavior": "UI-presence gating falls back to manifest/on-disk heuristics; validation still emits."
+      }
+    },
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector database for UI-surface semantic search (collection: ui-health-surface).",
+        "degraded_behavior": "Semantic search falls back to text matching; reindex is deferred."
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding role for UI-surface index generation.",
+        "degraded_behavior": "Embedding generation is unavailable; text-mode search still works.",
+        "model_roles": [
+          "embedding.default"
+        ]
+      }
+    }
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

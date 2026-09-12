@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename)
 const SERVICE_NAME = 'scenario-to-desktop'
 const VERSION = process.env.npm_package_version || '1.0.0'
 const API_HOST = process.env.API_HOST || '127.0.0.1'
-const UI_PORT = process.env.UI_PORT || process.env.PORT
+const UI_PORT = process.env.UI_PORT
 const API_PORT = process.env.API_PORT
 const PROXY_TIMEOUT_MS = process.env.PROXY_TIMEOUT_MS
 

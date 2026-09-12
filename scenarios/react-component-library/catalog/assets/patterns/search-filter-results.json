@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "patterns.search-filter-results",
+    "name": "SearchFilterResults",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The complete search experience combining query entry, structured filters, URL state, suggestions, loading, stale results, empty and no-match distinction, errors, pagination, and result actions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.filter-bar",
+        "reason": "Query and filter controls are shared."
+      },
+      {
+        "asset": "data-display.search-results",
+        "reason": "Result presentation and generic states are shared."
+      },
+      {
+        "asset": "hooks.use-abortable-task",
+        "reason": "Superseded queries are cancelled rather than raced."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TResult"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "freshness-disclosure",
+    "empty-state-craft"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "rationale": "The no-match versus nothing-indexed distinction is the part almost always missed, and the two need completely different next actions: relax the filters, or go create something."
+}

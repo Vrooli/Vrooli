@@ -18,6 +18,8 @@ import (
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/stringutil"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // MiniBundleSpec describes what to include in a mini-Vrooli bundle.
@@ -95,7 +97,9 @@ func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string,
 	return hex.EncodeToString(hasher.Sum(nil)), size, nil
 }
 
-// MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle.
+// MiniVrooliBundleSpec builds the specification for a mini-Vrooli bundle using
+// the contract-defined mini_vrooli_bundle profile plus manifest-specific
+// augmentations kept in code.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
 	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
 	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)
@@ -105,50 +109,37 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		sort.Strings(scenarioIDs)
 	}
 
-	var roots []string
-	addDirIfExists := func(rel string) {
-		if dirExists(filepath.Join(repoRoot, rel)) {
-			roots = append(roots, rel)
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return MiniBundleSpec{}, fmt.Errorf("load repo contract: %w", err)
+	}
+	resolvedProfile, err := contract.ResolveProfile("mini_vrooli_bundle", repocontract.ResolveParams{
+		Values: map[string]string{
+			"scenario": manifest.Scenario.ID,
+		},
+		Lists: map[string][]string{
+			"resources": resourceIDs,
+		},
+	})
+	if err != nil {
+		return MiniBundleSpec{}, fmt.Errorf("resolve mini bundle profile: %w", err)
+	}
+
+	roots := existingProfileRoots(repoRoot, resolvedProfile.Include, resolvedProfile.OptionalInclude)
+	if manifest.Bundle.IncludeAutoheal {
+		if autohealRoot, err := contract.ScenarioRoot(repoRoot, "vrooli-autoheal"); err == nil {
+			rel, relErr := filepath.Rel(repoRoot, autohealRoot)
+			if relErr == nil {
+				rel = filepath.ToSlash(rel)
+				if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(roots, rel) {
+					roots = append(roots, rel)
+				}
+			}
 		}
 	}
-	addFileIfExists := func(rel string) {
-		if fileExists(filepath.Join(repoRoot, rel)) {
-			roots = append(roots, rel)
-		}
-	}
-
-	addDirIfExists(".vrooli")
-	addDirIfExists("api")
-	addDirIfExists("cli")
-	addDirIfExists("src")
-	addDirIfExists("scripts")
-	addDirIfExists("platforms")
-	addDirIfExists("assets")
-	if manifest.Bundle.IncludePackages {
-		addDirIfExists("packages")
-	}
-
-	for _, id := range scenarioIDs {
-		addDirIfExists(filepath.Join("scenarios", id))
-	}
-	for _, id := range resourceIDs {
-		addDirIfExists(filepath.Join("resources", id))
-	}
-
-	addFileIfExists("go.work")
-	addFileIfExists("go.work.sum")
-	addFileIfExists("package.json")
-	addFileIfExists("pnpm-lock.yaml")
-	addFileIfExists("pnpm-workspace.yaml")
-	addFileIfExists(".npmrc")
-	addFileIfExists(".env-example")
-	addFileIfExists("Makefile")
-	addFileIfExists("README.md")
-	addFileIfExists("LICENSE")
-
 	sort.Strings(roots)
 
-	excludes := DefaultExcludes()
+	excludes := append([]string(nil), resolvedProfile.Exclude...)
 
 	manifestForBundle := manifest
 	// Secrets are fetched/provisioned during deployment execution and do not need to be
@@ -199,7 +190,10 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		return MiniBundleSpec{}, fmt.Errorf("build scenario service.json with fixed ports: %w", err)
 	}
 	if len(scenarioServiceJSON) > 0 {
-		scenarioServicePath := filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+		scenarioServicePath, err := ResolveScenarioFileRelative(repoRoot, manifest.Scenario.ID, "service")
+		if err != nil {
+			return MiniBundleSpec{}, fmt.Errorf("resolve scenario service.json path: %w", err)
+		}
 		extra[scenarioServicePath] = scenarioServiceJSON
 	}
 
@@ -210,38 +204,29 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	}, nil
 }
 
-// DefaultExcludes returns the standard set of exclusion patterns for bundles.
-func DefaultExcludes() []string {
-	return []string{
-		".git/**",
-		"**/.git/**",
-		"node_modules/**",
-		"**/node_modules/**",
-		".pnpm-store/**",
-		"**/.pnpm-store/**",
-		"coverage/**",
-		"**/coverage/**",
-		"logs/**",
-		"**/logs/**",
-		"data/**",
-		"**/data/**",
-		"projects/**",
-		"**/projects/**",
-		"**/.DS_Store",
-		// Exclude dist folders EXCEPT packages/*/dist (pre-built shared libraries needed at runtime)
-		"scenarios/**/dist/**",
-		"resources/**/dist/**",
-		"dist/**",
-		"**/.next/**",
-		// NEVER bundle mothership secrets - these are generated on the target VPS
-		".vrooli/secrets.json",
-		"**/.vrooli/secrets.json",
-		// Exclude scenario templates - they have placeholder go.mod files that break go.work
-		"scripts/scenarios/templates/**",
+func existingProfileRoots(repoRoot string, required, optional []string) []string {
+	var roots []string
+	addIfExists := func(rel string) {
+		rel = filepath.ToSlash(filepath.Clean(rel))
+		rel = strings.TrimPrefix(rel, "./")
+		if rel == "." || rel == "" {
+			return
+		}
+		fullPath := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		if dirExists(fullPath) || fileExists(fullPath) {
+			roots = append(roots, rel)
+		}
 	}
+	for _, rel := range required {
+		addIfExists(rel)
+	}
+	for _, rel := range optional {
+		addIfExists(rel)
+	}
+	return roots
 }
 
-func buildMiniGoWork(repoRoot string, includeRoots []string, excludes []string) (string, error) {
+func buildMiniGoWork(repoRoot string, includeRoots, excludes []string) (string, error) {
 	version := "1.24.0"
 	if b, err := os.ReadFile(filepath.Join(repoRoot, "go.work")); err == nil {
 		if v := parseGoWorkVersion(string(b)); v != "" {
@@ -279,7 +264,7 @@ func parseGoWorkVersion(contents string) string {
 	return ""
 }
 
-func discoverGoModDirs(repoRoot string, includeRoots []string, excludes []string) ([]string, error) {
+func discoverGoModDirs(repoRoot string, includeRoots, excludes []string) ([]string, error) {
 	found := map[string]struct{}{}
 	add := func(rel string) {
 		rel = filepath.ToSlash(filepath.Clean(rel))
@@ -538,12 +523,11 @@ func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error
 }
 
 func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byte, error) {
-	// Best-effort: if the repo doesn't have a root .vrooli/service.json, don't synthesize one.
 	path := filepath.Join(repoRoot, ".vrooli", "service.json")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return buildGeneratedMiniServiceJSON("", manifest)
 		}
 		return nil, err
 	}
@@ -553,43 +537,64 @@ func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byt
 		return nil, fmt.Errorf("parse .vrooli/service.json: %w", err)
 	}
 
-	// Build set of required resources from manifest
-	requiredResources := toStringSet(stringutil.SortedUnique(manifest.Bundle.Resources))
+	rootVersion := ""
+	if rawVersion, ok := doc["version"].(string); ok {
+		rootVersion = strings.TrimSpace(rawVersion)
+	}
+	return buildGeneratedMiniServiceJSON(rootVersion, manifest)
+}
 
-	// Build set of required scenarios from manifest (including main scenario)
-	requiredScenarios := toStringSet(stringutil.SortedUnique(manifest.Bundle.Scenarios))
-	if manifest.Scenario.ID != "" {
-		requiredScenarios[manifest.Scenario.ID] = struct{}{}
+func buildGeneratedMiniServiceJSON(version string, manifest domain.CloudManifest) ([]byte, error) {
+	if strings.TrimSpace(version) == "" {
+		version = "2.0.0"
 	}
 
-	// Ensure dependencies section exists
-	dependencies := getOrCreateMapField(doc, "dependencies")
-
-	// Handle resources and scenarios in dependencies section
-	if len(requiredResources) > 0 {
-		dependencies["resources"] = mergeRequiredEntries(dependencies, "resources", requiredResources, true)
-	}
-	if len(requiredScenarios) > 0 {
-		dependencies["scenarios"] = mergeRequiredEntries(dependencies, "scenarios", requiredScenarios, false)
+	requiredResources := stringutil.SortedUnique(manifest.Bundle.Resources)
+	requiredScenarios := stringutil.SortedUnique(manifest.Bundle.Scenarios)
+	if manifest.Scenario.ID != "" && !stringutil.Contains(requiredScenarios, manifest.Scenario.ID) {
+		requiredScenarios = append(requiredScenarios, manifest.Scenario.ID)
+		sort.Strings(requiredScenarios)
 	}
 
-	doc["dependencies"] = dependencies
+	resourceDeps := make(map[string]map[string]interface{}, len(requiredResources))
+	for _, name := range requiredResources {
+		resourceDeps[name] = map[string]interface{}{
+			"enabled":  true,
+			"required": true,
+		}
+	}
 
-	// Also handle legacy top-level "resources" key if present
-	if _, hasLegacy := doc["resources"]; hasLegacy && len(requiredResources) > 0 {
-		doc["resources"] = mergeRequiredEntries(doc, "resources", requiredResources, true)
+	scenarioDeps := make(map[string]map[string]interface{}, len(requiredScenarios))
+	for _, name := range requiredScenarios {
+		required := name == manifest.Scenario.ID
+		scenarioDeps[name] = map[string]interface{}{
+			"enabled":  true,
+			"required": required,
+		}
+	}
+
+	doc := map[string]interface{}{
+		"version": version,
+		"service": map[string]interface{}{
+			"name":        "mini-vrooli",
+			"displayName": "Mini Vrooli",
+			"description": fmt.Sprintf("Generated native VPS bundle for %s", manifest.Scenario.ID),
+			"type":        "project",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": resourceDeps,
+			"scenarios": scenarioDeps,
+		},
+		"lifecycle": map[string]interface{}{
+			"version": "2.0.0",
+			"setup": map[string]interface{}{
+				"description": "Generated native VPS setup",
+				"steps":       []map[string]interface{}{},
+			},
+		},
 	}
 
 	return json.MarshalIndent(doc, "", "  ")
-}
-
-// toStringSet converts a slice to a map[string]struct{} for efficient lookup.
-func toStringSet(slice []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(slice))
-	for _, s := range slice {
-		set[s] = struct{}{}
-	}
-	return set
 }
 
 // getOrCreateMapField returns a map field from doc, creating it if needed.
@@ -602,39 +607,6 @@ func getOrCreateMapField(doc map[string]interface{}, key string) map[string]inte
 	return make(map[string]interface{})
 }
 
-// mergeRequiredEntries merges required IDs with existing config, returning a new map.
-// If setEnabled is true, entries in requiredIDs get "enabled": true, and entries in
-// existing but not in requiredIDs get "enabled": false.
-func mergeRequiredEntries(parent map[string]interface{}, key string, requiredIDs map[string]struct{}, setEnabled bool) map[string]interface{} {
-	existing := getOrCreateMapField(parent, key)
-	merged := make(map[string]interface{}, len(existing)+len(requiredIDs))
-
-	// First, process all existing entries - set enabled: false for non-required ones
-	for id, entry := range existing {
-		_, isRequired := requiredIDs[id]
-		if m, ok := entry.(map[string]interface{}); ok && setEnabled {
-			// Clone the map to avoid mutating the original
-			cloned := make(map[string]interface{}, len(m))
-			for k, v := range m {
-				cloned[k] = v
-			}
-			cloned["enabled"] = isRequired
-			merged[id] = cloned
-		} else {
-			merged[id] = entry
-		}
-	}
-
-	// Then add any required entries that weren't in existing
-	for id := range requiredIDs {
-		if _, ok := existing[id]; !ok {
-			merged[id] = map[string]interface{}{"enabled": true}
-		}
-	}
-
-	return merged
-}
-
 // buildScenarioServiceJSONWithFixedPorts reads the target scenario's service.json
 // and replaces port ranges with fixed port values from the deployment manifest.
 // This ensures VPS deployments use exact ports rather than dynamic allocation.
@@ -644,7 +616,10 @@ func buildScenarioServiceJSONWithFixedPorts(repoRoot string, manifest domain.Clo
 	}
 
 	// Read the scenario's service.json
-	path := filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "service.json")
+	path, err := ResolveScenarioFile(repoRoot, manifest.Scenario.ID, "service")
+	if err != nil {
+		return nil, err
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

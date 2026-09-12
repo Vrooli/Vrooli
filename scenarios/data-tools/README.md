@@ -212,7 +212,7 @@ data-tools/
 │   ├── data-tools           # CLI script
 │   ├── install.sh           # CLI installer
 │   └── cli-tests.bats       # CLI test suite
-├── initialization/
+├── api/internal/<domain>/
 │   ├── configuration/       # App configuration
 │   └── storage/postgres/    # Database schema
 │       ├── schema.sql       # Table definitions
@@ -389,7 +389,7 @@ resource-postgres execute "SELECT id, name, row_count FROM datasets"
 1. Review [PRD.md](PRD.md) for complete feature list
 2. Check [PROBLEMS.md](PROBLEMS.md) for known limitations
 3. Explore API endpoints with `data-tools docs`
-4. Review database schema in `initialization/storage/postgres/schema.sql`
+4. Review database schema in `api/internal/<domain>/storage/postgres/schema.sql`
 
 ### For Integration
 Use data-tools in your scenarios:

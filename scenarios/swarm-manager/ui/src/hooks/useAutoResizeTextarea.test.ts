@@ -5,7 +5,7 @@ import { useAutoResizeTextarea } from "./useAutoResizeTextarea";
 function makeTextareaRef(scrollHeight = 100) {
   const el = {
     scrollHeight,
-    style: { height: "" },
+    style: { height: "", overflowY: "" },
   } as unknown as HTMLTextAreaElement;
   return { current: el };
 }
@@ -81,5 +81,47 @@ describe("useAutoResizeTextarea", () => {
     expect(() => {
       renderHook(() => useAutoResizeTextarea(ref, "text"));
     }).not.toThrow();
+  });
+
+  it("clamps viewport-relative heights and re-measures on resize", () => {
+    vi.stubGlobal("innerHeight", 1000);
+    const ref = makeTextareaRef(900);
+    renderHook(() => useAutoResizeTextarea(ref, "long text", { maxHeightVh: 40 }));
+
+    expect(ref.current?.style.height).toBe("400px");
+
+    (ref.current as { scrollHeight: number }).scrollHeight = 200;
+    vi.stubGlobal("innerHeight", 500);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(ref.current?.style.height).toBe("200px");
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a composer between its minimum and maximum row counts", () => {
+    const ref = makeTextareaRef(500);
+    renderHook(() => useAutoResizeTextarea(ref, "long text", { minRows: 2, maxRows: 6 }));
+
+    expect(ref.current?.style.height).toBe("144px");
+    expect(ref.current?.style.overflowY).toBe("auto");
+  });
+
+  it("does not enable scrolling before the maximum row count", () => {
+    const ref = makeTextareaRef(80);
+    renderHook(() => useAutoResizeTextarea(ref, "short text", { minRows: 2, maxRows: 6 }));
+
+    expect(ref.current?.style.height).toBe("80px");
+    expect(ref.current?.style.overflowY).toBe("hidden");
+  });
+
+  it("re-measures row bounds after a responsive resize", () => {
+    const ref = makeTextareaRef(80);
+    renderHook(() => useAutoResizeTextarea(ref, "text", { minRows: 2, maxRows: 6 }));
+
+    (ref.current as { scrollHeight: number }).scrollHeight = 500;
+    window.dispatchEvent(new Event("resize"));
+
+    expect(ref.current?.style.height).toBe("144px");
+    expect(ref.current?.style.overflowY).toBe("auto");
   });
 });

@@ -49,8 +49,9 @@ function getVideoEmbedUrl(url: string): string | null {
 
   // Vimeo patterns
   const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (vimeoMatch) {
-    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  const vimeoID = vimeoMatch?.[1];
+  if (vimeoID) {
+    return `https://player.vimeo.com/video/${vimeoID}`;
   }
 
   return null;
@@ -100,7 +101,7 @@ export function VideoSection(props: VideoSectionProps) {
         <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-surface-primary shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
           {!isPlaying && posterUrl ? (
             <button
-              onClick={() => setIsPlaying(true)}
+              onClick={() => { setIsPlaying(true); }}
               className="group relative h-full w-full cursor-pointer"
               aria-label="Play video"
             >

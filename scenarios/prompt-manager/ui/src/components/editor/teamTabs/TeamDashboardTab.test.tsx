@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@/test-utils/renderWithProviders'
 import { TeamDashboardTab } from './TeamDashboardTab'
 import type { TeamDetails } from '@/types/team'
 import {
   buildBoundedParallelExecution,
+  buildDefaultCreateTeamRequest,
   buildIndependentCoordination,
   buildLeaderLedCoordination,
 } from '@/lib/schemas'
@@ -34,7 +35,7 @@ const baseTeam: TeamDetails = {
   runtime: { mode: 'multi-process' },
   coordination: buildIndependentCoordination(),
   execution: buildBoundedParallelExecution(2),
-  decisionMode: 'yolo',
+  operatingContract: buildDefaultCreateTeamRequest('Scenario QA').operatingContract,
   memberCount: 2,
   roles: [],
   members: [
@@ -45,21 +46,23 @@ const baseTeam: TeamDetails = {
   updatedAt: '2026-04-09T00:00:00Z',
 }
 
+const pendingBackgroundRequest = new Promise<never>(() => {})
+
 describe('TeamDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(heartbeatService.listHeartbeats).mockResolvedValue([])
-    vi.mocked(heartbeatService.listTeamLogs).mockResolvedValue({
-      teamId: baseTeam.id,
-      logs: [],
-      total: 0,
-      hasMore: false,
-    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 })))
+    vi.mocked(heartbeatService.listHeartbeats).mockReturnValue(pendingBackgroundRequest)
+    vi.mocked(heartbeatService.listTeamLogs).mockReturnValue(pendingBackgroundRequest)
   })
+
+  function renderDashboard(team: TeamDetails, onUpdate: (updates: unknown) => Promise<void>) {
+    return render(<TeamDashboardTab team={team} onUpdate={onUpdate} />)
+  }
 
   it('promotes multi-process teams to leader-led serialized execution when switching to single-process runtime', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Single-Process' }))
 
@@ -72,7 +75,7 @@ describe('TeamDashboardTab', () => {
 
   it('applies the peer preset from the coordination controls', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Peer' }))
 
@@ -86,7 +89,6 @@ describe('TeamDashboardTab', () => {
           injectInbox: true,
           allowPeerTriggers: true,
           showTaskBoardGuidance: true,
-          showDecisionLogGuidance: true,
           showKnowledgeLogGuidance: true,
           requireHandoff: true,
         },
@@ -102,7 +104,7 @@ describe('TeamDashboardTab', () => {
       execution: { queuePolicy: 'bounded-parallel', maxConcurrentRuns: 4 },
     } satisfies TeamDetails
 
-    render(<TeamDashboardTab team={team} onUpdate={onUpdate} />)
+    renderDashboard(team, onUpdate)
 
     fireEvent.click(screen.getByRole('button', { name: 'Serialized' }))
 
@@ -113,7 +115,7 @@ describe('TeamDashboardTab', () => {
 
   it('updates bounded parallel concurrency from the numeric control', () => {
     const onUpdate = vi.fn().mockResolvedValue(undefined)
-    render(<TeamDashboardTab team={baseTeam} onUpdate={onUpdate} />)
+    renderDashboard(baseTeam, onUpdate)
 
     fireEvent.change(screen.getByLabelText('Max Concurrent Runs'), { target: { value: '5' } })
 
@@ -123,5 +125,28 @@ describe('TeamDashboardTab', () => {
         maxConcurrentRuns: 5,
       },
     })
+  })
+
+  it('shows the team open-work count and keeps the feed as the disposition link', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            items: [
+              { status: 'backlog', tags: ['scenario-qa'] },
+              { status: 'done', tags: ['scenario-qa'] },
+              { status: 'backlog', tags: ['other-team'] },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const onUpdate = vi.fn().mockResolvedValue(undefined)
+    renderDashboard(baseTeam, onUpdate)
+
+    expect(await screen.findByText(/1 open work item\./)).toBeDefined()
+    expect(screen.getByRole('link', { name: /Open work feed/ })).toHaveAttribute('href', '/swarm-manager')
   })
 })

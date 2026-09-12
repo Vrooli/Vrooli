@@ -7,17 +7,17 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
 )
 
 // ScenarioOverrideStore handles database operations for scenario overrides.
 type ScenarioOverrideStore struct {
-	db     *sql.DB
+	db     *database.RoutedDB
 	logger *Logger
 }
 
 // NewScenarioOverrideStore creates a new store for scenario override operations.
-func NewScenarioOverrideStore(db *sql.DB, logger *Logger) *ScenarioOverrideStore {
+func NewScenarioOverrideStore(db *database.RoutedDB, logger *Logger) *ScenarioOverrideStore {
 	return &ScenarioOverrideStore{db: db, logger: logger}
 }
 
@@ -240,8 +240,12 @@ func (s *ScenarioOverrideStore) FetchEffectiveStrategies(ctx context.Context, sc
 
 	args := []interface{}{scenario, tier}
 	if len(resources) > 0 {
-		query += " WHERE rs.resource_name = ANY($3)"
-		args = append(args, pq.Array(resources))
+		resourcesJSON, err := json.Marshal(resources)
+		if err != nil {
+			return nil, fmt.Errorf("encode resource filter: %w", err)
+		}
+		query += " WHERE rs.resource_name = ANY(ARRAY(SELECT jsonb_array_elements_text($3::jsonb)))"
+		args = append(args, string(resourcesJSON))
 	}
 	query += " ORDER BY rs.resource_name, rs.secret_key"
 
@@ -444,8 +448,12 @@ func (s *ScenarioOverrideStore) DeleteOverridesByID(ctx context.Context, ids []s
 		return 0, nil
 	}
 
-	query := `DELETE FROM scenario_secret_strategy_overrides WHERE id = ANY($1)`
-	result, err := s.db.ExecContext(ctx, query, pq.Array(ids))
+	idsJSON, err := json.Marshal(ids)
+	if err != nil {
+		return 0, fmt.Errorf("encode override ids: %w", err)
+	}
+	query := `DELETE FROM scenario_secret_strategy_overrides WHERE id = ANY(ARRAY(SELECT jsonb_array_elements_text($1::jsonb)))`
+	result, err := s.db.ExecContext(ctx, query, string(idsJSON))
 	if err != nil {
 		return 0, fmt.Errorf("delete overrides by id: %w", err)
 	}

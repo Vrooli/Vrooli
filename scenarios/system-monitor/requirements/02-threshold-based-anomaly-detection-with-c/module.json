@@ -1,57 +1,47 @@
 {
-  "description": "5 configurable triggers in initialization/configuration/investigation-triggers.json. Threshold evaluation in api/internal/services/monitor.go. Settings endpoints for threshold management.",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
       "id": "REQ-P0-002",
-      "prd_ref": "system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers",
-      "status": "implemented",
       "title": "Configurable Anomaly Detection",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
       "validation": [
         {
-          "notes": "Test threshold configuration",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test threshold configuration"
         },
         {
-          "notes": "Test anomaly detection logic",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test anomaly detection logic"
         },
         {
-          "notes": "Verify alerts triggered when thresholds exceeded",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Verify alerts triggered when thresholds exceeded"
         },
         {
-          "notes": "Detection latency \u003c 30s",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Detection latency \u003c 30s"
         },
         {
-          "notes": "Alerts visible in dashboard",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Alerts visible in dashboard"
         }
       ]
     }
-  ],
-  "title": "Threshold-based anomaly detection with configurable triggers"
+  ]
 }

@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.readiness;
+
+import "common/v1/maturity.proto";
+import "common/v1/metrics.proto";
+import "scenario-validation/v1/validation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/readiness;readiness_v1";
+
+// =============================================================================
+// PERFORMANCE READINESS SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// ReadinessService is performance-health's native validation surface and the
+// engine test-genie delegates to via the shared scenario-validation contract.
+// It asks Code Facts for the target scenario's surfaces + UI framework, decides
+// the reachable capture tier (no UI => skip browser perf; UI non-React => Tier 0
+// only; React => Tier 0 + Tier 1; React-but-divergent => flagged), detects the
+// four Tier-1 perf-build infra pieces (vite profile-mode react-dom/profiling
+// alias + keepNames, a build:profile script, lib/profiler.ts onProfilerRender,
+// a top-level <React.Profiler> boundary), and emits a finding per missing piece
+// with an autofixable_count. Autofix is dry-run by default; --apply writes
+// format-preserving edits via the shared packages/maturity-go/autofix helper.
+//
+// The native ReadinessService and the shared ScenarioValidationService are
+// dual-mounted by handlers/readiness/module.go over one internal engine so
+// test-genie can delegate axes ①/③ while the performance-health UI/CLI consume
+// the richer native shape.
+// =============================================================================
+
+// CaptureTier is the highest browser-perf capture tier a scenario can reach.
+enum CaptureTier {
+  CAPTURE_TIER_UNSPECIFIED = 0;
+  // No UI surface: browser perf is skipped entirely.
+  CAPTURE_TIER_NONE = 1;
+  // UI present but non-React (or React-divergent): CDP trace + web-vitals only.
+  CAPTURE_TIER_0 = 2;
+  // React UI with the perf-build infra in place: Tier 0 plus ⚛ component
+  // attribution.
+  CAPTURE_TIER_1 = 3;
+}
+
+service ReadinessService {
+  // ValidateReadiness reports the reachable capture tier and the perf-build
+  // infra findings for a scenario without writing anything.
+  rpc ValidateReadiness(ValidateReadinessRequest) returns (ValidateReadinessResponse);
+  // PreviewReadinessFix returns the format-preserving edits readiness could
+  // apply to move a scenario toward Tier 1, without writing.
+  rpc PreviewReadinessFix(ReadinessFixRequest) returns (ReadinessFixResponse);
+  // ApplyReadinessFix applies the format-preserving edits and reports what
+  // changed. Apply is never implicit.
+  rpc ApplyReadinessFix(ReadinessFixRequest) returns (ReadinessFixResponse);
+}
+
+message ValidateReadinessRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+message ValidateReadinessResponse {
+  string scenario = 1;
+  scenario_validation.v1.ValidationStatus status = 2;
+  // The highest capture tier this scenario can reach.
+  CaptureTier tier = 3;
+  // Detected UI framework, e.g. "react", or empty when no UI.
+  string ui_framework = 4;
+  // Detected surfaces, e.g. ["api", "cli", "ui"].
+  repeated string surfaces = 5;
+  // Shared maturity assessment; findings (one per missing infra piece) live here.
+  common.v1.MaturityAssessment assessment = 6;
+  // How many findings are deterministically auto-fixable.
+  int32 autofixable_count = 7;
+  // Non-empty when readiness ran in a degraded mode (e.g. Code Facts down).
+  string degraded_reason = 8;
+  // Optional metrics for the validation.
+  common.v1.ExecutionMetrics metrics = 9;
+}
+
+message ReadinessFixRequest {
+  string scenario = 1;
+  string path = 2;
+  // Restrict the fix to these finding codes; empty means every fixable finding.
+  repeated string rule_ids = 3;
+}
+
+message ReadinessFixResponse {
+  string scenario = 1;
+  bool applied = 2;
+  repeated scenario_validation.v1.FixCandidate candidates = 3;
+  repeated string messages = 4;
+}

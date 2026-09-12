@@ -1,0 +1,1 @@
+{ "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json", "kind": "experience-page", "schemaVersion": "1.0.0", "page": { "id": "logs", "title": "Logs", "routes": ["/logs"], "purpose": "Correlate lifecycle and host events with the selected time range.", "prd_refs": ["OT-P0-003"] } }

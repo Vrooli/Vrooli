@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "module": "focus",
+    "description": "OT-P0-002 — ranked next-best gaps with qualitative context.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-FOCUS-001",
+      "title": "focus ranks next-best gaps by impact x importance with qualitative context",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "focus",
+      "description": "The focus command/RPC draws gaps from all projections + convergence, ranks them by impact x importance, and returns each with its qualitative context so an agent/operator knows where to work without parsing raw numbers.",
+      "tags": ["focus", "prioritization"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: ranking is deterministic for a fixed gap set; target api/internal/focus." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: focus output shape; target cli/domains/focus." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: focus over live coverage + convergence gaps." }
+      ]
+    }
+  ]
+}

@@ -47,7 +47,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: false,
     label_ids: [],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -63,7 +62,6 @@ const mockChats: Chat[] = [
     is_archived: false,
     is_starred: true,
     label_ids: ["label-1"],
-    tools_enabled: true,
     web_search_enabled: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -148,8 +146,8 @@ describe("ChatList - basic rendering and selection", () => {
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
-      const input = screen.getByTestId("inline-rename-input") as HTMLInputElement;
-      expect(input.value).toBe("Test Chat 1");
+      const input = screen.getByTestId("inline-rename-input");
+      expect((input as HTMLInputElement).value).toBe("Test Chat 1");
     });
 
     it("calls onRenameChat when saving with Enter", async () => {

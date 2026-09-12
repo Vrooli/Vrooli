@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "design-workspace",
+    "title": "Page design workspace",
+    "routes": [
+      "/design/:scenario/:page",
+      "/sketch/:scenario/:page"
+    ],
+    "purpose": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
+  },
+  "priorities": [
+    {
+      "statement": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
+    }
+  ],
+  "claims": [{
+    "id": "design-workspace-state-covered",
+    "type": "state-covered",
+    "statement": "The design workspace is captured in the declared page state.",
+    "tier": "machine",
+    "states": ["default"]
+  }],
+  "states": [
+    {
+      "id": "default",
+      "description": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
+    }
+  ],
+  "regions": [
+    {
+      "id": "design-workspace",
+      "required": true,
+      "purpose": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here.",
+      "component": {
+        "local": "design-page"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "design-workspace": {
+        "selector": "[data-experience-surface=\"design-workspace\"]"
+      }
+    }
+  }
+}

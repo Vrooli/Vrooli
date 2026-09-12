@@ -20,6 +20,7 @@ This guide covers how to deploy your landing page from development to production
 6. [Environment Configuration](#environment-configuration)
 7. [Health Checks & Monitoring](#health-checks--monitoring)
 8. [Rollback Procedures](#rollback-procedures)
+9. [Credential Authority and Recovery](#credential-authority-and-recovery)
 
 ---
 
@@ -33,6 +34,52 @@ Landing pages can be deployed through multiple methods:
 | **Docker** | Containerized deployments | Medium |
 | **Traditional VPS** | Full control | Medium |
 | **PaaS (Railway, Render)** | Managed infrastructure | Low |
+
+## Identity and deployment modes
+
+LPBS's deployed website and a local Vrooli desktop bundle are separate trust
+planes. The website may use LPBS's current compatibility sign-in flow and
+owns business accounts, subscriptions, and entitlement leases. A bundled
+scenario defaults to a private local installation and must not require a
+website login for local use.
+
+If an operator enables local multi-user or remote access, the installation
+uses `scenario-authenticator` for person identity and local authorization. A
+user may explicitly link that identity to an LPBS business account when paid
+features require it. The link is a short-lived, scoped browser/device flow;
+the app must not copy LPBS browser tokens or infer ownership from matching
+email addresses.
+
+Read the project-level [Identity and Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+and the [deployment Tier 2 contract](../../../deployment-manager/docs/tiers/tier-2-desktop.md)
+before documenting a new desktop or remote mode.
+
+## Credential Authority and Recovery
+
+LPBS resolves its generated identity, session, encryption, Stripe, and delivery
+credentials through the Vrooli credential authority. Do not put those values in
+`.env` files or database settings. The Stripe and S3 admin forms write through
+to the authority and fail closed when it is unavailable.
+
+Before production deployment, verify the inventory and recovery state:
+
+```bash
+vrooli credentials doctor --format json
+vrooli credentials recovery export --all
+```
+
+If an existing installation still has the retired cleartext payment or delivery
+columns, run the one-shot migration against a database copy before deploying
+the new schema:
+
+```bash
+go run ./cmd/migrate-legacy-credentials
+```
+
+The command writes only values missing from the authority and prints migrated
+counts. It refuses to run when the authority is unavailable. Keep the encrypted
+off-host copy receipt current; a missing receipt is a recovery blocker, not a
+reason to mint replacement generated keys.
 
 ---
 
@@ -48,7 +95,7 @@ cd scenarios/<your-slug>
 make start
 
 # Or using Vrooli CLI
-vrooli scenario start <your-slug>
+vrooli scenario start "<your-slug>"
 ```
 
 ### Accessing Local Services
@@ -63,8 +110,8 @@ Once started, your landing page is available at:
 
 Get the actual ports:
 ```bash
-vrooli scenario port <your-slug> UI_PORT
-vrooli scenario port <your-slug> API_PORT
+vrooli scenario port "<your-slug>" UI_PORT
+vrooli scenario port "<your-slug>" API_PORT
 ```
 
 ### Development Workflow
@@ -96,15 +143,9 @@ vrooli scenario port <your-slug> API_PORT
 
 ### Option 1: Vrooli Managed (Recommended)
 
-Vrooli can deploy your landing page via Cloudflare Tunnel:
-
-```bash
-# Enable cloud deployment
-vrooli deploy <slug> --tunnel
-
-# This creates a public URL like:
-# https://<slug>.vrooli.app
-```
+Vrooli's deployment surface is environment-specific. Start with `vrooli help`
+and follow the current deployment runbook for the target environment; do not
+copy an undocumented tunnel command from this guide.
 
 ### Option 2: Docker Deployment
 
@@ -119,9 +160,11 @@ docker build -t my-landing:latest .
 docker run -d \
   -p 3000:3000 \
   -e DATABASE_URL="postgres://..." \
-  -e STRIPE_SECRET_KEY="sk_live_..." \
   my-landing:latest
 ```
+
+Provision Stripe credentials through the credential authority before starting
+the container; do not inject them as process environment variables.
 
 ### Option 3: Traditional VPS
 
@@ -284,16 +327,16 @@ server {
 
 ### Production Environment Variables
 
-Create `initialization/configuration/<slug>.env` with production values:
+Create `api/internal/<domain>/configuration/<slug>.env` with production values:
 
 ```bash
 # Database
 DATABASE_URL=postgres://prod_user:secure_password@db.example.com:5432/landing_prod
 
-# Stripe (LIVE keys)
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Stripe credentials are provisioned through the credential authority:
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-publishable-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-webhook-secret
 
 # Application
 NODE_ENV=production
@@ -301,8 +344,7 @@ API_PORT=3000
 UI_PORT=3001
 
 # Security
-ADMIN_EMAIL=admin@yourdomain.com
-SESSION_SECRET=<random-64-char-string>
+# LPBS generated credentials are minted by the application and recorded in the authority.
 
 # Optional
 ANALYTICS_ENABLED=true
@@ -315,7 +357,7 @@ SENTRY_DSN=https://...@sentry.io/...
 
 Options:
 1. **Environment files**: Use `.env` files (gitignored)
-2. **Vrooli Secrets Manager**: `vrooli secret set <slug> STRIPE_SECRET_KEY`
+2. **Vrooli credential authority**: `vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key`
 3. **Cloud provider**: Use Railway/Render/Fly secrets
 4. **Vault**: For enterprise deployments
 
@@ -391,13 +433,13 @@ If something goes wrong:
 
 ```bash
 # 1. Stop the broken deployment
-vrooli scenario stop <slug>
+vrooli scenario stop "<slug>"
 
 # 2. If you have a backup:
 cp -r backups/<slug>-<date> scenarios/<slug>
 
 # 3. Restart
-vrooli scenario start <slug>
+vrooli scenario start "<slug>"
 ```
 
 ### Database Rollback
@@ -448,7 +490,7 @@ Before going live:
 - [ ] OG images configured for social sharing
 - [ ] Footer links working
 - [ ] Privacy policy and terms linked
-- [ ] Variant snapshot files deployed (`.vrooli/variants/*.json`, `.vrooli/variant_space.json`, `.vrooli/fallback/fallback.json`)
+- [ ] Variant snapshot files deployed (`config/variants/*.json`, `config/variant_space.json`, `.vrooli/fallback/fallback.json`)
 - [ ] `VARIANT_SNAPSHOT_REQUIRED=true` set in production (fail fast if snapshots are missing)
 
 ### Technical

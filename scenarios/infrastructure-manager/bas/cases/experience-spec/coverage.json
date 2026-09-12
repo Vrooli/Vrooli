@@ -1,0 +1,66 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page coverage.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "coverage",
+      "surface": "experience-coverage"
+    },
+    "name": "experience-coverage-spec-smoke",
+    "requirement": "OT-P0-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Coverage"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "infrastructure-manager",
+          "scenario_path": "/coverage",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-coverage"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"coverage-grid\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-coverage-primary-binding"
+    },
+    {
+      "id": "wait-coverage-grid-lifecycle",
+      "action": { "metadata": { "label": "Coverage grid lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"coverage-grid\"][data-experience-state=\"loading\"], [data-testid=\"coverage-grid\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-coverage-confidence-lifecycle",
+      "action": { "metadata": { "label": "Coverage confidence lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"coverage-confidence\"][data-experience-state=\"loading\"], [data-testid=\"coverage-confidence\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-coverage-open-loop-lifecycle",
+      "action": { "metadata": { "label": "Coverage open-loop lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"coverage-open-loop\"][data-experience-state=\"loading\"], [data-testid=\"coverage-open-loop\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    },
+    {
+      "id": "wait-coverage-integrity-lifecycle",
+      "action": { "metadata": { "label": "Coverage integrity lifecycle" }, "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid=\"coverage-integrity\"][data-experience-state=\"loading\"], [data-testid=\"coverage-integrity\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } }
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 // PrerequisiteKind categorizes different types of prerequisites.
@@ -207,16 +206,14 @@ func (c *PrerequisiteChecker) CheckDiskSpace(path string, minBytes uint64) Prere
 		}
 	}
 
-	// Use statfs to check disk space (Unix-specific)
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(dir, &stat); err != nil {
+	availableBytes, err := availableDiskSpace(dir)
+	if err != nil {
 		result.Passed = true // Assume OK if we can't check
 		result.Message = fmt.Sprintf("Could not check disk space: %v", err)
 		return result
 	}
 
 	// Calculate available space
-	availableBytes := stat.Bavail * uint64(stat.Bsize)
 	minMB := minBytes / (1024 * 1024)
 	availableMB := availableBytes / (1024 * 1024)
 

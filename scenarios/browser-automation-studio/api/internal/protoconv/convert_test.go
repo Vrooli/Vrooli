@@ -28,8 +28,8 @@ func TestExecutionToProto(t *testing.T) {
 		CompletedAt: func() *time.Time {
 			return &completed
 		}(),
-		CreatedAt: now.Add(-time.Minute),
-		UpdatedAt: now,
+		CreatedAt:    now.Add(-time.Minute),
+		UpdatedAt:    now,
 		ErrorMessage: "boom",
 	}
 
@@ -87,26 +87,26 @@ func TestTimelineToProto(t *testing.T) {
 				NetworkEventCount:    0,
 				ExtractedDataPreview: map[string]any{"preview": "ok"},
 				HighlightRegions: []*autocontracts.HighlightRegion{
-					&autocontracts.HighlightRegion{Selector: "#main", Padding: 4},
+					{Selector: "#main", Padding: 4},
 				},
 				MaskRegions: []*autocontracts.MaskRegion{
-					&autocontracts.MaskRegion{Selector: "#mask", Opacity: 0.5},
+					{Selector: "#mask", Opacity: 0.5},
 				},
 				FocusedElement:     &autocontracts.ElementFocus{Selector: "#main"},
 				ElementBoundingBox: &autocontracts.BoundingBox{X: 1, Y: 2, Width: 3, Height: 4},
 				ClickPosition:      &autocontracts.Point{X: 5, Y: 6},
 				CursorTrail: []*autocontracts.Point{
-					&autocontracts.Point{X: 1, Y: 1},
+					{X: 1, Y: 1},
 				},
 				ZoomFactor: 1.2,
 				Screenshot: &export.TimelineScreenshot{
-					ArtifactID:    "shot-1",
-					URL:           "https://cdn.example.com/shot-1.png",
-					ThumbnailURL:  "https://cdn.example.com/shot-1-thumb.png",
-					Width:         800,
-					Height:        600,
-					SizeBytes:     &size,
-					ContentType:   "image/png",
+					ArtifactID:   "shot-1",
+					URL:          "https://cdn.example.com/shot-1.png",
+					ThumbnailURL: "https://cdn.example.com/shot-1-thumb.png",
+					Width:        800,
+					Height:       600,
+					SizeBytes:    &size,
+					ContentType:  "image/png",
 				},
 			},
 		},

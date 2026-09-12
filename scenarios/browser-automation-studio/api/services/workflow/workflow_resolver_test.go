@@ -11,10 +11,10 @@ import (
 
 func TestValidateAndNormalizePath(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		wantErr     bool
-		wantResult  string
+		name       string
+		input      string
+		wantErr    bool
+		wantResult string
 	}{
 		{
 			name:       "simple path",

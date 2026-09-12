@@ -1,0 +1,46 @@
+# Scenario-local build output and runtime state.
+#
+# The repo root ignores the standard shapes (api/*-api, api/main, cli/cli, ...).
+# This file is the scenario's own boundary for anything named after THIS
+# scenario, which a root glob cannot express. Add an entry here whenever a build
+# step writes an executable or generated file into the scenario tree.
+#
+# Mirrors the per-resource convention in resources/*/.gitignore. `vrooli hygiene`
+# fails the repo if a compiled binary is ever committed, so a missed entry here
+# is caught before it reaches history rather than years later.
+
+# Compiled Go binaries (any -o name, plus bare `go build` output)
+/api/api
+/api/main
+/api/*-api
+/cli/cli
+/cli/main
+/cli/*.exe
+
+# Go test/coverage output
+/api/*.test
+/cli/*.test
+/api/coverage.out
+/cli/coverage.out
+/api/*.prof
+/cli/*.prof
+
+# UI build output and dependencies
+/ui/dist/
+/ui/node_modules/
+/ui/.vite/
+
+# Local runtime state (databases, uploads, logs). Versioned platform and
+# warming descriptors are product source, not runtime state.
+!/data/
+/data/*
+!/data/README.md
+!/data/platforms/
+!/data/platforms/*.json
+!/data/warming-programs/
+!/data/warming-programs/**
+/logs/
+/api/uploads/
+
+# Build-freshness stamps
+/.build-fingerprint.json

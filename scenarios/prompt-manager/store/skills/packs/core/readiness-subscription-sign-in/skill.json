@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:24Z",
+  "description": "Evaluate the deployment readiness check: Subscription sign-in works end to end",
+  "entry": "SKILL.md",
+  "id": "readiness-subscription-sign-in",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-subscription-sign-in",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:24Z"
+}

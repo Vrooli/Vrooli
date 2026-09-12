@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useParams, useLocation } from "react-router-dom";
+import { usePageShortcuts } from "./hooks/usePageShortcuts";
+import { getProxyInfo } from "@vrooli/api-base";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ToastProvider, useToast } from "./components/ui/toast";
@@ -14,7 +16,6 @@ function CampaignListPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -31,22 +32,7 @@ function CampaignListPage() {
     }
   });
 
-  // Global keyboard shortcuts for better UX
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // ? to show help modal
-      if (e.key === '?' && location.pathname === '/') {
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-          e.preventDefault();
-          setHelpDialogOpen(true);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [location]);
+  usePageShortcuts({ '?': () => setHelpDialogOpen(true) });
 
   const handleViewCampaign = (id: string) => {
     navigate(`/campaign/${id}`);
@@ -107,7 +93,7 @@ function AppContent() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={getProxyInfo()?.basePath || '/'}>
       <ToastProvider>
         <AppContent />
       </ToastProvider>

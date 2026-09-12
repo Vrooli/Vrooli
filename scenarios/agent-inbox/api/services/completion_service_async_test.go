@@ -67,15 +67,10 @@ func TestInjectSkillsIntoArgs_PreservesExistingFields(t *testing.T) {
 func TestExecuteToolCalls_SkillsInjectionWithTargeting(t *testing.T) {
 	repo := newMockCompletionRepository()
 	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-
-	registry.addTool("scenario", createSimpleTool("tool_a", "Tool A"))
-	registry.addTool("scenario", createSimpleTool("tool_b", "Tool B"))
 
 	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
 		Repo:     repo,
 		Executor: executor,
-		Registry: registry,
 	})
 
 	// Set skills: one global, one targeted to tool_a

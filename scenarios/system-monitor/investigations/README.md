@@ -1,60 +1,27 @@
-# Investigation Scripts
+# Investigation catalog
 
-This directory contains reusable investigation scripts that can be run by agent-manager investigations and system administrators to diagnose performance issues.
+system-monitor ships a portable catalog in its API binary. It does not discover
+product entries by walking the Vrooli source tree.
 
-## Structure
+The built-in catalog contains six entries:
 
-```
-investigations/
-├── README.md              # This file
-├── manifest.json          # Script registry and metadata
-├── templates/              # Script templates for common patterns
-│   ├── cpu-investigation.sh
-│   ├── memory-investigation.sh
-│   └── process-analysis.sh
-├── active/                 # Ready-to-use investigation scripts
-│   ├── high-cpu-analysis.sh
-│   ├── memory-leak-detector.sh
-│   └── process-genealogy.sh
-└── results/               # Investigation results (auto-cleaned)
-    └── [timestamp-script-name]/
-```
+- `container-health` and `master-system-sweep` are the two shell-gated escape hatches.
+- `service-health-monitor`, `service-config-validator`, `network-anomaly-detector`, and `resource-leak-detector` use typed native collectors.
 
-## Script Format
+Operator-authored entries are JSON files under the scenario state directory,
+resolved through `api-core/storage` at `state/vrooli/system-monitor/investigations`.
+An operator entry with the same id replaces the built-in entry for that machine.
 
-Each script should include metadata in comments:
+Use the API or CLI instead of running a source-tree script directly:
 
 ```bash
-#!/bin/bash
-# INVESTIGATION_SCRIPT
-# NAME: High CPU Analysis
-# DESCRIPTION: Identifies processes consuming excessive CPU and traces their origins
-# CATEGORY: performance
-# TRIGGERS: cpu_usage > 80%, load_average > 4.0
-# OUTPUTS: json
-# AUTHOR: claude-agent
-# CREATED: 2025-09-11
-# LAST_MODIFIED: 2025-09-11
-# VERSION: 1.0
-
-# Your investigation logic here
+system-monitor investigations catalog --json
+system-monitor investigations run master-system-sweep --json
+system-monitor investigations runs --limit 5 --json
+system-monitor investigations runs-prune --dry-run --json
 ```
 
-## Usage by Agent-Manager Investigations
-
-Agent-manager investigations have full read/write access to this directory and should:
-
-1. **Check existing scripts** before creating new ones
-2. **Improve existing scripts** rather than duplicating
-3. **Follow naming conventions**: `[problem-type]-[specific-focus].sh`
-4. **Include proper metadata** in script headers
-5. **Output structured data** (JSON preferred) for UI consumption
-6. **Clean up temporary files** and respect the results retention policy
-
-## Guidelines
-
-- Scripts should be **idempotent** and **safe to run multiple times**
-- Use **timeouts** for commands that might hang
-- **Avoid destructive operations** - investigation only
-- **Log all actions** for audit trail
-- **Handle errors gracefully** with meaningful messages
+Every execution persists in `investigation_runs` and its findings in
+`investigation_findings`. The seven-day retention policy is enforced by the
+database-backed pruner. Stdout is one JSON document, progress belongs on stderr,
+and persisted/emitted timestamps are RFC 3339 UTC.

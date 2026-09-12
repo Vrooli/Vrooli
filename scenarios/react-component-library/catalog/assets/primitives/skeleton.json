@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "primitives.skeleton",
+    "name": "Skeleton",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The structure-aware loading placeholder that reserves the final layout and can represent text, media, avatars, rows, and custom shapes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "reduced-motion",
+    "contrast-floor",
+    "entrance-restraint"
+  ],
+  "rationale": "A skeleton that does not match the layout it replaces causes the shift it exists to prevent, which is why this is structure-aware rather than a generic shimmer block."
+}

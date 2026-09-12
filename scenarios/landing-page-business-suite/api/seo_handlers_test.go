@@ -1,135 +1,92 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	contenthandler "landing-page-business-suite-api/handlers/content"
+	seohttp "landing-page-business-suite-api/handlers/seo"
+	"landing-page-business-suite-api/internal/testutil"
 )
 
-// --- handleGetVariantSEO Tests ---
-
-func TestHandleGetVariantSEO_Success(t *testing.T) {
+func TestSEOConnectHandler_GetVariantSEO(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
-
-	seoService := NewSEOService(cs)
-	handler := handleGetVariantSEO(seoService)
-
-	slug := variants[0].Variant.Slug
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/seo/{slug}", handler).Methods("GET")
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/seo/"+slug, nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
-
-	// Verify response has expected fields
-	var resp SEOResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if resp.SiteName == "" {
-		t.Error("Expected site_name in response")
-	}
-	if resp.Title == "" {
-		t.Error("Expected title in response")
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
+	response, err := handler.GetVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSEORequest{Slug: variants[0].Variant.Slug}))
+	testutil.RequireNoError(t, err)
+	if response.Msg.GetSiteName() == "" || response.Msg.GetTitle() == "" {
+		t.Fatalf("response must preserve resolved branding defaults: %#v", response.Msg)
 	}
 }
 
-func TestHandleGetVariantSEO_NotFound(t *testing.T) {
+func TestSEOConnectHandler_GetVariantSEORejectsInvalidAndMissingSlugs(t *testing.T) {
 	cs := setupTestConfigStore(t)
-	seoService := NewSEOService(cs)
-	handler := handleGetVariantSEO(seoService)
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/seo/{slug}", handler).Methods("GET")
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/seo/nonexistent-slug", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d for not found, got %d", http.StatusNotFound, w.Code)
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
+	for _, request := range []*lpbsv1.GetVariantSEORequest{{}, {Slug: "missing"}} {
+		_, err := handler.GetVariantSEO(context.Background(), connect.NewRequest(request))
+		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument && got != connect.CodeNotFound {
+			t.Fatalf("GetVariantSEO(%q) code = %s, want invalid_argument or not_found (err=%v)", request.GetSlug(), got, err)
+		}
 	}
 }
 
-func TestHandleGetVariantSEO_EmptySlug(t *testing.T) {
+func TestSEOConnectHandler_UpdateVariantSEOPersistsProtoConfig(t *testing.T) {
 	cs := setupTestConfigStore(t)
-	seoService := NewSEOService(cs)
-	handler := handleGetVariantSEO(seoService)
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/seo/{slug}", handler).Methods("GET")
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/seo/", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	// Empty slug should not match the route or return 400
-	if w.Code == http.StatusOK {
-		t.Error("Expected error for empty slug")
-	}
-}
-
-// --- handleUpdateVariantSEOConfigStore Tests ---
-
-func TestHandleUpdateVariantSEO_NotFound(t *testing.T) {
-	cs := setupTestConfigStore(t)
-	handler := handleUpdateVariantSEOConfigStore(cs)
-
-	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/admin/seo/{slug}", handler).Methods("PUT")
-
-	body := `{"title": "New Title"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/seo/nonexistent", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
-}
-
-func TestHandleUpdateVariantSEO_InvalidJSON(t *testing.T) {
-	cs := setupTestConfigStore(t)
-	handler := handleUpdateVariantSEOConfigStore(cs)
-
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
+	response, err := handler.UpdateVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.UpdateVariantSEORequest{
+		Slug:   variants[0].Variant.Slug,
+		Config: &sharedv1.VariantSEOConfig{Title: "Connect title", OgImageUrl: "https://example.test/og.png"},
+	}))
+	testutil.RequireNoError(t, err)
+	if !response.Msg.GetSuccess() || response.Msg.GetUpdatedAt() == "" {
+		t.Fatalf("unexpected update response: %#v", response.Msg)
+	}
+	saved, err := cs.GetVariant(variants[0].Variant.Slug)
+	testutil.RequireNoError(t, err)
+	if !strings.Contains(string(saved.Variant.SEOConfig), `"og_image_url":"https://example.test/og.png"`) {
+		t.Fatalf("stored config must retain the legacy JSON contract: %s", saved.Variant.SEOConfig)
+	}
+}
 
-	slug := variants[0].Variant.Slug
-
+func TestSEOConnectRoutesServeGeneratedClient(t *testing.T) {
+	cs := setupTestConfigStore(t)
+	variants := cs.ListVariants()
+	if len(variants) == 0 {
+		t.Fatal("tracked test configuration must contain at least one variant")
+	}
 	router := mux.NewRouter()
-	router.HandleFunc("/api/v1/admin/seo/{slug}", handler).Methods("PUT")
+	contenthandler.RegisterSEOConnectRoutes(router, NewSEOService(cs), func(handler http.HandlerFunc) http.HandlerFunc { return handler })
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/seo/"+slug, strings.NewReader("{invalid"))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	client := lpbsconnect.NewSeoServiceClient(server.Client(), server.URL)
+	read, err := client.GetVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSEORequest{Slug: variants[0].Variant.Slug}))
+	testutil.RequireNoError(t, err)
+	if read.Msg.GetTitle() == "" {
+		t.Fatalf("generated client returned incomplete SEO response: %#v", read.Msg)
+	}
+	updated, err := client.UpdateVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.UpdateVariantSEORequest{
+		Slug: variants[0].Variant.Slug, Config: &sharedv1.VariantSEOConfig{Description: "Updated through Connect"},
+	}))
+	testutil.RequireNoError(t, err)
+	if !updated.Msg.GetSuccess() {
+		t.Fatalf("generated client update response = %#v", updated.Msg)
 	}
 }
 
@@ -138,7 +95,7 @@ func TestHandleUpdateVariantSEO_InvalidJSON(t *testing.T) {
 func TestHandleSitemapXML_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	seoService := NewSEOService(cs)
-	handler := handleSitemapXML(seoService)
+	handler := seohttp.Sitemap(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	req.Host = "example.com"
@@ -146,9 +103,7 @@ func TestHandleSitemapXML_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Check Content-Type
 	contentType := w.Header().Get("Content-Type")
@@ -179,7 +134,7 @@ func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleSitemapXML(seoService)
+	handler := seohttp.Sitemap(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	req.Host = "localhost:8080"
@@ -187,9 +142,7 @@ func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	body := w.Body.String()
 	if !strings.Contains(body, "https://mysite.com") {
@@ -202,7 +155,7 @@ func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
 func TestHandleRobotsTXT_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "example.com"
@@ -210,9 +163,7 @@ func TestHandleRobotsTXT_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Check Content-Type
 	contentType := w.Header().Get("Content-Type")
@@ -237,7 +188,7 @@ func TestHandleRobotsTXT_IncludesSitemap(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "localhost:8080"
@@ -245,9 +196,7 @@ func TestHandleRobotsTXT_IncludesSitemap(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	body := w.Body.String()
 	if !strings.Contains(body, "Sitemap:") {
@@ -268,7 +217,7 @@ func TestHandleRobotsTXT_UsesCustomRobotsTxt(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "localhost:8080"
@@ -276,9 +225,7 @@ func TestHandleRobotsTXT_UsesCustomRobotsTxt(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	body := w.Body.String()
 	if !strings.Contains(body, "Googlebot") {
@@ -295,7 +242,7 @@ func TestSEOService_VariantSEO_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	seoService := NewSEOService(cs)

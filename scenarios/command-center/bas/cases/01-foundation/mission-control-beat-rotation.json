@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "mission-control-beat-rotation",
+    "description": "Uses a short lifecycle cycle to prove the mission-control room advances within its dwell and exposes segmented beat progress.",
+    "labels": {"reset": "none", "requirements_json": "[\"CC-UI-BEATS\"]"},
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {"id": "navigate", "action": {"type": "ACTION_TYPE_NAVIGATE", "navigate": {"destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "command-center", "scenario_path": "/mission-control?cycle=5", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000}}},
+    {"id": "wait-rail", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='beat-rail-3']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}}},
+    {"id": "wait-next-beat", "action": {"type": "ACTION_TYPE_WAIT", "wait": {"selector": "[data-testid='room-composition'][data-beat='1']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}}},
+    {"id": "assert-segments", "action": {"type": "ACTION_TYPE_ASSERT", "assert": {"selector": "[data-testid='beat-rail-0'][data-active='true'], [data-testid='beat-rail-1'][data-active='true']", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Expected the cycle rail to expose the active beat segment"}}},
+    {"id": "capture", "action": {"type": "ACTION_TYPE_SCREENSHOT", "screenshot": {"full_page": false}}}
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate", "target": "wait-rail", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e2", "source": "wait-rail", "target": "wait-next-beat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e3", "source": "wait-next-beat", "target": "assert-segments", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id": "e4", "source": "assert-segments", "target": "capture", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+  ]
+}

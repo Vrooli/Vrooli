@@ -1,0 +1,203 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-040",
+      "title": "Certification matrix registry",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "certification",
+      "description": "Every mandatory qualification case has a stable ID, owner, fixture, assertion and receipt reference; a required cell without compatible evidence refuses certification.",
+      "tags": [
+        "certification"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/certification/matrix_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Embedded matrix is byte-identical to certification/matrix.json; 94 cases with stable IDs, lanes, dimensions, requirement refs and owners; unsupported cells declared."
+        },
+        {
+          "type": "test",
+          "ref": "api/certification/readiness_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Empty evidence names all 94 cases; a failed receipt is listed under failed and never masked; evidence for another release digest is stale; unavailable verdicts never pass; readiness only when every lane holds a passed receipt for the exact digest."
+        },
+        {
+          "type": "test",
+          "ref": "api/fixtures/fixtures_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fixture catalog loads; oracle checksum reproducible from seed (P02-A06); every fixture declares lease scope and owned-ephemeral target ownership (P02-A02/A03 groundwork); no product names."
+        },
+        {
+          "type": "test",
+          "ref": "api/faultinject/faultinject_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fault registry cannot be armed outside routed test mode and Hit never fires in production contexts (P02-O04)."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-041",
+      "title": "QEMU fresh-host qualification",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "certification",
+      "description": "The minimal fixture lifecycle, reboot, interruption and restore cases pass on pristine Ubuntu 24.04 images for each declared architecture, with source images unchanged after teardown.",
+      "tags": [
+        "certification",
+        "qemu"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/instance/readiness_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Absent host tools produce a typed unavailable readiness naming vrooli setup and the hostTools owner; arm64 on an amd64 host is tcg, never kvm; a mutated source image is a digest mismatch (P20-A05 groundwork, P20-A06)."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_instances_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "GET /api/v1/instances/readiness answers 200 with state unavailable and the vrooli setup next action."
+        },
+        {
+          "type": "test",
+          "ref": "api/certification/lanes_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "certification/lanes/qemu.json holds exactly the matrix cases with lane qemu; the program's admission set equals the lane; every qemu cell carries an explicit unavailable receipt naming EXT-05/EXT-06 and readiness stays not_ready."
+        },
+        {
+          "type": "manual",
+          "ref": ".vrooli/program-runtime/cloud-qemu-qualification.json",
+          "phase": "programs",
+          "status": "implemented",
+          "notes": "Governed qualification program: 8 fixtures refuse absent authorization, incompatible target (including any deployment not bound to the owned guest), stale artifact, unknown fault and non-zero spend before mutation; act phase deploys through deployment/apply (destructive, confirmed) + operation/wait and observes health; a real run needs the host tools and an owned guest (EXT-05, EXT-06)."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-042",
+      "title": "Authorized real-VPS qualification",
+      "status": "planned",
+      "prd_ref": "OT-P0-017",
+      "category": "certification",
+      "description": "Installation, update, public DNS/TLS, management-loss reattachment, replacement-host restore and publication identity are proven on an authorized disposable VPS; missing authority keeps the cell explicitly pending.",
+      "tags": [
+        "certification",
+        "vps"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "docs/internal/PROBLEMS.md",
+          "phase": "certification",
+          "status": "not_implemented",
+          "notes": "Authorized disposable VPS authority is not present in this environment. Keep installation, update, DNS/TLS, reattachment, replacement-host restore and publication evidence pending until an authorized target and receipts exist."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-043",
+      "title": "Adversarial validation, soak and generality",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "certification",
+      "description": "Threat-model rows, credential-canary scans, independent review, 24-hour soak budgets and a declaration-only fixture scenario are evidenced; no product-name branch exists in generic cloud code.",
+      "tags": [
+        "certification",
+        "security",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/perfbudget/perfbudget_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Frozen phase-23 budgets load and validate (every fixture profile, retry class, queue/retention/soak/detection bound; drift from phase-1 numbers refused); small samples flagged and never judged; exceeded verdict names phase and metric; harness against an httptest handler yields a complete four-phase measurement with process snapshots; url target requires an explicit --target (P23-O01, P23-O02)."
+        },
+        {
+          "type": "test",
+          "ref": "api/perfbudget/bounded_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every execplan retry class has a finite ceiling and capped backoff; operations.DefaultConfig timeouts bounded and equal to the frozen budget; RUN-08 serialisation referenced not duplicated; backup.Plan and bundle.PlanVPSBundleGC never delete protected/active artifacts under the frozen or an aggressive policy (P23-A06); a stale observation cannot report healthy; alert conditions and resolved transitions (P23-A03 package lane, P23-A04/A05 contract)."
+        },
+        {
+          "type": "test",
+          "ref": "api/perfbudget/cycles_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "12 update cycles through operations.Service leave no non-terminal operation, lease or active step and no goroutine/fd/RSS growth beyond post_cleanup_growth; recovery-point set bounded by keep_last + protected (OPS-04 package lane)."
+        },
+        {
+          "type": "manual",
+          "ref": "certification/evidence/OPS-01.json",
+          "phase": "soak",
+          "status": "implemented",
+          "notes": "Soak, real-VPS and QEMU lanes for OPS-01..03 and OPS-05..08 are unavailable pending EXT-09/EXT-01/EXT-06; threat-model rows, canary scans, independent review and the declaration-only fixture are owned by phases 22/24."
+        },
+        {
+          "type": "test",
+          "ref": "api/generality/generality_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "P24-A01..A05 package lane over the declaration-only fixture newcomer-service and a fake cloud-target owner: closure with reasons, needs_input handoff, durable admission, argv --deployment --operation --step --fence discipline, receipts bound to operation+fence, secret canary absent, health observation bound to deployment+release, two environments isolated (ids, target keys, credential binding ids, edge specs, no cross-calls), linux/arm64 refusal naming ledger-store:missing_platform_artifact, update keeps the declared route and private callback listener, stateless-web plan digest equals the golden, no cloud source names the fixture. Three route assertions are red until execplan/vps derive edge.route.apply from edge.Derive (requested from the consolidation owner, 2026-09-09)."
+        },
+        {
+          "type": "test",
+          "ref": "api/fixtures/fixtures_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "newcomer-service fixture loads with a verified seed/oracle and carries no product name or secret."
+        },
+        {
+          "type": "manual",
+          "ref": "certification/evidence/OPS-08.json",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Package-lane OPS-08 receipt is written by api/generality (STC_WRITE_OPS08=1) once every assertion passes; real-VPS soak and QEMU lanes remain pending EXT-01/EXT-06/EXT-09."
+        },
+        {
+          "type": "test",
+          "ref": "api/archtest/boundaries_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ownership boundaries over the parsed module source (go/ast): only reach/sshadapter may import the ssh package (DL-02); os/exec confined to declared local-process owners with a stale-entry check; no product-name literal outside the documented manifest-doctor example (P24-O05); every persistence method that writes cloud_operations (derived from the SQL) is called only from api/operations (DL-05; admission moved to operations.Admit); cloud-target credential verbs composed only in api/credentials and the credential-authority library opened only by declared owners (DL-14)."
+        },
+        {
+          "type": "test",
+          "ref": "api/archtest/routes_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every literal route registration in main.go and handlers_*.go has an authz.Table row (source-level census beside the live census, STC-P0-013); every effectful row is TargetBound or carries an allowlist reason; stale allowlist entries fail."
+        },
+        {
+          "type": "test",
+          "ref": "api/archtest/fixtures_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every workload fixture compiles to a full-scope plan against a complete release set; every action input and every derived target argv (vps.ActionCommands) passes reach.ValidateArgs, so no shell syntax enters the target boundary (P25-A01)."
+        },
+        {
+          "type": "test",
+          "ref": "api/archtest/docs_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Every fenced scenario-to-cloud and vrooli cloud-target invocation under docs/ names a command declared by the owning cli/manifest.json; a failure prints file:line and the nearest command (P25-A02, P25-A04)."
+        }
+      ]
+    }
+  ]
+}

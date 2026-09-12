@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "remote_desktop_access",
+  "storage": {
+    "entries": {},
+    "rationale": "Provider state is owned by the host desktop services; remote-desktop credentials are declared by the project service manifest and resolved through Vrooli's encrypted credential authority."
+  },
+  "description": "Declare and verify the host remote-desktop experience without overriding distribution display policy",
+  "handler": "remote_desktop_access",
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "remote-desktop",
+  "capability_role": "control",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "experience": {
+        "type": "string",
+        "enum": [
+          "direct-desktop",
+          "login-screen",
+          "observe-only"
+        ],
+        "default": "observe-only",
+        "description": "The experience a remote desktop connection should present."
+      },
+      "provider": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "gnome-system",
+          "gnome-user-shared",
+          "gnome-headless",
+          "xrdp",
+          "windows-termservice",
+          "macos-screen-sharing"
+        ],
+        "default": "auto",
+        "description": "The provider adapter to inspect, or auto to select the best detected provider."
+      },
+      "allow_enable_system": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit enabling the system-mode GNOME Remote Desktop unit."
+      },
+      "allow_switch_provider": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit switching to the user-shared GNOME Remote Desktop provider."
+      },
+      "allow_enable_user_unit": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit enabling the user-mode GNOME Remote Desktop unit."
+      },
+      "allow_disable_system_unit": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit disabling the system-mode GNOME Remote Desktop unit during a provider switch."
+      },
+      "allow_provision_credentials": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit provisioning provider credentials; credential values are never stored in operator state."
+      },
+      "allow_enable_native_provider": {
+        "type": "boolean",
+        "default": false,
+        "description": "Permit enabling a native Windows or macOS remote-desktop provider."
+      }
+    }
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  },
+  "risk_class": "reload_live"
+}

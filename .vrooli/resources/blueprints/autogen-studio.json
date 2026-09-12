@@ -1,0 +1,54 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "autogen-studio",
+  "display_name": "AutoGen Studio",
+  "category": "agent-platforms",
+  "summary": "Visual multi-agent orchestration tooling for designing and operating AutoGen-based workflows.",
+  "why_it_matters": "The capability is still relevant as future Vrooli scenarios may want visual agent debugging or composition surfaces, but the old registry-only entry was not an actively validated integration.",
+  "when_to_use": [
+    "A future scenario needs a visual UI for building or inspecting multi-agent workflows.",
+    "Operators need to compare Vrooli-native orchestration with AutoGen-style agent graph tooling.",
+    "An implementation effort wants to prototype agent interaction UX before committing to a maintained integration."
+  ],
+  "example_scenarios": [
+    "Agent workflow design studio",
+    "Multi-agent debugging workbench"
+  ],
+  "integration_kind": "native-cli",
+  "platform_support": {
+    "notes": "The capability likely depends on Python and UI packaging choices, so future support should be explicit about install and runtime assumptions.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Validated demand for an AutoGen-specific operator surface",
+    "Clear support boundary relative to Vrooli-native agent tooling"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Treat this as capability knowledge, not an implied endorsement of a specific historical wrapper.",
+    "A future promotion should start from explicit install and detection semantics rather than registry metadata alone.",
+    "Support should only land if a scenario concretely benefits from the UI."
+  ],
+  "operational_notes": [
+    "Desktop-app support should report unsupported platforms honestly.",
+    "Future implementations need a crisp story for config storage and operator auth context."
+  ],
+  "risks": [
+    "UI-heavy tooling can create maintenance cost without becoming core platform capability.",
+    "The AutoGen ecosystem may shift faster than Vrooli should commit to supporting."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "autogen-studio"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

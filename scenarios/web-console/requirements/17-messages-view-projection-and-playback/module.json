@@ -1,0 +1,419 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-11T01:20:00-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-017a",
+      "title": "Calm Message List",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "The Messages list follows new content only while the viewport bottom is within 200 pixels of the list end; a user who scrolls away sees no programmatic scroll until they return. The scroll model is one follow boolean, the prepend anchor, and the virtualizer's resize compensation.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/messages-scroll-follow.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Appends while not following leave scrollTop unchanged; appends while following stay at the bottom; one mount scroll; programmatic scrolls never recompute follow."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/useVirtualList.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Resize compensation lands in the same commit as moved rows, only for rows entirely above the viewport; rows re-read offsets after re-measure."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017b",
+      "title": "Remembered View Mode And Position",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Per session and across reloads, Web Console restores the pane view mode, the top visible message with its offset, and the follow state. Restore loads the page containing the saved message before it scrolls and never falls back to the bottom silently.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/stores/useMessagesViewStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Persisted store: view mode, position, forget, 30-day prune, migration."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/messages-restore.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The page-containing request precedes any scroll write; a missing event reports a restore notice."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/useConversationStore-window.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A paged window's start is not a gap: mount and focus refreshes never refetch and merge older history ahead of a restored place."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017c",
+      "title": "Readable Rows And One Toolbar",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Every row shows a speaker, a time label, and the text. Actions are hidden at rest and revealed on hover or focus (fine pointer), long-press (coarse pointer), right-click, or Enter, with at most three inline actions and 44 pixel hit targets. The Messages toolbar is one search field plus the view toggle.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/message-row.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Speaker and time header, hidden-at-rest actions, hover cluster, long-press sheet, keyboard navigation."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/messages-toolbar.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "One search field and the toggle; arrows, refresh, and jump pill are gone; the field and Ctrl+K open the navigator."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/messages/messageActions.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registry: no audio-settings, Summarize label, open-in-reader placement, primary-first ordering."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017d",
+      "title": "Reader For Long Replies",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Rows taller than the collapse threshold end in an outline footer naming word, heading, and code-block counts that opens a full-height reader with its own scroll, find-in-message, copy, and play. No inline expand exists.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/messages-reader.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Outline footer, reader find with match count, copy, play, and focus return without list movement."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/messages/outline.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Word, heading, and fenced-code-block counts for the reader footer."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017e",
+      "title": "Session Activity Contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Every session carries a pushed activity state (working, idle, waiting, unknown) with source, confidence, since, and last output time, derived server-side from the terminal emulator, the output clock, Claude hooks, and OpenCode events. Messages renders exactly one state slot for it.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/session/activity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Detector state machine, confidence floor, publish-on-change, and working heartbeat."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/messages/resolveStateSlot.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "One slot presentation per activity state; nothing for idle, unknown, or low confidence."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/stores/useSessionActivityStore.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Per-session activity; stale since ignored; list hydration never overrides a newer push."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-state-slot.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Working strip timing, level-1 card with Open terminal, nothing for idle/unknown/low confidence, one slot outside the virtual list."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/messages-scroll-follow.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The slot appearing follows the end only while following; moves nothing otherwise."
+        },
+        {
+          "type": "test",
+          "ref": "api/hook_notification_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Claude Notification hook maps permission/question dialogs to waiting and the idle prompt to idle."
+        },
+        {
+          "type": "test",
+          "ref": "api/opencode_activity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "OpenCode permission.asked / question.asked carry the waiting prompt."
+        },
+        {
+          "type": "test",
+          "ref": "api/session_activity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Panes launched by other scenarios resolve their harness from the launch command."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017f",
+      "title": "Unlosable Sends And History",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "ui",
+      "description": "Send types the draft verbatim and never presses Enter. Each send shows an echo row that is labelled with its delivery state, offers Enter and the terminal while unsubmitted, and resolves into the harness's own user event. The pane does not flip to the terminal. History lists the last 50 sends per device with Insert and Resend.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/echo-row.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Echo labels, Enter action, reconciliation with the harness user event, expiry."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/composer/SentHistorySheet.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "History list, filter, Insert, Resend, and clear."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/echoMatch.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Normalised text, same session, 60 s window."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/MobileToolbar.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A settled send leaves an echo; long-press offers Send and press Enter; a tap types the draft only; Send stays enabled while the session waits."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/mobile-toolbar-view-mode.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Sending from Messages, including an empty Send (Enter), keeps the pane in Messages."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/toolbar/ComposerStateChip.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The composer chip names idle, working, waiting, and unknown."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/02-messages/04-composer/send-echo-and-enter.json",
+          "phase": "workflow",
+          "status": "pending",
+          "notes": "Send from the Messages composer, echo row, typed-not-submitted, Press Enter, pane stays in Messages. No verdict yet: needs the routed-isolation workflow phase (runs 20260911-115505-e5e48bb7 and 20260911-121111-757ea2a4 failed on the provider); live phone check live_echo_check.cjs covers the same path. Isolated run b00e1413: reached typed-not-submitted and Press Enter, then its last assertion (pane still in Messages) failed; no code path switches the view on Enter and the live real-tap phone check stays in Messages, so the isolated environment is suspected. Isolated runs 3033c13e and b8ef14ab (after the case, seed, and paused-pill fixes) failed the same step; the same flow passes live, so the entry stays pending."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/hooks/useCommandHistory.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Sends kept per device with timestamps, deduplicated, capped at 50, clearable."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/toolbarLayout.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "history is an icon control for both views; presets keep it in the More sheet so every preset still fits a phone."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/02-messages/04-composer/history-insert-resend.json",
+          "phase": "workflow",
+          "status": "pending",
+          "notes": "Send, open history from the expanded composer, insert the line back into the draft. No verdict yet: needs the routed-isolation workflow phase; the live phone check lists the send in History with Insert and Resend. Isolated run b00e1413: history opened, the inserted-draft check failed; the live phone check shows Insert filling the expanded composer after the shared-history fix. Isolated runs 3033c13e and b8ef14ab (after the case, seed, and paused-pill fixes) failed the same step; the same flow passes live, so the entry stays pending."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017g",
+      "title": "One Search Path",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "description": "Session, navigator, and archived search run through one FTS5-backed repository function with text, regex, and fuzzy modes and case, whole-word, and role flags. Regex runs on the server with bounded evaluation. Navigator rows measure themselves and the mobile footer is visible without scrolling.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/conversation_search_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Text, regex, fuzzy, flags, invalid regex error, truncation bound, archived parity."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/MessageJumpList.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Mode controls, measured rows, one bottom padding, folded filters, speaker/time rows, a long list reaches its last row, and a list that arrives late still follows scrolling."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/MessageJumpList.helpers.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Server hits in sequence order with server ranges; no client-side substring scoring; loaded-only status filters."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017h",
+      "title": "One Playback Pill",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Playback is one floating pill with collapsed and expanded forms, tap, swipe, and scrub gestures, fed by provider transport events instead of polling. Dismissing the pill stops playback. The bottom bar, navigator mini player, and per-message audio popover do not exist.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/tts/PlaybackPill.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Collapsed and expanded forms, provider-driven time, gestures (tap, swipe down, swipe tracks, scrub), dismiss stops playback, settings dialog, reduced motion. Restore and hide-without-queue in workspace-tts-replay-bar.test.tsx; event-driven transport in transport.test.ts; gesture thresholds in usePillGestures.test.ts."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/tts/usePillGestures.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Tap under 8 px, dismiss at 48 px down, track swipe at 64 px, scrub ratio, axis lock, click suppression."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/domains/tts-playback/transport.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "subscribeTransport delivers the active pane transport on each provider event, nothing on a timer; unsubscribe stops delivery."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/workspace-tts-replay-bar.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Workspace renders the pill in place of the bar; close stops and hides; restore only with a queue; replay; summarize toggle."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/02-messages/02-voice/play-from-row-and-pill.json",
+          "phase": "workflow",
+          "status": "pending",
+          "notes": "Read from here shows the pill, expand shows Next, Jump to message marks the speaking row. No verdict yet from the workflow phase; an adhoc live run passed every step through Jump to message before playback ended. Isolated run b00e1413: every step through Jump to message passed; the close failed because the short seeded message had ended and the pill hid. The case now pauses first (a paused pill stays up after the Phase 18 fix). Isolated runs 3033c13e and b8ef14ab (after the case, seed, and paused-pill fixes) failed the same step; the same flow passes live, so the entry stays pending."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/02-messages/02-voice/pill-dismiss-stops.json",
+          "phase": "workflow",
+          "status": "pending",
+          "notes": "Closing the pill removes it and nothing keeps speaking. No verdict yet from the workflow phase; live_pill_check.cjs shows swipe-down and close dismissing and stopping playback. Isolated run b00e1413: the close failed because the pill had hidden when the short message ended. The case now pauses first. Isolated runs 3033c13e and b8ef14ab (after the case, seed, and paused-pill fixes) failed the same step; the same flow passes live, so the entry stays pending."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-017i",
+      "title": "Prompt Cards",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "When a session waits on the user, the state slot renders a level-1 card with a terminal link, a level-2 card with the parsed question and read-only options for Claude Code and OpenCode, and level-3 answer buttons only behind a per-harness flag for verified harness versions.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/backends/claude/prompt_box_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Live Claude Code 2.1.268 fixtures: trust dialog (hint-anchored), AskUserQuestion box (cursor-anchored, no hint, free-text row), idle; a question box cut before its free-text row degrades to awaiting input (level 1) rather than a partial parse."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-state-slot.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Level-1 card, level-2 card (question, every option with the selected one marked, free-text hint, Answer in terminal, no level-1 card alongside), level-3 layout."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/terminal/answer_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Answers type the key then Enter only while the same prompt is up; refuses not waiting, a changed prompt, answering off, an unknown option, a cancel not offered; Escape for cancel; OpenCode through its reply API."
+        },
+        {
+          "type": "test",
+          "ref": "api/prompt_answering_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Answering off by default; Claude only on a verified version; OpenCode only for permissions; the switch from the environment or the host file."
+        },
+        {
+          "type": "test",
+          "ref": "api/session/activity_answering_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Published and current activity report answerable and the harness version from the host policy."
+        },
+        {
+          "type": "test",
+          "ref": "api/backends/claude/answerable_versions_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Only captured and live-verified Claude Code versions are answerable."
+        },
+        {
+          "type": "test",
+          "ref": "api/opencode_answer_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An OpenCode pane answers the permission request it is waiting on, and only while it is pending."
+        },
+        {
+          "type": "test",
+          "ref": "api/backends/opencode/client_reply_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "POST /permission/{requestID}/reply with the reply."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-state-slot-answer.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Level-3 buttons send with the prompt hash, echo the answer, disable until the next activity, Cancel only when allowed, a refusal shows its reason."
+        }
+      ]
+    }
+  ]
+}

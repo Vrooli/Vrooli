@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "pushover",
+  "display_name": "Pushover",
+  "category": "notifications",
+  "summary": "Cloud push-notification service for delivering alerts and operator messages to mobile and desktop devices.",
+  "why_it_matters": "Pushover remains useful notification capability knowledge, but current Vrooli workflows do not justify maintaining a dedicated active integration.",
+  "when_to_use": [
+    "A future scenario needs simple operator-facing push notifications.",
+    "Operators want an external alerting channel for jobs, incidents, or approvals.",
+    "The workflow benefits from a low-friction mobile notification service."
+  ],
+  "example_scenarios": [
+    "Job completion alerts",
+    "Incident notifications",
+    "Approval request messaging"
+  ],
+  "integration_kind": "cloud-api",
+  "platform_support": {
+    "notes": "The service is externally hosted and broadly accessible, so the portability concerns are mostly about credentials and network access rather than OS support.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Pushover account and application credentials",
+    "Defined notification policy and routing",
+    "Secret management for tokens and user keys"
+  ],
+  "dependencies": [],
+  "suggested_template": "cloud-api",
+  "implementation_notes": [
+    "Promotion should validate one or two real notification workflows.",
+    "Keep the integration small and policy-focused rather than building a broad alerting abstraction.",
+    "Use credential handling patterns consistent with other cloud resources."
+  ],
+  "operational_notes": [
+    "Secrets and notification noise are the main operator concerns.",
+    "Validation should prove a real delivery path to a test device.",
+    "Alert routing should stay explicit rather than implicit."
+  ],
+  "risks": [
+    "External notification providers are easy to add and easy to leave stale.",
+    "Shallow wrappers often duplicate simple HTTP calls without much value."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "pushover"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/pushover"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -5,12 +5,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "build": "pnpm selector:manifest && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -20,6 +23,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "@vrooli/vitest-requirement-reporter": "file:../../../packages/vitest-requirement-reporter",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

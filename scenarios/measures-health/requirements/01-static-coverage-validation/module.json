@@ -1,0 +1,89 @@
+{
+  "description": "`measures-health validate scenario \u003cname\u003e --json` emits an expected/covered/waived report per scenario with a per-measure tier (full/partial/fallback) and a pass/fail verdict, where an uncovered stateful domain is an ERROR and a stale waiver pointing at a non-stateful or nonexistent domain is a WARNING, matching cli-health expected/covered/waived semantics.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "Implement `measures-health validate scenario \u003cname\u003e --json` CLI command that emits a structured JSON report containing expected, covered, and waived measure counts per scenario. The report must include a per-measure tier classification (full/partial/fallback) and an overall pass/fail verdict. An uncovered stateful domain must be classified as ERROR severity. A stale waiver referencing a non-stateful or nonexistent domain must be classified as WARNING severity. The output schema must mirror cli-health expected/covered/waived semantics exactly.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Static Coverage Validation CLI Command",
+      "validation": [
+        {
+          "notes": "Go table test: given a scenario manifest with a stateful domain and no corresponding measure block, the validator classifies the domain as uncovered and emits ERROR",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go table test: given a waiver pointing to a domain that does not exist or is not stateful, the validator emits WARNING for a stale waiver",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go table test: coverage classification produces correct tier (full/partial/fallback) for each measure block based on endpoint presence and result-shape conformance",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go table test: pass verdict is emitted when all stateful domains are covered or waived with valid waivers; fail verdict is emitted when any ERROR is present",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Go table test: domain-derivation logic correctly filters domains by substrate from proto/schemas/\u003cscenario\u003e/v1/domain/*.proto, and manifest measures.domains[]/omitted[] overrides are applied",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Boot the real measures-health API binary; shell `measures-health validate scenario \u003cfixture-scenario\u003e --json`; assert the JSON output parses as the expected proto shape with expected/covered/waived fields populated",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run validate against a fixture scenario with a known uncovered stateful domain; assert exit code is non-zero and JSON contains at least one ERROR finding",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run validate against a fixture scenario with a stale waiver; assert JSON contains at least one WARNING finding and overall verdict is pass if no ERRORs exist",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Harvest and validate all scenario manifests' measure blocks completes within 30 seconds on CI hardware for a fleet of up to 50 scenarios",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Output JSON schema is identical in field naming and nesting to cli-health expected/covered/waived report shape, verified by schema comparison test",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Static Coverage Validation"
+}

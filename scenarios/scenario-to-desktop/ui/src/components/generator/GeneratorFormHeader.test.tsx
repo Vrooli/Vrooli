@@ -2,10 +2,16 @@
  * Tests for GeneratorFormHeader component.
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@/test-utils";
 import { GeneratorFormHeader } from "./GeneratorFormHeader";
 import type { ValidationStatus } from "../../lib/api";
+
+let isMobile = false;
+
+vi.mock("../../hooks/useMediaQuery", () => ({
+  useIsMobile: () => isMobile,
+}));
 
 describe("GeneratorFormHeader", () => {
   const mockValidationStatus: ValidationStatus = {
@@ -29,22 +35,41 @@ describe("GeneratorFormHeader", () => {
     onReset: vi.fn(),
   };
 
+  beforeEach(() => {
+    isMobile = false;
+  });
+
   it("renders reset button", () => {
     render(<GeneratorFormHeader {...defaultProps} />);
 
-    expect(screen.getByRole("button", { name: "Reset progress" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset progress" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the compact reset label on mobile", () => {
+    isMobile = true;
+    render(<GeneratorFormHeader {...defaultProps} />);
+
+    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
   });
 
   it("disables reset button when no scenario name", () => {
     render(<GeneratorFormHeader {...defaultProps} scenarioName="" />);
 
-    expect(screen.getByRole("button", { name: "Reset progress" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Reset progress" }),
+    ).toBeDisabled();
   });
 
   it("enables reset button when scenario name is provided", () => {
-    render(<GeneratorFormHeader {...defaultProps} scenarioName="my-scenario" />);
+    render(
+      <GeneratorFormHeader {...defaultProps} scenarioName="my-scenario" />,
+    );
 
-    expect(screen.getByRole("button", { name: "Reset progress" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Reset progress" }),
+    ).toBeEnabled();
   });
 
   it("calls onReset when reset button is clicked", () => {
@@ -61,10 +86,12 @@ describe("GeneratorFormHeader", () => {
       <GeneratorFormHeader
         {...defaultProps}
         createdLabel="1/20/2026, 10:30:00 AM"
-      />
+      />,
     );
 
-    expect(screen.getByText("Started 1/20/2026, 10:30:00 AM")).toBeInTheDocument();
+    expect(
+      screen.getByText("Started 1/20/2026, 10:30:00 AM"),
+    ).toBeInTheDocument();
   });
 
   it("shows updated timestamp when provided", () => {
@@ -72,10 +99,12 @@ describe("GeneratorFormHeader", () => {
       <GeneratorFormHeader
         {...defaultProps}
         updatedLabel="1/20/2026, 11:00:00 AM"
-      />
+      />,
     );
 
-    expect(screen.getByText("Saved 1/20/2026, 11:00:00 AM")).toBeInTheDocument();
+    expect(
+      screen.getByText("Saved 1/20/2026, 11:00:00 AM"),
+    ).toBeInTheDocument();
   });
 
   it("shows both timestamps when both are provided", () => {
@@ -84,11 +113,15 @@ describe("GeneratorFormHeader", () => {
         {...defaultProps}
         createdLabel="1/20/2026, 10:30:00 AM"
         updatedLabel="1/20/2026, 11:00:00 AM"
-      />
+      />,
     );
 
-    expect(screen.getByText("Started 1/20/2026, 10:30:00 AM")).toBeInTheDocument();
-    expect(screen.getByText("Saved 1/20/2026, 11:00:00 AM")).toBeInTheDocument();
+    expect(
+      screen.getByText("Started 1/20/2026, 10:30:00 AM"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Saved 1/20/2026, 11:00:00 AM"),
+    ).toBeInTheDocument();
   });
 
   it("shows saving indicator when isSaving is true", () => {
@@ -97,7 +130,7 @@ describe("GeneratorFormHeader", () => {
         {...defaultProps}
         updatedLabel="1/20/2026, 10:30:00 AM"
         isSaving={true}
-      />
+      />,
     );
 
     expect(screen.getByText("Saving...")).toBeInTheDocument();
@@ -109,7 +142,7 @@ describe("GeneratorFormHeader", () => {
         {...defaultProps}
         updatedLabel="1/20/2026, 10:30:00 AM"
         isSaving={false}
-      />
+      />,
     );
 
     expect(screen.queryByText("Saving...")).not.toBeInTheDocument();
@@ -123,11 +156,11 @@ describe("GeneratorFormHeader", () => {
   });
 
   it("handles null validationStatus", () => {
-    render(
-      <GeneratorFormHeader {...defaultProps} validationStatus={null} />
-    );
+    render(<GeneratorFormHeader {...defaultProps} validationStatus={null} />);
 
     // Should not throw and should render the reset button
-    expect(screen.getByRole("button", { name: "Reset progress" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset progress" }),
+    ).toBeInTheDocument();
   });
 });

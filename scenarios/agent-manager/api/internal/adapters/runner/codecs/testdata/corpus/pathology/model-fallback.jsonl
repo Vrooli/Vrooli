@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"pathology-model-fallback"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"fallback-result","type":"agent_message","text":"completed after fallback"}}
+{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}

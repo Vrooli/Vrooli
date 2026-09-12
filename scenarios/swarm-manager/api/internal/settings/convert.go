@@ -1,9 +1,45 @@
 package settings
 
 import (
+	"encoding/json"
+	"math"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
+
+// laneLimitsToProto narrows widths from int (Go) to int32 (proto). Values
+// that overflow int32 are clamped to math.MaxInt32 — settings normalize
+// already keeps them in [1, 50] but the clamp keeps the conversion total.
+func laneLimitsToProto(limits map[string]int) map[string]int32 {
+	if limits == nil {
+		return nil
+	}
+	out := make(map[string]int32, len(limits))
+	for k, v := range limits {
+		switch {
+		case v > math.MaxInt32:
+			out[k] = math.MaxInt32
+		case v < math.MinInt32:
+			out[k] = math.MinInt32
+		default:
+			out[k] = int32(v)
+		}
+	}
+	return out
+}
+
+// laneLimitsFromProto widens int32 (proto) to int (Go) without loss.
+func laneLimitsFromProto(limits map[string]int32) map[string]int {
+	if limits == nil {
+		return nil
+	}
+	out := make(map[string]int, len(limits))
+	for k, v := range limits {
+		out[k] = int(v)
+	}
+	return out
+}
 
 func deleteConfirmLevelToProto(level DeleteConfirmLevel) domainpb.DeleteConfirmLevel {
 	switch level {
@@ -18,6 +54,8 @@ func deleteConfirmLevelToProto(level DeleteConfirmLevel) domainpb.DeleteConfirmL
 
 func deleteConfirmLevelFromProto(level domainpb.DeleteConfirmLevel) DeleteConfirmLevel {
 	switch level {
+	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE:
+		return DeleteConfirmSimple
 	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE:
 		return DeleteConfirmNone
 	case domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG:
@@ -27,39 +65,127 @@ func deleteConfirmLevelFromProto(level domainpb.DeleteConfirmLevel) DeleteConfir
 	}
 }
 
+func deleteConfirmationLevelsToProto(levels map[string]DeleteConfirmLevel) map[string]domainpb.DeleteConfirmLevel {
+	if levels == nil {
+		return nil
+	}
+	out := make(map[string]domainpb.DeleteConfirmLevel, len(levels))
+	for k, v := range levels {
+		out[k] = deleteConfirmLevelToProto(v)
+	}
+	return out
+}
+
+func deleteConfirmationLevelsFromProto(levels map[string]domainpb.DeleteConfirmLevel) map[string]DeleteConfirmLevel {
+	if levels == nil {
+		return nil
+	}
+	out := make(map[string]DeleteConfirmLevel, len(levels))
+	for k, v := range levels {
+		out[k] = deleteConfirmLevelFromProto(v)
+	}
+	return out
+}
+
 func settingsToProto(s Settings) *domainpb.Settings {
 	return &domainpb.Settings{
-		Theme:                  s.Theme,
-		DefaultMode:            s.DefaultMode,
-		AutoFixup:              s.AutoFixup,
-		MaxFixupAttempts:       int32(s.MaxFixupAttempts),
-		ReviewAgentEnabled:     s.ReviewAgentEnabled,
-		MaxAutoRounds:          int32(s.MaxAutoRounds),
-		AutoInitializeWorkshop: s.AutoInitializeWorkshop,
-		AutoAdvanceWorkshop:    s.AutoAdvanceWorkshop,
-		AutoCascadeWorkshop:    s.AutoCascadeWorkshop,
-		AgentMaxTurns:          int32(s.AgentMaxTurns),
-		AgentTimeoutSeconds:    int32(s.AgentTimeoutSeconds),
-		AgentRequiresApproval:  s.AgentRequiresApproval,
-		SearchDebounceMs:       int32(s.SearchDebounceMs),
-		ToastDurationMs:        int32(s.ToastDurationMs),
-		DeleteConfirmation: &domainpb.DeleteConfirmationSettings{
-			Backlog:    deleteConfirmLevelToProto(s.DeleteConfirmation.Backlog),
-			Initiative: deleteConfirmLevelToProto(s.DeleteConfirmation.Initiative),
-			Capture:    deleteConfirmLevelToProto(s.DeleteConfirmation.Capture),
-		},
+		Theme:                         s.Theme,
+		DefaultMode:                   s.DefaultMode,
+		AutoFixup:                     s.AutoFixup,
+		MaxFixupAttempts:              int32(s.MaxFixupAttempts),
+		ReviewAgentEnabled:            s.ReviewAgentEnabled,
+		AgentMaxTurns:                 int32(s.AgentMaxTurns),
+		AgentTimeoutSeconds:           int32(s.AgentTimeoutSeconds),
+		SearchDebounceMs:              int32(s.SearchDebounceMs),
+		ToastDurationMs:               int32(s.ToastDurationMs),
+		DeleteConfirmationLevels:      deleteConfirmationLevelsToProto(s.DeleteConfirmationLevels),
 		ReviewCodeQualityMinScore:     s.ReviewCodeQualityMinScore,
 		ReviewTestMinPassRate:         s.ReviewTestMinPassRate,
 		ReviewMaxBlockingViolations:   int32(s.ReviewMaxBlockingViolations),
 		ReviewMaxWarnings:             int32(s.ReviewMaxWarnings),
 		ReviewRequireScreenshots:      s.ReviewRequireScreenshots,
 		ReviewRequireTests:            s.ReviewRequireTests,
-		MaxConcurrentExecutions:       int32(s.MaxConcurrentExecutions),
+		LaneConcurrencyLimits:         laneLimitsToProto(s.LaneConcurrencyLimits),
 		MaxQueueDepth:                 int32(s.MaxQueueDepth),
 		CircuitBreakerThreshold:       int32(s.CircuitBreakerThreshold),
 		CircuitBreakerCooldownMinutes: int32(s.CircuitBreakerCooldownMinutes),
 		ExecutionCostCapPerRun:        s.ExecutionCostCapPerRun,
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
+		FixBeforeFeature:              s.FixBeforeFeature,
+		AutoFiler:                     autoFilerSettingsToProto(s.AutoFiler),
+		AutonomyGateModes:             s.AutonomyGateModes,
+	}
+}
+
+// fieldRoleToProto maps a FieldRole* constant to the proto enum.
+func fieldRoleToProto(role string) apipb.SettingsFieldRole {
+	switch role {
+	case FieldRoleUserPreference:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_USER_PREFERENCE
+	case FieldRolePolicyControl:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_POLICY_CONTROL
+	case FieldRoleGovernance:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_GOVERNANCE
+	case FieldRoleDormant:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_DORMANT
+	default:
+		return apipb.SettingsFieldRole_SETTINGS_FIELD_ROLE_UNSPECIFIED
+	}
+}
+
+// policyProjectionToProto builds the public policy-control projection for the
+// settings API response: the effective PolicyControls derived from s, plus the
+// static field classification table.
+func policyProjectionToProto(s Settings) *apipb.SettingsPolicyProjection {
+	controls := ProjectPolicyControls(s)
+	classifications := PolicyFieldClassifications()
+	out := &apipb.SettingsPolicyProjection{
+		EffectiveControls: &apipb.PolicyControlsView{
+			DefaultMode:                 controls.Execution.DefaultMode,
+			AutoFixup:                   controls.Retry.AutoFixup,
+			MaxFixupAttempts:            int32(controls.Retry.MaxFixupAttempts),
+			ReviewAgentEnabled:          controls.Review.AgentEnabled,
+			ReviewCodeQualityMinScore:   controls.Review.CodeQualityMinScore,
+			ReviewTestMinPassRate:       controls.Review.TestMinPassRate,
+			ReviewMaxBlockingViolations: int32(controls.Review.MaxBlockingViolations),
+			ReviewMaxWarnings:           int32(controls.Review.MaxWarnings),
+			ReviewRequireScreenshots:    controls.Review.RequireScreenshots,
+			ReviewRequireTests:          controls.Review.RequireTests,
+			AgentMaxTurns:               int32(controls.Budgets.MaxTurns),
+			AgentTimeoutSeconds:         int32(controls.Budgets.TimeoutSeconds),
+			AutonomyGateModes:           gateModesFromJSON(controls.Autonomy.GateModesJSON),
+		},
+		Classifications: make([]*apipb.SettingsFieldClassification, 0, len(classifications)),
+	}
+	for _, c := range classifications {
+		out.Classifications = append(out.Classifications, &apipb.SettingsFieldClassification{
+			Field:   c.Field,
+			Role:    fieldRoleToProto(c.Role),
+			Control: c.Control,
+			Note:    c.Note,
+		})
+	}
+	return out
+}
+
+func gateModesFromJSON(raw string) map[string]string {
+	var modes map[string]string
+	if err := json.Unmarshal([]byte(raw), &modes); err != nil || modes == nil {
+		return map[string]string{}
+	}
+	return modes
+}
+
+func autoFilerSettingsToProto(s AutoFilerSettings) *domainpb.AutoFilerSettings {
+	return &domainpb.AutoFilerSettings{
+		Enabled:                s.Enabled,
+		Mode:                   s.Mode,
+		Strategy:               s.Strategy,
+		MaxOpenAutoFiled:       int32(s.MaxOpenAutoFiled),
+		VelocityWindowDays:     int32(s.VelocityWindowDays),
+		MinVelocityTransitions: int32(s.MinVelocityTransitions),
+		IntervalMinutes:        int32(s.IntervalMinutes),
+		GoalName:               s.GoalName,
 	}
 }
 
@@ -71,6 +197,16 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.Theme != nil {
 		patch.Theme = req.Theme
 	}
+	executionPatchFromProto(req, &patch)
+	agentPatchFromProto(req, &patch)
+	uiPatchFromProto(req, &patch)
+	reviewPatchFromProto(req, &patch)
+	governancePatchFromProto(req, &patch)
+	return patch
+}
+
+// executionPatchFromProto copies the execution-default request fields.
+func executionPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.DefaultMode != nil {
 		s := *req.DefaultMode
 		patch.DefaultMode = &s
@@ -87,22 +223,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewAgentEnabled
 		patch.ReviewAgentEnabled = &v
 	}
-	if req.MaxAutoRounds != nil {
-		v := int(*req.MaxAutoRounds)
-		patch.MaxAutoRounds = &v
-	}
-	if req.AutoInitializeWorkshop != nil {
-		v := *req.AutoInitializeWorkshop
-		patch.AutoInitializeWorkshop = &v
-	}
-	if req.AutoAdvanceWorkshop != nil {
-		v := *req.AutoAdvanceWorkshop
-		patch.AutoAdvanceWorkshop = &v
-	}
-	if req.AutoCascadeWorkshop != nil {
-		v := *req.AutoCascadeWorkshop
-		patch.AutoCascadeWorkshop = &v
-	}
+}
+
+// agentPatchFromProto copies the agent-behavior request fields.
+func agentPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.AgentMaxTurns != nil {
 		v := int(*req.AgentMaxTurns)
 		patch.AgentMaxTurns = &v
@@ -111,10 +235,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := int(*req.AgentTimeoutSeconds)
 		patch.AgentTimeoutSeconds = &v
 	}
-	if req.AgentRequiresApproval != nil {
-		v := *req.AgentRequiresApproval
-		patch.AgentRequiresApproval = &v
-	}
+}
+
+// uiPatchFromProto copies the UI-preference request fields.
+func uiPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.SearchDebounceMs != nil {
 		v := int(*req.SearchDebounceMs)
 		patch.SearchDebounceMs = &v
@@ -123,16 +247,13 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := int(*req.ToastDurationMs)
 		patch.ToastDurationMs = &v
 	}
-	if req.DeleteConfirmation != nil {
-		dc := &DeleteConfirmationSettingsPatch{}
-		b := deleteConfirmLevelFromProto(req.DeleteConfirmation.Backlog)
-		dc.Backlog = &b
-		i := deleteConfirmLevelFromProto(req.DeleteConfirmation.Initiative)
-		dc.Initiative = &i
-		c := deleteConfirmLevelFromProto(req.DeleteConfirmation.Capture)
-		dc.Capture = &c
-		patch.DeleteConfirmation = dc
+	if req.DeleteConfirmationLevels != nil {
+		patch.DeleteConfirmationLevels = deleteConfirmationLevelsFromProto(req.DeleteConfirmationLevels)
 	}
+}
+
+// reviewPatchFromProto copies the review-threshold request fields.
+func reviewPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.ReviewCodeQualityMinScore != nil {
 		v := *req.ReviewCodeQualityMinScore
 		patch.ReviewCodeQualityMinScore = &v
@@ -157,9 +278,13 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewRequireTests
 		patch.ReviewRequireTests = &v
 	}
-	if req.MaxConcurrentExecutions != nil {
-		v := int(*req.MaxConcurrentExecutions)
-		patch.MaxConcurrentExecutions = &v
+}
+
+// governancePatchFromProto copies the concurrency/governance and
+// fix-before-feature request fields.
+func governancePatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
+	if req.LaneConcurrencyLimits != nil {
+		patch.LaneConcurrencyLimits = laneLimitsFromProto(req.LaneConcurrencyLimits)
 	}
 	if req.MaxQueueDepth != nil {
 		v := int(*req.MaxQueueDepth)
@@ -181,6 +306,55 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.CostPerTurnEstimate
 		patch.CostPerTurnEstimate = &v
 	}
+	if req.FixBeforeFeature != nil {
+		v := *req.FixBeforeFeature
+		patch.FixBeforeFeature = &v
+	}
+	if req.AutoFiler != nil {
+		patch.AutoFiler = autoFilerPatchFromProto(req.AutoFiler)
+	}
+	if req.AutonomyGateModes != nil {
+		patch.AutonomyGateModes = req.AutonomyGateModes
+	}
+}
+
+func autoFilerPatchFromProto(req *apipb.AutoFilerSettingsPatch) *AutoFilerSettingsPatch {
+	if req == nil {
+		return nil
+	}
+	patch := &AutoFilerSettingsPatch{}
+	if req.Enabled != nil {
+		v := *req.Enabled
+		patch.Enabled = &v
+	}
+	if req.Mode != nil {
+		v := *req.Mode
+		patch.Mode = &v
+	}
+	if req.Strategy != nil {
+		v := *req.Strategy
+		patch.Strategy = &v
+	}
+	if req.MaxOpenAutoFiled != nil {
+		v := int(*req.MaxOpenAutoFiled)
+		patch.MaxOpenAutoFiled = &v
+	}
+	if req.VelocityWindowDays != nil {
+		v := int(*req.VelocityWindowDays)
+		patch.VelocityWindowDays = &v
+	}
+	if req.MinVelocityTransitions != nil {
+		v := int(*req.MinVelocityTransitions)
+		patch.MinVelocityTransitions = &v
+	}
+	if req.IntervalMinutes != nil {
+		v := int(*req.IntervalMinutes)
+		patch.IntervalMinutes = &v
+	}
+	if req.GoalName != nil {
+		v := *req.GoalName
+		patch.GoalName = &v
+	}
 	return patch
 }
 
@@ -189,30 +363,54 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		return true
 	}
 	return req.Theme == nil &&
-		req.DefaultMode == nil &&
+		isEmptyExecutionRequest(req) &&
+		isEmptyAgentRequest(req) &&
+		isEmptyUIRequest(req) &&
+		isEmptyReviewRequest(req) &&
+		isEmptyGovernanceRequest(req)
+}
+
+// isEmptyExecutionRequest reports whether no execution-default field is set.
+func isEmptyExecutionRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.DefaultMode == nil &&
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
-		req.ReviewAgentEnabled == nil &&
-		req.MaxAutoRounds == nil &&
-		req.AutoInitializeWorkshop == nil &&
-		req.AutoAdvanceWorkshop == nil &&
-		req.AutoCascadeWorkshop == nil &&
-		req.AgentMaxTurns == nil &&
-		req.AgentTimeoutSeconds == nil &&
-		req.AgentRequiresApproval == nil &&
-		req.SearchDebounceMs == nil &&
+		req.ReviewAgentEnabled == nil
+}
+
+// isEmptyAgentRequest reports whether no agent-behavior field is set.
+func isEmptyAgentRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.AgentMaxTurns == nil &&
+		req.AgentTimeoutSeconds == nil
+}
+
+// isEmptyUIRequest reports whether no UI-preference field is set.
+func isEmptyUIRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
-		req.DeleteConfirmation == nil &&
-		req.ReviewCodeQualityMinScore == nil &&
+		req.DeleteConfirmationLevels == nil
+}
+
+// isEmptyReviewRequest reports whether no review-threshold field is set.
+func isEmptyReviewRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.ReviewCodeQualityMinScore == nil &&
 		req.ReviewTestMinPassRate == nil &&
 		req.ReviewMaxBlockingViolations == nil &&
 		req.ReviewMaxWarnings == nil &&
 		req.ReviewRequireScreenshots == nil &&
-		req.ReviewRequireTests == nil &&
-		req.MaxConcurrentExecutions == nil &&
+		req.ReviewRequireTests == nil
+}
+
+// isEmptyGovernanceRequest reports whether no concurrency/governance or
+// fix-before-feature field is set.
+func isEmptyGovernanceRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.LaneConcurrencyLimits == nil &&
 		req.MaxQueueDepth == nil &&
 		req.CircuitBreakerThreshold == nil &&
 		req.CircuitBreakerCooldownMinutes == nil &&
 		req.ExecutionCostCapPerRun == nil &&
-		req.CostPerTurnEstimate == nil
+		req.CostPerTurnEstimate == nil &&
+		req.FixBeforeFeature == nil &&
+		req.AutoFiler == nil &&
+		req.AutonomyGateModes == nil
 }

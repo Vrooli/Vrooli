@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/capabilities;capabilities_v1";
+
+// DescribeResponse is the typed JSON shape returned by the operational
+// capabilities probe. The probe is intentionally a REST exception because it
+// is consumed by lifecycle tooling, but its payload remains protojson-shaped.
+message DescribeResponse {
+  repeated Definition definitions = 1;
+  repeated State states = 2;
+}
+
+message Definition {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string dependency_kind = 4;
+  string dependency_slug = 5;
+  repeated string features = 6;
+  PlatformVerdict platform = 7;
+  string action_kind = 8;
+  string action_label = 9;
+  string operator_command = 10;
+}
+
+message State {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string dependency_kind = 4;
+  string dependency_slug = 5;
+  repeated string features = 6;
+  PlatformVerdict platform = 7;
+  string action_kind = 8;
+  string action_label = 9;
+  string operator_command = 10;
+  string status = 11;
+  string message = 12;
+  string reason_code = 13;
+  string checked_at = 14;
+}
+
+message PlatformVerdict {
+  string support = 1;
+  string reason = 2;
+}

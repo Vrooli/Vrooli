@@ -1,0 +1,559 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "applicability": {
+    "any": [
+      {
+        "pathGlob": "library/components/*/component.json"
+      },
+      {
+        "pathGlob": "library/hooks/*/component.json"
+      },
+      {
+        "pathGlob": "library/services/*/component.json"
+      },
+      {
+        "pathGlob": "library/primitives/*/component.json"
+      },
+      {
+        "pathGlob": "library/foundations/*/component.json"
+      }
+    ],
+    "default": "not_applicable"
+  },
+  "concurrency": {
+    "mode": "parallel-safe"
+  },
+  "description": "Runs version-pinned React component and hook contracts through the React Component Library provider.",
+  "determinism": {
+    "capabilities": {
+      "accessibility": {
+        "inputs": [
+          "catalog/config.json",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "affinity-compatible": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "api": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "bas-genericity": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "composition": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "composition-contract": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "conformance": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "console-clean": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "consumer-pin": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "declaration-coverage": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "dependency-rank": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "deprecated-import": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "dist-resolution": {
+        "inputs": [
+          "package.json",
+          "dist/**"
+        ],
+        "mode": "file-determined"
+      },
+      "documentation": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "evidence-freshness": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "examples": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "fallback-parity": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "field-ownership": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "fixture-adversarial": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "foreign-token-classes": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "graph-reconciled": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "harness-manifest": {
+        "inputs": [
+          "harnesses/manifest.json",
+          "harnesses/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "i18n": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "interaction": {
+        "inputs": [
+          "catalog/config.json",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "kit-compatibility": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "lifecycle": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "manifest-identity": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "manifest-metadata": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "overlay-surface-composition": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "performance": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "provenance-stamp": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "reduced-motion": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "release-provenance": {
+        "inputs": [
+          "library/release-provenance.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "released-version-immutable": {
+        "inputs": [
+          "library/released-version-hashes.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "responsive": {
+        "inputs": [
+          "catalog/config.json",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "restyle-contract": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "rtl": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "scenario-token-requirements": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "selector-coverage": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "self-hosting": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "shared-style-ownership": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "specifier-shape": {
+        "inputs": [
+          "library/**",
+          "catalog/config.json"
+        ],
+        "mode": "file-determined"
+      },
+      "story-distinctness": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "story-grammar": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "style-injection": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "style-ownership": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "surface-discipline": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "token-ramp-complete": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "token-vocabulary": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "tokens": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "types": {
+        "inputs": [
+          "package.json",
+          "pnpm-lock.yaml",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "unit": {
+        "inputs": [
+          "catalog/config.json",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      },
+      "utility-class": {
+        "inputs": [
+          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "version-liveness": {
+        "inputs": [
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "version-mirror-integrity": {
+        "inputs": [
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "version-shape": {
+        "inputs": [
+          "catalog/version-shape.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "visual": {
+        "inputs": [
+          "catalog/config.json",
+          "ui/src/**"
+        ],
+        "mode": "file-determined"
+      }
+    },
+    "default": "observational",
+    "reason": "Generated from the catalog gate registry; edit gate definitions rather than this block."
+  },
+  "dimensions": [
+    "tests"
+  ],
+  "displayName": "Component Tests",
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/component-tests/README.md"
+  },
+  "findingSource": "coverage",
+  "maturity": {
+    "capabilities": [
+      {
+        "description": "Version-pinned declarative component and hook behavior contracts.",
+        "id": "component_contracts",
+        "label": "Component Contracts",
+        "levels": [
+          {
+            "capability_summary": "No validated component contract evidence.",
+            "description": "Contracts cannot be evaluated.",
+            "id": "L0",
+            "name": "Unavailable",
+            "next_unlock": "A valid versioned contract.",
+            "status_label": "Unavailable"
+          },
+          {
+            "capability_summary": "Component contract evidence is available.",
+            "description": "Contracts and declared traces are valid.",
+            "id": "L1",
+            "name": "Validated",
+            "next_unlock": "No unresolved contract-test findings.",
+            "status_label": "Ready"
+          }
+        ]
+      }
+    ],
+    "fallback": {
+      "capability_id": "component_contracts",
+      "clean_requirement": "required",
+      "dimension": "tests",
+      "global_impact": "foundation_blocker",
+      "local_level_impact": "L0",
+      "severity_default": "SEVERITY_ERROR"
+    },
+    "findings": {
+      "CATALOG_VALIDATION_FAILED": {
+        "capability_id": "component_contracts",
+        "clean_requirement": "required",
+        "dimension": "tests",
+        "fix_class": "manual",
+        "global_impact": "foundation_blocker",
+        "local_level_impact": "L0",
+        "reason": "The desired-state catalog or its cross-registry references are invalid.",
+        "severity_default": "SEVERITY_ERROR"
+      },
+      "COMPONENT_TEST_FAILED": {
+        "capability_id": "component_contracts",
+        "clean_requirement": "required",
+        "dimension": "tests",
+        "fix_class": "manual",
+        "global_impact": "foundation_blocker",
+        "local_level_impact": "L0",
+        "reason": "Component behavior needs an authored contract or implementation correction.",
+        "severity_default": "SEVERITY_ERROR"
+      }
+    },
+    "levels": [
+      {
+        "description": "Catalog contracts cannot be evaluated.",
+        "entry_criteria": [
+          "A catalog asset exists."
+        ],
+        "exit_criteria": [
+          "Every selected version has a safe contract."
+        ],
+        "id": "L0",
+        "name": "Contracts unavailable"
+      },
+      {
+        "description": "Versioned component and hook contracts are parsed and checked against declared examples.",
+        "entry_criteria": [
+          "Contracts parse."
+        ],
+        "exit_criteria": [
+          "No contract failures remain."
+        ],
+        "id": "L1",
+        "name": "Contracts validated"
+      }
+    ],
+    "version": "2.0.0"
+  },
+  "orderHint": 21,
+  "phase": "component-tests",
+  "phaseClass": "capability",
+  "policy": {
+    "freshness": "require_live_contract",
+    "providerLifecycle": "start_if_needed",
+    "providerReadiness": "required_when_applicable",
+    "resultGating": "gating",
+    "selection": "default_when_applicable",
+    "unavailable": "fail"
+  },
+  "runnability": {
+    "needsAPI": true
+  },
+  "runtimeClass": "execution",
+  "scenario": "react-component-library",
+  "schemaVersion": "1.0.0",
+  "source": "validation-provider",
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a React consumer workspace with components and hooks; the control plane is a Go CLI and has no React product surface."
+      }
+    ],
+    "selection": "enumerate"
+  },
+  "timeout": "1200s",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "execution": true
+  }
+}

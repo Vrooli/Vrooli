@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package vrooli.token_economy.v1.mints;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/token-economy/v1/mints;mintsv1";
+
+// =============================================================================
+// MINTS
+// =============================================================================
+//
+// @stability experimental
+//
+// Owns token-type declarations, mint authority, and lifetime issued supply.
+// Holder balances are deliberately owned by the journal domain instead.
+//
+// =============================================================================
+
+import "google/protobuf/timestamp.proto";
+
+enum SupplyPolicy {
+  SUPPLY_POLICY_UNSPECIFIED = 0;
+  SUPPLY_POLICY_UNBOUNDED = 1;
+  SUPPLY_POLICY_CAPPED = 2;
+  SUPPLY_POLICY_FIXED = 3;
+}
+
+message MinterAuthority {
+  string token_type_id = 1;
+  string subject = 2;
+}
+
+message TokenType {
+  string id = 1;
+  string name = 2;
+  string symbol = 3;
+  string color = 4;
+  SupplyPolicy supply_policy = 5;
+  int64 cap_amount = 6;
+  int64 minted_amount = 7;
+  MinterAuthority authority = 8;
+  bool retired = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp retired_at = 11;
+}
+
+message CreateTokenTypeRequest {
+  string name = 1;
+  string symbol = 2;
+  string color = 3;
+  SupplyPolicy supply_policy = 4;
+  int64 cap_amount = 5;
+  string minter_subject = 6;
+}
+
+message CreateTokenTypeResponse {
+  TokenType token_type = 1;
+}
+
+message GetTokenTypeRequest {
+  string id = 1;
+}
+
+message GetTokenTypeResponse {
+  TokenType token_type = 1;
+}
+
+message ListTokenTypesRequest {
+  bool include_retired = 1;
+}
+
+message ListTokenTypesResponse {
+  repeated TokenType token_types = 1;
+}
+
+message RetireTokenTypeRequest {
+  string id = 1;
+}
+
+message RetireTokenTypeResponse {
+  TokenType token_type = 1;
+}
+
+message MintSupplyRequest {
+  string token_type_id = 1;
+  int64 amount = 2;
+}
+
+message MintSupplyResponse {
+  TokenType token_type = 1;
+}

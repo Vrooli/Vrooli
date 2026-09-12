@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.attachment-preview",
+    "name": "AttachmentPreview",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "media",
+    "description": "The message- or form-oriented attachment with upload progress, retry, cancellation, scanning state, preview, removal, and accessible status for each file independently.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "media.file-preview",
+        "reason": "Type, metadata, and placeholder treatment are shared."
+      },
+      {
+        "asset": "primitives.progress",
+        "reason": "Per-file progress uses the shared primitive."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "upload-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "partial",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

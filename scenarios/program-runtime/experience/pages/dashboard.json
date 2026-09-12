@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id":"dashboard","title":"Dashboard","routes":["/"],"purpose":"Show runtime health and the governed program-runtime foundation."},
+  "priorities": [],
+  "states": [
+    {"id":"default","description":"The dashboard renders its health and runtime summary."},
+    {"id":"loading","description":"Health data is loading."},
+    {"id":"request-error","description":"Health data failed and the reason is visible."},
+    {"id":"empty","description":"No runtime measurements are available yet."},
+    {"id":"partial","description":"Some runtime measurements are available while others are pending."},
+    {"id":"stale","description":"The dashboard identifies measurements that are no longer fresh."}
+  ],
+  "elements": [
+    {"id":"dashboard-region","role":"region","name":"Program Runtime dashboard"}
+  ],
+  "claims": [
+    {"id":"dashboard-region-present","type":"element-present","statement":"The dashboard exposes a named runtime region.","tier":"machine","elements":["dashboard-region"],"states":["default","loading","request-error"]}
+  ],
+  "bindings": {"elements":{"dashboard-region":{"testid":"page-dashboard"}}}
+}

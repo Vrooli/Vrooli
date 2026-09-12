@@ -1,0 +1,5 @@
+{"Names":"vrooli-x402-facilitator","Image":"ghcr.io/x402-rs/x402-facilitator","Command":"x402-facilitator","State":"exited","Status":"Exited (0)"}
+{"Names":"kyutai-stt","Image":"vrooli-kyutai-stt-kyutai-stt","Command":"python -m uvicorn","State":"exited","Status":"Exited (0)"}
+{"Names":"vrooli-unstructured-io","Image":"downloads.unstructured.io/unstructured-io/unstructured-api","Command":"scripts/app-start.sh","State":"exited","Status":"Exited (137)"}
+{"Names":"postgis-main","Image":"vrooli/postgis-routing:16-3.4","Command":"docker-entrypoint.sh","State":"running","Status":"Up 2 days (healthy)"}
+{"Names":"airbyte-abctl-control-plane","Image":"kindest/node:v1.32.2","Command":"/usr/local/bin/entrypoint","State":"running","Status":"Up 2 days"}

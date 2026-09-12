@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.audit-trail",
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0"
+  ],
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:AuditTrail"
+}

@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@shared/ui';
 import { selectors } from '@constants/selectors';
-import { useExecutionStore } from '@/domains/executions';
+import { useExecutionStore } from '@/domains/executions/store';
 import { logger } from '@utils/logger';
 import { fetchWorkflowProjectId } from '@/domains/workflows/services/workflowApi';
 import toast from 'react-hot-toast';
@@ -50,7 +50,7 @@ export default function AllExecutionsView() {
     <div data-testid={selectors.app.shell.ready}>
       <Suspense
         fallback={
-          <div className="h-screen flex items-center justify-center bg-flow-bg">
+          <div className="h-full flex items-center justify-center bg-flow-bg">
             <LoadingSpinner variant="default" size={24} message="Loading executions..." />
           </div>
         }

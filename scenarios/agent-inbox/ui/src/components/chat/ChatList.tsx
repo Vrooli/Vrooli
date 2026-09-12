@@ -125,7 +125,7 @@ export const ChatList = forwardRef<HTMLInputElement, ChatListProps>(function Cha
                 key={chat.id}
                 ref={(el) => { if (el) itemRefs.current.set(index, el); else itemRefs.current.delete(index); }}
                 chat={chat}
-                labels={(chat.label_ids || []).map(getLabelById).filter(Boolean) as Label[]}
+                labels={chat.label_ids.map(getLabelById).filter(Boolean) as Label[]}
                 isSelected={selectedChatId === chat.id}
                 isFocused={focusedIndex === index}
                 onClick={() => onSelectChat(chat.id, searchResult?.message_id)}

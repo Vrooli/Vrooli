@@ -1,0 +1,14 @@
+id: no-channel-branch
+language: Go
+severity: error
+message: channel identifiers must be handled by descriptor data or adapter packages
+rule:
+  any:
+    - pattern: $X == "telegram"
+    - pattern: $X == "slack"
+    - pattern: $X == "imessage"
+    - pattern: $X == "in-app"
+    - pattern: $X != "telegram"
+    - pattern: $X != "slack"
+    - pattern: $X != "imessage"
+    - pattern: $X != "in-app"

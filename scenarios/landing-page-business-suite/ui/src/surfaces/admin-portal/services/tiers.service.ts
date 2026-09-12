@@ -70,7 +70,7 @@ export function calculateDoubledLimits(
  */
 export async function fetchAllTierLimits(): Promise<Record<string, TierLimit[]>> {
   const response = await apiGetAllTierLimits();
-  return response.limits || {};
+  return response.limits;
 }
 
 /**

@@ -15,6 +15,9 @@ type Service struct {
 	Semantic      SemanticSearcher
 }
 
+// RepoRoot is the configured repository root used for portable source identities.
+func (s *Service) RepoRoot() string { return s.repoRoot }
+
 type docFile struct {
 	Path     string
 	Scenario string

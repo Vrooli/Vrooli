@@ -25,12 +25,10 @@ describe("useCompletion - cancellation", () => {
   });
 
   describe("request cancellation", () => {
-    it("cancels in-flight request on cancelCompletion", async () => {
+    it("cancels in-flight request on cancelCompletion", () => {
       vi.useRealTimers();
 
-      let _abortSignal: AbortSignal | undefined;
       vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
-        _abortSignal = options?.signal;
         await new Promise((_, reject) => {
           options?.signal?.addEventListener("abort", () => {
             reject(new DOMException("Aborted", "AbortError"));
@@ -41,7 +39,7 @@ describe("useCompletion - cancellation", () => {
       const { result } = renderHook(() => useCompletion());
 
       act(() => {
-        result.current.runCompletion("chat-123");
+        void result.current.runCompletion("chat-123");
       });
 
       act(() => {
@@ -78,7 +76,7 @@ describe("useCompletion - cancellation", () => {
       expect(callCount).toBe(2);
     });
 
-    it("prevents overlapping completions", async () => {
+    it("prevents overlapping completions", () => {
       vi.useRealTimers();
 
       let callCount = 0;
@@ -96,11 +94,11 @@ describe("useCompletion - cancellation", () => {
       const { result } = renderHook(() => useCompletion());
 
       act(() => {
-        result.current.runCompletion("chat-1");
+        void result.current.runCompletion("chat-1");
       });
 
       act(() => {
-        result.current.runCompletion("chat-2");
+        void result.current.runCompletion("chat-2");
       });
 
       expect(callCount).toBe(1);
@@ -110,7 +108,7 @@ describe("useCompletion - cancellation", () => {
   });
 
   describe("request ID guard", () => {
-    it("ignores stale events from cancelled requests", async () => {
+    it("ignores stale events from cancelled requests", () => {
       vi.useRealTimers();
 
       let firstEventHandler: ((event: api.StreamingEvent) => void) | undefined;
@@ -120,7 +118,7 @@ describe("useCompletion - cancellation", () => {
         callCount++;
         if (callCount === 1) {
           firstEventHandler = options?.onEvent;
-          await new Promise(() => {});
+          await new Promise(() => { /* never resolve */ });
         } else {
           // Second request completes immediately
         }
@@ -129,7 +127,7 @@ describe("useCompletion - cancellation", () => {
       const { result } = renderHook(() => useCompletion());
 
       act(() => {
-        result.current.runCompletion("chat-1");
+        void result.current.runCompletion("chat-1");
       });
 
       act(() => {

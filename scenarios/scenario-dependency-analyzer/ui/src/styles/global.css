@@ -9,16 +9,18 @@
   --card-foreground: 210 20% 96%;
   --popover: 222 47% 8%;
   --popover-foreground: 210 20% 96%;
-  --primary: 162 100% 36%;
+  --primary: 162 100% 24%;
   --primary-foreground: 210 100% 98%;
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 20% 96%;
   --muted: 215 25% 20%;
-  --muted-foreground: 215 20% 65%;
+  --muted-foreground: 215 20% 78%;
   --accent: 162 100% 36%;
   --accent-foreground: 210 100% 98%;
   --destructive: 0 62% 50%;
   --destructive-foreground: 210 20% 96%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 48 96% 89%;
   --border: 215 20% 22%;
   --input: 215 20% 22%;
   --ring: 162 100% 36%;
@@ -26,10 +28,8 @@
 }
 
 body {
-  background: radial-gradient(circle at 20% 20%, rgba(16, 45, 59, 0.6), transparent 55%),
-    radial-gradient(circle at 80% 0%, rgba(39, 87, 57, 0.35), transparent 45%),
-    linear-gradient(135deg, hsl(222, 45%, 6%) 0%, hsl(222, 47%, 12%) 100%);
-  min-height: 100vh;
+  background: #0f172a;
+  min-height: 100%;
   font-feature-settings: "salt" on, "liga" on;
 }
 

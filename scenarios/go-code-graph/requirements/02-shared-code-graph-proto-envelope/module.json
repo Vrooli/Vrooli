@@ -1,0 +1,89 @@
+{
+  "description": "Define `packages/proto/schemas/common/v1/code_graph.proto` with a language-agnostic Graph envelope plus extensible `NodeKind` / `EdgeKind` enums, and reference it from both `go-code-graph` and (later) `typescript-code-graph`; never duplicate the envelope.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Define a single canonical proto schema at packages/proto/schemas/common/v1/code_graph.proto containing a language-agnostic Graph envelope with extensible NodeKind and EdgeKind enums. This schema must be referenced by both go-code-graph and typescript-code-graph (and future language scenarios). The proto envelope must never be duplicated: all consumers import from this single source of truth. NodeKind must cover at minimum: PACKAGE, FILE, FUNCTION, METHOD, TYPE, INTERFACE, VAR, CONST. EdgeKind must cover at minimum: IMPORT, CALLS, REFERENCES, CONTAINS, IMPLEMENTS.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Shared Language-Agnostic Code-Graph Proto Envelope",
+      "validation": [
+        {
+          "notes": "Proto compilation test: code_graph.proto compiles without errors using protoc",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that NodeKind enum contains all required kinds (PACKAGE, FILE, FUNCTION, METHOD, TYPE, INTERFACE, VAR, CONST) and is extensible via reserved ranges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that EdgeKind enum contains all required kinds (IMPORT, CALLS, REFERENCES, CONTAINS, IMPLEMENTS) and is extensible via reserved ranges",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that Graph message fields include nodes, edges, warnings, and graph_hash at minimum",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify no duplicate proto definitions exist across go-code-graph and typescript-code-graph by scanning the repository",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "go-code-graph Extract response deserializes correctly using the shared proto envelope",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Proto schema import path packages/proto/schemas/common/v1/code_graph.proto resolves correctly in both go-code-graph and typescript-code-graph build graphs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Adding a new NodeKind variant to the shared proto does not break existing consumers (forward-compatibility test)",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Architecture review confirms single proto file location with no duplication across language scenario packages",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "typescript-code-graph references the same code_graph.proto without copying or redefining the Graph envelope",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Shared Code-Graph Proto Envelope"
+}

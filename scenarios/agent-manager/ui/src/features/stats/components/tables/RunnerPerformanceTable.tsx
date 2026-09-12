@@ -6,15 +6,19 @@ import {
   formatPercent,
   formatDuration,
   formatNumber,
+  formatTokens,
 } from "../../utils/formatters";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { formatUsdFixed } from "../../../../lib/currency";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
-type SortField = "runnerType" | "runCount" | "successRate" | "totalCostUsd" | "avgDurationMs";
+type SortField = "runnerType" | "runCount" | "successRate" | "totalCostUsd" | "totalTokens" | "avgDurationMs";
 type SortDirection = "asc" | "desc";
 
 export function RunnerPerformanceTable() {
   const { data, isLoading, error } = useRunnerPerformance();
+  const definitions = useMeasureDefinitions();
   const [sortField, setSortField] = useState<SortField>("runCount");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -38,28 +42,6 @@ export function RunnerPerformanceTable() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 animate-pulse rounded bg-muted/20" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Runner Performance</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
   const runners = data?.runners ?? [];
 
   // Sort data
@@ -77,8 +59,8 @@ export function RunnerPerformanceTable() {
         bVal = b.runCount > 0 ? b.successCount / b.runCount : 0;
         break;
       default:
-        aVal = a[sortField];
-        bVal = b[sortField];
+        aVal = a[sortField] ?? 0;
+        bVal = b[sortField] ?? 0;
     }
 
     if (typeof aVal === "string" && typeof bVal === "string") {
@@ -92,6 +74,7 @@ export function RunnerPerformanceTable() {
   });
 
   return (
+    <MeasureFrame label="Runner performance" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.runner_breakdown")} loading={isLoading} error={error?.message}>
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 overflow-hidden">
       <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Runner Performance
@@ -109,6 +92,11 @@ export function RunnerPerformanceTable() {
                     className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
                     Runner {getSortIcon("runnerType")}
+                  </button>
+                </th>
+                <th className="pb-2 pr-4">
+                  <button onClick={() => handleSort("totalTokens")} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                    Tokens {getSortIcon("totalTokens")}
                   </button>
                 </th>
                 <th className="pb-2 pr-4">
@@ -174,6 +162,7 @@ export function RunnerPerformanceTable() {
                     <td className="py-2 pr-4 tabular-nums">
                       {formatUsdFixed(runner.totalCostUsd, 2)}
                     </td>
+                    <td className="py-2 pr-4 tabular-nums">{formatTokens(runner.totalTokens ?? 0)}</td>
                     <td className="py-2 tabular-nums">
                       {formatDuration(runner.avgDurationMs)}
                     </td>
@@ -185,5 +174,6 @@ export function RunnerPerformanceTable() {
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

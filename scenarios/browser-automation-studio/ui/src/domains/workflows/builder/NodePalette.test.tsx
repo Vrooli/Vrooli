@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@/test-utils';
 import NodePalette from './NodePalette';
 import { ALL_NODE_TYPES } from '@constants/nodeCategories';
 

@@ -191,10 +191,24 @@ export class AssertionHandler extends BaseHandler {
   private async assertExists(
     page: Page,
     selector: string,
-    _timeout: number
+    timeout: number
   ): Promise<AssertionOutcome> {
-    const element = await page.$(selector);
-    const exists = !!element;
+    // Wait for the element rather than sampling once. page.$() answers "is it
+    // there right now", which makes every exists assertion a race against
+    // whatever the previous step set in motion — a click that renders a view, a
+    // navigation that hydrates. Workflows already declare timeout_ms for this
+    // and it was previously ignored, so the declared intent never took effect.
+    //
+    // Mirrors assertNotExists, which has always waited via the locator API.
+    let exists = true;
+    try {
+      await page.locator(selector).first().waitFor({ state: 'attached', timeout });
+    } catch {
+      // waitFor throws on timeout, and on an unparseable selector. Both mean
+      // the assertion could not be satisfied; the selector case is reported by
+      // element-context capture separately.
+      exists = false;
+    }
 
     return {
       mode: 'exists',

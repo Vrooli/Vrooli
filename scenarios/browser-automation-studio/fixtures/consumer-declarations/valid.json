@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "browser-automation-studio.consumer-declaration/v1",
+  "profiles": [
+    {
+      "key": "operator-browser",
+      "workflowRef": "bas/workflows/example.json",
+      "allowedVariables": ["TARGET_URL"],
+      "preferences": { "locale": "en-US", "headless": false }
+    }
+  ]
+}

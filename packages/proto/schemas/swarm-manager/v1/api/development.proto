@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.api;
+
+import "google/protobuf/timestamp.proto";
+import "swarm-manager/v1/api/transition.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// DevelopmentService owns reviewed mandates and their retained accounting.
+// Approval and acceptance are operator decisions. None of these RPCs launches
+// work; dispatch belongs exclusively to the transition registry and runner.
+service DevelopmentService {
+  rpc GetDevelopment(GetDevelopmentRequest) returns (DevelopmentResponse);
+  rpc ApproveDevelopment(ApproveDevelopmentRequest) returns (DevelopmentResponse);
+  rpc RevokeDevelopment(RevokeDevelopmentRequest) returns (DevelopmentResponse);
+  rpc AcceptDevelopment(AcceptDevelopmentRequest) returns (DevelopmentResponse);
+  rpc GetDevelopmentArtifact(GetDevelopmentArtifactRequest) returns (GetDevelopmentArtifactResponse);
+}
+
+message GetDevelopmentRequest { string work_item = 1; }
+message ApproveDevelopmentRequest {
+  PreviewDevelopmentRequest proposal = 1;
+  string reviewed_digest = 2;
+  int64 expected_version = 3;
+  string reason = 4;
+}
+message RevokeDevelopmentRequest {
+  string work_item = 1;
+  int64 expected_version = 2;
+  string reason = 3;
+}
+message AcceptDevelopmentRequest {
+  string work_item = 1;
+  int64 expected_version = 2;
+  // Outcome ID to receipt ID. Verdicts are resolved through the evidence owner.
+  map<string, string> evidence_refs = 3;
+}
+message DevelopmentUsage {
+  int64 tokens = 1;
+  int64 wall_seconds = 2;
+}
+message DevelopmentApproval {
+  string digest = 1;
+  string actor = 2;
+  string reason = 3;
+  google.protobuf.Timestamp at = 4;
+}
+message DevelopmentAttempt {
+  string key = 1;
+  string digest = 2;
+  string mode = 3;
+  DevelopmentUsage reserved = 4;
+  DevelopmentUsage used = 5;
+  string execution_id = 6;
+  google.protobuf.Timestamp started_at = 7;
+  google.protobuf.Timestamp settled_at = 8;
+  string checkpoint = 9;
+  // Agent Manager workflow revision selected for this attempt. This is
+  // intentionally distinct from the reviewed development digest in digest.
+  string workflow_digest = 10;
+	// Exact neutral grant identity sent to the owner.
+	string grant_digest = 11;
+	// Owner capability revision used to select this execution lane.
+	string capability_revision = 12;
+	// Human-readable owner capability selection rationale.
+	string selection_reason = 13;
+}
+message DevelopmentEvidence {
+  string outcome_id = 1;
+  string source = 2;
+  string receipt_id = 3;
+  string digest = 4;
+  string execution_id = 5;
+  string subject_revision = 6;
+  google.protobuf.Timestamp observed_at = 7;
+  string resolver_id = 8;
+  string receipt_schema = 9;
+  string cohort = 10;
+  google.protobuf.Timestamp fresh_until = 11;
+}
+message DevelopmentCheckpointReference {
+  string kind = 1;
+  string value = 2;
+  string digest = 3;
+}
+message DevelopmentCampaignCheckpoint {
+  string digest = 1;
+  string approval_digest = 2;
+  string attempt_key = 3;
+  string owner_execution_id = 4;
+  bool pending = 5;
+  repeated string required_outcome_ids = 6;
+  repeated string completed_outcome_ids = 7;
+  repeated string remaining_outcome_ids = 8;
+  string last_outcome = 9;
+  DevelopmentCheckpointReference last_checkpoint = 10;
+  int32 no_progress_cycles = 11;
+}
+message DevelopmentCancellationIntent {
+  string operation_id = 1;
+  string reason = 2;
+  string state = 3;
+  google.protobuf.Timestamp requested_at = 4;
+  google.protobuf.Timestamp ack_at = 5;
+}
+message DevelopmentResponse {
+  string work_item = 1;
+  string work_shape = 2;
+  int64 version = 3;
+  string digest = 4;
+  string status = 5;
+  repeated DevelopmentApproval approvals = 6;
+  repeated DevelopmentAttempt attempts = 7;
+  DevelopmentUsage used = 8;
+  DevelopmentUsage reserved = 9;
+  string checkpoint = 10;
+  repeated DevelopmentEvidence evidence = 11;
+  string accepted_by = 12;
+  google.protobuf.Timestamp accepted_at = 13;
+  string stop_reason = 14;
+  PreviewDevelopmentRequest approved_proposal = 15;
+  repeated DevelopmentArtifact artifacts = 16;
+  string goal_message = 17;
+  // Approval is not dispatch readiness. These blockers remain fail-closed until
+  // an owner-backed runtime and outcome resolvers are qualified.
+  repeated string launch_blockers = 18;
+  DevelopmentCampaignCheckpoint campaign = 19;
+  DevelopmentCancellationIntent cancellation = 20;
+}
+message GetDevelopmentArtifactRequest {
+  string work_item = 1;
+  string digest = 2;
+  string path = 3;
+}
+message GetDevelopmentArtifactResponse {
+  DevelopmentArtifact artifact = 1;
+  bytes content = 2;
+}

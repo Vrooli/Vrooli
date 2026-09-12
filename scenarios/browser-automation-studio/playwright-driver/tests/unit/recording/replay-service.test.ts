@@ -93,7 +93,7 @@ describe('ReplayPreviewService', () => {
     const service = new ReplayPreviewService(page);
     const entries = [createEntry('entry-1', 1)];
 
-    let resolveFirst: (value: { success: boolean; durationMs: number }) => void;
+    let resolveFirst: ((value: { success: boolean; durationMs: number }) => void) = () => {};
     const firstResult = new Promise<{ success: boolean; durationMs: number }>((resolve) => {
       resolveFirst = resolve;
     });
@@ -106,7 +106,7 @@ describe('ReplayPreviewService', () => {
     await Promise.resolve();
     expect(mockExecuteTimelineEntry).toHaveBeenCalledTimes(1);
 
-    resolveFirst!({ success: true, durationMs: 10 });
+    resolveFirst({ success: true, durationMs: 10 });
 
     const [resultA, resultB] = await Promise.all([promiseA, promiseB]);
 

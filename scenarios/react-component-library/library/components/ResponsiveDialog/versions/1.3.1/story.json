@@ -1,0 +1,136 @@
+{
+ "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+ "schemaVersion": 5,
+ "kind": "component",
+ "title": "ResponsiveDialog",
+ "args": {
+  "fields": []
+ },
+ "environment": {
+  "fixtures": []
+ },
+ "stories": [
+  {
+   "id": "sheet",
+   "name": "Sheet",
+   "role": "anatomy",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "Sheet"
+    }
+   },
+   "expect": [
+    {
+     "kind": "role",
+     "role": "dialog"
+    },
+    {
+     "kind": "visible",
+     "selector": "[data-testid='overlays.responsive-dialog']"
+    }
+   ]
+  },
+  {
+   "id": "large-card",
+   "name": "Large card",
+   "role": "boundary",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "LargeCard"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-rcl-responsive-dialog][data-size='lg']"
+    }
+   ]
+  },
+  {
+   "id": "flush-content",
+   "name": "Flush content with subheader",
+   "role": "boundary",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "FlushContentWithSubheader"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-testid='overlays.responsive-dialog.subheader']"
+    }
+   ]
+  },
+  {
+   "id": "with-footer",
+   "name": "With footer",
+   "role": "boundary",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "WithFooter"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-testid='overlays.responsive-dialog'] > footer"
+    }
+   ]
+  },
+  {
+   "id": "preserved-input",
+   "name": "Preserved input",
+   "role": "boundary",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "PreservedInput"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-testid='overlays.responsive-dialog'] input"
+    }
+   ]
+  },
+  {
+   "id": "comfortable-content",
+   "name": "Comfortable content padding",
+   "role": "boundary",
+   "mode": "live",
+   "args": {},
+   "composition": {
+    "specimen": {
+     "module": "./story.tsx",
+     "export": "ComfortableContent"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-rcl-responsive-dialog][data-content-padding='comfortable']"
+    }
+   ]
+  },
+  {"id":"empty","name":"Empty dialog","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"loading","name":"Loading dialog","args":{"state":"loading"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"error","name":"Dialog error","args":{"state":"error"},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"},
+  {"id":"overflow","name":"Long dialog content","args":{},"expect":[{"kind":"role","role":"dialog"},{"kind":"visible","selector":"[data-testid='overlays.responsive-dialog']"}],"role":"boundary","mode":"pinned"}
+ ]
+}

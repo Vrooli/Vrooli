@@ -1,0 +1,13 @@
+{
+  "path": "internal/safeguards/example/safeguard.json",
+  "name": "example",
+  "capability": "host-metrics",
+  "capability_role": "control",
+  "platform_status": {
+    "windows": {
+      "status": "not_implemented",
+      "since": "2026-08-26",
+      "evidence": "Windows performance counter collection is a defined portability gap and no provider is wired yet."
+    }
+  }
+}

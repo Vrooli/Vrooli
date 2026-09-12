@@ -28,15 +28,31 @@ vi.mock('./shared/ui/useToast', () => ({
 
 // Polyfill for jsdom missing pointer capture APIs (required for @radix-ui/react-select)
 if (typeof Element !== 'undefined') {
-  if (!Element.prototype.hasPointerCapture) {
-    Element.prototype.hasPointerCapture = function () {
-      return false;
-    };
+  // jsdom versions differ from the DOM lib typings; inspect as an unknown test
+  // environment boundary before installing only the missing Radix APIs.
+  const elementPrototype = Element.prototype as unknown as Record<string, unknown>;
+  if (typeof elementPrototype.hasPointerCapture !== 'function') {
+    Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+      value: () => false,
+      configurable: true,
+    });
   }
-  if (!Element.prototype.setPointerCapture) {
-    Element.prototype.setPointerCapture = function () {};
+  if (typeof elementPrototype.setPointerCapture !== 'function') {
+    Object.defineProperty(Element.prototype, 'setPointerCapture', {
+      value: () => undefined,
+      configurable: true,
+    });
   }
-  if (!Element.prototype.releasePointerCapture) {
-    Element.prototype.releasePointerCapture = function () {};
+  if (typeof elementPrototype.releasePointerCapture !== 'function') {
+    Object.defineProperty(Element.prototype, 'releasePointerCapture', {
+      value: () => undefined,
+      configurable: true,
+    });
+  }
+  if (typeof elementPrototype.scrollIntoView !== 'function') {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      value: () => undefined,
+      configurable: true,
+    });
   }
 }

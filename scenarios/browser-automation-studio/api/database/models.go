@@ -70,6 +70,7 @@ type ExecutionIndex struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
 	WorkflowID    uuid.UUID  `json:"workflow_id" db:"workflow_id"`
 	Status        string     `json:"status" db:"status"`
+	TriggerType   string     `json:"trigger_type,omitempty" db:"trigger_type"`
 	StartedAt     time.Time  `json:"started_at" db:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 	ErrorMessage  string     `json:"error_message,omitempty" db:"error_message"`
@@ -85,22 +86,26 @@ const (
 	ExecutionStatusRunning   = "running"
 	ExecutionStatusCompleted = "completed"
 	ExecutionStatusFailed    = "failed"
+	ExecutionStatusCancelled = "cancelled"
 )
 
 // validStatusTransitions defines the allowed status transitions for executions.
 // The map key is the current status, and the value is a set of valid next statuses.
 var validStatusTransitions = map[string]map[string]bool{
 	ExecutionStatusPending: {
-		ExecutionStatusRunning: true,
-		ExecutionStatusFailed:  true, // Can fail during setup/compilation
+		ExecutionStatusRunning:   true,
+		ExecutionStatusFailed:    true, // Can fail during setup/compilation
+		ExecutionStatusCancelled: true,
 	},
 	ExecutionStatusRunning: {
 		ExecutionStatusCompleted: true,
 		ExecutionStatusFailed:    true,
+		ExecutionStatusCancelled: true,
 	},
 	// Terminal states - no transitions allowed
 	ExecutionStatusCompleted: {},
 	ExecutionStatusFailed:    {},
+	ExecutionStatusCancelled: {},
 }
 
 // ErrInvalidStatusTransition is returned when an invalid status transition is attempted.
@@ -128,7 +133,7 @@ func ValidateStatusTransition(currentStatus, newStatus string) error {
 
 // IsTerminalStatus returns true if the status is a terminal state (no further transitions allowed).
 func IsTerminalStatus(status string) bool {
-	return status == ExecutionStatusCompleted || status == ExecutionStatusFailed
+	return status == ExecutionStatusCompleted || status == ExecutionStatusFailed || status == ExecutionStatusCancelled
 }
 
 // ScheduleIndex is the database index for a workflow schedule.
@@ -195,23 +200,23 @@ type AssetIndex struct {
 // ExportIndex is a database record for exported artifacts (videos, gifs, HTML replays, etc.).
 // The exported binary content is stored in external storage; this table stores metadata.
 type ExportIndex struct {
-	ID                  uuid.UUID      `json:"id" db:"id"`
-	ExecutionID          uuid.UUID      `json:"execution_id" db:"execution_id"`
-	WorkflowID           *uuid.UUID     `json:"workflow_id,omitempty" db:"workflow_id"`
-	Name                string         `json:"name" db:"name"`
-	Format              string         `json:"format" db:"format"`
-	Settings             JSONMap        `json:"settings,omitempty" db:"settings"`
-	StorageURL           string         `json:"storage_url,omitempty" db:"storage_url"`
-	ThumbnailURL         string         `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
-	FileSizeBytes        *int64         `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
-	DurationMs           *int           `json:"duration_ms,omitempty" db:"duration_ms"`
-	FrameCount           *int           `json:"frame_count,omitempty" db:"frame_count"`
-	AICaption            string         `json:"ai_caption,omitempty" db:"ai_caption"`
-	AICaptionGeneratedAt *time.Time     `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
-	Status              string         `json:"status" db:"status"`
-	Error               string         `json:"error,omitempty" db:"error"`
-	CreatedAt            time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at" db:"updated_at"`
+	ID                   uuid.UUID  `json:"id" db:"id"`
+	ExecutionID          uuid.UUID  `json:"execution_id" db:"execution_id"`
+	WorkflowID           *uuid.UUID `json:"workflow_id,omitempty" db:"workflow_id"`
+	Name                 string     `json:"name" db:"name"`
+	Format               string     `json:"format" db:"format"`
+	Settings             JSONMap    `json:"settings,omitempty" db:"settings"`
+	StorageURL           string     `json:"storage_url,omitempty" db:"storage_url"`
+	ThumbnailURL         string     `json:"thumbnail_url,omitempty" db:"thumbnail_url"`
+	FileSizeBytes        *int64     `json:"file_size_bytes,omitempty" db:"file_size_bytes"`
+	DurationMs           *int       `json:"duration_ms,omitempty" db:"duration_ms"`
+	FrameCount           *int       `json:"frame_count,omitempty" db:"frame_count"`
+	AICaption            string     `json:"ai_caption,omitempty" db:"ai_caption"`
+	AICaptionGeneratedAt *time.Time `json:"ai_caption_generated_at,omitempty" db:"ai_caption_generated_at"`
+	Status               string     `json:"status" db:"status"`
+	Error                string     `json:"error,omitempty" db:"error"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
 
 	// Joined fields (optional) used by list APIs.
 	WorkflowName  string     `json:"workflow_name,omitempty" db:"workflow_name"`

@@ -1,6 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "graph-studio",
     "displayName": "Graph Studio",
@@ -53,7 +57,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Graph Studio UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -93,120 +97,6 @@
       "timeout": 10000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Graph Studio",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/graph-studio-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "graph-studio",
-            "targets": [
-              "graph-studio"
-            ]
-          },
-          {
-            "type": "file",
-            "path": "initialization/postgres/schema.sql"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o graph-studio-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "initialize-postgres",
-          "run": "echo 'Postgres initialization handled by resource-postgres'",
-          "description": "PostgreSQL initialization placeholder"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Graph Studio initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Graph Studio with API and UI servers",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && env VROOLI_LIFECYCLE=active API_PORT=${API_PORT} POSTGRES_DB=graph_studio LOG_LEVEL=info CORS_ORIGINS=http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT} MAX_GRAPH_SIZE=10000 PLUGIN_DIR=./plugins PREVIEW_ACCESS_TOKEN=graph-studio-preview-token GRAPH_STUDIO_PREVIEW_TOKEN=graph-studio-preview-token ./graph-studio-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/graph-studio-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && env UI_PORT=${UI_PORT} API_PORT=${API_PORT} VITE_APP_NAME=\"Graph Studio\" VITE_ENABLE_AI=${resource.ollama.enabled} VITE_PREVIEW_ACCESS_TOKEN=graph-studio-preview-token npm run preview -- --host 0.0.0.0 --port ${UI_PORT}",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: graph-studio --help'",
-          "description": "Display all running service URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for graph-studio",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute graph-studio --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop Graph Studio services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"graph-studio-api\" || true; sleep 1; pkill -9 -f \"graph-studio-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/graph-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/graph-studio.*vite\" 2>/dev/null || true",
-          "description": "Stop UI development server"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -216,44 +106,141 @@
         "required": true,
         "purpose": "Store graph metadata, relationships, and versioning",
         "database": "graph_studio",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "minio": {
         "enabled": true,
         "required": true,
         "purpose": "Store large graph files and visualization assets",
-        "initialization": [],
         "buckets": {
           "default_buckets": [
             "graph-files",
             "graph-renders",
             "graph-exports"
           ]
-        }
+        },
+        "startup_policy": "must_start"
       },
       "redis": {
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently accessed graphs and session state",
-        "fallback": "No caching, direct database queries"
+        "fallback": "No caching, direct database queries",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "enabled": false,
         "required": false,
         "purpose": "AI-powered graph suggestions and natural language queries",
-        "fallback": "Disable AI features"
+        "fallback": "Disable AI features",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "enabled": false,
         "required": false,
         "purpose": "Vector search for semantic graph similarity",
-        "fallback": "Keyword-based search only"
+        "fallback": "Keyword-based search only",
+        "startup_policy": "try_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "graph-studio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "graph-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "env": {
+          "VROOLI_LIFECYCLE": "active",
+          "LOG_LEVEL": "info",
+          "CORS_ORIGINS": "http://localhost:${UI_PORT},http://127.0.0.1:${UI_PORT}",
+          "MAX_GRAPH_SIZE": "10000",
+          "PLUGIN_DIR": "./plugins"
+        },
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "-e",
+          "const h=require('http'),f=require('fs'),p=require('path');h.createServer((q,r)=>{const n=p.join(process.cwd(),q.url==='/'?'index.html':q.url);f.readFile(n,(e,d)=>{if(!e){r.end(d);return}f.readFile('index.html',(fallback,html)=>{r.statusCode=fallback?404:200;r.end(fallback?'not found':html)})})}).listen(Number(process.env.UI_PORT),'0.0.0.0')"
+        ],
+        "cwd": "ui/dist",
+        "env": {
+          "VITE_APP_NAME": "Graph Studio"
+        },
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

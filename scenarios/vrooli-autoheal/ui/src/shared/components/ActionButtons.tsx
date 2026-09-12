@@ -222,9 +222,9 @@ export function ActionButtons({ checkId, category, compact = false }: ActionButt
         }`}>
           <div className="flex items-start gap-2">
             {lastResult.success ? (
-              <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent-success" />
             ) : (
-              <XCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+              <XCircle size={16} className="mt-0.5 shrink-0 text-accent-danger" />
             )}
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${lastResult.success ? "text-accent-success" : "text-accent-danger"}`}>

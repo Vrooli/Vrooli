@@ -81,7 +81,6 @@ func TestBusinessLogic(t *testing.T) {
 						Path:   "/api/v1/extension/generate",
 						Body:   tc.req,
 					})
-
 					if err != nil {
 						t.Fatalf("Failed to execute request: %v", err)
 					}
@@ -116,7 +115,6 @@ func TestBusinessLogic(t *testing.T) {
 				Path:   "/api/v1/extension/generate",
 				Body:   req,
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to execute request: %v", err)
 			}
@@ -153,7 +151,6 @@ func TestBusinessLogic(t *testing.T) {
 				Path:   "/api/v1/extension/generate",
 				Body:   req,
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to execute request: %v", err)
 			}
@@ -183,7 +180,6 @@ func TestBusinessLogic(t *testing.T) {
 				Path:   "/api/v1/extension/generate",
 				Body:   req,
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to execute request: %v", err)
 			}
@@ -299,7 +295,6 @@ func TestBusinessLogic(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Fatalf("Failed to execute request: %v", err)
 				}
@@ -339,7 +334,6 @@ func TestBusinessLogic(t *testing.T) {
 			Path:   "/api/v1/extension/generate",
 			Body:   req,
 		})
-
 		if err != nil {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
@@ -409,7 +403,6 @@ func TestExtensionTestingBusinessLogic(t *testing.T) {
 					Path:   "/api/v1/extension/test",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Fatalf("Failed to execute request: %v", err)
 				}
@@ -514,7 +507,6 @@ func TestDataIntegrity(t *testing.T) {
 			Path:   "/api/v1/extension/generate",
 			Body:   req,
 		})
-
 		if err != nil {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
@@ -529,7 +521,6 @@ func TestDataIntegrity(t *testing.T) {
 				Path:    "/api/v1/extension/status/" + buildID,
 				URLVars: map[string]string{"build_id": buildID},
 			})
-
 			if err != nil {
 				t.Fatalf("Failed to get status: %v", err)
 			}
@@ -589,7 +580,6 @@ func TestBusinessConstraints(t *testing.T) {
 					Path:   "/api/v1/extension/generate",
 					Body:   req,
 				})
-
 				if err != nil {
 					t.Fatalf("Failed to execute request: %v", err)
 				}
@@ -628,7 +618,6 @@ func TestBusinessConstraints(t *testing.T) {
 			Path:   "/api/v1/extension/generate",
 			Body:   req,
 		})
-
 		if err != nil {
 			t.Fatalf("Failed to execute request: %v", err)
 		}

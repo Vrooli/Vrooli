@@ -1098,4 +1098,3 @@ func ProtoToPlanEdge(pb *basexecution.PlanEdge) *autocontracts.PlanEdge {
 
 	return edge
 }
-

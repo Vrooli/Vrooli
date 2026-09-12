@@ -62,6 +62,19 @@ type APIBaseOptions struct {
 	DefaultBase  string
 }
 
+// APIBaseResolution records the precedence rung that supplied the API base.
+type APIBaseResolution struct {
+	Base      string
+	Source    string
+	SourceKey string
+	Detected  string
+}
+
+var genericAPIBaseEnvVars = map[string]struct{}{
+	"API_BASE_URL":      {},
+	"VITE_API_BASE_URL": {},
+}
+
 // ValidateAPIBase resolves and validates an API base URL, returning a trimmed
 // base or an error with guidance when missing or malformed.
 func ValidateAPIBase(opts APIBaseOptions) (string, error) {
@@ -79,32 +92,73 @@ func ValidateAPIBase(opts APIBaseOptions) (string, error) {
 // DetermineAPIBase resolves the API base URL from override flags, environment,
 // config, port hints, and a default.
 func DetermineAPIBase(opts APIBaseOptions) string {
+	return ResolveAPIBase(opts).Base
+}
+
+// ResolveAPIBase applies the API-base precedence and retains its source for
+// diagnostics. The generic port variable remains deliberately out of scope;
+// only scenario-specific port variables are considered below.
+func ResolveAPIBase(opts APIBaseOptions) APIBaseResolution {
 	trim := func(val string) string {
 		return strings.TrimRight(strings.TrimSpace(val), "/")
 	}
+	resolve := func(base, source, key string) APIBaseResolution {
+		result := APIBaseResolution{Base: base, Source: source, SourceKey: key}
+		if opts.PortDetector != nil {
+			if port := strings.TrimSpace(opts.PortDetector()); port != "" {
+				result.Detected = "http://localhost:" + port
+			}
+		}
+		return result
+	}
 
 	if base := trim(opts.Override); base != "" {
-		return base
+		return resolve(base, "override", "")
 	}
 	for _, env := range opts.EnvVars {
+		if shouldIgnoreAPIBaseEnvVar(env) {
+			continue
+		}
 		if val := trim(os.Getenv(env)); val != "" {
-			return val
+			return resolve(val, "environment", env)
 		}
 	}
 	if base := trim(opts.ConfigBase); base != "" {
-		return base
+		return resolve(base, "config", "")
 	}
 	for _, env := range opts.PortEnvVars {
 		if port := strings.TrimSpace(os.Getenv(env)); port != "" {
-			return fmt.Sprintf("http://localhost:%s", port)
+			return resolve(fmt.Sprintf("http://localhost:%s", port), "port-environment", env)
 		}
 	}
 	if opts.PortDetector != nil {
 		if port := strings.TrimSpace(opts.PortDetector()); port != "" {
-			return fmt.Sprintf("http://localhost:%s", port)
+			return resolve(fmt.Sprintf("http://localhost:%s", port), "detector", "")
 		}
 	}
-	return trim(opts.DefaultBase)
+	return resolve(trim(opts.DefaultBase), "default", "")
+}
+
+// APIBaseOverrideWarning explains when a generic base variable silently wins
+// over a disagreeing live detector. Empty means no warning is warranted.
+func APIBaseOverrideWarning(opts APIBaseOptions) string {
+	resolution := ResolveAPIBase(opts)
+	if resolution.Source != "environment" || resolution.Detected == "" {
+		return ""
+	}
+	if _, generic := genericAPIBaseEnvVars[strings.TrimSpace(resolution.SourceKey)]; !generic || resolution.Base == resolution.Detected {
+		return ""
+	}
+	return fmt.Sprintf("generic API base variable %s=%q overrides detected base %q", resolution.SourceKey, resolution.Base, resolution.Detected)
+}
+
+func shouldIgnoreAPIBaseEnvVar(env string) bool {
+	env = strings.TrimSpace(env)
+	if env == "" || !IsAgentControlledContext() {
+		return false
+	}
+	_, generic := genericAPIBaseEnvVars[env]
+	return generic
 }
 
 // ResolveSourceRoot returns the first existing directory from the provided

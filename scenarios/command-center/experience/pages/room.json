@@ -1,0 +1,554 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "room",
+    "title": "Room",
+    "routes": [
+      "/",
+      "/:roomId"
+    ],
+    "purpose": "Render one outcome category as a composed, full-bleed surface readable from across a room: one dominant figure, its supporting readings, and an ambient composition that expresses the category rather than decorating it. Every figure carries its own provenance so a passer-by can tell a measurement from an illustration without reading any prose. One spec serves all six rooms — the composition varies, the honesty contract does not.",
+    "prd_refs": [
+      "OT-P1-001",
+      "OT-P1-002",
+      "OT-P1-005",
+      "OT-P1-006"
+    ]
+  },
+  "regions": [
+    {
+      "id": "hero",
+      "purpose": "The dominant reading for this category, sized for distance, drawn in the ink its coverage and trust pair resolves to, with its qualifier beneath it.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "supporting",
+      "purpose": "The category's remaining readings, each with its own ink and qualifier. Never a list of labels; scalar entries carry a figure and panel entries carry a ranked-row figure.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "scene",
+      "purpose": "The ambient composition that expresses this category. Bound by name from the registry, tiered by the capability probe, and confined to the room's declared quiet zones.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "sources",
+      "purpose": "Per-source availability for this room: which sources answered, which did not, and the stated reason for each that did not.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "ready",
+          "partial"
+        ]
+      }
+    },
+    {
+      "id": "legend",
+      "purpose": "Persistent provenance legend, shown whenever illustrative readings are on screen in mark mode.",
+      "required": false,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "cycle-rail",
+      "purpose": "The only persistent chrome. Shows cycle progress and visibly stops when paused, so a paused board never reads as a frozen one.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "All sources answered. Every reading renders in its ink with its qualifier; the scene runs at the probed tier.",
+      "setup": {
+        "route": "/mission-control"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First paint before readings arrive. The composed still frame and the room's identity are already present; the figure slots hold their frames rather than collapsing.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "state": "loading"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "One or more sources unreadable. Their readings show cached values with age, or their frames with the stated reason. Coverage is unchanged. Other readings render normally.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "state": "partial"
+        }
+      }
+    },
+    {
+      "id": "all-sample",
+      "description": "Every reading in the room is illustrative. The room is fully composed, marked in more than one place, and states plainly that nothing on it has been measured.",
+      "setup": {
+        "route": "/ledger",
+        "query": {
+          "samples": "mark"
+        }
+      }
+    },
+    {
+      "id": "samples-hidden",
+      "description": "Outward-facing mode. Illustrative readings are withheld entirely; the room composes from real readings only and says so when it has none.",
+      "setup": {
+        "route": "/ledger",
+        "query": {
+          "samples": "hide"
+        }
+      }
+    },
+    {
+      "id": "no-instrument",
+      "description": "The team owning this category declares no instrument. The room reports one finding with one owner, not one finding per unwired reading.",
+      "setup": {
+        "route": "/broadcast"
+      }
+    },
+    {
+      "id": "scene-unavailable",
+      "description": "The capability probe selected the still tier, or the scene failed its first-frame render check. The composed still frame renders and the room remains complete. Never a blank surface.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "tier": "still"
+        }
+      }
+    },
+    {
+      "id": "reduced-motion",
+      "description": "Ambient motion holds a composed still, the freshness indicator steps rather than sweeps, digits swap rather than roll.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "motion": "reduced"
+        }
+      }
+    },
+    {
+      "id": "portrait",
+      "description": "Narrow viewport. The designed portrait composition renders — figure above, scene band, stacked supporting readings — not a scaled landscape layout.",
+      "setup": {
+        "route": "/mission-control",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        }
+      }
+    },
+    {
+      "id": "error",
+      "description": "The board shape could not be read at all. The surface states the failure and its reason and shows no figures. It does not show zeros.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "state": "error"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "hero",
+      "role": "region",
+      "name": "Hero reading",
+      "description": "The category's dominant figure with its provenance ink and qualifier."
+    },
+    {
+      "id": "supporting",
+      "role": "region",
+      "name": "Supporting readings",
+      "description": "The category's remaining figures."
+    },
+    {
+      "id": "scene",
+      "role": "region",
+      "name": "Ambient scene",
+      "description": "The composition expressing this category."
+    },
+    {
+      "id": "sources",
+      "role": "region",
+      "name": "Source availability",
+      "description": "Which sources answered and why any did not."
+    },
+    {
+      "id": "legend",
+      "role": "region",
+      "name": "Provenance legend",
+      "description": "What each ink means."
+    },
+    {
+      "id": "cycle-rail",
+      "role": "region",
+      "name": "Cycle rail",
+      "description": "Cycle progress and pause state."
+    },
+    {
+      "id": "beat-state",
+      "role": "region",
+      "name": "Beat state",
+      "description": "The active authored reading, its dwell progress, and the segmented rail state. Panorama has no beat state."
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "Every reading renders a figure, in every state.",
+      "notes": "Including illustrative and absent ones. Showing a label with no number was the previous design's central failure: it made the room impossible to evaluate and hid what the finished display would look like. A figure with honest provenance beats an empty slot in every case."
+    },
+    {
+      "statement": "Provenance is carried by material before colour.",
+      "notes": "Solid, dimmed, hollow, dotted. A greyscale render of any room must remain unambiguous. Colour is spent on room identity and cannot also carry status; hue separation is also the first thing to fail at distance and on a projector."
+    },
+    {
+      "statement": "Layout does not change with provenance.",
+      "notes": "A hollow figure occupies exactly the space its solid counterpart will occupy. When a pipeline lands, strokes fill and not one pixel moves. This is what makes the illustrative state safe to leave running for months."
+    },
+    {
+      "statement": "The scene expresses the category; it is never a backdrop behind a card.",
+      "notes": "DESIGN.md forbids placing a normal app dashboard inside a decorative background, and forbids six pages that are only colour variants of one layout. Each room's composition is bound by name and differs in kind, not in hue."
+    },
+    {
+      "statement": "The idle state carries no chrome.",
+      "notes": "With no input the room shows itself and the cycle rail. Controls exist and are reachable, but an unattended display that shows navigation is showing the wrong thing to the room it is in."
+    },
+    {
+      "statement": "A source failure is legible, never structural.",
+      "notes": "An unreadable source produces a stated reason in the sources region and a trust change on its readings. It never blanks a figure, never renders a zero, and never moves a reading to MISSING — coverage is authored, not inferred from a fetch."
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-reading-has-a-figure",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "In ready, partial and all-sample states, every reading in the hero and supporting regions renders a figure — scalar entries render a numeric figure and panel entries render ranked rows; none renders as a label alone.",
+      "rationale": "The requested capability is that the board always shows a truthful figure. A reading that renders only its label is the defect this design exists to remove; a panel's ranked rows are its figure.",
+      "states": [
+        "ready",
+        "partial",
+        "all-sample"
+      ],
+      "elements": [
+        "hero",
+        "supporting"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every [data-reading] node contains a [data-figure] child in each declared state."
+    },
+    {
+      "id": "provenance-survives-greyscale",
+      "type": "render-comparison",
+      "tier": "aspirational",
+      "statement": "With colour removed, live, cached, sample and absent figures remain distinguishable from one another.",
+      "rationale": "Status carried by hue alone fails WCAG, fails at distance, and fails on a projector — and this board is almost entirely status.",
+      "states": [
+        "ready",
+        "all-sample"
+      ],
+      "elements": [
+        "hero",
+        "supporting"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Render the four inks, desaturate, and assert the figure regions remain pairwise distinguishable."
+    },
+    {
+      "id": "no-figure-without-qualifier",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "Every figure displays its qualifier: freshness for live, age for cached, what is needed for sample, owner and days open for absent.",
+      "rationale": "A number without its provenance is a claim. On a wall display, an unqualified figure is the exact failure mode this contract exists to prevent.",
+      "states": [
+        "ready",
+        "partial",
+        "all-sample"
+      ],
+      "elements": [
+        "hero",
+        "supporting"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every [data-figure] node has a sibling [data-qualifier] with non-empty text."
+    },
+    {
+      "id": "all-sample-room-says-so",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "A room whose readings are all illustrative states that plainly, in more than one place, without needing the legend to be read.",
+      "rationale": "The all-sample room is the case most likely to be photographed and mistaken for real. One marking is a convention; several are a statement.",
+      "states": [
+        "all-sample"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "legend"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "hide-mode-shows-no-illustration",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "In samples-hidden state no illustrative figure appears anywhere on the surface, and a room with no real readings says so rather than rendering an empty composition.",
+      "rationale": "Outward-facing displays cannot rely on a convention the audience has never been taught.",
+      "states": [
+        "samples-hidden"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "legend"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "With samples=hide, no node carries data-provenance of sample or absent."
+    },
+    {
+      "id": "room-never-blank",
+      "type": "render-nonblank",
+      "tier": "aspirational",
+      "statement": "In every state including scene-unavailable and error, the scene region renders a composed image — never an empty rectangle.",
+      "rationale": "Five of six scenes shipped mounting correctly and drawing nothing, and the test suite passed because it asserted only that a canvas element existed.",
+      "states": [
+        "ready",
+        "scene-unavailable",
+        "reduced-motion",
+        "error"
+      ],
+      "elements": [
+        "scene"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "The first composited frame of the scene region contains more than one distinct colour, in every state including scene-unavailable and error."
+    },
+    {
+      "id": "source-outage-does-not-move-coverage",
+      "type": "state-transition",
+      "tier": "aspirational",
+      "statement": "In partial state, readings from the unreadable source keep their authored coverage and change only their trust; none is rendered as MISSING and none as zero.",
+      "rationale": "An outage reading as a coverage collapse would make every board reading untrustworthy during exactly the incidents the board exists to surface.",
+      "states": [
+        "partial"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "sources"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Inducing a source outage changes the trust field and leaves every coverage field byte-identical."
+    },
+    {
+      "id": "no-instrument-is-one-finding",
+      "type": "element-count",
+      "tier": "aspirational",
+      "statement": "When the owning team declares no instrument, the room presents one finding naming that team, not one finding per unwired reading.",
+      "rationale": "Six pipeline gaps imply six pieces of work pointed at the wrong owner. A missing control loop is one piece of work owned by one team.",
+      "states": [
+        "no-instrument"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "sources"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "When the owning team declares no instrument, the room renders exactly one finding node naming that team."
+    },
+    {
+      "id": "portrait-is-composed",
+      "type": "render-comparison",
+      "tier": "aspirational",
+      "statement": "At 390px the room renders its designed portrait composition, retains its identity, and does not scroll horizontally.",
+      "rationale": "The phone view is the one people check from their desk. A scaled landscape layout at that width is unreadable furniture.",
+      "states": [
+        "portrait"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "scene"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "At 390x844 the room renders its declared portrait composition and the body does not scroll horizontally."
+    },
+    {
+      "id": "no-write-control",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "No region on this surface offers a control that writes a setpoint, files work, or mutates an upstream.",
+      "rationale": "Sensor implies no authority. This surface is the most likely place for that boundary to be eroded by a well-meaning addition.",
+      "states": [
+        "ready",
+        "partial",
+        "all-sample",
+        "no-instrument"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "sources",
+        "legend",
+        "cycle-rail"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "No interactive node declares a write intent and no mutating request is issued from this surface."
+    },
+    {
+      "id": "idle-has-no-chrome",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "In ready state with no input, the surface presents no navigation, settings or buttons; the cycle rail is the only persistent chrome.",
+      "rationale": "DESIGN.md requires controls hidden by default on the primary display. Visible chrome on an unattended board is the operational-console shell it forbids.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "cycle-rail"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "In ready state with no input, no nav, settings or button node is visible except the cycle rail."
+    },
+    {
+      "id": "error-is-not-zero",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "In error state the surface states the failure and its reason and renders no figures; it never renders zeros or an empty composition implying no data exists.",
+      "rationale": "A board reporting zero when it means unknown is worse than a board reporting nothing.",
+      "states": [
+        "error"
+      ],
+      "elements": [
+        "hero",
+        "supporting",
+        "sources"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "In error state no [data-figure] node renders and the stated reason is present."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "hero": {
+        "testid": "room-hero"
+      },
+      "supporting": {
+        "testid": "room-supporting"
+      },
+      "scene": {
+        "testid": "room-scene"
+      },
+      "sources": {
+        "testid": "room-sources"
+      },
+      "legend": {
+        "testid": "room-legend"
+      },
+      "cycle-rail": {
+        "testid": "room-cycle-rail"
+      }
+    },
+    "regions": {
+      "hero": {
+        "testid": "room-hero"
+      },
+      "supporting": {
+        "testid": "room-supporting"
+      },
+      "scene": {
+        "testid": "room-scene"
+      },
+      "sources": {
+        "testid": "room-sources"
+      },
+      "legend": {
+        "testid": "room-legend"
+      },
+      "cycle-rail": {
+        "testid": "room-cycle-rail"
+      }
+    }
+  }
+}

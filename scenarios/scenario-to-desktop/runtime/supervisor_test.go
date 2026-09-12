@@ -13,14 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/config"
-	"scenario-to-desktop-runtime/health"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/secrets"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/internal/peerrecord"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/config"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestEnsureAssetsSizeBudget(t *testing.T) {
@@ -134,7 +135,7 @@ func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
 		},
 	}
-	sm := secrets.NewManager(manifestData, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := secrets.NewManager(manifestData)
 	sm.Set(map[string]string{"OPTIONAL_HINT": "seed"})
 
 	rt := &mockSupervisorRuntime{
@@ -339,7 +340,7 @@ func TestNewSupervisor_SanitizesAppName(t *testing.T) {
 		want string
 	}{
 		{"My App", "my-app"},
-		{"Test_App", "test_app"},
+		{"Test_App", "test-app"},
 		{"App-Name", "app-name"},
 	}
 
@@ -630,6 +631,67 @@ func TestStart_PersistsAuthTokenAndIpcPort(t *testing.T) {
 	}
 }
 
+// ipcPortPublishFailureFS fails exactly the ipc_port write so the supervisor's
+// publish path can be exercised without disturbing any other file operation.
+type ipcPortPublishFailureFS struct {
+	*testutil.MockFileSystem
+	failSuffix string
+}
+
+func (f *ipcPortPublishFailureFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	if strings.HasSuffix(path, f.failSuffix) {
+		return errors.New("disk full")
+	}
+	return f.MockFileSystem.WriteFile(path, data, perm)
+}
+
+// The desktop shell and vrooli-shim learn the control API address only from
+// runtime/ipc_port. A runtime that binds but cannot publish is unreachable, so
+// Start must fail rather than report success.
+func TestStart_FailsWhenIpcPortCannotBePublished(t *testing.T) {
+	tmp := t.TempDir()
+	appDataDir := filepath.Join(tmp, "appdata")
+	mockFS := &ipcPortPublishFailureFS{
+		MockFileSystem: testutil.NewMockFileSystem(),
+		failSuffix:     filepath.Join("runtime", "ipc_port"),
+	}
+
+	m := &manifest.Manifest{
+		App:       manifest.App{Name: "test-app", Version: "1.0.0"},
+		IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+		Telemetry: manifest.Telemetry{File: "telemetry.jsonl"},
+	}
+
+	s, err := NewSupervisor(Options{
+		Manifest:      m,
+		BundlePath:    tmp,
+		AppDataDir:    appDataDir,
+		Clock:         testutil.NewMockClock(time.Now()),
+		FileSystem:    mockFS,
+		SecretStore:   testutil.NewMockSecretStore(nil),
+		PortAllocator: testutil.NewMockPortAllocator(),
+		HealthChecker: testutil.NewMockHealthChecker(),
+	})
+	if err != nil {
+		t.Fatalf("NewSupervisor() error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = s.Start(ctx)
+	if err == nil {
+		_ = s.Shutdown(context.Background())
+		t.Fatal("Start() should fail when the IPC port cannot be published")
+	}
+	if !strings.Contains(err.Error(), "publish IPC port") {
+		t.Fatalf("Start() error = %v, want it to name the IPC port publish failure", err)
+	}
+	if s.started {
+		t.Fatal("Start() must not mark the supervisor started when the port was never published")
+	}
+}
+
 func TestStart_FailsOnMigrationStateError(t *testing.T) {
 	tmp := t.TempDir()
 	appDataDir := filepath.Join(tmp, "appdata")
@@ -669,5 +731,135 @@ func TestStart_FailsOnMigrationStateError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "load migrations") {
 		t.Errorf("Start() error = %q, want 'load migrations'", err)
+	}
+}
+
+func TestResolvePeerEnvironmentReadsTierOneRecord(t *testing.T) {
+	home := t.TempDir()
+	if err := peerrecord.Write(home, peerrecord.Record{
+		Scenario:  "landing-page-business-suite",
+		Instance:  "live",
+		Tier:      1,
+		OwnerPID:  os.Getpid(),
+		StartedAt: time.Now(),
+		Ports:     map[string]int{"api": 23117},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	m := &manifest.Manifest{
+		Peers: []manifest.Peer{{
+			Scenario:     "landing-page-business-suite",
+			BundlePolicy: "discover",
+			Bindings: []manifest.PeerBinding{{
+				EnvVar:          "BAS_ENTITLEMENT_SERVICE_URL",
+				Form:            "http_base_url",
+				Port:            "api",
+				WhenUnavailable: "fail",
+			}},
+		}},
+		Services: []manifest.Service{{ID: "api"}, {ID: "playwright-driver"}},
+	}
+	s := &Supervisor{opts: Options{Manifest: m}, peerHome: home}
+	if err := s.resolvePeerEnvironment(); err != nil {
+		t.Fatalf("resolvePeerEnvironment() error = %v", err)
+	}
+	for _, service := range m.Services {
+		if got := service.Env["BAS_ENTITLEMENT_SERVICE_URL"]; got != "http://127.0.0.1:23117" {
+			t.Fatalf("service %s peer binding = %q", service.ID, got)
+		}
+	}
+}
+
+func TestResolvePeerEnvironmentNamesUnavailableRequiredPeer(t *testing.T) {
+	m := &manifest.Manifest{
+		Peers: []manifest.Peer{{
+			Scenario:     "missing-peer",
+			BundlePolicy: "discover",
+			Bindings: []manifest.PeerBinding{{
+				EnvVar:          "PEER_URL",
+				Form:            "http_base_url",
+				Port:            "api",
+				WhenUnavailable: "fail",
+			}},
+		}},
+		Services: []manifest.Service{{ID: "api"}},
+	}
+	s := &Supervisor{opts: Options{Manifest: m}, peerHome: t.TempDir()}
+	var unavailable PeerDiscoveryUnavailableError
+	if err := s.resolvePeerEnvironment(); !errors.As(err, &unavailable) {
+		t.Fatalf("error = %v, want PeerDiscoveryUnavailableError", err)
+	}
+}
+
+func TestPublishPeerRecordUsesAllocatedPorts(t *testing.T) {
+	home := t.TempDir()
+	allocator := testutil.NewMockPortAllocator()
+	allocator.SetPort("api", "api", 23117)
+	m := &manifest.Manifest{
+		App: manifest.App{Scenario: "browser-automation-studio"},
+		IPC: manifest.IPC{Port: 23118, AuthTokenRel: "runtime/auth-token"},
+	}
+	s := &Supervisor{
+		opts:          Options{Manifest: m},
+		appData:       t.TempDir(),
+		peerHome:      home,
+		portAllocator: allocator,
+		startedAt:     time.Now(),
+	}
+	if err := s.publishPeerRecord(); err != nil {
+		t.Fatalf("publishPeerRecord() error = %v", err)
+	}
+	record, err := peerrecord.Read(home, "browser-automation-studio")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Tier != 2 || record.Ports["api"] != 23117 || record.Ports["ipc"] != 23118 {
+		t.Fatalf("published peer record = %#v", record)
+	}
+}
+
+func TestTwoBundlesAllocateDistinctIPCPorts(t *testing.T) {
+	newManifest := func(name string) *manifest.Manifest {
+		return &manifest.Manifest{
+			App:       manifest.App{Name: name, Version: "1.0.0"},
+			IPC:       manifest.IPC{Host: "127.0.0.1", Port: 0, AuthTokenRel: "runtime/auth-token"},
+			Telemetry: manifest.Telemetry{File: "telemetry/events.jsonl"},
+			Ports:     &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		}
+	}
+	newSupervisor := func(name string) *Supervisor {
+		s, err := NewSupervisor(Options{
+			Manifest:      newManifest(name),
+			BundlePath:    t.TempDir(),
+			AppDataDir:    t.TempDir(),
+			DryRun:        true,
+			SecretStore:   testutil.NewMockSecretStore(nil),
+			HealthChecker: testutil.NewMockHealthChecker(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	first := newSupervisor("first-bundle")
+	second := newSupervisor("second-bundle")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := first.Start(ctx); err != nil {
+		t.Fatalf("start first bundle: %v", err)
+	}
+	t.Cleanup(func() { _ = first.Shutdown(context.Background()) })
+	if err := second.Start(ctx); err != nil {
+		t.Fatalf("start second bundle: %v", err)
+	}
+	t.Cleanup(func() { _ = second.Shutdown(context.Background()) })
+	if first.opts.Manifest.IPC.Port == 0 || second.opts.Manifest.IPC.Port == 0 || first.opts.Manifest.IPC.Port == second.opts.Manifest.IPC.Port {
+		t.Fatalf("allocated IPC ports collide: first=%d second=%d", first.opts.Manifest.IPC.Port, second.opts.Manifest.IPC.Port)
+	}
+	if _, err := os.Stat(filepath.Join(first.appData, "runtime", "ipc_port")); err != nil {
+		t.Fatalf("first bundle did not publish its allocated IPC port: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(second.appData, "runtime", "ipc_port")); err != nil {
+		t.Fatalf("second bundle did not publish its allocated IPC port: %v", err)
 	}
 }

@@ -1,0 +1,704 @@
+{
+  "props": {
+    "office/bookcase": {
+      "scene": "office",
+      "id": "bookcase",
+      "path": "office/bookcase.glb",
+      "source": "furniture-kit/bookcaseOpen.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.4,
+        0.88,
+        0.25
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.25
+        ],
+        "max": [
+          0.4,
+          0.88,
+          0
+        ]
+      },
+      "triangles": 320,
+      "materials": 1,
+      "bytes": 4276,
+      "contentHash": "d23e66d0bdf87726ead2768eb8f03fd4da85d1006dfa1f79592784b9fddb4353"
+    },
+    "office/chair_desk": {
+      "scene": "office",
+      "id": "chair_desk",
+      "path": "office/chair_desk.glb",
+      "source": "furniture-kit/chairDesk.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.3349,
+        0.6076,
+        0.3143
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.3143
+        ],
+        "max": [
+          0.3349,
+          0.6076,
+          0
+        ]
+      },
+      "triangles": 588,
+      "materials": 2,
+      "bytes": 9500,
+      "contentHash": "d2b00ad0f1cadf96823e1131254ce6fea35dcdd19d4034a2bad58046d0a6f5d6"
+    },
+    "office/chair_lounge": {
+      "scene": "office",
+      "id": "chair_lounge",
+      "path": "office/chair_lounge.glb",
+      "source": "furniture-kit/loungeChair.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.49,
+        0.46,
+        0.41
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.41
+        ],
+        "max": [
+          0.49,
+          0.46,
+          0
+        ]
+      },
+      "triangles": 128,
+      "materials": 2,
+      "bytes": 4420,
+      "contentHash": "707c09e807a453d51ed2220c5610cbc612181f94b325e3800feca4a58917f80b"
+    },
+    "office/coffee_table": {
+      "scene": "office",
+      "id": "coffee_table",
+      "path": "office/coffee_table.glb",
+      "source": "furniture-kit/tableCoffee.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.661,
+        0.23,
+        0.4
+      ],
+      "bounds": {
+        "min": [
+          -0.461,
+          0,
+          -0.3
+        ],
+        "max": [
+          0.2,
+          0.23,
+          0.1
+        ]
+      },
+      "triangles": 124,
+      "materials": 1,
+      "bytes": 2984,
+      "contentHash": "a2181a7f6446756cd47bf7cfc8c5d2848a95d58a4e8dfde701ea3a6c49486679"
+    },
+    "office/desk": {
+      "scene": "office",
+      "id": "desk",
+      "path": "office/desk.glb",
+      "source": "furniture-kit/desk.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.7345,
+        0.3844,
+        0.3923
+      ],
+      "bounds": {
+        "min": [
+          -0.01,
+          0,
+          -0.38
+        ],
+        "max": [
+          0.7245,
+          0.3844,
+          0.0123
+        ]
+      },
+      "triangles": 198,
+      "materials": 2,
+      "bytes": 5200,
+      "contentHash": "269d96934a91ae0539ee2d54078ffa2026041aa57a498c8c006987c19b62e74b"
+    },
+    "office/display_board": {
+      "scene": "office",
+      "id": "display_board",
+      "path": "office/display_board.glb",
+      "source": "furniture-kit/televisionModern.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.6848,
+        0.4547,
+        0.1284
+      ],
+      "bounds": {
+        "min": [
+          -0.3424,
+          0,
+          -0.0642
+        ],
+        "max": [
+          0.3424,
+          0.4547,
+          0.0642
+        ]
+      },
+      "triangles": 72,
+      "materials": 2,
+      "bytes": 3680,
+      "contentHash": "ce0121c67cb0115f73e2f2c3aaabcc09cc9e4cab109f53cb734b9585eb425401"
+    },
+    "office/lamp_floor": {
+      "scene": "office",
+      "id": "lamp_floor",
+      "path": "office/lamp_floor.glb",
+      "source": "furniture-kit/lampRoundFloor.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.152,
+        0.86,
+        0.1755
+      ],
+      "bounds": {
+        "min": [
+          -0.016,
+          0,
+          -0.1478
+        ],
+        "max": [
+          0.136,
+          0.86,
+          0.0278
+        ]
+      },
+      "triangles": 76,
+      "materials": 2,
+      "bytes": 3860,
+      "contentHash": "95a5512f374dcb97a27c8b2696f71a8b0e49ce9260335da033715aee4183b58a"
+    },
+    "office/plant_small": {
+      "scene": "office",
+      "id": "plant_small",
+      "path": "office/plant_small.glb",
+      "source": "furniture-kit/plantSmall1.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.0947,
+        0.14,
+        0.0947
+      ],
+      "bounds": {
+        "min": [
+          -0.0473,
+          0,
+          -0.0473
+        ],
+        "max": [
+          0.0473,
+          0.14,
+          0.0473
+        ]
+      },
+      "triangles": 102,
+      "materials": 2,
+      "bytes": 4244,
+      "contentHash": "7e1b466618dd8ba3850c29c42bf3fdb94bbb873081cadfa825729f754bcd5c90"
+    },
+    "office/rug_round": {
+      "scene": "office",
+      "id": "rug_round",
+      "path": "office/rug_round.glb",
+      "source": "furniture-kit/rugRound.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.92,
+        0.01,
+        0.92
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.92
+        ],
+        "max": [
+          0.92,
+          0.01,
+          0
+        ]
+      },
+      "triangles": 188,
+      "materials": 2,
+      "bytes": 4516,
+      "contentHash": "2ff7b94f02bb3e6c91fb773e07338c016e85e061b3c23e8495763b083373e316"
+    },
+    "office/side_table": {
+      "scene": "office",
+      "id": "side_table",
+      "path": "office/side_table.glb",
+      "source": "furniture-kit/sideTable.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.5345,
+        0.3844,
+        0.22
+      ],
+      "bounds": {
+        "min": [
+          -0.01,
+          0,
+          -0.21
+        ],
+        "max": [
+          0.5245,
+          0.3844,
+          0.01
+        ]
+      },
+      "triangles": 118,
+      "materials": 2,
+      "bytes": 4104,
+      "contentHash": "bc5e99c90690ef24ee78be4f242c01f0cda5eab26660edcfc0d9203ce8dc54a4"
+    },
+    "office/table_round": {
+      "scene": "office",
+      "id": "table_round",
+      "path": "office/table_round.glb",
+      "source": "furniture-kit/tableRound.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.6929,
+        0.3667,
+        0.8
+      ],
+      "bounds": {
+        "min": [
+          0,
+          -0.27,
+          -0.8
+        ],
+        "max": [
+          0.6928,
+          0.0967,
+          0
+        ]
+      },
+      "triangles": 80,
+      "materials": 1,
+      "bytes": 2764,
+      "contentHash": "7e12411bdb0d49c90dd5825a785e23fc36e29fbe145dbb1dfeec2e3cb79f5cb7"
+    },
+    "park/bench": {
+      "scene": "park",
+      "id": "bench",
+      "path": "park/bench.glb",
+      "source": "furniture-kit/bench.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.4,
+        0.47,
+        0.2
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.2
+        ],
+        "max": [
+          0.4,
+          0.47,
+          0
+        ]
+      },
+      "triangles": 170,
+      "materials": 1,
+      "bytes": 3424,
+      "contentHash": "e0d34f93622821b7bcdc7f6b19d62576b9cee6ca90c8dac0ebdabf483604beee"
+    },
+    "park/bush_round": {
+      "scene": "park",
+      "id": "bush_round",
+      "path": "park/bush_round.glb",
+      "source": "nature-kit/plant_bushLarge.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.3743,
+        0.2429,
+        0.3357
+      ],
+      "bounds": {
+        "min": [
+          -0.1872,
+          -0.05,
+          -0.1678
+        ],
+        "max": [
+          0.1872,
+          0.1929,
+          0.1678
+        ]
+      },
+      "triangles": 60,
+      "materials": 1,
+      "bytes": 2948,
+      "contentHash": "83b3e9f50f4e82abd7be91eba0d103bd2f190d02234931d4d8d8c89cf6d2dc16"
+    },
+    "park/campfire": {
+      "scene": "park",
+      "id": "campfire",
+      "path": "park/campfire.glb",
+      "source": "nature-kit/campfire_logs.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.2919,
+        0.0626,
+        0.2919
+      ],
+      "bounds": {
+        "min": [
+          -0.1459,
+          -0.05,
+          -0.1459
+        ],
+        "max": [
+          0.1459,
+          0.0126,
+          0.1459
+        ]
+      },
+      "triangles": 112,
+      "materials": 2,
+      "bytes": 4356,
+      "contentHash": "099f545c9e1eebb48eca4c7511928808ad665dd1926f7823ecd951f95489e03b"
+    },
+    "park/desk": {
+      "scene": "park",
+      "id": "desk",
+      "path": "park/desk.glb",
+      "source": "furniture-kit/desk.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.7345,
+        0.3844,
+        0.3923
+      ],
+      "bounds": {
+        "min": [
+          -0.01,
+          0,
+          -0.38
+        ],
+        "max": [
+          0.7245,
+          0.3844,
+          0.0123
+        ]
+      },
+      "triangles": 198,
+      "materials": 2,
+      "bytes": 5200,
+      "contentHash": "269d96934a91ae0539ee2d54078ffa2026041aa57a498c8c006987c19b62e74b"
+    },
+    "park/flowers": {
+      "scene": "park",
+      "id": "flowers",
+      "path": "park/flowers.glb",
+      "source": "nature-kit/flower_purpleA.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.1591,
+        0.2425,
+        0.1811
+      ],
+      "bounds": {
+        "min": [
+          -0.1045,
+          -0.05,
+          -0.0905
+        ],
+        "max": [
+          0.0546,
+          0.1925,
+          0.0905
+        ]
+      },
+      "triangles": 76,
+      "materials": 2,
+      "bytes": 3992,
+      "contentHash": "4864a0f84a05977699ecd618c53f59a6d2f951521b263a41372434120487e77f"
+    },
+    "park/lamp_post": {
+      "scene": "park",
+      "id": "lamp_post",
+      "path": "park/lamp_post.glb",
+      "source": "furniture-kit/lampSquareFloor.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.12,
+        0.86,
+        0.12
+      ],
+      "bounds": {
+        "min": [
+          0,
+          0,
+          -0.12
+        ],
+        "max": [
+          0.12,
+          0.86,
+          0
+        ]
+      },
+      "triangles": 60,
+      "materials": 2,
+      "bytes": 3636,
+      "contentHash": "516128d362aba84999367cda8a537ca411e45c050be9066a50f8dc918fdcfc9f"
+    },
+    "park/log_seat": {
+      "scene": "park",
+      "id": "log_seat",
+      "path": "park/log_seat.glb",
+      "source": "nature-kit/log.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.234,
+        0.1732,
+        0.71
+      ],
+      "bounds": {
+        "min": [
+          -0.1092,
+          -0.05,
+          -0.355
+        ],
+        "max": [
+          0.1247,
+          0.1232,
+          0.355
+        ]
+      },
+      "triangles": 200,
+      "materials": 2,
+      "bytes": 5260,
+      "contentHash": "eda49c7af9149e8079f9dde2beb0d4739a0d29db53d582b49818fa99b564b119"
+    },
+    "park/rock_small": {
+      "scene": "park",
+      "id": "rock_small",
+      "path": "park/rock_small.glb",
+      "source": "nature-kit/rock_smallA.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.3608,
+        0.1912,
+        0.3608
+      ],
+      "bounds": {
+        "min": [
+          -0.1804,
+          -0.05,
+          -0.1804
+        ],
+        "max": [
+          0.1804,
+          0.1412,
+          0.1804
+        ]
+      },
+      "triangles": 16,
+      "materials": 2,
+      "bytes": 3220,
+      "contentHash": "0dcbe6a2dccc625cec6eb36ff4e36f3732aa210a69968c4c5e2c7d4daf29d6e9"
+    },
+    "park/sign_board": {
+      "scene": "park",
+      "id": "sign_board",
+      "path": "park/sign_board.glb",
+      "source": "nature-kit/sign.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.3,
+        0.4088,
+        0.07
+      ],
+      "bounds": {
+        "min": [
+          -0.15,
+          -0.05,
+          -0.0525
+        ],
+        "max": [
+          0.15,
+          0.3588,
+          0.0175
+        ]
+      },
+      "triangles": 44,
+      "materials": 3,
+      "bytes": 4464,
+      "contentHash": "c7464717fa4ef7dc3b14829dfc274803672414ac7f01dc25712390c24bd36cca"
+    },
+    "park/stump": {
+      "scene": "park",
+      "id": "stump",
+      "path": "park/stump.glb",
+      "source": "nature-kit/stump_round.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.3213,
+        0.2065,
+        0.371
+      ],
+      "bounds": {
+        "min": [
+          -0.1607,
+          -0.05,
+          -0.1855
+        ],
+        "max": [
+          0.1607,
+          0.1565,
+          0.1855
+        ]
+      },
+      "triangles": 56,
+      "materials": 2,
+      "bytes": 3716,
+      "contentHash": "2dd2353b2ad322c8e353d7bd6bd37dd8b1195b74f276e58e9472b271c270096d"
+    },
+    "park/table_round": {
+      "scene": "park",
+      "id": "table_round",
+      "path": "park/table_round.glb",
+      "source": "furniture-kit/tableRound.glb",
+      "kit": "furniture-kit",
+      "size": [
+        0.6929,
+        0.3667,
+        0.8
+      ],
+      "bounds": {
+        "min": [
+          0,
+          -0.27,
+          -0.8
+        ],
+        "max": [
+          0.6928,
+          0.0967,
+          0
+        ]
+      },
+      "triangles": 80,
+      "materials": 1,
+      "bytes": 2764,
+      "contentHash": "7e12411bdb0d49c90dd5825a785e23fc36e29fbe145dbb1dfeec2e3cb79f5cb7"
+    },
+    "park/tree_default": {
+      "scene": "park",
+      "id": "tree_default",
+      "path": "park/tree_default.glb",
+      "source": "nature-kit/tree_default.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.755,
+        1.7079,
+        0.6539
+      ],
+      "bounds": {
+        "min": [
+          -0.3775,
+          -0.05,
+          -0.3269
+        ],
+        "max": [
+          0.3775,
+          1.6579,
+          0.3269
+        ]
+      },
+      "triangles": 114,
+      "materials": 2,
+      "bytes": 4440,
+      "contentHash": "c5113a9b93c4ff4f259799f7dc13db1b8784f59f98fdc6ea9e9f189ab744c502"
+    },
+    "park/tree_oak": {
+      "scene": "park",
+      "id": "tree_oak",
+      "path": "park/tree_oak.glb",
+      "source": "nature-kit/tree_oak.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.6406,
+        1.2262,
+        0.7397
+      ],
+      "bounds": {
+        "min": [
+          -0.3203,
+          -0.05,
+          -0.3699
+        ],
+        "max": [
+          0.3203,
+          1.1762,
+          0.3699
+        ]
+      },
+      "triangles": 196,
+      "materials": 2,
+      "bytes": 5388,
+      "contentHash": "0ed6ff370ed068a8ed539d157d9648c28a1d07b93a53cd9422580b915b7d45e1"
+    },
+    "park/tree_pine": {
+      "scene": "park",
+      "id": "tree_pine",
+      "path": "park/tree_pine.glb",
+      "source": "nature-kit/tree_pineRoundA.glb",
+      "kit": "nature-kit",
+      "size": [
+        0.6171,
+        1.3664,
+        0.7125
+      ],
+      "bounds": {
+        "min": [
+          -0.3085,
+          -0.05,
+          -0.3563
+        ],
+        "max": [
+          0.3085,
+          1.3164,
+          0.3563
+        ]
+      },
+      "triangles": 204,
+      "materials": 2,
+      "bytes": 5252,
+      "contentHash": "6b500b2e9afab2be4bcd642f2d755485dd51621541e7f45437783beec2431eed"
+    }
+  }
+}

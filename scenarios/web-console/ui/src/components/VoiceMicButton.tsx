@@ -1,251 +1,184 @@
-import { useRef, useLayoutEffect, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle, Volume2 } from "lucide-react";
-import { cn } from "../lib/classnames";
-import type { StartRecordingOpts } from "../hooks/useVoiceInput";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
-/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
-const LONG_PRESS_MS = 300;
+const WAVEFORM_POINTS = 48;
 
-/**
- * Grace period (ms) after entering "transcribing" state during which taps are
- * treated as no-ops instead of cancels.  This prevents the race where VAD
- * auto-stops recording at the same instant the user taps to stop — without the
- * guard the tap would land on the new "transcribing" state and discard the
- * pending transcript.
- */
-const TRANSCRIBING_GRACE_MS = 400;
+function waveformPath(samples: number[]) {
+  const points = samples.map((sample, index) => ({
+    x: (index / (WAVEFORM_POINTS - 1)) * 100,
+    // Treat the bottom of the control as the quiet baseline. Louder speech
+    // lifts the smooth trace toward the top instead of oscillating around the
+    // button's vertical center.
+    y: 94 - sample * 86,
+  }));
+  const first = points[0];
+  if (!first) return "none";
+  let path = `M ${first.x.toFixed(2)} ${first.y.toFixed(2)}`;
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1]!;
+    const current = points[index]!;
+    const midpointX = (previous.x + current.x) / 2;
+    const midpointY = (previous.y + current.y) / 2;
+    path += ` Q ${previous.x.toFixed(2)} ${previous.y.toFixed(2)} ${midpointX.toFixed(2)} ${midpointY.toFixed(2)}`;
+  }
+  const last = points[points.length - 1]!;
+  path += ` Q ${last.x.toFixed(2)} ${last.y.toFixed(2)} ${last.x.toFixed(2)} ${last.y.toFixed(2)}`;
+  return path;
+}
 
-interface VoiceMicButtonProps {
+export interface VoiceMicButtonProps {
   supported: boolean;
   isPreparing: boolean;
   isRecording: boolean;
-  /** True when persistent voice mode is active (distinct from one-shot recording). */
+  persistentMode?: boolean;
   isListening?: boolean;
-  /** True when passive wake word listening is active (mic open, no streaming). */
   isPassive?: boolean;
   isTranscribing: boolean;
   error: string | null;
-  /** 0-1 audio level for live mic visualization */
   audioLevel?: number;
-  /** Live partial transcript from streaming transcription. */
-  partialTranscript?: string;
-  /** Active voice backend, shown in tooltip for diagnostics. */
+  voiceActivity?: VoiceActivitySnapshot;
   backend?: string;
-  /** Whether TTS is currently playing audio. */
-  isTtsSpeaking?: boolean;
+  capabilityReason?: string;
+  operatorCommand?: string;
+  size?: ButtonSize;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
-  onCancel?: () => void;
-  /** Exit passive wake word mode. */
   onExitPassive?: () => void;
-  /** Stop TTS playback when tapped during speaking. */
-  onTtsStop?: () => void;
-  /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
+  onPrepare?: () => void;
   className?: string;
-  /** Extra classes for the inner button element. */
   buttonClassName?: string;
+  iconClassName?: string;
+  style?: CSSProperties;
+  testId?: string;
 }
 
-/** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
-function ErrorTooltip({ anchor, text }: { anchor: HTMLElement; text: string }) {
-  const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden" });
-  const tooltipRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const rect = anchor.getBoundingClientRect();
-    const el = tooltipRef.current;
-    if (!el) return;
-
-    const tooltipRect = el.getBoundingClientRect();
-    const pad = 4;
-
-    // Try above the button first, fall back to below if no room
-    let top: number;
-    if (rect.top - tooltipRect.height - pad >= pad) {
-      top = rect.top - tooltipRect.height - pad;
-    } else {
-      top = rect.bottom + pad;
-    }
-
-    // Center horizontally on the button, clamped to viewport
-    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
-    left = Math.max(pad, Math.min(left, window.innerWidth - tooltipRect.width - pad));
-
-    setStyle({ position: "fixed", top, left, visibility: "visible" });
-  }, [anchor, text]);
-
-  return createPortal(
-    <div
-      ref={tooltipRef}
-      className="z-[9999] w-48 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg pointer-events-none"
-      style={style}
-    >
-      {text}
-    </div>,
-    document.body,
-  );
-}
-
+/**
+ * Host prop adapter: maps web-console's voice state onto the library button's
+ * lifecycle states. Interaction and presentation are owned by RCL.
+ *
+ * This renders the button and nothing else, on purpose. Error text and recovery
+ * actions (cancel, release microphone, stop speech, export diagnostic) are app
+ * chrome and live in `VoiceRecoveryBanner`; rendering them here changed the
+ * control's footprint with its state and shifted the layout mid-sentence.
+ * `voice-mic-button-footprint.test.tsx` holds that line.
+ */
 export default function VoiceMicButton({
   supported,
   isPreparing,
   isRecording,
-  isListening = false,
-  isPassive = false,
+  persistentMode = false,
+  isListening,
+  isPassive,
   isTranscribing,
   error,
   audioLevel = 0,
-  partialTranscript,
+  voiceActivity,
   backend,
-  isTtsSpeaking = false,
+  capabilityReason,
+  operatorCommand,
+  size = "sm",
   onStart,
   onStop,
-  onCancel,
   onExitPassive,
-  onTtsStop,
-  className: wrapperClassName,
+  onPrepare,
+  className,
   buttonClassName,
+  iconClassName,
+  style,
+  testId,
 }: VoiceMicButtonProps) {
-  /** True when the mic is actively capturing (either one-shot or persistent). */
-  const isMicActive = isRecording || isListening;
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const pressStartRef = useRef(0);
-  /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
-  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "none">("none");
+  const state = !supported ? "unavailable"
+    : isTranscribing ? "transcribing"
+      : isPreparing ? "preparing"
+        : isPassive ? "recovering"
+          : isRecording || isListening ? "recording"
+            : error ? "error"
+              : "idle";
+  const active = state === "recording" || state === "recovering";
+  const hostRef = useRef<HTMLDivElement>(null);
+  const waveformRef = useRef<number[]>([]);
+  const latestLevelRef = useRef(0);
+  latestLevelRef.current = Math.max(0, Math.min(1, audioLevel));
 
-  /** Timestamp (ms) when isTranscribing last became true — used for grace period. */
-  const transcribingAtRef = useRef(0);
-  const prevTranscribingRef = useRef(false);
-  if (isTranscribing && !prevTranscribingRef.current) {
-    transcribingAtRef.current = Date.now();
-  }
-  prevTranscribingRef.current = isTranscribing;
+  useEffect(() => {
+    const host = hostRef.current;
+    const path = host?.querySelector<SVGPathElement>("[data-voice-waveform-path]");
+    if (!path) return;
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    // Block interaction while preparing to prevent double-tap issues
-    if (isPreparing) return;
-    pressStartRef.current = Date.now();
-    if (isTranscribing) {
-      // Grace period: if we just entered transcribing (e.g. VAD auto-stopped),
-      // ignore the tap so the user doesn't accidentally cancel the transcript.
-      const inGracePeriod = Date.now() - transcribingAtRef.current < TRANSCRIBING_GRACE_MS;
-      pressIntentRef.current = onCancel && !inGracePeriod ? "cancel" : "none";
-    } else if (isPassive) {
-      pressIntentRef.current = "stop"; // Will call onExitPassive
-    } else if (isMicActive) {
-      pressIntentRef.current = "stop";
-    } else {
-      // Stop TTS if it's playing, then start recording
-      if (isTtsSpeaking) onTtsStop?.();
-      pressIntentRef.current = "start";
-      onStart({ vadEnabled: true });
+    if (!active) {
+      waveformRef.current = [];
+      path.setAttribute("d", "M 0 94 Q 50 94 100 94");
+      return;
     }
-  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, onStart, onCancel, onTtsStop]);
 
-  const handlePointerUp = useCallback(() => {
-    if (isPreparing) return;
-    const intent = pressIntentRef.current;
-    pressIntentRef.current = "none";
-    if (intent === "cancel") {
-      onCancel?.();
-    } else if (intent === "stop" && isPassive) {
-      onExitPassive?.();
-    } else if (intent === "stop") {
-      onStop();
-    } else if (intent === "start" && !isListening && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
-      // Long press release -- push-to-talk: stop recording (one-shot only)
-      onStop();
-    }
-    // Short press on "start" -- tap-to-toggle: keep recording
-  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive]);
+    const samples = waveformRef.current;
+    while (samples.length < WAVEFORM_POINTS) samples.push(0.04);
+    let phase = 0;
+    let frame = 0;
 
-  if (!supported) return null;
+    const draw = () => {
+      const level = latestLevelRef.current;
+      phase += 0.13;
+      const envelope = 0.04 + level * 0.86;
+      const previous = samples[samples.length - 1] ?? 0.04;
+      const signal = envelope * (0.72 + 0.28 * Math.sin(phase));
+      samples.push(previous * 0.76 + signal * 0.24);
+      if (samples.length > WAVEFORM_POINTS) samples.shift();
+      path.setAttribute("d", waveformPath(samples));
+      frame = window.requestAnimationFrame(draw);
+    };
 
-  const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
-  const hasError = error !== null && isIdle && !isTtsSpeaking;
-  const showTtsSpeaking = isTtsSpeaking && isIdle;
+    draw();
+    return () => window.cancelAnimationFrame(frame);
+  }, [active]);
 
   return (
-    <div className={cn("relative shrink-0", wrapperClassName)}>
-      <button
-        ref={btnRef}
-        data-testid="voice-mic-btn"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        className={cn(
-          "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
-          buttonClassName,
-          isPreparing
-            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-            : isPassive
-              ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
-              : isListening
-                ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
-              : isRecording
-                ? "border-red-500 bg-red-500/20 text-red-400"
-                : isTranscribing
-                  ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                  : showTtsSpeaking
-                    ? "border-green-500 bg-green-500/20 text-green-400"
-                    : hasError
-                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-        )}
-        title={
-          isPreparing
-            ? "Preparing..."
-            : isPassive
-              ? "Listening for wake word... tap to stop"
-              : isListening
-                ? "Listening... tap to stop"
-              : isRecording
-                ? "Recording... tap to stop"
-                : isTranscribing
-                  ? "Transcribing... tap to cancel"
-                  : showTtsSpeaking
-                    ? "Speaking... tap to stop"
-                    : hasError
-                      ? `Voice error: ${error}`
-                      : `Tap to speak${backend ? ` (${backend === "whisper" ? "Whisper" : "Browser"})` : ""}`
-        }
+    <div
+      ref={hostRef}
+      className={["voice-waveform-host", className].filter(Boolean).join(" ")}
+      data-voice-waveform-active={active ? "true" : "false"}
+      data-voice-backend={backend}
+      title={!supported ? [capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" ") : undefined}
+    >
+      <VoiceInputButton
+        state={state}
+        mode={persistentMode ? "always-on" : "timeout"}
+        level={audioLevel}
+        timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
+        size={size}
+        surface="soft"
+        shape="rounded"
+        iconClassName={iconClassName}
+        onExitPassive={onExitPassive}
+        className={["voice-waveform-control", buttonClassName].filter(Boolean).join(" ")}
+        style={{
+          minInlineSize: 0,
+          minBlockSize: 0,
+          ...style,
+        }}
+        onStart={() => onStart?.()}
+        onStop={onStop}
+        onPrepare={onPrepare}
+        data-testid={testId}
+        aria-label={!supported ? ["Voice input unavailable", capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" — ") : undefined}
+      />
+      <svg
+        data-voice-waveform
+        aria-hidden="true"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
       >
-        {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
-        {isMicActive && (
-          <span
-            className={cn(
-              "absolute inset-x-0 bottom-0 rounded-[inherit] transition-[height] duration-75",
-              isListening ? "bg-cyan-500/30" : "bg-red-500/30",
-            )}
-            style={{ height: `${Math.round(audioLevel * 100)}%` }}
-          />
-        )}
-        {isPreparing ? (
-          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
-        ) : isPassive ? (
-          <Mic className="h-3.5 w-3.5 animate-[breathe_3s_ease-in-out_infinite] relative opacity-60" />
-        ) : isListening ? (
-          <Mic className="h-3.5 w-3.5 animate-pulse relative" />
-        ) : isTranscribing ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin relative" />
-        ) : showTtsSpeaking ? (
-          <Volume2 className="h-3.5 w-3.5 animate-pulse relative" />
-        ) : hasError ? (
-          <AlertCircle className="h-3.5 w-3.5 relative" />
-        ) : (
-          <Mic className="h-3.5 w-3.5 relative" />
-        )}
-      </button>
-      {hasError && btnRef.current && (
-        <ErrorTooltip anchor={btnRef.current} text={error as string} />
-      )}
-      {isMicActive && partialTranscript && btnRef.current && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
-          {partialTranscript}
-        </div>
-      )}
+        <path
+          data-voice-waveform-path
+          d="M 0 94 Q 50 94 100 94"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     </div>
   );
 }

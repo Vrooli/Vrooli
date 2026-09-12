@@ -2,7 +2,7 @@
  * Scenario domain types.
  */
 
-import type { Scenario as ProtoScenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
+import type { Scenario as ProtoScenario, ScenarioHealthSnapshot as ProtoScenarioHealthSnapshot, ScenarioHealthPhase as ProtoScenarioHealthPhase } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
 import type {
   ScenarioFile as ProtoScenarioFile,
   PreserveFilesRequest as ProtoPreserveFilesRequest,
@@ -26,6 +26,9 @@ export type Scenario = Omit<ProtoMessage<ProtoScenario>, "status"> & {
   /** Current runtime state */
   status: ScenarioStatus;
 };
+
+export type ScenarioHealthPhase = ProtoMessage<ProtoScenarioHealthPhase>;
+export type ScenarioHealthSnapshot = ProtoMessage<ProtoScenarioHealthSnapshot>;
 
 /**
  * Request to update scenario metadata

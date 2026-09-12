@@ -1,0 +1,2 @@
+# Provenance: captured from `Get-WinEvent -FilterHashtable @{LogName='System'} | Select-Object TimeCreated,ProviderName,Id,Message,MachineName,Level,ProcessId | ConvertTo-Json` on Windows.
+[{"TimeCreated":"2025-10-09T14:13:20.123Z","ProviderName":"Microsoft-Windows-WHEA-Logger","Id":17,"Message":"A corrected hardware error has occurred.","MachineName":"WIN-HOST","Level":3,"ProcessId":4}]

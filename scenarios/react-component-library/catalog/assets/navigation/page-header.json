@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.page-header",
+    "name": "PageHeader",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The unframed title region every routed page opens with: optional eyebrow, leading element, title at level one or two, description, and right-aligned actions that wrap under the copy on a phone. Compact density for headers inside panes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Type ramp, spacing, and rule colour resolve to declared tokens."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Consumer className merges through the shared helper."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "navigation.breadcrumbs",
+        "reason": "Hierarchical surfaces need a path; a top-level page does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "heading-hierarchy",
+    "semantic-structure",
+    "responsive-transformation",
+    "chrome-pinned",
+    "accessible-naming",
+    "content-reflow"
+  ]
+}

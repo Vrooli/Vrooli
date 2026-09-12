@@ -15,19 +15,19 @@ import (
 // ResilientStorage wraps a primary storage backend with a fallback,
 // using a circuit breaker to detect and recover from failures.
 type ResilientStorage struct {
-	primary   StorageInterface
-	fallback  StorageInterface
-	breaker   *resilience.Breaker
-	log       *logrus.Logger
+	primary     StorageInterface
+	fallback    StorageInterface
+	breaker     *resilience.Breaker
+	log         *logrus.Logger
 	useFallback atomic.Bool
 }
 
 // ResilientStorageConfig configures the resilient storage wrapper.
 type ResilientStorageConfig struct {
-	Primary        StorageInterface
-	Fallback       StorageInterface
-	BreakerConfig  resilience.BreakerConfig
-	Logger         *logrus.Logger
+	Primary       StorageInterface
+	Fallback      StorageInterface
+	BreakerConfig resilience.BreakerConfig
+	Logger        *logrus.Logger
 }
 
 // NewResilientStorage creates a storage wrapper with circuit breaker and fallback.

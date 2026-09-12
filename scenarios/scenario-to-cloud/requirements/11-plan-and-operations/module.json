@@ -1,0 +1,158 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-015",
+      "title": "Typed deployment, target, release and operation identities",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "plan-and-operations",
+      "description": "Selectors resolve to stable identities; ambiguous scenario-name selectors return a typed conflict; duplicate request keys with different content are rejected.",
+      "tags": [
+        "identity"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/identity/selector_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Selector grammar, distinct installations resolve distinctly, ambiguous selector is typed conflict. Tagged [REQ:STC-P0-015]."
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/identity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Identity stable across host change, uniqueness constraint, legacy record conversion preserves identity and target binding."
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/operation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Duplicate request key with different plan digest is refused with request_key_conflict; same digest replays."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_identity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "REST resolve endpoint and Connect DeploymentsService return typed ref or typed conflict; manifest resubmit keeps the deployment id."
+        },
+        {
+          "type": "test",
+          "ref": "api/deploymentsvc/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Deployment message round-trips through protojson with proto names; UI fixture parity."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/deploymentContract.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "UI parses the shared Deployment fixture through the generated schema."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-016",
+      "title": "One executable plan for preview, policy and apply",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "plan-and-operations",
+      "description": "Preview and apply consume the same typed action graph and canonical semantic digest; changed target, artifact, privilege or destructive effect invalidates prior review; satisfied desired state yields a no-op plan.",
+      "tags": [
+        "plan"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/execplan/execplan_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Deterministic semantic digest (100 iterations, map ordering, JSON round trip); presentation-only change keeps the digest; target/artifact/closure/configuration/data-schema/privilege/strategy changes change it and invalidate review; typed inputs carry no shell; no-op only when observed digests match; needs_input yields one onboarding handoff. Tagged [REQ:STC-P0-016]."
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/execute_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Preview/apply equality for every fixture in fixtures/workloads across install, runtime, start and retire scopes against a stateful fake target; every reach call attributed to a previewed action and validated by reach.ValidateCommand; undeclared effect refused; needs_input plan executes nothing; failed release.verify stops before stage/activate."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_plan_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Preview creates no cloud_operations rows and no SSH calls; apply requires the reviewed digest (400/409 plan_digest_mismatch), admits one operation and replays under the same request key; injected fence bump after preview yields plan_stale with zero rows/effects; no_op apply admits nothing; needs_input returns 428 with the handoff; Connect PlansService returns the REST digest; /vps/setup/apply refuses without/with a wrong digest before reaching the target."
+        },
+        {
+          "type": "test",
+          "ref": "api/plansvc/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Plan and preview round-trip through plans.proto with proto names and keep the semantic digest; typed error detail on Connect failures."
+        },
+        {
+          "type": "test",
+          "ref": "api/vps_setup_plan_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Legacy step view is derived from the executable plan (ids = action ids, no cleanup_scenarios, stage never extracts into the live workdir, preserve paths become data.inventory/release.activate inputs). Install scope stages through the target owner's release verify/stage verbs and delegates host repair to the privilege broker; activation belongs to the runtime scope; recorded data-binding mappings win over the heuristic."
+        },
+        {
+          "type": "test",
+          "ref": "docs/reference/executable-plan.md",
+          "phase": "structure",
+          "status": "implemented",
+          "notes": "Action vocabulary, schema version rules, digest rules, outcomes and endpoints."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-017",
+      "title": "Typed errors shared by API, CLI and UI",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "plan-and-operations",
+      "description": "Errors carry stable codes, retryability and next-action references consumed by generated clients.",
+      "tags": [
+        "errors"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/apierrors/errors_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Wire envelope shape, FromHTTP round trip, untyped bodies still yield stable codes, exit-code mapping. Tagged [REQ:STC-P0-017]."
+        },
+        {
+          "type": "test",
+          "ref": "api/deploymentsvc/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Connect errors carry the same errors.v1.Error detail with code, next action and details."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_identity_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "REST and Connect clients observe the same stable code for the same failure; migrated GET path writes the typed envelope."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/deploymentContract.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TypeScript parseApiError decodes the typed envelope through ErrorSchema and falls back to status-derived codes."
+        }
+      ]
+    }
+  ]
+}

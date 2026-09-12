@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import FloatingToolbar from "../components/FloatingToolbar";
 
 vi.mock("../hooks/useDraggablePosition", () => ({
@@ -34,6 +35,7 @@ vi.mock("../hooks/useLongPress", () => ({
 
 describe("FloatingToolbar", () => {
   const onOpenSettings = vi.fn();
+  const onOpenAccount = vi.fn();
   const onOpenAi = vi.fn();
   const onNewTerminal = vi.fn();
   const onOpenLauncher = vi.fn();
@@ -43,13 +45,19 @@ describe("FloatingToolbar", () => {
     localStorage.removeItem("wc-toolbar-dock");
   });
 
+  const onExpandComposer = vi.fn();
+  const onOpenMachines = vi.fn();
+
   function renderToolbar(isCreating = false) {
     return render(
       <FloatingToolbar
         onOpenSettings={onOpenSettings}
+        onOpenAccount={onOpenAccount}
+        onOpenMachines={onOpenMachines}
         onOpenAi={onOpenAi}
         onNewTerminal={onNewTerminal}
         onOpenLauncher={onOpenLauncher}
+        onExpandComposer={onExpandComposer}
         isCreating={isCreating}
       />,
     );
@@ -59,14 +67,31 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     expect(screen.getByTestId("floating-toolbar")).toBeTruthy();
     expect(screen.getByTestId("toolbar-settings")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-account")).toBeTruthy();
     expect(screen.getByTestId("toolbar-ai")).toBeTruthy();
     expect(screen.getByTestId("toolbar-new")).toBeTruthy();
+    expect(screen.getByTestId("toolbar-settings")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
+    expect(screen.getByTestId("toolbar-new")).toHaveClass("h-11", "w-11", "md:h-8", "md:w-8");
   });
 
   it("calls onOpenSettings when settings button is clicked", () => {
     renderToolbar();
     fireEvent.click(screen.getByTestId("toolbar-settings"));
     expect(onOpenSettings).toHaveBeenCalledOnce();
+  });
+
+  it("calls onOpenAccount when the profile button is clicked", () => {
+    renderToolbar();
+    fireEvent.click(screen.getByTestId("toolbar-account"));
+    expect(onOpenAccount).toHaveBeenCalledOnce();
+  });
+
+  it("opens the composer when the expand-composer button is clicked", () => {
+    renderToolbar();
+    const btn = screen.getByTestId("toolbar-expand-composer");
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onExpandComposer).toHaveBeenCalledOnce();
   });
 
   it("calls onOpenLauncher on short press of the plus button (default launcher behavior)", () => {
@@ -102,5 +127,22 @@ describe("FloatingToolbar", () => {
     renderToolbar();
     const buttonsContainer = screen.getByTestId("toolbar-settings").parentElement;
     expect(buttonsContainer?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+describe("FloatingToolbar machines control", () => {
+  it("opens the machines surface from the persistent control cluster", () => {
+    const handlers = {
+      onOpenSettings: vi.fn(),
+      onOpenAccount: vi.fn(),
+      onOpenMachines: vi.fn(),
+      onOpenAi: vi.fn(),
+      onNewTerminal: vi.fn(),
+      onOpenLauncher: vi.fn(),
+      onExpandComposer: vi.fn(),
+    };
+    render(<FloatingToolbar {...handlers} isCreating={false} />);
+    fireEvent.click(screen.getByTestId("toolbar-machines"));
+    expect(handlers.onOpenMachines).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "multi-viewport-emulator",
+    "description": "Device-emulation chrome around the preview iframe: viewport presets, zoom, rotate, reset; persists across sessions.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VP-001",
+      "title": "Viewport preset dropdown with mobile/tablet/desktop and named devices",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "emulator",
+      "criticality": "P0",
+      "description": "The Viewport menu lists at minimum iPhone 14 (390x844), iPhone SE (375x667), iPad (768x1024), iPad Pro (1024x1366), Desktop 1280, Desktop 1440, and Desktop 1920. Selecting a preset sets iframe width/height; device cards display their dimensions, and editable width/height controls are shown only for Responsive mode.",
+      "tags": ["emulator", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "UI store-state test verifies preset selection updates the emulator state machine; component test asserts dropdown lists all presets."
+        }
+      ]
+    },
+    {
+      "id": "VP-002",
+      "title": "Continuous zoom 10–200% with a slider and discrete step buttons",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "emulator",
+      "criticality": "P0",
+      "description": "Zoom values clamp to [0.1, 2.0]; applied as a CSS transform on the iframe wrapper, never as a viewport resize. A reset button returns zoom to 1.0.",
+      "tags": ["emulator", "zoom"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Store-state test asserts clamp; component test asserts slider/zoom-out/zoom-in/reset interactions."
+        }
+      ]
+    },
+    {
+      "id": "VP-003",
+      "title": "Rotate flips width/height; reset clears all emulator state",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "emulator",
+      "criticality": "P0",
+      "description": "Rotate swaps width and height while preserving the active preset label. Reset returns to the default preset, zoom 1.0, no rotation.",
+      "tags": ["emulator"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Store-state test covers rotate-then-reset sequence."
+        }
+      ]
+    },
+    {
+      "id": "VP-004",
+      "title": "Emulator state persists across sessions",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "emulator",
+      "criticality": "P0",
+      "description": "Last selected preset, zoom, and rotation persist via `localStorage` under a namespaced key. Restoration tolerates schema drift (unknown preset → default).",
+      "tags": ["emulator", "persistence"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Hook test mounts useDeviceEmulation, dispatches changes, asserts localStorage payload; second mount reads it."
+        }
+      ]
+    }
+  ]
+}

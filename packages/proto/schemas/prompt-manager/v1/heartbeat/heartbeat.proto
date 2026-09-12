@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.heartbeat;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat;heartbeat_v1";
+
+import "google/protobuf/struct.proto";
+
+// HeartbeatService is the typed command boundary for scheduling, run state,
+// shared team context, handoffs, tasks, and retention. Stable route identity
+// is represented by explicit fields; evolving agent-manager payloads remain
+// Value-backed until that upstream contract is proto-owned.
+service HeartbeatService {
+  rpc ListHeartbeats(TeamRequest) returns (JsonResponse);
+  rpc GetHeartbeat(MemberRequest) returns (JsonResponse);
+  rpc CreateHeartbeat(MemberMutationRequest) returns (JsonResponse);
+  rpc UpdateHeartbeat(MemberMutationRequest) returns (JsonResponse);
+  rpc DeleteHeartbeat(MemberRequest) returns (JsonResponse);
+  rpc TriggerHeartbeat(MemberMutationRequest) returns (JsonResponse);
+  rpc TriggerTeam(TeamMutationRequest) returns (JsonResponse);
+  rpc GetTeamExecutionStatus(TeamRequest) returns (JsonResponse);
+  rpc ClearTeamQueueRunning(MemberMutationRequest) returns (JsonResponse);
+  rpc ListTeamLogs(TeamQueryRequest) returns (JsonResponse);
+  rpc ListLogs(MemberQueryRequest) returns (JsonResponse);
+  rpc GetLog(LogRequest) returns (JsonResponse);
+  rpc GetResponsibilities(MemberRequest) returns (JsonResponse);
+  rpc SetResponsibilities(MemberMutationRequest) returns (JsonResponse);
+  rpc GetHeartbeatInstructions(MemberRequest) returns (JsonResponse);
+  rpc SetHeartbeatInstructions(MemberMutationRequest) returns (JsonResponse);
+  rpc GetMemberContext(MemberRequest) returns (JsonResponse);
+  rpc GetLastHandoff(MemberRequest) returns (JsonResponse);
+  rpc ClearLastHandoff(MemberMutationRequest) returns (JsonResponse);
+  rpc GetHandoffHistory(TeamQueryRequest) returns (JsonResponse);
+  rpc ClearHandoffHistory(TeamMutationRequest) returns (JsonResponse);
+  rpc GetTaskBoard(TeamQueryRequest) returns (JsonResponse);
+  rpc AddTask(TeamMutationRequest) returns (JsonResponse);
+  rpc UpdateTask(TaskMutationRequest) returns (JsonResponse);
+  rpc DeleteTask(TaskMutationRequest) returns (JsonResponse);
+  rpc CaptureBug(TeamMutationRequest) returns (JsonResponse);
+  rpc RepairBug(BugMutationRequest) returns (JsonResponse);
+  rpc GetRetention(TeamRequest) returns (JsonResponse);
+  rpc PruneSharedState(TeamMutationRequest) returns (JsonResponse);
+  rpc CreateTask(JsonMutationRequest) returns (JsonResponse);
+  rpc CreateRun(JsonMutationRequest) returns (JsonResponse);
+  rpc ListRuns(QueryRequest) returns (JsonResponse);
+  rpc ListHeartbeatAttempts(QueryRequest) returns (JsonResponse);
+  rpc CreateInvestigationRun(JsonMutationRequest) returns (JsonResponse);
+  rpc CreateInvestigationApplyRun(JsonMutationRequest) returns (JsonResponse);
+  rpc GetRun(RunRequest) returns (JsonResponse);
+  rpc RetryRun(RunMutationRequest) returns (JsonResponse);
+  rpc GetRunEvents(RunQueryRequest) returns (JsonResponse);
+  rpc ContinueRun(RunMutationRequest) returns (JsonResponse);
+  rpc GetHeartbeatControl(EmptyRequest) returns (JsonResponse);
+  rpc UpdateHeartbeatControlPolicy(JsonMutationRequest) returns (JsonResponse);
+  rpc PauseHeartbeatControl(JsonMutationRequest) returns (JsonResponse);
+  rpc ResumeHeartbeatControl(JsonMutationRequest) returns (JsonResponse);
+  rpc GetTeamHeartbeatControl(TeamRequest) returns (JsonResponse);
+  rpc UpdateTeamHeartbeatControlPolicy(TeamMutationRequest) returns (JsonResponse);
+  rpc PauseTeamHeartbeatControl(TeamMutationRequest) returns (JsonResponse);
+  rpc ResumeTeamHeartbeatControl(TeamMutationRequest) returns (JsonResponse);
+  rpc ListRunning(EmptyRequest) returns (JsonResponse);
+  rpc StopRunning(MemberMutationRequest) returns (JsonResponse);
+  rpc PreviewPrompt(JsonMutationRequest) returns (JsonResponse);
+  rpc PreviewPromptStructured(JsonMutationRequest) returns (JsonResponse);
+  rpc PreviewPromptMatrix(TeamQueryRequest) returns (JsonResponse);
+}
+
+message EmptyRequest {}
+message QueryRequest { map<string, string> query = 1; }
+message TeamRequest { string team_id = 1; }
+message TeamQueryRequest { string team_id = 1; map<string, string> query = 2; }
+message TeamMutationRequest { string team_id = 1; google.protobuf.Value body = 2; map<string, string> query = 3; }
+message MemberRequest { string team_id = 1; string agent_id = 2; }
+message MemberQueryRequest { string team_id = 1; string agent_id = 2; map<string, string> query = 3; }
+message MemberMutationRequest { string team_id = 1; string agent_id = 2; google.protobuf.Value body = 3; map<string, string> query = 4; }
+message TaskMutationRequest { string team_id = 1; string task_id = 2; google.protobuf.Value body = 3; }
+message BugMutationRequest { string team_id = 1; string draft_id = 2; google.protobuf.Value body = 3; }
+message LogRequest { string team_id = 1; string agent_id = 2; string log_id = 3; }
+message RunRequest { string run_id = 1; }
+message RunQueryRequest { string run_id = 1; map<string, string> query = 2; }
+message RunMutationRequest { string run_id = 1; google.protobuf.Value body = 2; }
+message JsonMutationRequest { google.protobuf.Value body = 1; }
+message JsonResponse { google.protobuf.Value data = 1; }

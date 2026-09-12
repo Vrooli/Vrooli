@@ -13,7 +13,7 @@ import {
   hasDownloadableArtifacts,
   getAvailablePlatforms,
   VALID_PLATFORMS,
-  type DesktopBuildArtifact
+  type DesktopBuildArtifact,
 } from "./download";
 
 describe("download domain", () => {
@@ -51,17 +51,17 @@ describe("download domain", () => {
       expect(getPlatformDisplayInfo("win")).toEqual({
         icon: "🪟",
         name: "Windows",
-        shortName: "Win"
+        shortName: "Win",
       });
       expect(getPlatformDisplayInfo("mac")).toEqual({
         icon: "🍎",
         name: "macOS",
-        shortName: "Mac"
+        shortName: "Mac",
       });
       expect(getPlatformDisplayInfo("linux")).toEqual({
         icon: "🐧",
         name: "Linux",
-        shortName: "Linux"
+        shortName: "Linux",
       });
     });
 
@@ -69,7 +69,7 @@ describe("download domain", () => {
       expect(getPlatformDisplayInfo("unknown")).toEqual({
         icon: "📦",
         name: "Unknown",
-        shortName: "?"
+        shortName: "?",
       });
     });
   });
@@ -120,7 +120,7 @@ describe("download domain", () => {
       { platform: "win", file_name: "app.exe", size_bytes: 1000 },
       { platform: "win", file_name: "app.msi", size_bytes: 2000 },
       { platform: "mac", file_name: "app.dmg", size_bytes: 3000 },
-      { platform: "linux", file_name: "app.AppImage", size_bytes: 4000 }
+      { platform: "linux", file_name: "app.AppImage", size_bytes: 4000 },
     ];
 
     it("groups artifacts by platform", () => {
@@ -156,7 +156,7 @@ describe("download domain", () => {
     const testArtifacts: DesktopBuildArtifact[] = [
       { platform: "linux", file_name: "app.AppImage" },
       { platform: "win", file_name: "app.exe" },
-      { platform: "mac", file_name: "app.dmg" }
+      { platform: "mac", file_name: "app.dmg" },
     ];
 
     it("returns groups in platform order (win, mac, linux)", () => {
@@ -176,7 +176,7 @@ describe("download domain", () => {
       const artifacts: DesktopBuildArtifact[] = [
         { file_name: "a", size_bytes: 100 },
         { file_name: "b", size_bytes: 200 },
-        { file_name: "c", size_bytes: 300 }
+        { file_name: "c", size_bytes: 300 },
       ];
 
       expect(computeTotalArtifactSize(artifacts)).toBe(600);
@@ -186,7 +186,7 @@ describe("download domain", () => {
       const artifacts: DesktopBuildArtifact[] = [
         { file_name: "a", size_bytes: 100 },
         { file_name: "b" },
-        { file_name: "c", size_bytes: 300 }
+        { file_name: "c", size_bytes: 300 },
       ];
 
       expect(computeTotalArtifactSize(artifacts)).toBe(400);
@@ -200,29 +200,32 @@ describe("download domain", () => {
 
   describe("buildDownloadPath", () => {
     it("builds correct path for valid inputs", () => {
-      expect(buildDownloadPath({ scenarioName: "my-app", platform: "win" })).toBe(
-        "/desktop/download/my-app/win"
-      );
+      expect(
+        buildDownloadPath({ scenarioName: "my-app", platform: "win" }),
+      ).toBe("/desktop/download/my-app/win");
       expect(buildDownloadPath({ scenarioName: "test", platform: "mac" })).toBe(
-        "/desktop/download/test/mac"
+        "/desktop/download/test/mac",
       );
     });
 
     it("encodes special characters in scenario name", () => {
-      expect(buildDownloadPath({ scenarioName: "my app", platform: "linux" })).toBe(
-        "/desktop/download/my%20app/linux"
-      );
+      expect(
+        buildDownloadPath({ scenarioName: "my app", platform: "linux" }),
+      ).toBe("/desktop/download/my%20app/linux");
     });
 
     it("throws for empty scenario name", () => {
-      expect(() => buildDownloadPath({ scenarioName: "", platform: "win" })).toThrow(
-        "scenarioName is required"
-      );
+      expect(() =>
+        buildDownloadPath({ scenarioName: "", platform: "win" }),
+      ).toThrow("scenarioName is required");
     });
 
     it("throws for invalid platform", () => {
       expect(() =>
-        buildDownloadPath({ scenarioName: "test", platform: "invalid" as never })
+        buildDownloadPath({
+          scenarioName: "test",
+          platform: "invalid" as never,
+        }),
       ).toThrow("Invalid platform");
     });
   });
@@ -230,7 +233,7 @@ describe("download domain", () => {
   describe("hasDownloadableArtifacts", () => {
     const artifacts: DesktopBuildArtifact[] = [
       { platform: "win", file_name: "app.exe" },
-      { platform: "mac", file_name: "app.dmg" }
+      { platform: "mac", file_name: "app.dmg" },
     ];
 
     it("returns true when platform has artifacts", () => {
@@ -252,7 +255,7 @@ describe("download domain", () => {
     it("returns platforms in standard order", () => {
       const artifacts: DesktopBuildArtifact[] = [
         { platform: "linux", file_name: "app.AppImage" },
-        { platform: "win", file_name: "app.exe" }
+        { platform: "win", file_name: "app.exe" },
       ];
 
       expect(getAvailablePlatforms(artifacts)).toEqual(["win", "linux"]);
@@ -266,7 +269,7 @@ describe("download domain", () => {
     it("deduplicates platforms", () => {
       const artifacts: DesktopBuildArtifact[] = [
         { platform: "win", file_name: "app.exe" },
-        { platform: "win", file_name: "app.msi" }
+        { platform: "win", file_name: "app.msi" },
       ];
 
       expect(getAvailablePlatforms(artifacts)).toEqual(["win"]);

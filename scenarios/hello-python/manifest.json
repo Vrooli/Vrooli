@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "contract": {
+    "kind": "scenario-architecture",
+    "schema": "scenario-architecture-manifest/v1",
+    "template": "python-uv-react-vite",
+    "extensionRule": "Cross-cutting architecture conventions shared by every template-manager generated from this template. The `zones` block is the SSOT for the code-layout zone taxonomy (responsibility tiers + import direction) that architecture-cartographer reads. A scenario overrides it only via `.vrooli/architecture.json`; any deviation is reported as a finding, never silently honored."
+  },
+  "zones": {
+    "pathPatterns": {
+      "transport": ["api/handlers/<domain>/"],
+      "domain": ["api/internal/<domain>/"],
+      "cli": ["cli/domains/<domain>/"],
+      "ui": ["ui/src/features/<domain>/"],
+      "composition-root": ["api/internal/app/", "api/internal/module/", "api/internal/modules/"],
+      "substrate": ["api/internal/<segment>/"]
+    },
+    "builtinSubstrateSegments": ["clock", "config", "database", "git", "httpc", "httpx", "middleware", "observability", "server", "suppressions", "testutil"],
+    "compositionRootSegments": ["app", "module", "modules"],
+    "coordinatingArchetypes": ["aggregation", "composition-root", "infrastructure", "mutation", "orchestration", "provider", "service"]
+  }
+}

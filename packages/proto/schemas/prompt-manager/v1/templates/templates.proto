@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.templates;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/templates;templates_v1";
+
+service TemplatesService { rpc ListAgentFileTemplates(ListAgentFileTemplatesRequest) returns (ListAgentFileTemplatesResponse); }
+message ListAgentFileTemplatesRequest {}
+message AgentFileTemplate { string id = 1; string name = 2; string description = 3; string file_name = 4; string content = 5; }
+message ListAgentFileTemplatesResponse { repeated AgentFileTemplate templates = 1; int32 count = 2; }

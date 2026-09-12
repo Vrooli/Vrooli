@@ -16,6 +16,16 @@ interface UpstreamInfoModalProps {
   repoId?: string | null;
 }
 
+interface UpstreamActionOption {
+  id: string;
+  title: string;
+  description: string;
+  safety: string;
+  command: string;
+  request: UpstreamActionRequest;
+  disabled?: boolean;
+}
+
 function getRemoteName(upstreamRef?: string) {
   if (!upstreamRef) return "origin";
   const parts = upstreamRef.split("/");
@@ -86,14 +96,14 @@ export function UpstreamInfoModal({
     ? `Status vs ${upstreamRef}: ${ahead} ahead, ${behind} behind.`
     : "";
 
-  const actions = [
+  const actions: UpstreamActionOption[] = [
     {
       id: "fetch",
       title: "Fetch remote updates",
       description: `Refresh ${remote} refs so ahead/behind is accurate.`,
       safety: "Safe: does not change your working tree or staged files.",
       command: fetchCommand,
-      request: { action: "fetch", remote } as UpstreamActionRequest
+      request: { action: "fetch", remote }
     },
     {
       id: "push",
@@ -104,8 +114,8 @@ export function UpstreamInfoModal({
       safety: "Safe: pushes commits only; does not touch local files.",
       command: pushCommand,
       request: hasLocal
-        ? ({ action: "push_set_upstream", remote, branch: localBranch } as UpstreamActionRequest)
-        : ({ action: "push_set_upstream", remote } as UpstreamActionRequest),
+        ? { action: "push_set_upstream", remote, branch: localBranch }
+        : { action: "push_set_upstream", remote },
       disabled: !hasLocal
     },
     {
@@ -118,8 +128,8 @@ export function UpstreamInfoModal({
       command: setUpstreamCommand,
       disabled: !canSuggestSetUpstream,
       request: hasLocal
-        ? ({ action: "set_upstream", branch: localBranch, upstream: desiredUpstream } as UpstreamActionRequest)
-        : ({ action: "set_upstream" } as UpstreamActionRequest)
+        ? { action: "set_upstream", branch: localBranch, upstream: desiredUpstream }
+        : { action: "set_upstream" }
     }
   ];
   const selectedAction = actions.find((action) => action.id === selectedActionId);

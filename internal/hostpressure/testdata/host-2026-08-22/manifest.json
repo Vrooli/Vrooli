@@ -1,0 +1,13 @@
+{
+  "capture_timestamp": "2026-08-22T00:00:00Z",
+  "host_name": "swarminator",
+  "core_count": 32,
+  "intervals_seconds": {
+    "proc_stat": 30,
+    "storage_manager_io": 30
+  },
+  "fork_counters": {
+    "t0": 78538870,
+    "t1": 78548590
+  }
+}

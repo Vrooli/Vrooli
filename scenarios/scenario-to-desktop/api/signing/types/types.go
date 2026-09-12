@@ -33,6 +33,16 @@ const (
 	DefaultTimestampServerGlobalSign = "http://timestamp.globalsign.com/tsa/r6advanced1"
 )
 
+// Default notarization environment bindings are public names only; the
+// corresponding values remain in the operator environment or authority.
+const (
+	DefaultAppleIDEnv          = "APPLE_ID"
+	DefaultAppleIDPasswordEnv  = "APPLE_APP_SPECIFIC_PASSWORD"
+	DefaultAppleAPIKeyIDEnv    = "APPLE_API_KEY_ID"
+	DefaultAppleAPIKeyFileEnv  = "APPLE_API_KEY_FILE"
+	DefaultAppleAPIIssuerIDEnv = "APPLE_API_ISSUER_ID"
+)
+
 // SchemaVersion is the current config schema version
 const SchemaVersion = "1.0"
 
@@ -59,7 +69,8 @@ type SigningConfig struct {
 // WindowsSigningConfig contains Windows Authenticode signing settings.
 type WindowsSigningConfig struct {
 	// CertificateSource specifies how the certificate is provided.
-	// Values: "file", "store", "azure_keyvault", "aws_kms"
+	// Values include legacy wire values "azure_keyvault" and "aws_kms" for
+	// compatibility, but the current signer supports only "file" and "store".
 	CertificateSource string `json:"certificate_source"`
 
 	// CertificateFile is the path to the .pfx/.p12 certificate file.

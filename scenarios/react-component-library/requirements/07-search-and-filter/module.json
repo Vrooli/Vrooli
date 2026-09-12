@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "search-and-filter",
+    "description": "Search and filter facets over the registry: name/description substring plus tag/category.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SF-001",
+      "title": "Name and description substring search returns matches case-insensitively",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "search",
+      "criticality": "P0",
+      "description": "`GET /api/v1/components?q=<query>` returns components whose name OR description contains the query, case-insensitive, ordered by name. Empty `q` returns the full list.",
+      "tags": ["search", "registry"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Repository test seeds a fixture corpus and asserts result set + ordering for several queries including empty/edge cases."
+        }
+      ]
+    },
+    {
+      "id": "SF-002",
+      "title": "Tag and category facets narrow the result set",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "search",
+      "criticality": "P0",
+      "description": "Query params `?tag=<t>&category=<c>` AND together (and AND with `q`). Multiple `tag` params OR together. Facets are populated from header metadata.",
+      "tags": ["search", "facets"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Repository test covers tag+category AND, multi-tag OR, and combination with q."
+        }
+      ]
+    },
+    {
+      "id": "SF-003",
+      "title": "Search p95 query latency under 100ms on the test corpus",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "search",
+      "criticality": "P0",
+      "description": "Test corpus of 1000 synthetic components on SQLite (`:memory:` or temp file) must return results within p95 100ms across the documented query mix. Repository must use an index on `name COLLATE NOCASE` and a virtual table or trigram index if needed.",
+      "tags": ["search", "performance"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Benchmark test seeds 1000 rows, runs the query mix N times, asserts p95."
+        }
+      ]
+    }
+  ]
+}

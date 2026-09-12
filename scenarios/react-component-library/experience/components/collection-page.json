@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "collection-page",
+    "title": "CollectionPage",
+    "purpose": "Browse a collection and act on its selected detail without losing navigation context.",
+    "storyRef": "../../library/components/CollectionPage/versions/1.7.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default specimen."
+    },
+    {
+      "id": "composed-regions",
+      "example": "composed-regions",
+      "description": "Composed regions specimen."
+    },
+    {
+      "id": "mobile-navigation",
+      "example": "mobile-navigation",
+      "description": "Mobile selection and Back specimen."
+    },
+    {
+      "id": "detail-actions",
+      "example": "detail-actions",
+      "description": "Reply beside selected detail specimen."
+    },
+    {
+      "id": "contextual-flows",
+      "example": "contextual-flows",
+      "description": "Shared dialog creation and contextual approval remain inside the workspace."
+    },
+    {
+      "id": "page-gutters",
+      "example": "page-gutters",
+      "description": "Shared page gutters adapt to available width."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "The component surface and its semantic descendants."
+    }
+  ],
+  "claims": [
+    {
+      "id": "composition-preserves-behavior",
+      "type": "manual-review",
+      "statement": "Collection-scoped filters stay with their results, while selected-detail actions remain with the inspector during responsive navigation.",
+      "tier": "manual",
+      "states": [
+        "detail-actions"
+      ]
+    },
+    {
+      "id": "contextual-flow-placement",
+      "type": "manual-review",
+      "statement": "Creation overlays and selected-record decisions compose through shared library regions without replacing the collection workspace.",
+      "tier": "manual",
+      "states": [
+        "contextual-flows"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-rcl-collection-page]"
+      }
+    }
+  }
+}

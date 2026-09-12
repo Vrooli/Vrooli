@@ -17,7 +17,7 @@
  * This ensures the browser viewport stays stable during replay style toggles.
  */
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { Profiler, memo, useCallback, useMemo, useState, useEffect } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
 import { loadHistory, type HistoryEntry } from '../capture/browserUrlHistory';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
@@ -25,6 +25,7 @@ import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
 import { useStreamSettings } from '../capture/streamSettingsState';
 import { useViewportOptional } from '../context';
+import { onProfilerRender } from '@/lib/profiler';
 
 interface RecordPreviewPanelProps {
   previewUrl: string;
@@ -54,7 +55,7 @@ interface RecordPreviewPanelProps {
   isViewportSyncing?: boolean;
 }
 
-export function RecordPreviewPanel({
+export const RecordPreviewPanel = memo(function RecordPreviewPanel({
   previewUrl: _previewUrl,
   onPreviewUrlChange,
   actions: _actions,
@@ -102,6 +103,7 @@ export function RecordPreviewPanel({
   // causes white flicker as the new instance starts with hasFrame=false.
   // Only show StartRecordingState when there's no session at all.
   return (
+    <Profiler id="RecordPreviewPanel" onRender={onProfilerRender}>
     <div className="h-full w-full">
       {sessionId ? (
         <PlaywrightView
@@ -122,8 +124,9 @@ export function RecordPreviewPanel({
         <StartRecordingState onNavigate={onPreviewUrlChange} />
       )}
     </div>
+    </Profiler>
   );
-}
+});
 
 /** Extract domain from URL for display */
 function extractDomain(url: string): string {

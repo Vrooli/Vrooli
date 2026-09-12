@@ -172,6 +172,39 @@ ApproveRun Request
 
 ## Failure Categories
 
+### Investigation self-spawn refusal
+
+Investigation profiles can invoke the Agent Manager CLI for read-side evidence,
+but a run-issued identity token is refused on lifecycle routes such as create,
+stop, quiesce, investigate, and investigation-apply. The API returns `403`
+with `run identity cannot perform lifecycle operation`. This is intentional:
+the report records it as a failed project-owned tool call, and the investigator
+should classify it as a policy boundary rather than retrying or weakening the
+profile's shell access.
+
+### Coding-agent identity attachment degradation
+
+Native coding-agent launches use a bounded, best-effort `POST /api/v1/runs/attach`
+before the child starts. The launch remains allowed when attribution cannot be
+attached, but the control-plane launcher records a tier-4 ungoverned launch and
+logs the failure class. Operators should distinguish these cases:
+
+| Failure class | Meaning | Operator action |
+|---|---|---|
+| `bad base URL` | The configured Agent Manager endpoint is not a valid URL | Correct `AGENT_MANAGER_API_BASE` or port authority |
+| `timeout` | Agent Manager did not answer within the attach budget | Inspect Agent Manager health and local load |
+| `agent-manager unreachable` | The endpoint could not be contacted | Start or repair Agent Manager |
+| `non-2xx response` | Agent Manager rejected the attachment | Inspect the response and run policy state |
+| `malformed response` | The endpoint returned unusable JSON or no identity token | Inspect API/version compatibility |
+
+An attachment refusal is observability degradation, not proof that the coding
+agent failed. A daemon-shaped failure is different: if the manager accepts the
+run but its lifecycle refusal counter reaches the functional-health threshold,
+`/health` remains ready for diagnostics while reporting degraded functional
+status. The enriched refusal response includes `run_id`, `run_status`, and
+`token_mint_time` so an operator can correlate the refusal with the durable run
+record before escalating through `vrooli agent recover`.
+
 ### Category 1: Input Errors (Client Fixable)
 These require the client to correct their request.
 
@@ -390,4 +423,4 @@ Approvals that succeeded but state update failed:
 - [errors.go](../api/internal/domain/errors.go) - Error type definitions
 - [decisions.go](../api/internal/domain/decisions.go) - State machine logic
 - [run_executor.go](../api/internal/orchestration/run_executor.go) - Execution flow
-- [SEAMS.md](./SEAMS.md) - Architectural boundaries
+- [SEAMS.md](./internal/SEAMS.md) - Architectural boundaries

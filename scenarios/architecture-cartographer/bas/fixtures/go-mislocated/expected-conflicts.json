@@ -1,0 +1,12 @@
+{
+  "scenario": "go-mislocated",
+  "conflicts": [
+    {
+      "detector": "glossary_drift",
+      "type": "glossary_drift",
+      "severity": "warn",
+      "locations_min": 1,
+      "evidence_kinds_include": ["foreign_glossary_token"]
+    }
+  ]
+}

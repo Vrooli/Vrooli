@@ -1,0 +1,38 @@
+{
+ "provider_id": "cli-health.commands",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "cli-health",
+  "bucket": "BUCKET_DO",
+  "type": "command",
+  "description": "Vrooli CLI commands across every scenario CLI, searchable by what each command does (for example \"restart a scenario\", \"view logs\", \"run tests\"). Route here to discover which CLI command performs an operation.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "cli-health",
+      "path": "/vrooli.cli_health.v1.search.SearchService/Search",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"mode\":\"MODE_AI\"}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "name",
+    "title_field": "name",
+    "score_field": "score",
+    "snippet_field": "description",
+    "path_field": "name",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "status_endpoint": {
+    "http_json": {
+      "scenario_id": "cli-health",
+      "path": "/vrooli.cli_health.v1.search.SearchService/Status",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "index_timestamp_field": "last_indexed_at",
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

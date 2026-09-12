@@ -1,0 +1,55 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "erpnext",
+  "display_name": "ERPNext",
+  "category": "business-systems",
+  "summary": "Open-source ERP platform for finance, operations, inventory, CRM, and internal process automation.",
+  "why_it_matters": "ERP capability may matter for future business-system scenarios, but the previous registry-only record was not a maintained or validated Vrooli resource.",
+  "when_to_use": [
+    "A scenario needs a serious ERP backbone for inventory, finance, or operations workflows.",
+    "An enterprise deployment needs open-source ERP integration as part of a larger system."
+  ],
+  "example_scenarios": [
+    "Operations management suite",
+    "Internal ERP augmentation services"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "ERPNext usually runs as a multi-service stack and should only be supported if Vrooli wants to own its operational complexity.",
+    "linux": "supported",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "A validated scenario with real ERP requirements",
+    "Operational willingness to manage a multi-service business system"
+  ],
+  "dependencies": [
+    "postgres"
+  ],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should start from a compose-style deployment with honest operational expectations.",
+    "Do not revive the old registry entry as if it represented a supported integration.",
+    "Future support should define upgrade, backup, and tenant boundaries."
+  ],
+  "operational_notes": [
+    "Business-system upgrades and data migrations are the hard part of support.",
+    "Validation must include more than process startup; operator workflows need to work."
+  ],
+  "risks": [
+    "ERP stacks are expensive to support relative to speculative value.",
+    "Half-supported ERP integrations create trust problems quickly."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "erpnext"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

@@ -48,15 +48,63 @@ export type MessagingMode = z.infer<typeof MessagingModeSchema>
 export const QueuePolicySchema = z.enum(['serialized', 'bounded-parallel'])
 export type QueuePolicy = z.infer<typeof QueuePolicySchema>
 
-export const DecisionModeSchema = z.enum(['yolo', 'approval'])
-export type DecisionMode = z.infer<typeof DecisionModeSchema>
+const PathRefSchema = z.object({
+  base: z.enum(['repo-root', 'team-root', 'team-shared', 'team-member', 'agent-root']).optional(),
+  path: z.string().optional(),
+  memberId: z.string().optional(),
+  agentId: z.string().optional(),
+  required: z.boolean().optional(),
+  optionalReason: z.string().optional(),
+})
+
+const WriteRefSchema = PathRefSchema.extend({
+  kind: z.enum(['handoff', 'knowledge', 'task', 'inbox-message']).optional(),
+})
+
+export const OperatingContractSchema = z.object({
+  schemaVersion: z.literal(1),
+  documents: z.object({
+    planOfRecord: z.array(z.object({
+      id: z.string(),
+      paths: z.array(PathRefSchema),
+      writePolicy: z.string(),
+      consumers: z.array(z.string()).optional(),
+      rationale: z.string().optional(),
+      required: z.boolean().optional(),
+      optionalReason: z.string().optional(),
+    })).optional().default([]),
+    sharedState: z.array(z.object({
+      id: z.string(),
+      path: PathRefSchema,
+      ownerMemberId: z.string().optional(),
+      kind: z.string(),
+      required: z.boolean(),
+      optionalReason: z.string().optional(),
+    })).optional().default([]),
+  }),
+  knowledgeTopics: z.record(z.string(), z.object({
+    ownerMemberId: z.string(),
+    retention: z.string().optional(),
+  })),
+  members: z.record(z.string(), z.object({
+    lane: z.string(),
+    allowedWrites: z.array(WriteRefSchema).optional(),
+    forbiddenWrites: z.array(WriteRefSchema).optional(),
+    safetyCriticalRules: z.array(z.string()).optional(),
+    readOnlyModeBehavior: z.object({
+      stillWriteKnowledge: z.boolean(),
+      stillWriteHandoff: z.boolean(),
+    }),
+    taskParameters: z.record(z.string(), z.unknown()).optional(),
+  })),
+})
+export type OperatingContract = z.infer<typeof OperatingContractSchema>
 
 export const CoordinationCapabilitiesSchema = z.object({
   showOrgContext: z.boolean(),
   injectInbox: z.boolean(),
   allowPeerTriggers: z.boolean(),
   showTaskBoardGuidance: z.boolean(),
-  showDecisionLogGuidance: z.boolean(),
   showKnowledgeLogGuidance: z.boolean(),
   requireHandoff: z.boolean(),
 })
@@ -90,7 +138,7 @@ export const TeamSchema = z.object({
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional().default('yolo'),
+  operatingContract: OperatingContractSchema,
   memberCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -112,7 +160,7 @@ export const CreateTeamRequestSchema = z.object({
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional(),
+  operatingContract: OperatingContractSchema,
 })
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 
@@ -123,7 +171,7 @@ export const UpdateTeamRequestSchema = z.object({
   runtime: RuntimeSchema.optional(),
   coordination: CoordinationSchema.optional(),
   execution: ExecutionSchema.optional(),
-  decisionMode: DecisionModeSchema.optional(),
+  operatingContract: OperatingContractSchema.optional(),
 })
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
 
@@ -214,7 +262,6 @@ export const DEFAULT_INDEPENDENT_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -224,7 +271,6 @@ export const DEFAULT_PEER_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: true,
   allowPeerTriggers: true,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -234,7 +280,6 @@ export const DEFAULT_LEADER_LED_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -293,6 +338,11 @@ export function buildDefaultCreateTeamRequest(displayName: string): CreateTeamRe
     runtime: { mode: 'multi-process' },
     coordination: buildIndependentCoordination(),
     execution: buildBoundedParallelExecution(2),
-    decisionMode: 'yolo',
+    operatingContract: {
+      schemaVersion: 1,
+      documents: { planOfRecord: [], sharedState: [] },
+      knowledgeTopics: {},
+      members: {},
+    },
   }
 }

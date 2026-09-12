@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	compiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
@@ -18,6 +19,144 @@ import (
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+func TestExecuteGraphReturnsNewSessionWhenItsFirstStepFails(t *testing.T) {
+	t.Parallel()
+
+	session := &failingEngineSession{}
+	executor := NewSimpleExecutor(nil)
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:  0,
+			NodeID: "failing-navigate",
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+	returned, err := executor.executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	if err == nil {
+		t.Fatal("expected first graph step to fail")
+	}
+	if returned == nil {
+		t.Fatal("failed first step discarded the newly created session")
+	}
+	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphCompletesWhenAFailedStepIsConfiguredToContinue(t *testing.T) {
+	t.Parallel()
+
+	continueOnError := true
+	session := &failingEngineSession{}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:   0,
+			NodeID:  "recoverable-navigate",
+			Context: map[string]any{"continueOnError": continueOnError},
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+
+	returned, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
+	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphHonorsContinueOnErrorCompiledFromWorkflow(t *testing.T) {
+	t.Parallel()
+
+	continueOnError := true
+	workflow := &basworkflows.WorkflowDefinitionV2{
+		Nodes: []*basworkflows.WorkflowNodeV2{{
+			Id: "recoverable-navigate",
+			Action: &basactions.ActionDefinition{
+				Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+					Url: "https://example.com",
+				}},
+			},
+			ExecutionSettings: &basworkflows.NodeExecutionSettings{ContinueOnError: &continueOnError},
+		}},
+	}
+	plan, _, err := compiler.CompileWorkflowToContracts(context.Background(), uuid.New(), &basapi.WorkflowSummary{
+		Id:             uuid.NewString(),
+		Name:           "recoverable-compiled-flow",
+		FlowDefinition: workflow,
+	})
+	require.NoError(t, err)
+
+	session := &failingEngineSession{}
+	returned, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
+	require.Same(t, session, returned)
+}
+
+func TestExecuteGraphAcceptsPersistedSnakeCaseContinueOnError(t *testing.T) {
+	t.Parallel()
+
+	session := &failingEngineSession{}
+	plan := contracts.ExecutionPlan{
+		ExecutionID: uuid.New(),
+		WorkflowID:  uuid.New(),
+		Graph: &contracts.PlanGraph{Steps: []contracts.PlanStep{{
+			Index:   0,
+			NodeID:  "recoverable-persisted-navigate",
+			Context: map[string]any{"continue_on_error": true},
+			Action: &basactions.ActionDefinition{
+				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
+				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}},
+			},
+		}}},
+	}
+
+	_, err := NewSimpleExecutor(nil).executeGraph(
+		context.Background(),
+		Request{Plan: plan, Recorder: &stubExecutionWriter{}},
+		executionContext{navigation: &navigationState{}},
+		&failingAutomationEngine{session: session},
+		engine.SessionSpec{},
+		nil,
+		state.NewFromStore(nil),
+		engine.ReuseModeReuse,
+	)
+	require.NoError(t, err)
+}
 
 func TestExecutePlanStep_SubflowInterpolatesArgsBeforeExecution(t *testing.T) {
 	t.Parallel()
@@ -129,6 +268,20 @@ type stubAutomationEngine struct {
 	session *stubEngineSession
 }
 
+type failingAutomationEngine struct {
+	session *failingEngineSession
+}
+
+func (e *failingAutomationEngine) Name() string { return "failing" }
+
+func (e *failingAutomationEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
+	return contracts.EngineCapabilities{}, nil
+}
+
+func (e *failingAutomationEngine) StartSession(context.Context, engine.SessionSpec) (engine.EngineSession, error) {
+	return e.session, nil
+}
+
 func (s *stubAutomationEngine) Name() string { return "stub" }
 
 func (s *stubAutomationEngine) Capabilities(context.Context) (contracts.EngineCapabilities, error) {
@@ -146,6 +299,20 @@ type stubEngineSession struct {
 	lastInputValue string
 }
 
+type failingEngineSession struct{}
+
+func (*failingEngineSession) Run(context.Context, contracts.CompiledInstruction) (contracts.StepOutcome, error) {
+	return contracts.StepOutcome{}, assert.AnError
+}
+
+func (*failingEngineSession) Reset(context.Context) error { return nil }
+
+func (*failingEngineSession) Close(context.Context) error { return nil }
+
+func (*failingEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
+	return nil, nil
+}
+
 func (s *stubEngineSession) Run(_ context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
 	if input := instruction.Action.GetInput(); input != nil {
 		s.lastInputValue = input.GetValue()
@@ -157,7 +324,9 @@ func (s *stubEngineSession) Reset(context.Context) error { return nil }
 
 func (s *stubEngineSession) Close(context.Context) error { return nil }
 
-func (s *stubEngineSession) GetStorageState(context.Context) (json.RawMessage, error) { return nil, nil }
+func (s *stubEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
+	return nil, nil
+}
 
 type stubExecutionWriter struct{}
 
@@ -169,9 +338,13 @@ func (s *stubExecutionWriter) RecordTelemetry(context.Context, contracts.Executi
 	return nil
 }
 
-func (s *stubExecutionWriter) MarkCrash(context.Context, uuid.UUID, contracts.StepFailure) error { return nil }
+func (s *stubExecutionWriter) MarkCrash(context.Context, uuid.UUID, contracts.StepFailure) error {
+	return nil
+}
 
-func (s *stubExecutionWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error { return nil }
+func (s *stubExecutionWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error {
+	return nil
+}
 
 func (s *stubExecutionWriter) RecordExecutionArtifacts(context.Context, contracts.ExecutionPlan, []executionwriter.ExternalArtifact) error {
 	return nil
@@ -183,7 +356,14 @@ func (s *stubExecutionWriter) GetArtifactConfig() config.ArtifactCollectionSetti
 	return config.ArtifactCollectionSettings{}
 }
 
-var _ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
-var _ WorkflowResolver = (*stubWorkflowResolver)(nil)
-var _ engine.AutomationEngine = (*stubAutomationEngine)(nil)
-var _ engine.EngineSession = (*stubEngineSession)(nil)
+func (s *stubExecutionWriter) SetArtifactConfigForExecution(uuid.UUID, *config.ArtifactCollectionSettings) {
+}
+
+func (s *stubExecutionWriter) ForgetExecution(uuid.UUID) {}
+
+var (
+	_ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
+	_ WorkflowResolver                = (*stubWorkflowResolver)(nil)
+	_ engine.AutomationEngine         = (*stubAutomationEngine)(nil)
+	_ engine.EngineSession            = (*stubEngineSession)(nil)
+)

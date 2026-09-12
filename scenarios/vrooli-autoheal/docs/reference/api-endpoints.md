@@ -379,12 +379,14 @@ Get time-bucketed uptime data for charting.
 
 #### GET /api/v1/incidents
 
-Get status transition events (incidents).
+Get durable operator-facing incidents.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| hours | int | 24 | Time window in hours (max 168) |
+| status | string |  | Filter by `open`, `acknowledged`, `resolved`, or `ignored` |
+| severity | string |  | Filter by `info`, `warning`, or `critical` |
+| type | string |  | Filter by incident type |
 | limit | int | 50 | Maximum incidents (max 200) |
 
 **Response:**
@@ -392,18 +394,99 @@ Get status transition events (incidents).
 {
   "incidents": [
     {
-      "id": "inc-456",
-      "checkId": "infra-docker",
-      "status": "resolved",
-      "startedAt": "2024-01-15T10:25:00Z",
-      "resolvedAt": "2024-01-15T10:26:00Z",
-      "duration": 60,
-      "autoHealed": true
+      "id": "inc_3be099c9313dee0b819991a7",
+      "fingerprint": "incfp_3be099c9313dee0b819991a7",
+      "type": "host_integrity",
+      "severity": "critical",
+      "status": "open",
+      "title": "Host integrity issue detected",
+      "summary": "Runtime/device stack mismatch",
+      "detectedAt": "2026-05-08T15:45:57Z",
+      "lastSeenAt": "2026-05-08T16:03:13Z",
+      "eventCount": 1,
+      "observationCount": 2
     },
     ...
   ]
 }
 ```
+
+#### GET /api/v1/incidents/{incidentId}/remediations
+
+List structured remediation candidates for one incident. Candidates are descriptive only; autoheal does not execute privileged mutations.
+
+**Response:**
+```json
+{
+  "incidentId": "inc_3be099c9313dee0b819991a7",
+  "remediations": [
+    {
+      "id": "ubuntu-nvidia-kernel-module-mismatch",
+      "title": "Install matching NVIDIA kernel module package for the running kernel",
+      "applicability": "applicable",
+      "requiresOperator": true,
+      "requiresPrivilege": true,
+      "riskLevel": "moderate",
+      "templateId": "ubuntu-nvidia-kernel-module-mismatch",
+      "simulation": "apt-get -s install <expected-package>",
+      "artifactPolicy": "generate_only_under_user_state",
+      "postChecks": ["nvidia-smi", "vrooli-autoheal incidents latest --json"]
+    }
+  ],
+  "total": 1
+}
+```
+
+`applicability` may be `applicable`, `not_applicable`, `unsupported`, `blocked`, or `needs_corroboration`. Artifact generation is refused unless the candidate is `applicable`.
+
+#### POST /api/v1/incidents/{incidentId}/remediations/{remediationId}/generate
+
+Generate an operator-reviewable remediation artifact under resolver-backed user state using `api-core/storage`. The endpoint writes files such as `remediation.sh`, `metadata.json`, `README.md`, and `post-checks.json`; it never runs the generated script.
+
+Generated artifacts are incident-specific and host-specific. They belong under the storage-resolved state directory for `vrooli-autoheal`, not under the checked-in `scenarios/vrooli-autoheal` source tree. Source code may contain reusable remediation generator/template logic, but the operator-run script produced from that logic is stored only as a state artifact. The exact root can vary by OS, profile, and `VROOLI_STATE_ROOT`; consumers should use the returned `artifact.path`.
+
+**Response:**
+```json
+{
+  "incidentId": "inc_3be099c9313dee0b819991a7",
+  "artifact": {
+    "id": "ubuntu-nvidia-kernel-module-mismatch-artifact",
+    "remediationId": "ubuntu-nvidia-kernel-module-mismatch",
+    "path": "/home/user/.local/state/vrooli/vrooli-autoheal/incidents/inc_3be099c9313dee0b819991a7/remediation/ubuntu-nvidia-kernel-module-mismatch",
+    "generatedAt": "2026-05-08T16:10:00Z"
+  },
+  "files": {
+    "remediation.sh": ".../remediation.sh",
+    "metadata.json": ".../metadata.json",
+    "README.md": ".../README.md",
+    "post-checks.json": ".../post-checks.json"
+  }
+}
+```
+
+#### POST /api/v1/incidents/{incidentId}/remediations/{remediationId}/outcome
+
+Record an operator-reported remediation outcome on the incident.
+
+**Request:**
+```json
+{
+  "status": "verified",
+  "note": "post-checks are healthy"
+}
+```
+
+Supported statuses are `generated`, `operator_ran`, `verified`, `failed`, and `abandoned`.
+
+#### GET /api/v1/transitions
+
+Get derived health-check status transitions for timeline and trends views.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| hours | int | 24 | Time window in hours (max 168) |
+| limit | int | 50 | Maximum transitions (max 200) |
 
 ---
 
@@ -444,7 +527,9 @@ Get the watchdog configuration template for the current platform.
 
 #### POST /api/v1/watchdog/install
 
-Install the OS-level watchdog service. Timeout: 2 minutes.
+Request the project control plane to apply the autoheal watchdog safeguard.
+The scenario does not mutate native scheduler state. Operators should normally
+run `sudo vrooli setup` directly. Timeout: 2 minutes.
 
 **Request Body (optional):**
 ```json
@@ -458,7 +543,7 @@ Install the OS-level watchdog service. Timeout: 2 minutes.
 ```json
 {
   "success": true,
-  "message": "Watchdog service installed and started"
+  "message": "autoheal watchdog installation delegated to vrooli setup"
 }
 ```
 
@@ -466,13 +551,14 @@ Install the OS-level watchdog service. Timeout: 2 minutes.
 
 #### POST /api/v1/watchdog/uninstall
 
-Remove the OS-level watchdog service.
+Scenario-owned watchdog removal is unsupported because project setup owns the
+declared protection lifecycle.
 
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Watchdog service removed"
+  "success": false,
+  "message": "autoheal watchdog lifecycle is owned by project setup"
 }
 ```
 
@@ -584,7 +670,9 @@ Enable or disable auto-heal for a specific check.
 
 #### GET /api/v1/config/monitoring
 
-Get the monitoring configuration (which scenarios and resources are monitored).
+Get additive operator monitoring overrides. Canonical scenario/resource
+membership comes from `vrooli supervision-set` and cannot be removed through
+this endpoint.
 
 ---
 
@@ -685,6 +773,67 @@ curl "http://localhost:PORT/api/v1/docs/content?path=QUICKSTART.md"
 | 200 | Document found |
 | 400 | Invalid path |
 | 404 | Document not found |
+
+---
+
+### System Event Timeline
+
+#### GET /api/v1/system-events
+
+Returns normalized host-level events used for forensics and change correlation. This is separate from `/api/v1/timeline`, which remains the health-check result timeline.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| since | string | none | RFC3339 time or duration such as `72h`, `7d`, `30d` |
+| until | string | none | RFC3339 end time |
+| limit | int | 100 | Maximum events, capped at 500 |
+| category | string | none | Comma-separated categories such as `kernel,driver,crash` |
+| severity | string | none | Comma-separated `info`, `warning`, `critical` |
+| source | string | none | Comma-separated sources such as `dpkg-log,journalctl` |
+| platform | string | none | Platform filter |
+| bootId | string | none | Boot ID filter |
+| correlate | boolean | false | Include deterministic temporal correlation hints |
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "id": 1,
+      "fingerprint": "abc123",
+      "occurredAt": "2026-05-08T12:57:16Z",
+      "source": "dpkg-log",
+      "platform": "linux",
+      "category": "driver",
+      "severity": "info",
+      "title": "Package upgrade: nvidia-driver-580-open",
+      "summary": "upgrade nvidia-driver-580-open 580.126 -> 580.142"
+    }
+  ],
+  "count": 1,
+  "sources": [
+    { "source": "dpkg-log", "platform": "linux", "status": "ok" }
+  ],
+  "correlations": []
+}
+```
+
+#### POST /api/v1/system-events/refresh
+
+Runs bounded system-event ingestion immediately.
+
+**Response:**
+```json
+{
+  "ingested": 12,
+  "deduped": 40,
+  "durationMs": 238,
+  "sources": [
+    { "source": "journalctl", "platform": "linux", "status": "ok" }
+  ]
+}
+```
 
 ## Error Responses
 

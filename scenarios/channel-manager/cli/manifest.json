@@ -1,0 +1,246 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "channel-manager",
+  "description": "Manual platform-identity operations. The runtime `channel` group uses the scenario API and accepts credential-authority references only, never credential values.",
+  "groups": [
+    {
+      "name": "channel",
+      "description": "Manage platform identities and manual warming actions",
+      "commands": [
+        {
+          "name": "overview",
+          "description": "Show identities, due actions, and flags",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelManagerService",
+            "method": "GetOverview"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create an identity with non-secret metadata and an optional credential-authority reference",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a warming program",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit",
+          "description": "Update non-secret identity metadata and operator policy",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retire",
+          "description": "Retire an identity while preserving its audit history",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "timeline",
+          "description": "Show an identity's immutable redacted activity timeline",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "queue",
+          "description": "Queue a manual platform action",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "complete",
+          "description": "Record manual action completion",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "observe",
+          "description": "Record a manual observation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign-automation",
+          "description": "Record operator-approved BAS session-profile and workflow references for one identity",
+          "flags": [
+            {
+              "name": "identity-id",
+              "required": true,
+              "description": "Channel Manager identity id"
+            },
+            {
+              "name": "consumer-profile-key",
+              "required": true,
+              "description": "Scenario-declared non-secret BAS profile key"
+            },
+            {
+              "name": "session-profile-ref",
+              "required": true,
+              "description": "Opaque BAS session profile reference"
+            },
+            {
+              "name": "workflow-ref",
+              "required": true,
+              "description": "Operator-approved BAS workflow UUID"
+            },
+            {
+              "name": "enabled-action-kind",
+              "required": true,
+              "description": "One or more permitted queued action kinds",
+              "bind": {
+                "field": "enabled_action_kinds"
+              }
+            },
+            {
+              "name": "operator-note",
+              "required": true,
+              "description": "Operator acceptance decision reference"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelManagerService",
+            "method": "AssignAutomation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dispatch-browser",
+          "description": "Dispatch an already due, operator-approved action to BAS",
+          "positionals": [
+            {
+              "name": "action-id",
+              "required": true,
+              "description": "Durable scheduled action id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChannelManagerService",
+            "method": "DispatchBrowserAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "ChannelManagerService",
+      "method": "DeliverReleaseOutcome",
+      "reason": "Outbound Content Desk release delivery is a durable integration operation, not an operator CLI action."
+    },
+    {
+      "service": "ChannelManagerService",
+      "method": "DeliverMetricSample",
+      "reason": "Outbound Content Desk metric delivery is a durable integration operation, not an operator CLI action."
+    },
+    {
+      "service": "ChannelManagerService",
+      "method": "GetEligibility",
+      "reason": "Machine-to-machine Content Desk eligibility gate; the operator console exposes this state directly."
+    },
+    {
+      "service": "ChannelManagerService",
+      "method": "SubmitRelease",
+      "reason": "Machine-to-machine Content Desk release handoff; manual operators use the durable action workflow."
+    },
+    {
+      "service": "ChannelManagerService",
+      "method": "GetBrowserExecutionReview",
+      "reason": "The UI exposes this bounded BAS review projection next to the durable action; it is not a separate execution command."
+    }
+  ]
+}

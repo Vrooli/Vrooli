@@ -6,7 +6,11 @@
 
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // =============================================================================
 // STATE TRANSITION DECISIONS
@@ -70,6 +74,15 @@ func (r RunStatus) CanTransitionTo(target RunStatus) (bool, string) {
 }
 
 // runTransitions defines the valid state machine for runs.
+//
+// The "→ running" edges out of needs_review/complete/failed/cancelled model
+// CONTINUATION (ContinueRun → applyRunStatusTransition): a finished run with a
+// preserved SessionID can be reactivated to process an injected follow-up turn
+// (see CanContinueRun). These edges have always been exercised at runtime; they
+// are declared here so that enforcing CanTransitionTo in applyRunStatusTransition
+// does not reject a legitimate continuation. IsTerminal() still reports
+// complete/failed/cancelled as terminal for scanning/GC purposes — terminality
+// describes the resting state, not "can never be explicitly reactivated".
 var runTransitions = map[RunStatus][]RunStatus{
 	RunStatusPending: {
 		RunStatusStarting,
@@ -83,6 +96,7 @@ var runTransitions = map[RunStatus][]RunStatus{
 	},
 	RunStatusRunning: {
 		RunStatusNeedsReview,
+		RunStatusParked, // Suspended waiting on externally-owned async work
 		RunStatusComplete,
 		RunStatusFailed,
 		RunStatusCancelled,
@@ -90,17 +104,30 @@ var runTransitions = map[RunStatus][]RunStatus{
 	RunStatusNeedsReview: {
 		RunStatusComplete, // After approval
 		RunStatusFailed,   // Rejection or error
+		RunStatusRunning,  // Continuation (operator follow-up turn)
 	},
-	// Terminal states
-	RunStatusComplete:  {},
-	RunStatusFailed:    {},
-	RunStatusCancelled: {},
+	// parked: waiting on an external await-handle. Wake resumes it (→running);
+	// the park deadline elapsing also wakes it (→running with a typed timeout
+	// result). Abort/stop while parked cancels the waiter (→cancelled); an
+	// unrecoverable waiter error fails it (→failed). No direct →complete edge:
+	// a parked run always wakes back to running to process its result first.
+	RunStatusParked: {
+		RunStatusRunning,
+		RunStatusFailed,
+		RunStatusCancelled,
+	},
+	// "Terminal" resting states. The only outgoing edge is explicit
+	// continuation back to running (session resume); no normal lifecycle
+	// progression leaves these states.
+	RunStatusComplete:  {RunStatusRunning},
+	RunStatusFailed:    {RunStatusRunning},
+	RunStatusCancelled: {RunStatusRunning},
 }
 
 func runTransitionDenialReason(from, to RunStatus) string {
 	switch from {
 	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
-		return "run is in terminal state"
+		return "run is in terminal state (only continuation back to running is permitted)"
 	default:
 		return "transition not allowed from " + string(from) + " to " + string(to)
 	}
@@ -157,67 +184,49 @@ func (r *Run) IsRejectable() (bool, string) {
 // RUN MODE DECISIONS
 // =============================================================================
 
-// RunModeDecision captures the decision about which run mode to use.
+// RunModeDecision captures the decision about which run mode to use,
+// along with a human-readable reason for audit/event logging.
 type RunModeDecision struct {
 	Mode           RunMode
 	Reason         string
-	PolicyOverride bool
 	ExplicitChoice bool
+	PolicyDenied   bool
 }
 
-// DecideRunMode determines which run mode should be used based on inputs.
-// This is a pure function that makes the decision logic explicit and testable.
+// DeriveRunMode returns the RunMode for a given resolved SandboxConfig.
 //
-// Decision priority (highest to lowest):
-// 1. Explicit mode request from caller (if provided)
-// 2. Policy override (in-place allowed by policy)
-// 3. Default to sandboxed
-func DecideRunMode(
-	requestedMode *RunMode,
-	forceInPlace bool,
-	policyAllowsInPlace bool,
-	profileRequiresSandbox bool,
-) RunModeDecision {
-	// Priority 1: Explicit request
-	if requestedMode != nil {
-		return RunModeDecision{
-			Mode:           *requestedMode,
-			Reason:         "explicitly requested by caller",
-			ExplicitChoice: true,
-		}
+// SandboxConfig.Mode is the single source of truth for "is this run
+// sandboxed?" — every Mode except [SandboxModeOff] yields
+// [RunModeSandboxed]. Spawn surfaces resolve the SandboxConfig (via
+// orchestration.resolveSandboxConfig) before calling this function, so
+// nil here implies "no sandbox config" and is treated identically to
+// [SandboxModeOff].
+//
+// Mapping:
+//   - SandboxModeOff   → RunModeInPlace  (explicit no-sandbox)
+//   - any other Mode   → RunModeSandboxed (incl Tracking, Protected)
+//   - nil cfg          → RunModeInPlace  (treated as Off; in practice
+//     the orchestrator always populates a non-nil cfg)
+//
+// This function does NOT consult any other input. Callers that need to
+// override the derived mode (e.g. an explicit req.RunMode on CreateRun)
+// should compose:
+//
+//	mode := DeriveRunMode(cfg.SandboxConfig)
+//	if req.RunMode != nil {
+//	    mode = *req.RunMode
+//	}
+//
+// DOC: scenarios/agent-manager/docs/internal/SEAMS.md (RunMode decision boundary).
+// DOC: scenarios/agent-manager/docs/internal/INVARIANTS.md (run mode invariant).
+func DeriveRunMode(cfg *SandboxConfig) RunMode {
+	if cfg == nil {
+		return RunModeInPlace
 	}
-
-	// Priority 2: Force in-place with policy permission
-	if forceInPlace && policyAllowsInPlace {
-		return RunModeDecision{
-			Mode:           RunModeInPlace,
-			Reason:         "force in-place requested and allowed by policy",
-			PolicyOverride: true,
-		}
+	if cfg.Mode.Effective() == SandboxModeOff {
+		return RunModeInPlace
 	}
-
-	// Priority 3: Profile requires sandbox
-	if profileRequiresSandbox {
-		return RunModeDecision{
-			Mode:   RunModeSandboxed,
-			Reason: "agent profile requires sandbox",
-		}
-	}
-
-	// Priority 4: Policy allows in-place but not forced
-	if policyAllowsInPlace {
-		// Even if allowed, default to sandboxed for safety
-		return RunModeDecision{
-			Mode:   RunModeSandboxed,
-			Reason: "defaulting to sandbox (in-place allowed but not requested)",
-		}
-	}
-
-	// Default: Sandboxed
-	return RunModeDecision{
-		Mode:   RunModeSandboxed,
-		Reason: "sandbox-first default policy",
-	}
+	return RunModeSandboxed
 }
 
 // =============================================================================
@@ -274,6 +283,79 @@ func (o RunOutcome) IsTerminalFailure() bool {
 	default:
 		return false
 	}
+}
+
+// ContractRunOutcome is the 4-value outcome enum from the auditability
+// contract that gets recorded on per-run provenance (ProvenanceRunGroup.runOutcome).
+// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md Finding 2.
+type ContractRunOutcome string
+
+const (
+	ContractRunOutcomeSuccess   ContractRunOutcome = "success"
+	ContractRunOutcomeFailure   ContractRunOutcome = "failure"
+	ContractRunOutcomeCancelled ContractRunOutcome = "cancelled"
+	ContractRunOutcomeTimeout   ContractRunOutcome = "timeout"
+)
+
+// ToContract maps the agent-manager 7-value RunOutcome to the 4-value
+// auditability-contract enum. The mapping is intentionally lossy: failure
+// modes (exit_error, exception, sandbox_fail, runner_fail) all collapse to
+// "failure" for GCT rendering purposes. The original RunOutcome remains on
+// the Run record for triage; only the contract value is sent on the apply
+// call (see Decision D5 in
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md).
+func (o RunOutcome) ToContract() ContractRunOutcome {
+	switch o {
+	case RunOutcomeSuccess:
+		return ContractRunOutcomeSuccess
+	case RunOutcomeCancelled:
+		return ContractRunOutcomeCancelled
+	case RunOutcomeTimeout:
+		return ContractRunOutcomeTimeout
+	case RunOutcomeExitError, RunOutcomeException, RunOutcomeSandboxFail, RunOutcomeRunnerFail:
+		return ContractRunOutcomeFailure
+	default:
+		// Unknown outcome → conservatively classify as failure rather than
+		// silently dropping the provenance write.
+		return ContractRunOutcomeFailure
+	}
+}
+
+// =============================================================================
+// CONVERSATION ID RESOLUTION
+// =============================================================================
+
+// ParentLookup is the seam for resolving a parent run's ConversationID without
+// pulling the orchestrator's run repository into the domain package. Callers
+// pass a closure that fetches the parent run by ID; the resolver only reads
+// ConversationID from the result.
+type ParentLookup func(parentID uuid.UUID) (string, bool)
+
+// ResolveConversationID picks the ConversationID for a newly created run using
+// the precedence locked by Decision D7:
+//
+//  1. spawner-supplied value wins (run.ConversationID is non-empty)
+//  2. else inherit from ParentRunID's run via parentLookup
+//  3. else generate a fresh UUID
+//
+// parentLookup may be nil; it is only consulted when (1) is empty and the run
+// has a ParentRunID. This keeps the domain layer free of repository imports.
+func ResolveConversationID(run *Run, parentLookup ParentLookup) string {
+	if run == nil {
+		return uuid.NewString()
+	}
+	// (1) Spawner-supplied wins.
+	if run.ConversationID != "" {
+		return run.ConversationID
+	}
+	// (2) Inherit from parent.
+	if run.ParentRunID != nil && parentLookup != nil {
+		if parentConv, ok := parentLookup(*run.ParentRunID); ok && parentConv != "" {
+			return parentConv
+		}
+	}
+	// (3) Fresh UUID.
+	return uuid.NewString()
 }
 
 // =============================================================================
@@ -487,4 +569,100 @@ func DecideStaleRunAction(
 		Action:         StaleRunActionAlert,
 		Reason:         "run is stale and cannot be resumed automatically",
 	}
+}
+
+// =============================================================================
+// LIVENESS POLICY (reconciler dispatch table)
+// =============================================================================
+// The reconciler used to hard-code which statuses it scanned (running|starting),
+// inline the heartbeat-staleness branches, and build the orphan-protection tag
+// set from that same ad-hoc list. Three past production bugs shared that
+// hand-coupled root cause. LivenessPolicy makes the per-status liveness contract
+// an explicit, pure, unit-testable table so new statuses (e.g. parked) declare
+// their behaviour in one place instead of being bolted on by exemption.
+//
+// This table is a PURE function of RunStatus — it takes no clock and reads no
+// run fields. Staleness/age comparisons stay in the reconciler (which owns the
+// clock and thresholds); the policy only says WHETHER a status participates.
+
+// LivenessPolicy declares how the reconciler treats runs in a given RunStatus.
+type LivenessPolicy struct {
+	// Scanned: the reconciler lists and inspects runs in this status each cycle.
+	// Terminal resting states and the brief pre-start pending state are not
+	// scanned for liveness.
+	Scanned bool
+	// ExpectsHeartbeat: a live executor should be emitting heartbeats, so an
+	// absent/old heartbeat means the run is stale and gets stale-handling.
+	ExpectsHeartbeat bool
+	// ExpectsProcess: a live OS process is expected for this status, so its tag
+	// must protect any matching process from being reaped as an orphan.
+	ExpectsProcess bool
+	// StaleAction: what stale-handling to apply when ExpectsHeartbeat && stale.
+	// StaleRunActionNone means "do nothing"; any other value routes the run
+	// through the reconciler's recover-or-kill path.
+	StaleAction StaleRunAction
+}
+
+// runLivenessPolicies is the single source of truth for per-status reconciler
+// behaviour. Statuses absent from the map fall back to the zero value
+// (not scanned, no expectations, no action) — a safe default for any
+// unrecognised/free-text status.
+var runLivenessPolicies = map[RunStatus]LivenessPolicy{
+	// pending: queued but not yet launched. It has neither a process nor a
+	// heartbeat, but is scanned so the reconciler can bound dispatcher-loss.
+	RunStatusPending: {Scanned: true, StaleAction: StaleRunActionNone},
+	// starting/running: a live executor + process is expected; heartbeat
+	// staleness triggers recover-or-kill.
+	RunStatusStarting: {Scanned: true, ExpectsHeartbeat: true, ExpectsProcess: true, StaleAction: StaleRunActionResume},
+	RunStatusRunning:  {Scanned: true, ExpectsHeartbeat: true, ExpectsProcess: true, StaleAction: StaleRunActionResume},
+	// needs_review: process has exited and the run is intentionally waiting for
+	// an operator decision. Liveness does not apply (it is reconciled against
+	// sandbox approval state on a separate path, not by heartbeat).
+	RunStatusNeedsReview: {Scanned: false, StaleAction: StaleRunActionNone},
+	// parked: process has exited and the run is intentionally waiting on an
+	// external await-handle. It IS scanned so restart recovery can re-spawn the
+	// waiter and an optional ParkTTL can alert — but it has NO live process and
+	// emits NO heartbeat, so it is never heartbeat-reaped or orphan-killed. This
+	// is exactly why LivenessPolicy splits Scanned from ExpectsHeartbeat/
+	// ExpectsProcess: parked could not be expressed by the old hard-coded
+	// running|starting scan without an ad-hoc exemption (the fourth-bug trap).
+	RunStatusParked: {Scanned: true, ExpectsHeartbeat: false, ExpectsProcess: false, StaleAction: StaleRunActionNone},
+	// Terminal resting states: never scanned for liveness.
+	RunStatusComplete:  {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusFailed:    {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusCancelled: {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusUnknown:   {Scanned: false, StaleAction: StaleRunActionNone},
+}
+
+// LivenessPolicy returns the reconciler liveness contract for this status.
+func (s RunStatus) LivenessPolicy() LivenessPolicy {
+	return runLivenessPolicies[s]
+}
+
+// orderedRunStatuses is the canonical ordering used when the reconciler needs a
+// deterministic status iteration order (map iteration is randomised in Go).
+var orderedRunStatuses = []RunStatus{
+	RunStatusRunning,
+	RunStatusStarting,
+	RunStatusPending,
+	RunStatusNeedsReview,
+	RunStatusParked,
+	RunStatusComplete,
+	RunStatusFailed,
+	RunStatusCancelled,
+	RunStatusUnknown,
+}
+
+// LivenessScannedStatuses returns, in deterministic order, the statuses whose
+// LivenessPolicy marks them for reconciler scanning. The reconciler lists runs
+// for exactly these statuses each cycle. Ordering is stable so orphan-protection
+// tag-map construction is reproducible.
+func LivenessScannedStatuses() []RunStatus {
+	scanned := make([]RunStatus, 0, len(orderedRunStatuses))
+	for _, s := range orderedRunStatuses {
+		if s.LivenessPolicy().Scanned {
+			scanned = append(scanned, s)
+		}
+	}
+	return scanned
 }

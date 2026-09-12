@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Pixel-side parsing and saliency-based importance scoring checked against declared communication priorities, running advisory before ever gating and quarantined off the CI hot path, providing the promotion path from aspirational to machine claims.",
+      "id": "EXPERIEN-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Perception tier",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Runtime journey validation (steps executable, states reachable, friction budget respected) built on workflow-health execution rather than a second browser harness.",
+      "id": "EXPERIEN-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Journey coherence",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Specs and claims discoverable through search-hub so agents can answer which pages promise a given experience outcome.",
+      "id": "EXPERIEN-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Search leaf",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:EXPERIEN-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

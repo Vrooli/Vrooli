@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // ConfigStore abstracts configuration file I/O for testability.
@@ -27,10 +29,10 @@ func (f *FileConfigStore) ReadConfig(name string) ([]byte, error) {
 // directories as needed.
 func (f *FileConfigStore) WriteConfig(name string, data []byte) error {
 	fullPath := filepath.Join(f.basePath, name)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
-		return fmt.Errorf("create config directory: %w", err)
+	if err := storage.WriteFileAtomic(fullPath, data, 0o644); err != nil {
+		return fmt.Errorf("write config: %w", err)
 	}
-	return os.WriteFile(fullPath, data, 0o644)
+	return nil
 }
 
 // MemoryConfigStore is an in-memory ConfigStore for tests.

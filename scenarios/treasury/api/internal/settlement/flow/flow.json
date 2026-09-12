@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "settlement.lifecycle",
+  "domain": "settlement",
+  "description": "One durable idempotency claim permits at most one rail call; ambiguous outcomes resolve only by rail query.",
+  "model": {
+    "module": "SettlementLifecycle",
+    "seed": "2026081804",
+    "maxSteps": 6,
+    "traceCount": 14,
+    "verify": {
+      "invariants": ["TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "NoSecondRailCall", "UnknownFailureRequiresQuery"]
+    }
+  },
+  "states": [
+    {"id": "ready", "quint": "Ready", "initial": true},
+    {"id": "calling", "quint": "Calling"},
+    {"id": "settled", "quint": "Settled", "terminal": true},
+    {"id": "failed", "quint": "Failed", "terminal": true},
+    {"id": "unknown", "quint": "Unknown"}
+  ],
+  "events": [
+    {"id": "begin_call", "quint": "BeginCall"},
+    {"id": "rail_settled", "quint": "RailSettled"},
+    {"id": "rail_failed", "quint": "RailFailed"},
+    {"id": "response_lost", "quint": "ResponseLost"},
+    {"id": "query_settled", "quint": "QuerySettled"},
+    {"id": "query_failed", "quint": "QueryFailed"},
+    {"id": "query_unknown", "quint": "QueryUnknown"}
+  ],
+  "transitionDefaults": {
+    "invalid": {"to": "self", "wantError": true},
+    "terminal": {"to": "self", "wantError": true}
+  },
+  "transitions": [
+    {"from": "ready", "event": "begin_call", "to": "calling"},
+    {"from": "calling", "event": "rail_settled", "to": "settled"},
+    {"from": "calling", "event": "rail_failed", "to": "failed"},
+    {"from": "calling", "event": "response_lost", "to": "unknown"},
+    {"from": "unknown", "event": "query_settled", "to": "settled"},
+    {"from": "unknown", "event": "query_failed", "to": "failed"},
+    {"from": "unknown", "event": "query_unknown", "to": "unknown"}
+  ],
+  "invariants": [
+    {"id": "type_ok", "quint": "TypeOK", "description": "Settlement states and events remain declared."},
+    {"id": "terminal_closure", "quint": "TerminalClosure", "description": "Settled and failed outcomes are immutable."},
+    {"id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected retries preserve the first durable outcome."},
+    {"id": "no_second_rail_call", "quint": "NoSecondRailCall", "expression": "nextStatus(Calling, BeginCall) == Calling and nextStatus(Unknown, BeginCall) == Unknown and nextStatus(Settled, BeginCall) == Settled and nextStatus(Failed, BeginCall) == Failed", "description": "Only a ready record can begin a rail call."},
+    {"id": "unknown_failure_requires_query", "quint": "UnknownFailureRequiresQuery", "expression": "nextStatus(Unknown, RailFailed) == Unknown and nextStatus(Unknown, QueryFailed) == Failed", "description": "An unknown outcome reaches failed only through a rail query result."}
+  ],
+  "traces": [
+    {"name": "settles_once", "initial": "ready", "steps": [{"event": "begin_call", "want": "calling", "wantError": false}, {"event": "rail_settled", "want": "settled", "wantError": false}]},
+    {"name": "definite_failure", "initial": "ready", "steps": [{"event": "begin_call", "want": "calling", "wantError": false}, {"event": "rail_failed", "want": "failed", "wantError": false}]},
+    {"name": "lost_response_queries_settled", "initial": "ready", "steps": [{"event": "begin_call", "want": "calling", "wantError": false}, {"event": "response_lost", "want": "unknown", "wantError": false}, {"event": "query_settled", "want": "settled", "wantError": false}]},
+    {"name": "lost_response_queries_failed", "initial": "ready", "steps": [{"event": "begin_call", "want": "calling", "wantError": false}, {"event": "response_lost", "want": "unknown", "wantError": false}, {"event": "query_failed", "want": "failed", "wantError": false}]},
+    {"name": "still_unknown", "initial": "ready", "steps": [{"event": "begin_call", "want": "calling", "wantError": false}, {"event": "response_lost", "want": "unknown", "wantError": false}, {"event": "query_unknown", "want": "unknown", "wantError": false}]}
+  ],
+  "runtime": {
+    "go": {"package": "flow", "statusType": "SettlementStatus", "eventType": "SettlementEvent", "constantPrefix": "Settlement"},
+    "sideEffects": ["The unique idempotency claim commits before BeginCall invokes a rail.", "Settle retries never dispatch from calling, unknown, or terminal states.", "QueryFailed is accepted only from a rail query result."]
+  },
+  "replay": {"transition": {"function": "TransitionSettlement", "stateType": "SettlementState", "statusField": "Status"}}
+}

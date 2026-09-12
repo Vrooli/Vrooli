@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "clock",
+  "storage": {
+    "entries": {},
+    "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."
+  },
+  "description": "Verify and synchronize system clock accuracy for TLS and authentication",
+  "handler": "clock",
+  "risk": "medium",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "clock-accuracy",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_implemented",
+      "evidence": "The macOS clock provider is not wired into this safeguard yet; the host mechanism is clock_gettime through the system clock APIs.",
+      "mechanism": "system_clock_gettime",
+      "since": "2026-08-26"
+    },
+    "windows": {
+      "status": "not_implemented",
+      "evidence": "The Windows clock provider is not wired into this safeguard yet; the host mechanism is GetSystemTimePreciseAsFileTime.",
+      "mechanism": "GetSystemTimePreciseAsFileTime",
+      "since": "2026-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

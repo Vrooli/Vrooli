@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 )
 
@@ -103,6 +104,7 @@ type StatsService interface {
 // statsOrchestrator implements StatsService.
 type statsOrchestrator struct {
 	stats repository.StatsRepository
+	clock func() time.Time
 
 	// Cache for expensive queries
 	cacheMu       sync.RWMutex
@@ -116,9 +118,14 @@ type cachedSummary struct {
 }
 
 // NewStatsOrchestrator creates a stats orchestrator.
-func NewStatsOrchestrator(stats repository.StatsRepository) StatsService {
+func NewStatsOrchestrator(stats repository.StatsRepository, clocks ...func() time.Time) StatsService {
+	clock := time.Now
+	if len(clocks) > 0 && clocks[0] != nil {
+		clock = clocks[0]
+	}
 	return &statsOrchestrator{
 		stats:         stats,
+		clock:         clock,
 		summaryCache:  make(map[string]*cachedSummary),
 		cacheDuration: 30 * time.Second,
 	}
@@ -131,7 +138,7 @@ func (o *statsOrchestrator) GetSummary(ctx context.Context, filter repository.St
 
 	// Check cache
 	o.cacheMu.RLock()
-	if cached, ok := o.summaryCache[cacheKey]; ok && time.Now().Before(cached.expiresAt) {
+	if cached, ok := o.summaryCache[cacheKey]; ok && o.clock().Before(cached.expiresAt) {
 		o.cacheMu.RUnlock()
 		return cached.summary, nil
 	}
@@ -157,50 +164,52 @@ func (o *statsOrchestrator) GetSummary(ctx context.Context, filter repository.St
 
 	wg.Add(9)
 
-	go func() {
-		defer wg.Done()
+	// goStat contains a panic in any single stat query: the corresponding
+	// section is simply absent from the summary instead of the panic killing
+	// the whole API.
+	goStat := func(fn func()) {
+		go func() {
+			defer wg.Done()
+			defer obs.RecoverToFailure("stats query", nil)
+			fn()
+		}()
+	}
+
+	goStat(func() {
 		statusCounts, statusErr = o.stats.GetRunStatusCounts(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		successRate, successErr = o.stats.GetSuccessRate(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		durationStats, durationErr = o.stats.GetDurationStats(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		costStats, costErr = o.stats.GetCostStats(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		runnerBreakdown, runnerErr = o.stats.GetRunnerBreakdown(ctx, filter)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		profileBreakdown, profileErr = o.stats.GetProfileBreakdown(ctx, filter, 10)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		modelBreakdown, modelErr = o.stats.GetModelBreakdown(ctx, filter, 10)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		toolUsage, toolErr = o.stats.GetToolUsageStats(ctx, filter, 20)
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	goStat(func() {
 		errorPatterns, errorErr = o.stats.GetErrorPatterns(ctx, filter, 10)
-	}()
+	})
 
 	wg.Wait()
 
@@ -227,7 +236,7 @@ func (o *statsOrchestrator) GetSummary(ctx context.Context, filter repository.St
 	o.cacheMu.Lock()
 	o.summaryCache[cacheKey] = &cachedSummary{
 		summary:   summary,
-		expiresAt: time.Now().Add(o.cacheDuration),
+		expiresAt: o.clock().Add(o.cacheDuration),
 	}
 	o.cacheMu.Unlock()
 
@@ -307,8 +316,13 @@ func (o *statsOrchestrator) cacheKey(filter repository.StatsFilter) string {
 
 // FilterFromPreset creates a StatsFilter from a time preset.
 func FilterFromPreset(preset TimePreset) repository.StatsFilter {
+	return FilterFromPresetAt(preset, systemNow())
+}
+
+// FilterFromPresetAt constructs a preset filter relative to an explicit clock
+// value, for deterministic handlers and tests.
+func FilterFromPresetAt(preset TimePreset, now time.Time) repository.StatsFilter {
 	duration := TimePresetToDuration(preset)
-	now := time.Now()
 	return repository.StatsFilter{
 		Window: repository.StatsTimeWindow{
 			Start: now.Add(-duration),

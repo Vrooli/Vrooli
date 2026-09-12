@@ -5,7 +5,7 @@ import (
 )
 
 // NOTE: Tests that used NewLandingConfigService with database-backed services have been removed.
-// Variant configuration is now stored in JSON files (.vrooli/variants/*.json) and loaded via ConfigStore.
+// Variant configuration is stored in tracked config JSON files and loaded via ConfigStore.
 // See config_store_test.go for tests of the new architecture.
 
 func TestParseFallbackLandingConfigRequiresVariant(t *testing.T) {
@@ -37,6 +37,7 @@ func TestParseFallbackLandingConfigRequiresVariant(t *testing.T) {
 	}
 }
 
+// [REQ:LANDING-CONFIG] The baked fallback remains renderable when live configuration is unavailable.
 func TestParseFallbackLandingConfigNormalizesSectionsAndAxes(t *testing.T) {
 	payloadJSON := []byte(`{
 		"variant": {

@@ -1,26 +1,25 @@
 # System Monitor
 
 ## Purpose
-Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a Matrix-themed cyberpunk dashboard.
+Real-time server monitoring with threshold-based anomaly detection, AI-driven investigation via agent-manager, and automated reporting. Features a governed, responsive Vrooli Operational Console dashboard.
 
 ## Features
 - **Real-time Metrics**: CPU, memory, disk, network, GPU, process monitoring via 6 pluggable collectors
 - **Threshold-based Anomaly Detection**: Configurable warning/critical thresholds with 5 auto-fix triggers
 - **AI Investigation**: Automated investigation via agent-manager integration (spawns AI agents)
-- **Investigation Scripts**: 30 ready-to-use investigation scripts (CPU, memory, network, container, process analysis)
-- **Process Management**: Zombie detection, high-thread monitoring, memory leak candidates, process kill
+- **Investigation Scripts**: A typed catalog of native and explicitly shell-gated investigations (CPU, memory, network, container, process analysis)
+- **Process Monitoring**: Zombie detection, high-thread monitoring, and memory-leak candidates; process termination remains outside the current API contract
 - **Infrastructure Monitoring**: Database pools, HTTP pools, message queues, storage I/O
 - **Automated Reports**: Daily/weekly report generation with executive summaries and trend analysis
-- **Dark Cyberpunk UI**: Matrix-themed React dashboard with animated grid backgrounds, neon green styling
-- **Tool Discovery Protocol**: Exposes tools manifest for agent integration
+- **Governed UI**: Responsive React dashboard using the vrooli-default / Vrooli Operational Console design system
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  UI (React + Vite)          │  CLI (Bash)                       │
-│  Port: 36232 (lifecycle)    │  system-monitor / vrooli-system-  │
-│  HTTP polling (5s/60s/4s)   │  monitor (Bash CLI)               │
+│  UI (React + Vite)          │  CLI (Go)                         │
+│  Port: 36232 (lifecycle)    │  system-monitor (manifest-backed) │
+│  HTTP polling (5s/60s/4s)   │  generated Connect clients         │
 └──────────┬──────────────────┴──────────┬────────────────────────┘
            │                             │
            ▼                             ▼
@@ -28,32 +27,26 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 │  API (Go)   Port: dynamic (lifecycle)                            │
 │  Handlers → Services → Repository (in-memory / PostgreSQL)       │
 │  6 Metric Collectors │ Agent-Manager Integration                 │
-│  Tool Registry       │ Settings Manager                          │
+│  Settings Manager                                            │
 └──────┬──────┬────────┬──────┬────────┬──────────────────────────┘
        │      │        │      │        │
        ▼      ▼        ▼      ▼        ▼
-   Postgres  QuestDB  Redis  Ollama  agent-manager
+   Postgres  Redis  Ollama  agent-manager
 ```
 
 ## Dependencies
 
-### Resources (all required)
+### Resources (active runtime)
 | Resource | Purpose | Config |
 |----------|---------|--------|
-| PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `initialization/postgres/schema.sql` |
-| QuestDB | Time-series metrics storage (configured; API defaults to in-memory) | `initialization/questdb/server.conf` |
-| Redis | Real-time alerts queue, metrics caching, session data | `initialization/redis/redis.conf` |
-| Node-RED | Workflow automation (metric collection, anomaly detection) | `initialization/node-red/` |
+| PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `api/internal/<domain>/schema.sql` |
+| Redis | Real-time alerts queue, metrics caching, session data | `api/internal/<domain>/redis/redis.conf` |
 | Ollama | AI analysis model (llama3.2:3b) | Pulled during setup |
 
 ### Scenario Dependencies
 | Scenario | Purpose |
 |----------|---------|
 | agent-manager | Orchestrates AI-driven investigations |
-
-### Shared Workflows
-- `metric-collector`: Node-RED flow collecting system telemetry every 30s
-- `anomaly-detector`: Node-RED flow evaluating triggers every 60s
 
 ## Components
 
@@ -66,10 +59,9 @@ REST API with 40+ endpoints across these groups:
 - **Settings**: get/update/reset
 - **Maintenance**: state get/set
 - **Agent Config**: config, runners, status
-- **Tools**: manifest, tool definitions, execute
 
 ### UI (React + Vite + TypeScript)
-Matrix-themed dashboard with 7 routes:
+Vrooli Operational Console dashboard with 7 routes:
 | Route | View |
 |-------|------|
 | `/` | Main dashboard with all monitoring panels |
@@ -82,10 +74,10 @@ Matrix-themed dashboard with 7 routes:
 
 Key features: MetricsGrid (5-column), sparkline charts (recharts), process monitor with kill dialog, infrastructure monitor, investigation agent management, script editor/executor, report generation panel.
 
-Styling: "Share Tech Mono" font, `#5cff95` primary green, `#020b07` background, animated grid, glow effects, backdrop blur.
+Styling: semantic vrooli-default tokens, responsive layout, 44px interaction targets, and accessible live metric states.
 
-### CLI (Bash, v2.0.0)
-Entry points: `cli/system-monitor`, `cli/vrooli-system-monitor`
+### CLI (Go, manifest-backed)
+Entry point: `system-monitor`
 
 | Command | Description | API Endpoint |
 |---------|-------------|-------------|
@@ -111,9 +103,9 @@ Global flags: `--help`, `--version`, `--port <port>`, `--json`, `--quiet`
 - **Container**: container-resource-optimizer, container-health-comprehensive, docker-health-analyzer
 - **Network**: network-anomaly-detector, service-health-monitor
 - **System**: comprehensive-system-analyzer, resource-exhaustion-detector, master-system-sweep
-- **Service-specific**: judge0-cpu-investigation, judge0-memory-analyzer, chrome-cpu-analyzer
+- **Service-specific**: chrome-cpu-analyzer
 
-Auto-fix triggers (configurable in `initialization/configuration/investigation-triggers.json`):
+Auto-fix triggers (configurable in `api/internal/<domain>/configuration/investigation-triggers.json`):
 1. High CPU Usage (75%, 60s sustained)
 2. Memory Pressure (10% available, 30s sustained)
 3. Low Disk Space (90%, 120s sustained)
@@ -130,7 +122,7 @@ vrooli scenario start system-monitor
 
 # CLI
 system-monitor health
-system-monitor metrics --json
+system-monitor metrics current --json
 system-monitor status
 system-monitor alerts
 system-monitor investigate
@@ -156,7 +148,6 @@ make check     # Full quality gates (fmt + lint + test)
 | `API_PORT` | 8080 | API server port |
 | `UI_PORT` | 3003 | UI dashboard port |
 | `DATABASE_URL` | postgres://vrooli@localhost:5433/... | PostgreSQL connection |
-| `QUESTDB_URL` | http://localhost:9009 | QuestDB HTTP endpoint |
 | `REDIS_URL` | redis://localhost:6380 | Redis connection |
 | `ENABLE_CLAUDE_INVESTIGATIONS` | true | Enable AI investigations |
 | `CPU_WARNING_THRESHOLD` | 70 | CPU warning % |
@@ -171,18 +162,13 @@ Other scenarios can leverage system-monitor for:
 - Real-time system metrics (via API endpoints)
 - Anomaly detection and investigation (via investigation triggers)
 - System health checks (via `/health` endpoint)
-- Tool discovery (via `/api/v1/tools` endpoint)
-- Process management (via process kill endpoint)
+- Process monitoring and health insight
 - Infrastructure monitoring (database pools, queues, storage)
 
 ## Known Limitations
 - **No WebSocket**: UI uses HTTP polling (5s current+detailed metrics, 60s process/infrastructure/investigations, 4s agent status when active), not real-time streaming
 - **No Authentication**: API endpoints have no auth middleware
-- **CLI JSON Parsing**: Uses regex (grep/cut) instead of jq; fragile
-- **CLI report bug**: Calls `/api/reports/generate` (missing `/v1/` prefix) — will 404
-- **Storage Default**: API defaults to in-memory; PostgreSQL/QuestDB configured but fallback
-- **Missing API endpoints**: UI references `/api/v1/metrics/timeline`, `/api/v1/metrics/disk/details`, and `POST /processes/{pid}/kill` but none exist in the API router — process kill silently fails
-- **Script API placeholders**: Script list/get/execute endpoints return empty/404; scripts run via investigation agent, not API
-- **Test Coverage**: test/ directory is empty; tests defined via test-genie but not populated
-- **simulate command**: References test endpoint that doesn't exist in API
-- **CLI --quiet flag**: Parsed but never checked in code (no effect)
+- **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
+- **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
+- **Disk remediation boundary**: Disk detail is read-only; bounded recovery routes through storage-manager rather than system-monitor deletion paths
+- **UI coverage**: The full production-source denominator remains below the platform's 85% unit policy and is tracked as an open quality gap

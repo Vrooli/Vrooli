@@ -91,7 +91,7 @@ This document catalogs hidden assumptions in the playwright-driver codebase, eva
 - **Hardening:** Add page state check before operations
 - **Status:** HARDENED
 
-#### B2: Browserless CDP Connection Stable
+#### B2: Playwright CDP Connection Stable
 - **Location:** `src/session/manager.ts:65` (browser.connectOverCDP)
 - **Assumption:** CDP connection remains stable during session lifetime
 - **Risk:** High - Network issues, container restarts could disconnect

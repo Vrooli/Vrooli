@@ -7,25 +7,70 @@ import (
 	"strings"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/storage"
 )
 
 // backlogItem represents a backlog entry loaded from spec.json.
 type backlogItem struct {
-	Name               string   `json:"name"`
-	Title              string   `json:"title"`
-	Description        string   `json:"description"`
-	Status             string   `json:"status"`
-	Priority           int      `json:"priority"`
-	Tags               []string `json:"tags"`
-	Created            string   `json:"created"`
-	Updated            string   `json:"updated"`
-	Kind               string   `json:"kind"`
-	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
-	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
-	ArchivedAt         *string  `json:"archived_at,omitempty"`
-	SuggestedSkills    []string `json:"suggested_skills,omitempty"`
+	Name                      string                    `json:"name"`
+	Title                     string                    `json:"title"`
+	Description               string                    `json:"description"`
+	Status                    string                    `json:"status"`
+	Priority                  int                       `json:"priority"`
+	Tags                      []string                  `json:"tags"`
+	Created                   string                    `json:"created"`
+	Updated                   string                    `json:"updated"`
+	Kind                      string                    `json:"kind"`
+	SourceScenarioName        string                    `json:"sourceScenarioName,omitempty"`
+	AcceptanceAllow           []string                  `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny            []string                  `json:"acceptance_deny,omitempty"`
+	AcceptanceCriteria        []backlogCriterion        `json:"acceptance_criteria,omitempty"`
+	Creates                   []string                  `json:"creates,omitempty"`
+	ArchivedAt                *string                   `json:"archived_at,omitempty"`
+	SuggestedSkills           []string                  `json:"suggested_skills,omitempty"`
+	PlanRef                   *planRef                  `json:"plan_ref,omitempty"`
+	ExecutionStrategy         string                    `json:"execution_strategy,omitempty"`
+	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	Continuation              string                    `json:"continuation,omitempty"`
+	ScopePolicy               string                    `json:"scope_policy,omitempty"`
+	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
+	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`
+	ContinuationStoppedReason string                    `json:"continuation_stopped_reason,omitempty"`
+	PlanAcceptance            *planAcceptance           `json:"plan_acceptance,omitempty"`
+}
+
+// backlogCriterion mirrors the persisted, typed definition of done without
+// making execution depend on the backlog package.
+type backlogCriterion struct {
+	ID      string                 `json:"id"`
+	Gherkin string                 `json:"gherkin"`
+	Check   *backlogCriterionCheck `json:"check,omitempty"`
+}
+
+// backlogCriterionCheck is the persisted deterministic settlement contract.
+// Keeping it explicit at the execution boundary prevents a malformed opaque
+// JSON value from being silently treated as a checkable criterion.
+type backlogCriterionCheck struct {
+	Kind       string   `json:"kind"`
+	Scenario   string   `json:"scenario,omitempty"`
+	Phase      string   `json:"phase,omitempty"`
+	Argv       []string `json:"argv,omitempty"`
+	ExpectExit int      `json:"expect_exit,omitempty"`
+}
+
+type planRef struct {
+	Provider string `json:"provider,omitempty"`
+	PlanID   string `json:"plan_id,omitempty"`
+	Slug     string `json:"slug,omitempty"`
+	Role     string `json:"role,omitempty"`
+}
+
+type planAcceptance struct {
+	Actor           string `json:"actor"`
+	AcceptedAt      string `json:"accepted_at"`
+	PlanContentHash string `json:"plan_content_hash"`
+	SubjectVersion  string `json:"subject_version"`
 }
 
 func (s *Service) loadBacklogItem(kind, name string) (backlogItem, error) {
@@ -74,6 +119,31 @@ func (s *Service) updateBacklogStatus(item backlogItem, status string) error {
 	return storage.WriteJSONAtomic(specPath, merged)
 }
 
+// updateContinuationState changes only sweeper control metadata. These fields
+// are operational state, not part of the reviewed item digest.
+func (s *Service) updateContinuationState(kind, name, haltedAt, haltedBy, stoppedReason string) error {
+	path := filepath.Join(s.itemDir(kind, name), "spec.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	merged := map[string]any{}
+	if err := json.Unmarshal(data, &merged); err != nil {
+		return err
+	}
+	setOrDelete := func(key, value string) {
+		if strings.TrimSpace(value) == "" {
+			delete(merged, key)
+			return
+		}
+		merged[key] = value
+	}
+	setOrDelete("continuation_halted_at", haltedAt)
+	setOrDelete("continuation_halted_by", haltedBy)
+	setOrDelete("continuation_stopped_reason", stoppedReason)
+	return storage.WriteJSONAtomic(path, merged)
+}
+
 func (s *Service) restoreBacklogStatusForRecord(record Record) error {
 	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
 	if err != nil {
@@ -97,17 +167,17 @@ func restoreBacklogStatus(record Record) string {
 func (s *Service) kindDir(kind string) string {
 	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "idea":
-		return filepath.Join(s.rootDir, "ideas")
+		return filepath.Join(s.dataRoot, "ideas")
 	case "research":
-		return filepath.Join(s.rootDir, "research")
+		return filepath.Join(s.dataRoot, "research")
 	case "fix":
-		return filepath.Join(s.rootDir, "fix")
+		return filepath.Join(s.dataRoot, "fix")
 	case "execute":
-		return filepath.Join(s.rootDir, "execute")
+		return filepath.Join(s.dataRoot, "execute")
 	case "chore":
-		return filepath.Join(s.rootDir, "chore")
+		return filepath.Join(s.dataRoot, "chore")
 	default:
-		return filepath.Join(s.rootDir, "ideas")
+		return filepath.Join(s.dataRoot, "ideas")
 	}
 }
 
@@ -116,7 +186,7 @@ func (s *Service) itemDir(kind, name string) string {
 }
 
 func (s *Service) scenariosRootDir() string {
-	return filepath.Dir(s.rootDir)
+	return filepath.Dir(s.repoRoot)
 }
 
 // isQueueableStatus checks whether the item's status allows queuing.

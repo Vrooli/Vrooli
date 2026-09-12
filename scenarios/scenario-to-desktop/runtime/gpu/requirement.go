@@ -3,8 +3,8 @@ package gpu
 import (
 	"fmt"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
 
 // Applier applies GPU requirements to service environments.

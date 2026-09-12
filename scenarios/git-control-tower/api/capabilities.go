@@ -1,173 +1,28 @@
 package main
 
 import (
-	"context"
-	"sync"
 	"time"
+
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
-// DependencyKind classifies what a capability depends on.
-type DependencyKind string
+// These aliases preserve Git Control Tower's existing package-local API while
+// making capability-registry-go the sole lifecycle-state implementation.
+type DependencyKind = capabilityregistry.DependencyKind
+type CapabilityStatus = capabilityregistry.Status
+type CapabilityDef = capabilityregistry.Def
+type CapabilityState = capabilityregistry.State
+type StatusChecker = capabilityregistry.Checker
+type CapabilityRegistry = capabilityregistry.Registry
 
 const (
-	DependencyScenario DependencyKind = "scenario"
-	DependencyResource DependencyKind = "resource"
+	DependencyScenario = capabilityregistry.DependencyScenario
+	DependencyResource = capabilityregistry.DependencyResource
+	StatusAvailable    = capabilityregistry.StatusAvailable
+	StatusUnavailable  = capabilityregistry.StatusUnavailable
+	StatusUnknown      = capabilityregistry.StatusUnknown
 )
 
-// CapabilityStatus represents the current state of a capability.
-type CapabilityStatus string
-
-const (
-	StatusAvailable   CapabilityStatus = "available"
-	StatusUnavailable CapabilityStatus = "unavailable"
-	StatusUnknown     CapabilityStatus = "unknown"
-)
-
-// CapabilityDef describes a capability that depends on an external service.
-type CapabilityDef struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	Description    string         `json:"description"`
-	DependencyKind DependencyKind `json:"dependencyKind"`
-	DependencySlug string         `json:"dependencySlug"`
-	Features       []string       `json:"features"`
-}
-
-// CapabilityState is a CapabilityDef enriched with runtime status.
-type CapabilityState struct {
-	CapabilityDef
-	Status    CapabilityStatus `json:"status"`
-	Message   string           `json:"message,omitempty"`
-	CheckedAt string           `json:"checkedAt,omitempty"`
-}
-
-// StatusChecker probes a dependency and returns its status.
-type StatusChecker interface {
-	Check(ctx context.Context) (CapabilityStatus, string)
-}
-
-// knownCapabilities is the single source of truth for all declared dependencies.
-var knownCapabilities = []CapabilityDef{
-	{
-		ID:             "workspace-sandbox",
-		Name:           "Workspace Sandbox",
-		Description:    "Approved changes tracking and commit preview for sandbox-managed files",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "workspace-sandbox",
-		Features:       []string{"Approved changes panel", "Commit preview filtering"},
-	},
-	{
-		ID:             "browser-automation-studio",
-		Name:           "Browser Automation Studio",
-		Description:    "Visual capture, screenshots, and workflow execution for scenario UIs",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "browser-automation-studio",
-		Features:       []string{"Visual capture", "Screenshot history", "Periodic snapshots"},
-	},
-	{
-		ID:             "test-genie",
-		Name:           "Test Genie",
-		Description:    "Automated test execution and reporting for scenarios",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "test-genie",
-		Features:       []string{"Test execution", "Test history", "Phase-based testing"},
-	},
-	{
-		ID:             "tidiness-manager",
-		Name:           "Tidiness Manager",
-		Description:    "Code quality scoring, lint/type issues, and file metrics",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "tidiness-manager",
-		Features:       []string{"Code quality score", "Lint/type issues", "File metrics", "Light scanning"},
-	},
-	{
-		ID:             "agent-manager",
-		Name:           "Agent Manager",
-		Description:    "AI agent orchestration with sandbox isolation and approval workflows",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "agent-manager",
-		Features:       []string{"Agent runs", "Multi-turn conversations", "Change approval"},
-	},
-	{
-		ID:             "scenario-auditor",
-		Name:           "Scenario Auditor",
-		Description:    "Standards compliance, rule violations, and automated fixes across all rule providers",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "scenario-auditor",
-		Features:       []string{"Standards checks", "Rule violations", "Automated fixes", "Multi-source rules"},
-	},
-}
-
-// CapabilityRegistry tracks dependency availability with caching.
-type CapabilityRegistry struct {
-	defs     []CapabilityDef
-	checkers map[string]StatusChecker
-
-	mu       sync.RWMutex
-	cached   []CapabilityState
-	cachedAt time.Time
-	cacheTTL time.Duration
-}
-
-// NewCapabilityRegistry creates a new registry.
 func NewCapabilityRegistry(defs []CapabilityDef, checkers map[string]StatusChecker, cacheTTL time.Duration) *CapabilityRegistry {
-	return &CapabilityRegistry{
-		defs:     defs,
-		checkers: checkers,
-		cacheTTL: cacheTTL,
-	}
-}
-
-// Resolve returns the current state of all capabilities, using cached results
-// when available and not expired.
-func (r *CapabilityRegistry) Resolve(ctx context.Context) []CapabilityState {
-	r.mu.RLock()
-	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
-		result := make([]CapabilityState, len(r.cached))
-		copy(result, r.cached)
-		r.mu.RUnlock()
-		return result
-	}
-	r.mu.RUnlock()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Double-check after acquiring write lock.
-	if r.cached != nil && time.Since(r.cachedAt) < r.cacheTTL {
-		result := make([]CapabilityState, len(r.cached))
-		copy(result, r.cached)
-		return result
-	}
-
-	now := time.Now().UTC()
-	states := make([]CapabilityState, len(r.defs))
-	for i, def := range r.defs {
-		state := CapabilityState{
-			CapabilityDef: def,
-			Status:        StatusUnknown,
-			CheckedAt:     now.Format(time.RFC3339),
-		}
-		if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
-		}
-		states[i] = state
-	}
-
-	r.cached = states
-	r.cachedAt = now
-
-	result := make([]CapabilityState, len(states))
-	copy(result, states)
-	return result
-}
-
-// IsAvailable returns true if the given capability is currently available.
-func (r *CapabilityRegistry) IsAvailable(ctx context.Context, capabilityID string) bool {
-	for _, s := range r.Resolve(ctx) {
-		if s.ID == capabilityID {
-			return s.Status == StatusAvailable
-		}
-	}
-	return false
+	return capabilityregistry.New(defs, checkers, cacheTTL)
 }

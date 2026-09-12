@@ -11,7 +11,7 @@ import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock } from 'lucide-react';
@@ -56,7 +56,6 @@ export function BrandingSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Configure how your landing page looks and ranks"
           description="Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections."
           icon={Palette}
@@ -69,7 +68,7 @@ export function BrandingSettings() {
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
               </Button>
-              <Button variant="ghost" size="sm" onClick={loadBrandingData} className="gap-2" data-testid="branding-refresh">
+              <Button variant="ghost" size="sm" onClick={() => { void loadBrandingData(); }} className="gap-2" data-testid="branding-refresh">
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
@@ -110,7 +109,7 @@ export function BrandingSettings() {
         {loading ? (
           <div className="text-slate-400">Loading branding settings...</div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-8">
             {/* Site Identity */}
             <FormSection
               title="Site Identity"
@@ -134,7 +133,7 @@ export function BrandingSettings() {
                     <ClearableInput
                       value={form.tagline}
                       onChange={handleInput('tagline')}
-                      onClear={() => handleClearField('tagline')}
+                      onClear={() => { void handleClearField('tagline'); }}
                       placeholder="Your catchy tagline"
                     />
                   </FormField>
@@ -268,19 +267,19 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_primary_color}
                       onChange={handleInput('theme_primary_color')}
-                      placeholder="#3B82F6"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input
                       type="color"
                       value={form.theme_primary_color || '#3B82F6'}
-                      onChange={(e) => handleFieldChange('theme_primary_color', e.target.value)}
+                      onChange={(e) => { handleFieldChange('theme_primary_color', e.target.value); }}
                       className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                     />
                     {form.theme_primary_color && (
                       <button
                         type="button"
-                        onClick={() => handleClearField('theme_primary_color')}
+                        onClick={() => { void handleClearField('theme_primary_color'); }}
                         className="mt-1 p-2 text-slate-400 hover:text-rose-400"
                         title="Clear color"
                       >
@@ -296,19 +295,19 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_background_color}
                       onChange={handleInput('theme_background_color')}
-                      placeholder="#07090F"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input
                       type="color"
                       value={form.theme_background_color || '#07090F'}
-                      onChange={(e) => handleFieldChange('theme_background_color', e.target.value)}
+                      onChange={(e) => { handleFieldChange('theme_background_color', e.target.value); }}
                       className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                     />
                     {form.theme_background_color && (
                       <button
                         type="button"
-                        onClick={() => handleClearField('theme_background_color')}
+                        onClick={() => { void handleClearField('theme_background_color'); }}
                         className="mt-1 p-2 text-slate-400 hover:text-rose-400"
                         title="Clear color"
                       >
@@ -448,7 +447,7 @@ export function BrandingSettings() {
                     type="url"
                     value={form.support_chat_url}
                     onChange={handleInput('support_chat_url')}
-                    onClear={() => handleClearField('support_chat_url')}
+                    onClear={() => { void handleClearField('support_chat_url'); }}
                     placeholder="https://chat.openai.com/g/g-your-gpt-id"
                   />
                 </FormField>
@@ -458,7 +457,7 @@ export function BrandingSettings() {
                     type="email"
                     value={form.support_email}
                     onChange={handleInput('support_email')}
-                    onClear={() => handleClearField('support_email')}
+                    onClear={() => { void handleClearField('support_email'); }}
                     placeholder="support@yourcompany.com"
                   />
                 </FormField>

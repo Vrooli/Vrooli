@@ -13,10 +13,11 @@
  * - No tree structure changes that would cause React reconciliation to remount children
  */
 
-import { forwardRef, type ReactNode, type CSSProperties, type Ref } from 'react';
+import { Profiler, forwardRef, memo, type ReactNode, type CSSProperties, type Ref } from 'react';
 import clsx from 'clsx';
 import type { ReplayLayoutModel } from '@/domains/replay-layout';
 import type { BackgroundDecor, ChromeDecor, DeviceFrameDecor } from '@/domains/replay-style';
+import { onProfilerRender } from '@/lib/profiler';
 
 interface StablePreviewWrapperProps {
   /** Whether replay styling is enabled */
@@ -56,7 +57,7 @@ interface StablePreviewWrapperProps {
  * </outer-container>
  * ```
  */
-export const StablePreviewWrapper = forwardRef<HTMLDivElement, StablePreviewWrapperProps>(
+const StablePreviewWrapperInner = forwardRef<HTMLDivElement, StablePreviewWrapperProps>(
   function StablePreviewWrapper(
     {
       showReplayStyle,
@@ -113,6 +114,7 @@ export const StablePreviewWrapper = forwardRef<HTMLDivElement, StablePreviewWrap
       : undefined;
 
     return (
+      <Profiler id="StablePreviewWrapper" onRender={onProfilerRender}>
       <div
         ref={ref}
         className={clsx(
@@ -220,8 +222,12 @@ export const StablePreviewWrapper = forwardRef<HTMLDivElement, StablePreviewWrap
           deviceFrameDecor.overlay
         )}
       </div>
+      </Profiler>
     );
   }
 );
+
+export const StablePreviewWrapper = memo(StablePreviewWrapperInner);
+StablePreviewWrapper.displayName = 'StablePreviewWrapper';
 
 export default StablePreviewWrapper;

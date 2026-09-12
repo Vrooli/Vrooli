@@ -22,8 +22,7 @@ export function AdminLogin() {
   const navigate = useNavigate();
   const { login } = useAdminAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitLogin = async () => {
     setError(null);
     setIsLoading(true);
 
@@ -64,11 +63,16 @@ export function AdminLogin() {
     }
   };
 
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    return submitLogin();
+  };
+
   return (
-    <div className="min-h-screen bg-mesh-gradient flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-full bg-mesh-gradient flex items-center justify-center p-6 relative overflow-hidden">
       {/* Background decoration */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
 
       <div className={`relative z-10 w-full ${LAYOUT.maxWidth.narrow}`}>
         {/* Logo/Branding */}
@@ -79,12 +83,12 @@ export function AdminLogin() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
             Admin Portal
           </h1>
-          <p className="text-slate-400 mt-2">Landing Manager</p>
+          <p className="text-slate-400 mt-2">Landing Page Business Suite</p>
         </div>
 
         {/* Login Card */}
         <div className="rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 p-8 shadow-2xl backdrop-blur">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-6">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
@@ -98,7 +102,7 @@ export function AdminLogin() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); }}
                   className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-white placeholder-slate-500"
                   placeholder="admin@example.com"
                   required
@@ -120,7 +124,7 @@ export function AdminLogin() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); }}
                   className="w-full pl-12 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-white placeholder-slate-500"
                   placeholder="••••••••"
                   required
@@ -158,7 +162,7 @@ export function AdminLogin() {
                     {error.type === 'network' && (
                       <button
                         type="button"
-                        onClick={handleSubmit}
+                        onClick={() => { void submitLogin(); }}
                         className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 underline underline-offset-2"
                       >
                         <RefreshCw className="w-3 h-3" />
@@ -202,7 +206,7 @@ export function AdminLogin() {
         <div className="text-center mt-6">
           <a
             href="/"
-            className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
+            className="inline-flex min-h-11 items-center px-2 text-sm text-slate-400 transition-colors hover:text-slate-300"
           >
             ← Back to Landing Page
           </a>

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "navigation.app-shell",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [],
+  "latest": "2.0.4",
+  "libraryId": "react-component-library:AppShell"
+}

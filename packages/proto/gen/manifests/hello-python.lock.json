@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "hello-python",
+  "input_digest": "sha256:25f0091850a4d08b9a7b9b75197efe65586eec4702a2db2c7762b93f20adc844",
+  "input_files": [
+    "schemas/hello-python/v1/notes/attachments.proto",
+    "schemas/hello-python/v1/notes/notes.proto",
+    "schemas/hello-python/v1/shared/errors.proto",
+    "schemas/hello-python/v1/shared/health.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/hello-python/v1/notes/attachments.pb.go": "sha256:881156da250d8501151b4e86edb25a8c53d3aea1bcda33de023995aa0c2c71be",
+    "gen/go/hello-python/v1/notes/notes.pb.go": "sha256:72a344b9b1e44910db8b7a42aa050041adab2a7200f2a9205aa1e3e98f7d012b",
+    "gen/go/hello-python/v1/notes/notes_v1connect/notes.connect.go": "sha256:49d5bb30ab019f9833f8e6ab3fc445ff0f55a1bdbf304f7f0902f4d0672dfe98",
+    "gen/go/hello-python/v1/shared/errors.pb.go": "sha256:cef8ca01c766280a4c57f4391828aa7a99282bf488a0b8d995dc63475f387e28",
+    "gen/go/hello-python/v1/shared/health.pb.go": "sha256:8baf65cbad966d7e5af748a1e055d7b51169e3ea8dd64cbeddef685a304870bc",
+    "gen/python/hello_python/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_python/v1/notes/attachments_pb2.py": "sha256:a85a50f844462441d9a5c08fbf86597f097d7bd792e2ceee68bcb9e70d14919f",
+    "gen/python/hello_python/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/hello_python/v1/notes/notes_pb2.py": "sha256:a10a4d8467eba26800c6429d426772bd8ab8b06cf423102adcc0eda4193c5540",
+    "gen/python/hello_python/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/hello_python/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_python/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/hello_python/v1/shared/errors_pb2.py": "sha256:b41ab68ecc59940a93ac37317a4925bd16dee3b26100a975aafef3a9d4da9b9c",
+    "gen/python/hello_python/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/hello_python/v1/shared/health_pb2.py": "sha256:748a021df456b3c730bc6a7ed8c28c9bcd54740a03f85aede75e8eae857330aa",
+    "gen/python/hello_python/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/hello_python/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/hello-python/v1/notes/attachments_pb.ts": "sha256:ecd5db5f6c1d90edbb32de8d6b6b5235513e7fc511341da3990c2dd0ddc2cca1",
+    "gen/typescript/hello-python/v1/notes/notes_pb.ts": "sha256:65ecd2868e2a7f0ea94cb0f43b8281dcc6b1f7c8d8fe1c2d54a2ea4c1d71f1e8",
+    "gen/typescript/hello-python/v1/shared/errors_pb.ts": "sha256:6d86f30fecd0576bcc0a52e7e65f4ba15dab1262dd3a102646f54f33466a91a7",
+    "gen/typescript/hello-python/v1/shared/health_pb.ts": "sha256:2d7acf6e94489c23f5ae2b1956785f76a4aa89607f309081a94ed69870fe1cee"
+  }
+}

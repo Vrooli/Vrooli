@@ -1,0 +1,1 @@
+{"id":"/command-center","name":"Command Center","short_name":"Command Center","description":"Director Swarm instrument board","scope":"/","start_url":"/mission-control","display":"standalone","background_color":"#05070e","theme_color":"#05070e","icons":[{"src":"/logo.svg","sizes":"180x180","type":"image/svg+xml","purpose":"any maskable"}]}

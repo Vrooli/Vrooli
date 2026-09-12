@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -74,34 +71,5 @@ func TestStaleChunkDeleteCandidates(t *testing.T) {
 	candidates := staleChunkDeleteCandidates(points)
 	if len(candidates) != 1 || candidates[0] != "old" {
 		t.Fatalf("unexpected stale candidates: %v", candidates)
-	}
-}
-
-func TestIngestRunnerIntervalMS(t *testing.T) {
-	if got := ingestRunnerIntervalMS(nil); got != 500 {
-		t.Fatalf("nil server interval=%d", got)
-	}
-	server := &Server{}
-	if got := ingestRunnerIntervalMS(server); got != 500 {
-		t.Fatalf("no runner interval=%d", got)
-	}
-}
-
-func TestHandleIngestHealthWithoutDB(t *testing.T) {
-	server := &Server{}
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/ingest/health", nil)
-	rec := httptest.NewRecorder()
-
-	server.handleIngestHealth(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
-	}
-
-	var response ingestHealthResponse
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if response.Status != "unknown" {
-		t.Fatalf("status=%q", response.Status)
 	}
 }

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hello Desktop</title>
+  </head>
+  <body>
+    <main>
+      <h1>Hello Desktop</h1>
+      <label>Name <input id="nameInput" value="Desktop User"></label>
+      <button id="greetButton">Say Hello</button>
+      <p id="result" aria-live="polite"></p>
+    </main>
+    <script>
+      const api = window.API_BASE_URL || 'http://127.0.0.1:23100';
+      document.getElementById('greetButton').addEventListener('click', async () => {
+        const name = document.getElementById('nameInput').value;
+        const response = await fetch(`${api}/api/greet?name=${encodeURIComponent(name)}`);
+        document.getElementById('result').textContent = (await response.json()).message;
+      });
+    </script>
+  </body>
+</html>

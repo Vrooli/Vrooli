@@ -12,20 +12,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// GetWorkflow implements automation/executor.WorkflowResolver.
+// GetWorkflow implements automation/executor.WorkflowResolver. It is the
+// executor's hot path during a run; we deliberately do NOT trigger a
+// filesystem sync here. API writers keep the canonical .workflow.json
+// file in lockstep with the DB index, so the row already points at the
+// freshest content. The previous always-sync pattern raced with
+// in-flight updates and caused the executor to load stale workflow
+// definitions ("navigate to http://localhost/" instead of the latest URL).
 func (s *WorkflowService) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error) {
 	index, err := s.repo.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return nil, err
-	}
-	if index.ProjectID != nil {
-		if err := s.syncProjectWorkflows(ctx, *index.ProjectID); err != nil {
-			return nil, err
-		}
-		index, err = s.repo.GetWorkflow(ctx, workflowID)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return s.hydrateWorkflowSummary(ctx, index)
 }

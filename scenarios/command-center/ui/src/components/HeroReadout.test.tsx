@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import type { Reading } from "../lib/api";
+import { renderWithProviders, screen } from "../test-utils/renderWithProviders";
+import { authoredSample, makeReading } from "../test-utils/readings";
+import { HeroReadout } from "./HeroReadout";
+
+const reading = (overrides: Partial<Reading>): Reading => makeReading({
+  id: "revenue_mrr", label: "Monthly recurring revenue", unit: "usd", format: "currency.compact", source: { team: "monetization", binding: "scenario:landing-page-business-suite" },
+  coverage: "MISSING", trust: "UNAVAILABLE", ttlSeconds: 300, owner: "monetization", whatIsNeeded: "a revenue surface", firstObservedMissing: "2026-09-01", gapOpenDays: 3,
+  sample: authoredSample(12400, [8100, 12400]), ...overrides,
+});
+
+describe("HeroReadout", () => {
+  it("renders an absent metric as a dotted figure with its owner and days open", () => {
+    renderWithProviders(<HeroReadout reading={reading({})} />);
+    expect(screen.getByLabelText("$12.4K").closest("[data-figure]")).toHaveAttribute("data-ink", "dotted");
+    expect(screen.getByText(/no substrate · monetization · open 3 days/)).toBeInTheDocument();
+  });
+  it("renders a measured metric solid with its source and freshness", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "VALID", value: 58, observedAt: new Date().toISOString(), sample: null, format: "integer", unit: "count" })} />);
+    expect(screen.getByLabelText("58").closest("[data-figure]")).toHaveAttribute("data-ink", "solid");
+    expect(screen.getByTestId("freshness-hairline")).toBeInTheDocument();
+  });
+  it("says so when a room has nothing measured and illustrations are hidden", () => {
+    renderWithProviders(<HeroReadout reading={null} emptyReason="Illustrative figures are hidden." />);
+    expect(screen.getByText("No measured reading")).toBeInTheDocument();
+    expect(screen.getByText("Illustrative figures are hidden.")).toBeInTheDocument();
+  });
+});
+
+describe("HeroReadout — the two lines a figure can carry beside the qualifier", () => {
+  it("shows an integrity finding with an untrusted number instead of the number alone", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "UNTRUSTED", trustReason: "exceeds the denominator", value: 900, observedAt: new Date().toISOString(), sample: null, format: "integer", unit: "count" })} />);
+    expect(screen.getByText(/cannot be believed: exceeds the denominator/)).toBeInTheDocument();
+  });
+  it("names the prediction verdict when the empirical axis is bound", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "VALID", value: 58, observedAt: new Date().toISOString(), sample: null, empirical: "MISS", format: "integer", unit: "count" })} />);
+    expect(screen.getByText("prediction miss")).toBeInTheDocument();
+  });
+  it("marks an in-reach hero as in reach", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "IN-REACH" })} />);
+    expect(screen.getByText("in reach")).toBeInTheDocument();
+  });
+});
+
+describe("HeroReadout without a reading", () => {
+  it("falls back to the default empty reason", () => {
+    renderWithProviders(<HeroReadout reading={null} />);
+    expect(screen.getByText("Nothing in this room is measured yet.")).toBeInTheDocument();
+  });
+});

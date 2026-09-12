@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "services.chrome-theme",
+    "name": "Chrome Theme",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The single owner of OS status-bar and app-chrome appearance, resolving a priority-ordered set of contributors and writing both the theme-color meta tag and the safe-area strip from one value.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P1",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.base-styles",
+        "reason": "The safe-area strip is sized from the declared safe-area inset tokens rather than raw env() reads."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "safe-area-respected",
+    "chrome-pinned"
+  ],
+  "rationale": "The status bar is two platform mechanisms — theme-color on Android, a painted safe-area strip on iOS black-translucent — and any surface that writes only one is correct on one platform and stale on the other. Splitting ownership across surfaces produces the same defect a second way: a notice dismissed by the reader leaves the notch tinted, because the surface that painted it was reading conditions rather than what is on screen."
+}

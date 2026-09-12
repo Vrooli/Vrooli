@@ -60,7 +60,7 @@ resource-codex refactor old_code.py     # Improve code quality
 
 ### Step 1: Basic Setup (Already Done)
 ✅ Resource-codex is already configured
-✅ API key is stored in Vault
+✅ API key is resolved through the credential authority and injected only at runtime
 ✅ Ready for text generation
 
 ### Step 2: Enable Agent Mode (Optional)
@@ -102,8 +102,8 @@ npm install -g @openai/codex
 # Configure it
 resource-codex manage configure-cli
 
-# Check Vault has the key
-resource-vault content get --path "resources/codex/api/openai" --key "api_key"
+# Check metadata-only authority status
+vrooli credentials status --identity vrooli/openai --field api-key --format json
 ```
 
 ### Commands fail with "not available"
@@ -164,7 +164,7 @@ The system automatically uses the cheapest effective method for your task.
 
 ```bash
 resource-codex help                    # Show all commands
-./resources/codex/examples/codex-cli-demo.sh  # Run interactive demo
+resource-codex status                  # Inspect available backends
 ```
 
 Or check the full documentation in `resources/codex/README.md`

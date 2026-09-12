@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.sticky",
+    "name": "Sticky",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The sticky-position primitive handling offsets, safe areas, stacking context, boundary containment, and coordination with scroll shadows.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "chrome-pinned",
+    "safe-area-respected"
+  ]
+}

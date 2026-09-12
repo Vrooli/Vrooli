@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page substrate.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "substrate",
+      "surface": "experience-substrate"
+    },
+    "name": "experience-substrate-spec-smoke",
+    "requirement": "OT-P0-003",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "id": "navigate-substrate",
+      "action": {
+        "metadata": { "label": "Open Substrate" },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "infrastructure-manager",
+          "scenario_path": "/substrate",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      }
+    },
+    {
+      "id": "wait-substrate-source-trust-lifecycle",
+      "action": {
+        "metadata": { "label": "Source trust lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-source-trust\"][data-experience-state=\"loading\"], [data-testid=\"substrate-source-trust\"][data-experience-state=\"ready\"], [data-testid=\"substrate-source-trust\"][data-experience-state=\"partial\"], [data-testid=\"substrate-source-trust\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-substrate-headline-lifecycle",
+      "action": {
+        "metadata": { "label": "Headline figures lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-headline\"][data-experience-state=\"loading\"], [data-testid=\"substrate-headline\"][data-experience-state=\"ready\"], [data-testid=\"substrate-headline\"][data-experience-state=\"partial\"], [data-testid=\"substrate-headline\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-substrate-constellation-lifecycle",
+      "action": {
+        "metadata": { "label": "Device constellation lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-constellation\"][data-experience-state=\"loading\"], [data-testid=\"substrate-constellation\"][data-experience-state=\"ready\"], [data-testid=\"substrate-constellation\"][data-experience-state=\"empty\"], [data-testid=\"substrate-constellation\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-substrate-rung-matrix-lifecycle",
+      "action": {
+        "metadata": { "label": "Device by rung lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-rung-matrix\"][data-experience-state=\"loading\"], [data-testid=\"substrate-rung-matrix\"][data-experience-state=\"ready\"], [data-testid=\"substrate-rung-matrix\"][data-experience-state=\"empty\"], [data-testid=\"substrate-rung-matrix\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-substrate-check-platforms-lifecycle",
+      "action": {
+        "metadata": { "label": "Substrate sensing lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-check-platforms\"][data-experience-state=\"loading\"], [data-testid=\"substrate-check-platforms\"][data-experience-state=\"ready\"], [data-testid=\"substrate-check-platforms\"][data-experience-state=\"empty\"], [data-testid=\"substrate-check-platforms\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-substrate-portability-lifecycle",
+      "action": {
+        "metadata": { "label": "Portability matrix lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"substrate-portability\"][data-experience-state=\"loading\"], [data-testid=\"substrate-portability\"][data-experience-state=\"ready\"], [data-testid=\"substrate-portability\"][data-experience-state=\"empty\"], [data-testid=\"substrate-portability\"][data-experience-state=\"error\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

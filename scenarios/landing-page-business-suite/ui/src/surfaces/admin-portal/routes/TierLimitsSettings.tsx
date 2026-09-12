@@ -49,7 +49,6 @@ export function TierLimitsSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Tier Limits"
           description="Configure AI credit limits for each subscription tier"
           icon={Gauge}
@@ -132,7 +131,7 @@ export function TierLimitsSettings() {
                                   ? 'unlimited'
                                   : aiCreditsLimit.display_dollars?.toFixed(2) ?? '0')
                               }
-                              onChange={(e) => updateEditedValue(editKey, e.target.value)}
+                              onChange={(e) => { updateEditedValue(editKey, e.target.value); }}
                               className="w-32 pl-8"
                               placeholder="0.00"
                             />
@@ -140,7 +139,7 @@ export function TierLimitsSettings() {
                         </div>
                         <Button
                           size="sm"
-                          onClick={() => handleSave(tierID, aiCreditsLimit)}
+                          onClick={() => { void handleSave(tierID, aiCreditsLimit); }}
                           disabled={!isEdited || saving === editKey}
                           className="gap-1"
                         >

@@ -10,7 +10,6 @@ import type {
 } from '@vrooli/iframe-bridge';
 import type { App } from '@/types';
 import { logger } from '@/services/logger';
-import { appService } from '@/services/api';
 import type { ReportConsoleEntry } from './reportTypes';
 import { isTruncated } from './reportTypes';
 import { REPORT_CONSOLE_LOGS_MAX_LINES } from './reportConstants';
@@ -23,7 +22,6 @@ import {
 interface UseReportConsoleLogsDataParams {
   app: App | null;
   appId?: string;
-  activePreviewUrl: string | null;
   bridgeSupported: boolean;
   bridgeCaps: string[];
   logState: BridgeLogStreamState | null;
@@ -45,8 +43,6 @@ export interface ReportConsoleLogsDataState {
   total: number | null;
   fetch: (options?: { force?: boolean }) => Promise<void>;
   reset: () => void;
-  fromFallback: boolean;
-  pageStatus: import('@/services/api').BrowserlessFallbackPageStatus | null;
 }
 
 /**
@@ -55,7 +51,6 @@ export interface ReportConsoleLogsDataState {
 export function useReportConsoleLogsData({
   app,
   appId,
-  activePreviewUrl,
   bridgeSupported,
   bridgeCaps,
   logState,
@@ -65,8 +60,6 @@ export function useReportConsoleLogsData({
 }: UseReportConsoleLogsDataParams): ReportConsoleLogsDataState {
   const [state, dispatch] = useReducer(reportConsoleLogsReducer, initialReportConsoleLogsState);
   const fetchedForRef = useRef<string | null>(null);
-  const fromFallbackRef = useRef<boolean>(false);
-  const pageStatusRef = useRef<import('@/services/api').BrowserlessFallbackPageStatus | null>(null);
 
   const resolveIdentifier = useCallback(() => {
     const candidates = [app?.scenario_name, app?.id, appId]
@@ -89,80 +82,16 @@ export function useReportConsoleLogsData({
       return;
     }
 
-    // Try fallback if bridge doesn't support logs
+    // The iframe bridge is the only console-log source. When it does not
+    // advertise log support, degrade to a clear, informative empty state.
     if (!bridgeSupported || !bridgeCaps.includes('logs')) {
-      if (activePreviewUrl) {
-        logger.info('Bridge does not support console logs, attempting browserless fallback');
-        dispatch({ type: 'FETCH_START' });
-
-        try {
-          const fallbackData = await appService.getFallbackDiagnostics(identifier, activePreviewUrl);
-
-          if (fallbackData && fallbackData.consoleLogs && fallbackData.consoleLogs.length > 0) {
-            const entries: ReportConsoleEntry[] = fallbackData.consoleLogs.map(log => {
-              const ts = new Date(log.timestamp).getTime();
-              const timestamp = new Date(log.timestamp).toLocaleTimeString();
-              const level = log.level.toUpperCase();
-              const display = `${timestamp} [Console/${level}] ${log.message}`.trim();
-
-              return {
-                display,
-                payload: {
-                  ts,
-                  level: log.level,
-                  source: 'console' as const,
-                  text: log.message,
-                },
-                timestamp,
-                source: 'Console',
-                severity: log.level === 'error' ? ('error' as const) : log.level === 'warn' ? ('warn' as const) : ('info' as const),
-                body: log.message,
-              };
-            });
-
-            dispatch({
-              type: 'FETCH_SUCCESS',
-              payload: {
-                entries,
-                total: fallbackData.consoleLogs.length,
-                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
-              },
-            });
-
-            fromFallbackRef.current = true;
-            pageStatusRef.current = fallbackData.pageStatus;
-            fetchedForRef.current = normalizedIdentifier;
-            logger.info(`Successfully retrieved ${entries.length} console logs via browserless fallback`);
-            return;
-          } else if (fallbackData && fallbackData.consoleLogs && fallbackData.consoleLogs.length === 0) {
-            // Fallback succeeded but no console logs were captured
-            dispatch({
-              type: 'FETCH_SUCCESS',
-              payload: {
-                entries: [],
-                total: 0,
-                fetchedAt: new Date(fallbackData.capturedAt).getTime(),
-              },
-            });
-
-            fromFallbackRef.current = true;
-            pageStatusRef.current = fallbackData.pageStatus;
-            fetchedForRef.current = normalizedIdentifier;
-            logger.info('Browserless fallback succeeded but captured no console logs');
-            return;
-          }
-        } catch (error) {
-          logger.warn('Browserless fallback failed for console logs', error);
-        }
-      }
-
-      dispatch({ type: 'FETCH_ERROR', payload: 'Console log capture is not available for this preview.' });
+      dispatch({
+        type: 'FETCH_ERROR',
+        payload: "Console logs unavailable — the preview's iframe bridge did not advertise log support.",
+      });
       fetchedForRef.current = null;
-      fromFallbackRef.current = false;
       return;
     }
-
-    fromFallbackRef.current = false;
 
     dispatch({ type: 'FETCH_START' });
 
@@ -202,7 +131,6 @@ export function useReportConsoleLogsData({
     }
   }, [
     resolveIdentifier,
-    activePreviewUrl,
     bridgeSupported,
     bridgeCaps,
     logState,
@@ -214,8 +142,6 @@ export function useReportConsoleLogsData({
   const reset = useCallback(() => {
     dispatch({ type: 'RESET' });
     fetchedForRef.current = null;
-    fromFallbackRef.current = false;
-    pageStatusRef.current = null;
   }, []);
 
   const formattedCapturedAt = useMemo(
@@ -241,7 +167,5 @@ export function useReportConsoleLogsData({
     total: state.total,
     fetch,
     reset,
-    fromFallback: fromFallbackRef.current,
-    pageStatus: pageStatusRef.current,
   };
 }

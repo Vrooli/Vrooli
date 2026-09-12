@@ -22,17 +22,18 @@ export type {
 
 // API client
 export {
-  fetchStatsSummary,
-  fetchStatusDistribution,
-  fetchSuccessRate,
-  fetchDurationStats,
-  fetchCostStats,
-  fetchRunnerBreakdown,
-  fetchProfileBreakdown,
-  fetchModelBreakdown,
-  fetchToolUsage,
-  fetchErrorPatterns,
-  fetchTimeSeries,
+  fetchDurableRunCost,
+  fetchDurableRunDurationStatistics,
+  fetchDurableRunStatusDistribution,
+  fetchDurableRunSuccess,
+  fetchDurableRunCycleTime,
+  fetchDurableRunVolume,
+  fetchDurableRunnerBreakdown,
+  fetchDurableProfileBreakdown,
+  fetchDurableModelBreakdown,
+  fetchDurableToolUsage,
+  fetchDurableTerminalTrend,
+  fetchDurableErrorPatterns,
   statsQueryKeys,
 } from "./api/statsClient";
 

@@ -56,7 +56,7 @@ export function ExpandableDescription({
     }
   }, [isEditing])
 
-  const autoResize = (textarea: HTMLTextAreaElement) => {
+  function autoResize(textarea: HTMLTextAreaElement) {
     textarea.style.height = 'auto'
     textarea.style.height = `${Math.max(textarea.scrollHeight, 60)}px`
   }

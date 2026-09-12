@@ -6,9 +6,9 @@
  */
 
 import { create } from "zustand";
-import type { ReactFlowInstance, Viewport } from "@xyflow/react";
+import type { ReactFlowInstance } from "@xyflow/react";
 import type { GraphLens } from "./graph-data-store";
-import type { GraphNode, GraphEdge } from "../types";
+import type { GraphNode } from "../types";
 
 export type LayoutMode = "hierarchical" | "compact" | "grouped";
 export type LayoutDirection = "TB" | "LR";
@@ -19,15 +19,36 @@ export interface NodeHighlightState {
   mode: HighlightMode;
 }
 
+/**
+ * Semantic viewport intent: "the user was looking at node X at zoom Z on this lens."
+ *
+ * We persist intent instead of raw {x, y, zoom} because raw pixel coordinates are
+ * fragile — they're only valid for the exact container size, layout mode, grouping,
+ * and node set that produced them. A viewport captured on desktop restores off-screen
+ * on mobile; a viewport captured before a layout change restores out of bounds.
+ * An intent survives all of those: on restore, if the node still exists we re-center
+ * on it at the saved zoom; if not, we fitView.
+ *
+ * `nodeId` is null when the user has no selected focus (panned/zoomed without a
+ * selection). In that case only zoom is meaningful on restore.
+ */
+export interface ViewportIntent {
+  nodeId: string | null;
+  zoom: number;
+}
+
 const LAYOUT_STORAGE_KEY = "swarm-manager.graph.layout";
 const LAYOUT_DIRECTION_STORAGE_KEY = "swarm-manager.graph.layout-direction";
-const VIEWPORT_STORAGE_KEY = "swarm-manager.graph.viewport.v2";
+const VIEWPORT_INTENT_STORAGE_KEY = "swarm-manager.graph.viewport-intent.v1";
 const SIDEBAR_STORAGE_KEY = "swarm-manager.graph.sidebar-collapsed";
-const SIDEBAR_WAS_OPEN_KEY = "swarm-manager.graph.sidebar-was-open-before-detail";
 
 const LAYOUT_CYCLE: LayoutMode[] = ["hierarchical", "compact", "grouped"];
 
-type ViewportByLens = Record<GraphLens, Viewport | null>;
+type ViewportIntentByLens = Record<GraphLens, ViewportIntent | null>;
+
+function defaultLayoutForLens(lens: string): LayoutMode {
+  return lens === "topology" ? "grouped" : "hierarchical";
+}
 
 function loadLayoutPreferences(): Record<string, LayoutMode> {
   try {
@@ -72,42 +93,39 @@ function saveLayoutDirection(direction: LayoutDirection): void {
   }
 }
 
-function createEmptyViewportByLens(): ViewportByLens {
+function createEmptyViewportIntentByLens(): ViewportIntentByLens {
   return {
+    plan: null,
     focus: null,
     topology: null,
-    operations: null,
   };
 }
 
-function isViewport(value: unknown): value is Viewport {
+function isViewportIntent(value: unknown): value is ViewportIntent {
   if (!value || typeof value !== "object") {
     return false;
   }
 
   const record = value as Record<string, unknown>;
-  return typeof record.x === "number"
-    && typeof record.y === "number"
-    && typeof record.zoom === "number";
+  const nodeIdValid = record.nodeId === null || typeof record.nodeId === "string";
+  const zoomValid = typeof record.zoom === "number" && Number.isFinite(record.zoom) && record.zoom > 0;
+  return nodeIdValid && zoomValid;
 }
 
-function loadViewportByLens(): ViewportByLens {
-  const empty = createEmptyViewportByLens();
+function loadViewportIntentByLens(): ViewportIntentByLens {
+  const empty = createEmptyViewportIntentByLens();
   try {
-    const raw = window.localStorage.getItem(VIEWPORT_STORAGE_KEY);
+    const raw = window.localStorage.getItem(VIEWPORT_INTENT_STORAGE_KEY);
     if (!raw) return empty;
 
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const next = createEmptyViewportByLens();
+    const next = createEmptyViewportIntentByLens();
 
-    if (isViewport(parsed.focus)) {
+    if (isViewportIntent(parsed.focus)) {
       next.focus = parsed.focus;
     }
-    if (isViewport(parsed.topology)) {
+    if (isViewportIntent(parsed.topology)) {
       next.topology = parsed.topology;
-    }
-    if (isViewport(parsed.operations)) {
-      next.operations = parsed.operations;
     }
 
     return next;
@@ -116,16 +134,15 @@ function loadViewportByLens(): ViewportByLens {
   }
 }
 
-// PERF: Debounce viewport persistence. onMoveEnd fires frequently during
-// pan/zoom gestures. Synchronous JSON.stringify + localStorage.setItem on
-// every call blocks the main thread. We batch writes with a 500ms debounce
-// so only the final viewport position is persisted.
-let viewportSaveTimer: ReturnType<typeof setTimeout> | null = null;
-function saveViewportByLens(viewportByLens: ViewportByLens): void {
-  if (viewportSaveTimer) clearTimeout(viewportSaveTimer);
-  viewportSaveTimer = setTimeout(() => {
+// PERF: Debounce intent persistence. onMoveEnd fires frequently during pan/zoom.
+// Synchronous JSON.stringify + localStorage.setItem on every call blocks the
+// main thread. We batch writes with a 500ms debounce.
+let viewportIntentSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function saveViewportIntentByLens(intentByLens: ViewportIntentByLens): void {
+  if (viewportIntentSaveTimer) clearTimeout(viewportIntentSaveTimer);
+  viewportIntentSaveTimer = setTimeout(() => {
     try {
-      window.localStorage.setItem(VIEWPORT_STORAGE_KEY, JSON.stringify(viewportByLens));
+      window.localStorage.setItem(VIEWPORT_INTENT_STORAGE_KEY, JSON.stringify(intentByLens));
     } catch {
       // Ignore persistence failures.
     }
@@ -148,22 +165,6 @@ function saveSidebarCollapsed(collapsed: boolean): void {
   }
 }
 
-function loadSidebarWasOpenBeforeDetail(): boolean {
-  try {
-    return window.localStorage.getItem(SIDEBAR_WAS_OPEN_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveSidebarWasOpenBeforeDetail(wasOpen: boolean): void {
-  try {
-    window.localStorage.setItem(SIDEBAR_WAS_OPEN_KEY, String(wasOpen));
-  } catch {
-    // Ignore persistence failures.
-  }
-}
-
 export interface GraphUIState {
   selectedNodeId: string | null;
   highlightState: NodeHighlightState;
@@ -171,14 +172,12 @@ export interface GraphUIState {
   layoutPreferences: Record<string, LayoutMode>;
   layoutDirection: LayoutDirection;
   fitViewNonce: number;
-  viewportByLens: ViewportByLens;
+  viewportIntentByLens: ViewportIntentByLens;
   sidebarCollapsed: boolean;
-  expandedTopologyClusters: Set<string>;
   focusNodeLabel: string | null;
-  sidebarWasOpenBeforeDetail: boolean;
   /** Runtime-only ref to the React Flow instance. NOT persisted to localStorage.
    *  Set by GraphCanvas on init; consumed by GraphNavControls for viewport manipulation. */
-  flowInstance: ReactFlowInstance<GraphNode, GraphEdge> | null;
+  flowInstance: ReactFlowInstance<GraphNode> | null;
   selectNode: (nodeId: string | null) => void;
   setHighlightState: (state: NodeHighlightState) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -188,22 +187,16 @@ export interface GraphUIState {
   getLayoutForLens: (lens: string) => LayoutMode;
   setLayoutDirection: (direction: LayoutDirection) => void;
   requestFitView: () => void;
-  setViewportForLens: (lens: GraphLens, viewport: Viewport) => void;
+  setViewportIntentForLens: (lens: GraphLens, intent: ViewportIntent | null) => void;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  toggleTopologyCluster: (clusterId: string) => void;
-  collapseAllTopologyClusters: () => void;
-  expandTopologyClusters: (clusterIds: string[]) => void;
   setFocusNodeLabel: (label: string | null) => void;
-  saveSidebarStateBeforeDetail: () => void;
-  restoreSidebarStateAfterDetail: () => void;
-  setFlowInstance: (instance: ReactFlowInstance<GraphNode, GraphEdge> | null) => void;
+  setFlowInstance: (instance: ReactFlowInstance<GraphNode> | null) => void;
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
-const initialViewportByLens = typeof window !== "undefined" ? loadViewportByLens() : createEmptyViewportByLens();
+const initialViewportIntentByLens = typeof window !== "undefined" ? loadViewportIntentByLens() : createEmptyViewportIntentByLens();
 const initialSidebarCollapsed = typeof window !== "undefined" ? loadSidebarCollapsed() : false;
-const initialSidebarWasOpen = typeof window !== "undefined" ? loadSidebarWasOpenBeforeDetail() : false;
 const initialLayoutDirection = typeof window !== "undefined" ? loadLayoutDirection() : "TB";
 
 export const graphUIInitialState = {
@@ -213,12 +206,10 @@ export const graphUIInitialState = {
   layoutPreferences: initialPrefs,
   layoutDirection: initialLayoutDirection,
   fitViewNonce: 0,
-  viewportByLens: initialViewportByLens,
+  viewportIntentByLens: initialViewportIntentByLens,
   sidebarCollapsed: initialSidebarCollapsed,
-  sidebarWasOpenBeforeDetail: initialSidebarWasOpen,
-  expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
-  flowInstance: null as ReactFlowInstance<GraphNode, GraphEdge> | null,
+  flowInstance: null as ReactFlowInstance<GraphNode> | null,
 };
 
 export const useGraphUIStore = create<GraphUIState>((set, get) => ({
@@ -235,7 +226,7 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
 
   cycleLayoutMode: (lens) =>
     set((state) => {
-      const currentMode = state.layoutPreferences[lens] ?? state.layoutMode;
+      const currentMode = state.layoutPreferences[lens] ?? defaultLayoutForLens(lens);
       const idx = LAYOUT_CYCLE.indexOf(currentMode);
       const next = LAYOUT_CYCLE[(idx + 1) % LAYOUT_CYCLE.length] as LayoutMode;
       const layoutPreferences: Record<string, LayoutMode> = {
@@ -264,10 +255,10 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
 
   applyLayoutForLens: (lens) =>
     set((state) => ({
-      layoutMode: state.layoutPreferences[lens] ?? "hierarchical",
+      layoutMode: state.layoutPreferences[lens] ?? defaultLayoutForLens(lens),
     })),
 
-  getLayoutForLens: (lens) => get().layoutPreferences[lens] ?? "hierarchical",
+  getLayoutForLens: (lens) => get().layoutPreferences[lens] ?? defaultLayoutForLens(lens),
 
   setLayoutDirection: (direction) => {
     saveLayoutDirection(direction);
@@ -279,26 +270,29 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
       fitViewNonce: state.fitViewNonce + 1,
     })),
 
-  setViewportForLens: (lens, viewport) => {
-    // PERF: Skip state update if viewport hasn't meaningfully changed.
-    // onMoveEnd fires frequently; each set() triggers Zustand notifications
-    // to all subscribers. We threshold to avoid unnecessary re-renders.
-    const current = get().viewportByLens[lens];
+  setViewportIntentForLens: (lens, intent) => {
+    // PERF: Skip state update if intent hasn't meaningfully changed. onMoveEnd
+    // fires frequently during pan/zoom gestures; each set() triggers Zustand
+    // notifications to all subscribers.
+    const current = get().viewportIntentByLens[lens];
+    if (intent === null && current === null) {
+      return;
+    }
     if (
-      current
-      && Math.abs(current.x - viewport.x) < 0.5
-      && Math.abs(current.y - viewport.y) < 0.5
-      && Math.abs(current.zoom - viewport.zoom) < 0.001
+      intent
+      && current
+      && current.nodeId === intent.nodeId
+      && Math.abs(current.zoom - intent.zoom) < 0.001
     ) {
       return;
     }
     set((state) => {
-      const viewportByLens = {
-        ...state.viewportByLens,
-        [lens]: viewport,
+      const viewportIntentByLens = {
+        ...state.viewportIntentByLens,
+        [lens]: intent,
       };
-      saveViewportByLens(viewportByLens);
-      return { viewportByLens };
+      saveViewportIntentByLens(viewportIntentByLens);
+      return { viewportIntentByLens };
     });
   },
 
@@ -314,38 +308,7 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
     set({ sidebarCollapsed: collapsed });
   },
 
-  toggleTopologyCluster: (clusterId) =>
-    set((state) => {
-      const next = new Set(state.expandedTopologyClusters);
-      if (next.has(clusterId)) {
-        next.delete(clusterId);
-      } else {
-        next.add(clusterId);
-      }
-      return { expandedTopologyClusters: next };
-    }),
-
-  collapseAllTopologyClusters: () => set({ expandedTopologyClusters: new Set<string>() }),
-
-  expandTopologyClusters: (clusterIds) => set({ expandedTopologyClusters: new Set(clusterIds) }),
-
   setFocusNodeLabel: (label) => set({ focusNodeLabel: label }),
-
-  saveSidebarStateBeforeDetail: () => {
-    const wasOpen = !get().sidebarCollapsed;
-    saveSidebarWasOpenBeforeDetail(wasOpen);
-    set({ sidebarWasOpenBeforeDetail: wasOpen });
-  },
-
-  restoreSidebarStateAfterDetail: () => {
-    const wasOpen = get().sidebarWasOpenBeforeDetail;
-    if (wasOpen) {
-      saveSidebarCollapsed(false);
-      set({ sidebarCollapsed: false });
-    }
-    saveSidebarWasOpenBeforeDetail(false);
-    set({ sidebarWasOpenBeforeDetail: false });
-  },
 
   setFlowInstance: (instance) => set({ flowInstance: instance }),
 }));
@@ -358,13 +321,11 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
       mode: graphUIInitialState.highlightState.mode,
     },
     layoutPreferences: { ...graphUIInitialState.layoutPreferences },
-    viewportByLens: {
-      focus: graphUIInitialState.viewportByLens.focus ? { ...graphUIInitialState.viewportByLens.focus } : null,
-      topology: graphUIInitialState.viewportByLens.topology ? { ...graphUIInitialState.viewportByLens.topology } : null,
-      operations: graphUIInitialState.viewportByLens.operations ? { ...graphUIInitialState.viewportByLens.operations } : null,
+    viewportIntentByLens: {
+      plan: graphUIInitialState.viewportIntentByLens.plan ? { ...graphUIInitialState.viewportIntentByLens.plan } : null,
+      focus: graphUIInitialState.viewportIntentByLens.focus ? { ...graphUIInitialState.viewportIntentByLens.focus } : null,
+      topology: graphUIInitialState.viewportIntentByLens.topology ? { ...graphUIInitialState.viewportIntentByLens.topology } : null,
     },
-    sidebarWasOpenBeforeDetail: graphUIInitialState.sidebarWasOpenBeforeDetail,
-    expandedTopologyClusters: new Set(graphUIInitialState.expandedTopologyClusters),
     // Runtime-only — always null in clones (tests, resets).
     flowInstance: null,
   };

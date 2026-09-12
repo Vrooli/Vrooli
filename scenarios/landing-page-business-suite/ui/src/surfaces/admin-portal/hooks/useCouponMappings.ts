@@ -64,7 +64,7 @@ export function useCouponMappings(): UseCouponMappingsReturn {
 
   // Initial load
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   /**
@@ -97,7 +97,7 @@ export function useCouponMappings(): UseCouponMappingsReturn {
         await removeCouponFromPlan(priceId);
         setMappings((prev) => {
           const next = { ...prev };
-          delete next[priceId];
+          Reflect.deleteProperty(next, priceId);
           return next;
         });
         return { success: true };

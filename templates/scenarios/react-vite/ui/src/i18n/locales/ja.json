@@ -1,0 +1,109 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: {{SCENARIO_DISPLAY_NAME}} のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "{{SCENARIO_DISPLAY_NAME}}"
+  },
+  "layout": {
+    "navigationLabel": "メインナビゲーション",
+    "mobileNavigationLabel": "モバイルナビゲーション",
+    "skipToContent": "コンテンツへスキップ",
+    "openNavigation": "ナビゲーションを開く",
+    "closeNavigation": "ナビゲーションを閉じる",
+    "nav": {
+      "dashboard": "ホーム",
+      "notes": "ノート",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ホーム",
+      "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
+      "placeholderTitle": "このシナリオのホーム画面はまだ決まっていません",
+      "placeholderDescription": "START-HERE のゲート 5 を開き、このページが答える一つの問いを決めてください。このプレースホルダーをその画面に置き換えます。隣のヘルスカードは、ライブラリ部品で作ったシナリオ所有機能の例です。"
+    },
+    "notes": {
+      "title": "ノート",
+      "description": "動作するサンプルドメイン: 一覧、作成、計測。形を一度写したら detemplate で削除します。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語",
+      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "preferences": "環境設定",
+      "themeHint": "ライト、ダーク、またはシステムに従う。",
+      "localeHint": "このコンソールにのみ適用されます。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このシナリオの API をポーリングし、その応答を表示します。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "notes": {
+    "title": "ノート",
+    "loading": "ノートを読み込み中…",
+    "empty": "まだノートはありません。",
+    "create": "ノートを作成",
+    "attachmentsLabel": "添付ファイル {{count}} 件",
+    "table": {
+      "title": "タイトル",
+      "created": "作成日",
+      "attachments": "添付",
+      "actions": "操作",
+      "search": "ノートを検索"
+    },
+    "uploadAttachment": "添付ファイルをアップロード",
+    "attachmentFileLabel": "添付ファイル",
+    "uploadSuccess": "{{name}} をアップロードしました。",
+    "noFileSelected": "アップロードするファイルを選択してください。",
+    "measure": {
+      "title": "今週のノート",
+      "loading": "集計中…",
+      "thisWeek": "今週作成されたノート: {{count}} 件"
+    }
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

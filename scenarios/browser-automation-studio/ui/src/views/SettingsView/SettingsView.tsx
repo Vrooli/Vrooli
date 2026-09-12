@@ -332,7 +332,7 @@ export function SettingsView({ onBack, activeTab, onTabChange }: SettingsViewPro
   }, [newPresetName, saveAsPreset]);
 
   return (
-    <div className="flex flex-col h-screen bg-flow-bg">
+    <div className="flex h-full flex-col bg-flow-bg">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-gray-800 bg-flow-bg/95 backdrop-blur">
         <div className="px-4 py-4 sm:px-6">

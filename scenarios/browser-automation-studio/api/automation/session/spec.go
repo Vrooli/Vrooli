@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -59,12 +60,21 @@ type Spec struct {
 	// Execution-specific fields
 	BaseURL      string                // Base URL for relative navigation
 	Capabilities CapabilityRequirement // HAR, video, tracing needs
+	// Absolute WAV path served as a deterministic fake microphone.
+	// The driver launches a dedicated browser instance per distinct value.
+	FakeMicrophoneWav string
 
 	// Labels for debugging/filtering
 	Labels map[string]string
 
 	// Anti-detection and human-like behavior configuration
 	BrowserProfile *sessionprofilepersistence.BrowserProfile
+
+	// AppTarget and ValidationContext are required together for an
+	// Electron validation session. The driver attaches to the target; it does
+	// not own the desktop process.
+	AppTarget         *driver.AppTarget
+	ValidationContext *driver.ValidationContext
 }
 
 // RecordingCallbacks configures callbacks for recording sessions.
@@ -131,15 +141,17 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequirement specifies execution capabilities needed.
 type CapabilityRequirement struct {
-	NeedsParallelTabs bool
-	NeedsIframes      bool
-	NeedsFileUploads  bool
-	NeedsDownloads    bool
-	NeedsHAR          bool
-	NeedsVideo        bool
-	NeedsTracing      bool
-	MinViewportWidth  int
-	MinViewportHeight int
+	NeedsParallelTabs  bool
+	NeedsIframes       bool
+	NeedsFileUploads   bool
+	NeedsDownloads     bool
+	NeedsHAR           bool
+	NeedsVideo         bool
+	NeedsTracing       bool
+	NeedsPerfTrace     bool
+	NeedsAccessibility bool
+	MinViewportWidth   int
+	MinViewportHeight  int
 }
 
 // IsEmpty returns true if no capabilities are required.

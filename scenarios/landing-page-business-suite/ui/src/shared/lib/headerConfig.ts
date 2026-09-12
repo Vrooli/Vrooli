@@ -38,26 +38,29 @@ export function normalizeHeaderConfig(config?: LandingHeaderConfig | null, name?
     return buildDefaultHeaderConfig(name);
   }
 
-  const base = buildDefaultHeaderConfig(name ?? config.branding?.label ?? 'Landing');
+  // Header configuration is API data and may be partial during migrations or
+  // when older saved variants are loaded. Treat it as partial at this boundary.
+  const partialConfig = config as Partial<LandingHeaderConfig>;
+  const base = buildDefaultHeaderConfig(name ?? partialConfig.branding?.label ?? 'Landing');
   return {
     branding: {
-      mode: config.branding?.mode ?? base.branding.mode,
-      label: config.branding?.label ?? base.branding.label,
-      subtitle: config.branding?.subtitle,
-      mobile_preference: config.branding?.mobile_preference ?? base.branding.mobile_preference,
-      logo_url: config.branding?.logo_url ?? base.branding.logo_url,
-      logo_icon_url: config.branding?.logo_icon_url ?? base.branding.logo_icon_url,
+      mode: partialConfig.branding?.mode ?? base.branding.mode,
+      label: partialConfig.branding?.label ?? base.branding.label,
+      subtitle: partialConfig.branding?.subtitle,
+      mobile_preference: partialConfig.branding?.mobile_preference ?? base.branding.mobile_preference,
+      logo_url: partialConfig.branding?.logo_url ?? base.branding.logo_url,
+      logo_icon_url: partialConfig.branding?.logo_icon_url ?? base.branding.logo_icon_url,
     },
     nav: {
-      links: (config.nav?.links ?? []).map((link, index) => normalizeNavLink(link, index)),
+      links: (partialConfig.nav?.links ?? []).map((link, index) => normalizeNavLink(link, index)),
     },
     ctas: {
-      primary: normalizeHeaderCTA(config.ctas?.primary, base.ctas.primary),
-      secondary: normalizeHeaderCTA(config.ctas?.secondary, base.ctas.secondary),
+      primary: normalizeHeaderCTA(partialConfig.ctas?.primary, base.ctas.primary),
+      secondary: normalizeHeaderCTA(partialConfig.ctas?.secondary, base.ctas.secondary),
     },
     behavior: {
-      sticky: config.behavior?.sticky ?? base.behavior.sticky,
-      hide_on_scroll: config.behavior?.hide_on_scroll ?? base.behavior.hide_on_scroll,
+      sticky: partialConfig.behavior?.sticky ?? base.behavior.sticky,
+      hide_on_scroll: partialConfig.behavior?.hide_on_scroll ?? base.behavior.hide_on_scroll,
     },
   };
 }
@@ -68,8 +71,8 @@ function normalizeNavLink(link: LandingHeaderNavLink, index: number): LandingHea
     ? link.children.map((child, childIdx) => normalizeNavLink(child, childIdx))
     : undefined;
   return {
-    id: link.id || `nav-${link.type}-${index}`,
-    type: link.type ?? 'section',
+    id: link.id || `nav-${link.type}-${String(index)}`,
+    type: link.type,
     label: link.label || 'Section',
     section_type: link.section_type,
     section_id: link.section_id,
@@ -83,7 +86,7 @@ function normalizeNavLink(link: LandingHeaderNavLink, index: number): LandingHea
 function ensureVisibility(visibility?: HeaderVisibilityConfig): Required<HeaderVisibilityConfig> {
   const desktop = visibility?.desktop ?? true;
   const mobile = visibility?.mobile ?? true;
-  if (!visibility?.desktop && !visibility?.mobile) {
+  if (!desktop && !mobile) {
     return { desktop: true, mobile: true };
   }
   return { desktop, mobile };

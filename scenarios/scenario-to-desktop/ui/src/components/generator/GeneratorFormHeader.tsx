@@ -39,7 +39,9 @@ export function GeneratorFormHeader({
             {createdLabel && <span>Started {createdLabel}</span>}
             {updatedLabel && (
               <>
-                {createdLabel && <span className="text-slate-600">&middot;</span>}
+                {createdLabel && (
+                  <span className="text-slate-600">&middot;</span>
+                )}
                 <span>Saved {updatedLabel}</span>
               </>
             )}

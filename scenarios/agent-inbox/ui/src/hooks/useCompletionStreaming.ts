@@ -22,7 +22,6 @@ export interface StreamingSetters {
 export function useStreamingEventHandler(
   currentRequestIdRef: MutableRefObject<number>,
   setters: StreamingSetters,
-  onTemplateDeactivated?: () => void,
 ) {
   const {
     setStreamingContent,
@@ -41,8 +40,9 @@ export function useStreamingEventHandler(
       switch (event.type) {
         case "content":
           if (event.content) {
+            const content = event.content;
             startTransition(() => {
-              setStreamingContent((prev) => prev + event.content);
+              setStreamingContent((prev) => prev + content);
             });
           }
           break;
@@ -90,11 +90,6 @@ export function useStreamingEventHandler(
                 )
               );
             });
-            if (event.deactivate_template && onTemplateDeactivated) {
-              queueMicrotask(() => {
-                onTemplateDeactivated();
-              });
-            }
           }
           break;
 
@@ -147,6 +142,5 @@ export function useStreamingEventHandler(
     setPendingApprovals,
     setAwaitingApprovals,
     setIsGenerating,
-    onTemplateDeactivated,
   ]);
 }

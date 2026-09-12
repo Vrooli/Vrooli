@@ -1,0 +1,14 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-discovery/module.json",
+    "02-verification/module.json",
+    "03-runs-history/module.json",
+    "04-flow-inventory-ui/module.json",
+    "05-visualization-ui/module.json"
+  ]
+}

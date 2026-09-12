@@ -3,22 +3,23 @@ package orchestration_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
-
-	agentconfig "agent-manager/internal/config"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil"
+	"agent-manager/internal/orchestration/testutil"
+
+	agentconfig "agent-manager/internal/config"
 
 	"github.com/google/uuid"
 )
 
 // newTestOrchestrationSettings creates an OrchestrationSettingsStore backed by a
-// temp file with a custom RunTimeoutMinutes value. The short timeout lets tests
-// exercise the continuation timeout path without waiting 30 minutes.
+// temp file with a custom RunTimeoutMinutes value. Tests can then distinguish
+// the persisted fallback from a workflow node's per-turn override.
 func newTestOrchestrationSettings(t *testing.T, runTimeoutMinutes int) *agentconfig.OrchestrationSettingsStore {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "orchestration-settings.json")
@@ -32,6 +33,93 @@ func newTestOrchestrationSettings(t *testing.T, runTimeoutMinutes int) *agentcon
 		t.Fatalf("update orchestration settings: %v", err)
 	}
 	return store
+}
+
+func TestCreateRun_RefusesProfileLimitsAboveGlobalCeilings(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	settingsStore := newTestOrchestrationSettings(t, 60)
+	settings := settingsStore.Get()
+	settings.RunExecution.MaxTurns = 600
+	if err := settingsStore.Update(settings); err != nil {
+		t.Fatalf("update orchestration settings: %v", err)
+	}
+
+	runnerRegistry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	if err := runnerRegistry.Register(mockRunner); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithOrchestrationSettings(settingsStore),
+		newTestRolePolicyOption(t),
+	)
+	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "duration ceiling", ScopePath: "src/"})
+
+	tests := []struct {
+		name       string
+		timeout    time.Duration
+		maxTurns   int
+		wantValues []string
+	}{
+		{name: "timeout", timeout: 61 * time.Minute, maxTurns: 600, wantValues: []string{"3660s", "3600s"}},
+		{name: "turns", timeout: 60 * time.Minute, maxTurns: 601, wantValues: []string{"601", "600"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+				Name:          "above-" + tt.name,
+				ProfileKey:    "above-" + tt.name + "-" + uuid.NewString()[:8],
+				RoleRef:       "code.default",
+				Timeout:       tt.timeout,
+				MaxTurns:      tt.maxTurns,
+				SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+			})
+
+			_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+				TaskID:         task.ID,
+				AgentProfileID: &profile.ID,
+				Prompt:         "prove ceiling validation",
+			})
+			if err == nil {
+				t.Fatal("CreateRun() succeeded with profile above the global ceiling")
+			}
+			for _, want := range tt.wantValues {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("CreateRun() error %q does not name %q", err, want)
+				}
+			}
+		})
+	}
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "within-ceilings",
+		ProfileKey:    "within-ceilings-" + uuid.NewString()[:8],
+		RoleRef:       "code.default",
+		Timeout:       45 * time.Minute,
+		MaxTurns:      450,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+	})
+	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "prove effective resolved limits",
+	})
+	if err != nil {
+		t.Fatalf("CreateRun() within ceilings: %v", err)
+	}
+	if run.ResolvedConfig == nil || run.ResolvedConfig.Timeout != 45*time.Minute || run.ResolvedConfig.MaxTurns != 450 {
+		t.Fatalf("resolved limits = %+v, want timeout=45m maxTurns=450", run.ResolvedConfig)
+	}
 }
 
 func TestContinuation_HasPerTurnTimeout(t *testing.T) {
@@ -53,6 +141,8 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 
 	var hadDeadline bool
 	var deadlineDuration time.Duration
+	var resolvedMaxTurns int
+	var resolvedTimeout time.Duration
 	continueDone := make(chan struct{})
 	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
 		defer close(continueDone)
@@ -60,6 +150,10 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		if deadline, ok := ctx.Deadline(); ok {
 			hadDeadline = true
 			deadlineDuration = time.Until(deadline)
+		}
+		if req.ResolvedConfig != nil {
+			resolvedMaxTurns = req.ResolvedConfig.MaxTurns
+			resolvedTimeout = req.ResolvedConfig.Timeout
 		}
 		// Return immediately — no need to wait for the actual timeout.
 		// The executor-level timeout tests already cover the timeout path.
@@ -75,8 +169,8 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		t.Fatalf("register runner: %v", err)
 	}
 
-	// Configure with RunTimeoutMinutes=1 (minimum). We only verify the
-	// deadline exists and has the right magnitude — we don't wait for it.
+	// Configure the persisted fallback to one minute, then verify that the
+	// workflow node's two-second override wins for this continuation turn.
 	settingsStore := newTestOrchestrationSettings(t, 1)
 
 	svc := orchestration.New(
@@ -93,13 +187,14 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
 		orchestration.WithOrchestrationSettings(settingsStore),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "timeout-test-profile",
-		ProfileKey:      "timeout-test-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
+		Name:       "timeout-test-profile",
+		ProfileKey: "timeout-test-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "timeout-test-task",
@@ -131,9 +226,13 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		t.Fatalf("create run: %v", err)
 	}
 
+	nodeTimeout := 2 * time.Second
+	nodeMaxTurns := 3
 	_, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
-		RunID:   runID,
-		Message: "please continue",
+		RunID:    runID,
+		Message:  "please continue",
+		MaxTurns: &nodeMaxTurns,
+		Timeout:  &nodeTimeout,
 	})
 	if err != nil {
 		t.Fatalf("ContinueRun: %v", err)
@@ -144,13 +243,16 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("continuation runner was never called")
 	}
+	waitForStatusEvents(t, ctx, eventStore, runID, 2)
 
 	if !hadDeadline {
 		t.Error("expected continuation context to have a deadline from per-turn timeout")
 	}
-	// The deadline should be approximately 1 minute from now (within reason)
-	if deadlineDuration < 30*time.Second || deadlineDuration > 90*time.Second {
-		t.Errorf("expected deadline ~1 minute in the future, got %v", deadlineDuration)
+	if deadlineDuration < time.Second || deadlineDuration > 3*time.Second {
+		t.Errorf("expected workflow node deadline ~2 seconds in the future, got %v", deadlineDuration)
+	}
+	if resolvedMaxTurns != nodeMaxTurns || resolvedTimeout != nodeTimeout {
+		t.Errorf("continuation resolved limits=(%d,%s), want (%d,%s)", resolvedMaxTurns, resolvedTimeout, nodeMaxTurns, nodeTimeout)
 	}
 }
 
@@ -199,14 +301,15 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
 	)
 
 	// Create profile and task
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
-		Name:            "fail-session-profile",
-		ProfileKey:      "fail-session-" + uuid.New().String()[:8],
-		RunnerType:      domain.RunnerTypeClaudeCode,
-		RequiresSandbox: false,
+		Name:       "fail-session-profile",
+		ProfileKey: "fail-session-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
 	})
 	task := mustCreateTask(t, svc, ctx, &domain.Task{
 		Title:       "fail-session-task",

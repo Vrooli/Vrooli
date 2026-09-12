@@ -1,0 +1,734 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.models;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models;models_v1";
+
+// =============================================================================
+// MODELS DOMAIN — declarative model registry (read + enable/disable)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for ModelsService: the read and enable/disable surface over the
+// declarative model registry (api/internal/models). The registry is a
+// license-verified seed catalog (registry.seed.json) whose per-op defaults +
+// blocklist are the read-only baseline; runtime enable/disable state is overlaid
+// from SQLite by the management layer.
+//
+// This service answers "which models exist, what can they do, and which one
+// would run for an operation on this host", lets an operator opt a quality tier
+// in or out, and (IMG-P0-007) manages the on-disk weights: opt-in checksummed
+// downloads with disk-space awareness, removal, and custom/local entries. A
+// download is a durable job (InstallModel returns a job id + ETA; the caller
+// blocks once on JobsService.WaitJob — no polling), keeping a multi-GB pull on
+// the server-owned lifecycle that survives client disconnect.
+//
+// Consumed by:
+//   - API: handlers/models/connect_handler.go implements ModelsServiceHandler.
+//   - CLI: cli/domains/models calls the generated Connect-Go client
+//          (`models list`, `models select`, `models enable/disable`).
+//   - UI:  ui/src/api/models.ts wraps the generated Connect-Web client; the
+//          Settings model-management view lists + toggles models.
+// =============================================================================
+
+service ModelsService {
+  // ListModels returns catalog entries, optionally filtered to one operation.
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+
+  // GetModel returns one catalog entry by id.
+  rpc GetModel(GetModelRequest) returns (GetModelResponse);
+
+  // ListOperations returns the operation vocabulary (declaration order).
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+
+  // SelectModel previews which enabled model would run for an operation on the
+  // probed host — honoring the per-op default and any explicit override —
+  // without executing anything. Surfaces the hardware-fit reason + warnings
+  // (CPU time warning, conservative unknown-VRAM fallback, VRAM shortfall).
+  rpc SelectModel(SelectModelRequest) returns (SelectModelResponse);
+
+  // SetModelEnabled toggles a model's runtime-enabled state (persisted in the
+  // SQLite overlay) and returns the updated entry.
+  rpc SetModelEnabled(SetModelEnabledRequest) returns (SetModelEnabledResponse);
+
+  // ListBlocklist returns the license-encumbered models that must never be
+  // seeded or adopted, with the reason each is excluded.
+  rpc ListBlocklist(ListBlocklistRequest) returns (ListBlocklistResponse);
+
+  // InstallModel downloads a model's weights as a durable job (checksum pinned
+  // on first download, disk space checked first). Returns the job id + ETA; the
+  // caller blocks once on JobsService.WaitJob. An already-installed model
+  // returns already_installed=true with no job.
+  rpc InstallModel(InstallModelRequest) returns (InstallModelResponse);
+
+  // RemoveModel deletes a model's downloaded weights and clears its install
+  // record. A custom local model is unlinked; its referenced path is never
+  // deleted.
+  rpc RemoveModel(RemoveModelRequest) returns (RemoveModelResponse);
+
+  // AddCustomModel registers a custom/fine-tuned local model entry merged on top
+  // of the read-only seed. The id must not collide with a seed model.
+  rpc AddCustomModel(AddCustomModelRequest) returns (AddCustomModelResponse);
+
+  // InspectModelSource dry-runs a guided import: it inspects a HuggingFace repo
+  // id (or a direct weight URL / local path) WITHOUT installing anything, and
+  // returns the detected layout, the inferred architecture (+confidence/evidence
+  // the user confirms), license/NSFW, approximate size, and the proposed registry
+  // entry. Installs nothing, downloads no weights — only the metadata to propose.
+  rpc InspectModelSource(InspectModelSourceRequest) returns (InspectModelSourceResponse);
+
+  // ImportModel composes inspect → operator-confirmed fields (architecture/ops/
+  // attestation) → an add-only custom entry → a durable install job (mirrors
+  // InstallModel: returns job_id + ETA; the caller blocks once on
+  // JobsService.WaitJob). Imports default to local tier with a user-imported
+  // provenance label; public/BYOK serving requires attest_commercial_rights.
+  rpc ImportModel(ImportModelRequest) returns (ImportModelResponse);
+
+  // SetDefaultModel pins (or clears, with empty model_id) the default model for
+  // an operation — the settings surface. Selection applies it when a request
+  // gives no explicit override.
+  rpc SetDefaultModel(SetDefaultModelRequest) returns (SetDefaultModelResponse);
+
+  // ListDefaults returns the effective default model per operation, marking
+  // whether it comes from the seed or an operator pin.
+  rpc ListDefaults(ListDefaultsRequest) returns (ListDefaultsResponse);
+
+  // DoctorCatalog checks seed catalog integrity: enabled models must be
+  // installable, operation coverage must have at least one installable enabled
+  // model, commercial-use policy must be clean, and checksum/source metadata
+  // must be coherent.
+  rpc DoctorCatalog(DoctorCatalogRequest) returns (DoctorCatalogResponse);
+
+  // DoctorBackends checks host software availability for registered inference
+  // backends. Hardware fit remains reported by SelectModel; this answers
+  // whether the backend program/module is actually provisioned on this host.
+  rpc DoctorBackends(DoctorBackendsRequest) returns (DoctorBackendsResponse);
+
+  // EnsureBackend installs a missing host-tool backend on demand as a durable
+  // job (mirrors InstallModel: returns job_id + ETA + progress; survives client
+  // cancellation). The job shells `vrooli host install <tool> --json`. Manual /
+  // capability-gated tools return immediately with guidance and no job.
+  rpc EnsureBackend(EnsureBackendRequest) returns (EnsureBackendResponse);
+
+  // GetHostSummary returns this machine's AI-relevant hardware snapshot (GPU
+  // name + total/free VRAM, cores, RAM, os/arch). The model-catalog UI uses it
+  // to render hardware-fit affirmatively ("Runs on your GPU") instead of a
+  // static requirement chip that reads as a warning even on a capable host.
+  rpc GetHostSummary(GetHostSummaryRequest) returns (GetHostSummaryResponse);
+
+  // ListOperationModels returns EVERY model that serves an operation, each
+  // annotated for THIS host: hardware fit (will it run, on GPU or CPU, or not at
+  // all), backend readiness (is the host program/weights provisioned, and is the
+  // install one-click or manual), and a single `ready_state` verdict the picker
+  // styles on. Unlike SelectModel — which returns only the one model that would
+  // run — this returns the full menu (including models that cannot run on this
+  // host) so the in-product model picker is transparent about why a model was
+  // chosen and what each alternative needs to become usable.
+  rpc ListOperationModels(ListOperationModelsRequest) returns (ListOperationModelsResponse);
+
+  // ExplainResolution returns the explicit Resolution for an operation on this
+  // host — which model would run, whether it serves the op natively or via a
+  // derived technique (with the quality caveat), the backend tier, and the
+  // operation's safety consent weight — WITHOUT executing anything. It is the
+  // read-only `--explain` / dry-run surface over the same resolution the AI
+  // submit edge pins into a job.
+  rpc ExplainResolution(ExplainResolutionRequest) returns (ExplainResolutionResponse);
+}
+
+// CommercialUse classifies a model's commercial-use license posture.
+enum CommercialUse {
+  COMMERCIAL_USE_UNSPECIFIED = 0;
+  COMMERCIAL_USE_YES = 1;
+  COMMERCIAL_USE_NO = 2;
+  COMMERCIAL_USE_CONDITIONAL = 3;
+}
+
+// Hardware captures a model's host requirements.
+message Hardware {
+  bool cpu_capable = 1;
+  bool gpu_required = 2;
+  // Minimum dedicated VRAM in GB; 0 means "no dedicated VRAM required".
+  int32 min_vram_gb = 3;
+  int32 min_ram_gb = 4;
+  repeated string os_arch = 5;
+  string speed_note = 6;
+}
+
+// CapabilityLabels carries the safety/license metadata surfaced to operators.
+message CapabilityLabels {
+  bool nsfw_capable = 1;
+  string license = 2;
+  CommercialUse commercial_use = 3;
+  string commercial_use_notes = 4;
+  string base_model_lineage = 5;
+  string known_risks = 6;
+}
+
+// Model is one registry entry: a concrete model/library backing one or more
+// operations. Mirrors api/internal/models.Model (the runtime `enabled` reflects
+// the SQLite overlay, not the seed default).
+message Model {
+  string id = 1;
+  string name = 2;
+  repeated string operations = 3;
+  // Operations this model is the seeded default for.
+  repeated string default_for = 4;
+  // Quality/cost class: "default", "default-variant", "quality", "nice-to-have".
+  string tier = 5;
+  string backend = 6;
+  repeated string alt_backends = 7;
+  // Always false — ComfyUI is an optional plug-in only, never required.
+  bool requires_comfyui = 8;
+  int32 size_mb_approx = 9;
+  repeated string quant_variants = 10;
+  Hardware hardware = 11;
+  CapabilityLabels capability_labels = 12;
+  // Effective enabled state (SQLite overlay over the seed default).
+  bool enabled = 13;
+  // On-disk install state (download-on-opt-in). Absent/installed=false means the
+  // weights are not present and AI ops for this model refuse with an install hint.
+  InstallState install = 14;
+  // True for operator-registered custom/local entries (not in the seed catalog).
+  bool custom = 15;
+  // The canvas this model draws well, derived from its declared native
+  // resolution and its architecture's latent stride. Callers size a generation
+  // from this instead of hardcoding one model family's constants.
+  Geometry geometry = 16;
+}
+
+// Geometry is the canvas a model can actually draw well — a property of the
+// weights, answered by the scenario that owns the model registry.
+//
+// It is on the wire because callers were otherwise guessing it. Backdrop Studio
+// carried three constants named for Stable Diffusion 1.5 and applied them to
+// whichever model the selector chose, which on an SDXL or FLUX host discards
+// half the trained resolution and quantises to a stride the model does not use.
+message Geometry {
+  // The resolution the model was trained at. Zero means the model declares
+  // none — the BYOK/cloud entries, where the provider owns geometry and a
+  // caller may ask for the size it actually wants.
+  int32 native_width = 1;
+  int32 native_height = 2;
+  // The pixel stride both axes must be a multiple of, imposed by the latent
+  // downsampling factor. 1 means no constraint.
+  int32 size_quantum = 3;
+  // Cap on the long axis. Past roughly this ratio to native a diffusion model
+  // repeats the composition rather than extending it. Zero means uncapped.
+  int32 max_edge = 4;
+}
+
+// InstallState is a model's on-disk weight status (IMG-P0-007).
+message InstallState {
+  bool installed = 1;
+  // Absolute directory (or local file, for custom entries) the weights live in.
+  string path = 2;
+  // sha256 pinned on first real download (never hand-written).
+  string checksum = 3;
+  // On-disk size in bytes (0 until installed).
+  uint64 size_bytes = 4;
+  // RFC3339 install timestamp ("" until installed).
+  string installed_at = 5;
+}
+
+// BlocklistEntry records a license-encumbered model excluded from the catalog.
+message BlocklistEntry {
+  string id = 1;
+  repeated string operations = 2;
+  string license = 3;
+  string reason = 4;
+  // Whether exporting to ONNX/GGUF would (falsely) appear to remove the
+  // restriction — always documented so the trap is explicit.
+  bool exporting_onnx_removes_restriction = 5;
+}
+
+message ListModelsRequest {
+  // When set, return only models that serve this operation. Empty returns all.
+  string operation = 1;
+}
+
+message ListModelsResponse {
+  repeated Model models = 1;
+}
+
+message GetModelRequest {
+  string id = 1;
+}
+
+message GetModelResponse {
+  Model model = 1;
+}
+
+message ListOperationsRequest {}
+
+message ListOperationsResponse {
+  repeated string operations = 1;
+}
+
+message SelectModelRequest {
+  // Operation to select a model for (must be in the vocabulary).
+  string operation = 1;
+  // Optional: force a specific model id (still validated for op-support,
+  // enabled-state, and host-runnability).
+  string override_id = 2;
+  // The routing policy the caller would submit with. Selection depends on
+  // both, so a preview given neither previews a different run than the one it
+  // is standing in for: a caller routing to the BYOK rung was shown the local
+  // default's identity and geometry, and sized its request from the wrong
+  // model. Empty quality_policy keeps the historical "balanced" ordering.
+  string quality_policy = 3;
+  bool allow_byok = 4;
+}
+
+message SelectModelResponse {
+  // The chosen model.
+  Model model = 1;
+  // True when the model will run on a detected GPU with known, sufficient VRAM.
+  bool gpu_viable = 2;
+  // Short, user-facing explanation of why this model was chosen.
+  string reason = 3;
+  // Non-fatal cautions (CPU time warning, unknown-VRAM fallback, …).
+  repeated string warnings = 4;
+}
+
+message SetModelEnabledRequest {
+  string id = 1;
+  bool enabled = 2;
+}
+
+message SetModelEnabledResponse {
+  Model model = 1;
+}
+
+message ListBlocklistRequest {}
+
+message ListBlocklistResponse {
+  repeated BlocklistEntry entries = 1;
+}
+
+message InstallModelRequest {
+  string id = 1;
+}
+
+message InstallModelResponse {
+  // Job id of the durable download (empty when already_installed).
+  string job_id = 1;
+  // Initial ETA in seconds for the download (0 when unknown/already installed).
+  int32 eta_seconds = 2;
+  // Approximate download size in MB (from the registry).
+  int32 size_mb_approx = 3;
+  // True when the weights were already present (no job submitted).
+  bool already_installed = 4;
+}
+
+message RemoveModelRequest {
+  string id = 1;
+}
+
+message RemoveModelResponse {
+  bool removed = 1;
+}
+
+message AddCustomModelRequest {
+  // The custom entry to register. id, operations, and backend are required.
+  // The seed Model message carries no source; local_path/download_url are
+  // supplied here. A local_path is verified to exist at registration time.
+  Model model = 1;
+  // Absolute path to local weights (a directory or file). When set, the model is
+  // "installed" by reference — no download.
+  string local_path = 2;
+  // Remote download URL (used when local_path is empty).
+  string download_url = 3;
+}
+
+message AddCustomModelResponse {
+  Model model = 1;
+}
+
+// ModelLayout classifies an import source's on-disk shape, which determines how
+// it installs (single-file → direct asset; diffusers-repo → pinned snapshot).
+enum ModelLayout {
+  MODEL_LAYOUT_UNSPECIFIED = 0;
+  // A single self-contained checkpoint (.safetensors/.ckpt) — installs as a
+  // direct asset on the stable-diffusion.cpp backend.
+  MODEL_LAYOUT_SINGLE_FILE = 1;
+  // A model_index.json + sharded subdir tree — installs as a pinned snapshot on
+  // the diffusers backend.
+  MODEL_LAYOUT_DIFFUSERS_REPO = 2;
+}
+
+// ArchitectureInference is the proposed architecture for an inspected source.
+message ArchitectureInference {
+  // architecture is the models.Architecture enum value ("sdxl", "sd15", "flux",
+  // …) or "none" when nothing recognizable was found (manual pick required).
+  string architecture = 1;
+  // confidence grades the signal: "none" | "low" | "medium" | "high".
+  string confidence = 2;
+  // evidence is the human-readable basis (e.g. `pipeline class "StableDiffusionXLPipeline"`).
+  string evidence = 3;
+}
+
+message InspectModelSourceRequest {
+  // A HuggingFace repo id ("org/name"), a direct weight URL, or a local path.
+  string source = 1;
+}
+
+message InspectModelSourceResponse {
+  string source = 1;
+  // Resolved HuggingFace repo id + immutable commit SHA (empty for URL/local).
+  string repo_id = 2;
+  string revision = 3;
+  ModelLayout layout = 4;
+  ArchitectureInference architecture = 5;
+  // Declared license ("unverified" when the source declares none) + NSFW flag.
+  string license = 6;
+  bool nsfw = 7;
+  uint64 size_bytes = 8;
+  // diffusers _class_name when the source is a diffusers repo (else "").
+  string pipeline_class = 9;
+  // The operations the proposed entry would offer (native + proven-derived).
+  repeated string offered_operations = 10;
+  // The registry entry that WOULD be added (pre-confirmation); the client shows
+  // it for confirmation and may override id/name/architecture/operations.
+  Model proposed = 11;
+}
+
+message ImportModelRequest {
+  // The import source (same forms as InspectModelSource).
+  string source = 1;
+  // Operator-confirmed id for the new entry (must not collide with a seed model).
+  string id = 2;
+  // Display name (defaults to the source's last path segment when empty).
+  string name = 3;
+  // Operator-confirmed architecture (models.Architecture value). REQUIRED when
+  // inference returned "none"; overrides inference otherwise.
+  string architecture = 4;
+  // Operator-confirmed operations (defaults to the architecture's base ops).
+  repeated string operations = 5;
+  // Attest commercial rights to allow public/BYOK serving (decision D4). Local
+  // serving never requires this.
+  bool attest_commercial_rights = 6;
+}
+
+message ImportModelResponse {
+  // The registered entry (add-only, local tier, user-imported provenance).
+  Model model = 1;
+  // The durable install job (mirrors InstallModel). Empty job_id with
+  // already_installed=true means the weights were already present.
+  string job_id = 2;
+  int32 eta_seconds = 3;
+  bool already_installed = 4;
+}
+
+message SetDefaultModelRequest {
+  string operation = 1;
+  // Model id to pin as the operation's default. Empty clears the pin (revert to
+  // the seed default).
+  string model_id = 2;
+}
+
+message SetDefaultModelResponse {
+  string operation = 1;
+  string model_id = 2;
+}
+
+// OpDefault is the effective default model for one operation.
+message OpDefault {
+  string operation = 1;
+  string model_id = 2;
+  // "seed" (registry default_for) or "override" (operator pin).
+  string source = 3;
+}
+
+message ListDefaultsRequest {}
+
+message ListDefaultsResponse {
+  repeated OpDefault defaults = 1;
+}
+
+// CatalogFindingSeverity classifies a catalog doctor finding.
+enum CatalogFindingSeverity {
+  CATALOG_FINDING_SEVERITY_UNSPECIFIED = 0;
+  CATALOG_FINDING_SEVERITY_ERROR = 1;
+  CATALOG_FINDING_SEVERITY_WARNING = 2;
+}
+
+// CatalogFinding is one actionable model-catalog integrity finding.
+message CatalogFinding {
+  CatalogFindingSeverity severity = 1;
+  string code = 2;
+  string model_id = 3;
+  string operation = 4;
+  string message = 5;
+}
+
+message DoctorCatalogRequest {}
+
+message DoctorCatalogResponse {
+  bool ok = 1;
+  repeated CatalogFinding findings = 2;
+}
+
+message BackendStatus {
+  string name = 1;
+  repeated string operations = 2;
+  bool available = 3;
+  bool standalone = 4;
+  bool cloud = 5;
+  bool gpu_capable = 6;
+  string detail = 7;
+  string provision = 8;
+  // host_tool is the platform host-tool this backend needs (empty for cloud /
+  // in-process providers).
+  string host_tool = 9;
+  // host_tool_ready reports whether that host tool is present on this host.
+  bool host_tool_ready = 10;
+  // remediation is the exact command to provision the host tool
+  // (`vrooli host install <tool>`), empty when none applies.
+  string remediation = 11;
+}
+
+message DoctorBackendsRequest {}
+
+message DoctorBackendsResponse {
+  bool ok = 1;
+  repeated BackendStatus backends = 2;
+}
+
+message EnsureBackendRequest {
+  // tool is the host-tool name to ensure (e.g. "realesrgan-ncnn-vulkan").
+  // Exactly one of tool / operation must be set.
+  string tool = 1;
+  // operation, when set, resolves to the host tool of the backend that serves
+  // that op (UI convenience: it knows the op the user clicked).
+  string operation = 2;
+  // dry_run reports what would be fetched without downloading.
+  bool dry_run = 3;
+}
+
+message EnsureBackendResponse {
+  // Host tool being ensured (resolved from tool / operation).
+  string tool = 1;
+  // Job id of the durable ensure operation (empty when no job was submitted).
+  string job_id = 2;
+  // Initial ETA seconds (0 unknown).
+  int32 eta_seconds = 3;
+  // True when the tool was already present (no job submitted).
+  bool already_installed = 4;
+  // True when the tool cannot be auto-fetched (manual / unsupported /
+  // not-applicable); see detail for guidance. No job submitted.
+  bool manual = 5;
+  // state is the immediate inspect verdict: already_present | would_install |
+  // manual_action_required | not_applicable | unsupported | pending.
+  string state = 6;
+  // detail is human guidance (install hint / remediation / not-applicable reason).
+  string detail = 7;
+}
+
+message GetHostSummaryRequest {}
+
+message GetHostSummaryResponse {
+  HostSummary host = 1;
+}
+
+message ListOperationModelsRequest {
+  // Operation to list candidate models for (must be in the vocabulary).
+  string operation = 1;
+}
+
+// Resolution is the explicit, inspectable answer to "what would run for this
+// operation on this host" (mirrors api/internal/resolver.Resolution). Producing
+// it executes nothing.
+message Resolution {
+  // operation is the resolved operation.
+  string operation = 1;
+  // model_id / model_name identify the chosen registry entry.
+  string model_id = 2;
+  string model_name = 3;
+  // support is "native" (the model declares the op) or "derived" (the model's
+  // architecture derives it through a named technique).
+  string support = 4;
+  // technique names the derived technique that yields the op ("" for native ops,
+  // which the backend's own builder resolves).
+  string technique = 5;
+  // pipeline_class is the model's declared diffusers pipeline class when it has
+  // one (informational; "" for backends with no such dispatch).
+  string pipeline_class = 6;
+  // caveat is the derived-op quality note ("" for native ops).
+  string caveat = 7;
+  // weight is the operation's safety consent weight (none|low|high). It is
+  // operation-keyed and invariant to native-vs-derived (decision 113).
+  string weight = 8;
+  // tier is the backend tier the op would run on (local-gpu|local-cpu|byok).
+  string tier = 9;
+  // gpu_viable is true when the chosen model would run on a detected GPU with
+  // known, sufficient VRAM.
+  bool gpu_viable = 10;
+  // warnings carries the selection + backend cautions (CPU-slow, VRAM shortfall,
+  // derived-op caveat, adapter auto-preprocess, …).
+  repeated string warnings = 11;
+  // adapters is the validated conditioning stack (LoRA / ControlNet / IP-Adapter)
+  // the request asked for, in canonical application order. Empty for an
+  // unconditioned op. weight (field 8) is ELEVATED to max(op, adapters...) when
+  // present (decision C4).
+  repeated ResolvedAdapter adapters = 12;
+}
+
+// AdapterRef is one requested conditioning modifier on an --explain dry-run
+// (mirrors ai.AdapterRef; duplicated here so the models explain surface is
+// self-contained).
+message AdapterRef {
+  string adapter_id = 1;
+  double scale = 2;
+  string conditioning_image_key = 3;
+  string preprocessor_override = 4;
+}
+
+// ResolvedAdapter is one validated, execution-ready conditioning modifier in a
+// Resolution (mirrors internal/adapters.ResolvedAdapter).
+message ResolvedAdapter {
+  string id = 1;
+  string name = 2;
+  // kind is "lora" | "controlnet" | "ip-adapter".
+  string kind = 3;
+  string architecture = 4;
+  double scale = 5;
+  // weight is the adapter's own consent weight (none|low|high).
+  string weight = 6;
+  // preprocessor is the effective ControlNet preprocessor ("" for other kinds).
+  string preprocessor = 7;
+  string conditioning_image_key = 8;
+}
+
+message ExplainResolutionRequest {
+  // Operation to resolve (must be in the vocabulary).
+  string operation = 1;
+  // Optional: force a specific model id (still validated for op-support,
+  // enabled-state, and host-runnability). Empty resolves the model selection
+  // would pick.
+  string model_id = 2;
+  // allow_byok permits a paid BYOK cloud tier when no local backend is available
+  // (the resolution then reports that tier).
+  bool allow_byok = 3;
+  // adapters is the conditioning stack to validate + explain (each rejected if
+  // incompatible / disabled / not-installed / not-yet-Ready). Empty = unconditioned.
+  repeated AdapterRef adapters = 4;
+  // quality_policy tunes candidate ordering for dry-run resolution: "fast",
+  // "balanced", or "quality". Empty preserves the historical explain default.
+  string quality_policy = 5;
+}
+
+message ExplainResolutionResponse {
+  Resolution resolution = 1;
+}
+
+// HostSummary is a compact, user-facing snapshot of the host's AI-relevant
+// hardware — the transparency layer for the picker ("you have an RTX 4070 Ti
+// SUPER, 16 GB / 3 GB free", so the operator understands fit verdicts).
+message HostSummary {
+  // has_gpu is true when at least one GPU was detected (independent of VRAM).
+  bool has_gpu = 1;
+  // gpu_name is the first detected GPU's name ("" when none).
+  string gpu_name = 2;
+  int32 gpu_count = 3;
+  // vram_total_gb / vram_free_gb are the best detected GPU's total / free VRAM in
+  // GB, rounded down; 0 when no GPU or VRAM could not be read.
+  int32 vram_total_gb = 4;
+  int32 vram_free_gb = 5;
+  // vram_known is false when a GPU exists but its VRAM could not be measured
+  // (the selector then treats it conservatively as not GPU-viable).
+  bool vram_known = 6;
+  int32 ram_gb = 7;
+  int32 cpu_cores = 8;
+  string os = 9;
+  string arch = 10;
+}
+
+// ModelFit is the host-aware runnability verdict for one model (mirrors
+// internal/models.HardwareFit + the selector's reason/warnings).
+message ModelFit {
+  // runnable: the model can run at all on this host (GPU-viable or CPU-capable).
+  bool runnable = 1;
+  // gpu_viable: a detected GPU has known, sufficient FREE VRAM for this model.
+  bool gpu_viable = 2;
+  // fit_class drives the host-aware badge:
+  //   "gpu"               will run on your GPU (fast)
+  //   "cpu"               will run on your CPU (no GPU acceleration / fallback)
+  //   "insufficient_vram" a GPU is present but free VRAM is short and there is no CPU path
+  //   "no_gpu"            the model requires a GPU and none was detected
+  //   "unsupported_os"    no build for this os/arch
+  string fit_class = 3;
+  // vram_shortfall_gb > 0 when a GPU is present but short on free VRAM.
+  int32 vram_shortfall_gb = 4;
+  // warnings carries non-fatal cautions (CPU-slow, conservative unknown-VRAM
+  // fallback, free-VRAM shortfall, …).
+  repeated string warnings = 5;
+}
+
+// BackendReadiness is the provisioning posture of the host program a model needs
+// to actually execute (separate from whether the model's weights are downloaded).
+message BackendReadiness {
+  // backend is the provider family name (e.g. "stable-diffusion.cpp").
+  string backend = 1;
+  // host_tool is the platform host-tool name ("" for in-process providers).
+  string host_tool = 2;
+  // ready: the backend program is provisioned and importable on this host.
+  bool ready = 3;
+  // install_tier classifies how the backend can be provisioned:
+  //   "builtin"        in-process; nothing to install
+  //   "auto"           one-click checksummed fetch (`vrooli host install <tool>`)
+  //   "manual"         needs manual / pip steps (no safe auto-fetch)
+  //   "unsupported"    no install path for this os/arch
+  //   "not_applicable" capability-gated out on this host
+  string install_tier = 4;
+  // remediation is the exact `vrooli host install <tool>` command (auto tier).
+  string remediation = 5;
+  // manual_hint is copy-paste guidance for the manual tier.
+  string manual_hint = 6;
+  // detail is the raw probe detail (e.g. a ModuleNotFoundError), for diagnostics.
+  string detail = 7;
+}
+
+// CandidateModel is one model in the picker menu, fully annotated for this host.
+message CandidateModel {
+  Model model = 1;
+  ModelFit fit = 2;
+  BackendReadiness backend = 3;
+  // ready_state is the single verdict the picker styles + acts on:
+  //   "ready"                selectable and runnable right now
+  //   "needs_model_install"  runnable, but the weights are not downloaded
+  //   "needs_backend"        weights present (or n/a), host program missing — auto-installable
+  //   "needs_backend_manual" host program missing, manual install only
+  //   "needs_both"           both the model weights and the backend are missing
+  //   "insufficient"         hardware cannot run it (no CPU path; GPU absent/short)
+  //   "unsupported"          no build for this os/arch
+  //   "disabled"             disabled in settings (operator can re-enable)
+  //   "derived_pipeline_unproven" the model can serve this op only via a derived
+  //                          technique that is not yet proven runnable (Ready);
+  //                          surfaced honestly, never offered for execution
+  string ready_state = 4;
+  // selected: this is the model SelectModel would currently choose.
+  bool selected = 5;
+  // support is how this model serves the REQUESTED operation:
+  //   "native"  the model declares the op (the backend's own builder runs it)
+  //   "derived" the model's architecture derives it through a named technique
+  string support = 6;
+  // technique names the derived technique that yields the op ("" for native).
+  string technique = 7;
+  // caveat is the derived-op quality note ("" for native ops). The picker shows
+  // it as a "via workflow" warning chip / banner.
+  string caveat = 8;
+}
+
+message ListOperationModelsResponse {
+  string operation = 1;
+  // host is the hardware snapshot the fit verdicts were computed against.
+  HostSummary host = 2;
+  // candidates are all models serving the operation, in picker display order
+  // (selected first, then runnable, then by tier — the handler sorts them).
+  repeated CandidateModel candidates = 3;
+  // selected_id / selected_reason mirror SelectModel for the chosen model
+  // ("" when nothing can run on this host yet).
+  string selected_id = 4;
+  string selected_reason = 5;
+}

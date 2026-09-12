@@ -2,10 +2,12 @@ package pipeline
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	runtimeapi "scenario-to-desktop-runtime/api"
+	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )
 
 // TestBuildStage tests the build stage.
@@ -37,7 +39,7 @@ func TestBuildStage(t *testing.T) {
 
 	t.Run("CanSkip", func(t *testing.T) {
 		stage := NewBuildStage()
-		input := &StageInput{Config: &Config{}}
+		input := &StageInput{Config: &PipelineConfig{}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false")
 		}
@@ -67,14 +69,14 @@ func TestBundleStage(t *testing.T) {
 	t.Run("Dependencies", func(t *testing.T) {
 		stage := NewBundleStage()
 		deps := stage.Dependencies()
-		if len(deps) != 0 {
-			t.Errorf("expected no dependencies, got %v", deps)
+		if len(deps) != 1 || deps[0] != StageResolveDeployment {
+			t.Errorf("expected dependency [%s], got %v", StageResolveDeployment, deps)
 		}
 	})
 
 	t.Run("CanSkip with proxy mode", func(t *testing.T) {
 		stage := NewBundleStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "proxy"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "proxy"}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true for proxy mode")
 		}
@@ -82,7 +84,7 @@ func TestBundleStage(t *testing.T) {
 
 	t.Run("CanSkip with bundled mode", func(t *testing.T) {
 		stage := NewBundleStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "bundled"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "bundled"}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false for bundled mode")
 		}
@@ -120,9 +122,25 @@ func TestGenerateStage(t *testing.T) {
 
 	t.Run("CanSkip", func(t *testing.T) {
 		stage := NewGenerateStage()
-		input := &StageInput{Config: &Config{}}
+		input := &StageInput{Config: &PipelineConfig{}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false")
+		}
+	})
+
+	t.Run("default scenario root uses contract", func(t *testing.T) {
+		root := newStageContractFixtureRepo(t)
+		nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+		if err := os.MkdirAll(nested, 0o755); err != nil {
+			t.Fatalf("mkdir nested: %v", err)
+		}
+		t.Setenv("VROOLI_SOURCE_ROOT", nested)
+		t.Setenv("VROOLI_ROOT", "")
+
+		stage := NewGenerateStage()
+		want := filepath.Join(root, "scenarios")
+		if stage.scenarioRoot != want {
+			t.Fatalf("scenarioRoot = %q, want %q", stage.scenarioRoot, want)
 		}
 	})
 }
@@ -156,7 +174,7 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip when skipped in config", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{SkipPreflight: true}}
+		input := &StageInput{Config: &PipelineConfig{SkipPreflight: true}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true when SkipPreflight is true")
 		}
@@ -164,7 +182,7 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip when not skipped in bundled mode", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{SkipPreflight: false, DeploymentMode: DeploymentModeBundled}}
+		input := &StageInput{Config: &PipelineConfig{SkipPreflight: false, DeploymentMode: DeploymentModeBundled}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false when SkipPreflight is false in bundled mode")
 		}
@@ -172,11 +190,78 @@ func TestPreflightStage(t *testing.T) {
 
 	t.Run("CanSkip in proxy mode", func(t *testing.T) {
 		stage := NewPreflightStage()
-		input := &StageInput{Config: &Config{DeploymentMode: "proxy"}}
+		input := &StageInput{Config: &PipelineConfig{DeploymentMode: "proxy"}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true in proxy mode")
 		}
 	})
+}
+
+func TestBundleStage_DefaultScenarioRootUsesContract(t *testing.T) {
+	root := newStageContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
+
+	stage := NewBundleStage()
+	want := filepath.Join(root, "scenarios")
+	if stage.scenarioRoot != want {
+		t.Fatalf("scenarioRoot = %q, want %q", stage.scenarioRoot, want)
+	}
+}
+
+func TestOrchestrator_DefaultScenarioRootUsesContract(t *testing.T) {
+	root := newStageContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "scenario-to-desktop", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
+
+	orchestrator := NewOrchestrator(WithStages(&mockStage{name: "test"}))
+	want := filepath.Join(root, "scenarios")
+	if orchestrator.scenarioRoot != want {
+		t.Fatalf("scenarioRoot = %q, want %q", orchestrator.scenarioRoot, want)
+	}
+}
+
+func newStageContractFixtureRepo(t *testing.T) string {
+	t.Helper()
+
+	root := t.TempDir()
+	repoRoot := stageRepoRoot(t)
+	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("read repo contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-desktop-stage-test\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal", "templates"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	return root
+}
+
+func stageRepoRoot(t *testing.T) string {
+	t.Helper()
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	return filepath.Clean(filepath.Join(workingDir, "..", "..", "..", ".."))
 }
 
 // TestSmokeTestStage tests the smoke test stage.
@@ -208,7 +293,7 @@ func TestSmokeTestStage(t *testing.T) {
 
 	t.Run("CanSkip when skipped in config", func(t *testing.T) {
 		stage := NewSmokeTestStage()
-		input := &StageInput{Config: &Config{SkipSmokeTest: true}}
+		input := &StageInput{Config: &PipelineConfig{SkipSmokeTest: true}}
 		if !stage.CanSkip(input) {
 			t.Error("expected CanSkip to return true when SkipSmokeTest is true")
 		}
@@ -216,7 +301,7 @@ func TestSmokeTestStage(t *testing.T) {
 
 	t.Run("CanSkip when not skipped", func(t *testing.T) {
 		stage := NewSmokeTestStage()
-		input := &StageInput{Config: &Config{SkipSmokeTest: false}}
+		input := &StageInput{Config: &PipelineConfig{SkipSmokeTest: false}}
 		if stage.CanSkip(input) {
 			t.Error("expected CanSkip to return false when SkipSmokeTest is false")
 		}
@@ -227,7 +312,7 @@ func TestSmokeTestStage(t *testing.T) {
 func TestStageExecuteWithMissingService(t *testing.T) {
 	ctx := context.Background()
 	input := &StageInput{
-		Config:       &Config{ScenarioName: "test"},
+		Config:       &PipelineConfig{ScenarioName: "test"},
 		ScenarioPath: "/tmp/test",
 		Logger:       &mockLogger{},
 	}

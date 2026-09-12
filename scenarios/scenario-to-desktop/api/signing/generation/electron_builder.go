@@ -21,7 +21,7 @@ func generateWindowsConfig(config *types.WindowsSigningConfig, opts *Options) *t
 		win.CertificateFile = config.CertificateFile
 		// Use environment variable reference for password
 		if config.CertificatePasswordEnv != "" {
-			win.CertificatePassword = "${" + config.CertificatePasswordEnv + "}"
+			win.CertificatePassword = electronBuilderEnvironmentReference(config.CertificatePasswordEnv)
 		}
 	case types.CertSourceStore:
 		win.CertificateSha1 = config.CertificateThumbprint
@@ -50,6 +50,12 @@ func generateWindowsConfig(config *types.WindowsSigningConfig, opts *Options) *t
 	}
 
 	return win
+}
+
+// electronBuilderEnvironmentReference produces electron-builder's deferred
+// environment interpolation syntax. It never reads or embeds a credential.
+func electronBuilderEnvironmentReference(name string) string {
+	return "${" + name + "}"
 }
 
 // generateMacOSConfig creates electron-builder macOS signing configuration.
@@ -130,6 +136,14 @@ func GenerateElectronBuilderJSON(config *types.SigningConfig, opts *Options) (ma
 		if config.MacOS.Notarize {
 			result["afterSign"] = opts.NotarizeScriptPath
 		}
+	}
+
+	// Linux artifacts are signed after electron-builder has produced the
+	// immutable package files. The hook returns detached signatures and the
+	// metadata sidecar so the publication owner can bind channel, version,
+	// architecture, and digests before promotion.
+	if config.Linux != nil {
+		result["afterAllArtifactBuild"] = opts.LinuxArtifactSignerPath
 	}
 
 	return result, nil

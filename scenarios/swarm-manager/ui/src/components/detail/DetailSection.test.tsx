@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { beforeEach, describe, it, expect } from "vitest";
 import { Info } from "lucide-react";
 import { DetailSection } from "./DetailSection";
 
@@ -62,5 +62,38 @@ describe("DetailSection", () => {
       </DetailSection>,
     );
     expect(screen.getByTestId("my-section")).toBeInTheDocument();
+  });
+
+  describe("collapsible (storageKey)", () => {
+    beforeEach(() => {
+      window.localStorage.clear();
+    });
+
+    it("toggles content and persists state per storageKey", () => {
+      render(
+        <DetailSection title="Collapsible" storageKey="test.section" data-testid="collapsible-section">
+          <p>Hidden treasure</p>
+        </DetailSection>,
+      );
+
+      // Open by default.
+      expect(screen.getByText("Hidden treasure")).toBeInTheDocument();
+      const toggle = screen.getByTestId("collapsible-section-toggle");
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+      fireEvent.click(toggle);
+      expect(screen.queryByText("Hidden treasure")).toBeNull();
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(window.localStorage.getItem("swarm-manager.section.test.section")).toBe("0");
+    });
+
+    it("respects defaultOpen false", () => {
+      render(
+        <DetailSection title="Closed" storageKey="test.closed" defaultOpen={false}>
+          <p>Not yet</p>
+        </DetailSection>,
+      );
+      expect(screen.queryByText("Not yet")).toBeNull();
+    });
   });
 });

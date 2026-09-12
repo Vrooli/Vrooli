@@ -1,4 +1,12 @@
-import { useRef, useEffect, useCallback, useState, createContext, useContext, type ReactNode } from "react";
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  useState,
+  createContext,
+  useContext,
+  type ReactNode,
+} from "react";
 
 interface PopoverContextValue {
   open: boolean;
@@ -16,7 +24,10 @@ export function Popover({ children }: PopoverProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
-    if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    if (
+      containerRef.current &&
+      !containerRef.current.contains(e.target as Node)
+    ) {
       setOpen(false);
     }
   }, []);
@@ -57,7 +68,9 @@ export function PopoverTrigger({ children }: PopoverTriggerProps) {
 
   return (
     <div
-      onClick={() => ctx.setOpen(!ctx.open)}
+      onClick={() => {
+        ctx.setOpen(!ctx.open);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -79,7 +92,12 @@ interface PopoverContentProps {
   className?: string;
 }
 
-export function PopoverContent({ children, align = "end", side = "bottom", className = "" }: PopoverContentProps) {
+export function PopoverContent({
+  children,
+  align = "end",
+  side = "bottom",
+  className = "",
+}: PopoverContentProps) {
   const ctx = useContext(PopoverCtx);
   if (!ctx || !ctx.open) return null;
 

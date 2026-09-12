@@ -1,0 +1,40 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: reranker
+  category: resource
+  description: "Go-native lifecycle and health contract for reranker."
+  maturity: M4
+spec:
+  commands:
+    - name: info
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: install
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: start
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: stop
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: logs
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: uninstall
+      implementation: internal/resources/control
+      test: cli/main_test.go
+  interfaces:
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: resource.json health_checks[0]
+  testing:
+    unit_test: cli/main_test.go
+    contract_test: internal/resources/fleet_contract_test.go

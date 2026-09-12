@@ -1,0 +1,3 @@
+:root {
+  --token-a: var(--token-missing);
+}

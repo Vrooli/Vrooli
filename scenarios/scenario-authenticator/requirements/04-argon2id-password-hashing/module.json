@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-004",
+      "title": "Argon2id Password Hashing at Documented Cost Parameters",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-004",
+      "category": "security",
+      "description": "All passwords must be hashed with Argon2id using documented cost parameters (memory, iterations, parallelism) that meet current security recommendations. Only the resulting hash is stored in SQLite; plaintext passwords must never be logged, stored, or transmitted. Hash verification must use constant-time comparison to prevent timing attacks. Cost parameters must be configurable and documented in code.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/crypto/argon2_test.go: hash a password and verify the hash — must return true"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/crypto/argon2_test.go: verify wrong password against hash — must return false without timing difference exploitable by the test"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/crypto/argon2_test.go: assert output format encodes algorithm tag 'argon2id', version, memory, iterations, parallelism, salt, and hash"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/crypto/argon2_test.go: assert two hashes of the same password differ (unique salt per hash)"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/crypto/argon2_test.go: attempt to store plaintext password — no API surface allows bypassing hash; test that the hash function is the only write path"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/register_e2e_test.go: after registration, query SQLite directly and assert the stored credential is an Argon2id hash string, not plaintext"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/signin_e2e_test.go: sign-in succeeds using Argon2id verify against the stored hash; assert no plaintext appears in logs during the operation"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "api/internal/crypto/argon2_bench_test.go: hash operation at production cost parameters completes within an acceptable UX budget (≤ 500 ms); document the measured latency alongside cost params"
+        }
+      ]
+    }
+  ]
+}

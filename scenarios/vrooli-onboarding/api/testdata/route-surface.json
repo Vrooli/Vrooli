@@ -1,0 +1,406 @@
+{
+  "version": "1.0.0",
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "surfaces": [
+        "cli",
+        "ui"
+      ],
+      "internal_reason": "cli-core status and browser infrastructure health use the root health route"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "surfaces": [
+        "ui"
+      ],
+      "internal_reason": "client API health alias"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetRecommendation",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/AcceptRecommendation",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetClosure",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetUnion",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "Deployment-union export is a CLI artifact affordance."
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ListCredentials",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff",
+      "surfaces": [],
+      "internal_reason": "vrooli-bridge consumes this typed onboarding handoff directly"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyRun",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.apply.ApplyService/CancelApply",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/AdvanceSessionStep",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetStepModel",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/DiscardDraft",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/GetProfileSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.session.SessionService/SaveProfileSession",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ListOperatorInputs",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.operatorinputs.OperatorInputsService/ResolveOperatorInputs",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/GetCapabilityStatus",
+      "surfaces": [],
+      "internal_reason": "Typed status projection is retained for provider and readiness consumers without a dedicated operator surface"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ApplyCapability",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/VerifyCapability",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/GetReadiness",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.readiness.ReadinessService/AcknowledgeDegradedReadiness",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/ProvisionCredential",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials",
+      "surfaces": [
+        "cli"
+      ],
+      "internal_reason": "CLI credential diagnosis is the explicit terminal diagnosis affordance; the UI consumes the same metadata through readiness"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/GetHostFacts",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/ListTargets",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/PatchHostSafeguardConfig",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.host.HostService/SetNotificationRecipient",
+      "surfaces": [
+        "cli"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListResources",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResource",
+      "surfaces": [
+        "cli"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/GetResourceHealth",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.resources.ResourcesService/ListDerivedResources",
+      "surfaces": [
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/ListProfiles",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/EvaluateProfile",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchGlossary",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.glossary.GlossaryService/SearchConfiguration",
+      "surfaces": [
+        "cli",
+        "ui",
+        "search-hub"
+      ],
+      "internal_reason": "Safe metadata search returns stable settings routes and never configured values"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff",
+      "surfaces": [
+        "cli",
+        "ui"
+      ],
+      "internal_reason": "Resolves only an authenticated owner-issued handoff after target and revision fences match"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v2/handoff",
+      "surfaces": [],
+      "internal_reason": "Authenticated Bridge compatibility adapter over the canonical onboarding selection handoff"
+    }
+  ]
+}

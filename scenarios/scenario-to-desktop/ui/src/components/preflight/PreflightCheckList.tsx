@@ -2,12 +2,15 @@
  * Collapsible list component for displaying preflight validation checks.
  */
 
-import type { BundlePreflightCheck } from "../../lib/api";
-import { PREFLIGHT_CHECK_LABELS, PREFLIGHT_CHECK_STYLES } from "../../lib/preflight-constants";
+import type { PreflightPresentation } from "../../lib/preflightPresentation";
+import {
+  PREFLIGHT_CHECK_LABELS,
+  PREFLIGHT_CHECK_STYLES,
+} from "../../lib/preflight-constants";
 import { getListenURL } from "../../lib/preflight-utils";
 
 interface PreflightCheckListProps {
-  checks: BundlePreflightCheck[];
+  checks: PreflightPresentation["checks"];
 }
 
 export function PreflightCheckList({ checks }: PreflightCheckListProps) {
@@ -24,9 +27,14 @@ export function PreflightCheckList({ checks }: PreflightCheckListProps) {
         {checks.map((check) => {
           const listenURL = getListenURL(check.detail);
           return (
-            <li key={check.id} className="rounded-md border border-slate-800/70 bg-slate-950/70 px-3 py-2 space-y-1">
+            <li
+              key={check.id}
+              className="rounded-md border border-slate-800/70 bg-slate-950/70 px-3 py-2 space-y-1"
+            >
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${PREFLIGHT_CHECK_STYLES[check.status]}`}>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${PREFLIGHT_CHECK_STYLES[check.status]}`}
+                >
                   {PREFLIGHT_CHECK_LABELS[check.status]}
                 </span>
                 <span className="text-slate-200">{check.name}</span>

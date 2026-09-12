@@ -1,0 +1,84 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "canvas": {
+        "selector": "[data-rcl-inspector-canvas]"
+      },
+      "toolbar": {
+        "selector": "[data-rcl-inspector-toolbar]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["canvas"],
+      "id": "canvas-first",
+      "statement": "The canvas remains the primary task region while the inspector owns its own lifecycle state.",
+      "states": [
+        "ready-inspector",
+        "empty-inspector",
+        "loading-inspector",
+        "partial-inspector",
+        "error-inspector"
+      ],
+      "tier": "manual",
+      "type": "custom"
+    },
+    {
+      "elements": ["canvas", "toolbar"],
+      "id": "responsive-workbench",
+      "statement": "The inspector moves below the canvas on narrow widths while preserving the content order.",
+      "states": ["ready-inspector"],
+      "tier": "manual",
+      "type": "custom"
+    }
+  ],
+  "component": {
+    "id": "inspector-layout",
+    "purpose": "Keep a canvas-first workbench with a responsive inspector whose lifecycle does not displace the primary task.",
+    "storyRef": "../../library/components/InspectorLayout/versions/1.1.5/story.json",
+    "title": "InspectorLayout"
+  },
+  "elements": [
+    {
+      "description": "The primary work canvas.",
+      "id": "canvas",
+      "role": "region"
+    },
+    {
+      "description": "Canvas controls and heading.",
+      "id": "toolbar",
+      "role": "toolbar"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "The inspector is usable.",
+      "example": "ready-inspector",
+      "id": "ready-inspector"
+    },
+    {
+      "description": "The inspector has no selection.",
+      "example": "empty-inspector",
+      "id": "empty-inspector"
+    },
+    {
+      "description": "The inspector is loading.",
+      "example": "loading-inspector",
+      "id": "loading-inspector"
+    },
+    {
+      "description": "The inspector is partially available.",
+      "example": "partial-inspector",
+      "id": "partial-inspector"
+    },
+    {
+      "description": "The inspector reports an error.",
+      "example": "error-inspector",
+      "id": "error-inspector"
+    }
+  ]
+}

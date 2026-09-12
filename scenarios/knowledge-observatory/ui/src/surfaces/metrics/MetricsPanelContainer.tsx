@@ -9,27 +9,16 @@ import {
   type CollectionDeleteResponse,
   type CollectionMaintenanceResponse,
   type CollectionRecordsResponse,
-  type DocumentDeleteResponse,
   fetchCollectionInventory,
   fetchCollectionRecords,
   fetchCollectionDiagnostics,
-  fetchIngestHealth,
   runCollectionDelete,
   runCollectionMaintenance,
-  runDocumentDelete,
 } from "../../shared/services/api";
 
 type MaintenanceAction = "prune-stale-chunks" | "dedupe-content";
 type DiagnosticsMode = "sample" | "full";
 type CollectionDrilldownTab = "integrity" | "chunking" | "failures" | "records" | "maintenance";
-
-type DocumentOption = {
-  key: string;
-  namespace: string;
-  documentID: string;
-  label: string;
-  count: number;
-};
 
 type MetricsPanelContainerProps = {
   mode?: "overview" | "details";
@@ -37,24 +26,6 @@ type MetricsPanelContainerProps = {
   onOpenCollection?: (collectionName: string) => void;
   onBackToMetrics?: () => void;
 };
-
-function parseDocumentOption(value: { name: string; count: number }): DocumentOption | null {
-  const raw = value.name.trim();
-  if (!raw) return null;
-  const separatorIndex = raw.indexOf("/");
-  if (separatorIndex <= 0 || separatorIndex >= raw.length - 1) return null;
-  const namespace = raw.slice(0, separatorIndex).trim();
-  const documentID = raw.slice(separatorIndex + 1).trim();
-  if (!namespace || !documentID) return null;
-  const key = `${namespace}::${documentID}`;
-  return {
-    key,
-    namespace,
-    documentID,
-    label: `${namespace} / ${documentID}`,
-    count: value.count,
-  };
-}
 
 export function MetricsPanelContainer({
   mode = "overview",
@@ -70,20 +41,12 @@ export function MetricsPanelContainer({
   const [maintenanceMaxDeletes, setMaintenanceMaxDeletes] = useState(500);
   const [maintenancePreviews, setMaintenancePreviews] = useState<Record<string, CollectionMaintenanceResponse>>({});
   const [drilldownTab, setDrilldownTab] = useState<CollectionDrilldownTab>("integrity");
-  const [selectedDocumentKey, setSelectedDocumentKey] = useState("");
-  const [documentDeletePreview, setDocumentDeletePreview] = useState<DocumentDeleteResponse | null>(null);
   const [recordOffset, setRecordOffset] = useState(0);
   const [recordSearch, setRecordSearch] = useState("");
   const [recordNamespaceFilter, setRecordNamespaceFilter] = useState("");
   const [recordDocumentFilter, setRecordDocumentFilter] = useState("");
 
   const previewKey = (collection: string, action: MaintenanceAction) => `${collection}::${action}`;
-
-  const ingestHealthQuery = useQuery({
-    queryKey: ["ingest-health"],
-    queryFn: fetchIngestHealth,
-    refetchInterval: 15000,
-  });
 
   const diagnosticsQuery = useQuery({
     queryKey: ["collection-diagnostics", selectedCollection, diagnosticsMode, diagnosticsLimit],
@@ -126,31 +89,6 @@ export function MetricsPanelContainer({
     return map;
   }, [collectionInventoryQuery.data?.collections]);
 
-  const documentOptions = useMemo(() => {
-    const topDocs = diagnosticsQuery.data?.stale_chunks?.top_documents;
-    if (!Array.isArray(topDocs)) return [];
-    return topDocs
-      .map((entry) => parseDocumentOption(entry))
-      .filter((entry): entry is DocumentOption => Boolean(entry));
-  }, [diagnosticsQuery.data?.stale_chunks?.top_documents]);
-
-  const selectedDocumentOption = useMemo(
-    () => documentOptions.find((entry) => entry.key === selectedDocumentKey) ?? null,
-    [documentOptions, selectedDocumentKey]
-  );
-
-  useEffect(() => {
-    if (documentOptions.length === 0) {
-      setSelectedDocumentKey("");
-      setDocumentDeletePreview(null);
-      return;
-    }
-    if (!documentOptions.some((entry) => entry.key === selectedDocumentKey)) {
-      setSelectedDocumentKey(documentOptions[0]?.key ?? "");
-      setDocumentDeletePreview(null);
-    }
-  }, [documentOptions, selectedDocumentKey]);
-
   const maintenanceMutation = useMutation({
     mutationFn: async (params: { collection: string; action: MaintenanceAction; dryRun: boolean }) =>
       runCollectionMaintenance(params.collection, params.action, {
@@ -178,41 +116,10 @@ export function MetricsPanelContainer({
       }
       void refetch();
       void diagnosticsQuery.refetch();
-      void ingestHealthQuery.refetch();
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : "maintenance failed";
       setMaintenanceNotice(`Maintenance failed: ${message}`);
-    },
-  });
-
-  const documentDeleteMutation = useMutation({
-    mutationFn: async (params: { dryRun: boolean; namespace: string; documentID: string; collection: string }) =>
-      runDocumentDelete({
-        namespace: params.namespace,
-        document_id: params.documentID,
-        collection: params.collection,
-        dry_run: params.dryRun,
-      }),
-    onSuccess: (response, variables) => {
-      if (variables.dryRun) {
-        setDocumentDeletePreview(response);
-        setMaintenanceNotice(
-          `Document delete preview ready for ${response.namespace}/${response.document_id}: ${response.candidate_delete_count} candidates.`
-        );
-      } else {
-        setDocumentDeletePreview(null);
-        setMaintenanceNotice(
-          `Document delete applied for ${response.namespace}/${response.document_id}: ${response.deleted_count} deleted.`
-        );
-      }
-      void diagnosticsQuery.refetch();
-      void ingestHealthQuery.refetch();
-      void refetch();
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "document delete failed";
-      setMaintenanceNotice(`Document delete failed: ${message}`);
     },
   });
 
@@ -221,12 +128,10 @@ export function MetricsPanelContainer({
     onSuccess: (response) => {
       setMaintenanceNotice(`Collection ${response.collection} deleted. ${response.metadata_rows_deleted} metadata rows cleaned.`);
       setSelectedCollection("");
-      setDocumentDeletePreview(null);
       setMaintenancePreviews({});
       void refetch();
       void diagnosticsQuery.refetch();
       void recordsQuery.refetch();
-      void ingestHealthQuery.refetch();
       void collectionInventoryQuery.refetch();
       if (typeof onBackToMetrics === "function") {
         onBackToMetrics();
@@ -277,7 +182,6 @@ export function MetricsPanelContainer({
     errorMessage,
     hasData,
     viewModel,
-    ingestHealth: ingestHealthQuery.data ?? null,
     selectedCollection,
     diagnostics: diagnosticsQuery.data ?? null,
     diagnosticsError,
@@ -285,15 +189,12 @@ export function MetricsPanelContainer({
     diagnosticsMode,
     diagnosticsLimit,
     drilldownTab,
-    maintenanceInFlight: maintenanceMutation.isPending || documentDeleteMutation.isPending || collectionDeleteMutation.isPending,
+    maintenanceInFlight: maintenanceMutation.isPending || collectionDeleteMutation.isPending,
     maintenanceNotice,
     maintenanceMaxDeletes,
     getMaintenancePreview: (collection: string, action: MaintenanceAction) =>
       maintenancePreviews[previewKey(collection, action)] ?? null,
     getCollectionInventory: (collection: string) => collectionInventoryMap.get(collection) ?? null,
-    documentOptions,
-    selectedDocumentKey,
-    documentDeletePreview,
     collectionRecords: recordsData,
     recordsLoading: recordsQuery.isLoading || recordsQuery.isFetching,
     recordsError,
@@ -304,13 +205,8 @@ export function MetricsPanelContainer({
       setSelectedCollection(name);
       setDrilldownTab("integrity");
       setMaintenanceNotice("");
-      setDocumentDeletePreview(null);
     },
     onDrilldownTabChange: (tab: CollectionDrilldownTab) => setDrilldownTab(tab),
-    onSelectedDocumentKeyChange: (key: string) => {
-      setSelectedDocumentKey(key);
-      setDocumentDeletePreview(null);
-    },
     onUseSampleDiagnostics: () => {
       setDiagnosticsMode("sample");
       setDiagnosticsLimit(1200);
@@ -342,30 +238,6 @@ export function MetricsPanelContainer({
       setMaintenanceNotice(`Applying ${action} on ${collection}...`);
       maintenanceMutation.mutate({ collection, action, dryRun: false });
     },
-    onPreviewDeleteDocument: () => {
-      if (!selectedCollection.trim() || !selectedDocumentOption) return;
-      setMaintenanceNotice(
-        `Running document delete preview for ${selectedDocumentOption.namespace}/${selectedDocumentOption.documentID}...`
-      );
-      documentDeleteMutation.mutate({
-        dryRun: true,
-        namespace: selectedDocumentOption.namespace,
-        documentID: selectedDocumentOption.documentID,
-        collection: selectedCollection,
-      });
-    },
-    onApplyDeleteDocument: () => {
-      if (!selectedCollection.trim() || !selectedDocumentOption) return;
-      setMaintenanceNotice(
-        `Applying document delete for ${selectedDocumentOption.namespace}/${selectedDocumentOption.documentID}...`
-      );
-      documentDeleteMutation.mutate({
-        dryRun: false,
-        namespace: selectedDocumentOption.namespace,
-        documentID: selectedDocumentOption.documentID,
-        collection: selectedCollection,
-      });
-    },
     collectionDeleteInFlight: collectionDeleteMutation.isPending,
     onDeleteCollection: (collection: string) => {
       const normalized = collection.trim();
@@ -375,7 +247,6 @@ export function MetricsPanelContainer({
     },
     onRetry: () => {
       void refetch();
-      void ingestHealthQuery.refetch();
       void collectionInventoryQuery.refetch();
       if (selectedCollection.trim()) {
         void diagnosticsQuery.refetch();
@@ -403,7 +274,6 @@ export function MetricsPanelContainer({
       onSelectCollection={(name) => {
         setSelectedCollection(name);
         setMaintenanceNotice("");
-        setDocumentDeletePreview(null);
         if (typeof onOpenCollection === "function") {
           onOpenCollection(name);
         }

@@ -16,6 +16,9 @@ import {
 import { LAYOUT } from '../config/layout.constants';
 import { useAdminHome } from '../hooks/useAdminHome';
 import { isStripeFullyConfigured, isStripePartiallyConfigured } from '../services/billing.service';
+import { useAdminRevenue } from '../hooks/useAdminRevenue';
+import { RevenueByCampaign } from '../components/TrafficAttributionSection';
+import { buildDateRange } from '../controllers/analyticsController';
 
 /**
  * Billing Dashboard - Entry point for payment and monetization management
@@ -27,6 +30,9 @@ import { isStripeFullyConfigured, isStripePartiallyConfigured } from '../service
  */
 export function BillingDashboard() {
   const navigate = useNavigate();
+  const { summary: revenue, error: revenueError, loading: revenueLoading } = useAdminRevenue();
+  const revenueEmpty = revenue?.sample_size === 0;
+  const displayRevenue = revenue && !revenueEmpty ? revenue : null;
 
   const {
     stripeSettings,
@@ -42,13 +48,43 @@ export function BillingDashboard() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Billing Dashboard"
           icon={CreditCard}
           iconBgClass="bg-amber-500/10"
           iconColorClass="text-amber-400"
           testId="billing-dashboard-header"
         />
+
+        <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4" data-testid="billing-revenue-rollup">
+          {revenueError && <div className="md:col-span-2 xl:col-span-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100">Revenue observations are temporarily unavailable.</div>}
+          {!revenueLoading && !revenueError && !revenue && <div className="md:col-span-2 xl:col-span-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-400">No revenue observation is available yet.</div>}
+          {!revenueLoading && !revenueError && revenueEmpty && <div className="md:col-span-2 xl:col-span-4 rounded-xl border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-100">The tenant has no active subscriptions yet; revenue figures will appear after the first eligible subscription.</div>}
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Monthly recurring revenue</p>
+            <p className="mt-2 text-3xl font-semibold text-emerald-300">{displayRevenue ? `${displayRevenue.currency.toUpperCase()} ${(displayRevenue.mrr_minor / 100).toFixed(2)}` : '—'}</p>
+            <p className="mt-1 text-xs text-slate-500">{displayRevenue?.active_subscriptions ?? 'No sample'} active subscriptions · <a className="underline" href="/docs/concepts/MRR.md">calculation notes</a></p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Revenue today</p>
+            <p className="mt-2 text-3xl font-semibold text-emerald-300">{displayRevenue ? `${displayRevenue.currency.toUpperCase()} ${(displayRevenue.revenue_today_minor / 100).toFixed(2)}` : '—'}</p>
+            <p className="mt-1 text-xs text-slate-500">Successful payments since midnight</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Churn, 30 days</p>
+            <p className="mt-2 text-3xl font-semibold text-amber-200">{displayRevenue ? `${displayRevenue.churn_rate_percent.toFixed(1)}%` : '—'}</p>
+            <p className="mt-1 text-xs text-slate-500">{displayRevenue?.subscriptions_churned_window ?? 'No sample'} cancellations</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Credit balance</p>
+            <p className="mt-2 text-3xl font-semibold text-sky-200">{displayRevenue ? displayRevenue.credit_balance_total.toLocaleString() : '—'}</p>
+            <p className="mt-1 text-xs text-slate-500">{displayRevenue?.credit_burned_window ?? 'No sample'} burned in 30 days</p>
+          </div>
+          {revenue?.observed_at && <p className="md:col-span-2 xl:col-span-4 text-xs text-slate-500">Observed {new Date(revenue.observed_at).toLocaleString()} · {String(revenue.usage_records_window)} usage records in 30 days{revenue.currency_excluded_count > 0 ? ` · ${String(revenue.currency_excluded_count)} currency excluded` : ''}</p>}
+        </div>
+
+        <div className="mb-8">
+          <RevenueByCampaign range={buildDateRange(30)} />
+        </div>
 
         {/* Quick Flows */}
         <div className="mb-8" data-testid="billing-quick-flows">
@@ -62,7 +98,7 @@ export function BillingDashboard() {
               icon={CreditCard}
               iconBg="bg-amber-500/20"
               iconColor="text-amber-300"
-              onClick={() => navigate('/admin/billing')}
+              onClick={() => { navigate('/admin/billing'); }}
               testId="flow-stripe"
             />
             <QuickFlowCard
@@ -71,9 +107,9 @@ export function BillingDashboard() {
               icon={Layers}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/tiers')}
+              onClick={() => { navigate('/admin/tiers'); }}
               testId="flow-plans"
-              badge="Soon"
+              badge="Ready"
             />
             <QuickFlowCard
               title="AI API keys"
@@ -81,7 +117,7 @@ export function BillingDashboard() {
               icon={Key}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/api-keys')}
+              onClick={() => { navigate('/admin/api-keys'); }}
               testId="flow-api-keys"
             />
             <QuickFlowCard
@@ -90,7 +126,7 @@ export function BillingDashboard() {
               icon={Tag}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/coupons')}
+              onClick={() => { navigate('/admin/coupons'); }}
               testId="flow-coupons"
             />
           </div>
@@ -114,7 +150,7 @@ export function BillingDashboard() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={refreshStripeStatus}
+                onClick={() => { void refreshStripeStatus(); }}
                 className="gap-2"
                 data-testid="billing-stripe-refresh"
               >
@@ -123,7 +159,7 @@ export function BillingDashboard() {
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate('/admin/billing')}
+                onClick={() => { navigate('/admin/billing'); }}
               >
                 Configure Stripe
               </Button>
@@ -140,7 +176,7 @@ export function BillingDashboard() {
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-3">
               <AlertTriangle className="h-4 w-4" />
               <span>{stripeError}</span>
-              <Button size="sm" variant="ghost" onClick={refreshStripeStatus}>
+              <Button size="sm" variant="ghost" onClick={() => { void refreshStripeStatus(); }}>
                 Retry
               </Button>
             </div>
@@ -216,7 +252,7 @@ export function BillingDashboard() {
                 <div className="flex flex-wrap gap-3">
                   <Button
                     size="sm"
-                    onClick={() => navigate('/admin/billing')}
+                    onClick={() => { navigate('/admin/billing'); }}
                     data-testid="billing-guidance-setup"
                   >
                     {stripePartial ? 'Complete setup' : 'Set up Stripe'}

@@ -31,7 +31,7 @@ export const ADMIN_PAGE_DEFINITIONS: AdminPageDefinition[] = [
   },
   {
     id: 'admin-home',
-    name: 'Landing Manager Admin',
+    name: 'Landing Page Business Suite Admin',
     description: 'Admin overview with quick flows, stats, and reset controls.',
     route: '/admin',
     routePattern: '/admin',

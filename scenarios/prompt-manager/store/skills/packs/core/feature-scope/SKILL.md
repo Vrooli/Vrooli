@@ -1,3 +1,23 @@
+---
+name: "feature-scope"
+description: "Add functionality while maintaining stability"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["scope"]
+  tags: ["scope","feature","constraints"]
+  icon: "plus-circle"
+  status: "active"
+  revision: 30
+  createdAt: "2026-02-03T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
 # Feature Scope
 
 Session constraints for feature development. These boundaries ensure new functionality is added responsibly while maintaining system stability.

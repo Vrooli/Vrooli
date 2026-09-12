@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.artifact-review-flow",
+    "name": "ArtifactReviewFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The generated-output workflow for preview, comparison, editing, commenting, approval, revision request, versioning, export, and application of accepted changes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "ai.artifact-card",
+        "reason": "Artifact identity, versions, and actions are shared."
+      },
+      {
+        "asset": "ai.diff-approval",
+        "reason": "Change review, partial selection, and approval are shared."
+      },
+      {
+        "asset": "patterns.conflict-resolution-flow",
+        "reason": "Applying changes over a moved target reconciles through the shared flow."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "destructive-confirmation",
+    "optimistic-rollback",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Accepting part of a proposal applies exactly what was selected and leaves the rest visibly pending, so review is incremental rather than all-or-nothing."
+    }
+  }
+}

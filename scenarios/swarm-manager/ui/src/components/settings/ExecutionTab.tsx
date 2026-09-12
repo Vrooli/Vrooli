@@ -2,27 +2,93 @@
  * Execution settings tab - Execution defaults, governance, and agent behavior.
  */
 
+import { useCallback, useEffect, useState } from "react";
+import type { AutoFilerStatusResponse } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import { RefreshCw } from "lucide-react";
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { selectors } from "../../consts/selectors";
 import { DEFAULT_SETTINGS } from "../../services/settings-service";
-import type { Settings } from "../../types";
+import { autoFilerService } from "../../services";
+import type { Settings, SettingsPolicyProjection } from "../../types";
+import { PolicyControlsBadge, PolicyControlsNote } from "./PolicyControlsNote";
 import { ToggleButtons } from "./ToggleButtons";
+import { GoalDrainToggle } from "./GoalDrainToggle";
 
 export interface ExecutionTabProps {
   form: Settings;
   patch: (updates: Partial<Settings>) => void;
+  policyProjection?: SettingsPolicyProjection | null;
 }
 
-export function ExecutionTab({ form, patch }: ExecutionTabProps) {
+const EXECUTION_POLICY_FIELDS = ["default_mode", "auto_fixup", "max_fixup_attempts"];
+const AGENT_POLICY_FIELDS = ["agent_max_turns", "agent_timeout_seconds"];
+
+function formatAutoFilerTime(value: string): string {
+  if (!value) return "Not run yet";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+export function ExecutionTab({ form, patch, policyProjection }: ExecutionTabProps) {
+  const [autoFilerStatus, setAutoFilerStatus] = useState<AutoFilerStatusResponse | null>(null);
+  const [autoFilerStatusError, setAutoFilerStatusError] = useState<string | null>(null);
+  const [autoFilerRunPending, setAutoFilerRunPending] = useState(false);
+
+  const loadAutoFilerStatus = useCallback(async (active: () => boolean = () => true) => {
+    setAutoFilerStatusError(null);
+    try {
+      const status = await autoFilerService.getStatus();
+      if (active()) setAutoFilerStatus(status);
+    } catch (error) {
+      if (active()) {
+        setAutoFilerStatus(null);
+        setAutoFilerStatusError(error instanceof Error ? error.message : "Unable to load auto-filer status");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void loadAutoFilerStatus(() => active);
+    return () => {
+      active = false;
+    };
+  }, [
+    loadAutoFilerStatus,
+    form.autoFiler.enabled,
+    form.autoFiler.mode,
+    form.autoFiler.strategy,
+    form.autoFiler.maxOpenAutoFiled,
+    form.autoFiler.velocityWindowDays,
+    form.autoFiler.minVelocityTransitions,
+  ]);
+
+  const handleRunAutoFilerNow = useCallback(async () => {
+    setAutoFilerRunPending(true);
+    setAutoFilerStatusError(null);
+    try {
+      setAutoFilerStatus(await autoFilerService.runNow());
+    } catch (error) {
+      setAutoFilerStatusError(error instanceof Error ? error.message : "Unable to run auto-filer cycle");
+    } finally {
+      setAutoFilerRunPending(false);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Execution Defaults */}
       <Card data-testid={selectors.settings.executionDefaults}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Execution Defaults</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Default mode used when queue requests omit explicit values.</p>
+            <PolicyControlsNote fields={EXECUTION_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             defaultMode: DEFAULT_SETTINGS.defaultMode,
@@ -79,7 +145,7 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
             <p className="mt-1 text-sm text-slate-400">Concurrency limits, queue depth, circuit breaker, and cost controls.</p>
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
-            maxConcurrentExecutions: DEFAULT_SETTINGS.maxConcurrentExecutions,
+            laneConcurrencyLimits: { ...DEFAULT_SETTINGS.laneConcurrencyLimits },
             maxQueueDepth: DEFAULT_SETTINGS.maxQueueDepth,
             circuitBreakerThreshold: DEFAULT_SETTINGS.circuitBreakerThreshold,
             circuitBreakerCooldownMinutes: DEFAULT_SETTINGS.circuitBreakerCooldownMinutes,
@@ -89,16 +155,38 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
         </div>
         <div className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300">Max Concurrent Executions</label>
-            <p className="mt-1 text-xs text-slate-400">Maximum simultaneous agent runs (1-20).</p>
-            <Input
-              type="number"
-              min={1}
-              max={20}
-              className="mt-1"
-              value={form.maxConcurrentExecutions}
-              onChange={(e) => patch({ maxConcurrentExecutions: Math.max(1, Math.min(20, Number(e.target.value || 1))) })}
-            />
+            <label className="block text-sm font-medium text-slate-300">Lane Concurrency Limits</label>
+            <p className="mt-1 text-xs text-slate-400">
+              Per-phase-kind concurrency caps (each 1-50). Lanes mirror the
+              Operations Center columns: <em>investigate</em> covers
+              workshop / clarify / classify / research, <em>execute</em>
+              covers backlog process runs, <em>review</em> covers review
+              and finalize, <em>reconcile</em> covers reconciliation
+              phases.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(["investigate", "execute", "review", "reconcile"] as const).map((lane) => (
+                <div key={lane}>
+                  <label className="block text-xs font-medium capitalize text-slate-400">{lane}</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    className="mt-1"
+                    value={form.laneConcurrencyLimits[lane] ?? DEFAULT_SETTINGS.laneConcurrencyLimits[lane]}
+                    onChange={(e) => {
+                      const next = Math.max(1, Math.min(50, Number(e.target.value || 1)));
+                      patch({
+                        laneConcurrencyLimits: {
+                          ...form.laneConcurrencyLimits,
+                          [lane]: next,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="border-t border-white/5 pt-4">
             <label className="block text-sm font-medium text-slate-300">Max Queue Depth</label>
@@ -164,30 +252,242 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
         </div>
       </Card>
 
+      {/* Fix-Before-Feature Gate */}
+      <Card data-testid={selectors.settings.fixBeforeFeature}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Fix-Before-Feature Gate</h3>
+            <p className="mt-1 text-sm text-slate-400">
+              When a feature item is queued onto a scenario that already has open
+              fix/chore work, advise or block until that work is cleared.
+            </p>
+          </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            fixBeforeFeature: DEFAULT_SETTINGS.fixBeforeFeature,
+          })}>Reset</button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Gate Mode</label>
+            <p className="mt-1 text-xs text-slate-400">
+              <em>off</em> ignores open fix work; <em>suggest</em> attaches a
+              non-blocking advisory; <em>block</em> adds a forceable blocking
+              reason that can be overridden with an explicit force.
+            </p>
+            <ToggleButtons
+              value={form.fixBeforeFeature}
+              options={[
+                { value: "off" as const, label: "off" },
+                { value: "suggest" as const, label: "suggest" },
+                { value: "block" as const, label: "block" },
+              ]}
+              onChange={(v) => patch({ fixBeforeFeature: v })}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Backlog Auto-Filer */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-slate-200">Backlog Auto-Filer</h3>
+            <p className="mt-1 text-sm text-slate-400">Governed automatic filing for maintenance findings.</p>
+          </div>
+          <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
+            autoFiler: { ...DEFAULT_SETTINGS.autoFiler },
+          })}>Reset</button>
+        </div>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300">Policy</label>
+            <ToggleButtons
+              value={form.autoFiler.enabled}
+              options={[
+                { value: false as const, label: "Disabled" },
+                { value: true as const, label: "Enabled" },
+              ]}
+              onChange={(v) => patch({ autoFiler: { ...form.autoFiler, enabled: v } })}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Mode</label>
+              <ToggleButtons
+                value={form.autoFiler.mode}
+                options={[
+                  { value: "suggest" as const, label: "suggest" },
+                  { value: "auto_add" as const, label: "auto-add" },
+                ]}
+                onChange={(v) => patch({ autoFiler: { ...form.autoFiler, mode: v } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Strategy</label>
+              <ToggleButtons
+                value={form.autoFiler.strategy}
+                options={[
+                  { value: "feature_pending" as const, label: "feature-pending" },
+                  { value: "importance" as const, label: "importance" },
+                ]}
+                onChange={(v) => patch({ autoFiler: { ...form.autoFiler, strategy: v } })}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 border-t border-white/5 pt-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Max Open Auto-Filed</label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                className="mt-1"
+                value={form.autoFiler.maxOpenAutoFiled}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, maxOpenAutoFiled: Math.max(1, Math.min(100, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Velocity Window Days</label>
+              <Input
+                type="number"
+                min={1}
+                max={90}
+                className="mt-1"
+                value={form.autoFiler.velocityWindowDays}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, velocityWindowDays: Math.max(1, Math.min(90, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Min Velocity Transitions</label>
+              <Input
+                type="number"
+                min={1}
+                max={1000}
+                className="mt-1"
+                value={form.autoFiler.minVelocityTransitions}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, minVelocityTransitions: Math.max(1, Math.min(1000, Number(e.target.value || 1))) } })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Interval Minutes</label>
+              <Input
+                type="number"
+                min={1}
+                max={1440}
+                className="mt-1"
+                value={form.autoFiler.intervalMinutes}
+                onChange={(e) => patch({ autoFiler: { ...form.autoFiler, intervalMinutes: Math.max(1, Math.min(1440, Number(e.target.value || 1))) } })}
+              />
+            </div>
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <label className="block text-sm font-medium text-slate-300">Goal Name</label>
+            <Input
+              className="mt-1"
+              value={form.autoFiler.goalName}
+              onChange={(e) => patch({ autoFiler: { ...form.autoFiler, goalName: e.target.value } })}
+            />
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-sm font-medium text-slate-300">Operator Status</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  Latest governed filing cycle and policy brakes.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2 py-0.5 text-xs ${autoFilerStatus?.enabled ? "bg-emerald-500/10 text-emerald-300" : "bg-slate-700 text-slate-300"}`}>
+                  {autoFilerStatus?.enabled ? "enabled" : "disabled"}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleRunAutoFilerNow()}
+                  disabled={autoFilerRunPending}
+                >
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${autoFilerRunPending ? "animate-spin" : ""}`} />
+                  Run now
+                </Button>
+              </div>
+            </div>
+            {autoFilerStatusError ? (
+              <p className="mt-3 text-xs text-amber-300">{autoFilerStatusError}</p>
+            ) : (
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Last Cycle</div>
+                  <div className="mt-1 text-sm text-slate-200">{formatAutoFilerTime(autoFilerStatus?.lastCycleTime ?? "")}</div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Open / Cap</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.openAutoFiled} / ${autoFilerStatus.maxOpenAutoFiled}` : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Velocity Brake</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus?.brake
+                      ? `${autoFilerStatus.brake.observed}/${autoFilerStatus.brake.minimum}${autoFilerStatus.brake.braked ? " braked" : ""}`
+                      : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Findings / Filed</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.findings} / ${autoFilerStatus.created}` : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Dismissed</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? autoFilerStatus.dismissalCount : "--"}
+                  </div>
+                </div>
+                <div className="rounded border border-white/5 bg-slate-950/30 px-3 py-2">
+                  <div className="text-[11px] uppercase text-slate-500">Reconciled</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {autoFilerStatus ? `${autoFilerStatus.reconciledClosed} closed, ${autoFilerStatus.reconciledNoted} noted` : "--"}
+                  </div>
+                </div>
+              </div>
+            )}
+            {autoFilerStatus?.lastError ? (
+              <p className="mt-3 text-xs text-amber-300">{autoFilerStatus.lastError}</p>
+            ) : null}
+          </div>
+        </div>
+      </Card>
+
       {/* Agent Behavior */}
       <Card data-testid={selectors.settings.agentSettings}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium text-slate-200">Agent Behavior</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-slate-200">Agent Behavior</h3>
+              <PolicyControlsBadge />
+            </div>
             <p className="mt-1 text-sm text-slate-400">Controls for spawned agent runs.</p>
+            <PolicyControlsNote fields={AGENT_POLICY_FIELDS} projection={policyProjection} />
           </div>
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             agentMaxTurns: DEFAULT_SETTINGS.agentMaxTurns,
             agentTimeoutSeconds: DEFAULT_SETTINGS.agentTimeoutSeconds,
-            agentRequiresApproval: DEFAULT_SETTINGS.agentRequiresApproval,
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300">Max Turns</label>
-            <p className="mt-1 text-xs text-slate-400">Maximum conversation turns per agent run (5-200).</p>
+            <p className="mt-1 text-xs text-slate-400">Maximum conversation turns per agent run (5-1000).</p>
             <Input
               type="number"
               min={5}
-              max={200}
+              max={1000}
               className="mt-1"
               value={form.agentMaxTurns}
-              onChange={(e) => patch({ agentMaxTurns: Math.max(5, Math.min(200, Number(e.target.value || 5))) })}
+              onChange={(e) => patch({ agentMaxTurns: Math.max(5, Math.min(1000, Number(e.target.value || 5))) })}
             />
           </div>
           <div>
@@ -202,20 +502,10 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
               onChange={(e) => patch({ agentTimeoutSeconds: Math.max(60, Math.min(3600, Number(e.target.value || 1) * 60)) })}
             />
           </div>
-          <div className="border-t border-white/5 pt-4">
-            <label className="block text-sm font-medium text-slate-300">Require Approval</label>
-            <p className="mt-1 text-xs text-slate-400">Pause agent runs for human approval before execution.</p>
-            <ToggleButtons
-              value={form.agentRequiresApproval}
-              options={[
-                { value: false as const, label: "Disabled" },
-                { value: true as const, label: "Enabled" },
-              ]}
-              onChange={(v) => patch({ agentRequiresApproval: v })}
-            />
-          </div>
         </div>
       </Card>
+
+      <GoalDrainToggle />
     </div>
   );
 }

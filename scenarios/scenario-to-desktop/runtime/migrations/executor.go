@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/strutil"
-	"scenario-to-desktop-runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
 )
 
 // ExecutorConfig holds the configuration for the migration executor.

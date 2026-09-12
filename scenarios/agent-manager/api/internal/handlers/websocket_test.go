@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -10,9 +13,76 @@ import (
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestHandleWebSocketSupportsTypedAndLegacyClientMessages(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	server := httptest.NewServer(http.HandlerFunc((&Handler{}).HandleWebSocket(hub)))
+	t.Cleanup(server.Close)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+
+	readMessage := func() *domainpb.AgentManagerWsMessage {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read websocket message: %v", err)
+		}
+		var message domainpb.AgentManagerWsMessage
+		if err := protoconv.UnmarshalJSON(data, &message); err != nil {
+			t.Fatalf("decode websocket message: %v", err)
+		}
+		return &message
+	}
+	writeMessage := func(data []byte) {
+		t.Helper()
+		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			t.Fatalf("write websocket message: %v", err)
+		}
+	}
+
+	if welcome := readMessage(); welcome.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED || welcome.GetConnected() == nil {
+		t.Fatalf("expected connected welcome, got %+v", welcome)
+	}
+
+	typedPing, err := protoconv.MarshalJSON(&domainpb.AgentManagerWsClientMessage{Type: domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING})
+	if err != nil {
+		t.Fatalf("marshal typed ping: %v", err)
+	}
+	writeMessage(typedPing)
+	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG || pong.GetPong() == nil {
+		t.Fatalf("expected typed pong, got %+v", pong)
+	}
+
+	runID := uuid.New()
+	subscribe, err := protoconv.MarshalJSON(&domainpb.AgentManagerWsClientMessage{
+		Type:    domainpb.AgentManagerWsClientMessageType_AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_SUBSCRIBE,
+		Payload: &domainpb.AgentManagerWsClientMessage_RunSubscription{RunSubscription: &domainpb.RunSubscription{RunId: runID.String()}},
+	})
+	if err != nil {
+		t.Fatalf("marshal subscription: %v", err)
+	}
+	writeMessage(subscribe)
+	hub.BroadcastProgress(runID, domain.RunPhaseExecuting, 45, "checking durable state")
+	if progress := readMessage(); progress.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS || progress.GetRunId() != runID.String() || progress.GetRunProgress().GetPercentComplete() != 45 {
+		t.Fatalf("expected subscribed progress update, got %+v", progress)
+	}
+
+	writeMessage([]byte(`{"type":"ping"}`))
+	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG {
+		t.Fatalf("expected legacy pong, got %+v", pong)
+	}
+}
 
 // =============================================================================
 // HUB LIFECYCLE TESTS
@@ -90,24 +160,24 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 
 	// Broadcast for unsubscribed run — should NOT be received
 	hub.broadcast <- &domainpb.AgentManagerWsMessage{
-		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &otherRunID,
-		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
-			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:  otherRunID,
-				Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
+		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+			RunEvent: &domainpb.RunEvent{
+				Id:    uuid.New().String(),
+				RunId: otherRunID,
 			},
 		},
 	}
 
 	// Broadcast for subscribed run — SHOULD be received
 	hub.broadcast <- &domainpb.AgentManagerWsMessage{
-		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
 		RunId: &subscribedRunID,
-		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
-			RunStatus: &domainpb.RunStatusUpdate{
-				RunId:  subscribedRunID,
-				Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+			RunEvent: &domainpb.RunEvent{
+				Id:    uuid.New().String(),
+				RunId: subscribedRunID,
 			},
 		},
 	}
@@ -126,6 +196,45 @@ func TestWebSocketHub_BroadcastFiltering_SubscribedRun(t *testing.T) {
 	}
 	if parsed.GetRunId() != subscribedRunID {
 		t.Errorf("expected run_id %s, got %s", subscribedRunID, parsed.GetRunId())
+	}
+}
+
+func TestWebSocketHub_RunStatusBroadcastsToUnsubscribedClients(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	client := &WebSocketClient{
+		hub:           hub,
+		send:          make(chan []byte, 256),
+		subscriptions: make(map[string]bool),
+		allEvents:     false,
+	}
+	hub.register <- client
+	time.Sleep(10 * time.Millisecond)
+
+	runID := uuid.New().String()
+	hub.broadcast <- &domainpb.AgentManagerWsMessage{
+		Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS,
+		RunId: &runID,
+		Payload: &domainpb.AgentManagerWsMessage_RunStatus{
+			RunStatus: &domainpb.RunStatusUpdate{
+				RunId:  runID,
+				Status: domainpb.RunStatus_RUN_STATUS_RUNNING,
+			},
+		},
+	}
+
+	select {
+	case msg := <-client.send:
+		var parsed domainpb.AgentManagerWsMessage
+		if err := protoconv.UnmarshalJSON(msg, &parsed); err != nil {
+			t.Fatalf("failed to unmarshal message: %v", err)
+		}
+		if parsed.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS {
+			t.Errorf("expected RUN_STATUS type, got %v", parsed.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for global run_status broadcast")
 	}
 }
 
@@ -222,6 +331,45 @@ func TestWebSocketHub_StaleClientRemoval_ConcurrentSafety(t *testing.T) {
 	// Run with -race flag to verify: go test -race -run TestWebSocketHub_StaleClient
 }
 
+func TestWebSocketHub_SubscriptionMutationConcurrentSafety(t *testing.T) {
+	hub := NewWebSocketHub()
+	go hub.Run()
+
+	runID := uuid.New().String()
+	client := &WebSocketClient{
+		hub:           hub,
+		send:          make(chan []byte, 4096),
+		subscriptions: make(map[string]bool),
+		allEvents:     false,
+	}
+	hub.register <- client
+	time.Sleep(10 * time.Millisecond)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(2)
+		go func(i int) {
+			defer wg.Done()
+			updateSubscription(client, runID, i%2 == 0)
+			updateAllEventsSubscription(client, i%3 == 0)
+		}(i)
+		go func() {
+			defer wg.Done()
+			hub.broadcast <- &domainpb.AgentManagerWsMessage{
+				Type:  domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT,
+				RunId: &runID,
+				Payload: &domainpb.AgentManagerWsMessage_RunEvent{
+					RunEvent: &domainpb.RunEvent{
+						Id:    uuid.New().String(),
+						RunId: runID,
+					},
+				},
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 // =============================================================================
 // BROADCAST RUN STATUS WITH DISPLAY FIELDS (Bug 2 fix validation)
 // =============================================================================
@@ -244,6 +392,10 @@ func TestBroadcastRunStatus_IncludesDisplayFields(t *testing.T) {
 		TaskID:        uuid.New(),
 		Status:        domain.RunStatusComplete,
 		PromptPreview: "Fix the authentication bug in login flow",
+		Result: &domain.RunResult{Selection: domain.FinalOutputSelection{
+			Status: domain.FinalOutputSelectionSelected,
+			Rule:   "unique_terminal_main_assistant",
+		}},
 	}
 
 	hub.BroadcastRunStatus(run)
@@ -266,6 +418,12 @@ func TestBroadcastRunStatus_IncludesDisplayFields(t *testing.T) {
 		}
 		if status.PromptPreview != run.PromptPreview {
 			t.Errorf("expected prompt_preview %q, got %q", run.PromptPreview, status.PromptPreview)
+		}
+		if status.ResultSelectionStatus != domainpb.FinalOutputSelectionStatus_FINAL_OUTPUT_SELECTION_STATUS_SELECTED {
+			t.Errorf("expected selected result status, got %v", status.ResultSelectionStatus)
+		}
+		if status.ResultSelectionRule != "unique_terminal_main_assistant" {
+			t.Errorf("unexpected result selection rule %q", status.ResultSelectionRule)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for broadcast")
@@ -396,6 +554,28 @@ func TestBroadcastRunStatus_EmptyPromptPreview(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for broadcast")
+	}
+}
+
+func TestBroadcastWorkflowLifecycleContainsMetadataOnly(t *testing.T) {
+	hub := NewWebSocketHub()
+	executionID := uuid.New()
+	runID := uuid.New()
+	hub.BroadcastWorkflowLifecycle(&domain.WorkflowLifecycleEvent{ExecutionID: executionID, DefinitionDigest: "sha256:def", Status: domain.WorkflowExecutionRunning, NodeID: "review", Strategy: domain.WorkflowAttemptFreshRun, ProfileIdentity: "reviewer", RunID: &runID, JournalSequence: 4, JournalKind: domain.WorkflowJournalAttempt, JournalPayloadDigest: "sha256:payload", BudgetUsage: domain.WorkflowBudgetUsage{NodeAttempts: 1}})
+
+	message := <-hub.broadcast
+	update := message.GetWorkflowLifecycle()
+	if update == nil || update.ExecutionId != executionID.String() || update.RunId != runID.String() || update.JournalSequence != 4 {
+		t.Fatalf("unexpected workflow lifecycle update: %+v", update)
+	}
+	data, err := protoconv.MarshalJSON(message)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"promptSnapshot", "\"result\":", "\"payload\":"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("workflow lifecycle broadcast leaked content field %q: %s", forbidden, data)
+		}
 	}
 }
 

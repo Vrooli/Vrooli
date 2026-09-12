@@ -1,0 +1,65 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-006",
+      "title": "Rate Limiting and Account Lockout for Auth Endpoints",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "security",
+      "description": "Authentication endpoints (login, register, password reset, MFA challenge) must enforce per-IP and per-account rate limiting. After a configurable threshold of failed attempts, the account enters a lockout state for a configurable duration. Redis is the authoritative hot-state store for rate-limit counters and lockout coordination across horizontally scaled instances; protected requests fail closed when Redis is unavailable. Lockout state and counter reset must be auditable.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/ratelimit/ratelimit_test.go: counter increments on each failed attempt; threshold breach flips account to locked state"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/ratelimit/ratelimit_test.go: after lockout duration elapses, account returns to unlocked state automatically"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/ratelimit/ratelimit_test.go: successful login resets failed-attempt counter"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/ratelimit/ratelimit_test.go: per-IP counter is independent of per-account counter; both can trigger lockout independently"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/lockout_e2e_test.go: submit N+1 failed login attempts → Nth+1 returns lockout error; subsequent correct-password attempt during lockout window is also rejected"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/lockout_e2e_test.go: simulate two replica instances sharing Redis state — lockout triggered on replica-1 is enforced on replica-2"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/lockout_e2e_test.go: rate-limit headers (Retry-After or equivalent) are present in lockout responses"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "api/internal/ratelimit/ratelimit_test.go: Redis-store seam exercises the bounded counter path; a production benchmark remains planned"
+        }
+      ]
+    }
+  ]
+}

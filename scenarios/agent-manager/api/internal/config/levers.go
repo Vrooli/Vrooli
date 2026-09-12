@@ -9,14 +9,17 @@
 // - Clear defaults that work for common usage
 // - Safe bounds on all values to prevent catastrophic misconfiguration
 // - Grouped by operator mental model, not implementation structure
+//
+// DOC: scenarios/agent-manager/docs/reference/configuration.md
+// (full lever-by-lever reference, organized by section).
+// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+// (which lever controls which timing surface).
 
 package config
 
 import (
 	"fmt"
 	"time"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================
@@ -47,6 +50,44 @@ type Levers struct {
 
 	// Storage controls persistence settings
 	Storage StorageLevers `json:"storage"`
+
+	// Heartbeat controls run-lifecycle cadence (heartbeat, checkpoint,
+	// staleness, teardown, retries) — internal levers, not user-facing.
+	Heartbeat HeartbeatLevers `json:"heartbeat"`
+
+	// Recovery controls transcript-tail and resume-after-restart timing.
+	Recovery RecoveryLevers `json:"recovery"`
+
+	// Scanner controls stdout/transcript byte buffer ceilings.
+	Scanner ScannerLevers `json:"scanner"`
+
+	// Diagnostics controls heuristic windows used by run-outcome
+	// classification (silent-launch detection, message truncation).
+	Diagnostics DiagnosticsLevers `json:"diagnostics"`
+
+	// Observability controls structured logging format and verbosity.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// (the obs.Logger seam) and obs/log.go (stable key constants).
+	Observability ObservabilityLevers `json:"observability"`
+
+	// Spawn controls runner-startup serialization. The dispatcher caps
+	// how many runs may be in the codex bootstrap window simultaneously
+	// and exposes queue depth so callers see backpressure.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// (the spawn.Dispatcher seam) and spawn/dispatcher.go.
+	Spawn SpawnLevers `json:"spawn"`
+
+	// Sandbox controls workspace-sandbox availability checks and bounded
+	// retries around run-time sandbox operations.
+	// DOC: scenarios/agent-manager/docs/internal/SEAMS.md
+	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+	Sandbox SandboxLevers `json:"sandbox"`
+
+	// Workflow controls the completion-nudge queue that drives workflow
+	// executions forward when their runs finish, so no consumer polls.
+	// DOC: scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md
+	// (the "Workflow completion nudge + blocking wait" flow).
+	Workflow WorkflowLevers `json:"workflow"`
 }
 
 // =============================================================================
@@ -186,10 +227,6 @@ type RunnerLevers struct {
 	// Default: "opencode" (assumes in PATH).
 	OpenCodePath string `json:"opencodePath"`
 
-	// FallbackRunnerTypes is the ordered list of runners to try if the primary fails.
-	// Empty disables automatic fallback.
-	FallbackRunnerTypes []string `json:"fallbackRunnerTypes"`
-
 	// HealthCheckInterval is how often to verify runner availability.
 	// Lower = faster detection of unavailable runners.
 	// Range: 10s to 5m. Default: 1m.
@@ -199,6 +236,25 @@ type RunnerLevers struct {
 	// Useful when runners are slow to initialize.
 	// Range: 0 to 5m. Default: 30s.
 	StartupGracePeriod time.Duration `json:"startupGracePeriod"`
+
+	// ProbeTimeout bounds a single runner-availability probe (e.g. `codex
+	// status`, `opencode --version`). Kept short so an unhealthy binary
+	// does not stall startup or the orchestrator's IsAvailable path.
+	// Range: 1s to 30s. Default: 5s.
+	ProbeTimeout time.Duration `json:"probeTimeout"`
+
+	// UseCliDefaultModel, when true, causes orchestration to skip passing
+	// a model flag to the runner CLI (no `-m`/`--model`). The agent runs
+	// with whatever model the installed CLI is configured to use (e.g.
+	// the model selected via `codex /model` or `claude /model`).
+	//
+	// Use this when you want the runner's subscription/plan default to
+	// govern pricing instead of agent-manager's preset chain — for
+	// example, a ChatGPT Plus account that already pins a model. Profile
+	// model presets and the model-fallback chain are bypassed entirely
+	// while this is on.
+	// Default: false.
+	UseCliDefaultModel bool `json:"useCliDefaultModel"`
 }
 
 // =============================================================================
@@ -262,6 +318,242 @@ type StorageLevers struct {
 	// Higher = more history, but more storage.
 	// Range: 1 to 365. Default: 90.
 	ArtifactRetentionDays int `json:"artifactRetentionDays"`
+
+	// RunStateRetentionDays is how long the reconciler keeps on-disk
+	// run-state directories (transcripts, scratchpads) for terminal
+	// (Complete / Failed / Cancelled) runs before sweeping them.
+	// Range: 1 to 365. Default: 7.
+	RunStateRetentionDays int `json:"runStateRetentionDays"`
+}
+
+// =============================================================================
+// HEARTBEAT LEVERS
+// =============================================================================
+
+// HeartbeatLevers control run-execution lifecycle cadence.
+// These are internal levers — not exposed via env vars by default.
+type HeartbeatLevers struct {
+	// RunHeartbeatInterval is how often the run-executor heartbeat goroutine
+	// updates last_heartbeat_at on the run row. The reconciler uses
+	// last_heartbeat_at + StaleThreshold to detect stuck runs, so this must
+	// fire well below StaleThreshold.
+	// Range: 1s to 5m. Default: 15s.
+	RunHeartbeatInterval time.Duration `json:"runHeartbeatInterval"`
+
+	// CheckpointInterval is how often the run-executor persists checkpoint
+	// state for resumption. Lower = finer-grained recovery, higher overhead.
+	// Range: 5s to 10m. Default: 1m.
+	CheckpointInterval time.Duration `json:"checkpointInterval"`
+
+	// StaleThreshold is how long without a heartbeat before the reconciler
+	// considers a run stale. Must comfortably exceed RunHeartbeatInterval to
+	// tolerate slow DB writes and long tool calls.
+	// Range: 1m to 30m. Default: 5m.
+	StaleThreshold time.Duration `json:"staleThreshold"`
+
+	// TeardownTimeout bounds the detached context used by finalize() for
+	// sandbox Delete/Stop calls. Independent of run timeout — teardown must
+	// complete even when the run deadline already expired.
+	// Range: 5s to 5m. Default: 30s.
+	TeardownTimeout time.Duration `json:"teardownTimeout"`
+
+	// MaxRetriesPerPhase bounds retries for transient phase failures.
+	// Range: 0 to 10. Default: 3.
+	MaxRetriesPerPhase int `json:"maxRetriesPerPhase"`
+
+	// AgentTickInterval is how often runner-internal heartbeat goroutines
+	// (e.g. claude-code stream-stall watchdog) wake up to evaluate the
+	// idle threshold. Smaller = faster idle reporting, more wake-ups.
+	// Range: 100ms to 10s. Default: 2s.
+	AgentTickInterval time.Duration `json:"agentTickInterval"`
+
+	// AgentIdleThreshold is how long the runner-internal stream watchdog
+	// waits without observing a stdout event before emitting a debug log
+	// event. Used by claude-code's heartbeat to surface stream stalls.
+	// Range: 1s to 5m. Default: 30s.
+	AgentIdleThreshold time.Duration `json:"agentIdleThreshold"`
+
+	// RunnerSignalGracePeriod is how long Runner.Stop() waits for a
+	// SIGTERM-style graceful shutdown before escalating to SIGKILL.
+	// Same value is used as the context timeout for Stop's HTTP/IPC call.
+	// Range: 1s to 1m. Default: 5s.
+	RunnerSignalGracePeriod time.Duration `json:"runnerSignalGracePeriod"`
+}
+
+// =============================================================================
+// RECOVERY LEVERS
+// =============================================================================
+
+// RecoveryLevers control resume-after-restart timing.
+type RecoveryLevers struct {
+	// TranscriptTailInterval is how often the recovery tailer polls the
+	// transcript file for new lines after reattaching to a live run.
+	// Range: 50ms to 5s. Default: 100ms.
+	TranscriptTailInterval time.Duration `json:"transcriptTailInterval"`
+
+	// TranscriptPollInterval is the default poll interval for
+	// runner.Consume when no caller-supplied value is given.
+	// Range: 50ms to 5s. Default: 100ms.
+	TranscriptPollInterval time.Duration `json:"transcriptPollInterval"`
+}
+
+// =============================================================================
+// SCANNER LEVERS
+// =============================================================================
+
+// ScannerLevers control byte-buffer ceilings used when consuming
+// runner stdout and transcript files.
+type ScannerLevers struct {
+	// StdoutMaxLineBytes is the maximum line length bufio.Scanner will
+	// accept when reading runner stdout. Long lines beyond this trip
+	// scanner.Err() = bufio.ErrTooLong.
+	// Range: 64KB to 64MB. Default: 10MB.
+	StdoutMaxLineBytes int `json:"stdoutMaxLineBytes"`
+
+	// TranscriptMaxLineBytes is the maximum line length when reading
+	// the persisted NDJSON transcript on resume.
+	// Range: 64KB to 64MB. Default: 10MB.
+	TranscriptMaxLineBytes int `json:"transcriptMaxLineBytes"`
+}
+
+// =============================================================================
+// DIAGNOSTICS LEVERS
+// =============================================================================
+
+// DiagnosticsLevers control heuristic windows used by run-outcome
+// classification.
+type DiagnosticsLevers struct {
+	// LaunchFailedMaxDuration is the upper bound for "ran too fast to be a
+	// real run." When a sandbox-protected run exits within this window with
+	// no message events, validateOutcome reclassifies the failure as a
+	// launch failure (e.g. bwrap setup error).
+	// Range: 100ms to 30s. Default: 2s.
+	LaunchFailedMaxDuration time.Duration `json:"launchFailedMaxDuration"`
+
+	// RateLimitMessageMaxLen truncates rate-limit error messages before
+	// surfacing to operators. Keeps logs readable when providers return
+	// long structured error bodies.
+	// Range: 64 to 8192. Default: 512.
+	RateLimitMessageMaxLen int `json:"rateLimitMessageMaxLen"`
+}
+
+// =============================================================================
+// OBSERVABILITY LEVERS
+// =============================================================================
+
+// ObservabilityLevers control structured-logging output. Logging in
+// agent-manager is centralised in internal/orchestration/obs; these
+// levers feed obs.Init at server startup.
+type ObservabilityLevers struct {
+	// LogFormat selects the slog handler. Allowed values: "text" (human-
+	// readable, default for development) and "json" (one structured JSON
+	// object per line, suitable for shipping to log aggregators).
+	// Default: "text".
+	LogFormat string `json:"logFormat"`
+
+	// LogLevel sets the minimum slog level to emit. Allowed values:
+	// "debug", "info", "warn", "error".
+	// Default: "info".
+	LogLevel string `json:"logLevel"`
+}
+
+// =============================================================================
+// SPAWN LEVERS
+// =============================================================================
+
+// SpawnLevers control runner-startup serialization in
+// orchestration/spawn.Dispatcher. The defaults are conservative because
+// codex's bootstrap window (SQLite WAL contention + rollout-file open
+// race) burst-fails silently when N>1 starts overlap; lift them only
+// once the burst-test confirms the runner tolerates parallelism.
+type SpawnLevers struct {
+	// MaxStartingConcurrency caps how many runs may be in the codex-
+	// bootstrap window simultaneously. Default 1 (strict serialization).
+	// Range: 1 to 16.
+	MaxStartingConcurrency int `json:"maxStartingConcurrency"`
+
+	// MinSpacing is the minimum delay between two successive
+	// slot-acquisition events. Zero disables spacing. Use this to
+	// stretch out spawns when MaxStartingConcurrency > 1 still
+	// produces transient races.
+	// Range: 0 to 30s.
+	MinSpacing time.Duration `json:"minSpacing"`
+
+	// QueueCapacity is the maximum number of runs that may be queued
+	// (not yet started) before Enqueue returns CapacityExceededError.
+	// Set to zero to derive from Concurrency.MaxConcurrentRuns at
+	// orchestrator construction time (default = MaxConcurrentRuns * 2).
+	// Range: 0 (auto) or 1 to 1024 (explicit).
+	QueueCapacity int `json:"queueCapacity"`
+}
+
+// =============================================================================
+// SANDBOX LEVERS
+// =============================================================================
+
+// SandboxLevers controls run-time workspace-sandbox availability checks and
+// operation retries. These levers apply when a run needs workspace-sandbox;
+// agent-manager bootstrap dependency startup remains owned by Vrooli lifecycle.
+type SandboxLevers struct {
+	// AvailabilityCheckTimeout bounds a single workspace-sandbox health check.
+	// Range: 100ms to 10s. Default: 2s.
+	AvailabilityCheckTimeout time.Duration `json:"availabilityCheckTimeout"`
+
+	// EnsureStartTimeout bounds an on-demand lifecycle start + health-poll
+	// attempt when workspace-sandbox is unavailable during a run.
+	// Range: 5s to 2m. Default: 60s.
+	EnsureStartTimeout time.Duration `json:"ensureStartTimeout"`
+
+	// EnsurePollInterval controls health polling while waiting for
+	// workspace-sandbox to become ready after lifecycle start.
+	// Range: 50ms to 5s and less than EnsureStartTimeout. Default: 500ms.
+	EnsurePollInterval time.Duration `json:"ensurePollInterval"`
+
+	// OperationMaxAttempts bounds transient sandbox operation retries.
+	// Range: 1 to 8. Default: 4.
+	OperationMaxAttempts int `json:"operationMaxAttempts"`
+
+	// OperationInitialBackoff is the first retry delay after a transient
+	// workspace-sandbox operation failure.
+	// Range: 25ms to 5s. Default: 250ms.
+	OperationInitialBackoff time.Duration `json:"operationInitialBackoff"`
+
+	// OperationMaxBackoff caps exponential retry delay.
+	// Range: OperationInitialBackoff to 30s. Default: 2s.
+	OperationMaxBackoff time.Duration `json:"operationMaxBackoff"`
+}
+
+// =============================================================================
+// WORKFLOW LEVERS
+// =============================================================================
+
+// WorkflowLevers control the in-process completion-nudge queue. When a run
+// belonging to a workflow attempt reaches a terminal status, an idempotent
+// drive of the parent execution is enqueued instead of any consumer poll; the
+// reconciler recovery sweep is the durable backstop for a crash between the
+// run terminal and the nudge.
+type WorkflowLevers struct {
+	// NudgeWorkers is how many concurrent goroutines drain the nudge queue.
+	// Distinct executions drive in parallel; concurrent drives of the same
+	// execution are safe (optimistic-version CAS in the engine). Higher =
+	// faster propagation under bursty completions, more concurrent DB work.
+	// Range: 1 to 32. Default: 4.
+	NudgeWorkers int `json:"nudgeWorkers"`
+
+	// NudgeDriveTimeout bounds a single nudge-triggered drive. It is detached
+	// from any request context (the run that triggered it has already exited),
+	// so it must be generous enough for a full advance-to-fixpoint sweep.
+	// Range: 5s to 10m. Default: 5m.
+	NudgeDriveTimeout time.Duration `json:"nudgeDriveTimeout"`
+
+	// UnarmedWaitWarningThreshold is the age at which a waiting workflow with
+	// no durable wait deadline records a diagnostic. Range: 1m to 24h.
+	UnarmedWaitWarningThreshold time.Duration `json:"unarmedWaitWarningThreshold"`
+
+	// UnarmedWaitFailureThreshold is the age at which that same impossible-to-
+	// wake state is failed. It must exceed the warning threshold. Range: 2m to
+	// 7d.
+	UnarmedWaitFailureThreshold time.Duration `json:"unarmedWaitFailureThreshold"`
 }
 
 // =============================================================================
@@ -308,9 +600,9 @@ func DefaultLevers() Levers {
 			ClaudeCodePath:      "claude",
 			CodexPath:           "codex",
 			OpenCodePath:        "opencode",
-			FallbackRunnerTypes: nil,
 			HealthCheckInterval: 1 * time.Minute,
 			StartupGracePeriod:  30 * time.Second,
+			ProbeTimeout:        5 * time.Second,
 		},
 		Server: ServerLevers{
 			Port:                "8080",
@@ -326,6 +618,52 @@ func DefaultLevers() Levers {
 			ConnMaxLifetime:       5 * time.Minute,
 			EventRetentionDays:    30,
 			ArtifactRetentionDays: 90,
+			RunStateRetentionDays: 7,
+		},
+		Heartbeat: HeartbeatLevers{
+			RunHeartbeatInterval:    15 * time.Second,
+			CheckpointInterval:      1 * time.Minute,
+			StaleThreshold:          5 * time.Minute,
+			TeardownTimeout:         30 * time.Second,
+			MaxRetriesPerPhase:      3,
+			AgentTickInterval:       2 * time.Second,
+			AgentIdleThreshold:      30 * time.Second,
+			RunnerSignalGracePeriod: 5 * time.Second,
+		},
+		Recovery: RecoveryLevers{
+			TranscriptTailInterval: 100 * time.Millisecond,
+			TranscriptPollInterval: 100 * time.Millisecond,
+		},
+		Scanner: ScannerLevers{
+			StdoutMaxLineBytes:     10 * 1024 * 1024,
+			TranscriptMaxLineBytes: 10 * 1024 * 1024,
+		},
+		Diagnostics: DiagnosticsLevers{
+			LaunchFailedMaxDuration: 2 * time.Second,
+			RateLimitMessageMaxLen:  512,
+		},
+		Observability: ObservabilityLevers{
+			LogFormat: "text",
+			LogLevel:  "info",
+		},
+		Spawn: SpawnLevers{
+			MaxStartingConcurrency: 1,
+			MinSpacing:             0,
+			QueueCapacity:          0, // 0 means "auto-derive from MaxConcurrentRuns"
+		},
+		Sandbox: SandboxLevers{
+			AvailabilityCheckTimeout: 2 * time.Second,
+			EnsureStartTimeout:       60 * time.Second,
+			EnsurePollInterval:       500 * time.Millisecond,
+			OperationMaxAttempts:     4,
+			OperationInitialBackoff:  250 * time.Millisecond,
+			OperationMaxBackoff:      2 * time.Second,
+		},
+		Workflow: WorkflowLevers{
+			NudgeWorkers:                4,
+			NudgeDriveTimeout:           5 * time.Minute,
+			UnarmedWaitWarningThreshold: 15 * time.Minute,
+			UnarmedWaitFailureThreshold: time.Hour,
 		},
 	}
 }
@@ -358,110 +696,270 @@ func (l *Levers) Validate() error {
 	if err := l.Storage.Validate(); err != nil {
 		return wrapConfigSection("storage", err)
 	}
+	if err := l.Heartbeat.Validate(); err != nil {
+		return wrapConfigSection("heartbeat", err)
+	}
+	if err := l.Recovery.Validate(); err != nil {
+		return wrapConfigSection("recovery", err)
+	}
+	if err := l.Scanner.Validate(); err != nil {
+		return wrapConfigSection("scanner", err)
+	}
+	if err := l.Diagnostics.Validate(); err != nil {
+		return wrapConfigSection("diagnostics", err)
+	}
+	if err := l.Observability.Validate(); err != nil {
+		return wrapConfigSection("observability", err)
+	}
+	if err := l.Spawn.Validate(); err != nil {
+		return wrapConfigSection("spawn", err)
+	}
+	if err := l.Sandbox.Validate(); err != nil {
+		return wrapConfigSection("sandbox", err)
+	}
+	if err := l.Workflow.Validate(); err != nil {
+		return wrapConfigSection("workflow", err)
+	}
+	return nil
+}
+
+func (w *WorkflowLevers) Validate() error {
+	if w.NudgeWorkers < 1 || w.NudgeWorkers > 32 {
+		return NewInvalid("nudgeWorkers", fmt.Sprintf("must be between 1 and 32, got %d", w.NudgeWorkers), nil)
+	}
+	if w.NudgeDriveTimeout < 5*time.Second || w.NudgeDriveTimeout > 10*time.Minute {
+		return NewInvalid("nudgeDriveTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", w.NudgeDriveTimeout), nil)
+	}
+	if w.UnarmedWaitWarningThreshold < time.Minute || w.UnarmedWaitWarningThreshold > 24*time.Hour {
+		return NewInvalid("unarmedWaitWarningThreshold", fmt.Sprintf("must be between 1m and 24h, got %v", w.UnarmedWaitWarningThreshold), nil)
+	}
+	if w.UnarmedWaitFailureThreshold < 2*time.Minute || w.UnarmedWaitFailureThreshold > 7*24*time.Hour || w.UnarmedWaitFailureThreshold <= w.UnarmedWaitWarningThreshold {
+		return NewInvalid("unarmedWaitFailureThreshold", fmt.Sprintf("must be between warning threshold (%v) and 7d, got %v", w.UnarmedWaitWarningThreshold, w.UnarmedWaitFailureThreshold), nil)
+	}
 	return nil
 }
 
 func (e *ExecutionLevers) Validate() error {
 	if e.DefaultTimeout < time.Minute || e.DefaultTimeout > 4*time.Hour {
-		return domain.NewConfigInvalidError("defaultTimeout", fmt.Sprintf("must be between 1m and 4h, got %v", e.DefaultTimeout), nil)
+		return NewInvalid("defaultTimeout", fmt.Sprintf("must be between 1m and 4h, got %v", e.DefaultTimeout), nil)
 	}
 	if e.DefaultMaxTurns < 1 || e.DefaultMaxTurns > 1000 {
-		return domain.NewConfigInvalidError("defaultMaxTurns", fmt.Sprintf("must be between 1 and 1000, got %d", e.DefaultMaxTurns), nil)
+		return NewInvalid("defaultMaxTurns", fmt.Sprintf("must be between 1 and 1000, got %d", e.DefaultMaxTurns), nil)
 	}
 	if e.EventBufferSize < 10 || e.EventBufferSize > 10000 {
-		return domain.NewConfigInvalidError("eventBufferSize", fmt.Sprintf("must be between 10 and 10000, got %d", e.EventBufferSize), nil)
+		return NewInvalid("eventBufferSize", fmt.Sprintf("must be between 10 and 10000, got %d", e.EventBufferSize), nil)
 	}
 	if e.EventFlushInterval < 100*time.Millisecond || e.EventFlushInterval > 30*time.Second {
-		return domain.NewConfigInvalidError("eventFlushInterval", fmt.Sprintf("must be between 100ms and 30s, got %v", e.EventFlushInterval), nil)
+		return NewInvalid("eventFlushInterval", fmt.Sprintf("must be between 100ms and 30s, got %v", e.EventFlushInterval), nil)
 	}
 	return nil
 }
 
 func (s *SafetyLevers) Validate() error {
 	if s.MaxFilesPerRun < 1 || s.MaxFilesPerRun > 10000 {
-		return domain.NewConfigInvalidError("maxFilesPerRun", fmt.Sprintf("must be between 1 and 10000, got %d", s.MaxFilesPerRun), nil)
+		return NewInvalid("maxFilesPerRun", fmt.Sprintf("must be between 1 and 10000, got %d", s.MaxFilesPerRun), nil)
 	}
 	if s.MaxBytesPerRun < 1024 || s.MaxBytesPerRun > 1024*1024*1024 {
-		return domain.NewConfigInvalidError("maxBytesPerRun", fmt.Sprintf("must be between 1KB and 1GB, got %d", s.MaxBytesPerRun), nil)
+		return NewInvalid("maxBytesPerRun", fmt.Sprintf("must be between 1KB and 1GB, got %d", s.MaxBytesPerRun), nil)
 	}
 	return nil
 }
 
 func (c *ConcurrencyLevers) Validate() error {
 	if c.MaxConcurrentRuns < 1 || c.MaxConcurrentRuns > 100 {
-		return domain.NewConfigInvalidError("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 100, got %d", c.MaxConcurrentRuns), nil)
+		return NewInvalid("maxConcurrentRuns", fmt.Sprintf("must be between 1 and 100, got %d", c.MaxConcurrentRuns), nil)
 	}
 	if c.MaxConcurrentPerScope < 1 || c.MaxConcurrentPerScope > 10 {
-		return domain.NewConfigInvalidError("maxConcurrentPerScope", fmt.Sprintf("must be between 1 and 10, got %d", c.MaxConcurrentPerScope), nil)
+		return NewInvalid("maxConcurrentPerScope", fmt.Sprintf("must be between 1 and 10, got %d", c.MaxConcurrentPerScope), nil)
 	}
 	if c.ScopeLockTTL < 5*time.Minute || c.ScopeLockTTL > 24*time.Hour {
-		return domain.NewConfigInvalidError("scopeLockTTL", fmt.Sprintf("must be between 5m and 24h, got %v", c.ScopeLockTTL), nil)
+		return NewInvalid("scopeLockTTL", fmt.Sprintf("must be between 5m and 24h, got %v", c.ScopeLockTTL), nil)
 	}
 	if c.ScopeLockRefreshInterval < 30*time.Second || c.ScopeLockRefreshInterval > 10*time.Minute {
-		return domain.NewConfigInvalidError("scopeLockRefreshInterval", fmt.Sprintf("must be between 30s and 10m, got %v", c.ScopeLockRefreshInterval), nil)
+		return NewInvalid("scopeLockRefreshInterval", fmt.Sprintf("must be between 30s and 10m, got %v", c.ScopeLockRefreshInterval), nil)
 	}
 	if c.QueueWaitTimeout < 0 || c.QueueWaitTimeout > 30*time.Minute {
-		return domain.NewConfigInvalidError("queueWaitTimeout", fmt.Sprintf("must be between 0 and 30m, got %v", c.QueueWaitTimeout), nil)
+		return NewInvalid("queueWaitTimeout", fmt.Sprintf("must be between 0 and 30m, got %v", c.QueueWaitTimeout), nil)
 	}
 	return nil
 }
 
 func (a *ApprovalLevers) Validate() error {
 	if a.ReviewTimeoutDays < 1 || a.ReviewTimeoutDays > 90 {
-		return domain.NewConfigInvalidError("reviewTimeoutDays", fmt.Sprintf("must be between 1 and 90, got %d", a.ReviewTimeoutDays), nil)
+		return NewInvalid("reviewTimeoutDays", fmt.Sprintf("must be between 1 and 90, got %d", a.ReviewTimeoutDays), nil)
 	}
 	return nil
 }
 
 func (r *RunnerLevers) Validate() error {
-	for _, runnerType := range r.FallbackRunnerTypes {
-		if !domain.RunnerType(runnerType).IsValid() {
-			return domain.NewConfigInvalidError("fallbackRunnerTypes", fmt.Sprintf("contains invalid runner type: %s", runnerType), nil)
-		}
-	}
 	if r.HealthCheckInterval < 10*time.Second || r.HealthCheckInterval > 5*time.Minute {
-		return domain.NewConfigInvalidError("healthCheckInterval", fmt.Sprintf("must be between 10s and 5m, got %v", r.HealthCheckInterval), nil)
+		return NewInvalid("healthCheckInterval", fmt.Sprintf("must be between 10s and 5m, got %v", r.HealthCheckInterval), nil)
 	}
 	if r.StartupGracePeriod < 0 || r.StartupGracePeriod > 5*time.Minute {
-		return domain.NewConfigInvalidError("startupGracePeriod", fmt.Sprintf("must be between 0 and 5m, got %v", r.StartupGracePeriod), nil)
+		return NewInvalid("startupGracePeriod", fmt.Sprintf("must be between 0 and 5m, got %v", r.StartupGracePeriod), nil)
+	}
+	if r.ProbeTimeout < time.Second || r.ProbeTimeout > 30*time.Second {
+		return NewInvalid("probeTimeout", fmt.Sprintf("must be between 1s and 30s, got %v", r.ProbeTimeout), nil)
 	}
 	return nil
 }
 
 func (s *ServerLevers) Validate() error {
 	if s.Port == "" {
-		return domain.NewConfigMissingError("port", "value is required", nil)
+		return NewMissing("port", "value is required", nil)
 	}
 	if s.ReadTimeout < 5*time.Second || s.ReadTimeout > 5*time.Minute {
-		return domain.NewConfigInvalidError("readTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", s.ReadTimeout), nil)
+		return NewInvalid("readTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", s.ReadTimeout), nil)
 	}
 	if s.WriteTimeout < 5*time.Second || s.WriteTimeout > 10*time.Minute {
-		return domain.NewConfigInvalidError("writeTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", s.WriteTimeout), nil)
+		return NewInvalid("writeTimeout", fmt.Sprintf("must be between 5s and 10m, got %v", s.WriteTimeout), nil)
 	}
 	if s.IdleTimeout < 30*time.Second || s.IdleTimeout > 10*time.Minute {
-		return domain.NewConfigInvalidError("idleTimeout", fmt.Sprintf("must be between 30s and 10m, got %v", s.IdleTimeout), nil)
+		return NewInvalid("idleTimeout", fmt.Sprintf("must be between 30s and 10m, got %v", s.IdleTimeout), nil)
 	}
 	if s.MaxRequestBodyBytes < 1024 || s.MaxRequestBodyBytes > 100*1024*1024 {
-		return domain.NewConfigInvalidError("maxRequestBodyBytes", fmt.Sprintf("must be between 1KB and 100MB, got %d", s.MaxRequestBodyBytes), nil)
+		return NewInvalid("maxRequestBodyBytes", fmt.Sprintf("must be between 1KB and 100MB, got %d", s.MaxRequestBodyBytes), nil)
 	}
 	return nil
 }
 
 func (s *StorageLevers) Validate() error {
 	if s.MaxOpenConns < 5 || s.MaxOpenConns > 100 {
-		return domain.NewConfigInvalidError("maxOpenConns", fmt.Sprintf("must be between 5 and 100, got %d", s.MaxOpenConns), nil)
+		return NewInvalid("maxOpenConns", fmt.Sprintf("must be between 5 and 100, got %d", s.MaxOpenConns), nil)
 	}
 	if s.MaxIdleConns < 1 || s.MaxIdleConns > 50 {
-		return domain.NewConfigInvalidError("maxIdleConns", fmt.Sprintf("must be between 1 and 50, got %d", s.MaxIdleConns), nil)
+		return NewInvalid("maxIdleConns", fmt.Sprintf("must be between 1 and 50, got %d", s.MaxIdleConns), nil)
 	}
 	if s.ConnMaxLifetime < time.Minute || s.ConnMaxLifetime > time.Hour {
-		return domain.NewConfigInvalidError("connMaxLifetime", fmt.Sprintf("must be between 1m and 1h, got %v", s.ConnMaxLifetime), nil)
+		return NewInvalid("connMaxLifetime", fmt.Sprintf("must be between 1m and 1h, got %v", s.ConnMaxLifetime), nil)
 	}
 	if s.EventRetentionDays < 1 || s.EventRetentionDays > 365 {
-		return domain.NewConfigInvalidError("eventRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.EventRetentionDays), nil)
+		return NewInvalid("eventRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.EventRetentionDays), nil)
 	}
 	if s.ArtifactRetentionDays < 1 || s.ArtifactRetentionDays > 365 {
-		return domain.NewConfigInvalidError("artifactRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.ArtifactRetentionDays), nil)
+		return NewInvalid("artifactRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.ArtifactRetentionDays), nil)
+	}
+	if s.RunStateRetentionDays < 1 || s.RunStateRetentionDays > 365 {
+		return NewInvalid("runStateRetentionDays", fmt.Sprintf("must be between 1 and 365, got %d", s.RunStateRetentionDays), nil)
+	}
+	return nil
+}
+
+func (h *HeartbeatLevers) Validate() error {
+	if h.RunHeartbeatInterval < time.Second || h.RunHeartbeatInterval > 5*time.Minute {
+		return NewInvalid("runHeartbeatInterval", fmt.Sprintf("must be between 1s and 5m, got %v", h.RunHeartbeatInterval), nil)
+	}
+	if h.CheckpointInterval < 5*time.Second || h.CheckpointInterval > 10*time.Minute {
+		return NewInvalid("checkpointInterval", fmt.Sprintf("must be between 5s and 10m, got %v", h.CheckpointInterval), nil)
+	}
+	if h.StaleThreshold < time.Minute || h.StaleThreshold > 30*time.Minute {
+		return NewInvalid("staleThreshold", fmt.Sprintf("must be between 1m and 30m, got %v", h.StaleThreshold), nil)
+	}
+	if h.StaleThreshold <= h.RunHeartbeatInterval {
+		return NewInvalid("staleThreshold", fmt.Sprintf("must exceed runHeartbeatInterval (%v), got %v", h.RunHeartbeatInterval, h.StaleThreshold), nil)
+	}
+	if h.TeardownTimeout < 5*time.Second || h.TeardownTimeout > 5*time.Minute {
+		return NewInvalid("teardownTimeout", fmt.Sprintf("must be between 5s and 5m, got %v", h.TeardownTimeout), nil)
+	}
+	if h.MaxRetriesPerPhase < 0 || h.MaxRetriesPerPhase > 10 {
+		return NewInvalid("maxRetriesPerPhase", fmt.Sprintf("must be between 0 and 10, got %d", h.MaxRetriesPerPhase), nil)
+	}
+	if h.AgentTickInterval < 100*time.Millisecond || h.AgentTickInterval > 10*time.Second {
+		return NewInvalid("agentTickInterval", fmt.Sprintf("must be between 100ms and 10s, got %v", h.AgentTickInterval), nil)
+	}
+	if h.AgentIdleThreshold < time.Second || h.AgentIdleThreshold > 5*time.Minute {
+		return NewInvalid("agentIdleThreshold", fmt.Sprintf("must be between 1s and 5m, got %v", h.AgentIdleThreshold), nil)
+	}
+	if h.RunnerSignalGracePeriod < time.Second || h.RunnerSignalGracePeriod > time.Minute {
+		return NewInvalid("runnerSignalGracePeriod", fmt.Sprintf("must be between 1s and 1m, got %v", h.RunnerSignalGracePeriod), nil)
+	}
+	return nil
+}
+
+func (r *RecoveryLevers) Validate() error {
+	if r.TranscriptTailInterval < 50*time.Millisecond || r.TranscriptTailInterval > 5*time.Second {
+		return NewInvalid("transcriptTailInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptTailInterval), nil)
+	}
+	if r.TranscriptPollInterval < 50*time.Millisecond || r.TranscriptPollInterval > 5*time.Second {
+		return NewInvalid("transcriptPollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", r.TranscriptPollInterval), nil)
+	}
+	return nil
+}
+
+func (s *ScannerLevers) Validate() error {
+	const minBuf = 64 * 1024
+	const maxBuf = 64 * 1024 * 1024
+	if s.StdoutMaxLineBytes < minBuf || s.StdoutMaxLineBytes > maxBuf {
+		return NewInvalid("stdoutMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.StdoutMaxLineBytes), nil)
+	}
+	if s.TranscriptMaxLineBytes < minBuf || s.TranscriptMaxLineBytes > maxBuf {
+		return NewInvalid("transcriptMaxLineBytes", fmt.Sprintf("must be between 64KB and 64MB, got %d", s.TranscriptMaxLineBytes), nil)
+	}
+	return nil
+}
+
+func (d *DiagnosticsLevers) Validate() error {
+	if d.LaunchFailedMaxDuration < 100*time.Millisecond || d.LaunchFailedMaxDuration > 30*time.Second {
+		return NewInvalid("launchFailedMaxDuration", fmt.Sprintf("must be between 100ms and 30s, got %v", d.LaunchFailedMaxDuration), nil)
+	}
+	if d.RateLimitMessageMaxLen < 64 || d.RateLimitMessageMaxLen > 8192 {
+		return NewInvalid("rateLimitMessageMaxLen", fmt.Sprintf("must be between 64 and 8192, got %d", d.RateLimitMessageMaxLen), nil)
+	}
+	return nil
+}
+
+func (s *SpawnLevers) Validate() error {
+	if s.MaxStartingConcurrency < 1 || s.MaxStartingConcurrency > 16 {
+		return NewInvalid("maxStartingConcurrency", fmt.Sprintf("must be between 1 and 16, got %d", s.MaxStartingConcurrency), nil)
+	}
+	if s.MinSpacing < 0 || s.MinSpacing > 30*time.Second {
+		return NewInvalid("minSpacing", fmt.Sprintf("must be between 0 and 30s, got %v", s.MinSpacing), nil)
+	}
+	// QueueCapacity == 0 means "auto-derive at orchestrator wiring time".
+	if s.QueueCapacity < 0 || s.QueueCapacity > 1024 {
+		return NewInvalid("queueCapacity", fmt.Sprintf("must be 0 (auto) or between 1 and 1024, got %d", s.QueueCapacity), nil)
+	}
+	if s.QueueCapacity > 0 && s.QueueCapacity < s.MaxStartingConcurrency {
+		return NewInvalid("queueCapacity", fmt.Sprintf("must be >= maxStartingConcurrency (%d), got %d", s.MaxStartingConcurrency, s.QueueCapacity), nil)
+	}
+	return nil
+}
+
+func (s *SandboxLevers) Validate() error {
+	if s.AvailabilityCheckTimeout < 100*time.Millisecond || s.AvailabilityCheckTimeout > 10*time.Second {
+		return NewInvalid("availabilityCheckTimeout", fmt.Sprintf("must be between 100ms and 10s, got %v", s.AvailabilityCheckTimeout), nil)
+	}
+	if s.EnsureStartTimeout < 5*time.Second || s.EnsureStartTimeout > 2*time.Minute {
+		return NewInvalid("ensureStartTimeout", fmt.Sprintf("must be between 5s and 2m, got %v", s.EnsureStartTimeout), nil)
+	}
+	if s.EnsurePollInterval < 50*time.Millisecond || s.EnsurePollInterval > 5*time.Second {
+		return NewInvalid("ensurePollInterval", fmt.Sprintf("must be between 50ms and 5s, got %v", s.EnsurePollInterval), nil)
+	}
+	if s.EnsurePollInterval >= s.EnsureStartTimeout {
+		return NewInvalid("ensurePollInterval", fmt.Sprintf("must be less than ensureStartTimeout (%v), got %v", s.EnsureStartTimeout, s.EnsurePollInterval), nil)
+	}
+	if s.OperationMaxAttempts < 1 || s.OperationMaxAttempts > 8 {
+		return NewInvalid("operationMaxAttempts", fmt.Sprintf("must be between 1 and 8, got %d", s.OperationMaxAttempts), nil)
+	}
+	if s.OperationInitialBackoff < 25*time.Millisecond || s.OperationInitialBackoff > 5*time.Second {
+		return NewInvalid("operationInitialBackoff", fmt.Sprintf("must be between 25ms and 5s, got %v", s.OperationInitialBackoff), nil)
+	}
+	if s.OperationMaxBackoff < s.OperationInitialBackoff || s.OperationMaxBackoff > 30*time.Second {
+		return NewInvalid("operationMaxBackoff", fmt.Sprintf("must be between operationInitialBackoff (%v) and 30s, got %v", s.OperationInitialBackoff, s.OperationMaxBackoff), nil)
+	}
+	return nil
+}
+
+func (o *ObservabilityLevers) Validate() error {
+	switch o.LogFormat {
+	case "text", "json":
+	default:
+		return NewInvalid("logFormat", fmt.Sprintf("must be \"text\" or \"json\", got %q", o.LogFormat), nil)
+	}
+	switch o.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		return NewInvalid("logLevel", fmt.Sprintf("must be one of debug|info|warn|error, got %q", o.LogLevel), nil)
 	}
 	return nil
 }
@@ -470,7 +968,7 @@ func wrapConfigSection(section string, err error) error {
 	if err == nil {
 		return nil
 	}
-	if cfgErr, ok := err.(*domain.ConfigError); ok {
+	if cfgErr, ok := err.(*Error); ok {
 		if cfgErr.Setting != "" {
 			cfgErr.Setting = section + "." + cfgErr.Setting
 		} else {
@@ -478,5 +976,5 @@ func wrapConfigSection(section string, err error) error {
 		}
 		return cfgErr
 	}
-	return domain.NewConfigInvalidError(section, err.Error(), err)
+	return NewInvalid(section, err.Error(), err)
 }

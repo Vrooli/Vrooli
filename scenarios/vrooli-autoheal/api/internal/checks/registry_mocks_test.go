@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // mockCheck is a test implementation of Check interface.
@@ -34,6 +34,7 @@ type mockHealableCheck struct {
 	result          Result
 	actions         []RecoveryAction
 	executeResult   ActionResult
+	executeSleep    time.Duration // when >0, ExecuteAction blocks until ctx cancellation OR this duration elapses
 	executedActions []string
 	mu              sync.Mutex
 }
@@ -55,11 +56,24 @@ func (m *mockHealableCheck) RecoveryActions(lastResult *Result) []RecoveryAction
 
 func (m *mockHealableCheck) ExecuteAction(ctx context.Context, actionID string) ActionResult {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.executedActions = append(m.executedActions, actionID)
-	m.executeResult.ActionID = actionID
-	m.executeResult.CheckID = m.id
-	return m.executeResult
+	sleep := m.executeSleep
+	res := m.executeResult
+	m.mu.Unlock()
+
+	if sleep > 0 {
+		select {
+		case <-ctx.Done():
+			// Caller will see ctx.Done() before this returns; the registry
+			// abandons this goroutine's eventual result. Return whatever was
+			// configured so a non-timeout caller observes the configured value.
+		case <-time.After(sleep):
+		}
+	}
+
+	res.ActionID = actionID
+	res.CheckID = m.id
+	return res
 }
 
 // mockConfigProvider implements ConfigProvider for testing.
@@ -120,8 +134,11 @@ func testPlatform() *platform.Capabilities {
 func newTestRegistry() *Registry {
 	reg := NewRegistry(testPlatform())
 	_ = reg.SetAutoHealPolicy(AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
+		BaseCooldown:         5 * time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    DefaultFastActionTimeout,
+		RestartActionTimeout: DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
 	})
 	return reg
 }

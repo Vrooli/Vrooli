@@ -64,6 +64,57 @@ export {
   type ReferenceSource,
 } from './skill.schema'
 
+// Action schemas
+export {
+  ActionStatusSchema,
+  ActionOwnerSchema,
+  ActionCommandSchema,
+  ActionInputTypeSchema,
+  ActionOutputTypeSchema,
+  ActionInputSchema,
+  ActionOutputSchema,
+  ActionPermissionsSchema,
+  ActionExampleSchema,
+  ActionExecutionSchema,
+  ActionValidationSchema,
+  ActionSchema,
+  ActionArraySchema,
+  CreateActionRequestSchema,
+  UpdateActionRequestSchema,
+  CommandCertaintySchema,
+  CommandEffectSchema,
+  CommandResolutionSchema,
+  ActionValidationCheckSchema,
+  ActionValidationResponseSchema,
+  ActionMutationResponseSchema,
+  ActionRunRequestSchema,
+  ActionRunStatusSchema,
+  ActionRunResponseSchema,
+  type ActionStatus,
+  type ActionOwner,
+  type ActionCommand,
+  type ActionInputType,
+  type ActionOutputType,
+  type ActionInput,
+  type ActionOutput,
+  type ActionPermissions,
+  type ActionExample,
+  type ActionExecution,
+  type ActionValidation,
+  type Action,
+  type CreateActionRequest,
+  type UpdateActionRequest,
+  type CommandCertainty,
+  type CommandEffect,
+  type CommandResolution,
+  type ActionValidationCheck,
+  type ActionValidationResponse,
+  type ActionMutationResponse,
+  type ActionRunRequest,
+  type ActionRunStatus,
+  type ActionRunResponse,
+} from './action.schema'
+
 // Agent schemas
 export {
   AgentStatusSchema,
@@ -125,6 +176,8 @@ export {
   AISearchResultSchema,
   AISearchOutputSchema,
   SearchMethodSchema,
+  SkillSearchResultSchema,
+  SkillSearchResponseSchema,
   AISearchResponseSchema,
   AISearchRequestSchema,
   AISearchStatusSchema,
@@ -136,6 +189,8 @@ export {
   type AISearchResult,
   type AISearchOutput,
   type SearchMethod,
+  type SkillSearchResult,
+  type SkillSearchResponse,
   type AISearchResponse,
   type AISearchRequest,
   type AISearchStatus,
@@ -143,6 +198,12 @@ export {
   type ContentMatchRange,
   type ContentSearchMatch,
   type ContentSearchResponse,
+  AIActionSearchResultSchema,
+  AIActionSearchResponseSchema,
+  AIActionSearchRequestSchema,
+  type AIActionSearchResult,
+  type AIActionSearchResponse,
+  type AIActionSearchRequest,
   AIAgentSearchResultSchema,
   AIAgentSearchResponseSchema,
   AIAgentSearchRequestSchema,
@@ -165,10 +226,12 @@ export {
   type TeamContentSearchResponse,
   type LinkPreviewData,
   DiscoverSourceSchema,
+  DiscoverTypeSchema,
   BudgetStatusSchema,
   DiscoverResultSchema,
   DiscoverResponseSchema,
   type DiscoverSource,
+  type DiscoverType,
   type BudgetStatus,
   type DiscoverResult,
   type DiscoverResponse,
@@ -180,7 +243,6 @@ export {
 
 // Team schemas
 export {
-  DecisionModeSchema,
   RuntimeModeSchema,
   CoordinationPatternSchema,
   ReportingModeSchema,
@@ -218,7 +280,6 @@ export {
   buildBoundedParallelExecution,
   buildSerializedExecution,
   buildDefaultCreateTeamRequest,
-  type DecisionMode,
   type RuntimeMode,
   type CoordinationPattern,
   type ReportingMode,
@@ -258,19 +319,6 @@ export {
   type AgentFileTemplate,
   type AgentFileTemplateListResponse,
 } from './template.schema'
-
-// World scale schemas
-export {
-  WorldScaleConfigSchema,
-  type WorldScaleConfig,
-} from './worldScale.schema'
-
-// World seats schemas
-export {
-  SeatPositionSchema,
-  WorldSeatsConfigSchema,
-  type WorldSeatsConfig,
-} from './worldSeats.schema'
 
 // Topic schemas
 export {
@@ -351,6 +399,7 @@ export {
   GraphHealthResponseSchema,
   NodeHealthResponseSchema,
   GraphHealthConfigResponseSchema,
+  OperatingMapSchema,
   type NodeType,
   type EdgeKind,
   type HealthFactor,
@@ -359,6 +408,7 @@ export {
   type EntityHealthWeights,
   type CLIHealthConfig,
   type GraphHealthConfig,
+  type OperatingMap,
   type GraphNode,
   type GraphEdge,
   type GraphData,

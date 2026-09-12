@@ -1,0 +1,15 @@
+{
+  "_metadata": {"description":"The release ladder: rank, class, enabling urgency, and the prerequisite walk.","module":"release-ladder","prd_ref":"PRD.md","priority":"P0","schema_version":"1.0.0"},
+  "requirements": [
+    {"id":"LADDER-001","title":"Enabling urgency resolves through ramps and streams","status":"complete","category":"domain","criticality":"P0","description":"An enabling deliverable derives urgency from the earliest marketed release that unlocks its ramp or stream.","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-002","title":"A release rank is unique among non-retired marketed deliverables","status":"complete","category":"policy","criticality":"P0","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-003","title":"An enabling deliverable is refused a release rank","status":"complete","category":"policy","criticality":"P0","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-004","title":"The prerequisite walk is transitive and reports its path","status":"complete","category":"domain","criticality":"P0","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-005","title":"A cycle in the enables graph is refused with the path named","status":"complete","category":"policy","criticality":"P0","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-006","title":"The enabling list honours include_retired","status":"complete","category":"projection","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-007","title":"An unranked marketed deliverable is reported, never hidden","status":"complete","category":"projection","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-008","title":"Every audited catalog write records an actor","status":"complete","category":"audit","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-009","title":"A node rename preserves edges and records the prior name","status":"complete","category":"identity","criticality":"P1","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]},
+    {"id":"LADDER-010","title":"Cumulative ramp accumulation is linear in schedule length","status":"complete","category":"performance","criticality":"P2","validation":[{"type":"test","ref":"api/internal/catalog/store_test.go","status":"implemented"}]}
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "ast-grep",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "Structural code search and lint tool using AST patterns",
+  "commands": [
+    "ast-grep",
+    "sg"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "packages": {
+    "brew": "ast-grep"
+  },
+  "installHint": "Install ast-grep from GitHub releases: https://github.com/ast-grep/ast-grep/releases — or via cargo install ast-grep, or npm install -g @ast-grep/cli",
+  "manual": true,
+  "bundling": "host-required",
+  "capability": "code-analysis",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unsupported",
+      "mechanism": "manual",
+      "evidence": "The host OS does not expose the provider native command surface in this tool package."
+    }
+  }
+}

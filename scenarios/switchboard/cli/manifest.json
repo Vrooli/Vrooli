@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "switchboard",
+  "description": "Switchboard operator CLI for channel discovery and bindings.",
+  "groups": [
+    {
+      "name": "channels",
+      "description": "Inspect and manage conversational channels",
+      "commands": [
+        {"name":"list","description":"List channel availability ordered by setup friction","binding":{"kind":"connect-rpc","service":"ChannelService","method":"ListChannels"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"get","description":"Get one channel","positionals":[{"name":"id","required":true,"description":"Channel id"}],"binding":{"kind":"connect-rpc","service":"ChannelService","method":"GetChannel"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"bindings","description":"List agent bindings","flags":[{"name":"agent-id","description":"Filter by agent id"}],"binding":{"kind":"connect-rpc","service":"ChannelService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"create-binding","description":"Create an agent channel binding","flags":[{"name":"agent-id","required":true,"description":"Agent id"},{"name":"channel-id","required":true,"description":"Channel id"},{"name":"address","required":true,"description":"Remote address"},{"name":"thread-key","description":"Remote thread key"}],"binding":{"kind":"connect-rpc","service":"ChannelService","method":"CreateBinding"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
+        ,{"name":"send","description":"Send a message through a registered channel","flags":[{"name":"channel-id","required":true,"description":"Channel id"},{"name":"thread-key","required":true,"description":"Remote thread key"},{"name":"text","required":true,"description":"Message text"}],"binding":{"kind":"connect-rpc","service":"ChannelService","method":"SendMessage"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

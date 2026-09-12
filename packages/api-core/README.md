@@ -5,8 +5,26 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Preflight checks** - Staleness detection, auto-rebuild, lifecycle management
 - **Database connections** - Auto-configured from environment with retry and backoff
 - **Scenario discovery** - Runtime port resolution for inter-scenario communication
+- **Secrets access** - Contract-backed local plaintext secret loading with trust validation
 - **Storage path resolution** - Profile-aware runtime directories with safe joins and atomic writes
+- **Marked references** - Shared parser for typed inline references such as `path:...` and `topic:...`
+- **Relationship references** - Shared parser for `[CODE:]`, `[DOC:]`, and `[REQ:]` documentation edges
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
+- **Verified request identity** - Provider-neutral human, agent, service, and
+  conflict states with passive standard-server middleware
+
+### Shared authentication
+
+Gated APIs declare an `authn.Config` on `server.Config`. `server.Run` installs
+the middleware for both ordinary HTTP handlers and Connect handlers because
+Connect is served over the same `net/http` request context. A nil config keeps
+the service passive. The middleware never trusts caller headers, never emits
+raw credentials, and never turns agent provenance into human authority.
+
+Cloudflare Access is configured with `cloudflareaccess.Config` using the
+non-secret team domain and application audience. Scenario-specific providers
+adapt to `authn.Provider`; domain packages still enforce authorization and
+single-use mutation intents.
 
 ## Quick Start
 
@@ -16,6 +34,10 @@ Add to your scenario's `api/go.mod`:
 require github.com/vrooli/api-core v0.0.0
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..
 ```
 
 Add preflight checks to your `main()`:
@@ -38,6 +60,35 @@ if preflight.Run(preflight.Config{
 server.Start()
 }
 ```
+
+## Package Governance
+
+`api-core` is a governed shared package.
+
+- Scenario-adoptable: yes
+- Allowed consumer classes: `scenario_api`, `scenario_cli`, `scenario_test`, `template_api`, `template_cli`
+- Supported adoption mode: `go_module_replace`
+- Refresh strategy: restart/rebuild assistance for affected running consumers rather than JS-style scenario setup propagation
+
+Use the native package-governance surface:
+
+```bash
+vrooli package info api-core
+vrooli package dependents api-core
+vrooli package refresh api-core all --no-restart
+```
+
+Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. The root-module replacement is required because shared package tests and helper packages may resolve `github.com/vrooli/vrooli/...` paths during `GOWORK=off go mod tidy` and builds. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
+
+## Test Companions
+
+Shared-package consumer test helpers live in top-level `<pkg>test` sibling
+packages, documented in [Shared Package Testing](../../docs/agent-system/SHARED_PACKAGE_TESTING.md).
+
+- `databasetest` provides `FakeExecer`, the canonical fake for
+  `database.SchemaExecer`.
+- `connectxtest` provides Connect handler server and logger harnesses for
+  tests that consume `connectx`.
 
 ## Database Connections
 
@@ -71,7 +122,7 @@ func main() {
 
 ### How It Works
 
-For known drivers (`postgres`, `sqlite3`), connection parameters are automatically read from environment variables set by the Vrooli lifecycle system:
+For known drivers (`postgres`, `sqlite`, `sqlite3`), connection parameters are automatically read from environment variables set by the Vrooli lifecycle system:
 
 | Variable | Description |
 |----------|-------------|
@@ -128,12 +179,12 @@ db, err := database.Connect(ctx, database.Config{
 ### SQLite Support
 
 ```go
-// Reads SQLITE_PATH or SQLITE_DB from environment
+// Preferred modern SQLite driver name. Reads SQLITE_PATH or SQLITE_DB from environment.
 db, err := database.Connect(ctx, database.Config{
-    Driver: "sqlite3",
+    Driver: "sqlite",
 })
 
-// Or explicit path
+// Legacy CGO-based sqlite3 driver name remains supported for older scenarios.
 db, err := database.Connect(ctx, database.Config{
     Driver: "sqlite3",
     DSN:    "/data/app.db",
@@ -289,6 +340,10 @@ Environment overrides:
 every call (no caching). This avoids hard-coded or stale ports when scenarios
 restart on new allocations.
 
+Use this resolver for scenario API to scenario API communication. Do not pass
+peer scenario API bases through Agent Manager or Swarm Manager runner
+environment variables; service location is a lifecycle discovery concern.
+
 ```go
 import (
     "context"
@@ -397,6 +452,7 @@ Changes to local dependencies via `replace` directives are detected. For each lo
 ```go
 // go.mod
 replace github.com/vrooli/api-core => ../../../packages/api-core
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 ```
 
 ```
@@ -543,3 +599,69 @@ func main() {
 **Retry:**
 - Used internally by `database.Connect()`
 - Available for HTTP clients, external APIs, etc.
+
+**Secrets:**
+- `api-core/secrets` is the shared boundary for local `~/.vrooli/secrets.json`
+- Uses `repo-contract-go` for canonical user-home path resolution and enforces trust checks before reads
+- Preserves `_metadata` while requiring all secret values to be JSON strings
+- Supports both user-scoped stores and explicit-path stores for scenario-local files
+
+Typical usage:
+
+```go
+store, err := secrets.NewUserStore(secrets.Config{
+	EnvLookup: os.Getenv,
+})
+
+resolved, err := store.Resolve("API_KEY")
+err = store.SaveKey("API_KEY", "value")
+deleted, err := store.DeleteKey("API_KEY")
+```
+
+## Shared request authentication
+
+Verified request identity is installed through `server.Config.Authentication`.
+The middleware is passive: it records signed-out, expired, service, conflict,
+and other failure states in the request context so read-only status routes can
+explain recovery without making the whole API unavailable. A mutating domain
+must call `identity.PrincipalFromContext` and require `Principal.IsHuman()` in
+its own policy boundary.
+
+Custom HTTP servers must install the same middleware explicitly around their
+`net/http` handler with `authn.Middleware(config)`. The lifecycle helper can
+only wrap `server.Config.Handler`; callback-based servers such as Fiber own
+their request adapter and must preserve the request context when adapting it.
+# Scope catalog
+
+The `scopecatalog` package builds a deterministic authorization vocabulary from
+the `governance.effect` entries already present in the project and scenario CLI
+manifests. The root CLI uses the stable `vrooli` scope identity; scenario
+manifests retain their own identities and may not collide with it. It
+schema-validates each manifest, records connect-RPC and omitted-method
+coverage, and exposes `Catalog.WriteJSON` for build-time consumers. Building
+the catalog is read-only over the repository; no scenario registers a scope.
+
+`Resolve` is deliberately pure and exact-match: held `*`, `<scenario>:*`, and
+`*:<effect>` wildcards are supported, while case differences and whitespace do
+not grant access.
+
+## Binary boot tests
+
+Use `boottest.Run(t, boottest.Config{Service: "my-scenario-api"})` from an
+`e2e`-tagged API test. The harness builds the current API, allocates a loopback
+port, redirects storage through `VROOLI_STORAGE_ROOT`, and checks decoded
+health JSON for the exact healthy status and service identity. Unix shutdown
+requires exit success after SIGTERM. Startup, HTTP requests, build, and shutdown
+have deadlines; failures include bounded child-process logs.
+
+`Config.Env` carries scenario-specific startup inputs. `StartupTimeout` extends
+the ten-second default for a scenario with slower initialization. Unit Health
+sets `WindowsTermination` to retain native Windows boot coverage; that branch
+uses forced termination and does not establish graceful shutdown. Other callers
+retain their Windows skip or exclusion policies.
+
+The harness simulates a lifecycle-owned environment. It does not prove actual
+control-plane supervision, stale-source re-execution, domain schema contents, or
+cleanup-hook effects beyond process exit. Keep those assertions with their
+owning integration tests. Existing scenario E2E gates remain responsible for
+running each API's boot check.

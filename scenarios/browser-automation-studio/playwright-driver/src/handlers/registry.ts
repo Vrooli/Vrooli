@@ -1,5 +1,6 @@
 import type { InstructionHandler } from './base';
 import type { HandlerInstruction } from '../types';
+import { getActionType } from '../proto';
 import { UnsupportedInstructionError, logger, normalizeInstructionType } from '../utils';
 
 /**
@@ -44,11 +45,12 @@ export class HandlerRegistry {
    */
   getHandler(instruction: HandlerInstruction): InstructionHandler {
     // Normalize instruction type to lowercase for case-insensitive lookup
-    const normalizedType = instruction.type.toLowerCase();
+	const instructionType = getActionType(instruction);
+	const normalizedType = instructionType.toLowerCase();
     const handler = this.handlers.get(normalizedType);
 
     if (!handler) {
-      throw new UnsupportedInstructionError(instruction.type);
+		throw new UnsupportedInstructionError(instructionType);
     }
 
     return handler;

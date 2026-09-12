@@ -9,7 +9,12 @@ import (
 func TestLoadConfigUsesLifecycleEnvs(t *testing.T) {
 	dataRoot := t.TempDir()
 	scenarioRoot := t.TempDir()
-	t.Setenv("TEST_GENIE_SQLITE_PATH", filepath.Join(dataRoot, "custom.db"))
+	t.Setenv("SCENARIO_NAME", "test-genie")
+	t.Setenv("VROOLI_SCENARIO", "test-genie")
+	t.Setenv("SCENARIO_DATA_DIR", dataRoot)
+	t.Setenv("VROOLI_VARIANT", "")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "")
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	t.Setenv("SCENARIOS_ROOT", scenarioRoot)
 	t.Setenv("API_PORT", "4789")
 
@@ -21,7 +26,7 @@ func TestLoadConfigUsesLifecycleEnvs(t *testing.T) {
 	if cfg.Port != "4789" {
 		t.Fatalf("expected port to be 4789, got %s", cfg.Port)
 	}
-	expectedPath := filepath.Join(dataRoot, "custom.db")
+	expectedPath := filepath.Join(dataRoot, "test-genie.db")
 	if cfg.DatabasePath != expectedPath {
 		t.Fatalf("unexpected database path: %s", cfg.DatabasePath)
 	}
@@ -43,25 +48,36 @@ func TestLoadConfigRequiresPort(t *testing.T) {
 	}
 }
 
-func TestResolveDatabaseConfigPrefersExplicitValue(t *testing.T) {
-	t.Setenv("TEST_GENIE_SQLITE_PATH", filepath.Join(t.TempDir(), "explicit.db"))
-	t.Setenv("SCENARIO_DATA_DIR", filepath.Join(t.TempDir(), "ignored"))
+// TestResolveDatabaseConfigIgnoresInheritedPaths is the runtime-level guard on
+// the same defect sqlitedb covers: no database-path variable may redirect the
+// run ledger, however it arrives.
+func TestResolveDatabaseConfigIgnoresInheritedPaths(t *testing.T) {
+	inherited := filepath.Join(t.TempDir(), "autoheal.sqlite")
+	t.Setenv("TEST_GENIE_SQLITE_PATH", inherited)
+	t.Setenv("SQLITE_PATH", inherited)
+	t.Setenv("SQLITE_DB", inherited)
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 
 	cfg, err := resolveDatabaseConfig()
 	if err != nil {
 		t.Fatalf("resolveDatabaseConfig() error: %v", err)
 	}
-	if !strings.HasSuffix(cfg.Path, "explicit.db") {
-		t.Fatalf("expected explicit sqlite path, got %s", cfg.Path)
+	if strings.Contains(cfg.Path, "autoheal") {
+		t.Fatalf("an inherited path redirected the run ledger: %s", cfg.Path)
+	}
+	if !strings.HasSuffix(cfg.Path, "test-genie.db") {
+		t.Fatalf("expected the run ledger, got %s", cfg.Path)
 	}
 }
 
-func TestResolveDatabaseConfigFallsBackToScenarioDataDir(t *testing.T) {
+func TestResolveDatabaseConfigUsesLifecycleDataDir(t *testing.T) {
 	dataRoot := t.TempDir()
-	t.Setenv("TEST_GENIE_SQLITE_PATH", "")
-	t.Setenv("SQLITE_PATH", "")
-	t.Setenv("SQLITE_DB", "")
+	t.Setenv("SCENARIO_NAME", "test-genie")
+	t.Setenv("VROOLI_SCENARIO", "test-genie")
 	t.Setenv("SCENARIO_DATA_DIR", dataRoot)
+	t.Setenv("VROOLI_VARIANT", "")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "")
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
 
 	cfg, err := resolveDatabaseConfig()
 	if err != nil {
@@ -73,26 +89,44 @@ func TestResolveDatabaseConfigFallsBackToScenarioDataDir(t *testing.T) {
 	}
 }
 
-func TestResolveDatabaseConfigFallsBackToScenarioLocalDataDir(t *testing.T) {
-	t.Setenv("TEST_GENIE_SQLITE_PATH", "")
-	t.Setenv("SQLITE_PATH", "")
-	t.Setenv("SQLITE_DB", "")
-	t.Setenv("SCENARIO_DATA_DIR", "")
-	t.Setenv("SQLITE_DATABASE_PATH", "")
-	t.Setenv("VROOLI_DATA", "")
+func TestResolveDatabaseConfigUsesVariantAwareStorageNamespace(t *testing.T) {
+	dataRoot := t.TempDir()
+	t.Setenv("SCENARIO_NAME", "test-genie")
+	t.Setenv("VROOLI_SCENARIO", "test-genie")
+	t.Setenv("SCENARIO_DATA_DIR", dataRoot)
+	t.Setenv("VROOLI_VARIANT", "shadow")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "test-genie_shadow")
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
 
 	cfg, err := resolveDatabaseConfig()
 	if err != nil {
 		t.Fatalf("resolveDatabaseConfig() error: %v", err)
 	}
-
-	root, err := scenarioRoot()
-	if err != nil {
-		t.Fatalf("scenarioRoot() error: %v", err)
+	if strings.HasPrefix(cfg.Path, dataRoot) {
+		t.Fatalf("the shadow reused live's data directory: %s", cfg.Path)
 	}
-	expectedPath := filepath.Join(root, "data", "test-genie.db")
-	if cfg.Path != expectedPath {
-		t.Fatalf("expected fallback path %s, got %s", expectedPath, cfg.Path)
+	if !strings.Contains(cfg.Path, "test-genie_shadow") {
+		t.Fatalf("path %q is not variant-scoped", cfg.Path)
+	}
+}
+
+func TestResolveDatabaseConfigFallsBackToStorageResolver(t *testing.T) {
+	t.Setenv("SCENARIO_NAME", "")
+	t.Setenv("VROOLI_SCENARIO", "")
+	t.Setenv("SCENARIO_DATA_DIR", "")
+	t.Setenv("VROOLI_VARIANT", "")
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "")
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+
+	cfg, err := resolveDatabaseConfig()
+	if err != nil {
+		t.Fatalf("resolveDatabaseConfig() error: %v", err)
+	}
+	if !strings.HasSuffix(cfg.Path, "test-genie.db") {
+		t.Fatalf("expected fallback path to end with test-genie.db, got %s", cfg.Path)
+	}
+	if !filepath.IsAbs(cfg.Path) {
+		t.Fatalf("expected fallback path to be absolute, got %s", cfg.Path)
 	}
 }
 

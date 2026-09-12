@@ -1,0 +1,17 @@
+{
+  "scenario": "go-cycles",
+  "languages": ["go"],
+  "files": [
+    { "id": "f-alpha-a", "path": "pkg/alpha/a.go", "package_id": "p-alpha", "language": "go" },
+    { "id": "f-beta-b",  "path": "pkg/beta/b.go",  "package_id": "p-beta",  "language": "go" }
+  ],
+  "packages": [
+    { "id": "p-alpha", "import_path": "example.com/go-cycles/pkg/alpha", "directory": "pkg/alpha", "language": "go", "internal": true },
+    { "id": "p-beta",  "import_path": "example.com/go-cycles/pkg/beta",  "directory": "pkg/beta",  "language": "go", "internal": true }
+  ],
+  "symbols": [],
+  "imports": [
+    { "from": "p-alpha", "to_package_id": "p-beta" },
+    { "from": "p-beta",  "to_package_id": "p-alpha" }
+  ]
+}

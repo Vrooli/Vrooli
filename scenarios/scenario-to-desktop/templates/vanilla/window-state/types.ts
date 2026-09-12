@@ -104,7 +104,7 @@ export interface IWindowStateManager {
      * Attach to a BrowserWindow to track and save state changes.
      * @param window - The BrowserWindow to manage
      */
-    manage(window: IManagedWindow): void;
+    manage(window: IManagedWindow, persistenceState?: () => WindowState | null): void;
 
     /**
      * Force save the current window state immediately.

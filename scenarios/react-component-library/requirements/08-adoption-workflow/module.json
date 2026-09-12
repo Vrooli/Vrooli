@@ -1,0 +1,84 @@
+{
+  "_metadata": {
+    "module": "adoption-workflow",
+    "description": "Track which scenarios have adopted which components, and compute drift status on refresh.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AD-001",
+      "title": "Link or eject an adoption from the CLI",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "The governed adoption surface records a version-pinned `mode=linked` package dependency through `react-component-library adoptions link`. A deliberate source materialization uses `adoptions eject` and requires a non-empty reason, recording `mode=ejected` and `fork_reason`. Component_id is a soft FK (no SQL constraint) per per-domain rule.",
+      "tags": ["adoption", "cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Repository test, handler test, CLI smoke test all cover the create path."
+        }
+      ]
+    },
+    {
+      "id": "AD-002",
+      "title": "Refresh computes drift status per adoption record",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "`POST /api/v1/adoptions/refresh` (and `... adoptions refresh`) reads each record, fetches the current library version of the component and the byte content at `adopted_path`, and sets `status` ∈ {current, behind, modified, unknown}: `current` if adopted_version == library version AND adopted bytes match library bytes; `behind` if adopted_version < library version AND adopted bytes still match the adopted_version snapshot; `modified` if adopted bytes diverge from any known version; `unknown` if adopted_path is missing.",
+      "tags": ["adoption", "drift"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Service test seeds a fake target scenario tree, varies version/bytes for each status, and asserts the computed status."
+        }
+      ]
+    },
+    {
+      "id": "AD-003",
+      "title": "UI adoptions dashboard lists records with status badges",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "Adoptions page shows a table: component name, target scenario, adopted version, adopted path, status (color-coded badge), last refreshed timestamp. A refresh button triggers the API refresh and re-fetches.",
+      "tags": ["adoption", "ui"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Component test renders the page against fixture data covering each status; a11y test ensures status conveys non-color information."
+        }
+      ]
+    },
+    {
+      "id": "AD-004",
+      "title": "Ejection is explicit and provenance-safe",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P0",
+      "description": "Eject compares the selected source and target, requires a non-empty reason, records source and snapshot hashes plus provenance, and reports direct import sites. Linked adoption never overwrites consumer source.",
+      "tags": ["adoption", "replacement", "provenance"],
+      "validation": [{"type": "automated", "status": "complete", "notes": "internal/adoptions service test proves divergence confirmation, stamped provenance, and import-site reporting."}]
+    },
+    {
+      "id": "AD-005",
+      "title": "Explainable adoption suggestions",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "adoption",
+      "criticality": "P1",
+      "description": "SuggestAdoptions joins InventoryService.ScanScenario, the component registry, design-style fit, dependency compatibility, and adoption records. It excludes already adopted pairs and returns every ranking reason.",
+      "tags": ["adoption", "inventory", "recommendations"],
+      "validation": [{"type": "automated", "status": "complete", "notes": "Handler identity-match test plus live CLI probes across web-console and 20 real scenario candidates."}]
+    }
+  ]
+}

@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "embedding.default": {
+      "description": "Deterministic text embeddings resolved through the local embedding model role.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "embedding.default",
+          "model": "policy-resolved",
+          "reason": "The resource owns the embedding model and its declared vector dimension."
+        }
+      ]
+    },
+    "classify.fast": {
+      "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
+      "timeout_ms": 45000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "classify.routing",
+          "model": "qwen3.5:4b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Small local classification role; the enum grammar carries most of the constraint."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "classify.routing",
+          "model": "policy-resolved",
+          "reason": "Hosted classification fallback when the local resource is unavailable."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "extract.structured": {
+      "description": "Schema-constrained extraction with a mid-size local first candidate.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "chat.default",
+          "model": "qwen3.5:9b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Mid-size local generation role; the gateway validates every returned value locally."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered structured-output fallback."
+        }
+      ]
+    },
+    "judge.default": {
+      "description": "Deterministic rubric evaluation with a local-first candidate and hosted fallback.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "classify.routing",
+          "model": "qwen3.5:4b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local judge keeps rubric decisions available without a network dependency."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback when the local judge is unavailable."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "judge.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered judge fallback."
+        }
+      ]
+    },
+    "locate.visual": {
+      "description": "Visual grounding that returns canonical target bounds and confidence without exposing provider coordinates.",
+      "timeout_ms": 90000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Local-first grounding keeps captured frames on the device and uses the measured vision model ladder."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Hosted multimodal grounding fallback for hosts without an available local vision rung."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered visual grounding fallback."
+        }
+      ]
+    },
+    "device-control.plan": {
+      "description": "Bounded device-control planning over a typed capability and state world model; returns one declared step or a goal-complete verdict.",
+      "timeout_ms": 90000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Local structured inference keeps device state and action planning on the control host."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback when the local planning resource is unavailable."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed structured planning fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "write.default": {
+      "description": "Natural-prose generation: marketing copy, blog and technical writing, and creative drafts. Local-first, because BYOK local writing is the intended edge; a caller who needs frontier prose quality sets profile REMOTE_ONLY rather than the catalog reordering for everyone.",
+      "timeout_ms": 240000,
+      "sampling": { "temperature": 0.9, "overridable": true },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local prose keeps drafts on the host and is the BYOK path a self-hoster gets with no credential."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Hosted fallback where prose quality is the binding constraint; the model stays a resource policy decision."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "write.diverse": {
+      "description": "Diversity-controlled prose generation: one request returns k candidate drafts with verbalized hints. Hosted-first, inverting write.default, because diversity gains are emergent with model capability \u2014 a small local rung would underperform on the technique this role exists to serve. Candidate count is carried by instruction; the schema subset cannot enforce it.",
+      "timeout_ms": 300000,
+      "sampling": { "temperature": 1.0, "overridable": true },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "A k-candidate response is neither short nor cheap, and diversity gain scales with model capability; this is the rung the technique is designed for."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback, ordered ahead of the local rung because capability matters more than locality for this role specifically."
+        },
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local last resort so a host with no credential still gets candidates rather than a failure. Expect measurably lower diversity here; the role's own description says so."
+        }
+      ]
+    },
+    "author.generator": {
+      "description": "Long-form code authoring: a parameterized generator program returned as source, validated by the caller before it is ever run. Hosted-first, because the local candidate is sized for short answers and a generator is neither short nor schema-constrained.",
+      "timeout_ms": 300000,
+      "sampling": { "temperature": 0.2, "overridable": true },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "code.default",
+          "model": "policy-resolved",
+          "reason": "A generator is a program: it must stay internally consistent across a few hundred lines. code.default is the provider's exposed code-authoring role, so the concrete model stays a policy decision rather than a slug in a runtime surface."
+        },
+        {
+          "provider": "ollama",
+          "resource_role": "code.local",
+          "model": "policy-resolved",
+          "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at two sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
+        }
+      ]
+    }
+  }
+}

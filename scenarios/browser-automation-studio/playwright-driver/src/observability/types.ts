@@ -290,7 +290,7 @@ export interface ObservabilityResponse {
  */
 export interface DiagnosticRunRequest {
   /** Type of diagnostic to run */
-  type: 'recording' | 'browser' | 'all';
+  type: 'recording' | 'audio' | 'browser' | 'all';
   /** Optional session ID for session-specific diagnostics */
   session_id?: string;
   /** Diagnostic options */
@@ -333,8 +333,23 @@ export interface RecordingDiagnostics {
   eventFlowTest?: EventFlowTestResult;
 }
 
+/** Browser-session proof for the real-time Web Audio output path. */
+export interface AudioCapabilityDiagnostics {
+  available: boolean;
+  current_time_delta: number;
+  callback_count: number;
+  output_latency: number | null;
+  state: string;
+  duration_ms: number;
+  finding?: string;
+  audio_strategy?: 'host_device' | 'synthetic_sink';
+  host_audio_outcome?: 'device_available' | 'no_device' | 'detection_failed';
+  host_audio_reason?: string;
+}
+
 export interface DiagnosticRunResults {
   recording?: RecordingDiagnostics;
+  audio?: AudioCapabilityDiagnostics;
 }
 
 /**

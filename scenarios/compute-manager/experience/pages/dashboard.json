@@ -1,0 +1,156 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Inventory",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Show every instance this scenario is responsible for, what it has cost so far, and how long it has left, so an operator can see the whole liability without opening anything.",
+    "prd_refs": [
+      "OT-P1-005",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What exists right now, and what it is costing.",
+      "notes": "Cost leads because it accrues whether or not anyone is looking."
+    },
+    {
+      "statement": "How long each instance has left before it drains."
+    },
+    {
+      "statement": "Anything the reconciler could not account for, visible without navigating."
+    },
+    {
+      "statement": "Where to request more capacity."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Inventory is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No instances exist. The page explains what requesting capacity will do and what it will cost."
+    },
+    {
+      "id": "default",
+      "description": "One or more instances, each with elapsed cost and remaining lifetime."
+    },
+    {
+      "id": "partial",
+      "description": "Instances render but the reconciler has not reported recently, so unaccounted count is unknown rather than zero."
+    },
+    {
+      "id": "stale",
+      "description": "Figures are older than the refresh interval and are labelled with their observation time rather than silently shown as current."
+    },
+    {
+      "id": "request-error",
+      "description": "Inventory could not be fetched. The page says so rather than rendering an empty fleet."
+    }
+  ],
+  "elements": [
+    {
+      "id": "inventory-table",
+      "role": "table",
+      "name": "Instances",
+      "description": "One row per instance: name, provider, state, elapsed cost, remaining lifetime."
+    },
+    {
+      "id": "liability-summary",
+      "role": "status",
+      "name": "Current liability",
+      "description": "Total elapsed cost across running instances, and the count of instances expiring within the hour."
+    },
+    {
+      "id": "unaccounted-badge",
+      "role": "status",
+      "name": "Unaccounted instances",
+      "description": "Count of open reconciliation findings, linking to the findings page."
+    },
+    {
+      "id": "request-capacity-action",
+      "role": "link",
+      "name": "Request capacity"
+    }
+  ],
+  "claims": [
+    {
+      "id": "dashboard-cost-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "Total current liability and the unaccounted count are both visible in the first viewport without scrolling.",
+      "tier": "aspirational",
+      "elements": [
+        "liability-summary",
+        "unaccounted-badge"
+      ],
+      "rationale": "Both facts represent money already being spent. A number that requires scrolling to find is a number nobody checks."
+    },
+    {
+      "id": "dashboard-state-not-colour-only",
+      "type": "state-distinct",
+      "statement": "Expiring-soon and unaccounted are distinguishable from ordinary rows without relying on colour, because both are conventionally red and both matter most.",
+      "tier": "aspirational",
+      "elements": [
+        "inventory-table",
+        "unaccounted-badge"
+      ],
+      "rationale": "These are the two states an operator must not miss, and red-on-red is exactly how they get missed."
+    },
+    {
+      "id": "dashboard-single-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "Requesting capacity is the only visually dominant action on the page.",
+      "tier": "aspirational",
+      "elements": [
+        "request-capacity-action"
+      ]
+    },
+    {
+      "id": "dashboard-states-covered",
+      "type": "state-covered",
+      "statement": "Every declared state renders a distinct, readable surface, including the difference between zero unaccounted instances and an unknown unaccounted count.",
+      "tier": "aspirational",
+      "states": [
+        "loading",
+        "empty",
+        "default",
+        "partial",
+        "stale",
+        "request-error"
+      ],
+      "rationale": "Unknown rendered as zero is the failure this claim exists to prevent."
+    },
+    {
+      "id": "dashboard-tabular-numerals",
+      "type": "x-tabular-numerals",
+      "statement": "Cost and lifetime figures are rendered with tabular numerals so columns of figures compare by eye.",
+      "tier": "aspirational",
+      "elements": [
+        "inventory-table"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "inventory-table": {
+        "testid": "inventory-table"
+      },
+      "liability-summary": {
+        "testid": "liability-summary"
+      },
+      "unaccounted-badge": {
+        "testid": "unaccounted-badge"
+      },
+      "request-capacity-action": {
+        "testid": "request-capacity-action"
+      }
+    }
+  }
+}

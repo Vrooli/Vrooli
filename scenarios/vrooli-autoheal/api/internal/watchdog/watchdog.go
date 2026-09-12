@@ -1,22 +1,22 @@
-// Package watchdog detects and manages OS-level service installation
-// for vrooli-autoheal persistence across reboots.
-// [REQ:WATCH-DETECT-001] [REQ:WATCH-LINUX-001] [REQ:WATCH-MAC-001] [REQ:WATCH-WIN-001]
+// Package watchdog owns the scenario-facing watchdog contract. Native
+// lifecycle operations and definition rendering live in platform-go.
 package watchdog
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
-	"vrooli-autoheal/internal/platform"
+	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/reporoot"
 )
 
-// WatchdogType represents the type of OS-level service manager
 type WatchdogType string
 
 const (
@@ -26,65 +26,34 @@ const (
 	WatchdogTypeWindows WatchdogType = "windows-task"
 )
 
-// Status represents the current state of the OS watchdog
 type Status struct {
-	// LoopRunning indicates if the autoheal loop process is currently active
-	LoopRunning bool `json:"loopRunning"`
-
-	// WatchdogType is the type of OS service manager (systemd, launchd, windows-task, or empty)
-	WatchdogType WatchdogType `json:"watchdogType"`
-
-	// WatchdogInstalled indicates if the OS-level service is installed
-	WatchdogInstalled bool `json:"watchdogInstalled"`
-
-	// WatchdogEnabled indicates if the service is enabled to start on boot
-	WatchdogEnabled bool `json:"watchdogEnabled"`
-
-	// WatchdogRunning indicates if the OS service manager reports the service as active
-	WatchdogRunning bool `json:"watchdogRunning"`
-
-	// BootProtectionActive is true when the service is both installed and enabled
-	BootProtectionActive bool `json:"bootProtectionActive"`
-
-	// CanInstall indicates whether the current platform supports watchdog installation
-	CanInstall bool `json:"canInstall"`
-
-	// ServicePath is the path to the service configuration file (if applicable)
-	ServicePath string `json:"servicePath,omitempty"`
-
-	// LastError contains any error encountered during detection
-	LastError string `json:"lastError,omitempty"`
-
-	// ProtectionLevel summarizes the protection state
-	ProtectionLevel ProtectionLevel `json:"protectionLevel"`
-
-	// LingeringEnabled indicates if systemd lingering is enabled for the user (Linux only)
-	// When false on a user service, the service won't start at boot without a login session
-	LingeringEnabled bool `json:"lingeringEnabled"`
-
-	// Username is the current user, used for displaying fix commands in the UI
-	Username string `json:"username,omitempty"`
-
-	// IsUserService indicates if this is a user-level service (vs system-level)
-	IsUserService bool `json:"isUserService,omitempty"`
+	LoopRunning          bool            `json:"loopRunning"`
+	WatchdogType         WatchdogType    `json:"watchdogType"`
+	WatchdogInstalled    bool            `json:"watchdogInstalled"`
+	WatchdogEnabled      bool            `json:"watchdogEnabled"`
+	WatchdogRunning      bool            `json:"watchdogRunning"`
+	BootProtectionActive bool            `json:"bootProtectionActive"`
+	CanInstall           bool            `json:"canInstall"`
+	ServicePath          string          `json:"servicePath,omitempty"`
+	LastError            string          `json:"lastError,omitempty"`
+	ProtectionLevel      ProtectionLevel `json:"protectionLevel"`
+	LingeringEnabled     bool            `json:"lingeringEnabled"`
+	Username             string          `json:"username,omitempty"`
+	IsUserService        bool            `json:"isUserService,omitempty"`
 }
 
-// ProtectionLevel represents the overall protection state
 type ProtectionLevel string
 
 const (
-	// ProtectionFull means watchdog is installed, enabled, and running
-	ProtectionFull ProtectionLevel = "full"
-	// ProtectionPartial means the loop is running but no OS watchdog
+	ProtectionFull    ProtectionLevel = "full"
 	ProtectionPartial ProtectionLevel = "partial"
-	// ProtectionNone means no protection is active
-	ProtectionNone ProtectionLevel = "none"
+	ProtectionNone    ProtectionLevel = "none"
 )
 
-// Detector detects and manages OS watchdog status
 type Detector struct {
 	platform *platform.Capabilities
 	probe    detectorProbe
+	service  serviceBackend
 	mu       sync.RWMutex
 	cached   *Status
 }
@@ -92,15 +61,10 @@ type Detector struct {
 type detectorProbe interface {
 	goos() string
 	commandOutput(name string, args ...string) ([]byte, error)
-	commandOutputInput(name, input string, args ...string) ([]byte, error)
 	commandRun(name string, args ...string) error
 	readDir(path string) ([]os.DirEntry, error)
 	readFile(path string) ([]byte, error)
 	stat(path string) error
-	mkdirAll(path string, perm os.FileMode) error
-	writeFile(path string, data []byte, perm os.FileMode) error
-	remove(path string) error
-	writeTempFile(pattern string, data []byte) (string, error)
 	currentUser() (*user.User, error)
 	userHomeDir() (string, error)
 	getenv(key string) string
@@ -108,93 +72,32 @@ type detectorProbe interface {
 
 type realDetectorProbe struct{}
 
-func (realDetectorProbe) goos() string {
-	return runtime.GOOS
-}
-
+func (realDetectorProbe) goos() string { return runtime.GOOS }
 func (realDetectorProbe) commandOutput(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
-}
-
-func (realDetectorProbe) commandOutputInput(name, input string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	cmd.Stdin = strings.NewReader(input)
-	return cmd.CombinedOutput()
 }
 
 func (realDetectorProbe) commandRun(name string, args ...string) error {
 	return exec.Command(name, args...).Run()
 }
+func (realDetectorProbe) readDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
+func (realDetectorProbe) readFile(path string) ([]byte, error)       { return os.ReadFile(path) }
+func (realDetectorProbe) stat(path string) error                     { _, err := os.Stat(path); return err }
+func (realDetectorProbe) currentUser() (*user.User, error)           { return user.Current() }
+func (realDetectorProbe) userHomeDir() (string, error)               { return os.UserHomeDir() }
+func (realDetectorProbe) getenv(key string) string                   { return os.Getenv(key) }
 
-func (realDetectorProbe) readDir(path string) ([]os.DirEntry, error) {
-	return os.ReadDir(path)
-}
-
-func (realDetectorProbe) readFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-func (realDetectorProbe) stat(path string) error {
-	_, err := os.Stat(path)
-	return err
-}
-
-func (realDetectorProbe) mkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-func (realDetectorProbe) writeFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (realDetectorProbe) remove(path string) error {
-	return os.Remove(path)
-}
-
-func (realDetectorProbe) writeTempFile(pattern string, data []byte) (string, error) {
-	tmpFile, err := os.CreateTemp("", pattern)
-	if err != nil {
-		return "", err
-	}
-	defer tmpFile.Close()
-	if _, err := tmpFile.Write(data); err != nil {
-		return "", err
-	}
-	return tmpFile.Name(), nil
-}
-
-func (realDetectorProbe) currentUser() (*user.User, error) {
-	return user.Current()
-}
-
-func (realDetectorProbe) userHomeDir() (string, error) {
-	return os.UserHomeDir()
-}
-
-func (realDetectorProbe) getenv(key string) string {
-	return os.Getenv(key)
-}
-
-// NewDetector creates a new watchdog detector
 func NewDetector(plat *platform.Capabilities) *Detector {
-	return &Detector{
-		platform: plat,
-		probe:    realDetectorProbe{},
+	if plat == nil {
+		plat = platform.Detect()
 	}
+	return &Detector{platform: plat, probe: realDetectorProbe{}, service: nativeServiceBackend{}}
 }
 
-// Detect checks the current watchdog status
-// [REQ:WATCH-DETECT-001]
 func (d *Detector) Detect() *Status {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	status := &Status{
-		LoopRunning: d.isLoopRunning(),
-		CanInstall:  d.canInstall(),
-	}
-
-	// Detect based on platform
+	status := &Status{LoopRunning: d.isLoopRunning(), CanInstall: d.canInstall()}
 	switch d.platform.Platform {
 	case "linux":
 		d.detectLinux(status)
@@ -205,79 +108,100 @@ func (d *Detector) Detect() *Status {
 	default:
 		status.LastError = "unsupported platform for watchdog"
 	}
-
-	// Calculate protection level
 	status.ProtectionLevel = d.calculateProtectionLevel(status)
 	status.BootProtectionActive = status.WatchdogInstalled && status.WatchdogEnabled
-
 	d.cached = status
 	return status
 }
 
-// GetCached returns the last detected status without re-detecting
 func (d *Detector) GetCached() *Status {
 	d.mu.RLock()
 	cached := d.cached
 	d.mu.RUnlock()
-
 	if cached == nil {
 		return d.Detect()
 	}
 	return cached
 }
 
-// isLoopRunning checks if the autoheal loop is currently running
-// by looking for the vrooli-autoheal CLI process running with the "loop" argument
-func (d *Detector) isLoopRunning() bool {
-	// Look for vrooli-autoheal loop process
-	// This checks if the CLI loop is actually running (not just the API)
+// Invalidate drops the cached status so the next GetCached re-detects.
+func (d *Detector) Invalidate() {
+	d.mu.Lock()
+	d.cached = nil
+	d.mu.Unlock()
+}
 
+// isLoopRunning asks the service manager for the unit's main process. Before
+// 2026-09-02 this was `pgrep -f vrooli-autoheal.*loop`, which matched any
+// process whose command line contained the pattern -- including the shell of
+// whoever was grepping for it -- and so reported a dead loop as running. The
+// service manager is the only party that knows which process is the unit's.
+func (d *Detector) isLoopRunning() bool {
+	unit, ok := platformgo.CoreUnitByID(platformgo.CoreUnitAutohealLoop)
+	if !ok {
+		return false
+	}
 	switch d.probe.goos() {
+	case "linux":
+		for _, scope := range [][]string{{"--user"}, {}} {
+			args := append(append([]string{}, scope...), "show", "-p", "MainPID", "--value", unit.Systemd)
+			output, err := d.probe.commandOutput("systemctl", args...)
+			if err != nil {
+				continue
+			}
+			if pid, convErr := strconv.Atoi(strings.TrimSpace(string(output))); convErr == nil && pid > 0 {
+				return true
+			}
+		}
+		return false
+	case "darwin":
+		uid := strconv.Itoa(os.Getuid())
+		for _, domain := range []string{"gui/" + uid, "user/" + uid, "system"} {
+			output, err := d.probe.commandOutput("launchctl", "print", domain+"/"+unit.Launchd)
+			if err != nil {
+				continue
+			}
+			if pid, found := launchdPID(string(output)); found && pid > 0 {
+				return true
+			}
+		}
+		return false
 	case "windows":
-		// On Windows, use tasklist
-		output, err := d.probe.commandOutput("tasklist", "/FI", "IMAGENAME eq vrooli-autoheal*")
+		output, err := d.probe.commandOutput("sc.exe", "queryex", unit.Windows)
 		if err != nil {
 			return false
 		}
-		return strings.Contains(string(output), "vrooli-autoheal")
-
+		pid, found := scmPID(string(output))
+		return found && pid > 0
 	default:
-		// On Unix-like systems, use pgrep
-		// Look for processes matching "vrooli-autoheal" with "loop" argument
-		if err := d.probe.commandRun("pgrep", "-f", "vrooli-autoheal.*loop"); err == nil {
-			return true
-		}
-
-		// Fallback: check /proc directly on Linux
-		if d.probe.goos() == "linux" {
-			entries, err := d.probe.readDir("/proc")
-			if err != nil {
-				return false
-			}
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				// Skip non-numeric directories
-				pid := entry.Name()
-				if len(pid) == 0 || pid[0] < '0' || pid[0] > '9' {
-					continue
-				}
-				cmdline, err := d.probe.readFile(filepath.Join("/proc", pid, "cmdline"))
-				if err != nil {
-					continue
-				}
-				cmdStr := string(cmdline)
-				if strings.Contains(cmdStr, "vrooli-autoheal") && strings.Contains(cmdStr, "loop") {
-					return true
-				}
-			}
-		}
 		return false
 	}
 }
 
-// canInstall checks if the platform supports watchdog installation
+// launchdPID reads the `pid = N` line launchctl print emits for a running job.
+func launchdPID(output string) (int, bool) {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && fields[0] == "pid" && fields[1] == "=" {
+			pid, err := strconv.Atoi(fields[2])
+			return pid, err == nil
+		}
+	}
+	return 0, false
+}
+
+// scmPID reads the `PID : N` line sc.exe queryex emits.
+func scmPID(output string) (int, bool) {
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 3 && strings.EqualFold(fields[0], "PID") && fields[1] == ":" {
+			pid, err := strconv.Atoi(fields[2])
+			return pid, err == nil
+		}
+	}
+	return 0, false
+}
+
 func (d *Detector) canInstall() bool {
 	switch d.platform.Platform {
 	case "linux":
@@ -291,367 +215,152 @@ func (d *Detector) canInstall() bool {
 	}
 }
 
-// detectLinux checks systemd service status
-// [REQ:WATCH-LINUX-001] [REQ:WATCH-LINUX-002]
 func (d *Detector) detectLinux(status *Status) {
 	if !d.platform.SupportsSystemd {
 		status.LastError = "systemd not available on this Linux system"
 		return
 	}
-
 	status.WatchdogType = WatchdogTypeSystemd
-
-	// Get current user for lingering check and UI display
-	currentUser, err := d.probe.currentUser()
-	if err == nil {
-		status.Username = currentUser.Username
+	if current, err := d.probe.currentUser(); err == nil && current != nil {
+		status.Username = current.Username
 	}
-
-	// Check common service file locations
-	servicePaths := []string{
-		"/etc/systemd/system/vrooli-autoheal.service",
-		"/usr/lib/systemd/system/vrooli-autoheal.service",
-		filepath.Join(d.probe.getenv("HOME"), ".config/systemd/user/vrooli-autoheal.service"),
+	home, _ := d.probe.userHomeDir()
+	if home == "" {
+		home = d.probe.getenv("HOME")
 	}
-
-	for _, path := range servicePaths {
-		if err := d.probe.stat(path); err == nil {
+	paths := []string{"/etc/systemd/system/vrooli-autoheal.service", "/usr/lib/systemd/system/vrooli-autoheal.service", filepath.Join(home, ".config", "systemd", "user", "vrooli-autoheal.service")}
+	for _, path := range paths {
+		if d.probe.stat(path) == nil {
 			status.WatchdogInstalled = true
 			status.ServicePath = path
 			break
 		}
 	}
-
 	if !status.WatchdogInstalled {
 		return
 	}
-
-	// Determine if this is a user service or system service
-	isUserService := strings.Contains(status.ServicePath, ".config/systemd/user")
-	status.IsUserService = isUserService
-
-	// Check if service is enabled
-	var args []string
-	if isUserService {
-		args = []string{"--user", "is-enabled", "vrooli-autoheal"}
-	} else {
-		args = []string{"is-enabled", "vrooli-autoheal"}
+	status.IsUserService = strings.Contains(status.ServicePath, ".config/systemd/user")
+	evidence, err := d.service.Status(platformgo.NativeServiceOptions{
+		Name: "vrooli-autoheal.service", Path: status.ServicePath, User: status.IsUserService,
+	})
+	if err != nil {
+		status.LastError = err.Error()
 	}
-	output, _ := d.probe.commandOutput("systemctl", args...)
-	status.WatchdogEnabled = strings.TrimSpace(string(output)) == "enabled"
-
-	// Check if service is running
-	if isUserService {
-		args = []string{"--user", "is-active", "vrooli-autoheal"}
-	} else {
-		args = []string{"is-active", "vrooli-autoheal"}
-	}
-	output, _ = d.probe.commandOutput("systemctl", args...)
-	status.WatchdogRunning = strings.TrimSpace(string(output)) == "active"
-
-	// For user services, check if lingering is enabled
-	// Lingering allows user services to run at boot without a login session
-	if isUserService && status.Username != "" {
+	status.WatchdogRunning, status.WatchdogEnabled = evidence.State == platformgo.ServiceStateRunning, evidence.Enabled
+	if status.IsUserService {
 		status.LingeringEnabled = d.isLingeringEnabled(status.Username)
-	} else if !isUserService {
-		// System services don't need lingering - they always start at boot
+	} else {
 		status.LingeringEnabled = true
 	}
 }
 
-// isLingeringEnabled checks if systemd lingering is enabled for a user
-// Lingering allows user services to start at boot without requiring a login session
 func (d *Detector) isLingeringEnabled(username string) bool {
-	// Method 1: Check for linger file (most reliable)
-	lingerPath := filepath.Join("/var/lib/systemd/linger", username)
-	if err := d.probe.stat(lingerPath); err == nil {
+	if username == "" {
+		return false
+	}
+	if d.probe.stat(filepath.Join("/var/lib/systemd/linger", username)) == nil {
 		return true
 	}
-
-	// Method 2: Use loginctl as fallback (in case linger directory differs)
 	output, err := d.probe.commandOutput("loginctl", "show-user", username, "--property=Linger")
-	if err == nil {
-		return strings.TrimSpace(string(output)) == "Linger=yes"
-	}
-
-	return false
+	return err == nil && strings.TrimSpace(string(output)) == "Linger=yes"
 }
 
-// detectMacOS checks launchd plist status
-// [REQ:WATCH-MAC-001]
 func (d *Detector) detectMacOS(status *Status) {
 	if !d.platform.SupportsLaunchd {
 		status.LastError = "launchd not available"
 		return
 	}
-
 	status.WatchdogType = WatchdogTypeLaunchd
-
-	// Check plist locations
-	homeDir, _ := d.probe.userHomeDir()
-	plistPaths := []string{
-		filepath.Join(homeDir, "Library/LaunchAgents/com.vrooli.autoheal.plist"),
-		"/Library/LaunchDaemons/com.vrooli.autoheal.plist",
-	}
-
-	for _, path := range plistPaths {
-		if err := d.probe.stat(path); err == nil {
+	home, _ := d.probe.userHomeDir()
+	paths := []string{filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.autoheal.plist"), "/Library/LaunchDaemons/com.vrooli.autoheal.plist"}
+	for _, path := range paths {
+		if d.probe.stat(path) == nil {
 			status.WatchdogInstalled = true
 			status.ServicePath = path
 			status.IsUserService = strings.Contains(path, "LaunchAgents")
 			break
 		}
 	}
-
 	if !status.WatchdogInstalled {
 		return
 	}
-
-	// Check if loaded and running via launchctl list
-	// Output format: "PID\tStatus\tLabel" where PID is "-" if not running
-	output, err := d.probe.commandOutput("launchctl", "list", "com.vrooli.autoheal")
-	if err == nil {
-		// Service is loaded (enabled)
-		status.WatchdogEnabled = true
-
-		// Parse output to determine if actually running
-		// Format: "PID\tStatus\tLabel" - if PID is a number, service is running
-		outputStr := strings.TrimSpace(string(output))
-		fields := strings.Fields(outputStr)
-		if len(fields) >= 1 {
-			// First field is PID - if it's a number (not "-"), service is running
-			pid := fields[0]
-			if pid != "-" && pid != "" {
-				// Try to parse as number to confirm it's a valid PID
-				if _, parseErr := fmt.Sscanf(pid, "%d", new(int)); parseErr == nil {
-					status.WatchdogRunning = true
-				}
-			}
-		}
+	evidence, err := d.service.Status(platformgo.NativeServiceOptions{
+		Name: "com.vrooli.autoheal", Path: status.ServicePath, User: status.IsUserService,
+	})
+	if err != nil {
+		status.LastError = err.Error()
 	}
-	// If launchctl list fails, service is not loaded (not enabled)
+	status.WatchdogEnabled, status.WatchdogRunning = evidence.Enabled, evidence.State == platformgo.ServiceStateRunning
 }
 
-// detectWindows checks Windows Task Scheduler
-// [REQ:WATCH-WIN-001]
 func (d *Detector) detectWindows(status *Status) {
 	if d.probe.goos() != "windows" {
-		// Can't detect Windows services from non-Windows
 		status.LastError = "Windows detection not available on this platform"
 		return
 	}
-
 	status.WatchdogType = WatchdogTypeWindows
-
-	// Check for scheduled task
-	output, err := d.probe.commandOutput("schtasks", "/Query", "/TN", "VrooliAutoheal")
-	if err == nil {
-		status.WatchdogInstalled = true
-		status.ServicePath = "Task Scheduler: VrooliAutoheal"
-
-		// Check if task is enabled
-		outputStr := string(output)
-		status.WatchdogEnabled = strings.Contains(outputStr, "Ready") ||
-			strings.Contains(outputStr, "Running")
-		status.WatchdogRunning = strings.Contains(outputStr, "Running")
+	evidence, err := d.service.Status(platformgo.NativeServiceOptions{Name: "VrooliAutoheal"})
+	if err != nil {
+		status.LastError = err.Error()
+		return
 	}
+	status.WatchdogInstalled, status.ServicePath = evidence.Enabled, "Task Scheduler: VrooliAutoheal"
+	status.WatchdogEnabled, status.WatchdogRunning = evidence.Enabled, evidence.State == platformgo.ServiceStateRunning
 }
 
-// calculateProtectionLevel determines the overall protection level
+// calculateProtectionLevel is honest about "full": the unit must be
+// installed, enabled and active, and the loop process must actually exist.
+// An active unit whose main process is gone is partial protection at best.
 func (d *Detector) calculateProtectionLevel(status *Status) ProtectionLevel {
-	if status.WatchdogInstalled && status.WatchdogEnabled && status.WatchdogRunning {
+	if status.WatchdogInstalled && status.WatchdogEnabled && status.WatchdogRunning && status.LoopRunning {
 		return ProtectionFull
 	}
-	if status.LoopRunning {
+	if status.LoopRunning || (status.WatchdogInstalled && status.WatchdogEnabled) {
 		return ProtectionPartial
 	}
 	return ProtectionNone
 }
 
-// GetServiceTemplate returns the service configuration template for the current platform
 func (d *Detector) GetServiceTemplate() (string, error) {
-	switch d.platform.Platform {
-	case "linux":
-		return d.getSystemdTemplateForService(false), nil
-	case "macos":
-		return d.getLaunchdTemplate(), nil
-	case "windows":
-		return d.getWindowsTaskTemplate(), nil
-	default:
-		return "", fmt.Errorf("unsupported platform: %s", d.platform.Platform)
+	home, _ := d.probe.userHomeDir()
+	root := d.resolveVrooliRoot()
+	loop := filepath.Join(root, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop")
+	if d.probe.goos() == "windows" {
+		loop += ".exe"
 	}
-}
-
-func (d *Detector) getSystemdTemplateForService(systemService bool) string {
-	// Resolve VROOLI_ROOT at runtime for a working template
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
-
-	// Use the Go loop binary for cross-platform consistency
-	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
-	workDir := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal")
-	homeDir, _ := d.probe.userHomeDir()
-	userDirective := ""
-	wantedBy := "default.target"
-	if systemService {
-		userDirective = "User=root\n"
-		wantedBy = "multi-user.target"
-	}
-
-	return fmt.Sprintf(`[Unit]
-Description=Vrooli Autoheal - Self-healing infrastructure supervisor
-# Wait for network and Docker to be ready before starting
-# This prevents race conditions with docker-dependent scenarios
-After=network-online.target docker.service docker.socket
-Wants=network-online.target
-# Optional dependency on Docker - don't fail if Docker isn't installed
-Wants=docker.service
-# Rate limiting to prevent crash loops
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
-[Service]
-Type=simple
-ExecStart=%s
-Restart=always
-# Wait a bit before restarting to allow dependencies to recover
-RestartSec=15
-%sEnvironment=VROOLI_LIFECYCLE_MANAGED=true
-Environment=HOME=%s
-Environment=VROOLI_ROOT=%s
-Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
-WorkingDirectory=%s
-# Graceful shutdown timeout
-TimeoutStopSec=30
-
-[Install]
-WantedBy=%s
-`, loopBinaryPath, userDirective, homeDir, vrooliRoot, homeDir, homeDir, workDir, wantedBy)
-}
-
-func (d *Detector) getLaunchdTemplate() string {
-	// Resolve paths at runtime for a working template
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
-	homeDir, _ := d.probe.userHomeDir()
-
-	// Use the Go loop binary for cross-platform consistency
-	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
-	logPath := filepath.Join(homeDir, "Library/Logs/vrooli-autoheal.log")
-	errPath := filepath.Join(homeDir, "Library/Logs/vrooli-autoheal.error.log")
-
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.vrooli.autoheal</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>%s</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>VROOLI_LIFECYCLE_MANAGED</key>
-        <string>true</string>
-        <key>VROOLI_ROOT</key>
-        <string>%s</string>
-        <key>HOME</key>
-        <string>%s</string>
-        <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin</string>
-    </dict>
-    <key>WorkingDirectory</key>
-    <string>%s/scenarios/vrooli-autoheal</string>
-    <key>StandardOutPath</key>
-    <string>%s</string>
-    <key>StandardErrorPath</key>
-    <string>%s</string>
-    <key>ThrottleInterval</key>
-    <integer>15</integer>
-</dict>
-</plist>
-`, loopBinaryPath, vrooliRoot, homeDir, homeDir, homeDir, vrooliRoot, logPath, errPath)
-}
-
-func (d *Detector) getWindowsTaskTemplate() string {
-	// Resolve paths at runtime for a working template
-	// On Windows, VROOLI_ROOT would typically be in user's home directory
-	vrooliRoot := d.probe.getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		homeDir, _ := d.probe.userHomeDir()
-		vrooliRoot = filepath.Join(homeDir, "Vrooli")
-	}
-
-	// Use the Go loop binary - must have .exe extension on Windows
-	cliPath := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop.exe")
-	workDir := filepath.Join(vrooliRoot, "scenarios", "vrooli-autoheal")
-
-	// Get current user for the task principal
-	currentUser, _ := d.probe.currentUser()
 	username := ""
-	if currentUser != nil {
-		username = currentUser.Username
+	if current, err := d.probe.currentUser(); err == nil && current != nil {
+		username = current.Username
 	}
+	return platformgo.RenderWatchdogDefinition(string(d.platform.Platform), platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loop, VrooliBinary: d.resolveVrooliBinary(), Username: username})
+}
 
-	// Use S4U (Service for User) logon type which allows running at boot without
-	// an active user session and without storing credentials. This is the correct
-	// approach for a watchdog that needs to start at system boot.
-	// Note: S4U requires "Log on as a batch job" privilege for the user.
-	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Description>Vrooli Autoheal - Self-healing infrastructure supervisor</Description>
-    <Author>Vrooli</Author>
-  </RegistrationInfo>
-  <Triggers>
-    <BootTrigger>
-      <Enabled>true</Enabled>
-      <Delay>PT30S</Delay>
-    </BootTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <UserId>%s</UserId>
-      <LogonType>S4U</LogonType>
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>true</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
-    <Hidden>false</Hidden>
-    <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Priority>7</Priority>
-    <RestartOnFailure>
-      <Interval>PT1M</Interval>
-      <Count>999</Count>
-    </RestartOnFailure>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>%s</Command>
-      <WorkingDirectory>%s</WorkingDirectory>
-    </Exec>
-  </Actions>
-</Task>
-`, username, cliPath, workDir)
+// The following compatibility helpers are deliberately thin delegates. They
+// keep older callers compiling while the service definition authority remains
+// in platform-go.
+func (d *Detector) getSystemdTemplateForService(system bool) string {
+	home, _ := d.probe.userHomeDir()
+	root := d.resolveVrooliRoot()
+	loop := filepath.Join(root, "scenarios", "vrooli-autoheal", "cli", "vrooli-autoheal-loop")
+	value, _ := platformgo.RenderWatchdogDefinition("linux", platformgo.WatchdogDefinitionOptions{Root: root, Home: home, LoopBinary: loop, VrooliBinary: d.resolveVrooliBinary(), SystemService: system})
+	return value
+}
+
+func (d *Detector) resolveVrooliRoot() string { return reporoot.Resolve(d.probe.getenv) }
+
+func (d *Detector) resolveVrooliBinary() string {
+	root := d.resolveVrooliRoot()
+	candidates := []string{filepath.Join(root, ".vrooli", "build", "vrooli"), filepath.Join(root, "vrooli")}
+	if d.probe.goos() == "windows" {
+		candidates = []string{filepath.Join(root, ".vrooli", "build", "vrooli.exe"), filepath.Join(root, "vrooli.exe")}
+	}
+	for _, candidate := range candidates {
+		if d.probe.stat(candidate) == nil {
+			return candidate
+		}
+	}
+	if path, err := exec.LookPath("vrooli"); err == nil {
+		return path
+	}
+	return "vrooli"
 }

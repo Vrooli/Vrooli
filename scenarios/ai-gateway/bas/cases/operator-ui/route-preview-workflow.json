@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "name": "route-preview-workflow",
+    "description": "Validate that the route preview operator workflow exposes constraint controls and a separate result region.",
+    "requirement": "AIGW-UI-DASHBOARD",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"AIGW-UI-DASHBOARD\"]"
+      ,"spec_entry_id": "route-preview"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-route-preview",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "ai-gateway",
+          "scenario_path": "/routes/preview",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to route preview"
+        }
+      }
+    },
+    {
+      "id": "wait-preview-form",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/routePreview.form",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Preview form is visible"
+        }
+      }
+    },
+    {
+      "id": "assert-profile-control",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/routePreview.profileSelect",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Route preview profile selector should be visible"
+        },
+        "metadata": {
+          "label": "Profile selector is visible"
+        }
+      }
+    },
+    {
+      "id": "assert-result-region",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/routePreview.result",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 10000,
+          "failure_message": "Route preview result region should be separate from the form"
+        },
+        "metadata": {
+          "label": "Result region is visible"
+        }
+      }
+    }
+  ]
+}

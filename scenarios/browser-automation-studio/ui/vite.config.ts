@@ -3,7 +3,7 @@ import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 import http from 'http';
 import path from 'path';
 import type { Connect, Plugin, ViteDevServer } from 'vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type UserConfig } from 'vite';
 import { defineProject } from 'vitest/config';
 
 // Get environment variables with fallbacks for build time
@@ -28,10 +28,19 @@ const UI_SERVICE_NAME = 'browser-automation-studio';
 const UI_VERSION = process.env.npm_package_version || '1.0.0';
 const MAX_VITEST_THREADS = Math.max(1, Number(process.env.VITEST_MAX_THREADS ?? '2'));
 const MIN_VITEST_THREADS = Math.max(1, Math.min(MAX_VITEST_THREADS, Number(process.env.VITEST_MIN_THREADS ?? '1')));
+const COLLECTING_RAW_COVERAGE = process.env.BAS_COLLECT_RAW_COVERAGE === '1';
 const PROJECT_BASE_TEST_CONFIG = {
   environment: 'jsdom',
-  setupFiles: './src/test-utils/setupTests.ts',
+  setupFiles: ['./src/test-setup.ts'],
   globals: true,
+  // The scenario runner merges raw maps from every focused project, then
+  // enforces the configured 85% floor once over the complete suite.
+  coverage: COLLECTING_RAW_COVERAGE
+    ? {
+      all: false,
+      thresholds: { lines: 0, functions: 0, branches: 0, statements: 0 },
+    }
+    : undefined,
 };
 
 const THREADS_TWO = {
@@ -190,9 +199,13 @@ const ALIASES = {
   '@utils': path.resolve(__dirname, './src/utils'),
   '@constants': path.resolve(__dirname, './src/constants'),
   '@lib': path.resolve(__dirname, './src/lib'),
+  '@components': path.resolve(__dirname, './src/components'),
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === 'profile';
+
+  return {
   // ╔══════════════════════════════════════════════════════════════╗
   // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
   // ║                                                              ║
@@ -207,11 +220,22 @@ export default defineConfig({
   base: './',
   plugins: [react(), healthEndpointPlugin()],
   resolve: {
-    alias: ALIASES,
+    alias: isProfile
+      ? {
+          ...ALIASES,
+          'react-dom/client': 'react-dom/profiling',
+          'react-dom$': 'react-dom/profiling',
+        }
+      : ALIASES,
   },
+  esbuild: isProfile
+    ? {
+        keepNames: true,
+      }
+    : undefined,
   test: {
     environment: 'jsdom',
-    setupFiles: './src/test-utils/setupTests.ts',
+    setupFiles: ['./src/test-setup.ts'],
     globals: true,
     include: [],
     exclude: ['node_modules/**'],
@@ -235,24 +259,38 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      enabled: true,
+      // Focused commands validate behavior without being made to satisfy the
+      // scenario-wide coverage gate. `test:coverage` switches to the dedicated
+      // coverage config, which explicitly enables collection and enforces the
+      // merged 85% floor after every selected project has contributed.
+      enabled: COLLECTING_RAW_COVERAGE,
+      // Focused projects are merged by the coverage runner. Their raw reports
+      // must contain only modules the project actually executes; the normal
+      // suite remains scenario-wide and includes every eligible source file.
+      all: !COLLECTING_RAW_COVERAGE,
       reporter: ['text', 'json', 'html', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
+        'src/**/*.test.{ts,tsx}',
         'src/**/*.test.{ts,tsx,mjs}',
+        'src/**/*.spec.{ts,tsx}',
         'src/**/*.spec.{ts,tsx,mjs}',
-        'src/test-utils/**',
         'src/**/*.d.ts',
         'src/main.tsx',
         'src/bootstrap.tsx',
-        'src/export/**',
+        'src/test-setup.ts',
+        'src/test-utils/**',
+        'src/consts/strings.generated.ts',
+        'src/i18n/locales/**',
+        'src/**/generated/**',
       ],
+      reportOnFailure: true,
       thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0,
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
       },
     },
     environmentOptions: {
@@ -261,6 +299,19 @@ export default defineConfig({
       },
     },
     projects: [
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'boundaries',
+          include: ['vitest/boundaries/**/*.test.ts'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+          coverage: {
+            enabled: false,
+          },
+        },
+      }),
       defineProject({
         resolve: { alias: ALIASES },
         test: {
@@ -283,6 +334,8 @@ export default defineConfig({
           include: [
             'src/domains/projects/ProjectModal.test.tsx',
             'src/domains/projects/ProjectDetail.test.tsx',
+            'src/domains/ai/AIPromptModal.test.tsx',
+            'src/domains/workflows/WorkflowCreationDialog.test.tsx',
             'src/shared/layout/ResponsiveDialog.test.tsx',
             'src/domains/workflows/components/VariableSuggestionList.test.tsx',
             'src/domains/executions/viewer/ExecutionViewer.test.tsx',
@@ -320,6 +373,16 @@ export default defineConfig({
           ...PROJECT_BASE_TEST_CONFIG,
           name: 'utils',
           include: ['src/utils/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'api-clients',
+          include: ['src/api/**/*.test.{ts,tsx}'],
           pool: 'threads',
           poolOptions: THREADS_TWO,
         },
@@ -378,6 +441,21 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
+          name: 'execution-viewer',
+          include: [
+            'src/domains/executions/InlineExecution*.test.{ts,tsx}',
+            'src/domains/executions/history/**/*.test.{ts,tsx}',
+            'src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}',
+            'src/domains/executions/viewer/useExecutionHeartbeat.test.{ts,tsx}',
+          ],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
           name: 'exports-domain',
           include: ['src/domains/exports/**/*.test.{ts,tsx}'],
           pool: 'threads',
@@ -391,6 +469,7 @@ export default defineConfig({
           name: 'shared',
           include: [
             'src/shared/**/*.test.{ts,tsx}',
+            'src/domains/executions/utils/protoEnumName.test.ts',
             'src/domains/**/services/**/*.test.{ts,tsx}',
             'src/views/**/controllers/**/*.test.{ts,tsx}',
           ],
@@ -409,6 +488,18 @@ export default defineConfig({
         target: `http://${API_HOST}:${API_PORT}`,
         changeOrigin: true,
         secure: false,
+        // Routed BAS validation marks the browser context with this header.
+        // Preserve it explicitly across Vite's development proxy so in-page
+        // Connect requests use the same leased database/filesystem as the
+        // initiating execution rather than silently falling back to primary.
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const testMode = req.headers['x-vrooli-test-mode']
+            if (testMode === '1') {
+              proxyReq.setHeader('X-Vrooli-Test-Mode', testMode)
+            }
+          })
+        },
       },
       // WebSocket is served by the main API server on the same port
       '/ws': {
@@ -475,10 +566,7 @@ export default defineConfig({
           }
           // UI component libraries
           if (id.includes('node_modules/lucide-react') ||
-            id.includes('node_modules/react-hot-toast') ||
-            id.includes('node_modules/react-markdown') ||
-            id.includes('node_modules/react-syntax-highlighter') ||
-            id.includes('node_modules/react-split')) {
+            id.includes('node_modules/react-hot-toast')) {
             return 'ui-vendor';
           }
           // State management
@@ -491,10 +579,9 @@ export default defineConfig({
             id.includes('node_modules/tailwind-merge')) {
             return 'utils-vendor';
           }
-          // All other node_modules
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
+          // Leave the remaining dependencies in the route graph. A single
+          // catch-all vendor chunk would make every route's optional
+          // dependency part of the initial modulepreload set.
         },
       },
     },
@@ -506,4 +593,5 @@ export default defineConfig({
     include: ['lucide-react', 'react', 'react-dom', 'zustand'],
     exclude: ['@monaco-editor/react'],  // Lazy load Monaco Editor
   },
+  };
 });

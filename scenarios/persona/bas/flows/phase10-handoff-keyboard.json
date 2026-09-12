@@ -1,0 +1,126 @@
+{
+  "metadata": {
+    "name": "phase10-handoff-keyboard",
+    "description": "Keyboard-only completion of a real Persona handoff queue item.",
+    "requirement": "PSN-P0-007",
+    "version": "1",
+    "execution_mode": "EXECUTION_MODE_MUTATING",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "open-queue",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "persona",
+          "scenario_path": "/handoffs",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the Persona handoff queue" }
+      }
+    },
+    {
+      "id": "wait-queue",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='page-handoffs']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the handoff queue" }
+      }
+    },
+    {
+      "id": "focus-handoff",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": { "selector": "a[href='/handoffs/bas-phase10-handoff-20260819']" },
+        "metadata": { "label": "Focus the handoff queue item" }
+      }
+    },
+    {
+      "id": "open-with-enter",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "key": "Enter" },
+        "metadata": { "label": "Open the handoff with Enter" }
+      }
+    },
+    {
+      "id": "wait-detail",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='page-handoff-detail']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the handoff detail" }
+      }
+    },
+    {
+      "id": "wait-complete",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "button[data-testid=\"handoff-complete\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the human completion action" }
+      }
+    },
+    {
+      "id": "focus-complete",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('button[data-testid=\"handoff-complete\"]')?.focus()"
+        },
+        "metadata": { "label": "Focus the completion action" }
+      }
+    },
+    {
+      "id": "complete-with-enter",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": { "key": "Enter" },
+        "metadata": { "label": "Complete the handoff with Enter" }
+      }
+    },
+    {
+      "id": "assert-completed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "button[data-testid=\"handoff-complete\"]",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Assert the completion action is gone" }
+      }
+    }
+  ],
+  "edges": [
+    { "source": "open-queue", "target": "wait-queue" },
+    { "source": "wait-queue", "target": "focus-handoff" },
+    { "source": "focus-handoff", "target": "open-with-enter" },
+    { "source": "open-with-enter", "target": "wait-detail" },
+    { "source": "wait-detail", "target": "wait-complete" },
+    { "source": "wait-complete", "target": "focus-complete" },
+    { "source": "focus-complete", "target": "complete-with-enter" },
+    { "source": "complete-with-enter", "target": "assert-completed" }
+  ]
+}

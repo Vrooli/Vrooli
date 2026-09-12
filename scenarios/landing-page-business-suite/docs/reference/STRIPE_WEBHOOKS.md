@@ -27,16 +27,16 @@ Add these events to the endpoint:
 3. Endpoint URL: `https://<your-domain>/api/v1/webhooks/stripe`  
    - Local: `stripe listen --forward-to http://localhost:${API_PORT}/api/v1/webhooks/stripe`  
 4. Select the events above and save.  
-5. Stripe shows a **Signing secret** (`whsec_...`). Copy it and set it in the app.
+5. Stripe shows a **Signing secret** (`whsec_...`). Copy it and provision it in the LPBS credential authority.
 
 ## Wire it into the app
 
-Set via admin portal (**Billing → Stripe → Webhook Secret**) or environment:
-- `STRIPE_WEBHOOK_SECRET=whsec_...`
+Set via admin portal (**Billing → Stripe → Webhook Secret**) or the governed credential command:
+- `vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-webhook-secret`
 
 ### How it’s used
 
-- Loaded by `StripeService` (`stripe_service.go`) from DB/env and cached at startup/refresh.  
+- Loaded by `StripeService` through the credential-authority-backed payment-settings seam and cached at startup/refresh.
 - Verified in `VerifyWebhookSignature` before any webhook event is processed. Missing or invalid secrets cause the endpoint to return an error and drop the event.
 
 ## Validation checklist

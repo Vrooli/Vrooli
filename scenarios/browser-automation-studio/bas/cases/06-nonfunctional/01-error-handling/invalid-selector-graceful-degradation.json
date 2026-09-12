@@ -3,12 +3,6 @@
     {
       "id": "e1",
       "source": "navigate-dashboard",
-      "target": "wait-dashboard",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e2",
-      "source": "wait-dashboard",
       "target": "click-invalid-selector",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -51,11 +45,14 @@
   ],
   "metadata": {
     "description": "Validates graceful handling of invalid CSS selectors with appropriate error messages",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Invalid Selector Graceful Degradation",
+    "version": "1"
   },
   "nodes": [
     {
@@ -73,18 +70,6 @@
         "type": "ACTION_TYPE_NAVIGATE"
       },
       "id": "navigate-dashboard"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for dashboard"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2000
-        }
-      },
-      "id": "wait-dashboard"
     },
     {
       "action": {

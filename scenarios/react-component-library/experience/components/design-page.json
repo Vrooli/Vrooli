@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "design-page",
+    "title": "Design workspaces",
+    "purpose": "Local design workspaces page composition.",
+    "storyRef": "../../ui/src/pages/DesignPage.story.json"
+  },
+  "states": [
+    {
+      "id": "scenarios",
+      "example": "scenarios",
+      "description": "Declared work first"
+    },
+    {
+      "id": "pages",
+      "example": "pages",
+      "description": "Scenario page inventory"
+    },
+    {
+      "id": "workspace",
+      "example": "workspace",
+      "description": "Declared page regions"
+    },
+    {
+      "id": "legacy-sketch",
+      "example": "legacy-sketch",
+      "description": "Legacy sketch route opens workspace"
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Design workspaces"
+    }
+  ],
+  "claims": [],
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-experience-surface]"
+      }
+    }
+  }
+}

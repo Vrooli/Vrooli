@@ -2,292 +2,17 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
-	"google.golang.org/protobuf/encoding/protojson"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	downloadhttp "landing-page-business-suite-api/handlers/delivery"
+	"landing-page-business-suite-api/internal/administration"
 )
-
-func TestHandleLandingConfig_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	configStore := setupTestConfigStore(t)
-	planService := NewPlanService(db)
-	downloadService := NewDownloadService(db)
-	service := NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, nil)
-
-	handler := handleLandingConfig(service)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/landing-config?variant=default", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	// Verify response is valid JSON
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-}
-
-func TestHandlePlans_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	// Setup test bundle data
-	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_plans", "production", 1000000, 0.001, "credits")
-	insertBundlePrice(t, db, productID, "price_plans_free", "Free Plan", "free", "month", "usd", 0, false, "", 0, 0, "", 0, 0, 0, 1, "none", sessionTypeSubscription, map[string]interface{}{})
-	insertBundlePrice(t, db, productID, "price_plans_pro", "Pro Plan", "pro", "month", "usd", 4900, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
-
-	planService := NewPlanService(db)
-	handler := handlePlans(planService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/plans", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp landing_page_react_vite_v1.GetPricingResponse
-	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if resp.Pricing == nil {
-		t.Error("Expected pricing in response")
-	}
-}
-
-func TestHandleMeSubscription_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	// Setup test data
-	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_sub", "production", 1000000, 0.001, "credits")
-	insertBundlePrice(t, db, productID, "price_sub_test", "Pro Plan", "pro", "month", "usd", 4900, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
-
-	_, err := db.Exec(`
-		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key)
-		VALUES ('sub_account_test', 'cus_account', 'account@example.com', 'active', 'pro', 'price_sub_test', 'business_suite')
-	`)
-	if err != nil {
-		t.Fatalf("Failed to insert test subscription: %v", err)
-	}
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleMeSubscription(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/subscription", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "account@example.com"})
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp landing_page_react_vite_v1.VerifySubscriptionResponse
-	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if resp.Status == nil {
-		t.Error("Expected subscription status in response")
-	}
-}
-
-func TestHandleMeSubscription_Unauthenticated(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleMeSubscription(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/subscription", nil)
-	// No user context
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
-	}
-
-	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
-	if errResp.ErrorType != ApiErrorTypeUnauthorized {
-		t.Errorf("Expected error type 'unauthorized', got '%s'", errResp.ErrorType)
-	}
-}
-
-func TestHandleMeSubscription_NoSubscription(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleMeSubscription(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/subscription", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "nosub@example.com"})
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	// Should return OK with inactive status
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-}
-
-func TestHandleMeCredits_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_credits", "production", 1000000, 0.001, "credits")
-	insertBundlePrice(t, db, productID, "price_credits", "Pro Plan", "pro", "month", "usd", 4900, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
-
-	// Create credit wallet
-	_, err := db.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits)
-		VALUES ('credits@example.com', 5000000)
-	`)
-	if err != nil {
-		t.Fatalf("Failed to insert credit wallet: %v", err)
-	}
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleMeCredits(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/credits", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "credits@example.com"})
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if _, ok := resp["balance"]; !ok {
-		t.Error("Expected balance in response")
-	}
-}
-
-func TestHandleMeCredits_Unauthenticated(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleMeCredits(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/credits", nil)
-	// No user context
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
-	}
-}
-
-func TestHandleEntitlements_Success(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-	resetStripeTestData(t, db)
-
-	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_ent", "production", 1000000, 0.001, "credits")
-	insertBundlePrice(t, db, productID, "price_ent_test", "Pro Plan", "pro", "month", "usd", 4900, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
-
-	_, err := db.Exec(`
-		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key)
-		VALUES ('sub_ent_test', 'cus_ent', 'entitlements@example.com', 'active', 'pro', 'price_ent_test', 'business_suite')
-	`)
-	if err != nil {
-		t.Fatalf("Failed to insert test subscription: %v", err)
-	}
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleEntitlements(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/entitlements", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "entitlements@example.com"})
-	req = req.WithContext(ctx)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp EntitlementPayload
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	if resp.Status != "active" {
-		t.Errorf("Expected status 'active', got '%s'", resp.Status)
-	}
-}
-
-func TestHandleEntitlements_Unauthenticated(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	planService := NewPlanService(db)
-	accountService := NewAccountService(db, planService)
-
-	handler := handleEntitlements(accountService)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/me/entitlements", nil)
-	// No user context
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
-	}
-}
 
 func TestHandleDownloads_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_dl", "production", 1000000, 0.001, "credits")
@@ -326,10 +51,10 @@ func TestHandleDownloads_Success(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := handleDownloads(authorizer, hostingService, planService)
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=windows", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "downloads@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "downloads@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -342,7 +67,6 @@ func TestHandleDownloads_Success(t *testing.T) {
 
 func TestHandleDownloads_MissingApp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -350,10 +74,10 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := handleDownloads(authorizer, hostingService, planService)
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?platform=windows", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "test@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -364,9 +88,7 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 	}
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if errResp.ErrorType != ApiErrorTypeValidation {
 		t.Errorf("Expected error type 'validation', got '%s'", errResp.ErrorType)
 	}
@@ -374,7 +96,6 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 
 func TestHandleDownloads_MissingPlatform(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -382,10 +103,10 @@ func TestHandleDownloads_MissingPlatform(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := handleDownloads(authorizer, hostingService, planService)
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "test@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -398,7 +119,6 @@ func TestHandleDownloads_MissingPlatform(t *testing.T) {
 
 func TestHandleDownloads_Unauthenticated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -406,7 +126,7 @@ func TestHandleDownloads_Unauthenticated(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := handleDownloads(authorizer, hostingService, planService)
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=test_app&platform=windows", nil)
 	// No user context
@@ -421,7 +141,6 @@ func TestHandleDownloads_Unauthenticated(t *testing.T) {
 
 func TestHandleDownloads_AppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	planService := NewPlanService(db)
@@ -430,10 +149,10 @@ func TestHandleDownloads_AppNotFound(t *testing.T) {
 	authorizer := NewDownloadAuthorizer(downloadService, accountService, "business_suite")
 	hostingService := NewDownloadHostingService(db)
 
-	handler := handleDownloads(authorizer, hostingService, planService)
+	handler := downloadhttp.Authorize(downloadAuthorizationDependencies(authorizer, hostingService, planService))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/downloads?app=nonexistent_app&platform=windows", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "test@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "test@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -447,7 +166,7 @@ func TestHandleDownloads_AppNotFound(t *testing.T) {
 func TestWriteJSON_Protobuf(t *testing.T) {
 	rr := httptest.NewRecorder()
 
-	msg := &landing_page_react_vite_v1.CreditsBalance{
+	msg := &shared.CreditsBalance{
 		BalanceCredits: 1000000,
 	}
 
@@ -463,9 +182,7 @@ func TestWriteJSON_Protobuf(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 }
 
 func TestWriteJSON_Map(t *testing.T) {
@@ -483,9 +200,7 @@ func TestWriteJSON_Map(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	if resp["key"] != "value" {
 		t.Errorf("Expected key 'value', got '%v'", resp["key"])
 	}
@@ -518,9 +233,7 @@ func TestWriteJSONError(t *testing.T) {
 			}
 
 			var errResp ApiErrorResponse
-			if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-				t.Fatalf("Failed to unmarshal error response: %v", err)
-			}
+			decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 			if errResp.Error != tt.message {
 				t.Errorf("Expected error message '%s', got '%s'", tt.message, errResp.Error)
 			}

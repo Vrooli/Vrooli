@@ -1,0 +1,336 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.content_desk.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.content_desk.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "artifacts_approve",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/ApproveDraft",
+      "method": "POST",
+      "summary": "Approve draft after all gates pass",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_create",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/CreateDraft",
+      "method": "POST",
+      "summary": "Create draft",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_list",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/ListDrafts",
+      "method": "POST",
+      "summary": "List drafts",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_submit_release",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/SubmitReleaseDraft",
+      "method": "POST",
+      "summary": "Submit an approved draft to Channel Manager",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_record_release_outcome",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/RecordReleaseOutcome",
+      "method": "POST",
+      "summary": "Record an idempotent Channel Manager publication outcome",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_transition",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/TransitionDraft",
+      "method": "POST",
+      "summary": "Transition draft",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_update_body",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/UpdateDraftBody",
+      "method": "POST",
+      "summary": "Create attributed draft revision",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_attach_asset",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/AttachReleasedAsset",
+      "method": "POST",
+      "summary": "Attach a released Asset Studio reference",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_list_attachments",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/ListDraftAttachments",
+      "method": "POST",
+      "summary": "List draft asset references",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_commission_agent_work",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/CommissionAgentWork",
+      "method": "POST",
+      "summary": "Commission a governed editorial Agent Manager run",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_get_agent_work_result",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetAgentWorkResult",
+      "method": "POST",
+      "summary": "Read a governed editorial Agent Manager result",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_adopt_agent_suggestion",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/AdoptAgentSuggestion",
+      "method": "POST",
+      "summary": "Operator-adopt an editable Agent Manager suggestion",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "campaigns_list",
+      "path": "/vrooli.content_desk.v1.campaigns.CampaignsService/ListCampaigns",
+      "method": "POST",
+      "summary": "List campaigns",
+      "description": "",
+      "category": "campaigns"
+    },
+    {
+      "id": "campaigns_create",
+      "path": "/vrooli.content_desk.v1.campaigns.CampaignsService/CreateCampaign",
+      "method": "POST",
+      "summary": "Create proposed campaign with evidence and slot budget",
+      "description": "",
+      "category": "campaigns"
+    },
+    {
+      "id": "campaigns_activate",
+      "path": "/vrooli.content_desk.v1.campaigns.CampaignsService/ActivateCampaign",
+      "method": "POST",
+      "summary": "Activate evidence-backed campaign",
+      "description": "",
+      "category": "campaigns"
+    },
+    {
+      "id": "claims_list",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ListClaims",
+      "method": "POST",
+      "summary": "List claims",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_list_draft",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ListDraftClaims",
+      "method": "POST",
+      "summary": "List claims cited by a draft",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_create",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/CreateClaim",
+      "method": "POST",
+      "summary": "Create claim with evidence",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_cite",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/CiteClaim",
+      "method": "POST",
+      "summary": "Cite a claim at a draft span",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_verify",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/VerifyClaim",
+      "method": "POST",
+      "summary": "Run claim verification",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_sweep",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/SweepClaims",
+      "method": "POST",
+      "summary": "Verify all check-backed claims",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_coverage",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/GetClaimCoverage",
+      "method": "POST",
+      "summary": "Get supported and uncovered citation spans for a draft",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_extract_proposals",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ExtractClaimProposals",
+      "method": "POST",
+      "summary": "Create review-only claim proposals",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_list_proposals",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ListClaimProposals",
+      "method": "POST",
+      "summary": "List claim proposals for a draft",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_decide_proposal",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/DecideClaimProposal",
+      "method": "POST",
+      "summary": "Accept or reject a claim proposal",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "ledger_list",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListPublishRecords",
+      "method": "POST",
+      "summary": "List publish records",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_contamination",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListContaminatedPublishRecords",
+      "method": "POST",
+      "summary": "List published records contaminated by a claim",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_coverage",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListCoverage",
+      "method": "POST",
+      "summary": "List publish coverage cells and staleness",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_ingest_metric",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/IngestMetricSample",
+      "method": "POST",
+      "summary": "Ingest idempotent Channel Manager metric sample",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_list_remediations",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListRemediations",
+      "method": "POST",
+      "summary": "List active or historical contamination remediations",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_create_remediation",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/CreateRemediation",
+      "method": "POST",
+      "summary": "Create a remediation for a published record",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_resolve_remediation",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ResolveRemediation",
+      "method": "POST",
+      "summary": "Resolve an open remediation without deleting history",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "posttypes_list",
+      "path": "/vrooli.content_desk.v1.posttypes.PosttypesService/ListPostTypes",
+      "method": "POST",
+      "summary": "List post types",
+      "description": "",
+      "category": "posttypes"
+    },
+    {
+      "id": "posttypes_register",
+      "path": "/vrooli.content_desk.v1.posttypes.PosttypesService/RegisterPostType",
+      "method": "POST",
+      "summary": "Register or activate a post type",
+      "description": "",
+      "category": "posttypes"
+    },
+    {
+      "id": "review_list",
+      "path": "/vrooli.content_desk.v1.review.ReviewService/ListReviewRuns",
+      "method": "POST",
+      "summary": "List review runs",
+      "description": "",
+      "category": "review"
+    },
+    {
+      "id": "review_record",
+      "path": "/vrooli.content_desk.v1.review.ReviewService/RecordReviewRun",
+      "method": "POST",
+      "summary": "Record re-runnable craft and policy verdicts",
+      "description": "",
+      "category": "review"
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "agent-avatar",
+    "title": "Agent avatar",
+    "purpose": "Identifies an agent at a glance from the colour triple its prompt-manager descriptor already carries, so a roster is scannable without reading names.",
+    "storyRef": "../../../react-component-library/library/components/Avatar/versions/1.3.14/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The agent's colour triple rendered at roster size."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "The descriptor has not resolved yet."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "The descriptor could not be read; the avatar says so rather than showing a blank."
+    },
+    {
+      "id": "compact",
+      "example": "compact",
+      "description": "Inline size, used beside a message author name."
+    },
+    {
+      "id": "group",
+      "example": "group",
+      "description": "Several agents in one room, overlapped."
+    }
+  ],
+  "elements": [
+    {
+      "id": "avatar-root",
+      "role": "img",
+      "name": "Agent avatar"
+    },
+    {
+      "id": "fallback-initial",
+      "role": "img",
+      "name": "Agent initial"
+    }
+  ],
+  "claims": [
+    {
+      "id": "triple-is-the-identity",
+      "type": "custom",
+      "statement": "The avatar renders from the descriptor's body, head and accent values rather than from a generated hash.",
+      "tier": "manual",
+      "elements": [
+        "avatar-root"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The triple already exists on every agent descriptor; deriving a different identity would make the roster and the descriptor disagree."
+    },
+    {
+      "id": "named-for-screen-readers",
+      "type": "accessible-name",
+      "statement": "The avatar carries the agent's display name as its accessible name, never just the word avatar.",
+      "tier": "aspirational",
+      "elements": [
+        "avatar-root"
+      ]
+    },
+    {
+      "id": "unreadable-is-visible",
+      "type": "state-distinct",
+      "statement": "An unreadable descriptor is perceivably distinct from a still-loading one.",
+      "tier": "aspirational",
+      "elements": [
+        "avatar-root"
+      ],
+      "states": [
+        "loading",
+        "request-error"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "The colour triple keeps sufficient contrast against both theme grounds.",
+      "tier": "aspirational",
+      "elements": [
+        "avatar-root"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "avatar-root": {
+        "testid": "agent-avatar"
+      },
+      "fallback-initial": {
+        "testid": "agent-avatar-initial"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Which agent this is, before any text is read"
+    },
+    {
+      "statement": "Whether the profile failed to resolve"
+    }
+  ]
+}

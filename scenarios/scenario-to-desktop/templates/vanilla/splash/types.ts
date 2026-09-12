@@ -94,6 +94,7 @@ export interface SplashWindowConfig {
      * @default true
      */
     allowEscapeClose: boolean;
+    onPhase?: (phase: "created" | "load_completed" | "ready_to_show" | "shown" | "first_paint") => void | Promise<void>;
 }
 
 /**

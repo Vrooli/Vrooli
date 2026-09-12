@@ -1,0 +1,75 @@
+{
+  "description": "`scenario-completeness-scoring score get \u003cscenario\u003e [--json]` returns in \u003c1s warm with zero network calls on the core path, computed purely from cached filesystem artifacts of the target scenario.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "The CLI command `scenario-completeness-scoring score get \u003cscenario\u003e [--json]` must return a complete score response within 1 second on a warm execution (artifacts already on disk). The entire core computation must be performed exclusively from cached filesystem artifacts of the target scenario — specifically requirements/index.json, coverage/requirements-sync metadata, coverage/phase-results/*.json, coverage/runs.index.json, .vrooli/service.json, and ui/src scan. Zero network calls are permitted on the core score path. The implementation must reside in api/internal/signals, api/internal/freshness, and api/internal/scoring domains.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Score Read Path Sub-Second Warm Response with Zero Network Calls",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/score_read_path_test.go: table test verifying score computation completes against fixture artifact dirs with no outbound calls (mock http transport returns error to confirm zero calls)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/collector_test.go: verify each signal collector reads only from provided filesystem paths and performs no network I/O",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/score_read_path_test.go [REQ:OT-P0-001]: verify function returns populated ScoreResult struct from well-formed fixture dir",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: spin up temp scenario dir with real tree digest and synthetic coverage/runs.index.json, invoke GetScore over Connect-RPC, assert response arrives within 1s warm",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: run `score get \u003cscenario\u003e` against a real scenario checkout and assert exit code 0 with non-empty output",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "time 3 warm runs of `score get` against a real scenario checkout; each run must complete in \u003c1000ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "pprof trace must show zero net/http dial calls during core score path execution",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Catalog consumers can retrieve a scenario score from CLI without requiring any network connectivity or live service dependencies",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Score Read Path"
+}

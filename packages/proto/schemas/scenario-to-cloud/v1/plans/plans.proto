@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.plans;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/plans;plansv1";
+
+// =============================================================================
+// PLANS — one executable plan for preview, policy and apply
+// =============================================================================
+//
+// @stability beta
+//
+// A plan is a typed action graph compiled from desired state, the declared
+// closure and target observations. Preview renders it; apply admits it by
+// the exact semantic digest the operator reviewed. A shell command is never
+// the semantic unit: `Preview.shell_preview` is a derived convenience.
+//
+// Semantic digest: sha256 over the canonical JSON of ExecutablePlan without
+// `presentation`. Presentation-only edits keep the digest; a changed target,
+// artifact, privilege need or destructive effect changes it.
+//
+// JSON on the wire uses these field names (snake_case) — the REST endpoints
+// POST /api/v1/deployments/{id}/plan and /plan/apply return the same shapes.
+//
+// USAGE CONTEXTS:
+//   - api/execplan: compiler, digest, renderer, validation.
+//   - api/plansvc: Connect handler mounted beside the REST routes.
+//
+// =============================================================================
+
+service PlansService {
+  // CompilePlan compiles and previews the plan for a deployment. It creates
+  // no records and causes no target effect.
+  rpc CompilePlan(CompilePlanRequest) returns (CompilePlanResponse);
+  // ApplyPlan admits the reviewed plan digest as a durable operation.
+  // Refuses with plan_digest_mismatch, plan_stale or needs_input.
+  rpc ApplyPlan(ApplyPlanRequest) returns (ApplyPlanResponse);
+}
+
+// Target is the identity part of the target binding (never the locator).
+message Target {
+  string machine_id = 1;
+  string node_id = 2;
+  uint64 enrollment_generation = 3;
+  // "bridge" | "ssh"
+  string transport = 4;
+}
+
+// Precondition is one material fact the plan was compiled against.
+message Precondition {
+  // deployment_revision | target_enrollment | release_digest | closure_digest |
+  // configuration_digest | data_schema | privilege_set
+  string kind = 1;
+  string value = 2;
+}
+
+// Downtime declares the expected unavailability an action causes.
+message Downtime {
+  int32 expected_seconds = 1;
+  string reason = 2;
+}
+
+// Action is one node of the plan graph. Inputs never carry a shell string.
+message Action {
+  string id = 1;
+  // One of the documented owner operations (docs/reference/executable-plan.md).
+  string owner_operation = 2;
+  // none | host_write | edge_write | deployment_write | data_write |
+  // credential_write | runtime_stop | runtime_start
+  string effect = 3;
+  string required_capability = 4;
+  map<string, string> inputs = 5;
+  repeated string depends_on = 6;
+  string verification = 7;
+  string recovery = 8;
+  // safe_replay | observe_then_replay | recover
+  string retry = 9;
+  bool cancel_point = 10;
+  Downtime downtime = 11;
+}
+
+// Handoff is the single durable reference an operator resumes from.
+message Handoff {
+  string owner = 1;
+  string kind = 2;
+  string reference = 3;
+  repeated string missing = 4;
+  string deployment_id = 5;
+  Target target = 6;
+  uint64 desired_revision = 7;
+  string selection_digest = 8;
+}
+
+// Presentation is human text, excluded from the semantic digest.
+message Presentation {
+  string title = 1;
+  string summary = 2;
+  string downtime_note = 3;
+  string recovery_note = 4;
+}
+
+// ExecutablePlan is the plan envelope (schema_version "1").
+message ExecutablePlan {
+  string schema_version = 1;
+  string deployment_id = 2;
+  string scenario_id = 3;
+  string environment = 4;
+  Target target = 5;
+  // full | install | runtime | start
+  string scope = 6;
+  // apply | no_op | needs_input
+  string outcome = 7;
+  uint64 desired_revision = 8;
+  string release_digest = 9;
+  string configuration_digest = 10;
+  string closure_digest = 11;
+  string policy_version = 12;
+  repeated Precondition preconditions = 13;
+  repeated Action actions = 14;
+  Handoff handoff = 15;
+  Presentation presentation = 16;
+}
+
+// Change is one reviewable entry of a preview.
+message Change {
+  string action_id = 1;
+  string operation = 2;
+  string effect = 3;
+  string capability = 4;
+  string summary = 5;
+  string verification = 6;
+  string recovery = 7;
+  string retry = 8;
+  bool cancel_point = 9;
+}
+
+// DataEffect names a persistent-data set the plan touches or protects.
+message DataEffect {
+  string action_id = 1;
+  string subject = 2;
+  string effect = 3;
+}
+
+// ShellPreviewLine is display only; execution never consumes it.
+message ShellPreviewLine {
+  string action_id = 1;
+  string command = 2;
+}
+
+// Preview is the review surface rendered from the action graph.
+message Preview {
+  string target = 1;
+  string outcome = 2;
+  repeated Change changes = 3;
+  repeated DataEffect data_effects = 4;
+  Downtime downtime = 5;
+  string recovery_strategy = 6;
+  Handoff handoff = 7;
+  repeated ShellPreviewLine shell_preview = 8;
+}
+
+message CompilePlanRequest {
+  // @format uuid
+  string deployment_id = 1;
+  // Optional plan scope; empty means full.
+  string scope = 2;
+  // Build (or rebuild) the release archive before compiling so the plan
+  // pins a real release digest. A deployment without a recorded bundle is
+  // always built; this flag forces a rebuild of an existing one.
+  bool force_bundle_build = 3;
+}
+
+message CompilePlanResponse {
+  // @default "1"
+  string schema_version = 1;
+  ExecutablePlan plan = 2;
+  string plan_digest = 3;
+  Preview preview = 4;
+  // "derived" or "unavailable: <reason>"
+  string closure_status = 5;
+}
+
+message ApplyPlanRequest {
+  // @format uuid
+  string deployment_id = 1;
+  // The semantic digest the caller reviewed. Required.
+  string plan_digest = 2;
+  // Caller idempotency key; the same key with the same digest replays the
+  // admitted operation, a different digest is request_key_conflict.
+  string request_key = 3;
+  string scope = 4;
+  // Run the target preflight before the first effectful step.
+  bool run_preflight = 5;
+}
+
+message ApplyPlanResponse {
+  string schema_version = 1;
+  string operation_id = 2;
+  string plan_digest = 3;
+  // admitted | no_op (or the replayed operation's state)
+  string state = 4;
+}

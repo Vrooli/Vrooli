@@ -1,123 +1,72 @@
 # Meta Optimization Team
 
 ## Mission
+Apply evolutionary pressure to Vrooli's meta-layer so skills, agents, teams, and tool contracts become cheaper, sharper, more programmatic, and easier to retire when stale.
 
-Ensure the health of Vrooli's entire development capability chain — from core infrastructure to development tools to the skills, agents, and teams that drive all work. We detect and escalate critical issues, then directly optimize the meta-layer that compounds across everything else.
+## Scope
+Owns meta-layer optimization: skills, prompt-manager agents, team contracts, prompt surfaces, and run-derived lessons.
 
-## Priority Framework
+Does not own scenario code quality, monetization strategy, or new scenario design.
 
-All work follows a strict priority waterfall. The team addresses the highest-priority issue before moving to lower priorities.
+## Team-Specific Principles
+- Prefer usage-grounded changes over aesthetic cleanup.
+- Prefer programmatic conversion when repeated prose can become deterministic tooling.
+- Proposals need a measurable baseline.
+- Pruning is a first-class improvement path.
+- Cross-lane changes are proposals to the owning surface, not direct implementation.
 
-| Priority | Domain | Data Source | Action |
-|----------|--------|-------------|--------|
-| P1 | Core infrastructure failures | `vrooli-autoheal status` | Escalate immediately |
-| P2 | Critical toolchain issues | DTV conflicts, scenario-auditor critical violations | Escalate or fix directly |
-| P3 | Toolchain degradation | DTV drift, maturity, tool baselines | Queue for specialists |
-| P4 | Skill/agent/team health | `prompt-manager graph` queries | Direct optimization |
-| P5 | Growth opportunities | DTV coverage gaps, capability analysis | Research-Analyze-Plan pipeline |
+## Shared team corpus
+Durable context lives in the `team:meta-optimization` source-ledger scope. Use `source-ledger recall` and `source-ledger journal note`; file substrate work once through swarm-manager.
 
-### P1: Core Infrastructure
+## Audit coverage
 
-Vrooli-autoheal monitors resources and scenarios. If critical health checks fail, nothing else works reliably. Meta-lead checks autoheal status first on every heartbeat.
+The team is six agents. Five run audits across different lenses; one is a mandatory skeptic. Each produces evidence and routed work; none of them implement directly (the team's role is evolutionary pressure, not execution).
 
-- **Indicators**: vrooli-autoheal reports critical or failing checks.
-- **Response**: Escalate to director-swarm and/or ecosystem-manager with severity and impact assessment.
-- **Do not**: Attempt to fix infrastructure directly. Autoheal handles recovery; escalation ensures visibility and coordination.
+```mermaid
+flowchart TB
+    TRIG[Audit triggers:<br/>scheduled heartbeat /<br/>on-work item /<br/>on-skill-edit /<br/>on-run-completion]
 
-### P2: Critical Toolchain Issues
+    subgraph TEAM[Meta-optimization team]
+      direction TB
+      M1[team-agent-optimizer<br/>10-layer rubric on<br/>teams + agents +<br/>capability architecture]
+      M2[skill-optimizer<br/>skill drift, usage,<br/>action graduation candidates,<br/>deprecation]
+      M3[run-introspector<br/>agent-manager run traces,<br/>error / retry / slowness<br/>patterns]
+      M4[debt-curator<br/>typed evidence scan;<br/>promote to canon /<br/>retire when obsolete]
+      M5[toolchain-validator<br/>development-toolchain-validator<br/>against gold-star scenarios]
+      M6[meta-contrarian<br/>skeptic across all<br/>proposals; aging scan<br/>on the work queue]
+    end
 
-Development tools (scenario-auditor, test-genie, completeness-scoring) and steer skills must produce correct, non-contradictory guidance. Conflicts between skills or broken tool output corrupt every scenario being built.
+    TRIG --> M1 & M2 & M3 & M4 & M5
 
-- **Indicators**: DTV cross-skill conflicts, scenario-auditor critical violations, test-genie failures on reference scenarios.
-- **Response**: Skill conflicts go to skill-optimizer for resolution. Tool failures are escalated to ecosystem-manager for repair.
-- **Why critical**: A broken steer skill or tool silently degrades every agent session that uses it.
+    M1 --> OUT[Work Items filed]
+    M2 --> OUT
+    M3 --> OUT
+    M4 --> OUT
+    M5 --> OUT
 
-### P3: Toolchain Degradation
+    M6 -.challenges.-> M1 & M2 & M3 & M4 & M5
 
-Non-urgent but high-leverage. Skill drift (content changed since last validation), low maturity scores (skills too vague to validate programmatically), and tool baseline regressions erode quality over time.
+    OUT --> CTX{Context}
+    CTX --> CTX1[team-structure-change]
+    CTX --> CTX2[agent-improvement]
+    CTX --> CTX3[action-candidate /<br/>action-improvement /<br/>action-deprecation]
+    CTX --> CTX4[meta-self-improvement]
+    CTX --> CTX5[capability work item]
+```
 
-- **Indicators**: DTV drift alerts, low maturity scores, tool baseline deviations.
-- **Response**: Queue findings for skill-optimizer to address alongside P4 work.
-- **Why separate from P2**: These don't break things immediately but compound into silent quality loss.
+### Member responsibilities (compact)
 
-### P4: Skill/Agent/Team Health
+| Member | Audit lens | Primary work types |
+|---|---|---|
+| `team-agent-optimizer` | 10-layer team-member capability audit (`docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`); team + agent file structure | `team-structure-change`, `agent-improvement`, `capability work item` |
+| `skill-optimizer` | Skill drift, usage telemetry, promotion-ladder progress (`docs/agent-system/PROMOTION_LADDER.md`); detects action-candidate + action-deprecation | `action-candidate`, `action-improvement`, `action-deprecation`, `meta-self-improvement` |
+| `run-introspector` | Recent agent-manager run telemetry; ground-truth on what actually happens vs. what's documented | `agent-improvement`, `meta-self-improvement`, `capability work item` |
+| `debt-curator` | The team's own typed evidence topics and shared artifacts; promotion + retirement candidates | `meta-self-improvement` |
+| `toolchain-validator` | Dev toolchain (development-toolchain-validator and fallbacks) against gold-star reference scenarios | `meta-self-improvement`, `capability work item` |
+| `meta-contrarian` | Skepticism across all of the above; aging scan on the team's work queue (the team's stale-work-item-handler) | (none owned; proposes counterargument and supersession) |
 
-The team's core competency. Use prompt-manager's relationship graph to find underperformers, orphans, and structural issues, then optimize directly.
+### Why six members and not one big auditor
 
-- **Indicators**: Low health scores, orphaned skills, skillless agents, empty teams, cliless skills, circular references.
-- **Response**: Direct optimization by the appropriate specialist (skill-optimizer, agent-optimizer, or team-optimizer).
+Each lens looks at a different surface, with different cadence and different evidence. Folding them into one member would either flatten the audits to whichever lens shouts loudest, or require one member to context-switch between five orthogonal jobs each heartbeat. Splitting them keeps each audit small, focused, and independently improvable.
 
-### P5: Opportunities
-
-Growth work. Identify capability gaps, create new skills, expand coverage, improve ecosystem integration. Only pursued when P1-P4 have no active issues.
-
-- **Indicators**: DTV coverage gaps, cross-team feedback, capability analysis.
-- **Response**: Feed into the Research-Analyze-Plan pipeline for structured investigation and implementation.
-
-## Compound Impact Principle
-
-A skill used by 5 teams that improves by 20% has 5x the impact of a skill used by 1 team that improves by 100%. Within each priority level, optimize for ecosystem-wide impact, not local perfection.
-
-## Optimization Methodology
-
-1. **Measure** — Check data sources in priority order (P1 to P5).
-2. **Identify** — Use structural queries and reports to find concrete targets.
-3. **Prioritize** — Rank by priority level first, then by compound impact within each level.
-4. **Optimize** — Make targeted improvements following quality criteria.
-5. **Validate** — Re-check after changes to confirm measurable improvement.
-6. **Iterate** — Use health deltas to inform the next cycle.
-
-## Quality Hierarchy
-
-- **Skills** — Foundation. Skills make agents effective.
-- **Agents** — Middle layer. Agents use skills within teams.
-- **Teams** — Top layer. Teams coordinate agents toward goals.
-
-Improving a lower layer compounds upward through all higher layers.
-
-## Data Sources
-
-### Infrastructure Health (P1)
-
-- `vrooli-autoheal status [--json]` — Current health of all monitored resources and scenarios.
-- `vrooli-autoheal checks` — List all registered health checks.
-
-### Development Toolchain (P2/P3)
-
-*Commands available when development-toolchain-validator ships.*
-
-- `development-toolchain-validator validate <reference>` — Run full validation against a reference scenario.
-- `development-toolchain-validator report --conflicts` — Cross-skill contradictions.
-- `development-toolchain-validator report --drift` — Skills changed since last validation.
-- `development-toolchain-validator report --maturity` — Skill configurability and maturity scores.
-- `development-toolchain-validator report --tool-baselines` — Tool accuracy regression checks.
-- `scenario-auditor scan <scenario> [--summary]` — Standards violations for a scenario.
-
-### Prompt-Manager Graph (P4)
-
-- `prompt-manager graph show` — Ecosystem health snapshot.
-- `prompt-manager graph health [--type X]` — Entity health scores.
-- `prompt-manager graph orphaned-skills` — Skills not referenced by any agent.
-- `prompt-manager graph skillless-agents` — Agents not referencing any skills.
-- `prompt-manager graph empty-teams` — Teams without members.
-- `prompt-manager graph cliless-skills` — Skills without CLI promotion.
-- `prompt-manager graph popular [--type X]` — Most-referenced entities by edge count.
-- `prompt-manager graph circular-refs` — Dependency cycles.
-- `prompt-manager graph node <id>` — Entity detail with connections and health breakdown.
-
-## Cross-Team Coordination
-
-- **Director Swarm** receives P1/P2 escalations and periodic improvement reports.
-- **Ecosystem Manager** receives work items for tool fixes and scenario improvements.
-- **All teams** provide feedback on skill/agent/team effectiveness.
-
-## Key Skills
-
-- `leader-research-analyze-plan` — Primary pipeline for P5 research and planning.
-- `skill-improvement-suggestions` — Individual skill analysis methodology.
-- `skill-validation` — Skill quality validation criteria.
-- `skill-principles` — Universal skill quality standards.
-- `conversation-friction-analysis` — Agent interaction analysis.
-- `capability-extraction` — Extract reusable methodologies from agent files.
-- `team-tool-mapping` — Equip teams with scenario-based tool skills using lazy evaluation for demand-driven development.
-- `visited-tracker-tools` — Track investigated entities across optimization cycles.
+The contrarian role exists because every other member is biased toward action — they audit, find smells, and propose changes. Without a designated skeptic, the team would over-propose. The contrarian's job is to challenge polishing, premature conversion, scope creep, conversion-without-measurement, and substrate-contaminated experiment conclusions (`skill-optimizer` RESPONSIBILITIES §Skill Experiments) before those proposals reach the operator queue. The full enumerated failure-mode framework lives in `members/meta-contrarian/RESPONSIBILITIES.md`.

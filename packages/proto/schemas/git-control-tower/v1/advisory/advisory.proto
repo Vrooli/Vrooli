@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.advisory;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory;advisory_v1";
+
+// AdvisoryService is the typed surface for evidence-bound, non-mutating
+// summaries and drafts. Provider delivery remains a separate webhook
+// transport because it must accept the provider's signed payload shape.
+service AdvisoryService {
+  rpc Draft(DraftRequest) returns (DraftResponse);
+}
+
+message DraftRequest {
+  string kind = 1;
+  ChangeSubject subject = 2;
+  EvidenceBundle evidence = 3;
+}
+
+message ChangeSubject {
+  string repository_id = 1;
+  string kind = 2;
+  HostSubject host = 3;
+  string base_revision = 4;
+  string head_revision = 5;
+  string parent_revision = 6;
+  SubjectScope scope = 7;
+  string snapshot_digest = 8;
+}
+
+message HostSubject {
+  string provider = 1;
+  string instance_id = 2;
+  string repository_id = 3;
+  string change_number = 4;
+}
+
+message SubjectScope {
+  repeated string paths = 1;
+  string selection_digest = 2;
+}
+
+message EvidenceBundle {
+  string operation_id = 1;
+  string subject_digest = 2;
+  string status = 3;
+  repeated Claim claims = 4;
+  Coverage coverage = 5;
+  repeated ValidationRef validation = 6;
+  repeated string unknowns = 7;
+  map<string, string> versions = 8;
+}
+
+message Claim {
+  string text = 1;
+  repeated string evidence_refs = 2;
+}
+
+message Coverage {
+  int32 included_files = 1;
+  int32 omitted_files = 2;
+  repeated Omission omissions = 3;
+}
+
+message Omission {
+  string path = 1;
+  string reason = 2;
+}
+
+message ValidationRef {
+  string execution_id = 1;
+  string availability = 2;
+  string verdict = 3;
+}
+
+message DraftResponse {
+  string status = 1;
+  string kind = 2;
+  string subject_digest = 3;
+  string title = 4;
+  string body = 5;
+  repeated string unknowns = 6;
+  Coverage coverage = 7;
+  repeated string evidence_refs = 8;
+}

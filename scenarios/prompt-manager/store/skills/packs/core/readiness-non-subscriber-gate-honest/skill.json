@@ -1,0 +1,23 @@
+{
+  "createdAt": "2026-09-01T20:28:23Z",
+  "description": "Evaluate the deployment readiness check: The gate is honest to a paying customer",
+  "entry": "SKILL.md",
+  "id": "readiness-non-subscriber-gate-honest",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "readiness-non-subscriber-gate-honest",
+  "origin": {
+    "kind": "authored"
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "readiness-check",
+    "deployment-manager"
+  ],
+  "updatedAt": "2026-09-01T20:28:23Z"
+}

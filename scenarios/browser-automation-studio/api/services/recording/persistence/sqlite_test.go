@@ -301,11 +301,11 @@ func TestSQLiteRepository_SaveTimelineEntry(t *testing.T) {
 
 	// Create action entry
 	action := &domain.RecordingAction{
-		ID:          uuid.New(),
-		SessionID:   session.ID,
-		ActionType:  "click",
-		Confidence:  0.95,
-		Selector:    &domain.SelectorSet{Primary: "#submit"},
+		ID:         uuid.New(),
+		SessionID:  session.ID,
+		ActionType: "click",
+		Confidence: 0.95,
+		Selector:   &domain.SelectorSet{Primary: "#submit"},
 	}
 
 	entry := &UnifiedTimelineEntry{

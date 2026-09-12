@@ -1,11 +1,55 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "operator_state": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "config",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Operator choices are authoritative durable configuration; the byte ceiling detects unexpected growth but never authorizes deletion."
+        },
+        "rationale": "Per-install operator choices are persisted atomically through the routed operator-state authority and must survive retention cycles."
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The report is durable deployment evidence; it measured 5500 bytes on 2026-09-09, so the 1 MiB ceiling detects unexpected growth without authorizing deletion."
+        },
+        "rationale": "Scenario Dependency Analyzer generates this durable deployment report in the scenario data namespace; its provenance must survive retention cycles even though the analyzer can refresh it."
+      },
+      "retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "reclaim": {
+          "pruner": "builtin"
+        },
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "1MiB",
+          "rationale": "The framework rewrites the enforcement receipt on each retention cycle; 30 days and 1 MiB bound regenerable operational bookkeeping."
+        },
+        "rationale": "The shared retention engine writes the scenario's enforcement receipt beneath the routed state namespace."
+      }
+    },
+    "rationale": "The scenario owns routed operator configuration and one generated deployment report; credential values and runtime databases remain owned by their authorities."
+  },
   "service": {
     "parent": "vrooli",
     "name": "vrooli-onboarding",
     "displayName": "Vrooli Onboarding",
-    "description": "Central configuration hub guiding users through Vrooli resource setup with guided flows, secret validation, and health visualization",
+    "description": "Manifest-derived onboarding for scenario selection, resource closure, credential readiness, host consent, supervised apply, and validation",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -30,7 +74,34 @@
     "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
     "support": {
       "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+    },
+    "system_required": true
+  },
+  "authentication": {
+    "version": 1,
+    "profile": "hybrid",
+    "default_mode": "personal_local",
+    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli", "shared_provider"],
+    "human_sign_in": "optional",
+    "provider": "cloudflare-access",
+    "resource": "vrooli-onboarding",
+    "offline": true,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "vrooli-onboarding:read", "effect": "read", "agent_eligible": true},
+      {"id": "vrooli-onboarding:write", "effect": "write", "agent_eligible": false},
+      {"id": "vrooli-onboarding:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "team_domain": "${VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN}",
+    "audience": "${VROOLI_CLOUDFLARE_ACCESS_AUDIENCE}",
+    "scenario_audience": "scenario-authenticator:vrooli-onboarding",
+    "policy_mode": "operator_managed",
+    "public_asset_path": "/public",
+    "owner": "tunnel-manager"
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
   },
   "ports": {
     "api": {
@@ -41,14 +112,10 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "35000-39999"
-    },
-    "websocket": {
-      "env_var": "WS_PORT",
-      "description": "WebSocket channel",
-      "range": "25000-29999"
+      "range": "20000-24999"
     }
   },
+  "generation": { "template": { "id": "react-vite" } },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -64,7 +131,7 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "timeout": 10000,
-          "interval": 30000,
+          "interval": 2000,
           "critical": true
         },
         {
@@ -72,132 +139,83 @@
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
-          "interval": 30000,
+          "interval": 2000,
           "critical": false
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build API & UI, install CLI",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": ["api/vrooli-onboarding-api"]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-onboarding"
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o vrooli-onboarding-api .",
-          "description": "Build Go API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Launch API and production UI bundle server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-onboarding-api",
-          "background": true,
-          "description": "Start Go API server in background",
-          "condition": {
-            "file_exists": "api/vrooli-onboarding-api"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle if needed",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
-        }
-      ]
-    },
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "test-genie execute vrooli-onboarding --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'vrooli-onboarding-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }
   },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-onboarding",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-onboarding"
+    },
+    "freshness": {
+      "inputs": [
+        "api/**",
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "vrooli-onboarding"
+    "resources": {},
+    "scenarios": {
+      "vrooli-bridge": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Vrooli Onboarding reaches vrooli-bridge through the typed node-reach transport for optional remote host and validation target discovery; it does not import bridge implementation code.",
+        "description": "Optional remote host and validation target capability.",
+        "degraded_behavior": "Local onboarding remains available; remote targets report an explicit bridge-unavailable state until vrooli-bridge is healthy and configured."
       }
     }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "skills": {
+    "usage": {"source": "skills/vrooli-onboarding/SKILL.md", "programs": []},
+    "improve": {"source": "skills/vrooli-onboarding-improve/SKILL.md", "programs": []},
+    "feature": [],
+    "learning": {"scope": "vrooli-onboarding-usage"},
+    "waivers": {}
   }
 }

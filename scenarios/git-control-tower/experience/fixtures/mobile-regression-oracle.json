@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-regression-oracle.schema.json",
+  "schema_version": "1.0.0",
+  "scenario": "git-control-tower",
+  "fixture_id": "gct-mobile-iframe-regression-v1",
+  "status": "repaired_and_guarded",
+  "profile": {
+    "id": "mobile-embedded",
+    "viewport": { "width": 390, "height": 844 },
+    "embedded": true,
+    "route": "/"
+  },
+  "required_artifacts": [
+    "source_snapshot",
+    "screenshot_png",
+    "dom_html",
+    "layout_json",
+    "interaction_trace"
+  ],
+  "cases": [
+    {
+      "id": "GCT-MOBILE-001",
+      "name": "viewport-fill",
+      "owner": "ui-health",
+      "claim": "The embedded app root occupies the profile viewport through an explicit percentage-height chain.",
+      "evidence": ["source_snapshot", "layout_json", "screenshot_png"],
+      "expected_before_repair": "fail",
+      "remediation": "Define html/body/#root and the app shell height chain; assign exactly one bounded scroll region."
+    },
+    {
+      "id": "GCT-MOBILE-002",
+      "name": "chrome-declaration-and-render-alignment",
+      "owner": "brand-manager + ui-health",
+      "claim": "Declared theme/status chrome metadata matches the rendered top safe-area surface.",
+      "evidence": ["source_snapshot", "screenshot_png", "layout_json"],
+      "expected_before_repair": "fail",
+      "remediation": "Declare theme-color, viewport-fit, and mobile status metadata that matches the shell's top surface."
+    },
+    {
+      "id": "GCT-MOBILE-003",
+      "name": "changes-scroll-restoration",
+      "owner": "experience-manager",
+      "claim": "Changes scroll position is restored after Changes → Diff → Changes once list layout is ready.",
+      "evidence": ["interaction_trace", "dom_html", "layout_json", "screenshot_png"],
+      "expected_before_repair": "fail",
+      "remediation": "Persist and restore the owned list scroller after content readiness, not the document viewport."
+    },
+    {
+      "id": "GCT-MOBILE-004",
+      "name": "selection-toolbar-scroll-behavior",
+      "owner": "experience-manager",
+      "claim": "The selection toolbar belongs to Changes content and scrolls away with the selected rows.",
+      "evidence": ["interaction_trace", "layout_json", "screenshot_png"],
+      "expected_before_repair": "fail",
+      "remediation": "Keep selection controls in the owned content flow instead of making them sticky."
+    },
+    {
+      "id": "GCT-MOBILE-005",
+      "name": "diff-action-footer-placement",
+      "owner": "experience-manager",
+      "claim": "Mobile diff actions are bounded by the panel footer and remain reachable without covering diff content.",
+      "evidence": ["interaction_trace", "layout_json", "screenshot_png"],
+      "expected_before_repair": "fail",
+      "remediation": "Place diff actions in a constrained footer inside the selected panel."
+    },
+    {
+      "id": "GCT-MOBILE-006",
+      "name": "bottom-nav-geometry",
+      "owner": "experience-manager + ui-health",
+      "claim": "Bottom navigation stays within the viewport, honors the safe area, and does not overlap the active panel's reachable content.",
+      "evidence": ["layout_json", "screenshot_png", "interaction_trace"],
+      "expected_before_repair": "fail",
+      "remediation": "Reserve a structural bottom-nav row and safe-area padding in the mobile shell."
+    }
+  ]
+}

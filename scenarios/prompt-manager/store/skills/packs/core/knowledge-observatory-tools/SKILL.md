@@ -1,3 +1,25 @@
+---
+name: "knowledge-observatory-tools"
+description: "Use knowledge-observatory docs to read, write, search, and maintain scenario documentation through the CLI."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["tools"]
+  tags: ["knowledge-observatory","documentation","docs","workflow"]
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-05T00:00:00Z"
+  updatedAt: "2026-02-05T00:00:00Z"
+  requires:
+    scenarios: []
+    commands: []
+  origin:
+    kind: "authored"
+---
+
+For task-oriented source retrieval, conflict/applicability review, and document maintenance, load `prompt-manager skill read knowledge-observatory`. That scenario-owned usage skill owns recall and one outcome capture for the operation. This older skill retains parameterized legacy document operations for existing callers; it does not define a second knowledge workflow.
+
 ## Knowledge Observatory Tools
 
 Use `knowledge-observatory docs` to read, write, search, and maintain scenario documentation through a single CLI.

@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "Deploy candidates and health surface",
+    "description": "Observer check that deploy candidates are listable and the API health surface answers with typed readiness; deploy/start against a target is exercised by the QEMU and real-VPS lanes.",
+    "tags": [
+      "e2e",
+      "api",
+      "deploy"
+    ],
+    "requirements": [
+      "STC-P0-005"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-005\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"scenarios-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/scenarios","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/scenarios"}}},
+      {"id":"health-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/health","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/health"}}}
+    ],
+    "edges":[{"source":"scenarios-open","target":"health-open"}]
+  }
+}

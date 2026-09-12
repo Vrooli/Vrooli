@@ -12,6 +12,7 @@ import { resolveApiBase, buildApiUrl as composeApiUrl } from '@vrooli/api-base';
 // ╚══════════════════════════════════════════════════════════════╝
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
+const API_ROOT = resolveApiBase();
 
 /**
  * Build a full API URL from a path segment.
@@ -19,4 +20,8 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
  */
 export function buildUrl(path: string): string {
   return composeApiUrl(path, { baseUrl: API_BASE });
+}
+
+export function buildRootUrl(path: string): string {
+  return composeApiUrl(path, { baseUrl: API_ROOT });
 }

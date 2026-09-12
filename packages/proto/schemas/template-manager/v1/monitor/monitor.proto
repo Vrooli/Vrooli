@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package vrooli.template_manager.v1.monitor;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/monitor;monitor_v1";
+
+// MonitorService exposes recurring deep-validation monitor state.
+service MonitorService {
+  rpc GetMonitorStatus(GetMonitorStatusRequest) returns (GetMonitorStatusResponse);
+}
+
+message MonitorStatus {
+  bool enabled = 1;
+  int64 interval_seconds = 2;
+  bool in_flight = 3;
+  string last_run_id = 4;
+  string last_status = 5;
+  google.protobuf.Timestamp last_started_at = 6;
+  google.protobuf.Timestamp last_finished_at = 7;
+  google.protobuf.Timestamp next_run_at = 8;
+  int64 green_streak = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message GetMonitorStatusRequest {}
+
+message GetMonitorStatusResponse {
+  MonitorStatus status = 1;
+}

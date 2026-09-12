@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Viewport environment",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{
+    "id": "default",
+    "name": "Browser snapshot",
+    "role": "anatomy",
+    "mode": "live",
+    "args": {},
+    "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+    "expect": [{ "kind": "visible", "selector": "[data-rcl-viewport-environment]" }]
+  }]
+}

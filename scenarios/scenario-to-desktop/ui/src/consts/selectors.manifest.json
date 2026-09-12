@@ -1,0 +1,220 @@
+{
+  "selectors": {
+    "app.root": {
+      "testId": "scenario-to-desktop-app",
+      "selector": "[data-testid=\"scenario-to-desktop-app\"]"
+    },
+    "app.generateTab": {
+      "testId": "scenario-to-desktop-tab-generate",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-generate\"]"
+    },
+    "app.signingTab": {
+      "testId": "scenario-to-desktop-tab-signing",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-signing\"]"
+    },
+    "app.validationTab": {
+      "testId": "scenario-to-desktop-tab-validation",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-validation\"]"
+    },
+    "generator.scenarioPicker": {
+      "testId": "generator-scenario-picker",
+      "selector": "[data-testid=\"generator-scenario-picker\"]"
+    },
+    "generator.templatePicker": {
+      "testId": "generator-template-picker",
+      "selector": "[data-testid=\"generator-template-picker\"]"
+    },
+    "generator.generateSubmit": {
+      "testId": "generator-generate-submit",
+      "selector": "[data-testid=\"generator-generate-submit\"]"
+    },
+    "generator.preflightRun": {
+      "testId": "generator-preflight-run",
+      "selector": "[data-testid=\"generator-preflight-run\"]"
+    },
+    "generator.buildStart": {
+      "testId": "generator-build-start",
+      "selector": "[data-testid=\"generator-build-start\"]"
+    },
+    "generator.smokeTestRun": {
+      "testId": "generator-smoke-test-run",
+      "selector": "[data-testid=\"generator-smoke-test-run\"]"
+    },
+    "generator.liveDesktopLaunch": {
+      "testId": "generator-live-desktop-launch",
+      "selector": "[data-testid=\"generator-live-desktop-launch\"]"
+    },
+    "generator.buildSection": {
+      "testId": "generator-build-section",
+      "selector": "[data-testid=\"generator-build-section\"]"
+    },
+    "generator.smokeTestSection": {
+      "testId": "generator-smoke-test-section",
+      "selector": "[data-testid=\"generator-smoke-test-section\"]"
+    },
+    "generator.evidenceFixtureRun": {
+      "testId": "generator-evidence-fixture-run",
+      "selector": "[data-testid=\"generator-evidence-fixture-run\"]"
+    },
+    "generator.evidenceFixtureResult": {
+      "testId": "generator-evidence-fixture-result",
+      "selector": "[data-testid=\"generator-evidence-fixture-result\"]"
+    },
+    "signing.scenarioSelect": {
+      "testId": "signing-scenario-select",
+      "selector": "[data-testid=\"signing-scenario-select\"]"
+    },
+    "signing.enabled": {
+      "testId": "signing-enabled",
+      "selector": "[data-testid=\"signing-enabled\"]"
+    },
+    "signing.windowsForm": {
+      "testId": "signing-windows-form",
+      "selector": "[data-testid=\"signing-windows-form\"]"
+    },
+    "signing.macosForm": {
+      "testId": "signing-macos-form",
+      "selector": "[data-testid=\"signing-macos-form\"]"
+    },
+    "signing.linuxForm": {
+      "testId": "signing-linux-form",
+      "selector": "[data-testid=\"signing-linux-form\"]"
+    },
+    "signing.validate": {
+      "testId": "signing-validate",
+      "selector": "[data-testid=\"signing-validate\"]"
+    },
+    "liveDesktop.start": {
+      "testId": "live-desktop-start",
+      "selector": "[data-testid=\"live-desktop-start\"]"
+    },
+    "liveDesktop.canvas": {
+      "testId": "live-desktop-canvas",
+      "selector": "[data-testid=\"live-desktop-canvas\"]"
+    },
+    "liveDesktop.close": {
+      "testId": "live-desktop-close",
+      "selector": "[data-testid=\"live-desktop-close\"]"
+    },
+    "liveDesktop.error": {
+      "testId": "live-desktop-error",
+      "selector": "[data-testid=\"live-desktop-error\"]"
+    },
+    "validation.root": {
+      "testId": "validation-workspace",
+      "selector": "[data-testid=\"validation-workspace\"]"
+    },
+    "validation.refreshTargets": {
+      "testId": "validation-refresh-targets",
+      "selector": "[data-testid=\"validation-refresh-targets\"]"
+    },
+    "validation.targetCard": {
+      "testId": "validation-target-card",
+      "selector": "[data-testid=\"validation-target-card\"]"
+    },
+    "validation.inventoryLoading": {
+      "testId": "validation-inventory-loading",
+      "selector": "[data-testid=\"validation-inventory-loading\"]"
+    },
+    "validation.error": {
+      "testId": "validation-target-inventory-error",
+      "selector": "[data-testid=\"validation-target-inventory-error\"]"
+    },
+    "validation.scenarioName": {
+      "testId": "validation-scenario-name",
+      "selector": "[data-testid=\"validation-scenario-name\"]"
+    },
+    "validation.artifactDigest": {
+      "testId": "validation-artifact-digest",
+      "selector": "[data-testid=\"validation-artifact-digest\"]"
+    },
+    "validation.deploymentMode": {
+      "testId": "validation-deployment-mode",
+      "selector": "[data-testid=\"validation-deployment-mode\"]"
+    },
+    "validation.releaseProfile": {
+      "testId": "validation-release-profile",
+      "selector": "[data-testid=\"validation-release-profile\"]"
+    },
+    "validation.journeyId": {
+      "testId": "validation-journey-id",
+      "selector": "[data-testid=\"validation-journey-id\"]"
+    },
+    "validation.discoverCatalog": {
+      "testId": "validation-discover-catalog",
+      "selector": "[data-testid=\"validation-discover-catalog\"]"
+    },
+    "validation.catalogJourney": {
+      "testId": "validation-catalog-journey",
+      "selector": "[data-testid=\"validation-catalog-journey\"]"
+    },
+    "validation.createMatrix": {
+      "testId": "validation-create-matrix",
+      "selector": "[data-testid=\"validation-create-matrix\"]"
+    },
+    "validation.startRun": {
+      "testId": "validation-start-run",
+      "selector": "[data-testid=\"validation-start-run\"]"
+    },
+    "validation.waitRun": {
+      "testId": "validation-wait-run",
+      "selector": "[data-testid=\"validation-wait-run\"]"
+    },
+    "validation.abortRun": {
+      "testId": "validation-abort-run",
+      "selector": "[data-testid=\"validation-abort-run\"]"
+    },
+    "validation.rerunFailed": {
+      "testId": "validation-rerun-failed",
+      "selector": "[data-testid=\"validation-rerun-failed\"]"
+    },
+    "validation.rerunSelected": {
+      "testId": "validation-rerun-selected",
+      "selector": "[data-testid=\"validation-rerun-selected\"]"
+    },
+    "validation.reattachRun": {
+      "testId": "validation-reattach-run",
+      "selector": "[data-testid=\"validation-reattach-run\"]"
+    },
+    "validation.comparePriorRun": {
+      "testId": "validation-compare-prior-run",
+      "selector": "[data-testid=\"validation-compare-prior-run\"]"
+    },
+    "validation.compareRun": {
+      "testId": "validation-compare-run",
+      "selector": "[data-testid=\"validation-compare-run\"]"
+    },
+    "validation.gateSummary": {
+      "testId": "validation-gate-summary",
+      "selector": "[data-testid=\"validation-gate-summary\"]"
+    },
+    "validation.targetSwimlane": {
+      "testId": "validation-target-swimlane",
+      "selector": "[data-testid=\"validation-target-swimlane\"]"
+    },
+    "validation.cellSelect": {
+      "testId": "validation-cell-select",
+      "selector": "[data-testid=\"validation-cell-select\"]"
+    },
+    "validation.evidenceInspect": {
+      "testId": "validation-evidence-inspect",
+      "selector": "[data-testid=\"validation-evidence-inspect\"]"
+    },
+    "validation.evidenceReview": {
+      "testId": "validation-evidence-review",
+      "selector": "[data-testid=\"validation-evidence-review\"]"
+    },
+    "validation.matrixError": {
+      "testId": "validation-matrix-error",
+      "selector": "[data-testid=\"validation-matrix-error\"]"
+    },
+    "validation.runLoading": {
+      "testId": "validation-run-loading",
+      "selector": "[data-testid=\"validation-run-loading\"]"
+    },
+    "validation.matrixCell": {
+      "testId": "validation-matrix-cell",
+      "selector": "[data-testid=\"validation-matrix-cell\"]"
+    }
+  }
+}

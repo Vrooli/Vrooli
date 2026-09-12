@@ -1,0 +1,80 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Edit workspace",
+          "role": "dialog"
+        },
+        {
+          "kind": "role",
+          "name": "Save workspace",
+          "role": "button"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Workspace editor",
+      "role": "anatomy"
+    },
+    {
+      "id": "empty",
+      "name": "Empty dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "Loading dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "error",
+      "name": "Error dialog",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow dialog content",
+      "args": {},
+      "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}},
+      "expect": [{"kind": "role", "role": "dialog", "name": "Edit workspace"}],
+      "role": "boundary",
+      "mode": "pinned"
+    }
+  ],
+  "title": "Dialog"
+}

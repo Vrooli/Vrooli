@@ -135,9 +135,8 @@ is_api_healthy() {
         if detected_base=$(detect_api_base 2>/dev/null); then
             api_url="$detected_base"
         else
-            # Fall back to default port from config
-            local port="${API_PORT:-19761}"
-            api_url="http://localhost:${port}/api/v1"
+            # Do not guess a port: lifecycle orchestration owns API_PORT.
+            return 1
         fi
     fi
 

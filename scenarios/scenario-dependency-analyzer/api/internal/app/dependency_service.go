@@ -3,8 +3,9 @@ package app
 import (
 	"fmt"
 
-	"scenario-dependency-analyzer/internal/store"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // scenarioDetector captures the detector capabilities needed for dependency analysis.
@@ -79,7 +80,7 @@ func (s *dependencyService) catalogSnapshot() map[string]struct{} {
 	return s.detector.ScenarioCatalog()
 }
 
-func (s *dependencyService) UpdateScenarioMetadata(name string, cfg *types.ServiceConfig, scenarioPath string) error {
+func (s *dependencyService) UpdateScenarioMetadata(name string, cfg *types.Manifest, scenarioPath string) error {
 	if s == nil || s.store == nil {
 		return nil
 	}

@@ -15,8 +15,6 @@ import (
 	"app-monitor-api/middleware"
 	"app-monitor-api/repository"
 	"app-monitor-api/services"
-	"app-monitor-api/toolexecution"
-	"app-monitor-api/toolregistry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"
@@ -32,14 +30,13 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	app           *handlers.AppHandler
-	system        *handlers.SystemHandler
-	docker        *handlers.DockerHandler
-	websocket     *handlers.WebSocketHandler
-	lighthouse    *handlers.LighthouseHandler
-	tools         *handlers.ToolsHandler
-	toolExecution *toolexecution.Handler
-	presets       *handlers.PresetHandler
+	health     gin.HandlerFunc
+	app        *handlers.AppHandler
+	system     *handlers.SystemHandler
+	docker     *handlers.DockerHandler
+	websocket  *handlers.WebSocketHandler
+	lighthouse *handlers.LighthouseHandler
+	presets    *handlers.PresetHandler
 }
 
 // NewServer creates and configures a new server instance
@@ -89,38 +86,16 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 	presetService := services.NewPresetService(presetRepo)
 
-	// Initialize Tool Discovery Protocol registry
-	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
-		ScenarioName:        "app-monitor",
-		ScenarioVersion:     "1.0.0",
-		ScenarioDescription: "Centralized monitoring and control dashboard for the Vrooli ecosystem",
-	})
-
-	// Register all tool providers
-	toolReg.RegisterProvider(toolregistry.NewDiscoveryToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewLifecycleToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewDiagnosticsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewLogsMetricsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewIssueToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewDocsToolProvider())
-	toolReg.RegisterProvider(toolregistry.NewResourceToolProvider())
-
-	// Create tool executor
-	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
-		AppService:     appService,
-		MetricsService: metricsService,
-	})
-
 	// Create handlers
+	healthHandler := gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler())
 	handlers := &Handlers{
-		app:           handlers.NewAppHandler(appService),
-		system:        handlers.NewSystemHandler(metricsService),
-		docker:        handlers.NewDockerHandler(docker),
-		websocket:     handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
-		lighthouse:    handlers.NewLighthouseHandler(),
-		tools:         handlers.NewToolsHandler(toolReg),
-		toolExecution: toolexecution.NewHandler(toolExecutor),
-		presets:       handlers.NewPresetHandler(presetService),
+		health:     healthHandler,
+		app:        handlers.NewAppHandler(appService),
+		system:     handlers.NewSystemHandler(metricsService),
+		docker:     handlers.NewDockerHandler(docker),
+		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse: handlers.NewLighthouseHandler(),
+		presets:    handlers.NewPresetHandler(presetService),
 	}
 
 	// Setup router
@@ -163,9 +138,8 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 	}
 
 	// Health endpoints (no auth required)
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
-	r.GET("/health", gin.WrapF(healthHandler))
-	r.GET("/api/health", gin.WrapF(healthHandler))
+	r.GET("/health", h.health)
+	r.GET("/api/health", h.health)
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")
@@ -182,9 +156,8 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.POST("/apps/:id/stop", h.app.StopApp)
 		v1.POST("/apps/:id/restart", h.app.RestartApp)
 		v1.POST("/apps/:id/view", h.app.RecordAppView)
-		v1.GET("/apps/:id/issues", h.app.GetAppIssues)
-		v1.POST("/apps/:id/report", h.app.ReportAppIssue)
-		v1.POST("/apps/:id/fallback-diagnostics", h.app.GetFallbackDiagnostics)
+		v1.GET("/apps/:id/fixes", h.app.GetAppFixes)
+		v1.POST("/apps/:id/fixes/report", h.app.ReportAppFix)
 		v1.GET("/apps/:id/diagnostics", h.app.GetAppCompleteDiagnostics)
 		v1.GET("/apps/:id/diagnostics/iframe-bridge", h.app.CheckAppIframeBridge)
 		v1.GET("/apps/:id/diagnostics/status", h.app.GetAppScenarioStatus)
@@ -200,11 +173,11 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
 		v1.GET("/apps/:id/metrics", h.app.GetAppMetrics)
 
-		// Rules metadata endpoint
-		v1.GET("/rules", h.app.GetRuleDefs)
-
-		// Quality endpoints (scenario-auditor consumption)
-		v1.GET("/quality/scenario/:name/standards", h.app.GetInteropStandards)
+		// NOTE: the /rules metadata endpoint and the /quality/scenario/:name/
+		// standards endpoint were removed when the static UI-interop rules engine
+		// moved to ui-health (the single UI-validation authority). Interop
+		// compliance is still served at /apps/:id/diagnostics/interop, now sourced
+		// from ui-health over Connect.
 
 		// Log endpoints for scenarios using app name
 		v1.GET("/logs/:appName", h.app.GetAppLogs)
@@ -233,10 +206,6 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.PUT("/workspace/presets/:id", h.presets.UpdatePreset)
 		v1.DELETE("/workspace/presets/:id", h.presets.DeletePreset)
 
-		// Tool Discovery Protocol endpoints
-		v1.GET("/tools", h.tools.GetManifest)
-		v1.GET("/tools/:name", h.tools.GetTool)
-		v1.POST("/tools/execute", h.toolExecution.Execute)
 	}
 
 	// WebSocket endpoint
@@ -278,7 +247,6 @@ func (s *Server) Run() error {
 	// Start server
 	log.Printf("🚀 App Monitor API server starting on port %s", s.config.API.Port)
 	log.Printf("📊 API endpoints available at http://localhost:%s/api/v1", s.config.API.Port)
-	log.Printf("🔧 Tool Discovery Protocol available at http://localhost:%s/api/v1/tools", s.config.API.Port)
 
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {

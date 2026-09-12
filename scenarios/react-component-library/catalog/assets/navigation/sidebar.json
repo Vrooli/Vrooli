@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.sidebar",
+    "name": "Sidebar",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The persistent navigation or workspace panel with sections, active state, collapse to icons, keyboard traversal, independent scrolling, and stable width.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.gesture-tokens",
+        "reason": "Gesture behavior uses the governed gesture token foundation."
+      },
+      {
+        "asset": "manipulation.resize-handle",
+        "reason": "The resize seam uses the governed resize handle."
+      },
+      {
+        "asset": "react-component-library:StyleSheet",
+        "reason": "Sidebar styles are injected through the library stylesheet foundation."
+      },
+      {
+        "asset": "hooks.use-escape-key",
+        "reason": "Escape behavior is provided by the governed escape-key hook."
+      },
+      {
+        "asset": "hooks.use-handedness",
+        "reason": "Reach-side behavior follows the governed handedness hook."
+      },
+      {
+        "asset": "hooks.use-resizable-panel",
+        "reason": "Panel size persistence and bounds use the governed resizable-panel hook."
+      },
+      {
+        "asset": "hooks.use-swipe-gesture",
+        "reason": "Phone drawer gestures use the governed swipe-gesture hook."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "reading-order-honest",
+    "density-adaptive-layout"
+  ]
+}

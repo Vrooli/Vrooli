@@ -1,0 +1,9 @@
+{
+  "preference": {"required": ["option_id"], "properties": {"option_id": "string"}},
+  "parameter": {"required": ["name", "value"], "properties": {"name": "string", "value": "any"}},
+  "target-note": {"required": ["fact"], "properties": {"fact": "string", "selector": "string", "ttl_days": "integer"}},
+  "avoid": {"one_of": ["fingerprint", "option_id"], "properties": {"fingerprint": "string", "option_id": "string"}},
+  "trace": {"properties": {"fragment": "string", "bindings": "array", "row_samples": "array", "output": "any"}},
+  "correction": {"required": ["corrects", "body"], "properties": {"corrects": "string", "body": "string"}},
+  "example": {"kernel_written": true, "required": ["inputs_digest", "inputs_redacted", "output"], "properties": {"inputs_digest": "string", "inputs_redacted": "object", "output": "any"}}
+}

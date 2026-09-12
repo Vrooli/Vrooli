@@ -3,10 +3,26 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"],
+    // SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN
+    // These rules prevent runtime crashes like "X is not a function".
+    // DO: Use optional chaining (?.), null checks, nullish coalescing (??), and type guards.
+    // DON'T: Use type assertions (as X), non-null assertions (!), @ts-ignore, or weaken these rules.
+    // These rules exist because UI crashes are the #1 production issue.
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "@vrooli/proto-types/landing-page-business-suite/v1/variant_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/variant_pb"],
+      "@vrooli/proto-types/landing-page-business-suite/v1/variant_section_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/variant_section_pb"],
+      "@vrooli/proto-types/landing-page-business-suite/v1/waitlist_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/waitlist_pb"],
+      "@vrooli/proto-types/landing-page-business-suite/v1/admin_pb": ["../../../packages/proto/gen/typescript/landing-page-business-suite/v1/admin_pb"],
+      "@vrooli/proto-types/landing-page-business-suite/v1/*": ["node_modules/@vrooli/proto-types/landing-page-business-suite/v1/*"],
+      "@bufbuild/protobuf": ["node_modules/@bufbuild/protobuf/dist/esm/index.d.ts"],
+      "@bufbuild/protobuf/codegenv2": ["node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.d.ts"],
+      "@bufbuild/protobuf/wkt": ["node_modules/@bufbuild/protobuf/dist/esm/wkt/index.d.ts"]
+    }
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["dist"]

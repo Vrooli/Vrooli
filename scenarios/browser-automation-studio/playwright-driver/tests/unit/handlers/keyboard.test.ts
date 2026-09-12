@@ -146,8 +146,9 @@ describe('KeyboardHandler', () => {
     const instruction: HandlerInstruction = {
       index: 0,
       nodeId: 'node-2',
-      type: 'keyboard-unknown',
-      params: {},
+      action: create(ActionDefinitionSchema, {
+        type: ActionType.UNSPECIFIED,
+      }),
     };
 
     const result = await handler.execute(instruction, context);

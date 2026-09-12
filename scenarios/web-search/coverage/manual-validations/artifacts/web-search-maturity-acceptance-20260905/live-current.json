@@ -1,0 +1,52 @@
+{
+  "status": "ok",
+  "answer_kind": "raw_hits",
+  "brief": {
+    "query": "PostgreSQL default port",
+    "level": "l0"
+  },
+  "results": [
+    {
+      "url": "https://www.postgresql.org/docs/current/app-postgres.html",
+      "title": "Documentation: 18: postgres - PostgreSQL",
+      "snippet": "Defaults to the value of the PGPORT environment variable, or if PGPORT is not set, then defaults to the value established during compilation (normally 5432). If ...",
+      "engine": "google cse",
+      "score": 1,
+      "category": "general"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/current/runtime-config-connection.html",
+      "title": "18: 19.3. Connections and Authentication - PostgreSQL",
+      "snippet": "The TCP port the server listens on; 5432 by default. Note that the same port ... nnnn where nnnn is the server's port number, an ordinary file named .s ...",
+      "engine": "google cse",
+      "score": 0.5,
+      "category": "general"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/7.2/install-procedure.html",
+      "title": "Documentation: 7.2: Installation Procedure - PostgreSQL",
+      "snippet": "The default is 5432. The port can always be changed later on, but if you specify it here then both server and clients will have the same default compiled in, ...",
+      "engine": "google cse",
+      "score": 0.3333333333333333,
+      "category": "general"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/current/protocol.html",
+      "title": "18: Chapter 54. Frontend/Backend Protocol - PostgreSQL",
+      "snippet": "The protocol is supported over TCP/IP and also over Unix-domain sockets. Port number 5432 has been registered with IANA as the customary TCP port number for ...",
+      "engine": "google cse",
+      "score": 0.25,
+      "category": "general"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/6.4/jdbc19100.htm",
+      "title": "Documentation: 6.4: Connecting to the Database - PostgreSQL",
+      "snippet": "Defaults to the Postgres standard port number (5432). database. The database name. To connect, you need to get a Connection instance from JDBC. To do ...",
+      "engine": "google cse",
+      "score": 0.2,
+      "category": "general"
+    }
+  ],
+  "checked_at": "2026-09-05T05:43:15.097644723Z",
+  "live_calls": 1
+}

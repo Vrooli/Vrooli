@@ -1,76 +1,74 @@
 # Glossary
 
+> **Rewritten 2026-05-18** to match the new "execute skill on pristine golden, evaluate sandbox diff against expected-diff manifest" model. Entries tied to the retired declarative-expectations design have been removed.
+
 ## Core Terms
 
-### Reference Scenario
-A full, known-good scenario implementation that lives in `scenarios/` and uses all standard Vrooli tooling. It demonstrates what a fully-developed scenario looks like when all applicable steer skills are properly followed. References are NOT deployed as products — they exist solely for validation. Example: `reference-react-vite`.
+### Golden (Scenario)
+A durable golden identity backed by template metadata (`template_id`, pinned template version, generation options, and logical root). Validation runs materialize a fresh generated scenario from that metadata instead of reading a committed scenario tree. The first registered golden slug is `reference-react-vite`.
 
-### Steer Skill
-A prompt-manager skill (mode: "Steer") that provides focused architectural guidance for one dimension of scenario development. Examples: `api-steer`, `storage-steer`, `cli-steer`. Steer skills are markdown text files consumed by AI agents during ecosystem-manager development loops.
+### Materialized Golden Path
+The temporary or explicitly retained physical directory created for one validation run. Agent-manager and tool runners consume this path. Normal runs clean it up after completion and must not write it under `scenarios/`.
 
-### Skill Connection
-A mapping between a steer skill and a reference scenario, stored with the skill's version number and content hash at connection time. A connection without expectations is "unconfigured" — it represents a skill that needs structured validation defined.
+### Logical Golden Root
+The stable path root used for manifest and diff semantics. Diff paths from materialized directories normalize back to this root or to paths relative to it, so manifests never depend on per-run temp directories.
 
-### Structural Expectation
-A declarative check that a reference scenario's filesystem matches a pattern. Types:
-- **Folder**: A directory path that should exist (e.g., `api/handlers/projects/`)
-- **File**: A glob pattern matching expected files (e.g., `api/handlers/*_test.go`)
-- **Snippet**: Expected content at a specific location in a file
+### Pristine
+The state in which a materialized golden was created by the template at a specific version, with no subsequent manual edits. A fresh materialization restores pristineness at the pinned template contract.
 
-### CLI Tool Assertion
-A declarative check that a read-only CLI command produces expected JSON output. Consists of a command, a JSONPath expression, a comparison operator, and an expected value.
+### Template Version Pinning
+The recorded template-id + version that a golden was generated from. Stored on the `Golden` record. Bumping the template version stales every manifest pinned to that golden.
 
-### Skill Drift
-When a connected skill's content has changed in prompt-manager since the connection was established. Detected by comparing the stored version/content hash against the current version. Drift means the connection's expectations may be stale.
+### Expected-Diff Manifest
+A per-(skill, golden) tuple record listing the file paths a skill is allowed to touch when it runs against that golden, plus optional content rules. Pinned to **both** the template version of the golden and the skill version it was recorded against. Wildcards (e.g., `docs/**`) are allowed in path patterns.
 
-### Overlap
-When structural expectations from two or more different skill connections target the same files or folders in a reference scenario. Overlaps are not necessarily conflicts — they may indicate that multiple skills legitimately care about the same area.
+### Skill (Steer Skill)
+A prompt-manager skill (mode: `Steer`) that focuses agent behaviour on one architectural dimension. DTV does not modify skills; it executes them and records verdicts.
 
-### Conflict
-When structural expectations from different skill connections are mutually exclusive — they cannot both be satisfied simultaneously. Example: Skill A requires folder `api/routes/` while Skill B requires folder `api/handlers/` for the same purpose.
+### Skill Catalog
+The list of steer skills synced from prompt-manager, with versions and content hashes captured at sync time. DTV keeps a local copy so it can detect skill version drift.
 
-### Skill Maturity Score
-A calculated score reflecting how well a skill's behavior can be described programmatically. Skills with structural expectations + CLI assertions that all pass = high maturity. Skills with no config = lowest maturity.
+### Validation Run
+One execution of (skill, golden) under sandboxed agent-manager. Produces a diff (set of file changes the sandboxed agent made), a run summary (tokens used, cost estimate, duration, exit reason), and a verdict.
 
-### Coverage Map
-A file/folder-level visualization showing which areas of a reference scenario are covered by skill expectations and which areas have no coverage from any connected skill.
+### Verdict
+The result of comparing the validation run's diff against the expected-diff manifest. One of:
+- **pass** — observed diff is within what the manifest allows.
+- **unexpected-mutation** — observed diff touches paths or contents the manifest does not allow. Root cause is either *template gap* (template should absorb this change) or *skill bug* (skill is producing wrong output); operator triages.
+- **run-failure** — the agent run did not complete cleanly (error, timeout, budget exhausted, sandbox failure).
+- **stale** — the manifest's pinned template version or skill version no longer matches current state; verdict is suppressed until the manifest is refreshed.
+
+### Staleness
+A manifest is stale when at least one of its pinned versions (template, skill) has been bumped since the manifest was recorded. Bumping the template stales every manifest for that golden; bumping a skill stales only that skill's manifests.
+
+### Always-Mutator Skill
+A skill that is expected to mutate the scenario on every run regardless of template maturity. The current always-mutators are `progress`, `bundle-integration-steer`, and `progress-continuity-interruption-resilience`. Their manifests are expected to keep allowing those mutations indefinitely.
+
+### Mutator-Until-Template-Matures Skill
+A skill that currently produces a non-empty diff against a pristine golden but is expected to converge on a no-op as the template absorbs its behaviour. Examples: `refactor`, `polish`, `test`, `performance`, `ux`.
+
+### Absorbed-by-Template Skill (No-Op Skill)
+A skill whose expected-diff manifest is empty for every (skill, golden) tuple — i.e., it should produce no change against any pristine golden because the template already encodes its guidance. The end-state target for most steer skills.
+
+### Tooling Baseline
+A separate class of validation that runs *non-agent* tools (`scenario-auditor`, `test-genie`, completeness scoring, etc.) against a golden to verify the tools themselves produce correct results on known-good input. A baseline failure is a bug in the tool, not in the scenario.
+
+### Sandbox Run
+Per agent-manager, a run with `SandboxConfig.Mode != SandboxModeOff` that captures per-run file changes via the overlay filesystem. DTV always uses sandbox runs because the diff is the load-bearing artifact.
+
+### Manifest Convergence
+The ratio of (skill, golden) tuples whose manifests are empty to the total number of tuples. As the template matures and absorbs skill behaviour, this ratio should approach 1.0.
 
 ## Ecosystem Terms
 
 ### prompt-manager
-The scenario that manages all skills (steer, search, tools, practice, meta). DTV reads skills from prompt-manager's API. The meta optimization team within prompt-manager uses DTV's CLI to check their work.
+The scenario that owns the skill catalog. DTV reads skills from its Connect-RPC API.
 
-### ecosystem-manager
-The scenario that orchestrates scenario development through task queues, auto-steer profiles, and agent loops. It uses the scenario-improver.md prompt which invokes development tools in its Quick Validation Loop.
+### agent-manager
+The scenario that executes sandboxed agent runs and exposes the resulting diff and `RunSummary` (tokens, cost, duration) via Connect-RPC. DTV is a consumer.
 
-### scenario-improver.md
-The prompt template used by ecosystem-manager for scenario improvement iterations. It instructs agents to run `vrooli scenario status`, `scenario-completeness-scoring score`, `scenario-auditor audit`, `vrooli scenario test`, and `vrooli scenario ui-smoke` as validation steps.
+### templates/scenarios/*
+The source of truth for generating goldens. The current canonical template is `react-vite` (1.0.1 at the time of this rewrite).
 
-### Auto Steer Profile
-An ecosystem-manager configuration that defines multi-phase development cycles. Each phase references specific skill IDs from prompt-manager, with metric-driven stop conditions. DTV validates that the skills referenced in profiles are coherent.
-
-### Meta Optimization Team
-A prompt-manager team of AI agents that autonomously improve skills, agents, and teams. DTV provides the feedback loop: the team uses DTV's CLI to detect skill issues, then improves skills and tools based on findings.
-
-### Promotion-Retirement Lifecycle
-The skill-principles pattern for evolving skills from prose guidance to CLI tool contracts:
-1. **Interim prose guardrail**: Skill has detailed markdown guidance
-2. **Promote to CLI contract**: Tool implements deterministic checks
-3. **Retire superseded prose**: Remove skill instructions now covered by tools
-
-DTV accelerates this lifecycle by making it visible which skills are still purely prose (no config = not yet promotable) vs. which have programmatic expectations defined.
-
-## Assertion Operators
-
-| Operator | Meaning | Value Type |
-|----------|---------|------------|
-| `eq` | Equals | any |
-| `neq` | Not equals | any |
-| `gt` | Greater than | number |
-| `gte` | Greater than or equal | number |
-| `lt` | Less than | number |
-| `lte` | Less than or equal | number |
-| `exists` | Path exists in output | none |
-| `contains` | String contains substring | string |
-| `matches` | Regex match | string (pattern) |
-| `between` | Value in inclusive range | [min, max] array |
+### Historical Committed Reference
+Older DTV records and docs may mention committed paths like `scenarios/reference-react-vite/`. Those paths are historical migration context, not the active golden substrate contract.

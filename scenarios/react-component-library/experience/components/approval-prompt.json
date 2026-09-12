@@ -1,0 +1,121 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "approval-prompt",
+    "title": "Approval Prompt",
+    "purpose": "Review scoped requests and record a decision without implying permission before acknowledgement.",
+    "storyRef": "../../library/components/ApprovalPrompt/versions/1.2.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Pending decision."
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "Decision awaiting acknowledgement."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Approval recorded."
+    },
+    {
+      "id": "denied",
+      "example": "denied",
+      "description": "Decline recorded."
+    },
+    {
+      "id": "expired",
+      "example": "expired",
+      "description": "Request can no longer be answered."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Failed decision can be retried."
+    },
+    {
+      "id": "permission-denied",
+      "example": "permission-denied",
+      "description": "Role cannot grant permission."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Recover a failed decision."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "Approve or decline a simulated request."
+    },
+    {
+      "id": "compact",
+      "example": "compact",
+      "description": "Contextual density preserves scope and decision actions."
+    }
+  ],
+  "elements": [
+    {
+      "id": "request",
+      "role": "region",
+      "description": "Named request with scope and decision state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "decision-integrity",
+      "type": "manual-review",
+      "statement": "Only an acknowledged decision becomes approved or declined; missing handlers never approve.",
+      "tier": "manual",
+      "states": [
+        "default",
+        "success",
+        "denied",
+        "interactive"
+      ]
+    },
+    {
+      "id": "terminal-decisions",
+      "type": "manual-review",
+      "statement": "Recorded and expired requests expose no decision controls.",
+      "tier": "manual",
+      "states": [
+        "success",
+        "denied",
+        "expired"
+      ]
+    },
+    {
+      "id": "retry-decision",
+      "type": "manual-review",
+      "statement": "A failed decline retries the decline and does not grant permission.",
+      "tier": "manual",
+      "states": [
+        "request-error",
+        "retry"
+      ]
+    },
+    {
+      "id": "owner-boundary",
+      "type": "manual-review",
+      "statement": "Requesting access does not authorize the scoped action.",
+      "tier": "manual",
+      "states": [
+        "permission-denied"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "request": {
+        "selector": "[data-rcl-approval-prompt]"
+      }
+    }
+  }
+}

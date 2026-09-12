@@ -3,15 +3,19 @@ package sqlfiles
 import (
 	"bufio"
 	"bytes"
-	"database/sql"
+	"context"
 	"fmt"
 	"os"
 	"strings"
+
+	"test-genie/internal/dbexec"
 )
 
 // ExecFile reads a SQL file, strips line comments, splits it into individual
-// statements, and executes them sequentially.
-func ExecFile(db *sql.DB, path string) error {
+// statements, and executes them sequentially. It accepts the narrow
+// dbexec.Executor seam so schema initialization runs through the same handle
+// (production *database.RoutedDB or a test *sql.DB) as the rest of the app.
+func ExecFile(db dbexec.Executor, path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", path, err)
@@ -37,7 +41,7 @@ func ExecFile(db *sql.DB, path string) error {
 		if trimmed == "" {
 			continue
 		}
-		if _, err := db.Exec(trimmed); err != nil {
+		if _, err := db.ExecContext(context.Background(), trimmed); err != nil {
 			return fmt.Errorf("failed to execute SQL statement from %s: %w", path, err)
 		}
 	}

@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "earn-to-redeem",
+    "title": "Earn to redeem — the core loop",
+    "purpose": "The loop the whole scenario exists to serve: work is recorded, a balance grows for a reason the holder can see, and the balance becomes something received.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-012",
+      "OT-P0-008",
+      "OT-P0-013"
+    ]
+  },
+  "steps": [
+    {
+      "page": "earning-admin",
+      "state": "success",
+      "intent": "The minter records that a chore was done, or a connected adapter reports it automatically.",
+      "via": "operator-entry"
+    },
+    {
+      "page": "holder-home",
+      "state": "default",
+      "intent": "The holder opens their view and sees a larger balance with the reason it grew.",
+      "via": "balance-total"
+    },
+    {
+      "page": "holder-rewards",
+      "state": "default",
+      "intent": "The holder browses what their tokens buy and can tell what is affordable before touching anything.",
+      "via": "go-to-rewards"
+    },
+    {
+      "page": "holder-rewards",
+      "state": "pending",
+      "intent": "The holder redeems something that needs approval and understands plainly that it is waiting on a grown-up.",
+      "via": "redeem-action"
+    },
+    {
+      "page": "approvals",
+      "state": "default",
+      "intent": "The minter sees the request with enough context to decide without navigating away.",
+      "via": "approval-queue"
+    },
+    {
+      "page": "approvals",
+      "state": "success",
+      "intent": "The minter approves, and the reservation settles into a debit exactly once.",
+      "via": "approve-action"
+    },
+    {
+      "page": "holder-history",
+      "state": "default",
+      "intent": "The holder sees the completed redemption in their own history and can reconstruct the whole loop.",
+      "via": "history-list"
+    }
+  ],
+  "claims": [
+    {
+      "id": "loop-is-explainable-end-to-end",
+      "type": "state-covered",
+      "statement": "At every step of the loop the holder can answer why their balance is what it is.",
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "pending-never-reads-as-done",
+      "type": "state-distinct",
+      "statement": "The holder is never led to believe a queued redemption has completed.",
+      "tier": "aspirational",
+      "states": [
+        "pending",
+        "success"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "_metadata": {
+    "module": "gpu-arbitration",
+    "description": "All GPU work is admitted, degraded, and released through the control-plane capacity broker.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-006",
+      "title": "Every GPU operation holds a capacity claim",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "No GPU work begins without an admitted VRAM claim from the capacity broker, and every claim is released on completion, failure, or cancellation. Unclaimed GPU consumption by this scenario is a defect.",
+      "tags": ["capacity", "gpu"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/capacity/claim_test.go", "phase": "unit", "status": "planned", "notes": "Operations acquire and release claims across success, failure, and cancel paths" },
+        { "type": "manual", "status": "planned", "notes": "`vrooli capacity reconcile` reports no UNCLAIMED consumer attributable to music-tools during a generation run" }
+      ]
+    },
+    {
+      "id": "MUS-P0-007",
+      "title": "Declared degradation rungs",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Each GPU-bearing operation declares an ordered set of profile rungs (model variant, precision, batch size) so the broker can step it down under contention instead of failing, and the applied rung is reported with the result.",
+      "tags": ["capacity", "degradation"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/capacity/degrade_test.go", "phase": "unit", "status": "planned", "notes": "Degrade callback lowers the rung and the applied rung is surfaced on the result" }
+      ]
+    },
+    {
+      "id": "MUS-P0-008",
+      "title": "Heavyweight models never co-reside",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Composition, stem separation, and structure analysis are mutually exclusive GPU leases; the always-on embedding pool is the only persistently resident model set.",
+      "tags": ["capacity", "residency"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/capacity/residency_test.go", "phase": "unit", "status": "planned", "notes": "Exclusive leases serialize and the embedding pool remains resident" }
+      ]
+    }
+  ]
+}

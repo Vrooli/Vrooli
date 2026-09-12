@@ -39,7 +39,7 @@ It avoids leaking OS-specific path decisions into scenario code and keeps mutabl
 ## Profiles
 
 1. `auto`
-- Default; resolves user-scoped paths from OS defaults.
+- Default; resolves user-scoped paths under the **operator runtime home** (`~/.vrooli`).
 
 2. `desktop`
 - Explicit desktop behavior (currently same policy as `auto`).
@@ -49,6 +49,34 @@ It avoids leaking OS-specific path decisions into scenario code and keeps mutabl
 
 4. `vps`
 - Server-style roots (`/etc`, `/var/lib`, `/var/cache`, `/var/log`, `/var/lib/vrooli-state`).
+
+### User-profile default = the operator runtime home (`~/.vrooli`)
+
+For the user-scoped profiles (`auto`/`desktop`/`mobile`), the five class roots resolve
+under the operator runtime home via the `repo-contract-go` `runtime_home` authority
+(`RuntimeHomeEntryPath`), **not** XDG/`os.UserConfigDir`/macOS `Library`/Windows `AppData`:
+
+| Class | Default root |
+|---|---|
+| `config` | `~/.vrooli/config` |
+| `data` | `~/.vrooli/data` |
+| `cache` | `~/.vrooli/cache` |
+| `logs` | `~/.vrooli/logs` |
+| `state` | `~/.vrooli/state` |
+
+Each is then class-scoped to `<root>/<app>/<scenario>` (e.g. `~/.vrooli/data/vrooli/<scenario>`).
+
+This default is **OS-agnostic** — the runtime home is operator-home-shaped, so there is no
+per-OS branching. `~/.vrooli` is the single machine-readable storage authority
+(`.vrooli/repo-contract.json` `runtime_home`); see `docs/repo-contract.md` §"Operator Runtime Home".
+
+**No fallback.** If the runtime-home contract cannot be loaded, resolution returns an error
+rather than silently producing an XDG path. The sanctioned escape for a genuinely standalone
+consumer outside a Vrooli checkout is the env/per-call overrides below — never an XDG fallback.
+
+`home` is supplied via the `UserHomeDir` seam (defaults to `os.UserHomeDir`); composition roots
+that may run under sudo should inject a sudo-aware resolver so data lands under the invoking
+user's home, not `/root`.
 
 ## Overrides
 
@@ -83,10 +111,14 @@ It avoids leaking OS-specific path decisions into scenario code and keeps mutabl
 
 `ResolverConfig` supports deterministic seams for:
 - env reads (`EnvGet`)
-- OS identity (`RuntimeOS`)
-- user directories (`UserHomeDir`, `UserConfigDir`, `UserCacheDir`)
+- the operator home from which `~/.vrooli` is derived (`UserHomeDir`)
 
-This allows cross-platform policy testing without mutating process-global env.
+This allows policy testing without mutating process-global env. The `RuntimeOS`,
+`UserConfigDir`, and `UserCacheDir` fields are retained accepted seams for API
+compatibility but no longer influence the user-profile default (which is the
+OS-agnostic runtime home). Tests that need a hermetic root should set
+`VROOLI_STORAGE_ROOT` / per-class `VROOLI_*_ROOT` / `Options.RootOverride`, or pin
+`HOME` to a temp dir.
 
 ## Usage Pattern
 

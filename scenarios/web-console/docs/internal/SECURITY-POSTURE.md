@@ -56,8 +56,18 @@ Status: **hardened** — verified in [CODE: api/shortcut_profiles_pg.go] and [CO
 - [ ] No command injection surface — user input goes to PTY stdin, not shell exec
 Status: **hardened** — PTY is the intended execution surface, not a vulnerability
 
+### Local File Preview (file-preview subsystem)
+- [x] Blob route accepts only an opaque, session-bound `preview_id` — never a raw path query string. Directory traversal is impossible because path resolution + classification happen before id issuance.
+- [x] Preview ids are short-lived (`DefaultTTL` 30m) and expire; a session mismatch, unknown, or expired id all return 404 (no existence oracle).
+- [x] The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 if deleted — a swapped file is never served under a stale id.
+- [x] Responses set `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, an explicit resolved `Content-Type`, and `Content-Disposition: attachment` for download-only (unsupported) kinds.
+- [x] SVG is served as `image/svg+xml` and rendered via a blob URL in `<img>`, never injected into the DOM (no `dangerouslySetInnerHTML`), so it cannot execute as page script.
+- [x] Filesystem permissions remain the only access gate — consistent with the single-operator trust model. The preview surface discloses no more path information than the already-visible resolved path the operator clicked.
+
+Status: **hardened for the single-operator model.** Note for a future multi-user posture: the resolver intentionally previews any file the operator's process can read (e.g. `~/.vrooli`, configs). If web-console is ever exposed multi-user, the blob/resolve surface must gain the same auth layer as the rest of the API — the opaque-id + session-binding shape was chosen so that auth can be added without redesign.
+
 ## Known Vulnerabilities
-None identified. The primary security boundary is the parent proxy — if bypassed, an unauthenticated user could create terminal sessions on the host.
+None identified. The primary security boundary is the parent proxy — if bypassed, an unauthenticated user could create terminal sessions on the host (and, via the file-preview resolver, read any file that host process can read — see Local File Preview above).
 
 ## Priority Hardening Areas
 1. **If direct exposure is ever needed**: Add JWT or session-based auth middleware

@@ -1,0 +1,119 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Proto Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Proto Health",
+    "eyebrow": "Contract Validator",
+    "description": "Validate scenario proto contracts and inspect the per-scenario surface facts consumed by Vrooli quality-loop tools."
+  },
+  "layout": {
+    "sidebarLabel": "Primary sidebar navigation",
+    "bottomNavLabel": "Primary mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Dashboard",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Run proto-health checks and inspect the API health surface from one place."
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "protoHealth": {
+    "scenarioLabel": "Scenario",
+    "run": "Run",
+    "loading": "Loading proto surface...",
+    "validation": "Validation",
+    "status": {
+      "passed": "Passed",
+      "blocked": "Blocked"
+    },
+    "metrics": {
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "info": "Info"
+    },
+    "empty": "No findings.",
+    "surfaceFacts": "Surface Facts",
+    "facts": {
+      "files": "Files",
+      "services": "Services",
+      "transport": "Transport"
+    },
+    "table": {
+      "domain": "Domain",
+      "service": "Service",
+      "rpcs": "RPCs"
+    },
+    "noServices": "No services found.",
+    "severity": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info",
+      "unspecified": "Unspecified"
+    },
+    "transport": {
+      "connect": "Connect",
+      "handRolled": "Hand-rolled",
+      "mixed": "Mixed",
+      "none": "None",
+      "unknown": "Unknown"
+    }
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

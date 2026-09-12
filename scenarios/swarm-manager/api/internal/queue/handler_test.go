@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 type listResponse struct {

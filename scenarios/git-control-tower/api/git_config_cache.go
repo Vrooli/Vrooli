@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
 // GitConfigCache caches git config values (e.g. user.name, user.email)
@@ -13,6 +15,74 @@ type GitConfigCache struct {
 	entries map[string]configCacheEntry
 	ttl     time.Duration
 	now     func() time.Time // injectable clock for testing
+}
+
+// RepoStatusCache coalesces concurrent status polls and keeps the result for a
+// short TTL. Status is intentionally not cached globally: the repository path
+// and hotspot mode are part of the key, and callers without this dependency
+// continue to get a fresh read.
+type RepoStatusCache struct {
+	mu      sync.RWMutex
+	entries map[string]repoStatusCacheEntry
+	ttl     time.Duration
+	now     func() time.Time
+	flight  singleflight.Group
+}
+
+type repoStatusCacheEntry struct {
+	value     *RepoStatus
+	expiresAt time.Time
+}
+
+func NewRepoStatusCache(ttl time.Duration) *RepoStatusCache {
+	return &RepoStatusCache{entries: make(map[string]repoStatusCacheEntry), ttl: ttl, now: time.Now}
+}
+
+// Invalidate removes all cached views for a repository after a mutation. The
+// hotspot and non-hotspot variants are separate keys because their payloads
+// differ.
+func (c *RepoStatusCache) Invalidate(repoDir string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.entries, repoDir)
+	delete(c.entries, repoDir+"\x00hotspots")
+}
+
+func (c *RepoStatusCache) Get(ctx context.Context, key string, load func(context.Context) (*RepoStatus, error)) (*RepoStatus, error) {
+	if c == nil {
+		return load(ctx)
+	}
+	c.mu.RLock()
+	entry, ok := c.entries[key]
+	fresh := ok && c.now().Before(entry.expiresAt)
+	c.mu.RUnlock()
+	if fresh {
+		return entry.value, nil
+	}
+	v, err, _ := c.flight.Do(key, func() (any, error) {
+		c.mu.RLock()
+		entry, ok := c.entries[key]
+		if ok && c.now().Before(entry.expiresAt) {
+			c.mu.RUnlock()
+			return entry.value, nil
+		}
+		c.mu.RUnlock()
+		value, err := load(ctx)
+		if err != nil {
+			return nil, err
+		}
+		c.mu.Lock()
+		c.entries[key] = repoStatusCacheEntry{value: value, expiresAt: c.now().Add(c.ttl)}
+		c.mu.Unlock()
+		return value, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*RepoStatus), nil
 }
 
 type configCacheEntry struct {

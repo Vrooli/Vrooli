@@ -1,11 +1,18 @@
+import datetime
+
 from agent_manager.v1.domain import events_pb2 as _events_pb2
 from agent_manager.v1.domain import profile_pb2 as _profile_pb2
 from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import task_pb2 as _task_pb2
 from agent_manager.v1.domain import types_pb2 as _types_pb2
+from agent_manager.v1.domain import watch_pb2 as _watch_pb2
+from agent_manager.v1.domain import workflow_pb2 as _workflow_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2_1
+from vrooli_events.v1.domain import envelope_pb2 as _envelope_pb2
 from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -15,12 +22,44 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ProfileReconcileStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PROFILE_RECONCILE_STATUS_UNSPECIFIED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_CREATED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_UPDATED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_UNCHANGED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_SKIPPED: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: _ClassVar[ProfileReconcileStatus]
+    PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: _ClassVar[ProfileReconcileStatus]
+
+class WorkflowReconcileStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    WORKFLOW_RECONCILE_STATUS_UNSPECIFIED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_CREATED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_ACTIVATED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_UNCHANGED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_SKIPPED: _ClassVar[WorkflowReconcileStatus]
+    WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION: _ClassVar[WorkflowReconcileStatus]
+
 class PurgeTarget(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PURGE_TARGET_UNSPECIFIED: _ClassVar[PurgeTarget]
     PURGE_TARGET_PROFILES: _ClassVar[PurgeTarget]
     PURGE_TARGET_TASKS: _ClassVar[PurgeTarget]
     PURGE_TARGET_RUNS: _ClassVar[PurgeTarget]
+PROFILE_RECONCILE_STATUS_UNSPECIFIED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_CREATED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_UPDATED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_UNCHANGED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_SKIPPED: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_CONFLICTED_LOCAL_OVERRIDE: ProfileReconcileStatus
+PROFILE_RECONCILE_STATUS_FAILED_VALIDATION: ProfileReconcileStatus
+WORKFLOW_RECONCILE_STATUS_UNSPECIFIED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_CREATED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_ACTIVATED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_UNCHANGED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_SKIPPED: WorkflowReconcileStatus
+WORKFLOW_RECONCILE_STATUS_FAILED_VALIDATION: WorkflowReconcileStatus
 PURGE_TARGET_UNSPECIFIED: PurgeTarget
 PURGE_TARGET_PROFILES: PurgeTarget
 PURGE_TARGET_TASKS: PurgeTarget
@@ -94,52 +133,463 @@ class EnsureProfileResponse(_message.Message):
     updated: bool
     def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., created: _Optional[bool] = ..., updated: _Optional[bool] = ...) -> None: ...
 
+class ReconcileScenarioProfilesRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ProfileReconcileResult(_message.Message):
+    __slots__ = ("profile_key", "source_path", "source_hash", "profile_id", "status", "message", "diagnostics")
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_HASH_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    profile_key: str
+    source_path: str
+    source_hash: str
+    profile_id: str
+    status: ProfileReconcileStatus
+    message: str
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, profile_key: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., profile_id: _Optional[str] = ..., status: _Optional[_Union[ProfileReconcileStatus, str]] = ..., message: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class ReconcileScenarioProfilesResponse(_message.Message):
+    __slots__ = ("scenario", "results", "created", "updated", "unchanged", "skipped", "conflicted", "failed", "dry_run")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_FIELD_NUMBER: _ClassVar[int]
+    UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    CONFLICTED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    results: _containers.RepeatedCompositeFieldContainer[ProfileReconcileResult]
+    created: int
+    updated: int
+    unchanged: int
+    skipped: int
+    conflicted: int
+    failed: int
+    dry_run: bool
+    def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ProfileReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., updated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., conflicted: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class ValidateWorkflowRequest(_message.Message):
+    __slots__ = ("definition",)
+    DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    definition: _struct_pb2.Struct
+    def __init__(self, definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class ValidateWorkflowResponse(_message.Message):
+    __slots__ = ("valid", "digest", "definition", "diagnostics")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    digest: str
+    definition: _struct_pb2.Struct
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, valid: _Optional[bool] = ..., digest: _Optional[str] = ..., definition: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class ReconcileScenarioWorkflowsRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class WorkflowReconcileResult(_message.Message):
+    __slots__ = ("workflow_key", "version", "digest", "source_path", "status", "message", "diagnostics")
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    workflow_key: str
+    version: str
+    digest: str
+    source_path: str
+    status: WorkflowReconcileStatus
+    message: str
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, workflow_key: _Optional[str] = ..., version: _Optional[str] = ..., digest: _Optional[str] = ..., source_path: _Optional[str] = ..., status: _Optional[_Union[WorkflowReconcileStatus, str]] = ..., message: _Optional[str] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
+class ReconcileScenarioWorkflowsResponse(_message.Message):
+    __slots__ = ("scenario", "results", "created", "activated", "unchanged", "skipped", "failed", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    results: _containers.RepeatedCompositeFieldContainer[WorkflowReconcileResult]
+    created: int
+    activated: int
+    unchanged: int
+    skipped: int
+    failed: int
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., results: _Optional[_Iterable[_Union[WorkflowReconcileResult, _Mapping]]] = ..., created: _Optional[int] = ..., activated: _Optional[int] = ..., unchanged: _Optional[int] = ..., skipped: _Optional[int] = ..., failed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class ReconcileScenarioDeclarationsRequest(_message.Message):
+    __slots__ = ("scenario", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class ReconcileScenarioDeclarationsResponse(_message.Message):
+    __slots__ = ("scenario", "profile_results", "workflow_results", "profiles_created", "profiles_updated", "profiles_unchanged", "profiles_skipped", "profiles_conflicted", "profiles_failed", "workflows_created", "workflows_activated", "workflows_unchanged", "workflows_skipped", "workflows_failed", "dry_run", "validate_only")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_CREATED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_UPDATED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_CONFLICTED_FIELD_NUMBER: _ClassVar[int]
+    PROFILES_FAILED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_CREATED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_UNCHANGED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOWS_FAILED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VALIDATE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    profile_results: _containers.RepeatedCompositeFieldContainer[ProfileReconcileResult]
+    workflow_results: _containers.RepeatedCompositeFieldContainer[WorkflowReconcileResult]
+    profiles_created: int
+    profiles_updated: int
+    profiles_unchanged: int
+    profiles_skipped: int
+    profiles_conflicted: int
+    profiles_failed: int
+    workflows_created: int
+    workflows_activated: int
+    workflows_unchanged: int
+    workflows_skipped: int
+    workflows_failed: int
+    dry_run: bool
+    validate_only: bool
+    def __init__(self, scenario: _Optional[str] = ..., profile_results: _Optional[_Iterable[_Union[ProfileReconcileResult, _Mapping]]] = ..., workflow_results: _Optional[_Iterable[_Union[WorkflowReconcileResult, _Mapping]]] = ..., profiles_created: _Optional[int] = ..., profiles_updated: _Optional[int] = ..., profiles_unchanged: _Optional[int] = ..., profiles_skipped: _Optional[int] = ..., profiles_conflicted: _Optional[int] = ..., profiles_failed: _Optional[int] = ..., workflows_created: _Optional[int] = ..., workflows_activated: _Optional[int] = ..., workflows_unchanged: _Optional[int] = ..., workflows_skipped: _Optional[int] = ..., workflows_failed: _Optional[int] = ..., dry_run: _Optional[bool] = ..., validate_only: _Optional[bool] = ...) -> None: ...
+
+class ListWorkflowRevisionsRequest(_message.Message):
+    __slots__ = ("owner", "key", "limit", "offset")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    key: str
+    limit: int
+    offset: int
+    def __init__(self, owner: _Optional[str] = ..., key: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class ListWorkflowRevisionsResponse(_message.Message):
+    __slots__ = ("revisions",)
+    REVISIONS_FIELD_NUMBER: _ClassVar[int]
+    revisions: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowRevision]
+    def __init__(self, revisions: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowRevision, _Mapping]]] = ...) -> None: ...
+
+class GetWorkflowRevisionRequest(_message.Message):
+    __slots__ = ("owner", "key", "digest")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    key: str
+    digest: str
+    def __init__(self, owner: _Optional[str] = ..., key: _Optional[str] = ..., digest: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowRevisionResponse(_message.Message):
+    __slots__ = ("revision",)
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    revision: _workflow_pb2.WorkflowRevision
+    def __init__(self, revision: _Optional[_Union[_workflow_pb2.WorkflowRevision, _Mapping]] = ...) -> None: ...
+
+class StartWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input", "idempotency_key", "engagement_grant", "approval_digest", "grant_digest", "execution_preferences")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    ENGAGEMENT_GRANT_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    GRANT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    definition_digest: str
+    input: _struct_pb2.Value
+    idempotency_key: str
+    engagement_grant: _workflow_pb2.WorkflowEngagementGrant
+    approval_digest: str
+    grant_digest: str
+    execution_preferences: _profile_pb2.ExecutionPreferences
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., engagement_grant: _Optional[_Union[_workflow_pb2.WorkflowEngagementGrant, _Mapping]] = ..., approval_digest: _Optional[str] = ..., grant_digest: _Optional[str] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+
+class ListExecutionOptionsRequest(_message.Message):
+    __slots__ = ("role_ref",)
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    role_ref: str
+    def __init__(self, role_ref: _Optional[str] = ...) -> None: ...
+
+class ModelOption(_message.Message):
+    __slots__ = ("id", "canonical_model", "is_default")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CANONICAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    IS_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    canonical_model: str
+    is_default: bool
+    def __init__(self, id: _Optional[str] = ..., canonical_model: _Optional[str] = ..., is_default: _Optional[bool] = ...) -> None: ...
+
+class ExecutionOption(_message.Message):
+    __slots__ = ("runner_type", "available", "message", "native_objective", "sandbox_modes_with_native_objective", "default_model", "models", "effort_levels")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_MODES_WITH_NATIVE_OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_MODEL_FIELD_NUMBER: _ClassVar[int]
+    MODELS_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_LEVELS_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    available: bool
+    message: str
+    native_objective: bool
+    sandbox_modes_with_native_objective: _containers.RepeatedScalarFieldContainer[str]
+    default_model: str
+    models: _containers.RepeatedCompositeFieldContainer[ModelOption]
+    effort_levels: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., native_objective: _Optional[bool] = ..., sandbox_modes_with_native_objective: _Optional[_Iterable[str]] = ..., default_model: _Optional[str] = ..., models: _Optional[_Iterable[_Union[ModelOption, _Mapping]]] = ..., effort_levels: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ListExecutionOptionsResponse(_message.Message):
+    __slots__ = ("options",)
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    options: _containers.RepeatedCompositeFieldContainer[ExecutionOption]
+    def __init__(self, options: _Optional[_Iterable[_Union[ExecutionOption, _Mapping]]] = ...) -> None: ...
+
+class GetWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class GetWorkflowExecutionResultRequest(_message.Message):
+    __slots__ = ("execution_id", "explicitly_authorized")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    explicitly_authorized: bool
+    def __init__(self, execution_id: _Optional[str] = ..., explicitly_authorized: _Optional[bool] = ...) -> None: ...
+
+class WorkflowExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ...) -> None: ...
+
+class WaitWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "timeout_seconds")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    timeout_seconds: int
+    def __init__(self, execution_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitWorkflowExecutionResponse(_message.Message):
+    __slots__ = ("execution", "timed_out")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    timed_out: bool
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
+
+class ListWorkflowExecutionsRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "status", "limit", "offset")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    status: _workflow_pb2.WorkflowExecutionStatus
+    limit: int
+    offset: int
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., status: _Optional[_Union[_workflow_pb2.WorkflowExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class ListWorkflowExecutionsResponse(_message.Message):
+    __slots__ = ("executions",)
+    EXECUTIONS_FIELD_NUMBER: _ClassVar[int]
+    executions: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowExecution]
+    def __init__(self, executions: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowExecution, _Mapping]]] = ...) -> None: ...
+
+class GetWorkflowExecutionTraceRequest(_message.Message):
+    __slots__ = ("execution_id", "after_sequence", "limit")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    AFTER_SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    after_sequence: int
+    limit: int
+    def __init__(self, execution_id: _Optional[str] = ..., after_sequence: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class GetWorkflowExecutionTraceResponse(_message.Message):
+    __slots__ = ("execution", "attempts", "journal")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    JOURNAL_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    attempts: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowNodeAttempt]
+    journal: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowJournalEntry]
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., attempts: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowNodeAttempt, _Mapping]]] = ..., journal: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowJournalEntry, _Mapping]]] = ...) -> None: ...
+
+class ListWorkflowExecutionRunsRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class ListWorkflowExecutionRunsResponse(_message.Message):
+    __slots__ = ("attempts",)
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    attempts: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowNodeAttempt]
+    def __init__(self, attempts: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowNodeAttempt, _Mapping]]] = ...) -> None: ...
+
+class SignalWorkflowExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "signal", "payload", "idempotency_key", "expected_version")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    signal: str
+    payload: _struct_pb2.Value
+    idempotency_key: str
+    expected_version: int
+    def __init__(self, execution_id: _Optional[str] = ..., signal: _Optional[str] = ..., payload: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., expected_version: _Optional[int] = ...) -> None: ...
+
+class WorkflowExecutionOperationRequest(_message.Message):
+    __slots__ = ("execution_id", "idempotency_key", "expected_version", "reason")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    idempotency_key: str
+    expected_version: int
+    reason: str
+    def __init__(self, execution_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., expected_version: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class WorkflowExecutionOperationResponse(_message.Message):
+    __slots__ = ("execution", "idempotent")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENT_FIELD_NUMBER: _ClassVar[int]
+    execution: _workflow_pb2.WorkflowExecution
+    idempotent: bool
+    def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., idempotent: _Optional[bool] = ...) -> None: ...
+
+class SimulateWorkflowRequest(_message.Message):
+    __slots__ = ("owner", "workflow_key", "definition_digest", "input")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    workflow_key: str
+    definition_digest: str
+    input: _struct_pb2.Value
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., definition_digest: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+
+class WorkflowNodePlan(_message.Message):
+    __slots__ = ("node_id", "kind", "execution_strategy", "profile_key", "role_ref", "continuation_source", "child_workflow_key", "child_workflow_version", "wait_signal", "wait_timeout_seconds", "join_strategy", "join_quorum", "parallel")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATION_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CHILD_WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    CHILD_WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
+    WAIT_SIGNAL_FIELD_NUMBER: _ClassVar[int]
+    WAIT_TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    JOIN_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    JOIN_QUORUM_FIELD_NUMBER: _ClassVar[int]
+    PARALLEL_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    kind: str
+    execution_strategy: str
+    profile_key: str
+    role_ref: str
+    continuation_source: str
+    child_workflow_key: str
+    child_workflow_version: str
+    wait_signal: str
+    wait_timeout_seconds: int
+    join_strategy: str
+    join_quorum: int
+    parallel: bool
+    def __init__(self, node_id: _Optional[str] = ..., kind: _Optional[str] = ..., execution_strategy: _Optional[str] = ..., profile_key: _Optional[str] = ..., role_ref: _Optional[str] = ..., continuation_source: _Optional[str] = ..., child_workflow_key: _Optional[str] = ..., child_workflow_version: _Optional[str] = ..., wait_signal: _Optional[str] = ..., wait_timeout_seconds: _Optional[int] = ..., join_strategy: _Optional[str] = ..., join_quorum: _Optional[int] = ..., parallel: _Optional[bool] = ...) -> None: ...
+
+class SimulateWorkflowResponse(_message.Message):
+    __slots__ = ("valid", "definition_digest", "nodes", "possible_terminal_nodes", "diagnostics")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    POSSIBLE_TERMINAL_NODES_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    definition_digest: str
+    nodes: _containers.RepeatedCompositeFieldContainer[WorkflowNodePlan]
+    possible_terminal_nodes: _containers.RepeatedScalarFieldContainer[str]
+    diagnostics: _containers.RepeatedCompositeFieldContainer[_workflow_pb2.WorkflowDiagnostic]
+    def __init__(self, valid: _Optional[bool] = ..., definition_digest: _Optional[str] = ..., nodes: _Optional[_Iterable[_Union[WorkflowNodePlan, _Mapping]]] = ..., possible_terminal_nodes: _Optional[_Iterable[str]] = ..., diagnostics: _Optional[_Iterable[_Union[_workflow_pb2.WorkflowDiagnostic, _Mapping]]] = ...) -> None: ...
+
 class GetProfileRequest(_message.Message):
     __slots__ = ("profile_id",)
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     def __init__(self, profile_id: _Optional[str] = ...) -> None: ...
 
-class AvailableModel(_message.Message):
-    __slots__ = ("id", "label", "description", "provider", "sources")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    LABEL_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_FIELD_NUMBER: _ClassVar[int]
-    SOURCES_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    label: str
-    description: str
-    provider: str
-    sources: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., provider: _Optional[str] = ..., sources: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class GetProfileResponse(_message.Message):
-    __slots__ = ("profile", "available_models", "model_presets")
-    class ModelPresetsEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    __slots__ = ("profile",)
     PROFILE_FIELD_NUMBER: _ClassVar[int]
-    AVAILABLE_MODELS_FIELD_NUMBER: _ClassVar[int]
-    MODEL_PRESETS_FIELD_NUMBER: _ClassVar[int]
     profile: _profile_pb2.AgentProfile
-    available_models: _containers.RepeatedCompositeFieldContainer[AvailableModel]
-    model_presets: _containers.ScalarMap[str, str]
-    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., available_models: _Optional[_Iterable[_Union[AvailableModel, _Mapping]]] = ..., model_presets: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    def __init__(self, profile: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
 
 class ListProfilesRequest(_message.Message):
-    __slots__ = ("runner_type", "limit", "offset")
-    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("limit", "offset")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    runner_type: _types_pb2.RunnerType
     limit: int
     offset: int
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    def __init__(self, limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListProfilesResponse(_message.Message):
     __slots__ = ("profiles", "total", "has_more")
@@ -264,15 +714,17 @@ class CancelTaskResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., status: _Optional[str] = ...) -> None: ...
 
 class ProfileRef(_message.Message):
-    __slots__ = ("profile_key", "defaults")
+    __slots__ = ("profile_key", "defaults", "update_existing")
     PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
     DEFAULTS_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_EXISTING_FIELD_NUMBER: _ClassVar[int]
     profile_key: str
     defaults: _profile_pb2.AgentProfile
-    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
+    update_existing: bool
+    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
 class CreateRunRequest(_message.Message):
-    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment")
+    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode")
     class EnvironmentEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -291,6 +743,9 @@ class CreateRunRequest(_message.Message):
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     EXISTING_SANDBOX_ID_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    CONVERSATION_ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -302,7 +757,48 @@ class CreateRunRequest(_message.Message):
     prompt: str
     existing_sandbox_id: str
     environment: _containers.ScalarMap[str, str]
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    conversation_id: str
+    parent_run_id: str
+    execution_mode: _types_pb2.ExecutionMode
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ...) -> None: ...
+
+class AttachRunRequest(_message.Message):
+    __slots__ = ("task_id", "harness_kind", "harness_session_id", "process_id", "harness_title")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_KIND_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_TITLE_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    harness_kind: str
+    harness_session_id: str
+    process_id: int
+    harness_title: str
+    def __init__(self, task_id: _Optional[str] = ..., harness_kind: _Optional[str] = ..., harness_session_id: _Optional[str] = ..., process_id: _Optional[int] = ..., harness_title: _Optional[str] = ...) -> None: ...
+
+class AttachRunResponse(_message.Message):
+    __slots__ = ("run", "identity_token", "expires_at")
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    identity_token: str
+    expires_at: _timestamp_pb2.Timestamp
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., identity_token: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class DetachRunRequest(_message.Message):
+    __slots__ = ("run_id", "reason")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    reason: str
+    def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DetachRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class DeleteRunRequest(_message.Message):
     __slots__ = ("run_id",)
@@ -317,10 +813,16 @@ class DeleteRunResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ...) -> None: ...
 
 class CreateRunResponse(_message.Message):
-    __slots__ = ("run",)
+    __slots__ = ("run", "queue_depth", "active_count", "starting_count")
     RUN_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_DEPTH_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    STARTING_COUNT_FIELD_NUMBER: _ClassVar[int]
     run: _run_pb2.Run
-    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
+    queue_depth: int
+    active_count: int
+    starting_count: int
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., queue_depth: _Optional[int] = ..., active_count: _Optional[int] = ..., starting_count: _Optional[int] = ...) -> None: ...
 
 class GetRunRequest(_message.Message):
     __slots__ = ("run_id",)
@@ -333,6 +835,163 @@ class GetRunResponse(_message.Message):
     RUN_FIELD_NUMBER: _ClassVar[int]
     run: _run_pb2.Run
     def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
+
+class GetRunReportRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RunReport(_message.Message):
+    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome", "work_references")
+    class EventCountsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    HEARTBEAT_GAP_MS_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    COST_USD_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    EVENT_COUNTS_FIELD_NUMBER: _ClassVar[int]
+    TOOLS_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_OWNED_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DIFF_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RECEIPTS_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REPEATED_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    LONGEST_EVENT_GAP_MS_FIELD_NUMBER: _ClassVar[int]
+    FILES_READ_MORE_THAN_ONCE_FIELD_NUMBER: _ClassVar[int]
+    TIME_ACCOUNTING_FIELD_NUMBER: _ClassVar[int]
+    GOAL_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    exit_code: int
+    error: str
+    duration_ms: int
+    heartbeat_gap_ms: int
+    turns: int
+    tokens: int
+    cost_usd: float
+    result: RunReportResult
+    event_counts: _containers.ScalarMap[str, int]
+    tools: _containers.RepeatedCompositeFieldContainer[RunReportTool]
+    project_owned_tool_calls: int
+    external_tool_calls: int
+    requested_model: str
+    actual_model: str
+    fallback_count: int
+    diff: RunReportDiff
+    events_availability: RunReportAvailability
+    receipts_availability: RunReportAvailability
+    receipt_count: int
+    repeated_tool_calls: int
+    longest_event_gap_ms: int
+    files_read_more_than_once: int
+    time_accounting: RunTimeAccounting
+    goal_outcome: RunGoalOutcome
+    work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ..., time_accounting: _Optional[_Union[RunTimeAccounting, _Mapping]] = ..., goal_outcome: _Optional[_Union[RunGoalOutcome, _Mapping]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ...) -> None: ...
+
+class RunGoalOutcome(_message.Message):
+    __slots__ = ("goal_id", "status", "token_budget", "tokens_used", "time_used_seconds")
+    GOAL_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_USED_FIELD_NUMBER: _ClassVar[int]
+    TIME_USED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    goal_id: str
+    status: str
+    token_budget: int
+    tokens_used: int
+    time_used_seconds: int
+    def __init__(self, goal_id: _Optional[str] = ..., status: _Optional[str] = ..., token_budget: _Optional[int] = ..., tokens_used: _Optional[int] = ..., time_used_seconds: _Optional[int] = ...) -> None: ...
+
+class RunTimeAccounting(_message.Message):
+    __slots__ = ("model_generating_ms", "tool_executing_ms", "idle_waiting_ms", "awaiting_human_ms", "unattributable_ms", "model_tokens", "tool_tokens", "idle_tokens", "human_tokens", "unattributable_tokens")
+    MODEL_GENERATING_MS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_EXECUTING_MS_FIELD_NUMBER: _ClassVar[int]
+    IDLE_WAITING_MS_FIELD_NUMBER: _ClassVar[int]
+    AWAITING_HUMAN_MS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTABLE_MS_FIELD_NUMBER: _ClassVar[int]
+    MODEL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    TOOL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    IDLE_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    HUMAN_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTABLE_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    model_generating_ms: int
+    tool_executing_ms: int
+    idle_waiting_ms: int
+    awaiting_human_ms: int
+    unattributable_ms: int
+    model_tokens: int
+    tool_tokens: int
+    idle_tokens: int
+    human_tokens: int
+    unattributable_tokens: int
+    def __init__(self, model_generating_ms: _Optional[int] = ..., tool_executing_ms: _Optional[int] = ..., idle_waiting_ms: _Optional[int] = ..., awaiting_human_ms: _Optional[int] = ..., unattributable_ms: _Optional[int] = ..., model_tokens: _Optional[int] = ..., tool_tokens: _Optional[int] = ..., idle_tokens: _Optional[int] = ..., human_tokens: _Optional[int] = ..., unattributable_tokens: _Optional[int] = ...) -> None: ...
+
+class RunReportResult(_message.Message):
+    __slots__ = ("selection_status", "selection_rule", "candidate_count", "structured_status", "structured_method", "diagnostic_codes")
+    SELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_RULE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_STATUS_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_METHOD_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_CODES_FIELD_NUMBER: _ClassVar[int]
+    selection_status: str
+    selection_rule: str
+    candidate_count: int
+    structured_status: str
+    structured_method: str
+    diagnostic_codes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, selection_status: _Optional[str] = ..., selection_rule: _Optional[str] = ..., candidate_count: _Optional[int] = ..., structured_status: _Optional[str] = ..., structured_method: _Optional[str] = ..., diagnostic_codes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RunReportTool(_message.Message):
+    __slots__ = ("name", "calls", "successes", "failures", "unresolved")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    CALLS_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSES_FIELD_NUMBER: _ClassVar[int]
+    FAILURES_FIELD_NUMBER: _ClassVar[int]
+    UNRESOLVED_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    calls: int
+    successes: int
+    failures: int
+    unresolved: int
+    def __init__(self, name: _Optional[str] = ..., calls: _Optional[int] = ..., successes: _Optional[int] = ..., failures: _Optional[int] = ..., unresolved: _Optional[int] = ...) -> None: ...
+
+class RunReportDiff(_message.Message):
+    __slots__ = ("files", "bytes", "available")
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    files: int
+    bytes: int
+    available: RunReportAvailability
+    def __init__(self, files: _Optional[int] = ..., bytes: _Optional[int] = ..., available: _Optional[_Union[RunReportAvailability, _Mapping]] = ...) -> None: ...
+
+class RunReportAvailability(_message.Message):
+    __slots__ = ("state", "reason")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    reason: str
+    def __init__(self, state: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class GetRunByTagRequest(_message.Message):
     __slots__ = ("tag",)
@@ -379,10 +1038,12 @@ class StopRunRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class StopRunResponse(_message.Message):
-    __slots__ = ("status",)
+    __slots__ = ("status", "run")
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
     status: str
-    def __init__(self, status: _Optional[str] = ...) -> None: ...
+    run: _run_pb2.Run
+    def __init__(self, status: _Optional[str] = ..., run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class StopRunByTagRequest(_message.Message):
     __slots__ = ("tag",)
@@ -391,12 +1052,14 @@ class StopRunByTagRequest(_message.Message):
     def __init__(self, tag: _Optional[str] = ...) -> None: ...
 
 class StopRunByTagResponse(_message.Message):
-    __slots__ = ("status", "tag")
+    __slots__ = ("status", "tag", "run")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
     status: str
     tag: str
-    def __init__(self, status: _Optional[str] = ..., tag: _Optional[str] = ...) -> None: ...
+    run: _run_pb2.Run
+    def __init__(self, status: _Optional[str] = ..., tag: _Optional[str] = ..., run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
 class StopAllRunsRequest(_message.Message):
     __slots__ = ("tag_prefix", "force")
@@ -411,6 +1074,78 @@ class StopAllRunsResponse(_message.Message):
     RESULT_FIELD_NUMBER: _ClassVar[int]
     result: _run_pb2.StopAllResult
     def __init__(self, result: _Optional[_Union[_run_pb2.StopAllResult, _Mapping]] = ...) -> None: ...
+
+class QuiesceScenarioRequest(_message.Message):
+    __slots__ = ("scenario", "scope_prefix", "tag_prefix", "exclude_run_id", "timeout", "force")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    TAG_PREFIX_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    scope_prefix: str
+    tag_prefix: str
+    exclude_run_id: str
+    timeout: str
+    force: bool
+    def __init__(self, scenario: _Optional[str] = ..., scope_prefix: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., exclude_run_id: _Optional[str] = ..., timeout: _Optional[str] = ..., force: _Optional[bool] = ...) -> None: ...
+
+class QuiesceScenarioResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: QuiesceResult
+    def __init__(self, result: _Optional[_Union[QuiesceResult, _Mapping]] = ...) -> None: ...
+
+class QuiesceResult(_message.Message):
+    __slots__ = ("scenario", "drained", "aborted", "initial", "in_flight", "cancelled", "waited_ms", "reason")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DRAINED_FIELD_NUMBER: _ClassVar[int]
+    ABORTED_FIELD_NUMBER: _ClassVar[int]
+    INITIAL_FIELD_NUMBER: _ClassVar[int]
+    IN_FLIGHT_FIELD_NUMBER: _ClassVar[int]
+    CANCELLED_FIELD_NUMBER: _ClassVar[int]
+    WAITED_MS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    drained: bool
+    aborted: bool
+    initial: int
+    in_flight: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    cancelled: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    waited_ms: int
+    reason: str
+    def __init__(self, scenario: _Optional[str] = ..., drained: _Optional[bool] = ..., aborted: _Optional[bool] = ..., initial: _Optional[int] = ..., in_flight: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., cancelled: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., waited_ms: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class QuiesceRunRef(_message.Message):
+    __slots__ = ("id", "tag", "status", "scope_path")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TAG_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    tag: str
+    status: str
+    scope_path: str
+    def __init__(self, id: _Optional[str] = ..., tag: _Optional[str] = ..., status: _Optional[str] = ..., scope_path: _Optional[str] = ...) -> None: ...
+
+class RecoverRunRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RecoverRunResponse(_message.Message):
+    __slots__ = ("run", "recovered", "idempotent", "message")
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    RECOVERED_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    recovered: bool
+    idempotent: bool
+    message: str
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., recovered: _Optional[bool] = ..., idempotent: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class GetRunEventsRequest(_message.Message):
     __slots__ = ("run_id", "after_sequence", "limit", "event_types")
@@ -518,6 +1253,420 @@ class ProbeRunnerResponse(_message.Message):
     result: _run_pb2.ProbeResult
     def __init__(self, result: _Optional[_Union[_run_pb2.ProbeResult, _Mapping]] = ...) -> None: ...
 
+class RolePolicyDiagnostic(_message.Message):
+    __slots__ = ("code", "message", "cause")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CAUSE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    cause: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., cause: _Optional[str] = ...) -> None: ...
+
+class RolePolicyRequirement(_message.Message):
+    __slots__ = ("required", "reason")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    required: bool
+    reason: str
+    def __init__(self, required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class RolePolicyReloadAttempt(_message.Message):
+    __slots__ = ("attempted_at", "succeeded", "digest", "diagnostic")
+    ATTEMPTED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    attempted_at: _timestamp_pb2.Timestamp
+    succeeded: bool
+    digest: str
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class RolePolicyStatus(_message.Message):
+    __slots__ = ("path", "requirement", "ready", "active_digest", "activated_at", "last_reload_attempt")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_RELOAD_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    requirement: RolePolicyRequirement
+    ready: bool
+    active_digest: str
+    activated_at: _timestamp_pb2.Timestamp
+    last_reload_attempt: RolePolicyReloadAttempt
+    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[RolePolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[RolePolicyReloadAttempt, _Mapping]] = ...) -> None: ...
+
+class RolePolicyCatalogMetadata(_message.Message):
+    __slots__ = ("catalog_id", "updated_at")
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    catalog_id: str
+    updated_at: str
+    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class RolePolicyCandidate(_message.Message):
+    __slots__ = ("runner_type", "resource_role")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_ROLE_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    resource_role: str
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., resource_role: _Optional[str] = ...) -> None: ...
+
+class RolePolicyDefinition(_message.Message):
+    __slots__ = ("role_ref", "intent", "description", "candidates")
+    ROLE_REF_FIELD_NUMBER: _ClassVar[int]
+    INTENT_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    role_ref: str
+    intent: str
+    description: str
+    candidates: _containers.RepeatedCompositeFieldContainer[RolePolicyCandidate]
+    def __init__(self, role_ref: _Optional[str] = ..., intent: _Optional[str] = ..., description: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[RolePolicyCandidate, _Mapping]]] = ...) -> None: ...
+
+class RolePolicyCatalog(_message.Message):
+    __slots__ = ("schema_version", "metadata", "default_role", "roles")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_ROLE_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    metadata: RolePolicyCatalogMetadata
+    default_role: str
+    roles: _containers.RepeatedCompositeFieldContainer[RolePolicyDefinition]
+    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[RolePolicyCatalogMetadata, _Mapping]] = ..., default_role: _Optional[str] = ..., roles: _Optional[_Iterable[_Union[RolePolicyDefinition, _Mapping]]] = ...) -> None: ...
+
+class GetRolePolicyStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetRolePolicyStatusResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: RolePolicyStatus
+    def __init__(self, status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ...) -> None: ...
+
+class GetRolePolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetRolePolicyCatalogResponse(_message.Message):
+    __slots__ = ("status", "catalog")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_FIELD_NUMBER: _ClassVar[int]
+    status: RolePolicyStatus
+    catalog: RolePolicyCatalog
+    def __init__(self, status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[RolePolicyCatalog, _Mapping]] = ...) -> None: ...
+
+class ValidateRolePolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ValidateRolePolicyCatalogResponse(_message.Message):
+    __slots__ = ("valid", "candidate_digest", "active_digest", "diagnostic")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    candidate_digest: str
+    active_digest: str
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ReloadRolePolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReloadRolePolicyCatalogResponse(_message.Message):
+    __slots__ = ("activated", "status", "diagnostic")
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    activated: bool
+    status: RolePolicyStatus
+    diagnostic: RolePolicyDiagnostic
+    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[RolePolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ExplainRolePolicyRequest(_message.Message):
+    __slots__ = ("profile_id", "run_id")
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    profile_id: str
+    run_id: str
+    def __init__(self, profile_id: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class ExplainRolePolicyResponse(_message.Message):
+    __slots__ = ("target_type", "target_id", "snapshot", "summary", "historical_without_snapshot")
+    TARGET_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    HISTORICAL_WITHOUT_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    target_type: str
+    target_id: str
+    snapshot: _profile_pb2.ExecutionPolicySnapshot
+    summary: str
+    historical_without_snapshot: bool
+    def __init__(self, target_type: _Optional[str] = ..., target_id: _Optional[str] = ..., snapshot: _Optional[_Union[_profile_pb2.ExecutionPolicySnapshot, _Mapping]] = ..., summary: _Optional[str] = ..., historical_without_snapshot: _Optional[bool] = ...) -> None: ...
+
+class PermissionPolicyDiagnostic(_message.Message):
+    __slots__ = ("code", "message", "cause")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    CAUSE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    message: str
+    cause: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., cause: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyRequirement(_message.Message):
+    __slots__ = ("required", "reason")
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    required: bool
+    reason: str
+    def __init__(self, required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyReloadAttempt(_message.Message):
+    __slots__ = ("attempted_at", "succeeded", "digest", "diagnostic")
+    ATTEMPTED_AT_FIELD_NUMBER: _ClassVar[int]
+    SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    attempted_at: _timestamp_pb2.Timestamp
+    succeeded: bool
+    digest: str
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, attempted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., succeeded: _Optional[bool] = ..., digest: _Optional[str] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class PermissionPolicyStatus(_message.Message):
+    __slots__ = ("path", "requirement", "ready", "active_digest", "activated_at", "last_reload_attempt")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_RELOAD_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    requirement: PermissionPolicyRequirement
+    ready: bool
+    active_digest: str
+    activated_at: _timestamp_pb2.Timestamp
+    last_reload_attempt: PermissionPolicyReloadAttempt
+    def __init__(self, path: _Optional[str] = ..., requirement: _Optional[_Union[PermissionPolicyRequirement, _Mapping]] = ..., ready: _Optional[bool] = ..., active_digest: _Optional[str] = ..., activated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_reload_attempt: _Optional[_Union[PermissionPolicyReloadAttempt, _Mapping]] = ...) -> None: ...
+
+class PermissionPolicyCatalogMetadata(_message.Message):
+    __slots__ = ("catalog_id", "updated_at")
+    CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    catalog_id: str
+    updated_at: str
+    def __init__(self, catalog_id: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyMatcher(_message.Message):
+    __slots__ = ("kind", "pattern")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    PATTERN_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    pattern: str
+    def __init__(self, kind: _Optional[str] = ..., pattern: _Optional[str] = ...) -> None: ...
+
+class PermissionPolicyRule(_message.Message):
+    __slots__ = ("id", "action", "matcher", "rationale", "owner", "target_scope", "requires_hard_enforcement")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    MATCHER_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_HARD_ENFORCEMENT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    action: str
+    matcher: PermissionPolicyMatcher
+    rationale: str
+    owner: str
+    target_scope: str
+    requires_hard_enforcement: bool
+    def __init__(self, id: _Optional[str] = ..., action: _Optional[str] = ..., matcher: _Optional[_Union[PermissionPolicyMatcher, _Mapping]] = ..., rationale: _Optional[str] = ..., owner: _Optional[str] = ..., target_scope: _Optional[str] = ..., requires_hard_enforcement: _Optional[bool] = ...) -> None: ...
+
+class PermissionPolicyCatalog(_message.Message):
+    __slots__ = ("schema_version", "metadata", "target_scopes", "rules")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    METADATA_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPES_FIELD_NUMBER: _ClassVar[int]
+    RULES_FIELD_NUMBER: _ClassVar[int]
+    schema_version: int
+    metadata: PermissionPolicyCatalogMetadata
+    target_scopes: _containers.RepeatedScalarFieldContainer[str]
+    rules: _containers.RepeatedCompositeFieldContainer[PermissionPolicyRule]
+    def __init__(self, schema_version: _Optional[int] = ..., metadata: _Optional[_Union[PermissionPolicyCatalogMetadata, _Mapping]] = ..., target_scopes: _Optional[_Iterable[str]] = ..., rules: _Optional[_Iterable[_Union[PermissionPolicyRule, _Mapping]]] = ...) -> None: ...
+
+class PermissionPolicyEnforcement(_message.Message):
+    __slots__ = ("permissions", "caveats")
+    PERMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    CAVEATS_FIELD_NUMBER: _ClassVar[int]
+    permissions: str
+    caveats: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, permissions: _Optional[str] = ..., caveats: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PermissionPolicyResourceResult(_message.Message):
+    __slots__ = ("runner_type", "scope", "installed", "status", "error", "desired_digest", "desired_fingerprint", "live_fingerprint", "drift", "changes", "native_paths", "enforcement", "unsupported_matchers")
+    RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    LIVE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    DRIFT_FIELD_NUMBER: _ClassVar[int]
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_PATHS_FIELD_NUMBER: _ClassVar[int]
+    ENFORCEMENT_FIELD_NUMBER: _ClassVar[int]
+    UNSUPPORTED_MATCHERS_FIELD_NUMBER: _ClassVar[int]
+    runner_type: _types_pb2.RunnerType
+    scope: str
+    installed: bool
+    status: str
+    error: str
+    desired_digest: str
+    desired_fingerprint: str
+    live_fingerprint: str
+    drift: bool
+    changes: _containers.RepeatedScalarFieldContainer[str]
+    native_paths: _containers.RepeatedScalarFieldContainer[str]
+    enforcement: PermissionPolicyEnforcement
+    unsupported_matchers: _containers.RepeatedCompositeFieldContainer[PermissionPolicyMatcher]
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., scope: _Optional[str] = ..., installed: _Optional[bool] = ..., status: _Optional[str] = ..., error: _Optional[str] = ..., desired_digest: _Optional[str] = ..., desired_fingerprint: _Optional[str] = ..., live_fingerprint: _Optional[str] = ..., drift: _Optional[bool] = ..., changes: _Optional[_Iterable[str]] = ..., native_paths: _Optional[_Iterable[str]] = ..., enforcement: _Optional[_Union[PermissionPolicyEnforcement, _Mapping]] = ..., unsupported_matchers: _Optional[_Iterable[_Union[PermissionPolicyMatcher, _Mapping]]] = ...) -> None: ...
+
+class PermissionPolicyPlan(_message.Message):
+    __slots__ = ("catalog_digest", "resources", "hard_enforcement_satisfied", "missing_hard_enforcement_rule_ids")
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    HARD_ENFORCEMENT_SATISFIED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_HARD_ENFORCEMENT_RULE_IDS_FIELD_NUMBER: _ClassVar[int]
+    catalog_digest: str
+    resources: _containers.RepeatedCompositeFieldContainer[PermissionPolicyResourceResult]
+    hard_enforcement_satisfied: bool
+    missing_hard_enforcement_rule_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, catalog_digest: _Optional[str] = ..., resources: _Optional[_Iterable[_Union[PermissionPolicyResourceResult, _Mapping]]] = ..., hard_enforcement_satisfied: _Optional[bool] = ..., missing_hard_enforcement_rule_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PermissionPolicyReconcileResult(_message.Message):
+    __slots__ = ("catalog_digest", "started_at", "finished_at", "explicitly_authorized", "success", "hard_enforcement_satisfied", "missing_hard_enforcement_rule_ids", "resources")
+    CATALOG_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    HARD_ENFORCEMENT_SATISFIED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_HARD_ENFORCEMENT_RULE_IDS_FIELD_NUMBER: _ClassVar[int]
+    RESOURCES_FIELD_NUMBER: _ClassVar[int]
+    catalog_digest: str
+    started_at: _timestamp_pb2.Timestamp
+    finished_at: _timestamp_pb2.Timestamp
+    explicitly_authorized: bool
+    success: bool
+    hard_enforcement_satisfied: bool
+    missing_hard_enforcement_rule_ids: _containers.RepeatedScalarFieldContainer[str]
+    resources: _containers.RepeatedCompositeFieldContainer[PermissionPolicyResourceResult]
+    def __init__(self, catalog_digest: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., explicitly_authorized: _Optional[bool] = ..., success: _Optional[bool] = ..., hard_enforcement_satisfied: _Optional[bool] = ..., missing_hard_enforcement_rule_ids: _Optional[_Iterable[str]] = ..., resources: _Optional[_Iterable[_Union[PermissionPolicyResourceResult, _Mapping]]] = ...) -> None: ...
+
+class GetPermissionPolicyStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetPermissionPolicyStatusResponse(_message.Message):
+    __slots__ = ("status", "last_reconcile")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    LAST_RECONCILE_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    last_reconcile: PermissionPolicyReconcileResult
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., last_reconcile: _Optional[_Union[PermissionPolicyReconcileResult, _Mapping]] = ...) -> None: ...
+
+class GetPermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetPermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("status", "catalog")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CATALOG_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    catalog: PermissionPolicyCatalog
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[PermissionPolicyCatalog, _Mapping]] = ...) -> None: ...
+
+class ValidatePermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ValidatePermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("valid", "candidate_digest", "active_digest", "diagnostic")
+    VALID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    valid: bool
+    candidate_digest: str
+    active_digest: str
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, valid: _Optional[bool] = ..., candidate_digest: _Optional[str] = ..., active_digest: _Optional[str] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class ReloadPermissionPolicyCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ReloadPermissionPolicyCatalogResponse(_message.Message):
+    __slots__ = ("activated", "status", "diagnostic")
+    ACTIVATED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_FIELD_NUMBER: _ClassVar[int]
+    activated: bool
+    status: PermissionPolicyStatus
+    diagnostic: PermissionPolicyDiagnostic
+    def __init__(self, activated: _Optional[bool] = ..., status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., diagnostic: _Optional[_Union[PermissionPolicyDiagnostic, _Mapping]] = ...) -> None: ...
+
+class PlanPermissionPolicyRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class PlanPermissionPolicyResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: PermissionPolicyPlan
+    def __init__(self, plan: _Optional[_Union[PermissionPolicyPlan, _Mapping]] = ...) -> None: ...
+
+class ReconcilePermissionPolicyRequest(_message.Message):
+    __slots__ = ("explicitly_authorized",)
+    EXPLICITLY_AUTHORIZED_FIELD_NUMBER: _ClassVar[int]
+    explicitly_authorized: bool
+    def __init__(self, explicitly_authorized: _Optional[bool] = ...) -> None: ...
+
+class ReconcilePermissionPolicyResponse(_message.Message):
+    __slots__ = ("result",)
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    result: PermissionPolicyReconcileResult
+    def __init__(self, result: _Optional[_Union[PermissionPolicyReconcileResult, _Mapping]] = ...) -> None: ...
+
+class DoctorPermissionPolicyRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DoctorPermissionPolicyResponse(_message.Message):
+    __slots__ = ("status", "plan", "healthy", "summary")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    HEALTHY_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    status: PermissionPolicyStatus
+    plan: PermissionPolicyPlan
+    healthy: bool
+    summary: str
+    def __init__(self, status: _Optional[_Union[PermissionPolicyStatus, _Mapping]] = ..., plan: _Optional[_Union[PermissionPolicyPlan, _Mapping]] = ..., healthy: _Optional[bool] = ..., summary: _Optional[str] = ...) -> None: ...
+
 class PurgeDataRequest(_message.Message):
     __slots__ = ("pattern", "targets", "dry_run")
     PATTERN_FIELD_NUMBER: _ClassVar[int]
@@ -547,3 +1696,195 @@ class PurgeDataResponse(_message.Message):
     deleted: PurgeCounts
     dry_run: bool
     def __init__(self, matched: _Optional[_Union[PurgeCounts, _Mapping]] = ..., deleted: _Optional[_Union[PurgeCounts, _Mapping]] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class InvestigationSubject(_message.Message):
+    __slots__ = ("owner", "kind", "ref", "revision", "run_ids")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    kind: str
+    ref: str
+    revision: str
+    run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., revision: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InvestigationEvidenceReference(_message.Message):
+    __slots__ = ("owner", "kind", "ref", "revision", "schema_version", "subject_run_ids")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    kind: str
+    ref: str
+    revision: str
+    schema_version: str
+    subject_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., ref: _Optional[str] = ..., revision: _Optional[str] = ..., schema_version: _Optional[str] = ..., subject_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class InvestigationMethodReference(_message.Message):
+    __slots__ = ("skill_id", "revision")
+    SKILL_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    skill_id: str
+    revision: str
+    def __init__(self, skill_id: _Optional[str] = ..., revision: _Optional[str] = ...) -> None: ...
+
+class InvestigationEvidencePolicy(_message.Message):
+    __slots__ = ("mode", "required_planes", "optional_planes", "max_events", "max_evidence_bytes", "max_reconciliations")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_PLANES_FIELD_NUMBER: _ClassVar[int]
+    OPTIONAL_PLANES_FIELD_NUMBER: _ClassVar[int]
+    MAX_EVENTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_EVIDENCE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MAX_RECONCILIATIONS_FIELD_NUMBER: _ClassVar[int]
+    mode: str
+    required_planes: _containers.RepeatedScalarFieldContainer[str]
+    optional_planes: _containers.RepeatedScalarFieldContainer[str]
+    max_events: int
+    max_evidence_bytes: int
+    max_reconciliations: int
+    def __init__(self, mode: _Optional[str] = ..., required_planes: _Optional[_Iterable[str]] = ..., optional_planes: _Optional[_Iterable[str]] = ..., max_events: _Optional[int] = ..., max_evidence_bytes: _Optional[int] = ..., max_reconciliations: _Optional[int] = ...) -> None: ...
+
+class InvestigationBudget(_message.Message):
+    __slots__ = ("max_delegated_runs", "max_turns", "wall_seconds", "max_charge_micro_usd")
+    MAX_DELEGATED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TURNS_FIELD_NUMBER: _ClassVar[int]
+    WALL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CHARGE_MICRO_USD_FIELD_NUMBER: _ClassVar[int]
+    max_delegated_runs: int
+    max_turns: int
+    wall_seconds: int
+    max_charge_micro_usd: int
+    def __init__(self, max_delegated_runs: _Optional[int] = ..., max_turns: _Optional[int] = ..., wall_seconds: _Optional[int] = ..., max_charge_micro_usd: _Optional[int] = ...) -> None: ...
+
+class InvestigationRecommendationPolicy(_message.Message):
+    __slots__ = ("allowed_kinds", "allow_subject_mutation")
+    ALLOWED_KINDS_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_SUBJECT_MUTATION_FIELD_NUMBER: _ClassVar[int]
+    allowed_kinds: _containers.RepeatedScalarFieldContainer[str]
+    allow_subject_mutation: bool
+    def __init__(self, allowed_kinds: _Optional[_Iterable[str]] = ..., allow_subject_mutation: _Optional[bool] = ...) -> None: ...
+
+class InvestigationProvenance(_message.Message):
+    __slots__ = ("kind", "trigger_occurrence_ref")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_OCCURRENCE_REF_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    trigger_occurrence_ref: str
+    def __init__(self, kind: _Optional[str] = ..., trigger_occurrence_ref: _Optional[str] = ...) -> None: ...
+
+class InvestigationRequest(_message.Message):
+    __slots__ = ("schema_version", "request_key", "caller_authority", "subject", "question", "method_ref", "domain_evidence", "evidence_policy", "budget", "recommendation_policy", "provenance")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_KEY_FIELD_NUMBER: _ClassVar[int]
+    CALLER_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    QUESTION_FIELD_NUMBER: _ClassVar[int]
+    METHOD_REF_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDATION_POLICY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    request_key: str
+    caller_authority: str
+    subject: InvestigationSubject
+    question: str
+    method_ref: InvestigationMethodReference
+    domain_evidence: _containers.RepeatedCompositeFieldContainer[InvestigationEvidenceReference]
+    evidence_policy: InvestigationEvidencePolicy
+    budget: InvestigationBudget
+    recommendation_policy: InvestigationRecommendationPolicy
+    provenance: InvestigationProvenance
+    def __init__(self, schema_version: _Optional[str] = ..., request_key: _Optional[str] = ..., caller_authority: _Optional[str] = ..., subject: _Optional[_Union[InvestigationSubject, _Mapping]] = ..., question: _Optional[str] = ..., method_ref: _Optional[_Union[InvestigationMethodReference, _Mapping]] = ..., domain_evidence: _Optional[_Iterable[_Union[InvestigationEvidenceReference, _Mapping]]] = ..., evidence_policy: _Optional[_Union[InvestigationEvidencePolicy, _Mapping]] = ..., budget: _Optional[_Union[InvestigationBudget, _Mapping]] = ..., recommendation_policy: _Optional[_Union[InvestigationRecommendationPolicy, _Mapping]] = ..., provenance: _Optional[_Union[InvestigationProvenance, _Mapping]] = ...) -> None: ...
+
+class InvestigationRecord(_message.Message):
+    __slots__ = ("investigation_id", "request", "request_digest", "operation_status", "result_json", "source_cut_json", "workflow_ref", "cancel_requested", "created_at", "updated_at", "completed_at", "cancelled_at")
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CUT_JSON_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_REF_FIELD_NUMBER: _ClassVar[int]
+    CANCEL_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    CANCELLED_AT_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    request: InvestigationRequest
+    request_digest: str
+    operation_status: str
+    result_json: str
+    source_cut_json: str
+    workflow_ref: str
+    cancel_requested: bool
+    created_at: _timestamp_pb2.Timestamp
+    updated_at: _timestamp_pb2.Timestamp
+    completed_at: _timestamp_pb2.Timestamp
+    cancelled_at: _timestamp_pb2.Timestamp
+    def __init__(self, investigation_id: _Optional[str] = ..., request: _Optional[_Union[InvestigationRequest, _Mapping]] = ..., request_digest: _Optional[str] = ..., operation_status: _Optional[str] = ..., result_json: _Optional[str] = ..., source_cut_json: _Optional[str] = ..., workflow_ref: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cancelled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class StartInvestigationRequest(_message.Message):
+    __slots__ = ("request",)
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    request: InvestigationRequest
+    def __init__(self, request: _Optional[_Union[InvestigationRequest, _Mapping]] = ...) -> None: ...
+
+class StartInvestigationResponse(_message.Message):
+    __slots__ = ("investigation", "reused")
+    INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
+    REUSED_FIELD_NUMBER: _ClassVar[int]
+    investigation: InvestigationRecord
+    reused: bool
+    def __init__(self, investigation: _Optional[_Union[InvestigationRecord, _Mapping]] = ..., reused: _Optional[bool] = ...) -> None: ...
+
+class GetInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id",)
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    def __init__(self, investigation_id: _Optional[str] = ...) -> None: ...
+
+class ListInvestigationsRequest(_message.Message):
+    __slots__ = ("operation_status", "limit")
+    OPERATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    operation_status: str
+    limit: int
+    def __init__(self, operation_status: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListInvestigationsResponse(_message.Message):
+    __slots__ = ("investigations",)
+    INVESTIGATIONS_FIELD_NUMBER: _ClassVar[int]
+    investigations: _containers.RepeatedCompositeFieldContainer[InvestigationRecord]
+    def __init__(self, investigations: _Optional[_Iterable[_Union[InvestigationRecord, _Mapping]]] = ...) -> None: ...
+
+class WaitInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id", "timeout_seconds")
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    timeout_seconds: int
+    def __init__(self, investigation_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitInvestigationResponse(_message.Message):
+    __slots__ = ("investigation", "terminal")
+    INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    investigation: InvestigationRecord
+    terminal: bool
+    def __init__(self, investigation: _Optional[_Union[InvestigationRecord, _Mapping]] = ..., terminal: _Optional[bool] = ...) -> None: ...
+
+class CancelInvestigationRequest(_message.Message):
+    __slots__ = ("investigation_id",)
+    INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
+    investigation_id: str
+    def __init__(self, investigation_id: _Optional[str] = ...) -> None: ...

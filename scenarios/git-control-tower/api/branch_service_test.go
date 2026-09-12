@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 )
@@ -13,7 +12,7 @@ func TestListBranches_UsesCurrentBranchMetadata(t *testing.T) {
 		WithBranch("feature/test", "origin/feature/test", 2, 1).
 		WithLocalBranch("feature/test", "origin/feature/test", "deadbeef")
 
-	resp, err := ListBranches(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"})
+	resp, err := ListBranches(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,7 +39,7 @@ func TestListBranches_UsesCurrentBranchMetadata(t *testing.T) {
 func TestSwitchBranch_BlocksDirtyByDefault(t *testing.T) {
 	fake := NewFakeGitRunner().AddUnstagedFile("dirty.txt")
 
-	resp, err := SwitchBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
+	resp, err := SwitchBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
 		Name: "main",
 	})
 	if err != nil {
@@ -57,7 +56,7 @@ func TestSwitchBranch_BlocksDirtyByDefault(t *testing.T) {
 func TestSwitchBranch_RemoteRequiresTracking(t *testing.T) {
 	fake := NewFakeGitRunner().WithRemoteBranch("origin/feature/remote", "abc123")
 
-	resp, err := SwitchBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
+	resp, err := SwitchBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
 		Name: "origin/feature/remote",
 	})
 	if err != nil {
@@ -74,7 +73,7 @@ func TestSwitchBranch_RemoteRequiresTracking(t *testing.T) {
 func TestSwitchBranch_TracksRemoteWhenRequested(t *testing.T) {
 	fake := NewFakeGitRunner().WithRemoteBranch("origin/feature/remote", "abc123")
 
-	resp, err := SwitchBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
+	resp, err := SwitchBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, SwitchBranchRequest{
 		Name:        "origin/feature/remote",
 		TrackRemote: true,
 	})
@@ -93,7 +92,7 @@ func TestCreateBranch_InvalidName(t *testing.T) {
 	fake := NewFakeGitRunner()
 	fake.CheckRefFormatError = errTest("invalid branch")
 
-	resp, err := CreateBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, CreateBranchRequest{
+	resp, err := CreateBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, CreateBranchRequest{
 		Name: "invalid name",
 	})
 	if err != nil {
@@ -110,7 +109,7 @@ func TestCreateBranch_InvalidName(t *testing.T) {
 func TestCreateBranch_CheckoutBlockedByDirty(t *testing.T) {
 	fake := NewFakeGitRunner().AddUnstagedFile("dirty.txt")
 
-	resp, err := CreateBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, CreateBranchRequest{
+	resp, err := CreateBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, CreateBranchRequest{
 		Name:     "feature/one",
 		Checkout: true,
 	})
@@ -128,7 +127,7 @@ func TestCreateBranch_CheckoutBlockedByDirty(t *testing.T) {
 func TestPublishBranch_SetsUpstreamWhenMissing(t *testing.T) {
 	fake := NewFakeGitRunner().WithBranch("feature/test", "", 1, 0)
 
-	resp, err := PublishBranch(context.Background(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, PublishBranchRequest{})
+	resp, err := PublishBranch(authorizedHumanContext(), BranchDeps{Git: fake, RepoDir: "/fake/repo"}, PublishBranchRequest{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

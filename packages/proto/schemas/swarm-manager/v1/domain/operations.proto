@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// OPERATIONS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Bounded operations briefing records used by the API, CLI, UI, and agent
+// session prompt context.
+//
+// =============================================================================
+
+message OperationsBriefingSummary {
+  int32 active_activity_count = 1;
+  int32 recently_finished_count = 2;
+  int32 queue_depth = 3;
+  int32 max_queue_depth = 4;
+  repeated string saturated_lanes = 5;
+  map<string, int32> active_lane_count_by_lane = 6;
+  int32 total_backlog_items = 7;
+  int32 active_initiatives = 8;
+  int32 blocked_items = 9;
+  int32 active_sessions = 10;
+}
+
+message OperationsBriefingActivity {
+  string activity_id = 1;
+  string run_id = 2;
+  string owner_type = 3;
+  string owner_kind = 4;
+  string owner_name = 5;
+  string owner_title = 6;
+  string lane = 7;
+  string status = 8;
+  string purpose = 9;
+  string mode = 10;
+  string phase = 11;
+  int32 round = 12;
+  string initiative_name = 13;
+  string requested_at = 14;
+  string started_at = 15;
+  string finished_at = 16;
+  int64 runtime_seconds = 17;
+  string failure_reason = 18;
+}
+
+message OperationsBriefingAttentionItem {
+  string id = 1;
+  string severity = 2;
+  string reason = 3;
+  string title = 4;
+  string status = 5;
+  string lane = 6;
+  string ref = 7;
+  string command = 8;
+}
+
+message OperationsDirectorHandoff {
+  string source_path = 1;
+  string title = 2;
+  string observed_at = 3;
+  string excerpt = 4;
+}
+
+message OperationsRecommendedAction {
+  string id = 1;
+  string label = 2;
+  string reason = 3;
+  string command = 4;
+  string ui_path = 5;
+}
+
+message OperationsDrillDownCommand {
+  string label = 1;
+  string command = 2;
+}
+
+message OperationsBriefing {
+  string generated_at = 1;
+  int32 freshness_seconds = 2;
+  int32 window_seconds = 3;
+  OperationsBriefingSummary summary = 4;
+  repeated OperationsBriefingActivity active_work = 5;
+  repeated OperationsBriefingAttentionItem needs_attention = 6;
+  repeated OperationsBriefingActivity recent_completions = 7;
+  repeated OperationsDirectorHandoff director_handoffs = 8;
+  repeated OperationsRecommendedAction recommended_next_actions = 9;
+  repeated OperationsDrillDownCommand drill_down_commands = 10;
+  repeated string warnings = 11;
+}

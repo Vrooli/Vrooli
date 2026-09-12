@@ -144,7 +144,6 @@ func TestWorkflowService_Create(t *testing.T) {
 **Tag placement:**
 - Go: In `t.Run()` description or test function comment
 - Vitest: In `it()` or `test()` description
-- BATS: In `@test` description
 
 ---
 

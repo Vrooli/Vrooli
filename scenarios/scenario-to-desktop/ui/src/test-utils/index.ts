@@ -6,10 +6,11 @@
 // Custom render utilities
 export {
   renderWithProviders,
+  renderWithProviders as render,
   createHookWrapper,
   createTestQueryClient,
-  type RenderWithProvidersOptions,
-} from "./render";
+  type ProviderRenderOptions as RenderWithProvidersOptions,
+} from "@vrooli/api-base/testing";
 
 // Mock factories
 export {
@@ -34,7 +35,13 @@ export {
 } from "./mocks";
 
 // Re-export commonly used testing utilities from @testing-library/react
-export { screen, fireEvent, waitFor, within, act } from "@testing-library/react";
+export {
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+  act,
+} from "@testing-library/react";
 export { renderHook } from "@testing-library/react";
 
 // Re-export vitest utilities

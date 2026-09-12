@@ -8,7 +8,6 @@ import {
   MessageSquare,
   ClipboardList,
   RefreshCw,
-  AlertTriangle,
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
@@ -36,42 +35,34 @@ export function UsersDashboard() {
 
   const [stats, setStats] = useState<UsersStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const [feedbackList, waitlistEmails] = await Promise.all([
-        fetchFeedbackList().catch(() => [] as FeedbackRequest[]),
-        getWaitlistEmails().catch(() => [] as WaitlistEmail[]),
-      ]);
+    const [feedbackList, waitlistEmails] = await Promise.all([
+      fetchFeedbackList().catch(() => [] as FeedbackRequest[]),
+      getWaitlistEmails().catch(() => [] as WaitlistEmail[]),
+    ]);
 
-      const feedbackPending = feedbackList.filter(
-        (f) => f.status === 'pending' || f.status === 'in_progress'
-      ).length;
+    const feedbackPending = feedbackList.filter(
+      (f) => f.status === 'pending' || f.status === 'in_progress'
+    ).length;
 
-      setStats({
-        feedbackPending,
-        feedbackTotal: feedbackList.length,
-        waitlistCount: waitlistEmails.length,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load user stats');
-    } finally {
-      setLoading(false);
-    }
+    setStats({
+      feedbackPending,
+      feedbackTotal: feedbackList.length,
+      waitlistCount: waitlistEmails.length,
+    });
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadStats();
+    void loadStats();
   }, [loadStats]);
 
   return (
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Users Dashboard"
           icon={Users}
           iconBgClass="bg-blue-500/10"
@@ -91,7 +82,7 @@ export function UsersDashboard() {
               icon={Users}
               iconBg="bg-blue-500/20"
               iconColor="text-blue-300"
-              onClick={() => navigate('/admin/accounts')}
+              onClick={() => { navigate('/admin/accounts'); }}
               testId="flow-accounts"
               badge="Soon"
             />
@@ -101,9 +92,9 @@ export function UsersDashboard() {
               icon={MessageSquare}
               iconBg="bg-purple-500/20"
               iconColor="text-purple-300"
-              onClick={() => navigate('/admin/feedback')}
+              onClick={() => { navigate('/admin/feedback'); }}
               testId="flow-feedback"
-              badge={stats?.feedbackPending ? `${stats.feedbackPending} pending` : undefined}
+              badge={stats?.feedbackPending ? `${String(stats.feedbackPending)} pending` : undefined}
               badgeVariant={stats?.feedbackPending ? 'warning' : undefined}
             />
             <QuickFlowCard
@@ -112,7 +103,7 @@ export function UsersDashboard() {
               icon={ClipboardList}
               iconBg="bg-emerald-500/20"
               iconColor="text-emerald-300"
-              onClick={() => navigate('/admin/waitlist')}
+              onClick={() => { navigate('/admin/waitlist'); }}
               testId="flow-waitlist"
             />
           </div>
@@ -135,7 +126,7 @@ export function UsersDashboard() {
             <Button
               size="sm"
               variant="outline"
-              onClick={loadStats}
+              onClick={() => { void loadStats(); }}
               className="gap-2"
               data-testid="users-stats-refresh"
             >
@@ -150,14 +141,6 @@ export function UsersDashboard() {
                 <div key={i} className="h-24 rounded-xl bg-white/5 animate-pulse" />
               ))}
             </div>
-          ) : error ? (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-3">
-              <AlertTriangle className="h-4 w-4" />
-              <span>{error}</span>
-              <Button size="sm" variant="ghost" onClick={loadStats}>
-                Retry
-              </Button>
-            </div>
           ) : stats ? (
             <div className="grid gap-4 md:grid-cols-3">
               <StatCard
@@ -168,10 +151,10 @@ export function UsersDashboard() {
                 iconBg={stats.feedbackPending > 0 ? 'bg-amber-500/20' : 'bg-emerald-500/20'}
                 description={
                   stats.feedbackPending > 0
-                    ? `${stats.feedbackPending} item${stats.feedbackPending !== 1 ? 's' : ''} need${stats.feedbackPending === 1 ? 's' : ''} attention`
+                    ? `${String(stats.feedbackPending)} item${stats.feedbackPending !== 1 ? 's' : ''} need${stats.feedbackPending === 1 ? 's' : ''} attention`
                     : 'All feedback addressed'
                 }
-                onClick={() => navigate('/admin/feedback')}
+                onClick={() => { navigate('/admin/feedback'); }}
               />
               <StatCard
                 label="Total feedback"
@@ -179,8 +162,8 @@ export function UsersDashboard() {
                 icon={MessageSquare}
                 iconColor="text-purple-300"
                 iconBg="bg-purple-500/20"
-                description={`${stats.feedbackTotal} submission${stats.feedbackTotal !== 1 ? 's' : ''} received`}
-                onClick={() => navigate('/admin/feedback')}
+                description={`${String(stats.feedbackTotal)} submission${stats.feedbackTotal !== 1 ? 's' : ''} received`}
+                onClick={() => { navigate('/admin/feedback'); }}
               />
               <StatCard
                 label="Waitlist signups"
@@ -190,10 +173,10 @@ export function UsersDashboard() {
                 iconBg="bg-blue-500/20"
                 description={
                   stats.waitlistCount > 0
-                    ? `${stats.waitlistCount} user${stats.waitlistCount !== 1 ? 's' : ''} waiting`
+                    ? `${String(stats.waitlistCount)} user${stats.waitlistCount !== 1 ? 's' : ''} waiting`
                     : 'No signups yet'
                 }
-                onClick={() => navigate('/admin/waitlist')}
+                onClick={() => { navigate('/admin/waitlist'); }}
               />
             </div>
           ) : null}
@@ -220,7 +203,7 @@ export function UsersDashboard() {
                 </p>
                 <Button
                   size="sm"
-                  onClick={() => navigate('/admin/feedback')}
+                  onClick={() => { navigate('/admin/feedback'); }}
                   data-testid="users-feedback-triage"
                 >
                   Triage feedback

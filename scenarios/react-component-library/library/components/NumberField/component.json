@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "forms.number-field",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.2",
+    "1.0.3"
+  ],
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:NumberField"
+}

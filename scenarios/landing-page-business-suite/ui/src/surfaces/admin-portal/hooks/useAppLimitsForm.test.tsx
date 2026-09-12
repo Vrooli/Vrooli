@@ -46,24 +46,24 @@ describe('useAppLimitsForm', () => {
     it('starts with loading state', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
       expect(result.current.loading).toBe(true);
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
     });
 
     it('has default selected app', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.selectedApp).toBe('browser-automation-studio');
     });
 
     it('has empty limits initially', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.limits).toEqual({});
     });
 
     it('has default new limit form', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
       expect(result.current.newLimit).toEqual({
         tier_id: 'solo',
         limit_key: '',
@@ -79,7 +79,7 @@ describe('useAppLimitsForm', () => {
       });
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchAppLimits).toHaveBeenCalledWith('browser-automation-studio');
       expect(result.current.limits.solo).toHaveLength(1);
@@ -89,7 +89,7 @@ describe('useAppLimitsForm', () => {
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(mockFetchAppLimits).toHaveBeenCalledTimes(1);
 
@@ -108,7 +108,7 @@ describe('useAppLimitsForm', () => {
   describe('editing values', () => {
     it('sets edited value correctly', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', '50');
@@ -119,7 +119,7 @@ describe('useAppLimitsForm', () => {
 
     it('converts values to lowercase', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:test', 'UNLIMITED');
@@ -130,7 +130,7 @@ describe('useAppLimitsForm', () => {
 
     it('clears edited value correctly', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:test', '100');
@@ -145,7 +145,7 @@ describe('useAppLimitsForm', () => {
 
     it('isEdited returns true for edited values', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.isEdited('solo:test')).toBe(false);
 
@@ -160,7 +160,7 @@ describe('useAppLimitsForm', () => {
   describe('getEditedOrDisplayValue', () => {
     it('returns edited value when present', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const limit = createMockLimit({ display_dollars: 100 });
 
@@ -173,7 +173,7 @@ describe('useAppLimitsForm', () => {
 
     it('returns display_dollars when not edited', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const limit = createMockLimit({ display_dollars: 100 });
 
@@ -182,7 +182,7 @@ describe('useAppLimitsForm', () => {
 
     it('returns "unlimited" for negative limit values', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const limit = createMockLimit({ limit_value: -1 });
 
@@ -195,7 +195,7 @@ describe('useAppLimitsForm', () => {
   describe('handleSave', () => {
     it('returns error when no changes to save', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       const limit = createMockLimit();
       const saveResult = await result.current.handleSave('solo', limit);
@@ -206,7 +206,7 @@ describe('useAppLimitsForm', () => {
 
     it('returns error for invalid value', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', 'invalid');
@@ -224,7 +224,7 @@ describe('useAppLimitsForm', () => {
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', '50');
@@ -250,7 +250,7 @@ describe('useAppLimitsForm', () => {
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', 'unlimited');
@@ -275,7 +275,7 @@ describe('useAppLimitsForm', () => {
       mockSaveTierLimit.mockRejectedValue(new Error('API Error'));
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', '50');
@@ -295,13 +295,13 @@ describe('useAppLimitsForm', () => {
       let resolvePromise: () => void;
       mockSaveTierLimit.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve(createMockLimit());
+          resolvePromise = () => { resolve(createMockLimit()); };
         })
       );
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setEditedValue('solo:workflow_exports', '50');
@@ -327,7 +327,7 @@ describe('useAppLimitsForm', () => {
   describe('handleAddLimit', () => {
     it('returns error for empty limit_key', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let addResult: { success: boolean; message: string };
       await act(async () => {
@@ -343,7 +343,7 @@ describe('useAppLimitsForm', () => {
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewLimit({ limit_key: 'test_limit', display_dollars: '100' });
@@ -365,7 +365,7 @@ describe('useAppLimitsForm', () => {
       mockCreateNewTierLimit.mockRejectedValue(new Error('Create failed'));
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewLimit({ limit_key: 'test_limit' });
@@ -387,7 +387,7 @@ describe('useAppLimitsForm', () => {
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message: string };
       await act(async () => {
@@ -407,7 +407,7 @@ describe('useAppLimitsForm', () => {
       mockRemoveTierLimit.mockRejectedValue(new Error('Delete failed'));
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deleteResult: { success: boolean; message: string };
       await act(async () => {
@@ -422,13 +422,13 @@ describe('useAppLimitsForm', () => {
       let resolvePromise: () => void;
       mockRemoveTierLimit.mockReturnValue(
         new Promise((resolve) => {
-          resolvePromise = () => resolve(undefined);
+          resolvePromise = () => { resolve(undefined); };
         })
       );
       mockFetchAppLimits.mockResolvedValue({});
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       let deletePromise: Promise<{ success: boolean; message: string }>;
       act(() => {
@@ -449,7 +449,7 @@ describe('useAppLimitsForm', () => {
   describe('new limit form', () => {
     it('updates new limit form fields', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewLimit({ tier_id: 'pro', limit_key: 'test' });
@@ -461,7 +461,7 @@ describe('useAppLimitsForm', () => {
 
     it('resets new limit form', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       act(() => {
         result.current.setNewLimit({ tier_id: 'pro', limit_key: 'test', display_dollars: '100' });
@@ -480,7 +480,7 @@ describe('useAppLimitsForm', () => {
 
     it('toggles showAddLimit', async () => {
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.showAddLimit).toBe(false);
 
@@ -503,7 +503,7 @@ describe('useAppLimitsForm', () => {
       });
 
       const { result } = renderHook(() => useAppLimitsForm());
-      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
 
       expect(result.current.limitKeys.size).toBe(2);
       expect(result.current.limitKeys.has('key1')).toBe(true);

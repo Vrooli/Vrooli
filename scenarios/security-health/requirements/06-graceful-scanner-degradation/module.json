@@ -1,0 +1,20 @@
+{
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "description": "Absent scanner binaries degrade gracefully: the scenario stays fully functional on the host-present subset (gitleaks + gosec + pnpm audit) and records missing optional scanners as INFO observations.",
+  "requirements": [
+    {
+      "id": "REQ-P0-009",
+      "title": "Skip-not-fail on absent scanner",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "status": "planned",
+      "description": "When a scanner binary is not found on PATH, its runner must emit a single INFO observation ('scanner <name> not installed; skipped') and the overall validation must still succeed using whatever scanners are present.",
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "pending", "notes": "With govulncheck absent, validation completes and emits an INFO observation rather than an error." },
+        { "type": "test", "phase": "integration", "status": "pending", "notes": "With only gitleaks+gosec present, a Go scenario still produces a valid (possibly empty) findings set and exit code reflects only real findings." }
+      ]
+    }
+  ]
+}

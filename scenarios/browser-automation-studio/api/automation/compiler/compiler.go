@@ -10,15 +10,19 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/uiselectors"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/internal/scenarioport"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // ExecutionPlan represents a validated sequence of steps derived from a workflow definition.
@@ -31,11 +35,17 @@ type ExecutionPlan struct {
 
 // ExecutionStep captures the information required to execute one workflow node.
 type ExecutionStep struct {
-	Index          int            `json:"index"`
-	SourceIndex    int            `json:"source_index"`
-	NodeID         string         `json:"node_id"`
-	Type           StepType       `json:"type"`
-	Params         map[string]any `json:"params"`
+	Index       int    `json:"index"`
+	SourceIndex int    `json:"source_index"`
+	NodeID      string `json:"node_id"`
+	// Action is the compiled V2 execution contract. It is the sole executable
+	// representation of a node; the compiler never projects it into a generic
+	// type/params map and reconstructs it later.
+	Action *basactions.ActionDefinition `json:"-"`
+	// Context carries node execution policy into the contracts executor. It is
+	// populated from the typed V2 execution settings, never reconstructed from
+	// action parameters.
+	Context        map[string]any `json:"context,omitempty"`
 	OutgoingEdges  []EdgeRef      `json:"outgoing_edges"`
 	SourcePosition *Position      `json:"source_position,omitempty"`
 	LoopPlan       *ExecutionPlan `json:"loop_plan,omitempty"`
@@ -46,6 +56,15 @@ type CompileOptions struct {
 	// SelectorManifestRoot sets the root directory used to resolve selectors.manifest.json.
 	// When empty, the compiler falls back to resolving from the current scenario root.
 	SelectorManifestRoot string
+	// ScenarioRoot identifies the physical root for the scenario under test.
+	// It is used only when a navigate destination names that same scenario.
+	ScenarioRoot string
+	// DeferScenarioURLResolution preserves typed scenario navigation for a
+	// target-owned renderer. The target executor will resolve it against the
+	// renderer's admitted origin after the target is attached. Normal browser
+	// executions must leave this false so missing scenario ports fail at compile
+	// time.
+	DeferScenarioURLResolution bool
 }
 
 // EdgeRef references an outgoing connection from a node.
@@ -104,6 +123,7 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("invalid workflow definition: %w", err)
 	}
+	attachTypedActions(&raw, flowDef)
 	logrus.WithFields(logrus.Fields{
 		"workflow_id": workflow.GetId(),
 		"node_count":  len(raw.Nodes),
@@ -129,12 +149,33 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 	if width, height := extractViewportFromSettings(raw.Settings); width > 0 && height > 0 {
 		metadata["executionViewport"] = map[string]any{"width": width, "height": height}
 	}
+	fakeMicrophoneWav, err := resolveFakeMediaMicrophone(raw.Settings, opts)
+	if err != nil {
+		return nil, err
+	}
+	if fakeMicrophoneWav != "" {
+		metadata["fakeMediaMicrophoneWav"] = fakeMicrophoneWav
+	}
 	if selector, timeout := extractEntryFromSettings(raw.Settings); selector != "" || timeout > 0 {
 		if selector != "" {
 			metadata["entrySelector"] = selector
 		}
 		if timeout > 0 {
 			metadata["entrySelectorTimeoutMs"] = timeout
+		}
+	}
+	if timeout := extractExecutionTimeoutFromSettings(raw.Settings); timeout > 0 {
+		metadata["executionTimeoutMs"] = timeout
+	}
+	// Workflow labels are the contract-native extension point for execution
+	// policy. Keep the external label spelling stable while exposing the
+	// executor's typed metadata key. In particular, adhoc validation callers can
+	// request a fresh browser without adding a scenario-specific API surface.
+	if raw.Metadata != nil {
+		if labels, ok := raw.Metadata["labels"].(map[string]any); ok {
+			if reuseMode, ok := labels["session_reuse_mode"].(string); ok && strings.TrimSpace(reuseMode) != "" {
+				metadata["sessionReuseMode"] = reuseMode
+			}
 		}
 	}
 	if len(metadata) == 0 {
@@ -173,7 +214,7 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 	}).Debug("compileFlow: steps built")
 
 	for idx := range steps {
-		if steps[idx].Type != StepLoop {
+		if steps[idx].Action.GetType() != basactions.ActionType_ACTION_TYPE_LOOP {
 			continue
 		}
 		logrus.WithFields(logrus.Fields{
@@ -227,6 +268,7 @@ func applySpecialEdges(plan *ExecutionPlan, special map[string][]EdgeRef) {
 
 // flowDefinition mirrors the React Flow payload persisted with workflows.
 type flowDefinition struct {
+	Metadata map[string]any `json:"metadata"`
 	Nodes    []rawNode      `json:"nodes"`
 	Edges    []rawEdge      `json:"edges"`
 	Settings map[string]any `json:"settings"`
@@ -239,134 +281,50 @@ type flowFragment struct {
 
 // rawNode mirrors protojson WorkflowNodeV2.
 type rawNode struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type,omitempty"`
-	Data         map[string]any `json:"data,omitempty"`
-	Action       map[string]any `json:"action,omitempty"`
-	Position     map[string]any `json:"position,omitempty"`
-	ExecSettings map[string]any `json:"execution_settings,omitempty"`
+	ID                     string                              `json:"id"`
+	Position               map[string]any                      `json:"position,omitempty"`
+	ExecSettings           map[string]any                      `json:"execution_settings,omitempty"`
+	TypedAction            *basactions.ActionDefinition        `json:"-"`
+	TypedExecutionSettings *basworkflows.NodeExecutionSettings `json:"-"`
 }
 
-// hasAction returns true if the node has an action field (required for all nodes).
+// attachTypedActions retains the V2 action that entered the compiler beside
+// the graph-layout projection. Execution always works from this typed action.
+func attachTypedActions(definition *flowDefinition, source *basworkflows.WorkflowDefinitionV2) {
+	if definition == nil || source == nil {
+		return
+	}
+	actionsByID := make(map[string]*basactions.ActionDefinition, len(source.Nodes))
+	settingsByID := make(map[string]*basworkflows.NodeExecutionSettings, len(source.Nodes))
+	for _, node := range source.Nodes {
+		if node == nil {
+			continue
+		}
+		if node.Action != nil {
+			actionsByID[node.Id] = node.Action
+		}
+		settingsByID[node.Id] = node.ExecutionSettings
+	}
+	for index := range definition.Nodes {
+		definition.Nodes[index].TypedAction = actionsByID[definition.Nodes[index].ID]
+		definition.Nodes[index].TypedExecutionSettings = settingsByID[definition.Nodes[index].ID]
+	}
+}
+
+// hasAction returns true if the node has the required V2 action.
 func (n rawNode) hasAction() bool {
-	return n.Action != nil
+	return n.TypedAction != nil
 }
 
-// getStepType extracts the step type from the action field.
-func (n rawNode) getStepType() (string, error) {
+// actionType returns the canonical action enum for graph control-flow checks.
+func (n rawNode) actionType() (basactions.ActionType, error) {
 	if !n.hasAction() {
-		return "", fmt.Errorf("workflow node %s missing required action field", n.ID)
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED, fmt.Errorf("workflow node %s missing required action field", n.ID)
 	}
-	actionType, ok := n.Action["type"].(string)
-	if !ok || actionType == "" {
-		return "", fmt.Errorf("node %s missing action.type", n.ID)
+	if n.TypedAction.GetType() == basactions.ActionType_ACTION_TYPE_UNSPECIFIED {
+		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED, fmt.Errorf("node %s has unspecified action type", n.ID)
 	}
-	return v2ActionTypeToStepType(actionType), nil
-}
-
-// getParams extracts params from the action field.
-func (n rawNode) getParams() map[string]any {
-	if !n.hasAction() {
-		return nil
-	}
-	return extractV2Params(n.Action)
-}
-
-// v2ActionTypeToStepType converts proto action type enum to step type string.
-func v2ActionTypeToStepType(actionType string) string {
-	switch actionType {
-	case "ACTION_TYPE_NAVIGATE":
-		return "navigate"
-	case "ACTION_TYPE_CLICK":
-		return "click"
-	case "ACTION_TYPE_INPUT":
-		return "type"
-	case "ACTION_TYPE_WAIT":
-		return "wait"
-	case "ACTION_TYPE_ASSERT":
-		return "assert"
-	case "ACTION_TYPE_SCROLL":
-		return "scroll"
-	case "ACTION_TYPE_SELECT":
-		return "select"
-	case "ACTION_TYPE_EVALUATE":
-		return "evaluate"
-	case "ACTION_TYPE_KEYBOARD":
-		return "keyboard"
-	case "ACTION_TYPE_HOVER":
-		return "hover"
-	case "ACTION_TYPE_SCREENSHOT":
-		return "screenshot"
-	case "ACTION_TYPE_FOCUS":
-		return "focus"
-	case "ACTION_TYPE_BLUR":
-		return "blur"
-	case "ACTION_TYPE_SUBFLOW":
-		return "subflow"
-	case "ACTION_TYPE_EXTRACT":
-		return "extract"
-	case "ACTION_TYPE_UPLOAD_FILE":
-		return "uploadFile"
-	case "ACTION_TYPE_DOWNLOAD":
-		return "download"
-	case "ACTION_TYPE_FRAME_SWITCH":
-		return "frameSwitch"
-	case "ACTION_TYPE_TAB_SWITCH":
-		return "tabSwitch"
-	case "ACTION_TYPE_COOKIE_STORAGE":
-		return "setCookie" // Generic, actual operation determined by params
-	case "ACTION_TYPE_SHORTCUT":
-		return "shortcut"
-	case "ACTION_TYPE_DRAG_DROP":
-		return "dragDrop"
-	case "ACTION_TYPE_GESTURE":
-		return "gesture"
-	case "ACTION_TYPE_NETWORK_MOCK":
-		return "networkMock"
-	case "ACTION_TYPE_ROTATE":
-		return "rotate"
-	case "ACTION_TYPE_SET_VARIABLE":
-		return "setVariable"
-	case "ACTION_TYPE_LOOP":
-		return "loop"
-	case "ACTION_TYPE_CONDITIONAL":
-		return "conditional"
-	default:
-		return "custom"
-	}
-}
-
-// extractV2Params extracts params from an action structure.
-func extractV2Params(action map[string]any) map[string]any {
-	params := make(map[string]any)
-
-	// Extract label from metadata
-	if metadata, ok := action["metadata"].(map[string]any); ok {
-		if label, ok := metadata["label"].(string); ok {
-			params["label"] = label
-		}
-	}
-
-	// Extract action-specific params and convert snake_case to camelCase
-	actionFields := []string{
-		"navigate", "click", "input", "wait", "assert", "scroll",
-		"select_option", "evaluate", "keyboard", "hover", "screenshot",
-		"focus", "blur", "subflow", "extract", "upload_file", "download",
-		"frame_switch", "tab_switch", "cookie_storage", "shortcut",
-		"drag_drop", "gesture", "network_mock", "rotate",
-		"set_variable", "loop", "conditional",
-	}
-
-	for _, field := range actionFields {
-		if actionParams, ok := action[field].(map[string]any); ok {
-			for k, v := range actionParams {
-				params[k] = v
-			}
-			break // Only one action field should be populated
-		}
-	}
-
-	return params
+	return n.TypedAction.GetType(), nil
 }
 
 type rawEdge struct {
@@ -430,6 +388,64 @@ func toPositiveInt(value any) int {
 		}
 	}
 	return 0
+}
+
+// resolveFakeMediaMicrophone extracts settings.fake_media.microphone_wav and
+// resolves it to an absolute WAV path. Relative paths resolve against the
+// execution's project root (and, mirroring the selector-manifest contract,
+// its parent when the root is a scenario's bas/ folder) and must stay within
+// that root so committed workflows can only reference repo fixtures.
+func resolveFakeMediaMicrophone(settings map[string]any, opts *CompileOptions) (string, error) {
+	if settings == nil {
+		return "", nil
+	}
+	fm, ok := settings["fake_media"].(map[string]any)
+	if !ok {
+		fm, ok = settings["fakeMedia"].(map[string]any)
+	}
+	if !ok {
+		return "", nil
+	}
+	wav, _ := fm["microphone_wav"].(string)
+	if strings.TrimSpace(wav) == "" {
+		wav, _ = fm["microphoneWav"].(string)
+	}
+	wav = strings.TrimSpace(wav)
+	if wav == "" {
+		return "", nil
+	}
+
+	if filepath.IsAbs(wav) {
+		if _, err := os.Stat(wav); err != nil {
+			return "", fmt.Errorf("fake_media.microphone_wav %q not readable: %w", wav, err)
+		}
+		return filepath.Clean(wav), nil
+	}
+
+	projectRoot := ""
+	if opts != nil {
+		projectRoot = strings.TrimSpace(opts.SelectorManifestRoot)
+	}
+	if projectRoot == "" {
+		return "", fmt.Errorf("fake_media.microphone_wav %q is relative but no project_root was provided to resolve it against", wav)
+	}
+
+	roots := []string{filepath.Clean(projectRoot)}
+	if filepath.Base(roots[0]) == "bas" {
+		roots = append(roots, filepath.Dir(roots[0]))
+	}
+	tried := make([]string, 0, len(roots))
+	for _, root := range roots {
+		candidate := filepath.Clean(filepath.Join(root, wav))
+		if !strings.HasPrefix(candidate, root+string(filepath.Separator)) {
+			return "", fmt.Errorf("fake_media.microphone_wav %q escapes project root %q", wav, root)
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+		tried = append(tried, candidate)
+	}
+	return "", fmt.Errorf("fake_media.microphone_wav %q not found under project root (tried: %v)", wav, tried)
 }
 
 func extractViewportFromSettings(settings map[string]any) (int, int) {
@@ -508,6 +524,19 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 	return strings.TrimSpace(selector), timeout
 }
 
+// extractExecutionTimeoutFromSettings reads the typed workflow-level timeout.
+// The compiler accepts both proto-name JSON and default protojson casing so
+// persisted and API-created workflows receive the same execution policy.
+func extractExecutionTimeoutFromSettings(settings map[string]any) int {
+	if settings == nil {
+		return 0
+	}
+	if timeout := toPositiveInt(settings["timeout_ms"]); timeout > 0 {
+		return timeout
+	}
+	return toPositiveInt(settings["timeoutMs"])
+}
+
 type planner struct {
 	definition           flowDefinition
 	nodesByID            map[string]rawNode
@@ -515,6 +544,8 @@ type planner struct {
 	outgoing             map[string][]rawEdge
 	incomingCount        map[string]int
 	selectorManifestRoot string
+	scenarioRoot         string
+	deferScenarioURLs    bool
 }
 
 func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
@@ -522,6 +553,11 @@ func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 	if opts != nil {
 		manifestRoot = strings.TrimSpace(opts.SelectorManifestRoot)
 	}
+	scenarioRoot := ""
+	if opts != nil {
+		scenarioRoot = strings.TrimSpace(opts.ScenarioRoot)
+	}
+	deferScenarioURLs := opts != nil && opts.DeferScenarioURLResolution
 
 	p := &planner{
 		definition:           def,
@@ -530,6 +566,8 @@ func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 		outgoing:             make(map[string][]rawEdge),
 		incomingCount:        make(map[string]int),
 		selectorManifestRoot: manifestRoot,
+		scenarioRoot:         scenarioRoot,
+		deferScenarioURLs:    deferScenarioURLs,
 	}
 
 	for idx, node := range def.Nodes {
@@ -562,15 +600,11 @@ func (p *planner) extractLoopBodies() (map[string]flowFragment, error) {
 	assigned := make(map[string]string)
 
 	for _, node := range p.definition.Nodes {
-		nodeType, err := node.getStepType()
+		actionType, err := node.actionType()
 		if err != nil {
 			return nil, err
 		}
-		stepType, err := normalizeStepType(nodeType)
-		if err != nil {
-			return nil, err
-		}
-		if stepType != StepLoop {
+		if actionType != basactions.ActionType_ACTION_TYPE_LOOP {
 			continue
 		}
 		entries := p.loopEntryTargets(node.ID)
@@ -762,20 +796,24 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		}).Debug("buildSteps: processing node")
 
 		node := p.nodesByID[nodeID]
-		nodeType, err := node.getStepType()
-		if err != nil {
+		if _, err := node.actionType(); err != nil {
 			return nil, err
 		}
-		stepType, err := normalizeStepType(nodeType)
-		if err != nil {
-			return nil, err
+		if node.TypedAction == nil {
+			return nil, fmt.Errorf("workflow node %s missing required action field", nodeID)
+		}
+		action, ok := proto.Clone(node.TypedAction).(*basactions.ActionDefinition)
+		if !ok {
+			return nil, fmt.Errorf("clone typed action for node %s", nodeID)
 		}
 		step := ExecutionStep{
 			Index:       idx,
 			SourceIndex: p.order[nodeID],
 			NodeID:      node.ID,
-			Type:        stepType,
-			Params:      copyMap(node.getParams()),
+			Action:      action,
+		}
+		if node.TypedExecutionSettings != nil {
+			step.Context = executionSettingsToContext(node.TypedExecutionSettings)
 		}
 
 		if pos := toPosition(node.Position); pos != nil {
@@ -783,10 +821,15 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		}
 
 		// Resolve navigate node URLs from destinationType: "scenario" format
-		if stepType == StepNavigate {
+		if action.GetType() == basactions.ActionType_ACTION_TYPE_NAVIGATE {
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: resolving navigate URL")
-			if err := resolveNavigateURL(&step); err != nil {
-				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
+			deferResolution := p.deferScenarioURLs && hasTypedScenarioDestination(action)
+			if !deferResolution {
+				if err := resolveNavigateURL(&step, p.scenarioRoot); err != nil {
+					return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
+				}
+			} else {
+				logrus.WithField("node_id", nodeID).Debug("buildSteps: deferring target-owned scenario URL resolution")
 			}
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: navigate URL resolved")
 		}
@@ -814,6 +857,18 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 	}
 
 	return steps, nil
+}
+
+func hasTypedScenarioDestination(action *basactions.ActionDefinition) bool {
+	if action == nil || action.GetType() != basactions.ActionType_ACTION_TYPE_NAVIGATE {
+		return false
+	}
+	navigate := action.GetNavigate()
+	if navigate == nil || strings.TrimSpace(navigate.GetUrl()) != "" {
+		return false
+	}
+	return navigate.GetDestinationType() == basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO ||
+		strings.TrimSpace(navigate.GetScenario()) != ""
 }
 
 func (p *planner) topologicalOrder() []string {
@@ -853,29 +908,6 @@ func (p *planner) topologicalOrder() []string {
 	}
 
 	return order
-}
-
-func normalizeStepType(raw string) (StepType, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", errors.New("step type cannot be empty")
-	}
-	stepType := StepType(trimmed)
-	if _, ok := supportedStepTypes[stepType]; !ok {
-		return "", fmt.Errorf("unsupported step type: %s", stepType)
-	}
-	return stepType, nil
-}
-
-func copyMap(src map[string]any) map[string]any {
-	if src == nil {
-		return map[string]any{}
-	}
-	dst := make(map[string]any, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
 }
 
 func toPosition(pos map[string]any) *Position {
@@ -982,37 +1014,24 @@ func edgeCondition(edge rawEdge) string {
 	return ""
 }
 
-// resolveNavigateURL resolves destination URLs for navigate nodes with destinationType: "scenario"
-// or when a scenario field is present (for backwards compatibility with legacy workflows).
-func resolveNavigateURL(step *ExecutionStep) error {
-	if step == nil || step.Type != StepNavigate || step.Params == nil {
+// resolveNavigateURL resolves a typed navigate action whose destination is a scenario.
+func resolveNavigateURL(step *ExecutionStep, scenarioRoot string) error {
+	if step == nil || step.Action == nil || step.Action.GetType() != basactions.ActionType_ACTION_TYPE_NAVIGATE {
 		return nil
+	}
+	navigate := step.Action.GetNavigate()
+	if navigate == nil {
+		return fmt.Errorf("navigate action missing navigate parameters")
 	}
 
 	// If URL is already set, no resolution needed
-	if url, ok := step.Params["url"].(string); ok && strings.TrimSpace(url) != "" {
+	if strings.TrimSpace(navigate.GetUrl()) != "" {
 		return nil
 	}
 
-	// Extract scenario name and path first (needed for inference check)
-	scenarioName, _ := step.Params["scenario"].(string)
-	scenarioPath, _ := step.Params["scenarioPath"].(string)
-	if strings.TrimSpace(scenarioPath) == "" {
-		scenarioPath, _ = step.Params["scenario_path"].(string)
-	}
-	scenarioName = strings.TrimSpace(scenarioName)
-
-	// Check if this is a scenario destination:
-	// 1. Explicit destinationType of "scenario" or "NAVIGATE_DESTINATION_TYPE_SCENARIO"
-	// 2. Or inferred from presence of scenario field (handles legacy/malformed workflows)
-	destinationType, _ := step.Params["destinationType"].(string)
-	if strings.TrimSpace(destinationType) == "" {
-		destinationType, _ = step.Params["destination_type"].(string)
-	}
-	destinationType = strings.TrimSpace(destinationType)
-	isScenario := destinationType == "scenario" ||
-		destinationType == "NAVIGATE_DESTINATION_TYPE_SCENARIO" ||
-		scenarioName != "" // Infer from scenario field presence
+	scenarioName := strings.TrimSpace(navigate.GetScenario())
+	scenarioPath := strings.TrimSpace(navigate.GetScenarioPath())
+	isScenario := navigate.GetDestinationType() == basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO || scenarioName != ""
 
 	if !isScenario {
 		// Not a scenario destination, no resolution needed
@@ -1022,164 +1041,126 @@ func resolveNavigateURL(step *ExecutionStep) error {
 	if scenarioName == "" {
 		return fmt.Errorf("navigate node with destinationType 'scenario' missing scenario name")
 	}
+	// Authored BAS assets use @scenario/self for a route back to the scenario
+	// whose project root was supplied for this compilation. Resolve that alias
+	// through the already-admitted physical root instead of sending the token to
+	// lifecycle discovery as if it were a real scenario slug.
+	if scenarioName == "@scenario/self" && strings.TrimSpace(scenarioRoot) != "" {
+		scenarioName = filepath.Base(filepath.Clean(scenarioRoot))
+		if scenarioName == "." || scenarioName == string(filepath.Separator) || scenarioName == "" {
+			return fmt.Errorf("navigate node @scenario/self has an invalid scenario root %q", scenarioRoot)
+		}
+	}
 
 	// Resolve URL via scenarioport package with a timeout to prevent hanging
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resolvedURL, _, err := scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
+	var (
+		resolvedURL string
+		err         error
+	)
+	if strings.TrimSpace(scenarioRoot) != "" && filepath.Base(filepath.Clean(scenarioRoot)) == scenarioName {
+		resolvedURL, _, err = scenarioport.ResolveURLAtPath(ctx, scenarioName, scenarioRoot, scenarioPath)
+	} else {
+		resolvedURL, _, err = scenarioport.ResolveURL(ctx, scenarioName, scenarioPath)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to resolve URL for scenario %s: %w", scenarioName, err)
 	}
 
-	// Set the resolved URL in params
-	step.Params["url"] = resolvedURL
+	// The resolved target remains in the canonical typed action.
+	navigate.Url = resolvedURL
 
 	return nil
 }
 
-type selectorManifestCacheEntry struct {
-	manifest map[string]interface{}
-	err      error
-}
-
-// selectorManifestCache stores selector manifests by root to allow multi-scenario execution.
-var (
-	selectorManifestCacheMu sync.Mutex
-	selectorManifestCache   = map[string]*selectorManifestCacheEntry{}
-)
-
 // loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json,
 // scoped by the provided manifestRoot (typically a scenario root or bas/ folder).
-func loadSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
-	cacheKey := strings.TrimSpace(manifestRoot)
-	if cacheKey == "" {
-		cacheKey = "__default__"
+// It returns the parsed manifest and the path it was read from so callers can
+// surface which manifest actually served a resolution.
+// Reload the target manifest for each compilation so edits need no BAS restart.
+func loadSelectorManifest(root string) (map[string]interface{}, string, error) {
+	manifest, path, err := uiselectors.Load(root)
+	if err != nil {
+		return nil, path, err
 	}
-
-	selectorManifestCacheMu.Lock()
-	if entry, ok := selectorManifestCache[cacheKey]; ok {
-		selectorManifestCacheMu.Unlock()
-		return entry.manifest, entry.err
-	}
-	selectorManifestCacheMu.Unlock()
-
-	manifest, err := readSelectorManifest(manifestRoot)
-	entry := &selectorManifestCacheEntry{manifest: manifest, err: err}
-
-	selectorManifestCacheMu.Lock()
-	selectorManifestCache[cacheKey] = entry
-	selectorManifestCacheMu.Unlock()
-
-	return manifest, err
+	return normalizeSelectorManifest(manifest), path, nil
 }
 
-func readSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
-	logrus.WithField("manifest_root", manifestRoot).Debug("loadSelectorManifest: called")
-	scenarioDir := paths.ResolveScenarioDir(nil)
-	logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
+// normalizeSelectorManifest keeps the execution boundary compatible with
+// older scenario manifests that stored selector namespaces at the JSON root.
+// The canonical contract is {"selectors":{"namespace.key":{...}}}; legacy
+// manifests are flattened here so every BAS caller sees the same namespace.
+func normalizeSelectorManifest(manifest map[string]interface{}) map[string]interface{} {
+	if manifest == nil {
+		return map[string]interface{}{"selectors": map[string]interface{}{}}
+	}
+	if _, ok := manifest["selectors"].(map[string]interface{}); ok {
+		return manifest
+	}
 
-	searchRoots := make([]string, 0, 4)
-	addRoot := func(root string) {
-		root = strings.TrimSpace(root)
-		if root == "" {
+	selectors := make(map[string]interface{})
+	var flatten func(prefix string, value interface{})
+	flatten = func(prefix string, value interface{}) {
+		object, ok := value.(map[string]interface{})
+		if !ok {
 			return
 		}
-		for _, existing := range searchRoots {
-			if existing == root {
-				return
+		if _, hasSelector := object["selector"]; hasSelector {
+			selectors[prefix] = object
+			return
+		}
+		for key, child := range object {
+			if key == "testId" || key == "selector" || key == "description" {
+				continue
 			}
-		}
-		searchRoots = append(searchRoots, root)
-	}
-
-	addRoot(manifestRoot)
-	if strings.TrimSpace(manifestRoot) != "" && filepath.Base(manifestRoot) == "bas" {
-		addRoot(filepath.Dir(manifestRoot))
-	}
-	addRoot(scenarioDir)
-
-	manifestPaths := make([]string, 0, len(searchRoots)*2+4)
-	for _, root := range searchRoots {
-		manifestPaths = append(manifestPaths,
-			filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json"),
-			filepath.Join(root, "ui", "src", "constants", "selectors.manifest.json"),
-		)
-	}
-	manifestPaths = append(manifestPaths,
-		"ui/src/consts/selectors.manifest.json",
-		"ui/src/constants/selectors.manifest.json",
-		"../ui/src/consts/selectors.manifest.json",
-		"../ui/src/constants/selectors.manifest.json",
-	)
-
-	var data []byte
-	var err error
-	manifestPath := ""
-	for _, path := range manifestPaths {
-		data, err = os.ReadFile(path)
-		if err == nil {
-			manifestPath = path
-			break
+			childPrefix := key
+			if prefix != "" {
+				childPrefix = prefix + "." + key
+			}
+			flatten(childPrefix, child)
 		}
 	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
+	for key, value := range manifest {
+		if key == "schemaVersion" || key == "generatedAt" || key == "dynamicSelectors" || key == "_note" {
+			continue
+		}
+		flatten(key, value)
 	}
 
-	logrus.WithField("manifest_path", manifestPath).Debug("loadSelectorManifest: manifest found")
-
-	// Parse JSON
-	var manifest map[string]interface{}
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("failed to parse selector manifest: %w", err)
+	normalized := make(map[string]interface{}, len(manifest)+1)
+	for key, value := range manifest {
+		normalized[key] = value
 	}
-
-	return manifest, nil
+	normalized["selectors"] = selectors
+	return normalized
 }
 
-// resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
-// using the manifest rooted at manifestRoot.
+// resolveSelectors resolves @selector/ references in selector-bearing typed action
+// fields. Expressions are included because evaluate actions may safely embed a
+// symbolic selector inside document.querySelector* calls; leaving such a token
+// literal reaches the browser as invalid CSS.
 func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
-	if step == nil || step.Params == nil {
+	if step == nil || step.Action == nil {
 		return nil
 	}
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: start")
 
-	// Check if there are any @selector/ references before loading manifest
-	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work
-	hasSelectorsRefs := false
-	selectorParams := []string{
-		"selector",
-		"successSelector",
-		"failureSelector",
-		"sourceSelector",
-		"targetSelector",
-		"waitForSelector",
-		"success_selector",
-		"failure_selector",
-		"source_selector",
-		"target_selector",
-		"wait_for_selector",
-	}
-
-	for _, paramName := range selectorParams {
-		if selectorRef, ok := step.Params[paramName].(string); ok {
-			if strings.Contains(selectorRef, "@selector/") {
-				hasSelectorsRefs = true
-				break
-			}
-		}
-	}
-
-	// Only load manifest if we found @selector/ references
-	if !hasSelectorsRefs {
+	if !messageHasSelectorReference(step.Action.ProtoReflect()) {
 		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no @selector/ refs, returning early")
+		return nil
+	}
+	// A selector namespace belongs to the target project, not BAS itself. If
+	// the caller did not supply project_root, retain the symbolic reference for
+	// the execution boundary instead of resolving it against this repository's
+	// unrelated manifest.
+	if strings.TrimSpace(manifestRoot) == "" {
+		logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: no project root, preserving selector references")
 		return nil
 	}
 
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: has @selector/ refs, loading manifest")
-	manifest, err := loadSelectorManifest(manifestRoot)
+	manifest, manifestPath, err := loadSelectorManifest(manifestRoot)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"node_id":       step.NodeID,
@@ -1190,121 +1171,143 @@ func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	}
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: manifest loaded")
 
-	// Check for selector-related parameters and resolve @selector/ references
-	for _, paramName := range selectorParams {
-		if selectorRef, ok := step.Params[paramName].(string); ok {
-			// Strip /*dup-N*/ suffix first (used to make selector IDs unique in workflows)
-			cleanedRef := selectorRef
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
-			}
-
-			resolvedRef := resolveSelectorTokens(cleanedRef, manifest, manifestRoot)
-			if resolvedRef != cleanedRef {
-				step.Params[paramName] = resolvedRef
-			} else if cleanedRef != selectorRef {
-				step.Params[paramName] = cleanedRef
-			}
-		}
-	}
-
-	// Handle resilience.successSelector and resilience.failureSelector
-	if resilience, ok := step.Params["resilience"].(map[string]interface{}); ok {
-		if successSelector, ok := resilience["successSelector"].(string); ok {
-			cleanedRef := successSelector
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
-			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
-				resilience["successSelector"] = resolved
-			} else if cleanedRef != successSelector {
-				resilience["successSelector"] = cleanedRef
-			}
-		}
-		if failureSelector, ok := resilience["failureSelector"].(string); ok {
-			cleanedRef := failureSelector
-			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
-				cleanedRef = cleanedRef[:idx]
-			}
-			if resolved := resolveSelectorTokens(cleanedRef, manifest, manifestRoot); resolved != cleanedRef {
-				resilience["failureSelector"] = resolved
-			} else if cleanedRef != failureSelector {
-				resilience["failureSelector"] = cleanedRef
-			}
-		}
-	}
-
-	return nil
+	return resolveMessageSelectors(step.Action.ProtoReflect(), manifest, manifestRoot, manifestPath)
 }
 
-// resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector
-func resolveSelectorReference(selectorRef string, manifest map[string]interface{}) string {
-	// Check if this is a @selector/ reference
-	if !strings.HasPrefix(selectorRef, "@selector/") {
-		return "" // Not a reference, leave as-is
-	}
+func messageHasSelectorReference(message protoreflect.Message) bool {
+	found := false
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.IsList() {
+			list := value.List()
+			for i := 0; i < list.Len(); i++ {
+				if field.Kind() == protoreflect.MessageKind && messageHasSelectorReference(list.Get(i).Message()) {
+					found = true
+					return false
+				}
+			}
+			return !found
+		}
+		if field.IsMap() {
+			return true
+		}
+		if field.Kind() == protoreflect.MessageKind {
+			found = messageHasSelectorReference(value.Message())
+			return !found
+		}
+		if isSelectorField(field) && strings.Contains(value.String(), "@selector/") {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
 
-	// Extract the path (e.g., "dashboard.newProjectButton" from "@selector/dashboard.newProjectButton")
-	path := strings.TrimPrefix(selectorRef, "@selector/")
+func resolveMessageSelectors(message protoreflect.Message, manifest map[string]interface{}, manifestRoot, manifestPath string) error {
+	var resolveErr error
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.IsList() {
+			list := value.List()
+			for i := 0; i < list.Len(); i++ {
+				if field.Kind() == protoreflect.MessageKind {
+					if err := resolveMessageSelectors(list.Get(i).Message(), manifest, manifestRoot, manifestPath); err != nil {
+						resolveErr = err
+						return false
+					}
+				}
+			}
+			return true
+		}
+		if field.IsMap() {
+			return true
+		}
+		if field.Kind() == protoreflect.MessageKind {
+			if err := resolveMessageSelectors(value.Message(), manifest, manifestRoot, manifestPath); err != nil {
+				resolveErr = err
+				return false
+			}
+			return true
+		}
+		if !isSelectorField(field) || field.Kind() != protoreflect.StringKind {
+			return true
+		}
+		original := value.String()
+		cleaned := strings.Split(original, " /*dup-")[0]
+		resolved, err := resolveSelectorTokens(cleaned, manifest, manifestRoot, manifestPath, field.Name() == "expression")
+		if err != nil {
+			resolveErr = fmt.Errorf("field %s: %w", field.FullName(), err)
+			return false
+		}
+		if resolved != cleaned {
+			message.Set(field, protoreflect.ValueOfString(resolved))
+		} else if cleaned != original {
+			message.Set(field, protoreflect.ValueOfString(cleaned))
+		}
+		return true
+	})
+	return resolveErr
+}
 
-	// Strip /*dup-N*/ suffix if present (used to make selectors unique in workflows)
-	// Example: "dialogs.project.root /*dup-1*/" -> "dialogs.project.root"
-	if idx := strings.Index(path, " /*dup-"); idx != -1 {
-		path = path[:idx]
-	}
-
-	// Split base path from optional selector suffix (e.g. :not(...), [attr=...])
-	basePath := path
-	suffix := ""
-	if idx := strings.IndexAny(basePath, ":["); idx != -1 {
-		suffix = basePath[idx:]
-		basePath = basePath[:idx]
-	}
-
-	// Look up in manifest
-	if manifest == nil {
-		return ""
-	}
-	selectors, ok := manifest["selectors"].(map[string]interface{})
-	if !ok {
-		return ""
-	}
-
-	entry, ok := selectors[basePath].(map[string]interface{})
-	if !ok {
-		return ""
-	}
-
-	selector, ok := entry["selector"].(string)
-	if !ok {
-		return ""
-	}
-
-	return selector + suffix
+func isSelectorField(field protoreflect.FieldDescriptor) bool {
+	name := string(field.Name())
+	return name == "selector" || strings.HasSuffix(name, "_selector") || name == "expression"
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
-func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot string) string {
+// An unresolved reference is a hard error: forwarding the literal token would only
+// surface later as an opaque runtime selector failure inside the browser driver.
+func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, manifestRoot, manifestPath string, expression ...bool) (string, error) {
 	resolved := selectorRef
 	searchStart := 0
 	for {
 		idx := strings.Index(resolved[searchStart:], "@selector/")
 		if idx == -1 {
-			return resolved
+			return resolved, nil
 		}
 		idx += searchStart // Adjust to absolute position
 		end := idx + len("@selector/")
+		parenDepth := 0
+		var quote byte
 		for end < len(resolved) {
 			ch := resolved[end]
-			if ch == ' ' || ch == ',' {
+			if quote != 0 {
+				if ch == '\\' && end+1 < len(resolved) {
+					end += 2
+					continue
+				}
+				if ch == quote {
+					quote = 0
+				}
+				end++
+				continue
+			}
+			switch ch {
+			case '\'', '"', '`':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+				quote = ch
+			case '(':
+				parenDepth++
+			case ')':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+				parenDepth--
+			case ' ', ',':
+				if parenDepth == 0 {
+					goto tokenComplete
+				}
+			}
+			if parenDepth == 0 && (ch == ';' || ch == '!') {
 				break
 			}
 			end++
 		}
+	tokenComplete:
 		token := resolved[idx:end]
-		replacement := resolveSelectorReference(token, manifest)
+		replacement := uiselectors.ResolveReference(token, manifest)
 		if replacement == "" {
-			// Selector not found - skip past this token to avoid infinite loop
 			selectorCount := 0
 			if selectors, ok := manifest["selectors"].(map[string]interface{}); ok {
 				selectorCount = len(selectors)
@@ -1312,10 +1315,20 @@ func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}, 
 			logrus.WithFields(logrus.Fields{
 				"token":          token,
 				"manifest_root":  manifestRoot,
+				"manifest_path":  manifestPath,
 				"selector_count": selectorCount,
 			}).Warn("resolveSelectorTokens: unresolved @selector/ reference")
-			searchStart = end
-			continue
+			return "", fmt.Errorf(
+				"unresolved selector reference %q: not present in manifest %s (%d selectors, manifest root %q); "+
+					"check that the selector key exists in the target scenario's ui/src/consts/selectors.manifest.json "+
+					"and that execution parameter project_root is an absolute path to that scenario",
+				token, manifestPath, selectorCount, manifestRoot)
+		}
+		if len(expression) > 0 && expression[0] {
+			if idx == 0 || end >= len(resolved) || (resolved[idx-1] != '\'' && resolved[idx-1] != '"' && resolved[idx-1] != '`') || resolved[end] != resolved[idx-1] {
+				return "", fmt.Errorf("selector references in expressions must occupy a complete quoted string")
+			}
+			replacement = uiselectors.EscapeExpressionSelector(replacement, resolved[idx-1])
 		}
 		resolved = resolved[:idx] + replacement + resolved[end:]
 		// Adjust search position to account for replacement length difference

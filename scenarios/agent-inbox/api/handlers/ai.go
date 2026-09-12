@@ -43,9 +43,6 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse optional force_tool query param (format: "scenario:tool_name")
-	forcedTool := r.URL.Query().Get("force_tool")
-
 	// Parse optional skills from request body
 	// Note: Don't check ContentLength - it may be -1 for chunked transfer encoding
 	var skills []SkillPayload
@@ -71,7 +68,7 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 	// Prepare completion request (validates chat exists and has messages)
 	svc := h.NewCompletionService()
 	svc.SetSkills(skills) // Pass skills to service for tool execution
-	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r), forcedTool)
+	prepReq, err := svc.PrepareCompletionRequest(r.Context(), chatID, isStreamingRequest(r), "")
 	if err != nil {
 		statusCode := mapCompletionErrorToStatus(err)
 		h.JSONError(w, err.Error(), statusCode)

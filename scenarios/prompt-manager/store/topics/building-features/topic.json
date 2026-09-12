@@ -1,0 +1,17 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "building-features",
+  "name": "Building features",
+  "description": "Building a new feature or capability: extracting decision boundaries, designing error semantics and recovery paths, and compressing the domain model.",
+  "parentTopicId": "architecture",
+  "skills": [
+    "decision-boundary-extraction",
+    "error-semantics-recovery-path-design",
+    "domain-clarity"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:15Z",
+  "updatedAt": "2026-06-04T17:35:15Z"
+}

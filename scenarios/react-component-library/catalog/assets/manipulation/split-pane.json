@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "manipulation.split-pane",
+    "name": "SplitPane",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The polished resizable-region component with collapse, double-click reset, persistence, keyboard operation, responsive stacking, and coordination between nested panes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Handles, constraints, and keyboard resizing are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "responsive-transformation",
+    "content-reflow",
+    "density-adaptive-layout"
+  ],
+  "rationale": "The mechanic that navigation.split-view composes. Keeping the resize behavior here rather than in the layout keeps it reusable by inspector panels and editors that are not navigation surfaces at all."
+}

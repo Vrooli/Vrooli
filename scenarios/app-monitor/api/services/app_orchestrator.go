@@ -11,6 +11,8 @@ import (
 
 	"app-monitor-api/logger"
 	"app-monitor-api/repository"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 // =============================================================================
@@ -166,7 +168,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	// Use vrooli scenario status CLI for runtime data (includes running/stopped status, health, processes, runtime)
 	// This is the canonical way to get scenario status without hard-coded ports or API dependencies
 	// IMPORTANT: Execute this WITHOUT holding the cache lock to prevent blocking other requests
-	output, err := executeVrooliCommand(ctx, 45*time.Second, "scenario", "status", "--json")
+	statusResp, err := cliClient.ScenarioStatuses(ctx)
 	if err != nil {
 		// On error, try to return stale cache if available
 		s.cache.mu.RLock()
@@ -179,27 +181,22 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", err)
 	}
 
-	var orchestratorResp OrchestratorResponse
-	if err := json.Unmarshal(output, &orchestratorResp); err != nil {
-		return nil, fmt.Errorf("failed to parse vrooli scenario status response: %w", err)
-	}
-
 	metadataMap, metaErr := s.fetchScenarioMetadata(ctx)
 	if metaErr != nil {
 		logger.Warn("failed to fetch scenario metadata", metaErr)
 		metadataMap = map[string]scenarioMetadata{}
 	}
 
-	apps := make([]repository.App, 0, len(orchestratorResp.Scenarios))
+	apps := make([]repository.App, 0, len(statusResp.GetScenarios()))
 	now := s.timeNow().UTC()
 
-	for _, orchApp := range orchestratorResp.Scenarios {
+	for _, orchApp := range statusResp.GetScenarios() {
 		health := ""
-		if orchApp.HealthStatus != nil {
-			health = normalizeLower(*orchApp.HealthStatus)
+		if hs := orchApp.GetHealthStatus(); hs != nil {
+			health = normalizeLower(hs.GetStringValue())
 		}
 
-		status := normalizeLower(orchApp.Status)
+		status := normalizeLower(orchApp.GetStatus())
 		if status == "" {
 			status = "unknown"
 		}
@@ -207,29 +204,29 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			status = health
 		}
 
-		displayName := strings.TrimSpace(orchApp.DisplayName)
+		displayName := strings.TrimSpace(orchApp.GetDisplayName())
 		if displayName == "" {
-			displayName = orchApp.Name
+			displayName = orchApp.GetName()
 		}
 
-		meta := metadataMap[orchApp.Name]
-		description := strings.TrimSpace(orchApp.Description)
+		meta := metadataMap[orchApp.GetName()]
+		description := strings.TrimSpace(orchApp.GetDescription())
 		if description == "" {
 			description = strings.TrimSpace(meta.Description)
 		}
 
-		tags := dedupeStrings(append(append([]string{}, orchApp.Tags...), meta.Tags...))
-		runtime := strings.TrimSpace(orchApp.Runtime)
+		tags := dedupeStrings(append(append([]string{}, orchApp.GetTags()...), meta.Tags...))
+		runtime := strings.TrimSpace(orchApp.GetRuntime())
 
-		portMappings := make(map[string]interface{}, len(orchApp.Ports))
-		for name, port := range orchApp.Ports {
+		portMappings := make(map[string]interface{}, len(orchApp.GetPorts()))
+		for name, port := range orchApp.GetPorts() {
 			portMappings[name] = port
 		}
 
 		app := repository.App{
-			ID:           orchApp.Name,
+			ID:           orchApp.GetName(),
 			Name:         displayName,
-			ScenarioName: orchApp.Name,
+			ScenarioName: orchApp.GetName(),
 			Status:       status,
 			Environment:  make(map[string]interface{}),
 			Config:       make(map[string]interface{}),
@@ -245,7 +242,7 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 		}
 
 		var startedAt time.Time
-		if startValue := strings.TrimSpace(orchApp.StartedAt); startValue != "" && startValue != "never" {
+		if startValue := strings.TrimSpace(orchApp.GetStartedAt()); startValue != "" && startValue != "never" {
 			if parsed, err := time.Parse(time.RFC3339, startValue); err == nil {
 				startedAt = parsed.UTC()
 			}
@@ -275,8 +272,8 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 			app.HealthStatus = health
 		}
 
-		if orchApp.Processes > 0 {
-			app.Config["process_count"] = orchApp.Processes
+		if orchApp.GetProcesses() > 0 {
+			app.Config["process_count"] = orchApp.GetProcesses()
 		}
 
 		if len(portMappings) == 0 && len(meta.Ports) > 0 {
@@ -332,46 +329,16 @@ func (s *AppService) enrichAppWithDetailedInsights(ctx context.Context, app *rep
 	}
 	s.enrichmentMu.RUnlock()
 
-	// Cache miss — execute CLI subprocess
-	output, err := executeVrooliCommand(ctx, 45*time.Second, "scenario", "status", scenarioName, "--json")
-	if err != nil {
-		logger.Warn(fmt.Sprintf("failed to fetch detailed insights for %s", scenarioName), err)
-		return err
-	}
-
-	var detailed scenarioStatusDetailedResponse
-	if err := json.Unmarshal(output, &detailed); err != nil {
-		logger.Warn(fmt.Sprintf("failed to parse detailed insights for %s", scenarioName), err)
-		return err
-	}
-
+	// Tech-stack and dependency insights are not carried by any vrooli scenario
+	// CLI contract: `scenario status <name> --json` returns {scenario, info,
+	// runtime} (cliv1.ScenarioStatusSingle) with no insights payload. The prior
+	// implementation parsed an imagined `insights.stack`/`insights.resources`
+	// shape and therefore always produced empty results. Rather than fabricate a
+	// CLI subprocess that yields nothing, enrichment is left empty until a real
+	// source is wired (scenario dependencies live in each scenario's
+	// service.json). Tracked as a follow-up; see the migration record.
 	var techStack []string
-	if len(detailed.Insights.Stack.Components) > 0 {
-		techStack = dedupeStrings(detailed.Insights.Stack.Components)
-	}
-
 	var deps []repository.AppDependency
-	if len(detailed.Insights.Resources.Items) > 0 {
-		deps = make([]repository.AppDependency, 0, len(detailed.Insights.Resources.Items))
-		for _, item := range detailed.Insights.Resources.Items {
-			note := ""
-			if item.Note != nil {
-				note = strings.TrimSpace(*item.Note)
-			}
-			deps = append(deps, repository.AppDependency{
-				Name:        item.Name,
-				Type:        item.Type,
-				Description: item.Description,
-				Required:    item.Required,
-				Enabled:     item.Enabled,
-				Status:      item.Status,
-				Running:     item.Running,
-				Healthy:     item.Healthy,
-				Installed:   item.Installed,
-				Note:        note,
-			})
-		}
-	}
 
 	// Store in cache
 	s.enrichmentMu.Lock()
@@ -407,17 +374,28 @@ func (s *AppService) invalidateAllEnrichment() {
 
 // fetchScenarioList retrieves scenario metadata from the Vrooli CLI
 func (s *AppService) fetchScenarioList(ctx context.Context) ([]scenarioMetadata, error) {
-	output, err := executeVrooliCommand(ctx, 20*time.Second, "scenario", "list", "--json", "--include-ports")
+	resp, err := cliClient.ListScenarios(ctx, vroolicli.WithPorts())
 	if err != nil {
 		return nil, err
 	}
 
-	var resp scenarioListResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
+	scenarios := make([]scenarioMetadata, 0, len(resp.GetScenarios()))
+	for _, item := range resp.GetScenarios() {
+		ports := make([]scenarioPort, 0, len(item.GetPorts()))
+		for _, p := range item.GetPorts() {
+			ports = append(ports, scenarioPort{Key: p.GetKey(), Step: p.GetStep(), Port: int(p.GetPort())})
+		}
+		scenarios = append(scenarios, scenarioMetadata{
+			Name:        item.GetName(),
+			Description: item.GetDescription(),
+			Path:        item.GetPath(),
+			Version:     item.GetVersion(),
+			Status:      item.GetStatus(),
+			Tags:        item.GetTags(),
+			Ports:       ports,
+		})
 	}
-
-	return resp.Scenarios, nil
+	return scenarios, nil
 }
 
 func (s *AppService) fetchScenarioMetadata(ctx context.Context) (map[string]scenarioMetadata, error) {
@@ -644,7 +622,9 @@ func (s *AppService) mergeViewStats(ctx context.Context, apps []repository.App) 
 // the background hydration completes even if the originating request is cancelled.
 // This is intentional - we want the cache to be updated for future requests.
 func (s *AppService) hydrateOrchestratorInBackground(logContext string) {
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		// Create a detached context with reasonable timeout for background work
 		// This ensures the hydration isn't cancelled if parent request completes
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -684,7 +664,9 @@ func (s *AppService) hydrateEnrichmentInBackground() {
 		return
 	}
 
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 
@@ -717,7 +699,10 @@ func (s *AppService) hydrateEnrichmentInBackground() {
 
 // fetchCompletenessScore fetches completeness score for a single scenario
 func (s *AppService) fetchCompletenessScore(ctx context.Context, scenarioName string) (*CompletenessResponse, error) {
-	output, err := executeVrooliCommand(ctx, 10*time.Second, "scenario", "completeness", scenarioName, "--json")
+	scoreCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	output, err := cliClient.Output(scoreCtx, "scenario", "completeness", "score", "get", scenarioName, "--json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get completeness for %s: %w", scenarioName, err)
 	}
@@ -779,8 +764,8 @@ func (s *AppService) mergeCompletenessIntoCache(scores map[string]*CompletenessR
 
 		for key, score := range scores {
 			if strings.ToLower(strings.TrimSpace(key)) == scenarioName {
-				app.CompletenessScore = &score.Score
-				app.CompletenessClassification = score.Classification
+				app.CompletenessScore = &score.Composite.Score
+				app.CompletenessClassification = score.Composite.Classification
 				break
 			}
 		}
@@ -807,8 +792,8 @@ func (s *AppService) mergeCompletenessScoresIntoApps(apps []repository.App) {
 
 		for key, score := range scores {
 			if strings.ToLower(strings.TrimSpace(key)) == scenarioName {
-				app.CompletenessScore = &score.Score
-				app.CompletenessClassification = score.Classification
+				app.CompletenessScore = &score.Composite.Score
+				app.CompletenessClassification = score.Composite.Classification
 				break
 			}
 		}
@@ -841,7 +826,9 @@ func (s *AppService) hydrateCompletenessInBackground() {
 	s.completenessCache.loading = true
 	s.completenessCache.mu.Unlock()
 
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		defer func() {
 			s.completenessCache.mu.Lock()
 			s.completenessCache.loading = false

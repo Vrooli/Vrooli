@@ -177,6 +177,9 @@ export function useUnifiedSidebar(
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartXRef = useRef(0);
   const resizeStartWidthRef = useRef(0);
+  const widthRef = useRef(width);
+  const pendingWidthRef = useRef(width);
+  const resizeRafRef = useRef<number | null>(null);
 
   // Artifact sub-type state
   const [artifactSubType, setArtifactSubTypeState] = useState<ArtifactSubType>(() =>
@@ -287,26 +290,43 @@ export function useUnifiedSidebar(
     e.preventDefault();
     setIsResizing(true);
     resizeStartXRef.current = e.clientX;
-    resizeStartWidthRef.current = width;
-  }, [width]);
+    resizeStartWidthRef.current = widthRef.current;
+    pendingWidthRef.current = widthRef.current;
+  }, []);
 
   // Mouse move handler for resize
   useEffect(() => {
     if (!isResizing) return;
 
+    const commitPendingWidth = () => {
+      resizeRafRef.current = null;
+      const nextWidth = pendingWidthRef.current;
+      if (widthRef.current === nextWidth) return;
+      widthRef.current = nextWidth;
+      setWidth(nextWidth);
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       const delta = e.clientX - resizeStartXRef.current;
-      const newWidth = Math.min(
+      pendingWidthRef.current = Math.min(
         SIDEBAR_MAX_WIDTH,
         Math.max(SIDEBAR_MIN_WIDTH, resizeStartWidthRef.current + delta)
       );
-      setWidth(newWidth);
+      if (resizeRafRef.current === null) {
+        resizeRafRef.current = requestAnimationFrame(commitPendingWidth);
+      }
     };
 
     const handleMouseUp = () => {
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      const finalWidth = pendingWidthRef.current;
+      widthRef.current = finalWidth;
+      setWidth(finalWidth);
       setIsResizing(false);
-      // Persist final width
-      setStoredValue(STORAGE_KEYS.SIDEBAR_WIDTH, width);
+      setStoredValue(STORAGE_KEYS.SIDEBAR_WIDTH, finalWidth);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -315,12 +335,18 @@ export function useUnifiedSidebar(
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
     };
-  }, [isResizing, width]);
+  }, [isResizing]);
 
   // Persist width when resize ends
   useEffect(() => {
     if (!isResizing) {
+      widthRef.current = width;
+      pendingWidthRef.current = width;
       setStoredValue(STORAGE_KEYS.SIDEBAR_WIDTH, width);
     }
   }, [isResizing, width]);

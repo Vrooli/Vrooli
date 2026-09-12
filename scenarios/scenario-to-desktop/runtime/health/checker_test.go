@@ -1,6 +1,7 @@
 package health
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -10,10 +11,16 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
+
+func TestParseHealthBodyAcceptsOKStatus(t *testing.T) {
+	if !parseHealthBody(bytes.NewBufferString(`{"status":"ok","ready":true}`)) {
+		t.Fatal("parseHealthBody rejected a healthy endpoint using status=ok")
+	}
+}
 
 // testMonitor creates a Monitor configured for testing.
 func testMonitor(m *manifest.Manifest, ports map[string]map[string]int, clock *testutil.MockClock, dialer infra.NetworkDialer, fs *testutil.MockFileSystem, cmdRunner *testutil.MockCommandRunner) *Monitor {

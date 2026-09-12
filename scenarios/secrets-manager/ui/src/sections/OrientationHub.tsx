@@ -3,21 +3,6 @@ import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/LoadingStates";
 import type { JourneyId } from "../features/journeys/journeySteps";
 
-interface HeroStats {
-  overall_score: number;
-  readiness_label: string;
-  risk_score: number;
-  confidence: number;
-  vault_configured: number;
-  vault_total: number;
-  missing_secrets: number;
-}
-
-interface VulnerabilityInsight {
-  severity: string;
-  message: string;
-}
-
 interface JourneyCard {
   id: string;
   badge: string;
@@ -33,8 +18,6 @@ interface JourneyStep {
 }
 
 interface OrientationHubProps {
-  heroStats?: HeroStats;
-  vulnerabilityInsights: VulnerabilityInsight[];
   journeyCards: JourneyCard[];
   activeJourneyCard?: JourneyCard;
   activeJourney: string | null;
@@ -46,13 +29,10 @@ interface OrientationHubProps {
   onJourneyExit: () => void;
   onJourneyNext: () => void;
   onJourneyBack: () => void;
-  onShowReadiness?: () => void;
   journeyNextDisabled?: boolean;
 }
 
 export const OrientationHub = ({
-  heroStats,
-  vulnerabilityInsights,
   journeyCards,
   activeJourneyCard,
   activeJourney,
@@ -64,7 +44,6 @@ export const OrientationHub = ({
   onJourneyExit,
   onJourneyNext,
   onJourneyBack,
-  onShowReadiness,
   journeyNextDisabled
 }: OrientationHubProps) => {
   const activeStep = journeySteps[journeyStep];

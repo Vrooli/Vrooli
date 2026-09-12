@@ -2,8 +2,45 @@ package pricing
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"time"
+
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
 )
+
+type PriceBookRevision struct {
+	ID           string
+	Provider     string
+	FetchedAt    time.Time
+	SourceDigest string
+	ModelCount   int
+}
+
+// RevisionRepository is optional for lightweight pricing test doubles. The
+// production repository records every refresh as an immutable price-book fact.
+type RevisionRepository interface {
+	CreatePriceBookRevision(ctx context.Context, provider string, fetchedAt time.Time, sourceDigest string, modelCount int) (string, error)
+}
+
+type SubscriptionRepository interface {
+	CreateSubscriptionPeriod(context.Context, *domain.SubscriptionPeriod) error
+	ListSubscriptionPeriods(context.Context, string, string) ([]domain.SubscriptionPeriod, error)
+	DeleteSubscriptionPeriod(context.Context, string) error
+}
+
+func RevisionDigest(models []*ModelPricing) string {
+	data, _ := json.Marshal(models)
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+func NewPriceBookRevision(provider string, models []*ModelPricing, fetchedAt time.Time) PriceBookRevision {
+	return PriceBookRevision{ID: uuid.NewString(), Provider: provider, FetchedAt: fetchedAt, SourceDigest: RevisionDigest(models), ModelCount: len(models)}
+}
 
 // Repository provides persistence for pricing data.
 // This is the primary seam for pricing data access, enabling easy testing

@@ -1,0 +1,130 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.canvas-workspace-page",
+    "name": "CanvasWorkspacePage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The spatial editing surface with a full-viewport canvas, toolbars, layers, inspector, minimap, keyboard commands, history, autosave, and a responsive fallback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Pan, zoom, coordinates, and performance discipline are shared."
+      },
+      {
+        "asset": "manipulation.minimap",
+        "reason": "Overview navigation is shared."
+      },
+      {
+        "asset": "patterns.responsive-inspector-workspace",
+        "reason": "Property inspection is the shared workspace."
+      },
+      {
+        "asset": "services.undo-manager",
+        "reason": "History and redo belong to the shared service."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "gesture-alternative"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "canvas",
+      "purpose": "The spatial work surface itself.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "toolbar",
+      "purpose": "Tools and mode selection.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "inspector",
+      "purpose": "Properties of the current selection.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "minimap",
+      "purpose": "Overview and navigation.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ]
+}

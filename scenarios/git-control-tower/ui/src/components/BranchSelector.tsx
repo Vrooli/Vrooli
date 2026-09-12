@@ -57,6 +57,10 @@ type PendingAction =
   | { type: "create"; request: CreateBranchRequest }
   | { type: "publish"; request: PublishBranchRequest };
 
+function isNodeTarget(target: EventTarget | null): target is Node {
+  return target instanceof Node;
+}
+
 export function BranchSelector({
   status,
   syncStatus,
@@ -107,7 +111,7 @@ export function BranchSelector({
 
     const handleClickOutside = (event: MouseEvent) => {
       if (!dropdownRef.current) return;
-      if (!dropdownRef.current.contains(event.target as Node)) {
+      if (!isNodeTarget(event.target) || !dropdownRef.current.contains(event.target)) {
         setOpen(false);
       }
     };
@@ -240,71 +244,89 @@ export function BranchSelector({
         ...pendingAction.request,
         allow_dirty: warning.requires_confirmation || undefined,
         track_remote: warning.requires_tracking || pendingAction.request.track_remote
-      } as SwitchBranchRequest;
+      };
       setPendingAction(null);
-      await handleActionWithRequest("switch", request);
+      await handleActionWithRequest({ type: "switch", request });
       return;
     }
     if (pendingAction.type === "create") {
       const request = {
         ...pendingAction.request,
         allow_dirty: warning.requires_confirmation || undefined
-      } as CreateBranchRequest;
+      };
       setPendingAction(null);
-      await handleActionWithRequest("create", request);
+      await handleActionWithRequest({ type: "create", request });
       return;
     }
     if (pendingAction.type === "publish") {
       const request = {
         ...pendingAction.request,
         fetch: warning.requires_fetch || pendingAction.request.fetch
-      } as PublishBranchRequest;
+      };
       setPendingAction(null);
-      await handleActionWithRequest("publish", request);
+      await handleActionWithRequest({ type: "publish", request });
     }
   };
 
-  const handleActionWithRequest = async (
-    type: "switch" | "create" | "publish",
-    request: SwitchBranchRequest | CreateBranchRequest | PublishBranchRequest
-  ) => {
+  const handleActionWithRequest = async (action: PendingAction) => {
     resetWarning();
     try {
-      let result;
-      if (type === "switch") {
-        result = await actions.switchBranch(request as SwitchBranchRequest);
-      } else if (type === "create") {
-        result = await actions.createBranch(request as CreateBranchRequest);
-      } else {
-        result = await actions.publishBranch(request as PublishBranchRequest);
+      if (action.type === "switch") {
+        const result = await actions.switchBranch(action.request);
+        if (result.success) {
+          setOpen(false);
+          return;
+        }
+        if (result.warning) {
+          setWarning(result.warning);
+          setPendingAction(action);
+          return;
+        }
+        if (result.error) {
+          setWarning({ message: result.error });
+        }
+        return;
       }
 
-      if (result.success) {
-        if (type === "create") {
+      if (action.type === "create") {
+        const result = await actions.createBranch(action.request);
+        if (result.success) {
           setCreateName("");
           setCreateFrom("");
           setShowCreate(false);
+          setOpen(false);
+          return;
         }
+        if (result.warning) {
+          setWarning(result.warning);
+          setPendingAction(action);
+          return;
+        }
+        if (result.validation_errors?.length) {
+          setWarning({ message: result.validation_errors.join("; ") });
+          return;
+        }
+        if (result.error) {
+          setWarning({ message: result.error });
+        }
+        return;
+      }
+
+      const result = await actions.publishBranch(action.request);
+      if (result.success) {
         setOpen(false);
         return;
       }
       if (result.warning) {
         setWarning(result.warning);
-        setPendingAction({ type, request } as PendingAction);
+        setPendingAction(action);
         return;
-      }
-      if (type === "create") {
-        const createResult = result as BranchCreateResponse;
-        if (createResult.validation_errors?.length) {
-          setWarning({ message: createResult.validation_errors.join("; ") });
-          return;
-        }
       }
       if (result.error) {
         setWarning({ message: result.error });
       }
     } catch (error) {
-      setWarning({ message: error instanceof Error ? error.message : `${type} failed` });
+      setWarning({ message: error instanceof Error ? error.message : `${action.type} failed` });
     }
   };
 
@@ -558,7 +580,7 @@ export function BranchSelector({
     return (
       <>
         <button
-          className="flex items-center gap-1 min-w-0"
+          className="flex min-w-0 items-center gap-1 rounded-lg px-3 py-3 transition-colors hover:bg-slate-800 active:bg-slate-700 touch-target"
           onClick={() => setOpen(true)}
           data-testid="branch-selector-trigger"
         >
@@ -604,7 +626,7 @@ export function BranchSelector({
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-[560px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/95 p-4 shadow-xl z-50">
+        <div className="absolute left-0 mt-2 w-[560px] max-w-[calc(100%-2rem)] max-h-[calc(100%-8rem)] overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/95 p-4 shadow-xl z-50">
           {content}
         </div>
       )}

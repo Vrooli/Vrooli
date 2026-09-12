@@ -1,0 +1,100 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Where certificates are configured, the supervisor may warn before expiration.",
+      "id": "AUTOHEAL-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Certificate expiration monitoring",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Where a display manager is configured, the supervisor may monitor its health on supported platforms.",
+      "id": "AUTOHEAL-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Display manager health",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The supervisor may deliver incident notifications to configured webhook destinations.",
+      "id": "AUTOHEAL-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Webhook notifications",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The supervisor may load externally defined health checks through a governed plugin contract.",
+      "id": "AUTOHEAL-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Custom check plugins",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Where an approved model is available, the supervisor may analyze failure history and suggest causes.",
+      "id": "AUTOHEAL-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "AI root-cause analysis",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The product may provide mobile status and push-notification surfaces.",
+      "id": "AUTOHEAL-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Mobile status app",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

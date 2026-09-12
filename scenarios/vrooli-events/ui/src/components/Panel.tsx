@@ -1,3 +1,4 @@
+// DOC: docs/internal/COHERENCE-NOTES.md
 import { cn } from "../lib/utils";
 import type { ReactNode } from "react";
 

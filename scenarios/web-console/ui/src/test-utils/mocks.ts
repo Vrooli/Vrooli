@@ -5,7 +5,8 @@
  * providing a single source of truth for test infrastructure.
  */
 import { vi } from "vitest";
-import type { TerminalMessage, SocketFactory } from "../hooks/useTerminalSocket";
+import type { TerminalMessage } from "../types/terminal";
+import type { SocketFactory } from "../hooks/terminal/useTerminalTransport";
 
 // ---------------------------------------------------------------------------
 // @vrooli/api-base mock factory
@@ -31,6 +32,11 @@ export function apiBaseMock() {
     resolveWsBase: () => wsBase,
     buildWsUrl: (path: string, opts: { baseUrl: string }) =>
       `${opts.baseUrl}${path}`,
+    // Connect-Web transport used by src/api/*.ts domain clients. Tests
+    // that exercise those clients mock the domain module directly (so the
+    // transport is never invoked); a no-op stub here just stops the
+    // import-time `createScenarioConnectTransport` call from crashing.
+    createScenarioConnectTransport: () => ({}),
   };
 }
 
@@ -40,7 +46,7 @@ export function apiBaseMock() {
 
 /**
  * Minimal fake WebSocket that mirrors the subset of the real API
- * used by useTerminalSocket. The test controls the lifecycle via
+ * used by useTerminalTransport. The test controls the lifecycle via
  * triggerOpen / triggerMessage / triggerClose.
  */
 export class FakeWebSocket {
@@ -54,8 +60,17 @@ export class FakeWebSocket {
 
   sent: string[] = [];
   closed = false;
+  /** Mirrors WebSocket.bufferedAmount; tests can set this directly to simulate back-pressure. */
+  bufferedAmount = 0;
+  /** When non-null, the next send() call will throw this error (tests set it explicitly). */
+  sendError: Error | null = null;
 
   send(data: string) {
+    if (this.sendError) {
+      const err = this.sendError;
+      this.sendError = null;
+      throw err;
+    }
     this.sent.push(data);
   }
 
@@ -107,6 +122,7 @@ export interface MockTerminal {
   cols: number;
   rows: number;
   write: ReturnType<typeof vi.fn>;
+  onWriteParsed: ReturnType<typeof vi.fn>;
   onData: ReturnType<typeof vi.fn>;
   written: string[];
   /** Simulate user typing in the terminal. */
@@ -114,6 +130,7 @@ export interface MockTerminal {
   // Scroll APIs
   scrollLines: ReturnType<typeof vi.fn>;
   scrollToBottom: ReturnType<typeof vi.fn>;
+  attachCustomWheelEventHandler: ReturnType<typeof vi.fn>;
   // Terminal control
   clear: ReturnType<typeof vi.fn>;
   reset: ReturnType<typeof vi.fn>;
@@ -153,6 +170,7 @@ export function createMockTerminal(): MockTerminal {
     cols: 80,
     rows: 24,
     write: vi.fn((data: string) => written.push(data)),
+    onWriteParsed: vi.fn(() => ({ dispose: vi.fn() })),
     onData: vi.fn((cb: (data: string) => void) => {
       dataCallbacks.push(cb);
       return { dispose: vi.fn() };
@@ -162,6 +180,7 @@ export function createMockTerminal(): MockTerminal {
       for (const cb of dataCallbacks) cb(data);
     },
     scrollLines: vi.fn(),
+    attachCustomWheelEventHandler: vi.fn(),
     scrollToBottom: vi.fn(),
     clear: vi.fn(),
     reset: vi.fn(),
@@ -202,7 +221,7 @@ export function findWriteCall(
 // Session data factories
 // ---------------------------------------------------------------------------
 
-import type { SessionInfo } from "../lib/api";
+import type { SessionInfo } from "../api/sessions";
 
 /**
  * Creates an array of session entries suitable for component props.
@@ -218,8 +237,12 @@ export function makeSessions(
       created_at: "2026-01-15T14:30:00Z",
       cols: 80,
       rows: 24,
+      backend: "standard" as const,
+      survives_restart: false,
       policy: { mode: "never" as const },
-      busy: false,
+      origin: "ui" as const,
+      owner: "",
+      display_label: "",
     },
   }));
 }
@@ -236,8 +259,12 @@ export function createMockSession(
     created_at: "2026-01-15T14:30:00Z",
     cols: 80,
     rows: 24,
+    backend: "standard" as const,
+    survives_restart: false,
     policy: { mode: "never" as const },
-    busy: false,
+    origin: "ui" as const,
+    owner: "",
+    display_label: "",
     ...overrides,
   };
 }
@@ -267,4 +294,112 @@ export function mockFetchError(status: number, body?: unknown) {
       ? () => Promise.resolve(body)
       : () => Promise.reject(new Error("not json")),
   }) as typeof fetch;
+}
+
+
+/**
+ * A minimal xterm stand-in for the terminal hooks.
+ *
+ * Four test files each carried a near-identical private `terminalFixture`, and
+ * three more built an ad-hoc `.xterm-screen` element by hand. One helper here
+ * keeps a change to xterm's shape a single edit.
+ *
+ * `screen` attaches a measurable `.xterm-screen` child — the element the
+ * follower presentation derives its cell aspect from. Omit it for hooks that
+ * never measure.
+ */
+export function createTerminalStub(options: {
+  cols?: number;
+  rows?: number;
+  mouseTrackingMode?: string;
+  screen?: { width: number; height: number } | null;
+  /**
+   * Park the stub on the alternate buffer, which is where every tmux-backed
+   * pane lives: the tmux client emits `\x1b[?1049h` on attach and never
+   * leaves. There is no scrollback in that state, so `scrollLines` is a no-op.
+   */
+  onAltBuffer?: boolean;
+} = {}) {
+  const onData = vi.fn();
+  onData.mockReturnValue({ dispose: vi.fn() });
+  const normal = {};
+  const alternate = {};
+
+  // xterm types `Terminal.element` as optional, not nullable. Matching that
+  // exactly is what lets the terminal hooks take a narrow structural type
+  // instead of the whole `Terminal`, which is what the `as never` casts in
+  // this suite used to pay for.
+  let element: HTMLElement | undefined;
+  if (options.screen !== null && options.screen !== undefined) {
+    element = document.createElement("div");
+    const screen = document.createElement("div");
+    screen.className = "xterm-screen";
+    Object.defineProperties(screen, {
+      clientWidth: { configurable: true, value: options.screen.width },
+      clientHeight: { configurable: true, value: options.screen.height },
+    });
+    element.appendChild(screen);
+  }
+
+  return {
+    cols: options.cols ?? 80,
+    rows: options.rows ?? 24,
+    options: {} as { fontSize?: number },
+    element,
+    modes: { mouseTrackingMode: options.mouseTrackingMode ?? "none" },
+    buffer: { active: options.onAltBuffer ? alternate : normal, normal, alternate, cursorX: 4, cursorY: 5 },
+    reset: vi.fn(),
+    clear: vi.fn(),
+    write: vi.fn(),
+    resize: vi.fn(),
+    onData,
+    scrollLines: vi.fn(),
+    attachCustomWheelEventHandler: vi.fn(),
+  };
+}
+
+export type TerminalStub = ReturnType<typeof createTerminalStub>;
+
+
+/**
+ * A complete `useTerminalSession` stand-in for `TerminalPane` component tests.
+ *
+ * Five test files each carried their own partial mock of this hook, so adding
+ * one field to the session interface broke all five at once. This returns
+ * every member with an inert default; a test overrides only what it asserts on.
+ *
+ * References are created once per call and reused across renders, because
+ * `TerminalPane` keys effects on them and a fresh identity each render would
+ * re-run its unmount-save path.
+ */
+export function createTerminalSessionStub(overrides: Record<string, unknown> = {}) {
+  const sent = { status: "sent" as const, offset: 1 };
+  const base = {
+    submitInput: vi.fn(() => sent),
+    sendControl: vi.fn(() => true),
+    setMouseMode: vi.fn(() => true),
+    mouseMode: null,
+    scrollBy: vi.fn(),
+    gate: { submit: vi.fn(() => sent), dispose: vi.fn() },
+    sendResize: vi.fn(),
+    getServerSize: vi.fn(() => null),
+    serverSize: null,
+    isFollower: false,
+		followerMode: "leader" as const,
+    leaderDevice: "",
+    leaderClass: "",
+    leaderKbOpen: false,
+    viewerCount: 1,
+    takeLease: vi.fn(),
+    setKeyboardOpen: vi.fn(),
+    subscribeInputSettled: vi.fn(() => () => {}),
+    awaitOffset: vi.fn(() => () => {}),
+    subscribePendingInput: vi.fn(() => () => {}),
+    getPendingInputSnapshot: vi.fn(() => []),
+    discardPendingInput: vi.fn(),
+    discardAllPendingInput: vi.fn(),
+    flushPendingInputNow: vi.fn(),
+    sendConversationAck: vi.fn(),
+  };
+  return { ...base, ...overrides };
 }

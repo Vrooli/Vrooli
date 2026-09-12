@@ -1,6 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "chart-generator",
     "displayName": "Professional Chart Generator",
@@ -51,7 +55,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Chart style management UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -91,123 +95,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Initialize Chart Generator with all dependencies",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/chart-generator-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "chart-generator",
-            "targets": [
-              "chart-generator"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o chart-generator-api .",
-          "description": "Build Go chart generation API binary"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install chart-generator CLI command globally"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed default styles"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83c\udfa8 Chart Generator initialized\\n  Style Management UI: http://localhost:${UI_PORT}\\n  Chart Generation API: http://localhost:${API_PORT}\\n  CLI: chart-generator --help\\n  \\n\ud83d\udcca Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
-          "description": "Display service access URLs and usage examples"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start chart generator with API server and UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./chart-generator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/chart-generator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start style management UI server with health endpoint",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83c\udfa8 Chart Generator Services Running:\\n  Style Management: http://localhost:${UI_PORT}\\n  Chart API: http://localhost:${API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n\ud83d\udccb CLI Usage: chart-generator --help'",
-          "description": "Display all running service URLs and CLI info"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for chart-generator",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute chart-generator --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop all chart generator services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"chart-generator-api\" || true; sleep 1; pkill -9 -f \"chart-generator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {
@@ -217,29 +104,119 @@
         "enabled": true,
         "required": true,
         "purpose": "Store chart templates, custom styles, generation history, and configuration data",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed-styles.sql",
-            "type": "seed"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "minio": {
         "type": "minio",
         "enabled": false,
         "required": false,
-        "purpose": "Store generated chart assets and large data files with organized bucket structure"
+        "purpose": "Store generated chart assets and large data files with organized bucket structure",
+        "startup_policy": "try_start"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+        "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization",
+        "startup_policy": "try_start"
       }
+    },
+    "scenarios": {
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "PNG rendering leg (replacing the deleted browserless resource). The renderer serves chart HTML over its own HTTP surface and calls BAS CaptureService.Capture (Connect-RPC) to screenshot it via the scenario=chart-generator shorthand; the returned artifact bytes become the PNG export.",
+        "degraded_behavior": "Without browser-automation-studio, PNG export falls back to a basic Go-drawn placeholder image; HTML/SVG/PDF exports are unaffected."
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "chart-generator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "chart-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

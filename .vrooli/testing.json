@@ -1,0 +1,21 @@
+{
+  "$schema": "../scenarios/test-genie/schemas/testing.schema.json",
+  "version": "1.0.0",
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "duplication_line_debt": 0,
+        "baseline_duplication_line_debt": 1,
+        "long_files": 897,
+        "baseline_long_files": 898,
+        "complexity_over_threshold": 0,
+        "baseline_complexity_over_threshold": 0,
+        "coupling_over_threshold": 0,
+        "baseline_coupling_over_threshold": 0,
+        "debt_markers": 0,
+        "baseline_debt_markers": 0,
+        "ratchet": true
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { cn } from "../../../lib/utils";
 import { useViewportSize } from "../../../hooks/useViewportSize";
 import { useResizablePanel } from "../../../hooks/useResizablePanel";
 import { useCollapsiblePanel } from "../../../hooks/useCollapsiblePanel";
+import { onProfilerRender } from "../../../lib/profiler";
 import { DetailModal } from "./DetailModal";
 import { ResizableDivider } from "./ResizableDivider";
 
@@ -45,6 +46,42 @@ const DEFAULT_MIN_DETAIL_WIDTH = 320;
 const COLLAPSED_LIST_WIDTH = 48;
 
 export function MasterDetailLayout({
+  listPanel,
+  detailPanel,
+  selectedId,
+  onDeselect,
+  detailTitle,
+  headerContent,
+  storageKey,
+  defaultListWidthPercent = DEFAULT_LIST_WIDTH_PERCENT,
+  minListWidth = DEFAULT_MIN_LIST_WIDTH,
+  detailHeaderLeft,
+  detailHeaderRight,
+  minDetailWidth = DEFAULT_MIN_DETAIL_WIDTH,
+  className,
+}: MasterDetailLayoutProps) {
+  return (
+    <React.Profiler id={`MasterDetail:${storageKey}`} onRender={onProfilerRender}>
+      <MasterDetailLayoutImpl
+        listPanel={listPanel}
+        detailPanel={detailPanel}
+        selectedId={selectedId}
+        onDeselect={onDeselect}
+        detailTitle={detailTitle}
+        headerContent={headerContent}
+        storageKey={storageKey}
+        defaultListWidthPercent={defaultListWidthPercent}
+        minListWidth={minListWidth}
+        detailHeaderLeft={detailHeaderLeft}
+        detailHeaderRight={detailHeaderRight}
+        minDetailWidth={minDetailWidth}
+        className={className}
+      />
+    </React.Profiler>
+  );
+}
+
+function MasterDetailLayoutImpl({
   listPanel,
   detailPanel,
   selectedId,

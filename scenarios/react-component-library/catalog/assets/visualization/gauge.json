@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.gauge",
+    "name": "Gauge",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "visualization",
+    "description": "The bounded metric visualization with semantic zones, target markers, animated change, and an accessible textual equivalent that states the value and its zone.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Theming and the accessible equivalent are shared."
+      },
+      {
+        "asset": "primitives.meter",
+        "reason": "Bounded-value semantics are shared, and are deliberately not task progress."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience"
+  ]
+}

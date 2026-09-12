@@ -16,7 +16,7 @@ func (a *App) cmdAgentManagerStatus(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/agent-manager/status", nil)
+	body, err := a.core.Get("/agent-manager/status", nil)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (a *App) cmdAgentManagerRunGet(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/agent-manager/runs/"+id, nil)
+	body, err := a.core.Get("/agent-manager/runs/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func (a *App) cmdAgentManagerRunStop(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.requestV1("POST", "/agent-manager/runs/"+id+"/stop", nil, nil)
+	body, err := a.core.Request("POST", "/agent-manager/runs/"+id+"/stop", nil, nil)
 	if err != nil {
 		return err
 	}

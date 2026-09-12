@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // NetworkCheck verifies basic network connectivity.
@@ -56,7 +56,8 @@ func WithNetworkPlatformCaps(caps *platform.Capabilities) NetworkCheckOption {
 }
 
 // NewNetworkCheck creates a network connectivity check.
-// The target parameter is required and must be a valid host:port (e.g., "8.8.8.8:53").
+// The target parameter is required and must be a valid host:port supplied by
+// lifecycle configuration.
 func NewNetworkCheck(target string, opts ...NetworkCheckOption) *NetworkCheck {
 	c := &NetworkCheck{
 		target:   target,
@@ -73,7 +74,7 @@ func NewNetworkCheck(target string, opts ...NetworkCheckOption) *NetworkCheck {
 func (c *NetworkCheck) ID() string    { return "infra-network" }
 func (c *NetworkCheck) Title() string { return "Internet Connection" }
 func (c *NetworkCheck) Description() string {
-	return "Tests TCP connectivity to Google DNS (8.8.8.8:53)"
+	return "Tests TCP connectivity to the configured network target"
 }
 
 func (c *NetworkCheck) Importance() string {
@@ -161,7 +162,8 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 
 	switch actionID {
 	case "restart-network-manager":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "NetworkManager")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "NetworkManager")
+		result.Elevation = &outcome
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -176,7 +178,8 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 		return c.verifyRecovery(ctx, result, "NetworkManager restart", start)
 
 	case "restart-systemd-networkd":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "systemctl", "restart", "systemd-networkd")
+		output, outcome, err := checks.RunAuthorizedServiceWithOutcome(ctx, c.executor, "restart", "systemd-networkd")
+		result.Elevation = &outcome
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 
@@ -190,7 +193,7 @@ func (c *NetworkCheck) ExecuteAction(ctx context.Context, actionID string) check
 		return c.verifyRecovery(ctx, result, "systemd-networkd restart", start)
 
 	case "flush-arp-cache":
-		output, err := c.executor.CombinedOutput(ctx, "sudo", "ip", "neigh", "flush", "all")
+		output, err := c.executor.CombinedOutput(ctx, "ip", "neigh", "flush", "all")
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

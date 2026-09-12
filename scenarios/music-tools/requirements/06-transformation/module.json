@@ -1,0 +1,37 @@
+{
+  "_metadata": {
+    "module": "transformation",
+    "description": "Iterative editing over existing audio: separation, cover, repaint, accompaniment.",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P1-003",
+      "title": "Stem separation independent of the generator",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Stem separation is served by a dedicated separator that does not require the composition model to be resident, because the generation variant that fits constrained VRAM may not expose separation at all.",
+      "tags": ["transformation", "stems"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/transformation/separate_test.go", "phase": "unit", "status": "planned", "notes": "Separation succeeds with no composition model loaded" }
+      ]
+    },
+    {
+      "id": "MUS-P1-004",
+      "title": "Section repaint and cover preserve identity",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Repaint regenerates a bounded time range while leaving the remainder byte-identical, and cover restyles a track while preserving its structure — so a near-miss can be edited rather than rerolled.",
+      "tags": ["transformation", "editing"],
+      "validation": [
+        { "type": "test", "ref": "api/internal/transformation/repaint_test.go", "phase": "unit", "status": "planned", "notes": "Repaint leaves out-of-range audio unchanged; cover preserves segment structure" }
+      ]
+    }
+  ]
+}

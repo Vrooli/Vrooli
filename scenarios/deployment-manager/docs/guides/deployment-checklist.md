@@ -1,45 +1,44 @@
-# Deployment Checklist
+# Deployment admission checklist
 
-Use this checklist before declaring any scenario "deployable" for a tier. Items marked ✅ can be automated later by deployment-manager; until then, keep the checklist in PRDs/app-issue-tracker tasks.
+Use this checklist before describing a scenario as ready for a target. An
+unchecked item is a named gap, not permission to soften the claim.
 
-## 1. Scenario Metadata
+## Scenario declaration
 
-- [ ] `service.json` lists all resource + scenario dependencies.
-- [ ] `deployment.platforms.<tier>` entries exist with fitness scores and requirements.
-- [ ] Secrets have deployment strategies defined (see [Secrets Guide](secrets-management.md)).
+- [ ] `.vrooli/service.json` lists every scenario and resource dependency.
+- [ ] The target profile identifies supported OS and architecture combinations.
+- [ ] Host requirements, privilege, bundling policy, and network needs are explicit.
+- [ ] Target-specific limitations and functional differences are documented.
+- [ ] Required user journeys exist in `bas/` or the target evidence plan.
 
-## 2. Dependency Fitness
+## Dependency and secret plan
 
-- [ ] `scenario-dependency-analyzer` report stored with the scenario (latest run date recorded).
-- [ ] Each dependency scored >= tier threshold or has a documented swap/migration plan.
-- [ ] Swap decisions tracked in app-issue-tracker if they require engineering changes.
+- [ ] The dependency analyzer report covers the complete graph.
+- [ ] Every required dependency has an eligible target route or an explicit blocker.
+- [ ] Swaps record migrations, limitations, and ownership.
+- [ ] Infrastructure secrets are excluded from bundles.
+- [ ] Generated, user-provided, and remote-fetched credentials have valid strategies.
+- [ ] The credential authority and recovery behavior are documented.
 
-## 3. Packaging Plan
+## Artifact and runtime plan
 
-- [ ] `scenario-to-*` packager identified (desktop/mobile/cloud).
-- [ ] Bundle manifest (list of binaries/resources/assets) drafted.
-- [ ] Installer/updater approach chosen (Electron auto-update, MSI, Terraform+Helm, etc.).
+- [ ] The target plan pins artifacts by platform, architecture, version, and checksum.
+- [ ] Ports, health checks, readiness, data directories, and migrations are defined.
+- [ ] The runtime ownership boundary is explicit for private, remote, and shared providers.
+- [ ] Install, update, restart, rollback, and uninstall behavior are defined.
 
-## 4. Secrets
+## Evidence and release
 
-- [ ] Infrastructure secrets stripped from bundles.
-- [ ] Generated service secrets recorded in secrets-manager with rotation policies.
-- [ ] User secrets prompt/workflow implemented.
+- [ ] Build output is bound to an exact source revision.
+- [ ] Native launch, semantic interaction, dependency operation, and clean shutdown are proven.
+- [ ] Communication evidence identifies the route and provider without exposing secrets.
+- [ ] Unsupported and unavailable states remain terminal verdicts.
+- [ ] Artifact trust, release-manifest signing, and OS signing status are clear.
+- [ ] deployment-manager has recorded the approval or rejection decision.
 
-## 5. Testing
+## References
 
-- [ ] Tier-specific smoke tests defined (desktop launch script, cloud health checks, etc.).
-- [ ] Manual validation plan documented until automation exists.
-
-## 6. Documentation
-
-- [ ] Scenario README updated with deployment notes per tier.
-- [ ] Relevant example doc under `docs/deployment/examples/` created or updated.
-- [ ] Known limitations called out explicitly.
-
-## 7. Approval
-
-- [ ] Deployment-manager (when available) marks the scenario as ready for the tier.
-- [ ] Responsible engineer/agent signs off and links to supporting tickets.
-
-If any box remains unchecked, do **not** claim the scenario is deployable for that tier. Capture the gap as an issue so future automation has clear TODOs.
+- [Deployment Hub](../../../../docs/deployment/README.md)
+- [Desktop workflow](../workflows/desktop-deployment.md)
+- [Desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md)
+- [Credential configuration](../../../../docs/configuration/secrets.md)

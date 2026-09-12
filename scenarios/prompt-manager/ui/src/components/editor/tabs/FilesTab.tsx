@@ -45,6 +45,7 @@ import type { ContentSearchMatch } from '@/lib/schemas'
 import { createHighlightMatch } from '@/lib/highlight'
 import * as agentService from '@/services/agentService'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import { AppearanceTab } from './AppearanceTab'
 import { EditorActionButtons, SkillContentEditor } from '../SkillContentEditor'
 import { DropdownItem, ToolbarDropdown } from '../ToolbarDropdown'
@@ -1305,23 +1306,21 @@ function AgentFileContextMenu({
       }
     }
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
     }, 0)
 
     return () => {
       clearTimeout(timer)
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
     }
   }, [onClose])
+
+  useGlobalKeydown((event) => {
+    if (event.key === 'Escape') {
+      onClose()
+    }
+  }, { target: 'document' })
 
   useEffect(() => {
     if (!menuRef.current) return

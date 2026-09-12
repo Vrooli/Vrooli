@@ -29,7 +29,6 @@ export function ProfileSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Harden the default admin identity"
           description="Update the seeded admin email and password so deployments do not rely on defaults. Changes apply immediately to the current session."
           icon={Mail}
@@ -85,12 +84,12 @@ export function ProfileSettings() {
               iconColorClass="text-emerald-300"
               testId="profile-email-section"
             >
-              <form className="space-y-4" onSubmit={handleEmailSubmit} data-testid="profile-email-form">
+              <form className="space-y-4" onSubmit={(event) => { void handleEmailSubmit(event); }} data-testid="profile-email-form">
                 <FormField label="New email">
                   <input
                     type="email"
                     value={emailForm.newEmail}
-                    onChange={(event) => updateEmailForm('newEmail', event.target.value)}
+                    onChange={(event) => { updateEmailForm('newEmail', event.target.value); }}
                     placeholder="you@company.com"
                     className={inputClassName}
                     data-testid="profile-email-new"
@@ -100,7 +99,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={emailForm.currentPassword}
-                    onChange={(event) => updateEmailForm('currentPassword', event.target.value)}
+                    onChange={(event) => { updateEmailForm('currentPassword', event.target.value); }}
                     placeholder="Confirm with current password"
                     className={inputClassName}
                     data-testid="profile-email-current-password"
@@ -140,12 +139,12 @@ export function ProfileSettings() {
               iconColorClass="text-blue-200"
               testId="profile-password-section"
             >
-              <form className="space-y-4" onSubmit={handlePasswordSubmit} data-testid="profile-password-form">
+              <form className="space-y-4" onSubmit={(event) => { void handlePasswordSubmit(event); }} data-testid="profile-password-form">
                 <FormField label="New password">
                   <input
                     type="password"
                     value={passwordForm.newPassword}
-                    onChange={(event) => updatePasswordForm('newPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('newPassword', event.target.value); }}
                     placeholder="At least 12 characters, letters + numbers"
                     className={inputClassName}
                     data-testid="profile-password-new"
@@ -156,7 +155,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={passwordForm.confirmPassword}
-                    onChange={(event) => updatePasswordForm('confirmPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('confirmPassword', event.target.value); }}
                     placeholder="Re-enter new password"
                     className={inputClassName}
                     data-testid="profile-password-confirm"
@@ -167,7 +166,7 @@ export function ProfileSettings() {
                   <input
                     type="password"
                     value={passwordForm.currentPassword}
-                    onChange={(event) => updatePasswordForm('currentPassword', event.target.value)}
+                    onChange={(event) => { updatePasswordForm('currentPassword', event.target.value); }}
                     placeholder="Confirm with current password"
                     className={inputClassName}
                     data-testid="profile-password-current"

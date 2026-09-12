@@ -1,0 +1,12 @@
+[data-theme="signal-tower"] {
+  --color-background: #0a0412;
+  --color-background-deep: #030008;
+  --color-surface: rgba(34, 12, 44, 0.72);
+  --color-foreground: #f9eafd;
+  --color-muted-foreground: #b995cc;
+  --color-primary: #ff44b0;
+  --color-accent: #ff9ad6;
+  --color-glow: rgba(255, 68, 176, 0.5);
+  --color-border: rgba(255, 68, 176, 0.24);
+  --color-gap: #c8b0ff;
+}

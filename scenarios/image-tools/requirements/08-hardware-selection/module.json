@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-008",
+      "title": "Hardware-Aware Selection",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs \u003e=X GB VRAM' and time-warning messaging.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/selector_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Selector maps probed capability to a fitting model tier"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/models/selector_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Selection degrades to CPU default and emits warning when GPU absent"
+        }
+      ]
+    }
+  ]
+}

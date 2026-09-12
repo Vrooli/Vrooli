@@ -21,9 +21,11 @@ export class WaitHandler extends BaseHandler {
   ): Promise<HandlerResult> {
     const { page, logger } = context;
 
+    // Extract typed params from action up front so the error path can preserve
+    // the known selector even if validation below fails.
+    const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
+
     try {
-      // Extract typed params from action
-      const typedParams = instruction.action ? getWaitParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'wait', instruction.nodeId);
 
       if (params.selector) {
@@ -47,10 +49,19 @@ export class WaitHandler extends BaseHandler {
 
         // Capture element context AFTER the wait completes (element now exists)
         const elementContext = await captureElementContext(page, params.selector);
+        const attributes = elementContext.elementMeta?.attributes ?? {};
+        const extracted_data: Record<string, string> = {};
+        if (attributes['data-experience-surface']) {
+          extracted_data.experience_surface_id = attributes['data-experience-surface'];
+        }
+        if (attributes['data-experience-state']) {
+          extracted_data.experience_surface_state = attributes['data-experience-state'];
+        }
 
         return {
           success: true,
           elementContext,
+          extracted_data: Object.keys(extracted_data).length > 0 ? extracted_data : undefined,
           focus: {
             selector: elementContext.selector,
             bounding_box: elementContext.boundingBox ? {
@@ -84,7 +95,7 @@ export class WaitHandler extends BaseHandler {
         error: error instanceof Error ? error.message : String(error),
       });
 
-      const driverError = normalizeError(error);
+      const driverError = normalizeError(error, { selector: typedParams?.selector });
 
       return {
         success: false,

@@ -9,12 +9,16 @@
  * immediately opening a full-screen detail overlay.
  */
 
-import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ExternalLink, Play } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../../hooks/useActionMutation";
+import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
+import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
+import { backlogGoalTarget, type GoalTarget } from "../../../components/goals/goal-target";
 import { cn } from "../../../lib/utils";
+import { useNodeGoalBadges } from "../hooks/useGoalMembership";
 import { StatusBadge } from "../../../components/detail/StatusBadge";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -25,17 +29,14 @@ import { LOCKED_STATUSES } from "../../../lib/backlog-queue-utils";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
-import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
 import { computeNodeAttention, formatAttentionSummary } from "../lib/attention";
 import { hasDetailPage } from "../lib/detail-page-registry";
-import { parseNodeId } from "../lib/node-id-parser";
 import { getStatusColorClasses } from "../lib/status-colors";
 import {
   BACKLOG_LENSES,
   SCENARIO_LENSES,
   EXECUTION_LENSES,
-  INITIATIVE_LENSES,
+  GOAL_LENSES,
 } from "../../../components/detail/lens-options";
 import type { LensOption } from "../../../components/detail/lens-options";
 import {
@@ -44,14 +45,9 @@ import {
   type GraphEntityType,
   type GraphNodeData,
   type BacklogGraphNodeData,
-  type InitiativeGraphNodeData,
-  type ExecutionGraphNodeData,
-  type CaptureGraphNodeData,
-  type AgentActivityGraphNodeData,
-  type RunGraphNodeData,
-  type ScenarioGraphNodeData,
+  type GoalGraphNodeData,
 } from "../types";
-import type { GraphLens } from "../stores/graph-data-store";
+import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
 
 function getLensesForEntity(entityType: GraphEntityType): LensOption[] {
   switch (entityType) {
@@ -61,8 +57,8 @@ function getLensesForEntity(entityType: GraphEntityType): LensOption[] {
       return SCENARIO_LENSES;
     case "execution":
       return EXECUTION_LENSES;
-    case "initiative":
-      return INITIATIVE_LENSES;
+    case "goal":
+      return GOAL_LENSES;
     default:
       return [];
   }
@@ -82,8 +78,8 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
         </div>
       );
     }
-    case "initiative": {
-      const d = data as InitiativeGraphNodeData;
+    case "goal": {
+      const d = data as GoalGraphNodeData;
       const { rollup } = d;
       if (!rollup || rollup.total === 0) return null;
       const pct = Math.round((rollup.completed / rollup.total) * 100);
@@ -105,7 +101,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "execution": {
-      const d = data as ExecutionGraphNodeData;
+      const d = data;
       return (
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="rounded bg-slate-800 px-1.5 py-0.5 font-medium capitalize">{d.mode}</span>
@@ -114,7 +110,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "scenario": {
-      const d = data as ScenarioGraphNodeData;
+      const d = data;
       return (
         <div className="text-xs text-slate-400">
           <span className="capitalize">{d.name}</span>
@@ -122,13 +118,13 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "capture": {
-      const d = data as CaptureGraphNodeData;
+      const d = data;
       return (
         <p className="line-clamp-2 text-xs text-slate-400">{d.text}</p>
       );
     }
     case "agent-activity": {
-      const d = data as AgentActivityGraphNodeData;
+      const d = data;
       return (
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="capitalize">{d.purpose}</span>
@@ -137,7 +133,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "agent-run": {
-      const d = data as RunGraphNodeData;
+      const d = data;
       return (
         <div className="text-xs text-slate-400 font-mono">
           {d.runId}
@@ -149,29 +145,38 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
   }
 }
 
-const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
+const FALLBACK_INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
+
+/**
+ * goalTargetForNode maps a backlog node to its item target ref. Other node
+ * types cannot be goal targets and return null.
+ */
+function goalTargetForNode(data: GraphNodeData): GoalTarget | null {
+  if (data.entityType === "backlog" && data.rawType === "BacklogItem") {
+    return backlogGoalTarget(data);
+  }
+  return null;
+}
 
 export function NodeInspectorPanel() {
+  const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const nodes = useGraphDataStore((s) => s.nodes);
   const currentLens = useGraphDataStore((s) => s.lens);
 
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
-
-  const { drillToLens } = useDetailNavigation();
-
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
 
-  const statusMutation = useMutation({
+  const statusMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName, newStatus }: { kind: BacklogKind; name: string; newStatus: BacklogStatus }) =>
       backlogService.update(kind, itemName, { status: newStatus }),
+    errorMessage: "Couldn't change that item's status",
+    successMessage: (_item, { name: itemName, newStatus }) => `${itemName} set to ${newStatus.replaceAll("_", " ")}`,
+    source: "NodeInspectorPanel.status",
     onSuccess: () => {
       void fetchBacklog({ force: true });
       void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
@@ -183,10 +188,18 @@ export function NodeInspectorPanel() {
     return nodes.find((n) => n.id === selectedNodeId) ?? null;
   }, [selectedNodeId, nodes]);
 
+  const flowInstance = useGraphUIStore((s) => s.flowInstance);
+  const inspectorPosition = useMemo(() => {
+    if (!selectedNode || !flowInstance) return FALLBACK_INSPECTOR_POSITION;
+    const screenPosition = flowInstance.flowToScreenPosition(selectedNode.position);
+    return { x: screenPosition.x + 16, y: screenPosition.y + 16 };
+  }, [flowInstance, selectedNode]);
+
   const nodeData = useMemo<GraphNodeData | null>(() => {
     if (!selectedNode) return null;
     return getGraphNodeData(selectedNode);
   }, [selectedNode]);
+  const goalBadges = useNodeGoalBadges(selectedNodeId ?? "");
 
   const handleClose = () => {
     selectNode(null);
@@ -203,33 +216,23 @@ export function NodeInspectorPanel() {
 
   const handleOpenDetails = () => {
     if (!selectedNodeId || !nodeData) return;
-    const parsed = parseNodeId(selectedNodeId);
-    if (!parsed) return;
-
-    switch (parsed.entityType) {
-      case "backlog":
-        if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
-        break;
-      case "scenario":
-        if (parsed.name) selectScenario(parsed.name);
-        break;
-      case "execution":
-        selectExecution(parsed.identifier);
-        break;
-      case "initiative":
-        if (parsed.name) selectInitiative(parsed.name);
-        break;
-    }
+    const path = detailPathFromNodeId(selectedNodeId);
+    if (path) navigate(path);
   };
 
-  const handleDrillToLens = (lens: GraphLens) => {
+  const handleDrillToLens = (lens: import("../../../app/routes/route-paths").AppGraphLens) => {
     if (!selectedNodeId) return;
-    drillToLens(selectedNodeId, lens);
+    navigate(graphPath({ lens, focus: selectedNodeId, select: selectedNodeId }));
   };
 
-  const queueMutation = useMutation({
+  const queueMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
       defaultApiClient.post(API_ENDPOINTS.backlogQueue(kind, itemName), {}),
+    errorMessage: "Couldn't queue that item",
+    // Queueing hands the item to an agent lane; it has not run yet.
+    successMessage: (_result, { name: itemName }) => `${itemName} queued for an agent run`,
+    successKind: "progress",
+    source: "NodeInspectorPanel.queue",
     onSuccess: () => {
       void fetchBacklog({ force: true });
       void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
@@ -250,13 +253,16 @@ export function NodeInspectorPanel() {
   const lenses = getLensesForEntity(entityType).filter((l) => l.lens !== currentLens);
   const isReadyBacklog = entityType === "backlog" && nodeData.status === "ready";
   const isFocusLens = currentLens === "focus";
+  const goalTarget = goalTargetForNode(nodeData);
 
   return (
+    <>
     <FloatingPanel
       isOpen
       onClose={handleClose}
       title={label}
-      initialPosition={INSPECTOR_POSITION}
+      initialPosition={inspectorPosition}
+      key={selectedNode.id}
       className="!max-w-sm"
       testId="node-inspector"
     >
@@ -287,6 +293,29 @@ export function NodeInspectorPanel() {
         {/* Entity-specific metadata */}
         <EntityMeta data={nodeData} />
 
+        {goalBadges.length > 0 && (
+          <div
+            className="rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-2"
+            data-testid="inspector-goal-membership"
+          >
+            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-fuchsia-200">
+              <Target className="h-3 w-3" aria-hidden />
+              In goal{goalBadges.length > 1 ? "s" : ""}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {goalBadges.map((goal) => (
+                <span
+                  key={goal.name}
+                  className="rounded-full border border-fuchsia-400/30 bg-fuchsia-500/15 px-2 py-0.5 text-xs text-fuchsia-100"
+                  title={`Priority ${goal.priority}`}
+                >
+                  {goal.title}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Attention chip + quick actions (suppressed in focus mode — FocusActionsSection handles it) */}
         {!isFocusLens && (attention?.needsAttention || isReadyBacklog) && (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -305,7 +334,7 @@ export function NodeInspectorPanel() {
               <button
                 type="button"
                 onClick={() => {
-                  const d = nodeData as BacklogGraphNodeData;
+                  const d = nodeData;
                   queueMutation.mutate({ kind: d.kind, name: d.name });
                 }}
                 disabled={queueMutation.isPending}
@@ -319,14 +348,25 @@ export function NodeInspectorPanel() {
           </div>
         )}
 
-        {/* Focus lens inline actions */}
+        {/* Focus-mode inline actions */}
         {isFocusLens && selectedNodeId && (
           <FocusActionsSection nodeData={nodeData} nodeId={selectedNodeId} />
         )}
 
         {/* Action buttons */}
-        {(showDetails || lenses.length > 0) && (
+        {(showDetails || lenses.length > 0 || goalTarget) && (
           <div className="flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-3">
+            {goalTarget && (
+              <button
+                type="button"
+                onClick={() => setGoalDialogOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-slate-700/50 px-3 py-1.5 text-xs font-medium text-slate-100 transition-colors hover:bg-slate-700/70"
+                data-testid="inspector-set-goal"
+              >
+                <Target className="h-3 w-3 text-cyan-400" />
+                Set as goal
+              </button>
+            )}
             {showDetails && (
               <button
                 type="button"
@@ -352,7 +392,21 @@ export function NodeInspectorPanel() {
             ))}
           </div>
         )}
+        {!goalTarget && (
+          <p className="border-t border-white/10 pt-3 text-xs text-slate-500" data-testid="inspector-goal-unsupported">
+            Goal targets are available for backlog items and goals.
+          </p>
+        )}
       </div>
     </FloatingPanel>
+    {goalTarget && (
+      <SetAsGoalDialog
+        isOpen={goalDialogOpen}
+        onClose={() => setGoalDialogOpen(false)}
+        targetRef={goalTarget.ref}
+        targetTitle={goalTarget.title}
+      />
+    )}
+    </>
   );
 }

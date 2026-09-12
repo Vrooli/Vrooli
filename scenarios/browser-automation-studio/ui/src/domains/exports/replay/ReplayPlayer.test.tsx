@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@/test-utils';
 import ReplayPlayer from './ReplayPlayer';
 import type { ReplayFrame } from './types';
 

@@ -1,0 +1,13 @@
+{
+  "tokens": ["#0f172a", "Inter"],
+  "elements": [
+    {
+      "selector": ".title",
+      "display": "block",
+      "color": "#ff0000",
+      "fontFamily": "Arial",
+      "text": "Literal",
+      "rect": {"x": 0, "y": 0, "width": 100, "height": 20}
+    }
+  ]
+}

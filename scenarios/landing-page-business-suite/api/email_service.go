@@ -9,6 +9,11 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/logx"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // SMTPConfig holds SMTP configuration from database
@@ -43,23 +48,46 @@ type SMTPSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg
 // EmailServiceOptions configures the EmailService for testing.
 type EmailServiceOptions struct {
 	SendGridConfig *SendGridConfig
-	HTTPClient     *http.Client
-	SMTPSender     SMTPSenderFunc
+	// SendGridEndpoint is injectable so provider behavior can be tested against
+	// a bounded local server without weakening the production endpoint.
+	SendGridEndpoint string
+	HTTPClient       *http.Client
+	SMTPSender       SMTPSenderFunc
+	// SMTPPasswordResolver supplies the authority-owned SMTP secret. The
+	// branding model deliberately cannot provide this value.
+	SMTPPasswordResolver func() (string, error)
+	// AllowUnconfiguredDelivery is a development-only seam. It never logs or
+	// returns a magic-link URL; production composition leaves it false so a
+	// missing provider is an explicit delivery failure.
+	AllowUnconfiguredDelivery bool
 }
 
-// EmailService handles sending emails using config from branding or SendGrid
+// EmailService handles sending emails using public branding settings plus
+// authority-owned provider credentials.
 type EmailService struct {
-	sendGridConfig *SendGridConfig
-	httpClient     *http.Client
-	smtpSender     SMTPSenderFunc
+	sendGridConfig            *SendGridConfig
+	sendGridEndpoint          string
+	httpClient                *http.Client
+	smtpSender                SMTPSenderFunc
+	smtpPasswordResolver      func() (string, error)
+	allowUnconfiguredDelivery bool
+}
+
+const defaultSendGridEndpoint = "https://api.sendgrid.com/v3/mail/send"
+
+func firstNonEmpty(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
 }
 
 // NewEmailService creates a new email service
 func NewEmailService() *EmailService {
 	// Load SendGrid config from secrets
 	apiKey := resolveSecret("SENDGRID_API_KEY")
-	fromEmail := resolveSecret("EMAIL_FROM_ADDRESS")
-	fromName := resolveSecret("EMAIL_FROM_NAME")
+	fromEmail := resolveConfig("EMAIL_FROM_ADDRESS")
+	fromName := resolveConfig("EMAIL_FROM_NAME")
 
 	var sgConfig *SendGridConfig
 	if apiKey != "" {
@@ -74,24 +102,27 @@ func NewEmailService() *EmailService {
 			FromEmail: fromEmail,
 			FromName:  fromName,
 		}
-		logStructured("sendgrid_configured", map[string]interface{}{
+		logx.Info("sendgrid_configured", map[string]interface{}{
 			"level":      "info",
 			"from_email": fromEmail,
 			"from_name":  fromName,
 		})
 	} else {
-		logStructured("sendgrid_not_configured", map[string]interface{}{
+		logx.Info("sendgrid_not_configured", map[string]interface{}{
 			"level":   "warn",
-			"message": "SENDGRID_API_KEY not set; magic link emails will be logged only",
+			"message": "SENDGRID_API_KEY not set; magic-link delivery is unavailable",
 		})
 	}
 
 	return &EmailService{
-		sendGridConfig: sgConfig,
+		sendGridConfig:   sgConfig,
+		sendGridEndpoint: defaultSendGridEndpoint,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		smtpSender: smtp.SendMail,
+		smtpSender:                smtp.SendMail,
+		smtpPasswordResolver:      func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") },
+		allowUnconfiguredDelivery: !isProductionSecurityEnvironment(),
 	}
 }
 
@@ -101,6 +132,10 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	if sender == nil {
 		sender = smtp.SendMail
 	}
+	passwordResolver := opts.SMTPPasswordResolver
+	if passwordResolver == nil {
+		passwordResolver = func() (string, error) { return administration.ResolveAuthorityCredential("SMTP_PASSWORD") }
+	}
 
 	httpClient := opts.HTTPClient
 	if httpClient == nil {
@@ -108,9 +143,12 @@ func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
 	}
 
 	return &EmailService{
-		sendGridConfig: opts.SendGridConfig,
-		httpClient:     httpClient,
-		smtpSender:     sender,
+		sendGridConfig:            opts.SendGridConfig,
+		sendGridEndpoint:          firstNonEmpty(opts.SendGridEndpoint, defaultSendGridEndpoint),
+		httpClient:                httpClient,
+		smtpSender:                sender,
+		smtpPasswordResolver:      passwordResolver,
+		allowUnconfiguredDelivery: opts.AllowUnconfiguredDelivery,
 	}
 }
 
@@ -120,11 +158,11 @@ func (s *EmailService) IsSendGridConfigured() bool {
 }
 
 // SendFeedbackNotification sends an email notification for new feedback
-func (s *EmailService) SendFeedbackNotification(branding *SiteBranding, feedback *FeedbackRequest) error {
+func (s *EmailService) SendFeedbackNotification(branding *experimentation.SiteBranding, feedback *domainmetrics.FeedbackRequest) error {
 	config := s.extractSMTPConfig(branding)
 
 	if !config.IsConfigured() {
-		logStructured("email_skipped", map[string]interface{}{
+		logx.Info("email_skipped", map[string]interface{}{
 			"reason": "smtp not configured in branding settings",
 		})
 		return nil
@@ -157,7 +195,7 @@ Message:
 }
 
 // extractSMTPConfig pulls SMTP settings from branding
-func (s *EmailService) extractSMTPConfig(branding *SiteBranding) *SMTPConfig {
+func (s *EmailService) extractSMTPConfig(branding *experimentation.SiteBranding) *SMTPConfig {
 	config := &SMTPConfig{
 		Port: 587, // default
 	}
@@ -171,8 +209,10 @@ func (s *EmailService) extractSMTPConfig(branding *SiteBranding) *SMTPConfig {
 	if branding.SMTPUsername != nil {
 		config.Username = *branding.SMTPUsername
 	}
-	if branding.SMTPPassword != nil {
-		config.Password = *branding.SMTPPassword
+	if s.smtpPasswordResolver != nil {
+		if password, err := s.smtpPasswordResolver(); err == nil {
+			config.Password = password
+		}
 	}
 	if branding.SMTPFrom != nil && *branding.SMTPFrom != "" {
 		config.From = *branding.SMTPFrom
@@ -202,14 +242,14 @@ func (s *EmailService) Send(config *SMTPConfig, to, subject, body string) error 
 
 	err := sender(addr, auth, config.From, []string{to}, []byte(msg))
 	if err != nil {
-		logStructuredError("email_send_failed", map[string]interface{}{
+		logx.Error("email_send_failed", map[string]interface{}{
 			"to":    to,
 			"error": err.Error(),
 		})
 		return err
 	}
 
-	logStructured("email_sent", map[string]interface{}{
+	logx.Info("email_sent", map[string]interface{}{
 		"to":      to,
 		"subject": subject,
 	})
@@ -230,8 +270,8 @@ func feedbackTypeLabel(t string) string {
 	}
 }
 
-// SendMagicLink sends a magic link email via SendGrid.
-// If SendGrid is not configured, it logs the link for development purposes.
+// SendMagicLink sends a magic link email via SendGrid. A missing provider is
+// never a successful delivery and the bearer URL is never logged.
 func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 	if appName == "" {
 		appName = "App"
@@ -241,15 +281,17 @@ func (s *EmailService) SendMagicLink(to, magicLink, appName string) error {
 	htmlContent := buildMagicLinkHTML(magicLink, appName)
 	textContent := buildMagicLinkText(magicLink, appName)
 
-	// If SendGrid is not configured, log the link for development
 	if !s.IsSendGridConfigured() {
-		logStructured("magic_link_dev_mode", map[string]interface{}{
-			"level":      "info",
-			"to":         to,
-			"magic_link": magicLink,
-			"message":    "SendGrid not configured - magic link logged for development",
-		})
-		return nil
+		if s.allowUnconfiguredDelivery {
+			logx.Info("magic_link_delivery_disabled", map[string]interface{}{
+				"level":    "warn",
+				"to":       to,
+				"provider": "sendgrid",
+				"message":  "magic-link delivery is disabled in the non-production test/development composition",
+			})
+			return nil
+		}
+		return fmt.Errorf("magic-link email provider is not configured")
 	}
 
 	return s.sendViaSendGrid(to, subject, textContent, htmlContent)
@@ -286,7 +328,11 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		return fmt.Errorf("marshal SendGrid payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "https://api.sendgrid.com/v3/mail/send", bytes.NewReader(jsonBody))
+	endpoint := s.sendGridEndpoint
+	if endpoint == "" {
+		endpoint = defaultSendGridEndpoint
+	}
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(jsonBody))
 	if err != nil {
 		return fmt.Errorf("create SendGrid request: %w", err)
 	}
@@ -296,7 +342,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		logStructuredError("sendgrid_request_failed", map[string]interface{}{
+		logx.Error("sendgrid_request_failed", map[string]interface{}{
 			"error": err.Error(),
 			"to":    to,
 		})
@@ -310,7 +356,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		if len(bodyStr) > 500 {
 			bodyStr = bodyStr[:500] + "..."
 		}
-		logStructuredError("sendgrid_api_error", map[string]interface{}{
+		logx.Error("sendgrid_api_error", map[string]interface{}{
 			"status": resp.StatusCode,
 			"body":   bodyStr,
 			"to":     to,
@@ -318,7 +364,7 @@ func (s *EmailService) sendViaSendGrid(to, subject, textContent, htmlContent str
 		return fmt.Errorf("SendGrid API error: %d - %s", resp.StatusCode, bodyStr)
 	}
 
-	logStructured("magic_link_sent", map[string]interface{}{
+	logx.Info("magic_link_sent", map[string]interface{}{
 		"level": "info",
 		"to":    to,
 	})

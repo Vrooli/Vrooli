@@ -100,7 +100,7 @@ curl -X POST http://localhost:3300/api/v1/recipes/generate \
 
 This cookbook enhances every development scenario in Vrooli:
 
-- **ecosystem-manager**: Uses patterns as architecture templates for generated applications
+- **swarm-manager**: Uses patterns as architecture templates for generated applications
 - **code-review-assistant**: References patterns for architecture validation  
 - **deployment-manager**: Applies infrastructure and scaling patterns
 - **security-auditor**: Uses security patterns to identify vulnerabilities

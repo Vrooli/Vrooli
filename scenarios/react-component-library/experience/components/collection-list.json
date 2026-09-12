@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "collection-list",
+    "title": "CollectionList",
+    "purpose": "Browse records with distinct open-detail, keyboard-cursor, and bulk-selection states.",
+    "storyRef": "../../library/components/CollectionList/versions/1.3.1/story.json"
+  },
+  "states": [
+    {
+      "id": "current-detail",
+      "example": "current-detail",
+      "description": "Triage is open while the initial keyboard cursor belongs to Support."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "Opening a record updates its current marker."
+    },
+    {
+      "id": "keyboard-virtualized",
+      "example": "keyboard-virtualized",
+      "description": "Arrow navigation and Home/End move actual focus through measured virtual rows."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "generic",
+      "description": "Collection and semantic record rows."
+    }
+  ],
+  "claims": [
+    {
+      "id": "distinct-current-detail",
+      "type": "manual-review",
+      "statement": "The current record remains visibly marked independently of cursor navigation; unfocused collections do not paint a keyboard cursor.",
+      "tier": "manual",
+      "states": [
+        "current-detail",
+        "interactive"
+      ]
+    },
+    {
+      "id": "keyboard-focus",
+      "type": "manual-review",
+      "statement": "The keyboard cursor and DOM focus identify the same record, including destinations initially outside the virtual viewport. Embedded editor keys retain their native behavior.",
+      "tier": "manual",
+      "states": [
+        "keyboard-virtualized"
+      ]
+    }
+  ]
+}

@@ -1,525 +1,635 @@
 {
+  "id": "23ac9f76-8015-4dec-9991-ee4cae3ddebf",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "reconnect-offline-buffer-replay",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Force websocket disconnect, reload, and verify buffered terminal output replays",
   "metadata": {
     "name": "reconnect-offline-buffer-replay",
     "description": "Force websocket disconnect, reload, and verify buffered terminal output replays",
+    "execution_mode": "mutating",
+    "reset": "full",
     "labels": {
       "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
       "requirements_json": "[\"REQ-P0-003b\", \"REQ-P0-003b-i\"]"
-    },
-    "execution_mode": "mutating"
-  },
-  "settings": {
-    "viewport_width": 1440,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "navigate-workspace-root",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "web-console",
-          "scenario_path": "/#/workspace",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open workspace route"
-        }
-      }
-    },
-    {
-      "id": "open-workspace",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/open-workspace.json"
-        },
-        "metadata": {
-          "label": "Open workspace"
-        }
-      }
-    },
-    {
-      "id": "reset-sessions",
-      "action": {
-        "type": "ACTION_TYPE_SUBFLOW",
-        "subflow": {
-          "workflow_path": "actions/reset-sessions-best-effort.json"
-        },
-        "metadata": {
-          "label": "Reset sessions (best effort)"
-        }
-      }
-    },
-    {
-      "id": "click-new-terminal",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/workspace.newTerminalButton"
-        },
-        "metadata": {
-          "label": "Open launcher"
-        }
-      }
-    },
-    {
-      "id": "wait-launcher",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/launcher.dialog",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 10000
-        },
-        "metadata": {
-          "label": "Wait for launcher"
-        }
-      }
-    },
-    {
-      "id": "launch-empty-shell",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/launcher.emptyShell"
-        },
-        "metadata": {
-          "label": "Launch empty shell"
-        }
-      }
-    },
-    {
-      "id": "wait-terminal-pane",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/terminal.pane",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for terminal pane"
-        }
-      }
-    },
-    {
-      "id": "click-terminal-pane",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane']"
-        },
-        "metadata": {
-          "label": "Activate terminal pane"
-        }
-      }
-    },
-    {
-      "id": "focus-xterm-textarea",
-      "action": {
-        "type": "ACTION_TYPE_FOCUS",
-        "focus": {
-          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
-          "timeout_ms": 5000
-        },
-        "metadata": {
-          "label": "Focus xterm input"
-        }
-      }
-    },
-    {
-      "id": "send-delayed-command",
-      "action": {
-        "type": "ACTION_TYPE_KEYBOARD",
-        "keyboard": {
-          "keys": [
-            "e",
-            "c",
-            "h",
-            "o",
-            "Space",
-            "b",
-            "a",
-            "s",
-            "r",
-            "e",
-            "p",
-            "l",
-            "a",
-            "y",
-            "a",
-            "r",
-            "m",
-            "e",
-            "d",
-            "Space",
-            "&",
-            "&",
-            "Space",
-            "s",
-            "l",
-            "e",
-            "e",
-            "p",
-            "Space",
-            "2",
-            "Space",
-            "&",
-            "&",
-            "Space",
-            "e",
-            "c",
-            "h",
-            "o",
-            "Space",
-            "b",
-            "a",
-            "s",
-            "r",
-            "e",
-            "p",
-            "l",
-            "a",
-            "y",
-            "o",
-            "k",
-            "Enter"
-          ]
-        },
-        "metadata": {
-          "label": "Send command that emits delayed output"
-        }
-      }
-    },
-    {
-      "id": "capture-session-before-disconnect",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const activePane = document.querySelector('[data-testid=\"terminal-pane-container\"].border-wc-accent [data-testid=\"terminal-pane\"][data-session-id]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; if (sessionId) localStorage.setItem('bas.replay.sessionId', sessionId); document.body.setAttribute('data-replay-session-id', sessionId); })()"
-        },
-        "metadata": {
-          "label": "Capture active session id"
-        }
-      }
-    },
-    {
-      "id": "disconnect-tracked-sockets",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const list = Array.isArray(window.__bas_ws_instances) ? window.__bas_ws_instances : []; list.forEach((ws) => { if (ws && ws.readyState === 1) ws.close(1000, 'bas-test-disconnect'); }); document.body.setAttribute('data-bas-disconnected', 'true'); })()"
-        },
-        "metadata": {
-          "label": "Close tracked websocket connections"
-        }
-      }
-    },
-    {
-      "id": "wait-output-while-offline",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 2600
-        },
-        "metadata": {
-          "label": "Wait while disconnected"
-        }
-      }
-    },
-    {
-      "id": "reload-workspace-to-reconnect",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { window.location.reload(); })()"
-        },
-        "metadata": {
-          "label": "Reload workspace"
-        }
-      }
-    },
-    {
-      "id": "wait-workspace-after-reload",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "@selector/workspace.newTerminalButton",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 20000
-        },
-        "metadata": {
-          "label": "Wait for workspace after reload"
-        }
-      }
-    },
-    {
-      "id": "activate-restored-pane",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; const bySession = sessionId ? document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${sessionId}\"]`) : null; const fallback = document.querySelector('[data-testid=\"terminal-pane-container\"][data-session-id]'); const pane = bySession || fallback; if (pane instanceof HTMLElement) pane.click(); })()"
-        },
-        "metadata": {
-          "label": "Activate restored terminal pane"
-        }
-      }
-    },
-    {
-      "id": "focus-xterm-after-reconnect",
-      "action": {
-        "type": "ACTION_TYPE_FOCUS",
-        "focus": {
-          "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
-          "timeout_ms": 5000
-        },
-        "metadata": {
-          "label": "Focus xterm after reconnect"
-        }
-      }
-    },
-    {
-      "id": "send-post-reconnect-command",
-      "action": {
-        "type": "ACTION_TYPE_KEYBOARD",
-        "keyboard": {
-          "keys": [
-            "e",
-            "c",
-            "h",
-            "o",
-            "Space",
-            "b",
-            "a",
-            "s",
-            "r",
-            "e",
-            "p",
-            "l",
-            "a",
-            "y",
-            "p",
-            "o",
-            "s",
-            "t",
-            "o",
-            "k",
-            "Enter"
-          ]
-        },
-        "metadata": {
-          "label": "Send stdin after reconnect"
-        }
-      }
-    },
-    {
-      "id": "evaluate-replay-after-reconnect",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; let paneSeen = false; let armed = false; let replayOk = false; let postReconnectOk = false; const deadline = Date.now() + 10000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const text = pane ? (pane.textContent || '') : ''; if (pane) paneSeen = true; if (text.includes('basreplayarmed')) armed = true; if (text.includes('basreplayok')) replayOk = true; if (text.includes('basreplaypostok')) postReconnectOk = true; if (replayOk && postReconnectOk) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-replay-pane-present', paneSeen ? 'true' : 'false'); document.body.setAttribute('data-replay-armed-after', armed ? 'true' : 'false'); document.body.setAttribute('data-replay-ok', replayOk ? 'true' : 'false'); document.body.setAttribute('data-replay-post-reconnect-ok', postReconnectOk ? 'true' : 'false'); })()"
-        },
-        "metadata": {
-          "label": "Check replay markers after reconnect"
-        }
-      }
-    },
-    {
-      "id": "assert-session-pane-restored",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-replay-pane-present='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected original terminal session pane after reconnect"
-        },
-        "metadata": {
-          "label": "Verify pane restored"
-        }
-      }
-    },
-    {
-      "id": "assert-replay-armed-seen",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-replay-armed-after='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected first marker after reconnect"
-        },
-        "metadata": {
-          "label": "Verify first marker"
-        }
-      }
-    },
-    {
-      "id": "assert-replay-success",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-replay-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected delayed marker replay after reconnect"
-        },
-        "metadata": {
-          "label": "Verify replay success"
-        }
-      }
-    },
-    {
-      "id": "assert-post-reconnect-stdin",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "body[data-replay-post-reconnect-ok='true']",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected post-reconnect stdin command marker to confirm interactive terminal"
-        },
-        "metadata": {
-          "label": "Verify post-reconnect stdin"
-        }
-      }
     }
+  },
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P0-003b\", \"REQ-P0-003b-i\"]"
   ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "navigate-workspace-root",
-      "target": "open-workspace",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.437678793Z",
+  "updated_at": "2026-07-12T19:31:13.437678793Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
     },
-    {
-      "id": "e2",
-      "source": "open-workspace",
-      "target": "reset-sessions",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e3",
-      "source": "reset-sessions",
-      "target": "click-new-terminal",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e4",
-      "source": "click-new-terminal",
-      "target": "wait-launcher",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e5",
-      "source": "wait-launcher",
-      "target": "launch-empty-shell",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e6",
-      "source": "launch-empty-shell",
-      "target": "wait-terminal-pane",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "wait-terminal-pane",
-      "target": "click-terminal-pane",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e8",
-      "source": "click-terminal-pane",
-      "target": "focus-xterm-textarea",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e9",
-      "source": "focus-xterm-textarea",
-      "target": "send-delayed-command",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e10",
-      "source": "send-delayed-command",
-      "target": "capture-session-before-disconnect",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e11",
-      "source": "capture-session-before-disconnect",
-      "target": "disconnect-tracked-sockets",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e12",
-      "source": "disconnect-tracked-sockets",
-      "target": "wait-output-while-offline",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e13",
-      "source": "wait-output-while-offline",
-      "target": "reload-workspace-to-reconnect",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e14",
-      "source": "reload-workspace-to-reconnect",
-      "target": "wait-workspace-after-reload",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e15",
-      "source": "wait-workspace-after-reload",
-      "target": "activate-restored-pane",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e16",
-      "source": "activate-restored-pane",
-      "target": "focus-xterm-after-reconnect",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e17",
-      "source": "focus-xterm-after-reconnect",
-      "target": "send-post-reconnect-command",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e18",
-      "source": "send-post-reconnect-command",
-      "target": "evaluate-replay-after-reconnect",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e19",
-      "source": "evaluate-replay-after-reconnect",
-      "target": "assert-session-pane-restored",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e20",
-      "source": "assert-session-pane-restored",
-      "target": "assert-replay-armed-seen",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e21",
-      "source": "assert-replay-armed-seen",
-      "target": "assert-replay-success",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e22",
-      "source": "assert-replay-success",
-      "target": "assert-post-reconnect-stdin",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    }
-  ]
+    "nodes": [
+      {
+        "id": "navigate-workspace-root",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "scenario": "web-console",
+            "scenario_path": "/#/workspace"
+          },
+          "metadata": {
+            "label": "Open workspace route"
+          }
+        }
+      },
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          },
+          "metadata": {
+            "label": "Open workspace"
+          }
+        }
+      },
+      {
+        "id": "reset-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/capture-session-baseline.json"
+          },
+          "metadata": {
+            "label": "Capture session baseline"
+          }
+        }
+      },
+      {
+        "id": "click-new-terminal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
+          },
+          "metadata": {
+            "label": "Open launcher"
+          }
+        }
+      },
+      {
+        "id": "wait-launcher",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/launcher.dialog",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Wait for launcher"
+          }
+        }
+      },
+      {
+        "id": "launch-empty-shell",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/launcher.emptyShell"
+          },
+          "metadata": {
+            "label": "Launch empty shell"
+          }
+        }
+      },
+      {
+        "id": "wait-terminal-pane",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/terminal.pane",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for terminal pane"
+          }
+        }
+      },
+      {
+        "id": "resolve-target-session",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const readBaseline = () => { try { const raw = sessionStorage.getItem('__bas_baseline_sessions'); if (!raw) return null; const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null; } catch { return null; } }; const baseline = new Set(readBaseline() || []); const deadline = Date.now() + 10000; let target = ''; while (Date.now() < deadline) { const ids = await listIds();  if (ids) { const fresh = ids.filter((id) => !baseline.has(id));   if (fresh.length > 0) { target = fresh[fresh.length - 1]; break; } }  await new Promise((r) => setTimeout(r, 150)); } window.__bas_target_session = target; document.body.setAttribute('data-bas-target-session', target); document.body.setAttribute('data-bas-target-resolved', target ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Resolve the session this case created"
+          }
+        }
+      },
+      {
+        "id": "assert-target-resolved",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-target-resolved='true']",
+            "failure_message": "Could not identify the session this case created; refusing to type into an unknown pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify target session resolved"
+          }
+        }
+      },
+      {
+        "id": "focus-target-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const id = window.__bas_target_session || ''; document.body.setAttribute('data-bas-focus-ok', 'false'); if (!id) return; const deadline = Date.now() + 10000; while (Date.now() < deadline) {  const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + id + '\"]');  const area = pane && pane.querySelector('.xterm-helper-textarea');  if (area) { const container = pane.closest('[data-testid=\"terminal-pane-container\"]');   if (container) container.click(); area.focus();   if (document.activeElement === area) { document.body.setAttribute('data-bas-focus-ok', 'true'); return; } }  await new Promise((r) => setTimeout(r, 150)); } })()"
+          },
+          "metadata": {
+            "label": "Focus the created session's terminal"
+          }
+        }
+      },
+      {
+        "id": "assert-focus-ok",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-focus-ok='true']",
+            "failure_message": "Could not focus the created session's terminal; input would have gone to another pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify focus landed on the created session"
+          }
+        }
+      },
+      {
+        "id": "send-delayed-command",
+        "action": {
+          "type": "ACTION_TYPE_KEYBOARD",
+          "keyboard": {
+            "keys": [
+              "e",
+              "c",
+              "h",
+              "o",
+              "Space",
+              "b",
+              "a",
+              "s",
+              "r",
+              "e",
+              "p",
+              "l",
+              "a",
+              "y",
+              "a",
+              "r",
+              "m",
+              "e",
+              "d",
+              "Space",
+              "&",
+              "&",
+              "Space",
+              "s",
+              "l",
+              "e",
+              "e",
+              "p",
+              "Space",
+              "2",
+              "Space",
+              "&",
+              "&",
+              "Space",
+              "e",
+              "c",
+              "h",
+              "o",
+              "Space",
+              "b",
+              "a",
+              "s",
+              "r",
+              "e",
+              "p",
+              "l",
+              "a",
+              "y",
+              "o",
+              "k",
+              "Enter"
+            ]
+          },
+          "metadata": {
+            "label": "Send command that emits delayed output"
+          }
+        }
+      },
+      {
+        "id": "capture-session-before-disconnect",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const activePane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + (window.__bas_target_session || '') + '\"]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; if (sessionId) localStorage.setItem('bas.replay.sessionId', sessionId); document.body.setAttribute('data-replay-session-id', sessionId); })()"
+          },
+          "metadata": {
+            "label": "Capture active session id"
+          }
+        }
+      },
+      {
+        "id": "disconnect-tracked-sockets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const list = Array.isArray(window.__bas_ws_instances) ? window.__bas_ws_instances : []; list.forEach((ws) => { if (ws && ws.readyState === 1) ws.close(1000, 'bas-test-disconnect'); }); document.body.setAttribute('data-bas-disconnected', 'true'); })()"
+          },
+          "metadata": {
+            "label": "Close tracked websocket connections"
+          }
+        }
+      },
+      {
+        "id": "wait-output-while-offline",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 2600
+          },
+          "metadata": {
+            "label": "Wait while disconnected"
+          }
+        }
+      },
+      {
+        "id": "reload-workspace-to-reconnect",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { window.location.reload(); })()"
+          },
+          "metadata": {
+            "label": "Reload workspace"
+          }
+        }
+      },
+      {
+        "id": "wait-workspace-after-reload",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 20000
+          },
+          "metadata": {
+            "label": "Wait for workspace after reload"
+          }
+        }
+      },
+      {
+        "id": "resolve-target-session-wait-workspace-after-reload",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const readBaseline = () => { try { const raw = sessionStorage.getItem('__bas_baseline_sessions'); if (!raw) return null; const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null; } catch { return null; } }; const baseline = new Set(readBaseline() || []); const deadline = Date.now() + 10000; let target = ''; while (Date.now() < deadline) { const ids = await listIds();  if (ids) { const fresh = ids.filter((id) => !baseline.has(id));   if (fresh.length > 0) { target = fresh[fresh.length - 1]; break; } }  await new Promise((r) => setTimeout(r, 150)); } window.__bas_target_session = target; document.body.setAttribute('data-bas-target-session', target); document.body.setAttribute('data-bas-target-resolved', target ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Resolve the session this case created"
+          }
+        }
+      },
+      {
+        "id": "assert-target-resolved-wait-workspace-after-reload",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-target-resolved='true']",
+            "failure_message": "Could not identify the session this case created; refusing to type into an unknown pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify target session resolved"
+          }
+        }
+      },
+      {
+        "id": "focus-target-pane-wait-workspace-after-reload",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const id = window.__bas_target_session || ''; document.body.setAttribute('data-bas-focus-ok', 'false'); if (!id) return; const deadline = Date.now() + 10000; while (Date.now() < deadline) {  const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + id + '\"]');  const area = pane && pane.querySelector('.xterm-helper-textarea');  if (area) { const container = pane.closest('[data-testid=\"terminal-pane-container\"]');   if (container) container.click(); area.focus();   if (document.activeElement === area) { document.body.setAttribute('data-bas-focus-ok', 'true'); return; } }  await new Promise((r) => setTimeout(r, 150)); } })()"
+          },
+          "metadata": {
+            "label": "Focus the created session's terminal"
+          }
+        }
+      },
+      {
+        "id": "assert-focus-ok-wait-workspace-after-reload",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-focus-ok='true']",
+            "failure_message": "Could not focus the created session's terminal; input would have gone to another pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify focus landed on the created session"
+          }
+        }
+      },
+      {
+        "id": "send-post-reconnect-command",
+        "action": {
+          "type": "ACTION_TYPE_KEYBOARD",
+          "keyboard": {
+            "keys": [
+              "e",
+              "c",
+              "h",
+              "o",
+              "Space",
+              "b",
+              "a",
+              "s",
+              "r",
+              "e",
+              "p",
+              "l",
+              "a",
+              "y",
+              "p",
+              "o",
+              "s",
+              "t",
+              "o",
+              "k",
+              "Enter"
+            ]
+          },
+          "metadata": {
+            "label": "Send stdin after reconnect"
+          }
+        }
+      },
+      {
+        "id": "evaluate-replay-after-reconnect",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const sessionId = localStorage.getItem('bas.replay.sessionId') || ''; let paneSeen = false; let armed = false; let replayOk = false; let postReconnectOk = false; const deadline = Date.now() + 10000; while (Date.now() < deadline) { const pane = sessionId ? document.querySelector(`[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]`) : document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const text = pane ? (pane.textContent || '') : ''; if (pane) paneSeen = true; if (text.includes('basreplayarmed')) armed = true; if (text.includes('basreplayok')) replayOk = true; if (text.includes('basreplaypostok')) postReconnectOk = true; if (replayOk && postReconnectOk) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-replay-pane-present', paneSeen ? 'true' : 'false'); document.body.setAttribute('data-replay-armed-after', armed ? 'true' : 'false'); document.body.setAttribute('data-replay-ok', replayOk ? 'true' : 'false'); document.body.setAttribute('data-replay-post-reconnect-ok', postReconnectOk ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Check replay markers after reconnect"
+          }
+        }
+      },
+      {
+        "id": "assert-session-pane-restored",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-replay-pane-present='true']",
+            "failure_message": "Expected original terminal session pane after reconnect",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify pane restored"
+          }
+        }
+      },
+      {
+        "id": "assert-replay-armed-seen",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-replay-armed-after='true']",
+            "failure_message": "Expected first marker after reconnect",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify first marker"
+          }
+        }
+      },
+      {
+        "id": "assert-replay-success",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-replay-ok='true']",
+            "failure_message": "Expected delayed marker replay after reconnect",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify replay success"
+          }
+        }
+      },
+      {
+        "id": "assert-post-reconnect-stdin",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-replay-post-reconnect-ok='true']",
+            "failure_message": "Expected post-reconnect stdin command marker to confirm interactive terminal",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Verify post-reconnect stdin"
+          }
+        }
+      },
+      {
+        "id": "teardown-test-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "navigate-workspace-root",
+        "target": "open-workspace",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "open-workspace",
+        "target": "reset-sessions",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "reset-sessions",
+        "target": "click-new-terminal",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "click-new-terminal",
+        "target": "wait-launcher",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "wait-launcher",
+        "target": "launch-empty-shell",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "launch-empty-shell",
+        "target": "wait-terminal-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "wait-terminal-pane",
+        "target": "resolve-target-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "resolve-target-session",
+        "target": "assert-target-resolved",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "assert-target-resolved",
+        "target": "focus-target-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "focus-target-pane",
+        "target": "assert-focus-ok",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "assert-focus-ok",
+        "target": "send-delayed-command",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "send-delayed-command",
+        "target": "capture-session-before-disconnect",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "capture-session-before-disconnect",
+        "target": "disconnect-tracked-sockets",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "disconnect-tracked-sockets",
+        "target": "wait-output-while-offline",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "wait-output-while-offline",
+        "target": "reload-workspace-to-reconnect",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "reload-workspace-to-reconnect",
+        "target": "wait-workspace-after-reload",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e17",
+        "source": "wait-workspace-after-reload",
+        "target": "resolve-target-session-wait-workspace-after-reload",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e18",
+        "source": "resolve-target-session-wait-workspace-after-reload",
+        "target": "assert-target-resolved-wait-workspace-after-reload",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e19",
+        "source": "assert-target-resolved-wait-workspace-after-reload",
+        "target": "focus-target-pane-wait-workspace-after-reload",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e20",
+        "source": "focus-target-pane-wait-workspace-after-reload",
+        "target": "assert-focus-ok-wait-workspace-after-reload",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e21",
+        "source": "assert-focus-ok-wait-workspace-after-reload",
+        "target": "send-post-reconnect-command",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e22",
+        "source": "send-post-reconnect-command",
+        "target": "evaluate-replay-after-reconnect",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e23",
+        "source": "evaluate-replay-after-reconnect",
+        "target": "assert-session-pane-restored",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e24",
+        "source": "assert-session-pane-restored",
+        "target": "assert-replay-armed-seen",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e25",
+        "source": "assert-replay-armed-seen",
+        "target": "assert-replay-success",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e26",
+        "source": "assert-replay-success",
+        "target": "assert-post-reconnect-stdin",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e27",
+        "source": "assert-post-reconnect-stdin",
+        "target": "teardown-test-sessions",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
 }

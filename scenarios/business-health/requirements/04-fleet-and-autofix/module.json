@@ -1,0 +1,118 @@
+{
+  "_metadata": {
+    "description": "Fleet-wide business-contract visibility and deterministic remediation on the shared autofix registry.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "fleet-and-autofix",
+    "prd_ref": "OT-P1-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-FLT-001",
+      "title": "Compute-on-read fleet sweep",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "business-health fleet sweeps scenarios/* on read with as-of stamps (test-genie fleet-status honesty rules): per-scenario contract rollup, starter-registry and template-version laggards, unproven-claim counts, worst-first ranking, bounded time on the real repo.",
+      "tags": [
+        "fleet",
+        "as-of"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/fleet/fleet_test.go. Fixture fleet; ranking and stamp assertions; bounded-time smoke against the live repo in phase logs."
+        }
+      ]
+    },
+    {
+      "id": "BH-FIX-001",
+      "title": "Deterministic fixers for every auto-classed finding",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Every maturity.json mapping declared fix_class auto has an implemented fixer on the shared maturity-go autofix registry: scaffold missing template sections (TODO-marked), create missing requirements/index.json, normalize OT ID format + status vocabulary, add prd_ref stubs for orphaned OTs.",
+      "tags": [
+        "autofix",
+        "fix_class"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/autofix/fixers_test.go. Before/after goldens per fixer."
+        }
+      ]
+    },
+    {
+      "id": "BH-FIX-002",
+      "title": "Preview/apply semantics and idempotency",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "PreviewFix returns diffs without writing; ApplyFix writes only on explicit apply; applying any fixer twice is a no-op; fix --apply then validate shows the target finding resolved.",
+      "tags": [
+        "dry-run",
+        "idempotency",
+        "d7"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/autofix/idempotency_test.go. Idempotency + preview-no-write assertions; fix-then-validate integration fixture."
+        }
+      ]
+    },
+    {
+      "id": "BH-FIX-003",
+      "title": "Honest fixer accounting in maturity.json",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "fixer_status flips pending → implemented only when the fixer ships with tests; findings requiring judgment stay fix_class manual with a written reason — never reclassified to dodge a gap.",
+      "tags": [
+        "maturity",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/assessment/spec_test.go. Spec load + cross-check: every auto mapping has a registered fixer."
+        }
+      ]
+    },
+    {
+      "id": "BH-FLT-002",
+      "title": "Template-version awareness ratchet",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "api",
+      "criticality": "P2",
+      "description": "Fleet and per-scenario validation flag scenarios whose generation.template.version predates the current template contract version, so business-contract expectations ratchet forward with the template.",
+      "tags": [
+        "template-version",
+        "ratchet"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/fleet/template_version_test.go. Laggard detection against fixture service.json stamps."
+        }
+      ]
+    }
+  ]
+}

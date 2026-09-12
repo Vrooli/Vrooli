@@ -5,11 +5,13 @@ package requirements
 import "test-genie/internal/requirements/types"
 
 // Type aliases for status types
-type DeclaredStatus = types.DeclaredStatus
-type LiveStatus = types.LiveStatus
-type ValidationStatus = types.ValidationStatus
-type Criticality = types.Criticality
-type ValidationType = types.ValidationType
+type (
+	DeclaredStatus   = types.DeclaredStatus
+	LiveStatus       = types.LiveStatus
+	ValidationStatus = types.ValidationStatus
+	Criticality      = types.Criticality
+	ValidationType   = types.ValidationType
+)
 
 // Status constants
 const (

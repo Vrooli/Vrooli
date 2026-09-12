@@ -5,9 +5,10 @@
  * Used by evidence item cards for workflow recordings and screenshots.
  */
 
-import { useEffect } from "react";
+import { useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useGlobalKeyDown } from "../../hooks/useGlobalKeyDown";
 
 export interface MediaLightboxProps {
   isOpen: boolean;
@@ -18,14 +19,11 @@ export interface MediaLightboxProps {
 }
 
 export function MediaLightbox({ isOpen, onClose, src, type, label }: MediaLightboxProps) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+    }, [onClose]);
+
+  useGlobalKeyDown(handleKeyDown, { enabled: isOpen, target: "document" });
 
   if (!isOpen) return null;
 

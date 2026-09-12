@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import type { ForcedTool } from "./AttachmentButton";
 import type { MessagePayload } from "./MessageInput.types";
 import type { AttachmentState } from "../../hooks/useAttachments";
 
@@ -19,13 +18,11 @@ interface UseSendMessageOptions {
   webSearchEnabled: boolean;
   setWebSearchEnabled: (enabled: boolean) => void;
   chatWebSearchDefault: boolean;
-  forcedTool: ForcedTool | null;
-  setForcedTool: (tool: ForcedTool | null) => void;
   loading: boolean;
   isEditMode: boolean;
   onSend: (payload: MessagePayload) => void;
   onSubmitEdit?: (payload: MessagePayload) => void;
-  activeTemplate: { template: { suggestedToolIds?: string[] } } | null;
+  activeTemplate: { template: unknown } | null;
   getFilledTemplateContent: () => string;
   isTemplateValid: () => boolean;
   getTemplateMissingFields: () => string[];
@@ -53,8 +50,6 @@ export function useSendMessage({
   webSearchEnabled,
   setWebSearchEnabled,
   chatWebSearchDefault,
-  forcedTool,
-  setForcedTool,
   loading,
   isEditMode,
   onSend,
@@ -70,33 +65,47 @@ export function useSendMessage({
   disableSend,
   disableSendReason,
 }: UseSendMessageOptions) {
-  const handleSubmit = useCallback(() => {
-    const trimmedMessage = message.trim();
+  const canSendMessage = useCallback((draftMessage: string) => {
+    const finalContent = activeTemplate ? getFilledTemplateContent() : draftMessage;
+    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
+    if (!hasContent || loading || disableSend) return false;
+    if (activeTemplate && !isTemplateValid()) return false;
+    if (enableAttachments) {
+      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
+      if (effectiveAttachments.length > 0 && !allUploaded) return false;
+    }
+    return true;
+  }, [
+    activeTemplate,
+    allUploaded,
+    disableSend,
+    effectiveAttachments.length,
+    enableAttachments,
+    getFilledTemplateContent,
+    hasErrors,
+    hasIncompatibleAttachments,
+    isTemplateValid,
+    isUploading,
+    loading,
+  ]);
+
+  const handleSubmitWithMessage = useCallback((draftMessage: string) => {
+    const trimmedMessage = draftMessage.trim();
     const finalContent = activeTemplate
       ? getFilledTemplateContent()
       : trimmedMessage;
 
-    const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-
-    if (!hasContent || loading) return;
-    if (activeTemplate && !isTemplateValid()) return;
-
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) return;
-      if (effectiveAttachments.length > 0 && !allUploaded) return;
-    }
+    if (!canSendMessage(draftMessage)) return;
 
     const payload: MessagePayload = {
       content: finalContent.trim(),
       attachmentIds: enableAttachments ? getUploadedIds() : [],
       webSearchEnabled: enableWebSearch ? webSearchEnabled : false,
-      forcedTool: forcedTool ?? undefined,
       skillIds: selectedSkillIds.length > 0 ? selectedSkillIds : undefined,
       skills:
         selectedSkillIds.length > 0
           ? buildSkillPayloads(selectedSkillIds)
           : undefined,
-      suggestedToolIds: activeTemplate?.template.suggestedToolIds,
     };
 
     if (isEditMode && onSubmitEdit) {
@@ -109,23 +118,14 @@ export function useSendMessage({
     clearDraft();
     if (enableAttachments) clearAttachments();
     if (enableWebSearch) setWebSearchEnabled(chatWebSearchDefault);
-    setForcedTool(null);
     resetTemplatesAndSkills();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
   }, [
-    message,
-    effectiveAttachments,
-    isUploading,
-    hasErrors,
-    hasIncompatibleAttachments,
-    loading,
-    allUploaded,
     getUploadedIds,
     webSearchEnabled,
-    forcedTool,
     onSend,
     clearAttachments,
     clearDraft,
@@ -136,34 +136,28 @@ export function useSendMessage({
     onSubmitEdit,
     activeTemplate,
     getFilledTemplateContent,
-    isTemplateValid,
     selectedSkillIds,
     buildSkillPayloads,
     resetTemplatesAndSkills,
     setMessageState,
     setWebSearchEnabled,
-    setForcedTool,
     textareaRef,
+    canSendMessage,
   ]);
 
+  const handleSubmit = useCallback(() => {
+    handleSubmitWithMessage(textareaRef.current?.value ?? message);
+  }, [handleSubmitWithMessage, message, textareaRef]);
+
   // Determine if send button should be disabled
-  const finalContent = activeTemplate ? getFilledTemplateContent() : message;
-  const hasContent = finalContent.trim() || effectiveAttachments.length > 0;
-  const canSend = (() => {
-    if (!hasContent || loading || disableSend) return false;
-    if (activeTemplate && !isTemplateValid()) return false;
-    if (enableAttachments) {
-      if (isUploading || hasErrors || hasIncompatibleAttachments) return false;
-      if (effectiveAttachments.length > 0 && !allUploaded) return false;
-    }
-    return true;
-  })();
+  const canSend = canSendMessage(message);
 
   // Build send button tooltip
-  const modKey =
-    typeof navigator !== "undefined" && navigator.platform.includes("Mac")
-      ? "\u2318"
-      : "Ctrl";
+  const modKey = (() => {
+    if (typeof navigator === "undefined") return "Ctrl";
+    const nav = navigator as unknown as { platform?: string };
+    return nav.platform?.includes("Mac") ? "\u2318" : "Ctrl";
+  })();
   let sendTooltip = isEditMode
     ? `Save edit (${modKey}+Enter)`
     : `Send message (${modKey}+Enter)`;
@@ -182,5 +176,5 @@ export function useSendMessage({
     sendTooltip = "Remove attachments not supported by this model";
   }
 
-  return { handleSubmit, canSend, sendTooltip, modKey };
+  return { handleSubmit, handleSubmitWithMessage, canSend, canSendMessage, sendTooltip, modKey };
 }

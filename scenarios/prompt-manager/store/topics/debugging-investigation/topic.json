@@ -1,0 +1,16 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "debugging-investigation",
+  "name": "Debugging \u0026 investigation",
+  "description": "Debugging a non-obvious problem or investigating unfamiliar code: scientific debugging and systematic exploration.",
+  "parentTopicId": "development",
+  "skills": [
+    "scientific-debugging",
+    "explore"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:19Z",
+  "updatedAt": "2026-06-04T17:35:19Z"
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "player",
+    "title": "Now Playing",
+    "routes": ["/"],
+    "purpose": "Play music well, and make the reason this track is playing available without demanding attention. This is the page that must feel like a music player first and a system second.",
+    "prd_refs": ["OT-P0-001", "OT-P0-004", "OT-P0-006"]
+  },
+  "priorities": [
+    { "statement": "Playback control is never blocked by analysis, recommendation, or generation state." },
+    { "statement": "The reason this track is playing is one gesture away, and it is the truth — the contributions shown are the ones that produced the ranking." },
+    { "statement": "A generated track is identifiable as generated without the listener asking, and without relying on colour alone." },
+    { "statement": "Every attribute named in the explanation can be acted on from where it is named." }
+  ],
+  "states": [
+    { "id": "playing-owned", "example": "playing", "description": "Playing a track from the listener's own files." },
+    { "id": "playing-generated", "example": "playing-generated", "description": "Playing a generated track." },
+    { "id": "why-open", "example": "why-open", "description": "Explanation panel expanded." },
+    { "id": "exploring", "example": "exploring", "description": "Track chosen for uncertainty rather than predicted preference." },
+    { "id": "unanalysed", "example": "unanalysed", "description": "Playing a track the decomposition pass has not reached yet." }
+  ],
+  "elements": [
+    { "id": "transport", "role": "group", "description": "Play, pause, previous, next." },
+    { "id": "why-toggle", "role": "button", "description": "Opens the explanation for the current track." },
+    { "id": "why-contributions", "role": "list", "description": "The attribute contributions that produced this recommendation." },
+    { "id": "explore-badge", "role": "status", "description": "Marks a track chosen for exploration rather than predicted preference." },
+    { "id": "generated-badge", "role": "status", "description": "Generated-content disclosure." },
+    { "id": "attribute-action", "role": "button", "description": "Reinforce, suppress, or exclude an attribute named in the explanation." }
+  ],
+  "claims": [
+    {
+      "id": "generated-disclosure-always-present",
+      "type": "element-present",
+      "statement": "A generated track always exposes its disclosure while playing.",
+      "tier": "machine",
+      "elements": ["generated-badge"],
+      "states": ["playing-generated"]
+    },
+    {
+      "id": "explanation-reachable-from-playback",
+      "type": "element-present",
+      "statement": "The explanation for the current track is reachable from the player.",
+      "tier": "machine",
+      "elements": ["why-toggle"],
+      "states": ["playing-owned", "playing-generated", "exploring"]
+    },
+    {
+      "id": "exploration-is-labelled",
+      "type": "element-present",
+      "statement": "A track chosen for exploration says so rather than presenting as a confident recommendation.",
+      "tier": "machine",
+      "elements": ["explore-badge"],
+      "states": ["exploring"]
+    },
+    {
+      "id": "named-attributes-are-actionable",
+      "type": "element-present",
+      "statement": "Each attribute named in the explanation exposes controls to act on it.",
+      "tier": "machine",
+      "elements": ["why-contributions", "attribute-action"],
+      "states": ["why-open"]
+    },
+    {
+      "id": "transport-never-blocked",
+      "type": "element-present",
+      "statement": "Transport controls remain operable while a track is still unanalysed.",
+      "tier": "machine",
+      "elements": ["transport"],
+      "states": ["unanalysed"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "transport": { "testid": "player-transport" },
+      "why-toggle": { "testid": "why-toggle" },
+      "why-contributions": { "testid": "why-contributions" },
+      "explore-badge": { "testid": "explore-badge" },
+      "generated-badge": { "testid": "generated-badge" },
+      "attribute-action": { "testid": "attribute-action" }
+    }
+  }
+}

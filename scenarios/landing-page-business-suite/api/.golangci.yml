@@ -1,0 +1,39 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - errorlint
+    - gofumpt
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+    - typecheck
+    - unused
+
+linters-settings:
+  gofumpt:
+    module-path: landing-page-business-suite-api
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: exported
+        disabled: true
+      - name: increment-decrement
+      - name: range
+      - name: var-declaration
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - revive
+  max-issues-per-linter: 0
+  max-same-issues: 0

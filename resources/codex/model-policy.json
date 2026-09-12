@@ -1,0 +1,138 @@
+{
+  "schema_version": "v1",
+  "runner": "codex",
+  "provenance": {"source": "OpenAI model catalog and local Codex model cache (~/.codex/models_cache.json fetched_at=2026-09-11); added multi-source fallback and effort levels", "observed_at": "2026-09-11"},
+  "billing": {
+    "mode": "subscription",
+    "source": "operator-declared-codex-cli-subscription",
+    "sources": [
+      {"id": "codex-subscription", "label": "Codex Subscription", "billing_mode": "subscription", "credential_key": "CODEX_API_KEY", "endpoint": "https://api.openai.com/v1"},
+      {"id": "opencode-go", "label": "OpenCode Go", "billing_mode": "subscription", "credential_key": "OPENCODE_GO_KEY", "endpoint": "https://opencode.ai/zen/go/v1"},
+      {"id": "openrouter", "label": "OpenRouter", "billing_mode": "metered", "credential_key": "OPENROUTER_API_KEY", "endpoint": "https://openrouter.ai/api/v1"}
+    ]
+  },
+  "model_aliases": {
+    "gpt-5.6-luna": {"canonical_model": "codex/gpt-5.6-luna", "provider": "codex"},
+    "gpt-5.4": {"canonical_model": "codex/gpt-5.4", "provider": "codex"},
+    "gpt-5.4-mini": {"canonical_model": "codex/gpt-5.4-mini", "provider": "codex"},
+    "gpt-5.6-sol": {"canonical_model": "codex/gpt-5.6-sol", "provider": "codex"},
+    "gpt-5.5": {"canonical_model": "codex/gpt-5.5", "provider": "codex"},
+    "opencode-go/deepseek-v4.1-flash": {"canonical_model": "opencode-go/deepseek-v4.1-flash", "provider": "opencode-go"},
+    "opencode-go/mimo-v2.5": {"canonical_model": "opencode-go/mimo-v2.5", "provider": "opencode-go"},
+    "openrouter/deepseek/deepseek-v4.1-flash": {"canonical_model": "openrouter/deepseek/deepseek-v4.1-flash", "provider": "openrouter"}
+  },
+  "roles": {
+    "code.default": {
+      "models": [
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "high"},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-luna",
+      "canonical_model": "codex/gpt-5.6-luna",
+      "fallbacks": ["gpt-5.4"],
+      "description": "Balanced Codex implementation work with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.fast": {
+      "models": [
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "medium"},
+        {"model": "opencode-go/mimo-v2.5", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-luna",
+      "canonical_model": "codex/gpt-5.6-luna",
+      "fallbacks": ["gpt-5.4-mini"],
+      "description": "Low-latency Codex edits with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.smart": {
+      "models": [
+        {"model": "gpt-5.6-sol", "source": "codex-subscription", "effort": "xhigh"},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-sol",
+      "canonical_model": "codex/gpt-5.6-sol",
+      "fallbacks": ["gpt-5.5"],
+      "description": "Highest-capability Codex reasoning with multi-source fallback chain.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.cheap": {
+      "models": [
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "medium"},
+        {"model": "opencode-go/mimo-v2.5", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-luna",
+      "canonical_model": "codex/gpt-5.6-luna",
+      "fallbacks": ["gpt-5.4-mini"],
+      "description": "Cost-conscious Codex tasks with multi-source fallback chain.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.ux": {
+      "models": [
+        {"model": "gpt-5.6-sol", "source": "codex-subscription", "effort": "high"},
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-sol",
+      "canonical_model": "codex/gpt-5.6-sol",
+      "fallbacks": ["gpt-5.5"],
+      "description": "User-facing interaction and frontend work where quality matters most.",
+      "capabilities": ["code", "tools", "ux"]
+    },
+    "code.judgment": {
+      "models": [
+        {"model": "gpt-5.6-sol", "source": "codex-subscription", "effort": "xhigh"},
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-luna",
+      "canonical_model": "codex/gpt-5.6-luna",
+      "fallbacks": ["gpt-5.4"],
+      "description": "Fallback for high-level judgment and strategic reasoning work.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "code.inspection": {
+      "models": [
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "high"},
+        {"model": "gpt-5.4", "source": "codex-subscription", "effort": "medium"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-luna",
+      "canonical_model": "codex/gpt-5.6-luna",
+      "fallbacks": ["gpt-5.4"],
+      "description": "Code inspection, reproduction, execution, and evidence gathering.",
+      "capabilities": ["code", "tools"]
+    },
+    "code.longrun": {
+      "models": [
+        {"model": "gpt-5.6-sol", "source": "codex-subscription", "effort": "high"},
+        {"model": "opencode-go/deepseek-v4.1-flash", "source": "opencode-go", "effort": null},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-sol",
+      "canonical_model": "codex/gpt-5.6-sol",
+      "fallbacks": ["gpt-5.5"],
+      "description": "Long-horizon autonomous coding work.",
+      "capabilities": ["code", "tools", "reasoning"]
+    },
+    "write.default": {
+      "models": [
+        {"model": "gpt-5.6-sol", "source": "codex-subscription", "effort": "high"},
+        {"model": "gpt-5.6-luna", "source": "codex-subscription", "effort": "high"},
+        {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
+      ],
+      "model": "gpt-5.6-sol",
+      "canonical_model": "codex/gpt-5.6-sol",
+      "fallbacks": ["gpt-5.5"],
+      "description": "Natural-prose writing and editorial work.",
+      "capabilities": ["writing", "tools"]
+    },
+    "code.review": {"model": "codex-auto-review", "canonical_model": "codex/codex-auto-review", "fallbacks": ["gpt-5.6-luna"], "description": "Reserved automatic review model; not assigned to the fleet.", "capabilities": ["code", "tools"]},
+    "code.spark": {"model": "gpt-5.3-codex-spark", "canonical_model": "codex/gpt-5.3-codex-spark", "fallbacks": ["gpt-5.4-mini"], "description": "Reserved low-latency model; not assigned to the fleet.", "capabilities": ["code", "tools"]},
+    "code.terra": {"model": "gpt-5.6-terra", "canonical_model": "codex/gpt-5.6-terra", "fallbacks": ["gpt-5.6-luna"], "description": "Reserved Codex model; not assigned to the fleet.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.reserve": {"model": "gpt-reserve", "canonical_model": "codex/gpt-reserve", "fallbacks": ["gpt-5.4"], "description": "Reserved emergency model; not assigned to the fleet.", "capabilities": ["code", "tools"]}
+  }
+}

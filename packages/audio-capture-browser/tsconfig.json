@@ -1,0 +1,18 @@
+{
+  // Type-checking config. `tsconfig.build.json` owns the real build
+  // (`tsc -p tsconfig.build.json` -> dist/, which is what package.json exports).
+  //
+  // This file exists so a bare `tsc` in this package type-checks instead of
+  // emitting .js next to the sources. That emit already happened once
+  // (2026-08-09) and left 43 stale .js files in src/: bundlers resolve .js
+  // before .ts, so any tooling reaching into src/ would have silently consumed
+  // the stale copies rather than the TypeScript sources.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  // Mirror the build's file set so `tsc` here answers "would the build
+  // type-check?" rather than reporting a different set of errors.
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist", "node_modules"]
+}

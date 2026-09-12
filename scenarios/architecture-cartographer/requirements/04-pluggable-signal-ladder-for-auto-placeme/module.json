@@ -1,0 +1,142 @@
+{
+  "description": "Implement deterministic-only scoring signals (path tokens, import-cluster community detection, importer-voting majority, test-file coupling, symbol-glossary matching, git co-edit) as pure functions with weights and thresholds in the manifest; every verdict carries Reason+Evidence for explainability; no embeddings in v1.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Cartographer must implement a signal ladder for auto-placement of orphaned or mislocated chunks using only deterministic, pure scoring functions in v1. Signals must include: path-token scoring (AC-SIGNAL-PATH-TOKEN), import-cluster community detection (AC-SIGNAL-IMPORT-CLUSTER), importer-voting majority (AC-SIGNAL-IMPORTER-VOTING), test-file coupling (AC-SIGNAL-TEST-COUPLING), symbol-glossary matching (AC-SIGNAL-SYMBOL-GLOSSARY), and git co-edit history (AC-SIGNAL-GIT-COEDIT). Each signal implements a pure Signal interface (AC-SIGNAL-INTERFACE) over an immutable graph snapshot. An aggregator (AC-SIGNAL-AGGREGATOR) combines signal scores using manifest-declared weights into a weighted verdict. Every verdict must carry Reason and Evidence fields for explainability (AC-SIGNAL-EXPLAINABILITY). No embeddings or semantic similarity is permitted in v1.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Pluggable Deterministic Signal Ladder for Auto-Placement Verdicts",
+      "validation": [
+        {
+          "notes": "AC-SIGNAL-INTERFACE: A signal invoked twice on the same immutable graph snapshot returns identical scores",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-INTERFACE: A signal never mutates the graph snapshot; post-invocation snapshot hash equals pre-invocation hash",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-PATH-TOKEN: File path containing domain name token scores higher for that domain than for an unrelated domain",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-IMPORT-CLUSTER: Community detection groups tightly coupled files into the same cluster in a fixture graph",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-IMPORTER-VOTING: A file imported exclusively by domain A files produces a vote of 1.0 for domain A",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-TEST-COUPLING: A test file co-located with source files in domain B raises domain B's score",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-SYMBOL-GLOSSARY: A symbol matching a domain glossary term boosts that domain's score by the configured weight",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-GIT-COEDIT: Files frequently co-edited with domain A files receive a higher domain A score",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-AGGREGATOR: Weighted combination of signal scores matches hand-calculated expected value for a fixture input",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-AGGREGATOR: Changing a weight in the manifest changes the aggregated score without code changes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AC-SIGNAL-EXPLAINABILITY: Every verdict struct contains non-empty Reason string and at least one Evidence entry",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Signal scoring of a 2000-file graph completes in \u003c2 seconds for the full deterministic ladder",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end: orphaned file in bas/fixtures/medium-realistic/ receives a placement verdict with Reason and Evidence pointing to the winning domain",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Override of a signal weight in the manifest changes the placement verdict for a fixture file as expected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Signal scoring of a 2000-file graph completes in \u003c2 seconds for the complete deterministic ladder",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "An agent can read the Reason and Evidence fields of a verdict and explain the placement recommendation to a human reviewer without additional tooling",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Disabling a signal via zero weight in the manifest silences its contribution without removing code",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Pluggable Signal Ladder for Auto-Placement"
+}

@@ -1,0 +1,15 @@
+Graphics/Displays:
+
+    Apple M3 Pro:
+
+      Chipset Model: Apple M3 Pro
+      Type: GPU
+      Bus: Built-In
+      Total Number of Cores: 18
+      Vendor: Apple (0x106b)
+      Metal Support: Metal 3
+      Displays:
+        Color LCD:
+          Display Type: Built-In Liquid Retina XDR Display
+          Resolution: 3024 x 1964 Retina
+          Main Display: Yes

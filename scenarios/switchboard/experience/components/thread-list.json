@@ -1,0 +1,129 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "thread-list",
+    "title": "Thread list",
+    "purpose": "The cross-channel list of conversations, where the channel a thread arrived on is legible before the message is read.",
+    "storyRef": "../../../react-component-library/library/components/List/versions/1.0.6/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Threads across several channels."
+    },
+    {
+      "id": "partial",
+      "example": "long-content",
+      "description": "A thread whose preview and participant names are long enough to truncate."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "No thread exists yet."
+    }
+  ],
+  "elements": [
+    {
+      "id": "list-root",
+      "role": "list",
+      "name": "Threads"
+    },
+    {
+      "id": "thread-row",
+      "role": "listitem",
+      "name": "Thread"
+    },
+    {
+      "id": "row-channel",
+      "role": "img",
+      "name": "Channel"
+    },
+    {
+      "id": "row-unread",
+      "role": "status",
+      "name": "Unread"
+    }
+  ],
+  "claims": [
+    {
+      "id": "channel-before-content",
+      "type": "custom",
+      "statement": "Each row's channel identity is perceivable before its message preview is read.",
+      "tier": "manual",
+      "elements": [
+        "thread-row",
+        "row-channel"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "This is the page's first communication priority and the reason the list exists rather than a per-channel inbox."
+    },
+    {
+      "id": "truncation-preserves-identity",
+      "type": "custom",
+      "statement": "Truncating a long preview never truncates the channel identity or the participant name.",
+      "tier": "manual",
+      "elements": [
+        "thread-row"
+      ],
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "row-is-one-target",
+      "type": "keyboard-reachable",
+      "statement": "Each row is a single keyboard-reachable target that opens its thread.",
+      "tier": "aspirational",
+      "elements": [
+        "thread-row"
+      ]
+    },
+    {
+      "id": "unread-not-hue-alone",
+      "type": "state-distinct",
+      "statement": "Unread state is distinguishable without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "row-unread"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Channel accents stay distinguishable on both grounds.",
+      "tier": "aspirational",
+      "elements": [
+        "row-channel"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "list-root": {
+        "testid": "thread-list"
+      },
+      "thread-row": {
+        "testid": "thread-list-row"
+      },
+      "row-channel": {
+        "testid": "thread-list-channel"
+      },
+      "row-unread": {
+        "testid": "thread-list-unread"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "Which channel each thread arrived on"
+    },
+    {
+      "statement": "Which threads have something new"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "service": {
+    "name": "mixed"
+  },
+  "dependencies": {
+    "scenarios": {
+      "opt-a": {
+        "required": true,
+        "startup_policy": "must_start"
+      }
+    }
+  }
+}

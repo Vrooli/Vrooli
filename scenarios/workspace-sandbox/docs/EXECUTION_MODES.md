@@ -1,9 +1,23 @@
 # Execution Modes Guide
 
-> **Last Updated**: 2025-12-18
-> **Status**: All Phases Complete (Resource Limits, Log Capture, UI, Interactive Sessions)
+> **Last Updated**: 2026-04-28
+> **Status**: All Phases Complete (Resource Limits, Log Capture, UI, Interactive Sessions, Structured Exit / Split Streams / Native Stdin / SSE)
 
 This guide explains how to execute commands and run processes in workspace-sandbox, including isolation levels, resource limits, and best practices.
+
+## /processes capability matrix (background mode)
+
+| Capability | Wire surface | Notes |
+|---|---|---|
+| Start process | `POST /sandboxes/{id}/processes` | `withStdin: true` requests a real stdin pipe; default false. |
+| Stream stdin | `POST /sandboxes/{id}/processes/{pid}/stdin?close=true` | Body is appended to the process stdin; `close=true` sends EOF. |
+| Read stdout/stderr (single pull) | `GET /sandboxes/{id}/processes/{pid}/logs?stream=stdout\|stderr` | `stream` query parameter is required. |
+| Stream stdout/stderr (push) | `GET /sandboxes/{id}/processes/{pid}/logs/stream?stream=stdout\|stderr` | Server-Sent Events. The server emits one `event: exit` (JSON ExitInfo) when the process terminates, then `event: end`. |
+| Structured exit info | tracker JSON `exitCode`, `signal`, `oomKilled` | Driver wait reaper records these via `Tracker.RecordExit`; survives process disappearance. |
+| Kill | `DELETE /sandboxes/{id}/processes/{pid}` | Best-effort SIGTERM→SIGKILL escalation. |
+| List | `GET /sandboxes/{id}/processes` | Includes terminated processes with their exit info; pass `?running=true` to filter. |
+
+The `agent-manager` `SandboxLauncher` is the canonical client and exercises every cell of this matrix in protected mode.
 
 ## Quick Reference
 
@@ -16,7 +30,7 @@ This guide explains how to execute commands and run processes in workspace-sandb
 | Isolation | Flag | Access | Network |
 |-----------|------|--------|---------|
 | **Full** | (default) | Only `/workspace` | Blocked |
-| **Vrooli-Aware** | `--vrooli-aware` | CLIs, configs, localhost | Localhost only |
+| **Vrooli-Aware** | `--vrooli-aware` | CLIs, configs, localhost | Unrestricted (intended: localhost-only — no backend enforces `network-loopback-only` yet; tracked as `knw-1784006975589682125`) |
 
 ## Execution Modes
 
@@ -137,15 +151,60 @@ workspace-sandbox run abc123 --vrooli-aware -- scenario-manager start
 ```
 
 **Additional access:**
-- `~/.local/bin/` (Vrooli CLIs, read-only)
-- `~/.config/vrooli/` (CLI configurations, read-only)
+- `$HOME` through a per-sandbox writable overlay for ordinary CLI config/cache reads and writes.
+- `~/.vrooli` as a live read-only host mount. This keeps runtime databases, port state, and logs current inside long-lived sandboxes without allowing agents to mutate host runtime state directly.
 - Localhost network (can reach local APIs)
 - Vrooli environment variables
+- `vrooli scenario start|restart|stop <name>` and `vrooli scenario port <name> <port-name>` through the workspace-sandbox host lifecycle proxy. The proxy accepts only those allowlisted scenario actions and strips sandbox identity before executing the host `vrooli` command. Port lookup remains dynamic and host-authoritative; sandboxed callers never infer target ports.
 
 **Best for:**
 - Agents that orchestrate other scenarios
 - Commands that need to call other Vrooli CLIs
 - Processes that communicate with local services
+
+### Per-OS Containment
+
+Isolation is carried out by a per-OS *containment backend* selected behind a
+platform-neutral seam. Each backend reports the guarantees it enforces using a
+platform-neutral vocabulary (served by `GET /api/v1/driver/containment`), so
+clients reason about isolation strength without knowing the OS mechanism. The
+backends are honest about what they cannot enforce: a missing guarantee is
+reported as absent, not silently downgraded.
+
+| Enforcement | Linux (`bwrap`) | macOS (`seatbelt`) | Other (`none`) |
+|-------------|:---------------:|:------------------:|:--------------:|
+| `filesystem-write-containment` (writes confined to the sandbox writable set) | ✅ | ✅ | ❌ |
+| `network-deny` (network blocked unless the profile allows it) | ✅ | ✅ | ❌ |
+| `pid-namespace` (process table isolated) | ✅ | ❌ | ❌ |
+| `path-illusion` (workspace visible at `/workspace`) | ✅ | ❌ | ❌ |
+
+- **Linux** uses [bubblewrap](https://github.com/containers/bubblewrap): the
+  merged dir is bind-mounted at `/workspace` (path illusion), namespaces are
+  unshared (pid, network when denied), and resource limits are applied via
+  `prlimit`.
+- **macOS** uses [Seatbelt](https://developer.apple.com/) via the system
+  `sandbox-exec` binary with a generated profile. It is **partial by design**:
+  writes are denied outside the sandbox writable set and network is denied when
+  the profile disallows it, but there is **no path illusion** (the workspace
+  stays at its host `mergedDir`, so `workspacePath == mergedDir` and
+  `pathIllusion == false`) and **no pid namespace**. Resource limits are applied
+  by an in-binary `rlimit-exec` self-exec shim (`setrlimit`) that replaces
+  Linux-only `prlimit`.
+- **Other platforms** have no native containment backend: tracking execution
+  uses the direct path and reports no containment guarantees; protected
+  execution is rejected as unavailable rather than silently downgraded.
+
+Because Seatbelt still enforces the two guarantees `agent-manager` protected
+mode depends on (`filesystem-write-containment` + `network-deny`), protected
+mode runs on macOS without a degradation warning; the absent path-illusion and
+pid-namespace guarantees are reported but not required by protected mode.
+
+> **Cross-platform status.** The per-OS compile matrix, driver availability,
+> and shipped-vs-deferred items are tracked in
+> [`docs/internal/PORTABILITY_AUDIT.md`](internal/PORTABILITY_AUDIT.md). macOS
+> support is verified at the compile/unit level on the Linux dev host; the
+> operator checklist for the real-Mac field shakeout is
+> [`docs/guides/macos-shakeout.md`](guides/macos-shakeout.md).
 
 ## Resource Limits
 
@@ -566,7 +625,7 @@ workspace-sandbox exec $sandbox_id --vrooli-aware -- \
 
 **Solutions:**
 1. Add `--network` flag for full network access
-2. Use `--vrooli-aware` for localhost-only access
+2. Use `--vrooli-aware` for Vrooli CLI/config + network access (note: grants unrestricted network today, not loopback-only — see the isolation table above)
 3. Verify the network access is actually needed
 
 ### Logs Empty or Missing

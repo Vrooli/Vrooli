@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "[data-rcl-collection-page]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "composition-preserves-behavior",
+      "statement": "Collection-scoped filters stay with their results, while selected-detail actions remain with the inspector during responsive navigation.",
+      "states": ["detail-actions"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "contextual-flow-placement",
+      "statement": "Creation overlays and selected-record decisions compose through shared library regions without replacing the collection workspace.",
+      "states": ["contextual-flows"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "collection-page",
+    "purpose": "Browse a collection and act on its selected detail without losing navigation context.",
+    "storyRef": "../../library/components/CollectionPage/versions/1.7.1/story.json",
+    "title": "CollectionPage"
+  },
+  "elements": [
+    {
+      "description": "The component surface and its semantic descendants.",
+      "id": "surface",
+      "role": "generic"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "Default specimen.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Composed regions specimen.",
+      "example": "composed-regions",
+      "id": "composed-regions"
+    },
+    {
+      "description": "Mobile selection and Back specimen.",
+      "example": "mobile-navigation",
+      "id": "mobile-navigation"
+    },
+    {
+      "description": "Reply beside selected detail specimen.",
+      "example": "detail-actions",
+      "id": "detail-actions"
+    },
+    {
+      "description": "Shared dialog creation and contextual approval remain inside the workspace.",
+      "example": "contextual-flows",
+      "id": "contextual-flows"
+    },
+    {
+      "description": "Shared page gutters adapt to available width.",
+      "example": "page-gutters",
+      "id": "page-gutters"
+    }
+  ]
+}

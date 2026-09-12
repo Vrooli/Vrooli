@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Clock, Cpu, Target, ExternalLink, ChevronDown } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import type {
   TeamDetails,
   TeamRole,
@@ -31,7 +32,7 @@ import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig, TeamLogEntry } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
-import { useSelectionStore } from '@/stores/selectionStore'
+import { runDetailPath } from '@/app/routes/route-paths'
 import { formatRelativeTime, formatRelativePastTime, formatDate, formatDuration } from '@/lib/timeUtils'
 import { formatScheduleSummary } from '@/lib/scheduleUtils'
 import {
@@ -72,6 +73,7 @@ export function TeamDashboardTab({
   onHealthChange,
   onLastActiveChange,
 }: TeamDashboardTabProps) {
+  const navigate = useNavigate()
   // --- Heartbeat polling state ---
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
@@ -83,6 +85,7 @@ export function TeamDashboardTab({
   const [hasMoreLogs, setHasMoreLogs] = useState(false)
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
   const [memberFilter, setMemberFilter] = useState('')
+  const [openWorkCount, setOpenWorkCount] = useState<number | null>(null)
 
   // --- Agents lookup ---
   const agentsById = useMemo(() => {
@@ -104,6 +107,39 @@ export function TeamDashboardTab({
   const resolvedLeadAgentId = useMemo(() => {
     return team.coordination.leadAgentId || team.members[0]?.agentId || ''
   }, [team.coordination.leadAgentId, team.members])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadOpenWorkCount = async () => {
+      try {
+        const response = await fetch('/embedded/swarm-manager/api/v1/backlog?archived=false')
+        if (!response.ok) throw new Error(`Swarm Manager responded with ${response.status}`)
+        const payload = (await response.json()) as {
+          items?: Array<{
+            status?: string
+            tags?: string[]
+            created_by?: { profile_key?: string }
+          }>
+        }
+        const terminalStatuses = new Set(['done', 'completed', 'cancelled', 'dropped', 'archived'])
+        const teamPrefix = `${team.id}/`
+        const count = (payload.items ?? []).filter((item) => {
+          const belongsToTeam =
+            (item.tags ?? []).includes(team.id) || item.created_by?.profile_key?.startsWith(teamPrefix)
+          return belongsToTeam && !terminalStatuses.has((item.status ?? '').toLowerCase())
+        }).length
+        if (!cancelled) setOpenWorkCount(count)
+      } catch {
+        if (!cancelled) setOpenWorkCount(null)
+      }
+    }
+
+    void loadOpenWorkCount()
+    return () => {
+      cancelled = true
+    }
+  }, [team.id])
 
   const buildCoordinationPreset = useCallback(
     (pattern: CoordinationPattern, runtimeMode: RuntimeMode): Coordination => {
@@ -706,7 +742,6 @@ export function TeamDashboardTab({
                 ['injectInbox', 'Inject inbox into prompt'],
                 ['allowPeerTriggers', 'Allow peer triggers'],
                 ['showTaskBoardGuidance', 'Show task board guidance'],
-                ['showDecisionLogGuidance', 'Show decision log guidance'],
                 ['showKnowledgeLogGuidance', 'Show knowledge log guidance'],
                 ['requireHandoff', 'Require handoff'],
               ] as const
@@ -774,35 +809,24 @@ export function TeamDashboardTab({
         </div>
       </section>
 
-      {/* Decision Mode */}
-      <section data-testid={selectors.teamEditor.decisionMode}>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Decision Approval</h3>
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {(['yolo', 'approval'] as const).map((mode) => {
-              const selected = team.decisionMode === mode
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => void onUpdate({ decisionMode: mode })}
-                  className={cn(
-                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
-                    selected
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
-                  )}
-                >
-                  {mode === 'yolo' ? 'Auto-approve' : 'Require Approval'}
-                </button>
-              )
-            })}
+      <section className="rounded-lg border border-border bg-muted/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Swarm Manager work</h3>
+            <p className="mt-1 text-sm text-foreground">Team requests and operator dispositions live in the unified work feed.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {openWorkCount === null ? 'Open work count unavailable.' : `${openWorkCount} open work item${openWorkCount === 1 ? '' : 's'}.`}{' '}
+              Open the feed to review this team&apos;s filed work and its current disposition.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {(team.decisionMode === 'approval')
-              ? 'Decisions require human approval before agents can act on them.'
-              : 'Agents can freely approve and act on their own decisions.'}
-          </p>
+          <a
+            href="/swarm-manager"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            Open work feed <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
       </section>
 
@@ -998,7 +1022,7 @@ export function TeamDashboardTab({
                     onClick={() => {
                       const stem = entry.filename.replace(/\.[^.]+$/, '')
                       if (stem) {
-                        useSelectionStore.getState().setSelectedRunId(stem)
+                        navigate(runDetailPath(stem))
                       }
                     }}
                   >

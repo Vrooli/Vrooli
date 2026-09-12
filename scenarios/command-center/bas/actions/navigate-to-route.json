@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "name": "navigate-to-route",
+    "description": "Navigates to a command-center route, waits for the [data-theme] attribute to be attached by ThemeProvider, then captures a screenshot. Parameterized by ${@store/route} and ${@store/themeKey}; callers must set these stores before invoking this subflow.",
+    "labels": {
+      "fixture_id": "navigate-to-route",
+      "reset": "none",
+      "parameters_json": "[\"route\",\"themeKey\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-route",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "${@store/route}",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to ${@store/route}"
+        }
+      }
+    },
+    {
+      "id": "wait-theme-applied",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='${@store/themeKey}']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for ThemeProvider to apply data-theme='${@store/themeKey}'"
+        }
+      }
+    },
+    {
+      "id": "capture-route",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture ${@store/route}"
+        }
+      },
+      "execution_settings": {
+        "wait_after_ms": 300
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-route",
+      "target": "wait-theme-applied",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-theme-applied",
+      "target": "capture-route",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/redis",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/redis",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/redis"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Redis is configured as a bounded cache/event bus; its append-only persistence directory is bind-mounted to /data.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        }
+      }
+    }
+  },
+  "display_name": "Redis Cache",
+  "description": "Redis event bus and cache layer for project and scenario workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-redis",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-redis_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-redis"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "driver": "managed-service",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The Linux native Redis artifact is extracted from a digest-pinned official OCI image without a container runtime."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "limitations": [
+            "The selected native acquisition channel publishes no macOS artifact. Redis remains usable on macOS through Docker Desktop, which is outside this managed-service path."
+          ],
+          "evidence": [
+            "manifest-validation"
+          ],
+          "reason": "No native macOS redis-server executable is staged. The macOS acquisition targets previously pointed at the Linux `library/redis` OCI image, whose `usr/local/bin/redis-server` is an ELF binary that cannot execute on macOS."
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "bundled-service",
+          "architectures": [
+            "amd64"
+          ],
+          "limitations": [
+            "The pinned Redis Windows amd64 archive is staged as a self-contained native service; target smoke evidence remains pending."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        }
+      }
+    }
+  },
+  "category": "storage",
+  "requirements": {
+    "ram_mb": 512,
+    "disk_mb": 1024,
+    "cpu_cores": 1,
+    "network": "optional",
+    "bucket": "small",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "storage",
+    "weight": 1
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "build-verified"
+  },
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "redis",
+      "host": 6380
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "kind": "readiness",
+      "target": "127.0.0.1:6380",
+      "interval_seconds": 10,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:6380",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/redis",
+      "version": "8.2.1-bookworm",
+      "layout": "dir",
+      "entry_path": "Redis-8.10.0-Windows-x64-msys2/redis-server.exe",
+      "sha256_by_platform": {
+        "linux-amd64": "86c6c4edee666ed69fabb75da42a9ef6271e40065ec7689c600f15a34674207b",
+        "linux-arm64": "09d8ff3812820ce984739999be5bea5f8a30385aff2081d48c7132edf3a15660",
+        "macos-amd64": "86c6c4edee666ed69fabb75da42a9ef6271e40065ec7689c600f15a34674207b",
+        "macos-arm64": "09d8ff3812820ce984739999be5bea5f8a30385aff2081d48c7132edf3a15660",
+        "windows-amd64": "244a71ad6fb02ab39737b1a462bed0c5c48b35730bd0f616da9a42a32e14a3c7"
+      },
+      "bundle_artifact": "redis_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "RSALv2",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
+        {"when": {"os": "linux", "arch": "arm64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
+        {"when": {"os": "windows", "arch": "amd64"}, "kind": "url", "url": "https://github.com/redis-windows/redis-windows/releases/download/8.10.0/Redis-8.10.0-Windows-x64-msys2.zip", "sha256": "743a39b0a97d0b8ec8355591cd31874dd9da8b0f48a7d6becddacdb082ce6c30", "archive": "zip", "layout": "dir", "bin_path": "Redis-8.10.0-Windows-x64-msys2/redis-server.exe", "artifact_sha256": "244a71ad6fb02ab39737b1a462bed0c5c48b35730bd0f616da9a42a32e14a3c7"},
+        {"when": {"os": "windows", "arch": "arm64"}, "unsupported": "The selected Redis Windows release publishes only an x64 archive; no Windows ARM artifact is pinned."},
+        {"when": {"os": "macos", "arch": "amd64"}, "unsupported": "No native macOS redis-server artifact is published by the selected acquisition channel."},
+        {"when": {"os": "macos", "arch": "arm64"}, "unsupported": "No native macOS redis-server artifact is published by the selected acquisition channel."}
+      ]
+    },
+    "attach_health_path": "/",
+    "arguments": [
+      "--appendonly", "no",
+      "--save", "900", "1", "300", "10", "60", "10000",
+      "--maxmemory", "2gb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--set-proc-title", "no",
+      "--protected-mode", "yes",
+      "--bind", "127.0.0.1",
+      "--port", "${RESOURCE_PORT_REDIS}",
+      "--dir", "${RESOURCE_DATA_DIR}"
+    ],
+    "environment": {
+      "REDIS_HOST": "localhost"
+    }
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Redis dependency settings.",
+    "properties": {
+      "access_method": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "REDIS_HOST": "localhost",
+      "REDIS_DB": "0"
+    },
+    "from_ports": {
+      "REDIS_PORT": "redis"
+    },
+    "from_runtime_env": [
+      "REDIS_PASSWORD"
+    ],
+    "derived": {
+      "REDIS_URL": {
+        "template": "redis://${REDIS_HOST}:${REDIS_PORT}"
+      },
+      "REDIS_BASE_URL": {
+        "template": "${REDIS_URL}"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 999,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "2-5s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "critical"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 15,
+    "stop_timeout_seconds": 30,
+    "retries": 3
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

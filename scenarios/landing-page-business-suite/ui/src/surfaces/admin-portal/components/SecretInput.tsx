@@ -63,9 +63,10 @@ export function SecretInput({
   const [revealedValue, setRevealedValue] = useState<string | null>(null);
   const [showRevealed, setShowRevealed] = useState(false);
   const [revealError, setRevealError] = useState<string | null>(null);
+  const [isReplacing, setIsReplacing] = useState(false);
 
   // Show masked state when: secret is set, user hasn't typed a new value, and not showing revealed
-  const showMaskedState = isSet && value === '' && !showRevealed;
+  const showMaskedState = isSet && value === '' && !showRevealed && !isReplacing;
 
   const handleRevealClick = async () => {
     if (revealing) return;
@@ -143,7 +144,7 @@ export function SecretInput({
         </div>
         <button
           type="button"
-          onClick={handleRevealClick}
+          onClick={() => { void handleRevealClick(); }}
           disabled={disabled || revealing}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 disabled:opacity-50"
           aria-label={revealing ? 'Loading...' : 'Reveal secret'}
@@ -153,6 +154,14 @@ export function SecretInput({
           ) : (
             <Eye className="h-4 w-4" />
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setIsReplacing(true); }}
+          disabled={disabled}
+          className="mt-2 text-xs font-medium text-blue-300 hover:text-blue-200 disabled:opacity-50"
+        >
+          Replace secret
         </button>
         {revealError && (
           <p className="mt-1 text-xs text-rose-400">{revealError}</p>
@@ -178,7 +187,7 @@ export function SecretInput({
       {isSet && value === '' && (
         <button
           type="button"
-          onClick={handleRevealClick}
+          onClick={() => { void handleRevealClick(); }}
           disabled={disabled || revealing}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 disabled:opacity-50"
           aria-label={revealing ? 'Loading...' : 'Reveal secret'}

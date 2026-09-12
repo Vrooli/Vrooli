@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.operatorstate;
+
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate;operatorstatev1";
+
+// OperatorStateService is the typed transport for the operator-state
+// selection document. PatchOperatorState applies only update_mask paths;
+// fields omitted from the mask remain untouched in storage.
+service OperatorStateService {
+  rpc GetOperatorState(GetOperatorStateRequest) returns (GetOperatorStateResponse);
+  rpc PatchOperatorState(PatchOperatorStateRequest) returns (PatchOperatorStateResponse);
+}
+
+message GetOperatorStateRequest { string target = 1; }
+
+message PatchOperatorStateRequest {
+  string target = 1;
+  OperatorState state = 2;
+  google.protobuf.FieldMask update_mask = 3;
+  // The revision observed by the caller. An empty value is accepted only by
+  // legacy non-concurrent callers; mutation clients should always provide it.
+  string expected_revision = 4;
+}
+
+message GetOperatorStateResponse { OperatorState state = 1; }
+message PatchOperatorStateResponse { OperatorState state = 1; }
+
+// OperatorState mirrors every top-level property in
+// .vrooli/schemas/operator-state.schema.json. Maps contain operator choices
+// keyed by manifest name; safeguard configuration remains a typed map of
+// protobuf values because each safeguard owns its declared config schema.
+message OperatorState {
+  optional string schema = 1 [json_name = "$schema"];
+  optional string version = 2;
+  optional string updated_at = 3;
+  optional string trust_posture = 4;
+  optional string host_workload_posture = 5;
+  optional string capacity_posture = 6;
+  optional string accel_preference = 7;
+  optional string update_control = 8;
+  optional string operator_id = 9;
+  optional string identity_provider = 10;
+  optional string session_mode = 11;
+  optional string enrollment_reference = 12;
+  optional string enrolled_at = 13;
+  CoreSet core = 14;
+  google.protobuf.Value active_profile = 15;
+  CapacitySettings capacity = 16;
+  map<string, ScenarioChoice> scenarios = 17;
+  map<string, EnabledChoice> resources = 18;
+  map<string, OptInChoice> host_tools = 19;
+  map<string, OptInChoice> host_safeguards = 20;
+  Completion completion = 21;
+  Session session = 22;
+  Notifications notifications = 23;
+}
+
+message CoreSet {
+  repeated string seed = 1;
+  repeated string trusted_base = 2;
+}
+
+message ScenarioChoice {
+  optional bool enabled = 1;
+  optional bool auto_restart = 2;
+}
+
+message EnabledChoice {
+  optional bool enabled = 1;
+  CapacityChoice capacity = 2;
+}
+
+message CapacityChoice {
+  optional string rung = 1;
+  map<string, google.protobuf.Value> tunables = 2;
+  optional int32 gpu_index = 3;
+  optional string priority = 4;
+  optional bool yield_when_idle = 5;
+  optional int32 idle_grace_seconds = 6;
+}
+
+message CapacitySettings {
+  optional int64 transient_headroom_reserve_bytes = 1;
+}
+
+message OptInChoice {
+  optional bool opted_in = 1;
+  google.protobuf.Struct config = 2;
+}
+
+message Completion {
+  optional string selection_digest = 1;
+  optional string applied_at = 2;
+  DegradedAcknowledgement degraded_acknowledgement = 3;
+}
+
+message DegradedAcknowledgement {
+  optional string readiness_digest = 1;
+  optional string acknowledged_at = 2;
+}
+
+message Session {
+  optional int32 step = 1;
+  optional string step_id = 2;
+}
+
+message Notifications {
+  optional string recipient = 1;
+}

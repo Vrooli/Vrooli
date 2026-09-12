@@ -1,0 +1,109 @@
+{
+  "metadata": { "name": "backlog-related-work-tab", "description": "Open a seeded backlog item Related tab and verify the related-work groups render.", "requirement": "SWM-P0-001", "version": "1", "labels": { "reset": "none" }, "execution_mode": "observer" },
+  "id": "397fc870-4551-4396-881d-4f0a7babf8ee",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "backlog-related-work-tab",
+  "folder_path": "/bas/cases/backlog/related-work",
+  "description": "Open a seeded backlog item Related tab and verify the three fixed related-work groups render.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[]"
+  ],
+  "version": 1,
+  "created_at": "2026-08-10T03:44:43.547948495Z",
+  "updated_at": "2026-08-10T03:44:43.547948495Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-related-tab",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "url": "/backlog/execute/swarm-manager-receipt-evidence-migration?tab=related"
+          },
+          "metadata": {
+            "label": "Open the seeded backlog Related tab"
+          }
+        }
+      },
+      {
+        "id": "wait-related-tab",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/related.tab",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 20000
+          },
+          "metadata": {
+            "label": "Related tab renders"
+          }
+        }
+      },
+      {
+        "id": "wait-linked",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/related.groupLinked",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Linked group renders"
+          }
+        }
+      },
+      {
+        "id": "wait-scope",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/related.groupSameScope",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Same scope group renders"
+          }
+        }
+      },
+      {
+        "id": "wait-similar",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/related.groupSimilar",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 10000
+          },
+          "metadata": {
+            "label": "Similar group renders"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-related-tab",
+        "target": "wait-related-tab"
+      },
+      {
+        "source": "wait-related-tab",
+        "target": "wait-linked"
+      },
+      {
+        "source": "wait-linked",
+        "target": "wait-scope"
+      },
+      {
+        "source": "wait-scope",
+        "target": "wait-similar"
+      }
+    ]
+  }
+}

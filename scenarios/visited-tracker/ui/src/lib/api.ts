@@ -92,7 +92,7 @@ export async function fetchCampaigns(): Promise<{ campaigns: Campaign[] }> {
 }
 
 export async function fetchCampaign(id: string): Promise<CampaignDetail> {
-  const url = buildApiUrl(`/campaigns/${id}`, { baseUrl: API_BASE });
+  const url = buildApiUrl(`/campaigns/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -124,7 +124,7 @@ export async function createCampaign(data: CreateCampaignRequest): Promise<Campa
 }
 
 export async function deleteCampaign(id: string): Promise<void> {
-  const url = buildApiUrl(`/campaigns/${id}`, { baseUrl: API_BASE });
+  const url = buildApiUrl(`/campaigns/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "DELETE"
   });
@@ -135,7 +135,7 @@ export async function deleteCampaign(id: string): Promise<void> {
 }
 
 export async function recordVisit(campaignId: string, data: RecordVisitRequest): Promise<void> {
-  const url = buildApiUrl(`/campaigns/${campaignId}/visit`, { baseUrl: API_BASE });
+  const url = buildApiUrl(`/campaigns/${encodeURIComponent(campaignId)}/visit`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -148,7 +148,7 @@ export async function recordVisit(campaignId: string, data: RecordVisitRequest):
 }
 
 export async function fetchLeastVisited(campaignId: string, limit: number = 10): Promise<{ files: TrackedFile[] }> {
-  const url = buildApiUrl(`/campaigns/${campaignId}/prioritize/least-visited?limit=${limit}`, { baseUrl: API_BASE });
+  const url = buildApiUrl(`/campaigns/${encodeURIComponent(campaignId)}/prioritize/least-visited?limit=${limit}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"
@@ -162,7 +162,7 @@ export async function fetchLeastVisited(campaignId: string, limit: number = 10):
 }
 
 export async function fetchMostStale(campaignId: string, limit: number = 10): Promise<{ files: TrackedFile[] }> {
-  const url = buildApiUrl(`/campaigns/${campaignId}/prioritize/most-stale?limit=${limit}`, { baseUrl: API_BASE });
+  const url = buildApiUrl(`/campaigns/${encodeURIComponent(campaignId)}/prioritize/most-stale?limit=${limit}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store"

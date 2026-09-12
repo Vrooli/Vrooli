@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "runs-history",
+    "description": "SQLite-backed verification run history: schema, migration, repository, service.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RUNS-001",
+      "title": "Migration 0001 creates verification_runs table",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "runs",
+      "criticality": "P0",
+      "description": "api/internal/<domain>/migrations/0001_verification_runs.sql creates verification_runs with id, flow_id, hashes, status, counterexample, started_at, finished_at, duration_ms, plus an idx_runs_flow_id index.",
+      "tags": ["sqlite", "migration"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Repository test against in-memory SQLite (file::memory:?cache=shared) asserts schema and indexes."
+        }
+      ]
+    },
+    {
+      "id": "RUNS-002",
+      "title": "Every verification writes one row",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "runs",
+      "criticality": "P0",
+      "description": "verify run and verify check each persist exactly one row per flow per invocation. Status is one of passed/failed/error.",
+      "tags": ["pipeline", "persistence"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Integration test confirms a row appears after each verify invocation."
+        }
+      ]
+    },
+    {
+      "id": "RUNS-003",
+      "title": "CLI and HTTP expose history",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "runs",
+      "criticality": "P0",
+      "description": "flow-verifier runs list/show plus GET /api/v1/runs and /api/v1/runs/:id return persisted history with optional flowId filter.",
+      "tags": ["cli", "api"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Handler test + CLI test covering both shapes."
+        }
+      ]
+    }
+  ]
+}

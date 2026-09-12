@@ -17,12 +17,14 @@ export function EmbeddedServerSection({
   localServerPath,
   onLocalServerPathChange,
   localApiEndpoint,
-  onLocalApiEndpointChange
+  onLocalApiEndpointChange,
 }: EmbeddedServerSectionProps) {
   return (
     <div className="rounded-lg border border-yellow-800 bg-yellow-950/10 p-4 space-y-3">
       <p className="text-sm text-yellow-200">
-        Embedded servers require more manual work. Make sure the scenario's API can run within the wrapper (Node script or executable) and that resource usage fits the target machine.
+        Embedded servers require more manual work. Make sure the scenario's API
+        can run within the wrapper (Node script or executable) and that resource
+        usage fits the target machine.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -31,7 +33,9 @@ export function EmbeddedServerSection({
             id="serverPort"
             type="number"
             value={serverPort}
-            onChange={(e) => onServerPortChange(Number(e.target.value))}
+            onChange={(e) => {
+              onServerPortChange(Number(e.target.value));
+            }}
             min={1}
           />
         </div>
@@ -40,7 +44,9 @@ export function EmbeddedServerSection({
           <Input
             id="localServerPath"
             value={localServerPath}
-            onChange={(e) => onLocalServerPathChange(e.target.value)}
+            onChange={(e) => {
+              onLocalServerPathChange(e.target.value);
+            }}
             placeholder="ui/server.js"
           />
         </div>
@@ -50,7 +56,9 @@ export function EmbeddedServerSection({
         <Input
           id="localApiEndpoint"
           value={localApiEndpoint}
-          onChange={(e) => onLocalApiEndpointChange(e.target.value)}
+          onChange={(e) => {
+            onLocalApiEndpointChange(e.target.value);
+          }}
           placeholder={DEFAULT_LOCAL_API_ENDPOINT}
         />
       </div>

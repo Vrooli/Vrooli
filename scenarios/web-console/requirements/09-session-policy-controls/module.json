@@ -1,104 +1,106 @@
 {
-  "description": "Per-workspace/session expiration policy controls (never, preset TTL, custom) with explicit persistence behavior",
-  "module_id": "MOD-P1-009",
-  "prd_ref": "OT-P1-001",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-26T09:02:31-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "children": ["REQ-P1-001b"],
-      "description": "Session expiration policy engine supports never-expire (default), preset TTL durations (1h, 8h, 24h), and custom duration. Policies evaluated on session access and periodic sweep.",
       "id": "REQ-P1-001a",
-      "prd_ref": "OT-P1-001",
-      "status": "passed",
       "title": "Expiration Policy Engine",
-      "validation": [
-        {
-          "notes": "Test policy enforcement for each mode (never, preset, custom) + validation, TTL resolution, expiration checks, sweeper",
-          "phase": "unit",
-          "ref": "api/session_policy_test.go",
-          "status": "passed",
-          "type": "test"
-        },
-        {
-          "notes": "Policy evaluation <10ms — 10k evaluations benchmarked",
-          "phase": "performance",
-          "ref": "api/session_policy_test.go",
-          "status": "passed",
-          "type": "test"
-        },
-        {
-          "notes": "Sweeper Start() is idempotent — no double goroutine leak",
-          "phase": "unit",
-          "ref": "api/session_policy_test.go:TestExpirationSweeper_StartIdempotent",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Sweeper loop fires and removes expired sessions end-to-end",
-          "phase": "unit",
-          "ref": "api/session_policy_test.go:TestExpirationSweeper_LoopFiresAndRemoves",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "ui",
-      "children": ["REQ-P1-001b-i"],
-      "description": "Per-workspace and per-session policy configuration UI in drawer. Shows current policy, allows modification, displays countdown for TTL sessions.",
-      "id": "REQ-P1-001b",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
-      "status": "passed",
-      "title": "Policy Configuration UI",
+      "category": "core",
+      "description": "Session expiration policy engine supports never-expire (default), preset TTL durations (1h, 8h, 24h), and custom duration. Policies evaluated on session access and periodic sweep.",
+      "children": [
+        "REQ-P1-001b"
+      ],
       "validation": [
         {
-          "notes": "API client tests for getSessionPolicy and updateSessionPolicy, type shape verification",
-          "phase": "integration",
-          "ref": "ui/src/__tests__/session-policy.test.ts",
-          "status": "passed",
-          "type": "test"
-        },
-        {
-          "notes": "Policy select control in drawer, countdown display, API error handling",
-          "phase": "business",
-          "ref": "ui/src/__tests__/session-policy.test.ts",
-          "status": "passed",
-          "type": "test"
-        },
-        {
-          "notes": "SessionsPage policy dropdown triggers updateSessionPolicy for preset/never modes",
+          "type": "test",
+          "ref": "api/session/session_policy_test.go",
           "phase": "unit",
-          "ref": "ui/src/__tests__/sessions-page.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test policy enforcement for each mode (never, preset, custom) + validation, TTL resolution, expiration checks, sweeper"
+        },
+        {
+          "type": "test",
+          "ref": "api/session/session_policy_test.go",
+          "phase": "performance",
+          "status": "failing",
+          "notes": "Policy evaluation \u003c10ms — 10k evaluations benchmarked"
+        },
+        {
+          "type": "test",
+          "ref": "api/session/session_policy_test.go:TestExpirationSweeper_StartIdempotent",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Sweeper Start() is idempotent — no double goroutine leak"
+        },
+        {
+          "type": "test",
+          "ref": "api/session/session_policy_test.go:TestExpirationSweeper_LoopFiresAndRemoves",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Sweeper loop fires and removes expired sessions end-to-end"
         }
       ]
     },
     {
+      "id": "REQ-P1-001b",
+      "title": "Policy Configuration UI",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "ui",
+      "description": "Per-workspace and per-session policy configuration UI in drawer. Shows current policy, allows modification, displays countdown for TTL sessions.",
+      "children": [
+        "REQ-P1-001b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/policy-options.test.ts",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Policy option parsing covers never and preset modes and rejects invalid selections"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-management-section.test.tsx",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Session management renders the policy selector and calls updateSessionPolicy"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/session-management-section.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Session policy dropdown triggers updateSessionPolicy for preset and never modes"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-001b-i",
+      "title": "Countdown Timer Display",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
       "category": "ui",
       "description": "Real-time countdown timer displays remaining TTL for sessions with preset or custom expiration policies. Updates every second.",
-      "id": "REQ-P1-001b-i",
-      "prd_ref": "OT-P1-001",
-      "status": "passed",
-      "title": "Countdown Timer Display",
       "validation": [
         {
-          "notes": "Duration parsing and countdown formatting verified",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/format.test.ts:parseDurationMs",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Duration parsing and countdown formatting verified"
         },
         {
-          "notes": "useCountdown hook returns null for never, countdown string for TTL, expired for past-due, cleans up interval",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/useCountdown.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "useCountdown hook returns null for never, countdown string for TTL, expired for past-due, cleans up interval"
         }
       ]
     }
-  ],
-  "title": "Session Policy Controls"
+  ]
 }

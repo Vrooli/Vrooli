@@ -1,0 +1,1 @@
+{"gate":"lifecycle","assetId":"calibration-lifecycle","kind":"component","runner":"static","requiredFailureCode":"catalog.lifecycle_cleanup","catalogAsset":"asset.json","source":"broken.tsx","description":"Adds a browser listener without cleanup."}

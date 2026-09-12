@@ -1,0 +1,123 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Quality Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Quality Health",
+    "eyebrow": "静的品質の権威",
+    "description": "Vrooli シナリオの lint、型安全性、設定ガードレール、コマンド実行、自動修正準備を監査します。"
+  },
+  "layout": {
+    "sidebarLabel": "サイドバーナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "品質監査",
+      "description": "選択したシナリオの静的品質契約、検出されたサーフェス、検出事項、安全な修復経路を確認します。"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "quality": {
+    "title": "シナリオ品質監査",
+    "scenarioLabel": "シナリオ",
+    "scenarioPlaceholder": "quality-health",
+    "runAudit": "監査を実行",
+    "running": "実行中",
+    "refresh": "更新",
+    "loading": "静的品質監査を実行中…",
+    "status": "ステータス",
+    "maturity": "成熟度",
+    "findings": "検出事項",
+    "surfaces": "サーフェス",
+    "commands": "コマンド",
+    "countSummary": "{{errors}} 件のエラー / {{warnings}} 件の警告 / {{infos}} 件の情報",
+    "unknown": "不明",
+    "surfaceBreakdown": "サーフェス内訳",
+    "noSurfaces": "この監査ではサーフェスが検出されませんでした。",
+    "findingsWorkbench": "検出事項ワークベンチ",
+    "severityFilter": "重要度",
+    "surfaceFilter": "サーフェス",
+    "ruleFilter": "ルール",
+    "allSeverities": "すべての重要度",
+    "allSurfaces": "すべてのサーフェス",
+    "allRules": "すべてのルール",
+    "errorSeverity": "エラー",
+    "warningSeverity": "警告",
+    "infoSeverity": "情報",
+    "autofixGroup": "自動修正",
+    "agentGroup": "エージェント修復",
+    "manualGroup": "手動確認",
+    "noFindings": "現在のフィルターに一致する検出事項はありません。",
+    "contractDetail": "契約詳細",
+    "rule": "ルール",
+    "expected": "期待値",
+    "observed": "観測値",
+    "whyItMatters": "重要な理由",
+    "remediation": "修復",
+    "none": "なし",
+    "selectFinding": "検出事項を選択して契約詳細を確認してください。",
+    "autofixPreview": "自動修正プレビュー",
+    "previewFix": "修正をプレビュー",
+    "applyFix": "修正を適用",
+    "applied": "適用済み",
+    "dryRun": "ドライラン",
+    "noAutofix": "決定的な設定編集をプレビューするには、自動修正可能な検出事項を選択してください。",
+    "commandsTitle": "コマンド結果",
+    "noCommands": "この監査にはコマンド実行結果が含まれていません。"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

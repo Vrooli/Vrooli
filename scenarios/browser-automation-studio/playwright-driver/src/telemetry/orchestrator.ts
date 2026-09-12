@@ -67,6 +67,15 @@ export type { ElementContext };
 export interface TelemetryCollectionOptions {
   /** Force screenshot capture even if handler already provided one */
   forceScreenshot?: boolean;
+  /**
+   * Skip screenshot capture entirely for this step.
+   *
+   * Set when the caller has decided this step carries no visual evidence
+   * value (variable assignments, waits, mid-sequence interactions). Ignored
+   * when the handler already produced a screenshot, so explicit screenshot
+   * steps are never suppressed.
+   */
+  skipScreenshot?: boolean;
   /** Force DOM snapshot even if handler already provided one */
   forceDomSnapshot?: boolean;
   /** Include console logs in collection */
@@ -167,7 +176,7 @@ export class TelemetryOrchestrator {
 
     // Screenshot: use handler result or capture if enabled
     if (!handlerResult?.screenshot || options?.forceScreenshot) {
-      if (this.config.telemetry.screenshot.enabled) {
+      if (this.config.telemetry.screenshot.enabled && !options?.skipScreenshot) {
         telemetry.screenshot = await captureScreenshot(this.page, this.config);
       }
     } else {

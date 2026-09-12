@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.sortable",
+    "name": "Sortable",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.draggable",
+        "reason": "Pointer, keyboard, and announcement behavior are shared."
+      },
+      {
+        "asset": "motion.auto-animate-layout",
+        "reason": "Displacement animates through the shared layout-difference primitive."
+      },
+      {
+        "asset": "hooks.use-optimistic-action",
+        "reason": "Reordering applies immediately and rolls back deterministically on failure."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "optimistic-rollback",
+    "transition-causality"
+  ]
+}

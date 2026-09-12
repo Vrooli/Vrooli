@@ -1,0 +1,135 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.generated-form",
+    "name": "GeneratedForm",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The schema-driven form compiling data, layout, validation, dependency, permission, and action schemas into a cached field-dependency graph with polished defaults and no per-consumer configuration.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form",
+        "reason": "The runtime is the shared form, not a parallel implementation."
+      },
+      {
+        "asset": "forms.form-field",
+        "reason": "Generated fields compose the shared field relationships."
+      },
+      {
+        "asset": "forms.form-section",
+        "reason": "Layout groups are shared sections."
+      },
+      {
+        "asset": "forms.form-actions",
+        "reason": "Submission controls are shared."
+      },
+      {
+        "asset": "forms.validation-summary",
+        "reason": "Error summarization is shared."
+      },
+      {
+        "asset": "forms.conditional-field",
+        "reason": "Visibility and enablement come from the compiled dependency graph."
+      },
+      {
+        "asset": "forms.computed-field",
+        "reason": "Derived values come from the same graph."
+      },
+      {
+        "asset": "forms.array-field",
+        "reason": "Repeating structures are shared."
+      },
+      {
+        "asset": "forms.object-field",
+        "reason": "Nested structures are shared."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "forms.date-picker",
+        "reason": "Only schemas with date fields need it, and it brings a calendar and timezone policy with it."
+      },
+      {
+        "asset": "forms.color-picker",
+        "reason": "Only schemas with colour fields need it."
+      },
+      {
+        "asset": "forms.editor-field",
+        "reason": "Only schemas with rich text or code fields need it, and it is the largest optional dependency in the catalog."
+      },
+      {
+        "asset": "forms.token-input",
+        "reason": "Only schemas with structured multi-value fields need it."
+      },
+      {
+        "asset": "forms.dropzone",
+        "reason": "Only schemas with file fields need it, and it requires an upload adapter."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "TValues"
+      ]
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "error-association",
+    "input-preservation",
+    "status-announced",
+    "recovery-path",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "optimistic-rollback",
+    "error-honesty"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "submitting",
+    "saving",
+    "success",
+    "validation-error",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "api": {
+    "levels": [
+      "controller",
+      "convenience"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ]
+  },
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "rationale": "The clearest demonstration of the requires-versus-suggests split. Its hard closure is nine shared form pieces; the eleven field types a given schema might use stay optional, so adopting a generated form does not drag a calendar, a colour spectrum, and a code editor into a scenario that needs none of them."
+}

@@ -9,9 +9,9 @@ type LoadBrandingFn = typeof loadBranding;
 type SaveBrandingFn = typeof saveBranding;
 type ClearFieldFn = typeof clearField;
 
-const loadBrandingMock = vi.fn<Parameters<LoadBrandingFn>, ReturnType<LoadBrandingFn>>();
-const saveBrandingMock = vi.fn<Parameters<SaveBrandingFn>, ReturnType<SaveBrandingFn>>();
-const clearFieldMock = vi.fn<Parameters<ClearFieldFn>, ReturnType<ClearFieldFn>>();
+const loadBrandingMock = vi.fn<LoadBrandingFn>();
+const saveBrandingMock = vi.fn<SaveBrandingFn>();
+const clearFieldMock = vi.fn<ClearFieldFn>();
 
 vi.mock('../services/branding.service', async () => {
   const actual = await vi.importActual<typeof import('../services/branding.service')>(
@@ -380,14 +380,16 @@ describe('useBrandingForm', () => {
         result.current.handleFieldChange('site_name', 'Changed');
       });
 
+      let submission: Promise<void>;
       act(() => {
-        result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+        submission = result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
       });
 
       expect(result.current.saving).toBe(true);
 
       await act(async () => {
-        resolveSave?.({ ...mockBranding, site_name: 'Changed' });
+        resolveSave!({ ...mockBranding, site_name: 'Changed' });
+        await submission;
       });
 
       expect(result.current.saving).toBe(false);

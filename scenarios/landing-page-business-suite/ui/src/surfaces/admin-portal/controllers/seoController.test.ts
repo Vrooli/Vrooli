@@ -12,8 +12,8 @@ import { buildEditableSEOConfig, loadVariantSEOConfig, saveVariantSEOConfig } fr
 type GetVariantSEOFn = typeof getVariantSEO;
 type UpdateVariantSEOFn = typeof updateVariantSEO;
 
-const getVariantSEOMock = vi.fn<Parameters<GetVariantSEOFn>, ReturnType<GetVariantSEOFn>>();
-const updateVariantSEOMock = vi.fn<Parameters<UpdateVariantSEOFn>, ReturnType<UpdateVariantSEOFn>>();
+const getVariantSEOMock = vi.fn<GetVariantSEOFn>();
+const updateVariantSEOMock = vi.fn<UpdateVariantSEOFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

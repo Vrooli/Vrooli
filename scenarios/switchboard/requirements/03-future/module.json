@@ -1,0 +1,130 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may send and receive SMS and MMS through Twilio, treating carrier registration as a recorded operator handoff rather than an automated step.",
+      "id": "SWBD-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "SMS through a provisioned number",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may answer and place voice calls, streaming speech through audio-tools transcription and synthesis.",
+      "id": "SWBD-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Voice calls on a phone number",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may hold a live voice conversation in its own app and may accept a photo or video captured mid-call as turn context.",
+      "id": "SWBD-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Call mode with camera capture",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may place and answer FaceTime Audio calls through a macOS control surface on a Mac fleet node, binding each call to an exact authorised caller identity.",
+      "id": "SWBD-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "FaceTime audio adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may treat issue and pull-request comments that mention the agent as a conversational channel, while leaving every other GitHub capability to the scenario that already owns it.",
+      "id": "SWBD-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "GitHub comment adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may add Discord, Signal, WhatsApp, and Matrix as descriptor-and-adapter pairs with no change to the core, the console, or the conformance suite.",
+      "id": "SWBD-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Additional conversational channels",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may offer a third-party iMessage relay as an explicitly labelled fallback that states its custody trade-off at the point of purchase, and never as a default path.",
+      "id": "SWBD-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "planned",
+      "title": "Hosted relay for owners without a Mac",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may offer number provisioning and carrier registration as a gated convenience, without gating any capability an owner could run with their own credentials.",
+      "id": "SWBD-P2-008",
+      "prd_ref": "OT-P2-008",
+      "status": "planned",
+      "title": "Provisioned handle as a gated offering",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P2-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

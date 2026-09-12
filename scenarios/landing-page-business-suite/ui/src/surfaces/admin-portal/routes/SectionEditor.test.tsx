@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import type { ReactNode } from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { BrowserRouter } from 'react-router-dom';
 import { SectionEditor } from './SectionEditor';
 import * as controller from '../controllers/sectionEditorController';
 import * as api from '../../../shared/api';
 import type { LandingConfigResponse } from '../../../shared/api';
 import { ToastProvider } from '../../../shared/ui/Toast';
+
+let routeParams = { variantSlug: 'test-variant', sectionId: 'section-1-hero' };
 
 // Mock the controller module
 vi.mock('../controllers/sectionEditorController', () => ({
@@ -58,7 +61,7 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    useParams: () => ({ variantSlug: 'test-variant', sectionId: '1' }),
+    useParams: () => routeParams,
   };
 });
 
@@ -133,8 +136,10 @@ const mockLandingConfig: LandingConfigResponse = {
 
 describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   beforeEach(() => {
+    routeParams = { variantSlug: 'test-variant', sectionId: 'section-1-hero' };
     vi.clearAllMocks();
     vi.mocked(controller.loadSectionEditor).mockResolvedValue(mockControllerState);
+    vi.mocked(controller.persistExistingSectionContent).mockResolvedValue(mockControllerState);
     vi.mocked(controller.loadVariantContext).mockResolvedValue(mockVariantContext);
     vi.mocked(api.getLandingConfig).mockResolvedValue(mockLandingConfig);
     vi.mocked(api.listVariants).mockResolvedValue({
@@ -223,14 +228,20 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     renderEditor();
 
     await waitFor(() => {
-      expect(controller.loadSectionEditor).toHaveBeenCalledWith(1);
+      expect(controller.loadSectionEditor).toHaveBeenCalledWith('test-variant', 'section-1-hero');
     });
 
     // Verify form fields are populated
-    const titleInput = (await screen.findByTestId('content-title-input')) as HTMLInputElement;
+    const titleInput = await screen.findByTestId('content-title-input');
+    if (!(titleInput instanceof HTMLInputElement)) {
+      throw new Error('expected content title input to be a native input');
+    }
     expect(titleInput.value).toBe('Test Title');
 
-    const subtitleInput = (await screen.findByTestId('content-subtitle-input')) as HTMLTextAreaElement;
+    const subtitleInput = await screen.findByTestId('content-subtitle-input');
+    if (!(subtitleInput instanceof HTMLTextAreaElement)) {
+      throw new Error('expected content subtitle input to be a native textarea');
+    }
     expect(subtitleInput.value).toBe('Test Subtitle');
   });
 
@@ -241,7 +252,10 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
       expect(screen.getByTestId('section-type-input')).toBeInTheDocument();
     });
 
-    const typeSelect = screen.getByTestId('section-type-input') as HTMLSelectElement;
+    const typeSelect = screen.getByTestId('section-type-input');
+    if (!(typeSelect instanceof HTMLSelectElement)) {
+      throw new Error('expected section type input to be a native select');
+    }
     expect(typeSelect.value).toBe('hero');
   });
 
@@ -329,5 +343,35 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
 
     expect(screen.getByText(/Styling & Tone Guardrails/)).toBeInTheDocument();
     expect(screen.getByText(/Primary CTA/i)).toBeInTheDocument();
+  });
+
+  it('updates section fields, toggles enabled state, and persists the edited content', async () => {
+    renderEditor();
+    const title = await screen.findByTestId('content-title-input');
+    fireEvent.change(title, { target: { value: 'Updated hero' } });
+    fireEvent.change(screen.getByTestId('content-subtitle-input'), { target: { value: 'Updated subtitle' } });
+    fireEvent.change(screen.getByTestId('content-cta-text-input'), { target: { value: 'Start now' } });
+    fireEvent.change(screen.getByTestId('content-cta-url-input'), { target: { value: '/start' } });
+    fireEvent.click(screen.getByTestId('section-enabled-input'));
+    fireEvent.change(screen.getByTestId('section-order-input'), { target: { value: '4' } });
+    fireEvent.click(screen.getByTestId('save-section'));
+    await waitFor(() => {
+      expect(controller.persistExistingSectionContent).toHaveBeenCalledWith(
+        'test-variant',
+        'section-1-hero',
+        expect.objectContaining({ title: 'Updated hero', subtitle: 'Updated subtitle', cta_text: 'Start now', cta_url: '/start' }),
+      );
+    });
+  });
+
+  it('allows a new section to select each supported renderer for live preview', async () => {
+    routeParams = { variantSlug: 'test-variant', sectionId: 'new' };
+    renderEditor();
+    const type = await screen.findByTestId('section-type-input');
+    for (const sectionType of ['features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads'] as const) {
+      fireEvent.change(type, { target: { value: sectionType } });
+      expect(type).toHaveValue(sectionType);
+      expect(screen.getByTestId('section-preview')).toBeInTheDocument();
+    }
   });
 });

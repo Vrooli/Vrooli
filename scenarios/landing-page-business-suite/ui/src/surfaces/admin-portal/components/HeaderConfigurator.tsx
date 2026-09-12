@@ -46,11 +46,11 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
             <div>
               <label className="text-sm text-slate-300 mb-1 block">Display mode</label>
               <select
-                value={config.branding?.mode ?? 'logo_and_name'}
+                value={config.branding.mode}
                 onChange={(e) =>
-                  updateConfig((draft) => {
+                  { updateConfig((draft) => {
                     draft.branding.mode = e.target.value as LandingHeaderConfig['branding']['mode'];
-                  })
+                  }); }
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
               >
@@ -63,11 +63,11 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
             <div>
               <label className="text-sm text-slate-300 mb-1 block">Mobile emphasis</label>
               <select
-                value={config.branding?.mobile_preference ?? 'auto'}
+                value={config.branding.mobile_preference}
                 onChange={(e) =>
-                  updateConfig((draft) => {
+                  { updateConfig((draft) => {
                     draft.branding.mobile_preference = e.target.value as LandingHeaderConfig['branding']['mobile_preference'];
-                  })
+                  }); }
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
               >
@@ -83,11 +83,11 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
               <label className="text-sm text-slate-300 mb-1 block">Brand label</label>
               <input
                 type="text"
-                value={config.branding?.label ?? variantName}
+                value={config.branding.label || variantName}
                 onChange={(e) =>
-                  updateConfig((draft) => {
+                  { updateConfig((draft) => {
                     draft.branding.label = e.target.value;
-                  })
+                  }); }
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
                 placeholder="Header title"
@@ -97,11 +97,11 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
               <label className="text-sm text-slate-300 mb-1 block">Subtitle</label>
               <input
                 type="text"
-                value={config.branding?.subtitle ?? ''}
+                value={config.branding.subtitle || ''}
                 onChange={(e) =>
-                  updateConfig((draft) => {
+                  { updateConfig((draft) => {
                     draft.branding.subtitle = e.target.value;
-                  })
+                  }); }
                 }
                 className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
                 placeholder="Optional tagline"
@@ -117,16 +117,16 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
             <div className="flex gap-2">
               <select
                 value={navTarget}
-                onChange={(e) => setNavTarget(e.target.value)}
+                onChange={(e) => { setNavTarget(e.target.value); }}
                 className="bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
               >
                 <option value="">Select target</option>
-                {sections.map((section, index) => (
+                {sections.map((section) => (
                   <option
-                    key={`${section.section_type}-${section.id ?? index}`}
+                    key={`${section.section_type}-${String(section.id)}`}
                     value={JSON.stringify({
                       type: 'section',
-                      id: section.id ?? null,
+                      id: section.id,
                       section_type: section.section_type,
                       order: section.order,
                     })}
@@ -163,7 +163,7 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                       <input
                         type="text"
                         value={link.label}
-                        onChange={(e) => handleNavLabelChange(index, e.target.value)}
+                        onChange={(e) => { handleNavLabelChange(index, e.target.value); }}
                         className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-2 text-white"
                       />
                     </div>
@@ -172,7 +172,7 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                         <input
                           type="checkbox"
                           checked={link.visible_on?.desktop ?? true}
-                          onChange={(e) => handleVisibilityToggle(index, 'desktop', e.target.checked)}
+                          onChange={(e) => { handleVisibilityToggle(index, 'desktop', e.target.checked); }}
                         />
                         Desktop
                       </label>
@@ -180,24 +180,24 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                         <input
                           type="checkbox"
                           checked={link.visible_on?.mobile ?? true}
-                          onChange={(e) => handleVisibilityToggle(index, 'mobile', e.target.checked)}
+                          onChange={(e) => { handleVisibilityToggle(index, 'mobile', e.target.checked); }}
                         />
                         Mobile
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleMoveLink(index, -1)} disabled={index === 0}>
+                      <Button variant="ghost" size="icon" onClick={() => { handleMoveLink(index, -1); }} disabled={index === 0}>
                         ↑
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleMoveLink(index, 1)}
+                        onClick={() => { handleMoveLink(index, 1); }}
                         disabled={index === config.nav.links.length - 1}
                       >
                         ↓
                       </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleRemoveLink(index)}>
+                      <Button variant="destructive" size="icon" onClick={() => { handleRemoveLink(index); }}>
                         ×
                       </Button>
                     </div>
@@ -207,13 +207,13 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                       ? 'Downloads anchor'
                       : link.type === 'menu'
                         ? 'Dropdown menu'
-                        : `Link to ${link.section_type ?? 'custom target'}`}
+                        : `Link to ${link.section_type || 'custom target'}`}
                   </p>
                   {link.type === 'menu' && (
                     <div className="space-y-2 rounded-md border border-white/10 bg-slate-900/60 p-3">
                       <div className="flex items-center justify-between text-xs text-slate-400">
                         <span>Menu items</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleAddMenuChild(index)}>
+                        <Button size="sm" variant="secondary" onClick={() => { handleAddMenuChild(index); }}>
                           Add item
                         </Button>
                       </div>
@@ -227,7 +227,7 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                             <input
                               type="text"
                               value={child.label}
-                              onChange={(e) => handleMenuChildChange(index, childIndex, 'label', e.target.value)}
+                              onChange={(e) => { handleMenuChildChange(index, childIndex, 'label', e.target.value); }}
                               className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
                             />
                           </div>
@@ -236,11 +236,11 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                             <input
                               type="text"
                               value={child.href ?? ''}
-                              onChange={(e) => handleMenuChildChange(index, childIndex, 'href', e.target.value)}
+                              onChange={(e) => { handleMenuChildChange(index, childIndex, 'href', e.target.value); }}
                               className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
                             />
                           </div>
-                          <Button variant="destructive" size="sm" onClick={() => handleRemoveMenuChild(index, childIndex)}>
+                          <Button variant="destructive" size="sm" onClick={() => { handleRemoveMenuChild(index, childIndex); }}>
                             Remove
                           </Button>
                         </div>
@@ -258,8 +258,8 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
           <div className="space-y-2">
             <h3 className="text-slate-200 font-medium">Primary CTA</h3>
             <select
-              value={config.ctas.primary.mode ?? 'inherit_hero'}
-              onChange={(e) => handleCTAModeChange('primary', { mode: e.target.value as HeaderCTAMode })}
+              value={config.ctas.primary.mode}
+              onChange={(e) => { handleCTAModeChange('primary', { mode: e.target.value as HeaderCTAMode }); }}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
               <option value="inherit_hero">Use hero CTA</option>
@@ -274,14 +274,14 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="Button label"
                   value={config.ctas.primary.label ?? ''}
-                  onChange={(e) => handleCTAModeChange('primary', { label: e.target.value })}
+                  onChange={(e) => { handleCTAModeChange('primary', { label: e.target.value }); }}
                 />
                 <input
                   type="text"
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="https://example.com"
                   value={config.ctas.primary.href ?? ''}
-                  onChange={(e) => handleCTAModeChange('primary', { href: e.target.value })}
+                  onChange={(e) => { handleCTAModeChange('primary', { href: e.target.value }); }}
                 />
               </div>
             )}
@@ -289,8 +289,8 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
           <div className="space-y-2">
             <h3 className="text-slate-200 font-medium">Secondary CTA</h3>
             <select
-              value={config.ctas.secondary.mode ?? 'downloads'}
-              onChange={(e) => handleCTAModeChange('secondary', { mode: e.target.value as HeaderCTAMode })}
+              value={config.ctas.secondary.mode}
+              onChange={(e) => { handleCTAModeChange('secondary', { mode: e.target.value as HeaderCTAMode }); }}
               className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
             >
               <option value="downloads">Downloads anchor</option>
@@ -305,7 +305,7 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                   className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                   placeholder="Button label"
                   value={config.ctas.secondary.label ?? ''}
-                  onChange={(e) => handleCTAModeChange('secondary', { label: e.target.value })}
+                  onChange={(e) => { handleCTAModeChange('secondary', { label: e.target.value }); }}
                 />
                 {config.ctas.secondary.mode === 'custom' && (
                   <input
@@ -313,7 +313,7 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
                     className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
                     placeholder="https://example.com"
                     value={config.ctas.secondary.href ?? ''}
-                    onChange={(e) => handleCTAModeChange('secondary', { href: e.target.value })}
+                    onChange={(e) => { handleCTAModeChange('secondary', { href: e.target.value }); }}
                   />
                 )}
               </div>
@@ -329,12 +329,12 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
               type="checkbox"
               checked={config.behavior.sticky}
               onChange={(e) =>
-                updateConfig((draft) => {
+                { updateConfig((draft) => {
                   draft.behavior.sticky = e.target.checked;
                   if (!e.target.checked) {
                     draft.behavior.hide_on_scroll = false;
                   }
-                })
+                }); }
               }
             />
             Sticky header
@@ -345,9 +345,9 @@ export function HeaderConfigurator({ config, sections, onChange, variantName }: 
               checked={config.behavior.hide_on_scroll}
               disabled={!config.behavior.sticky}
               onChange={(e) =>
-                updateConfig((draft) => {
+                { updateConfig((draft) => {
                   draft.behavior.hide_on_scroll = e.target.checked;
-                })
+                }); }
               }
             />
             Hide on downward scroll

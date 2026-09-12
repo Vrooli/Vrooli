@@ -3,18 +3,90 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "ai_generate_rest",
+      "path": "/api/v1/ai/generate",
+      "method": "POST",
+      "summary": "Generate a shell command with payment-required semantics",
+      "description": "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
+      "category": "ai",
+      "rest_exception": {"reason": "payment_required_semantics", "note": "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract."}
+    },
+    {
+      "id": "subscription_session_provision",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "POST",
+      "summary": "Store a subscription refresh token",
+      "description": "Stores the device-scoped refresh token in the credential authority and returns metadata only.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied refresh token and cannot use generated Connect clients."}
+    },
+    {
+      "id": "subscription_session_status",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "GET",
+      "summary": "Read subscription session status",
+      "description": "Returns whether the subscription refresh token is configured, never the token.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Metadata-only REST exception paired with the browser subscription surface."}
+    },
+    {
+      "id": "subscription_session_delete",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "DELETE",
+      "summary": "Remove the subscription session",
+      "description": "Deletes the device-scoped refresh token and clears the in-process access token.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
+    },
+    {
+      "id": "subscription_summary",
+      "path": "/api/v1/auth/subscription/summary",
+      "method": "GET",
+      "summary": "Read the paid account summary",
+      "description": "Returns metadata-only account, plan, credit, and synchronization status after authenticating the shared subscription lease.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_surface", "note": "Metadata-only browser REST endpoint for the account surface."}
+    },
+    {
+      "id": "credential_provision",
+      "path": "/api/v1/credentials/provision",
+      "method": "POST",
+      "summary": "Store a declared user credential",
+      "description": "Provisions a declared credential and returns metadata only; credential values never leave the authority.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied secret and cannot use a generated Connect client."}
+    },
+    {
+      "id": "credential_delete",
+      "path": "/api/v1/credentials/provision",
+      "method": "DELETE",
+      "summary": "Remove a declared user credential",
+      "description": "Deletes a credential by identity and field without accepting or returning its value.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
+    },
+    {
+      "id": "credential_test",
+      "path": "/api/v1/credentials/test",
+      "method": "POST",
+      "summary": "Test the declared OpenRouter credential",
+      "description": "Performs a minimal provider authentication check and returns validity metadata without returning the key.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Provider credential verification is a browser REST exception."}
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
         "type": "object",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,100 +95,1764 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "web-console status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
     },
     {
-      "id": "create-session",
-      "path": "/api/v1/sessions",
+      "id": "ai_generate",
+      "path": "/vrooli.web_console.v1.ai.AIService/Generate",
       "method": "POST",
-      "summary": "Create a new terminal session",
-      "description": "Starts a new PTY-backed shell session and returns session metadata",
-      "category": "sessions",
+      "summary": "Generate a shell command from natural language",
+      "description": "Runs the provider chain (Ollama -> OpenRouter) to produce a single shell command for the given prompt.",
+      "category": "ai",
       "request": {
         "type": "object",
         "properties": {
-          "shell": "string (optional, defaults to user shell)",
-          "cols": "integer (optional, default 80)",
-          "rows": "integer (optional, default 24)"
+          "context": "string",
+          "prompt": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "id": "string",
-          "shell": "string",
-          "created_at": "string",
-          "cols": "integer",
-          "rows": "integer"
+          "command": "string",
+          "provider": "string"
         }
       },
-      "examples": [
+      "errors": [
         {
-          "name": "Create session",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/sessions -H 'Content-Type: application/json' -d '{\"cols\":80,\"rows\":24}'"
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Prompt missing"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "All AI providers failed"
         }
       ]
     },
     {
-      "id": "list-sessions",
-      "path": "/api/v1/sessions",
+      "id": "ai_suggest",
+      "path": "/vrooli.web_console.v1.ai.AIService/Suggest",
+      "method": "POST",
+      "summary": "Suggest 1-3 candidate shell commands",
+      "description": "Runs the provider chain to produce 1-3 shell-command suggestions for the given prompt.",
+      "category": "ai",
+      "request": {
+        "type": "object",
+        "properties": {
+          "context": "string",
+          "prompt": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "commands": "[]string",
+          "provider": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Prompt missing"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "All AI providers failed"
+        }
+      ]
+    },
+    {
+      "id": "ai_config_get",
+      "path": "/vrooli.web_console.v1.ai.AIService/GetConfig",
+      "method": "POST",
+      "summary": "Get AI provider configuration and health",
+      "description": "Returns the persisted provider configs plus runtime health snapshot.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth",
+          "providers": "[]ProviderConfig"
+        }
+      }
+    },
+    {
+      "id": "ai_config_update",
+      "path": "/vrooli.web_console.v1.ai.AIService/UpdateConfig",
+      "method": "POST",
+      "summary": "Update an AI provider's configuration",
+      "description": "Applies a partial update to one provider's config. Only fields with has_* = true are applied.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth",
+          "providers": "[]ProviderConfig"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown provider or out-of-range value"
+        }
+      ]
+    },
+    {
+      "id": "ai_health_get",
+      "path": "/vrooli.web_console.v1.ai.AIService/GetHealth",
+      "method": "POST",
+      "summary": "Get AI provider health",
+      "description": "Returns only the runtime provider health snapshot.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "health": "[]ProviderHealth"
+        }
+      }
+    },
+    {
+      "id": "audio_admin_get_stream_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetStreamConfig",
+      "method": "POST",
+      "summary": "Get STT stream config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_stream_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateStreamConfig",
+      "method": "POST",
+      "summary": "Update STT stream config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_wake_word_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetWakeWordConfig",
+      "method": "POST",
+      "summary": "Get wake-word config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_wake_word_template",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateWakeWordTemplate",
+      "method": "POST",
+      "summary": "Update wake-word template",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_delete_wake_word_template",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/DeleteWakeWordTemplate",
+      "method": "POST",
+      "summary": "Delete wake-word template",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_speaker_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSpeakerConfig",
+      "method": "POST",
+      "summary": "Get speaker-verification config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_speaker_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateSpeakerConfig",
+      "method": "POST",
+      "summary": "Update speaker-verification config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_speaker_status",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSpeakerStatus",
+      "method": "POST",
+      "summary": "Get speaker-verification status",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_list_speaker_profiles",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ListSpeakerProfiles",
+      "method": "POST",
+      "summary": "List speaker profiles",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_enroll_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/EnrollSpeakerProfile",
+      "method": "POST",
+      "summary": "Enroll a new speaker profile",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_clear_speaker_profile_binding",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ClearSpeakerProfileBinding",
+      "method": "POST",
+      "summary": "Clear all active speaker-profile bindings",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_unbind_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UnbindSpeakerProfile",
+      "method": "POST",
+      "summary": "Unbind a single speaker profile",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_delete_speaker_profile",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/DeleteSpeakerProfile",
+      "method": "POST",
+      "summary": "Delete a speaker profile permanently",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_tts_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetTTSConfig",
+      "method": "POST",
+      "summary": "Get TTS default config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_tts_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateTTSConfig",
+      "method": "POST",
+      "summary": "Update TTS default config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_get_summarize_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/GetSummarizeConfig",
+      "method": "POST",
+      "summary": "Get TTS summarize config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_update_summarize_config",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/UpdateSummarizeConfig",
+      "method": "POST",
+      "summary": "Update TTS summarize config",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_admin_list_summarize_models",
+      "path": "/vrooli.web_console.v1.audio_admin.AudioAdminService/ListSummarizeModels",
+      "method": "POST",
+      "summary": "List TTS summarize models",
+      "description": "",
+      "category": "audio_admin"
+    },
+    {
+      "id": "audio_runtime_transcribe",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Transcribe",
+      "method": "POST",
+      "summary": "Transcribe audio (batch)",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_synthesize",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Synthesize",
+      "method": "POST",
+      "summary": "Synthesize speech from text",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_list_voices",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/ListVoices",
+      "method": "POST",
+      "summary": "List TTS voices",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_get_tts_cache",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/GetTTSCache",
+      "method": "POST",
+      "summary": "Fetch cached TTS audio",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_record_playback_event",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/RecordPlaybackEvent",
+      "method": "POST",
+      "summary": "Record TTS playback event",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "audio_runtime_summarize",
+      "path": "/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/Summarize",
+      "method": "POST",
+      "summary": "Summarize long text",
+      "description": "",
+      "category": "audio_runtime"
+    },
+    {
+      "id": "capabilities_get",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Get",
+      "method": "POST",
+      "summary": "Get full capabilities snapshot",
+      "description": "Returns the full runtime-capability snapshot, including session backends and the active default backend. May trigger expensive verification checks when the server-side cache is stale.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "CapabilityState[]",
+          "default_backend": "string",
+          "session_backends": "BackendOption[]",
+          "timestamp": "string"
+        }
+      }
+    },
+    {
+      "id": "capabilities_liveness",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Liveness",
+      "method": "POST",
+      "summary": "Fast capability liveness probe",
+      "description": "Returns cached full-check results when fresh, otherwise lightweight health checkers only. Suitable for hot-path callers like voice activation.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "capabilities": "CapabilityState[]",
+          "timestamp": "string"
+        }
+      }
+    },
+    {
+      "id": "capabilities_run_action",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/RunAction",
+      "method": "POST",
+      "summary": "Run a delegated capability recovery action",
+      "description": "Runs an explicit user-initiated lifecycle action for a declared scenario dependency, then returns a refreshed capability snapshot.",
+      "category": "capabilities",
+      "response": {
+        "type": "object",
+        "properties": {
+          "action_kind": "string",
+          "capabilities": "CapabilityState[]",
+          "capability_id": "string",
+          "message": "string",
+          "status": "string",
+          "success": "boolean",
+          "timestamp": "string"
+        }
+      }
+    },
+    {
+      "id": "conversation_get",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/Get",
+      "method": "POST",
+      "summary": "Get a session's conversation history",
+      "description": "Returns events and cursor for a session; since_sequence > 0 returns only events after that sequence.",
+      "category": "conversation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "session_id": "string",
+          "since_sequence": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cursor": "ConversationCursor",
+          "events": "[]ConversationEvent",
+          "session_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id"
+        }
+      ]
+    },
+    {
+      "id": "conversation_cursor_update",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/UpdateCursor",
+      "method": "POST",
+      "summary": "Update a session's read/listened cursor",
+      "description": "Partial update; only fields with has_* = true are applied.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cursor": "ConversationCursor"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id"
+        }
+      ]
+    },
+    {
+      "id": "conversation_archived_search",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SearchArchived",
+      "method": "POST",
+      "summary": "Search archived conversation messages",
+      "description": "Uses the FTS5 index across deliberate archives, dismissed recovery rows, and crash orphans; live sessions are excluded.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "distinct_sessions": "int64",
+          "matches": "[]ArchivedSearchMatch",
+          "total_matches": "int64"
+        }
+      }
+    },
+    {
+      "id": "conversation_event_summarize",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SummarizeEvent",
+      "method": "POST",
+      "summary": "Summarize one assistant event for TTS",
+      "description": "Re-runs the Ollama-backed summarizer on a single event and updates its speech paragraphs.",
+      "category": "conversation",
+      "response": {
+        "type": "object",
+        "properties": {
+          "error": "string",
+          "speech_paragraphs": "[]string",
+          "summarized": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing ids or event is not assistant-authored"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or event not found"
+        }
+      ]
+    },
+    {
+      "id": "events_list",
+      "path": "/vrooli.web_console.v1.events.EventsService/List",
+      "method": "POST",
+      "summary": "List recent lifecycle events",
+      "description": "Returns the most recent events from the in-memory ring buffer, newest last. The server caps the limit at 1000.",
+      "category": "events",
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "Event[]",
+          "total": "int32"
+        }
+      }
+    },
+    {
+      "id": "file_preview_resolve",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/Resolve",
+      "method": "POST",
+      "summary": "Resolve a path into a preview target",
+      "description": "Translates a path string (with optional :line suffix or file:// scheme) into rich preview metadata: canonical path, classification, capability flags, and an opaque short-lived preview id the blob route serves bytes against.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "blob_url": "string",
+          "can_download": "bool",
+          "can_preview": "bool",
+          "mime_type": "string",
+          "preview_id": "string",
+          "preview_kind": "PreviewKind",
+          "resolved_path": "string",
+          "size_bytes": "int64",
+          "supports_range": "bool",
+          "text_content_available": "bool",
+          "warnings": "[]string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or malformed path"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Referenced file is not readable"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session or file not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Referenced path is a special file (socket, FIFO, device) or otherwise not previewable"
+        }
+      ]
+    },
+    {
+      "id": "file_preview_text",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/GetTextContent",
+      "method": "POST",
+      "summary": "Read bounded text content for a preview id",
+      "description": "Returns up to 1 MiB of UTF-8 text for a text-kind preview (markdown/code/text/csv/diff). Media and images stream from the blob route instead.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "string",
+          "mime_type": "string",
+          "preview_kind": "PreviewKind",
+          "resolved_path": "string",
+          "truncated": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id or preview_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or missing file"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Preview kind has no inline text content"
+        }
+      ]
+    },
+    {
+      "id": "file_preview_list_directory",
+      "path": "/vrooli.web_console.v1.file_preview.FilePreviewService/ListDirectory",
+      "method": "POST",
+      "summary": "List one page of a resolved directory",
+      "description": "Returns a bounded, sorted page of a directory previously resolved by Resolve, keyed by its opaque preview id. Entries are classified from their extension alone so a page costs no file reads. Pages are capped (1000 max, 200 default) and the scan stops at fifty-thousand entries; size and date sorts are limited to 5000 entries and downgrade to a name sort with a warning above that. The continuation token pins the directory mtime, so a directory that changes mid-walk aborts rather than silently skipping entries.",
+      "category": "file_preview",
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective_sort": "DirectorySort",
+          "entries": "[]DirectoryEntry",
+          "next_page_token": "string",
+          "parent_path": "string",
+          "resolved_path": "string",
+          "total_entries": "int32",
+          "truncated": "bool",
+          "warnings": "[]string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing session_id/preview_id, or a page token that does not match the requested directory, sort, or filter"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Directory is not readable"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or the directory no longer exists"
+        },
+        {
+          "status": 409,
+          "code": "aborted",
+          "description": "Directory changed between pages; the listing must be reloaded"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Preview id does not name a directory"
+        }
+      ]
+    },
+    {
+      "id": "file_preview_blob",
+      "path": "/api/v1/sessions/{id}/file-previews/{previewId}/blob",
       "method": "GET",
-      "summary": "List all active terminal sessions",
-      "description": "Returns metadata for all live PTY sessions",
+      "summary": "Stream the bytes of a resolved preview",
+      "description": "Serves the file bytes for an opaque, session-bound preview id with HTTP Range support (206/Content-Range/Accept-Ranges, 416 on bad range) and HEAD. Content-Type comes from the resolved metadata; no-store + nosniff. Re-stats the file and returns 409 if it changed since resolve. Consumed directly by native <img>/<video>/<audio>/<iframe>.",
+      "category": "file_preview",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown/expired preview id or session mismatch"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "File changed since the preview was resolved; reopen to refresh"
+        },
+        {
+          "status": 416,
+          "code": "range_not_satisfiable",
+          "description": "Requested byte range is invalid"
+        }
+      ],
+      "rest_exception": {
+        "reason": "stream_upgrade",
+        "note": "Byte-range blob stream consumed by native browser media elements without a generated client — the same browser-native-transport category as terminal_ws. Connect's wire format cannot express opaque byte streaming with Range. The opaque preview id (never a raw path) is issued by FilePreviewService.Resolve and bound to the session.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "grouptemplates_list_templates",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/ListTemplates",
+      "method": "POST",
+      "summary": "List group templates",
+      "description": "Returns every saved group template with its ordered role list.",
+      "category": "grouptemplates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "templates": "[]Template"
+        }
+      }
+    },
+    {
+      "id": "grouptemplates_upsert_template",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/UpsertTemplate",
+      "method": "POST",
+      "summary": "Create or update a group template",
+      "description": "Upserts a template by id. A blank id is assigned server-side. Rejects a blank name and an unknown role start_mode.",
+      "category": "grouptemplates",
+      "response": {
+        "type": "object",
+        "properties": {
+          "template": "Template"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name, or a role with an unknown start_mode"
+        }
+      ]
+    },
+    {
+      "id": "grouptemplates_delete_template",
+      "path": "/vrooli.web_console.v1.grouptemplates.GroupTemplatesService/DeleteTemplate",
+      "method": "POST",
+      "summary": "Delete a group template",
+      "description": "Idempotent: succeeds whether the id exists or not. Every template is deletable, including a shipped example.",
+      "category": "grouptemplates"
+    },
+    {
+      "id": "handoffrules_list_rules",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/ListRules",
+      "method": "POST",
+      "summary": "List handoff capture rules",
+      "description": "Returns every capture rule. A rule decides when a handoff is suggested; it never sends one.",
+      "category": "handoffrules",
+      "response": {
+        "type": "object",
+        "properties": {
+          "rules": "[]Rule"
+        }
+      }
+    },
+    {
+      "id": "handoffrules_upsert_rule",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/UpsertRule",
+      "method": "POST",
+      "summary": "Create or update a handoff capture rule",
+      "description": "Upserts a rule by id. A blank id is assigned server-side. Rejects a blank name, a blank pattern, and an unknown source.",
+      "category": "handoffrules",
+      "response": {
+        "type": "object",
+        "properties": {
+          "rule": "Rule"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name, blank pattern, or an unknown source"
+        }
+      ]
+    },
+    {
+      "id": "handoffrules_delete_rule",
+      "path": "/vrooli.web_console.v1.handoffrules.HandoffRulesService/DeleteRule",
+      "method": "POST",
+      "summary": "Delete a handoff capture rule",
+      "description": "Idempotent: succeeds whether the id exists or not. Every rule is deletable, including a shipped example.",
+      "category": "handoffrules"
+    },
+    {
+      "id": "hooks_stop",
+      "path": "/api/v1/hooks/stop",
+      "method": "POST",
+      "summary": "Claude Code Stop hook receiver",
+      "description": "Inbound webhook from the Claude Code CLI fired on the Stop lifecycle event. Routes the assistant's final response into the conversation store and (when present) records agent identity for session recovery. Authenticated by the X-Hook-Token header.",
+      "category": "hooks",
+      "rest_exception": {
+        "reason": "webhook_receiver",
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "hooks_prompt_submit",
+      "path": "/api/v1/hooks/prompt-submit",
+      "method": "POST",
+      "summary": "Claude Code UserPromptSubmit hook receiver",
+      "description": "Inbound webhook from the Claude Code CLI fired when the user submits a prompt. Appends the prompt to the conversation store so the UI sees user turns even when typed through the agent CLI rather than the web console. Authenticated by the X-Hook-Token header.",
+      "category": "hooks",
+      "rest_exception": {
+        "reason": "webhook_receiver",
+        "note": "Called by the Claude Code CLI, which we do not control. Request shape is dictated by Claude Code and cannot be wrapped in a Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "machines_list",
+      "path": "/vrooli.web_console.v1.machines.MachineService/List",
+      "method": "POST",
+      "summary": "List linked machines",
+      "description": "Returns every linked machine with reachability and grant, plus machines asking to join and the permission presets available.",
+      "category": "machines",
+      "response": {
+        "type": "object",
+        "properties": {
+          "join_requests": "[]JoinRequest",
+          "machines": "[]Machine",
+          "presets": "[]PermissionPreset",
+          "state": "FleetState"
+        }
+      }
+    },
+    {
+      "id": "machines_issue_code",
+      "path": "/vrooli.web_console.v1.machines.MachineService/IssueCode",
+      "method": "POST",
+      "summary": "Issue a join code",
+      "description": "Mints a single-use, short-lived code a machine can redeem to join the fleet.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "label": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "code": "string",
+          "expires_in_seconds": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_decide",
+      "path": "/vrooli.web_console.v1.machines.MachineService/Decide",
+      "method": "POST",
+      "summary": "Answer a join request",
+      "description": "Approves or denies one machine asking to join. Approval requires the confirmation words shown by the joining machine.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "approve": "bool",
+          "confirmation_words": "[]string",
+          "preset": "string",
+          "request_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "message": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The confirmation words do not match the derived value"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_set_grant",
+      "path": "/vrooli.web_console.v1.machines.MachineService/SetGrant",
+      "method": "POST",
+      "summary": "Change what a machine may do",
+      "description": "Applies a permission preset, or explicit scopes, to an already-linked machine.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string",
+          "preset": "string",
+          "scopes": "[]string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The machine id or preset is not recognized"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "machines_forget",
+      "path": "/vrooli.web_console.v1.machines.MachineService/Forget",
+      "method": "POST",
+      "summary": "Forget a machine",
+      "description": "Removes one machine from the fleet.",
+      "category": "machines",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "forgotten_machine_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The machine id is not a linked machine"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The fleet control plane did not answer"
+        }
+      ]
+    },
+    {
+      "id": "metrics_get",
+      "path": "/vrooli.web_console.v1.metrics.MetricsService/Get",
+      "method": "POST",
+      "summary": "Get operational metrics snapshot",
+      "description": "Returns a point-in-time snapshot of all operational counters (sessions, connections, messages, reattach, recovery, AI, voice) plus uptime.",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "ai_generations": "int64",
+          "ai_suggestions": "int64",
+          "connections": "ConnectionMetrics",
+          "messages": "MessageMetrics",
+          "reattach": "ReattachMetrics",
+          "recovery": "RecoveryMetrics",
+          "sessions": "SessionMetrics",
+          "uptime": "string",
+          "voice_skip_verification_total": "int64"
+        }
+      }
+    },
+    {
+      "id": "sessions_create",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Create",
+      "method": "POST",
+      "summary": "Create a terminal session",
+      "description": "Spawns a local PTY/tmux pane or routes creation to a dispatchable target catalog node. X-Idempotency-Key replays the cached response for 5 minutes.",
       "category": "sessions",
-      "examples": [
+      "request": {
+        "type": "object",
+        "properties": {
+          "target_id": "string (optional target catalog ID)",
+          "working_dir": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "session": "Session"
+        }
+      },
+      "errors": [
         {
-          "name": "List sessions",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/sessions"
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed body or invalid policy"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target is not dispatchable"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Configured session limit reached"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Backend unavailable (e.g. tmux missing)"
         }
       ]
     },
     {
-      "id": "get-session",
-      "path": "/api/v1/sessions/{id}",
-      "method": "GET",
-      "summary": "Get a specific session",
-      "description": "Returns metadata for a single session by ID",
-      "category": "sessions"
+      "id": "sessions_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/List",
+      "method": "POST",
+      "summary": "List all active sessions",
+      "description": "Returns every live session known to the server, including persistent panes adopted from a prior restart.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]Session"
+        }
+      }
     },
     {
-      "id": "delete-session",
-      "path": "/api/v1/sessions/{id}",
-      "method": "DELETE",
+      "id": "sessions_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Get",
+      "method": "POST",
+      "summary": "Get a session",
+      "description": "Returns one session by id.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "session": "Session"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "sessions_archived_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ListArchived",
+      "method": "POST",
+      "summary": "List archived sessions",
+      "description": "Returns one newest entry per reopen lineage with pane identity, message count, and restore state.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]ArchivedSession",
+          "total": "integer"
+        }
+      }
+    },
+    {
+      "id": "sessions_delete",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Delete",
+      "method": "POST",
       "summary": "Terminate a session",
-      "description": "Kills the PTY process and removes the session",
+      "description": "Idempotent: succeeds whether or not the session existed.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        }
+      ]
+    },
+    {
+      "id": "sessions_archive",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Archive",
+      "method": "POST",
+      "summary": "Archive a terminal session",
+      "description": "Stops the live PTY while preserving the session row, workspace identity, transcript, and agent checkpoints.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "sessions_unarchive",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Unarchive",
+      "method": "POST",
+      "summary": "Undo a session archive marker",
+      "description": "Clears archived_at without starting a replacement process or resuming an agent.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "sessions_recoverable_list",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/ListRecoverable",
+      "method": "POST",
+      "summary": "List recoverable (orphaned) sessions",
+      "description": "Returns awaiting_recovery rows from the session store, ordered by recency.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "sessions": "[]RecoverableSession"
+        }
+      }
+    },
+    {
+      "id": "sessions_recoverable_dismiss",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/DismissRecoverable",
+      "method": "POST",
+      "summary": "Dismiss a recoverable session",
+      "description": "Marks a row dismissed without recovery. On-disk state (CODEX_HOME) is preserved.",
+      "category": "sessions",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such session row"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Session is not in awaiting_recovery status"
+        }
+      ]
+    },
+    {
+      "id": "sessions_recover",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/Recover",
+      "method": "POST",
+      "summary": "Recover an orphaned session",
+      "description": "Spawns a fresh persistent pane, copies CODEX_HOME for codex agents, and pastes the resume command. Idempotent via X-Idempotency-Key.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "agent_type": "string",
+          "codex_home_copied": "bool",
+          "command_sent": "string",
+          "new_session_id": "string",
+          "old_session_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such session row"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Session is not awaiting_recovery, or no agent identity recorded"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Session limit reached while spawning replacement"
+        }
+      ]
+    },
+    {
+      "id": "sessions_archive_retention_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/GetArchiveRetention",
+      "method": "POST",
+      "summary": "Inspect archive retention",
+      "description": "Returns the configured bounds and measured transcript/agent-history storage for explicitly archived sessions.",
       "category": "sessions"
     },
     {
-      "id": "terminal-ws",
-      "path": "/api/v1/sessions/{id}/ws",
-      "method": "GET",
-      "summary": "WebSocket terminal I/O",
-      "description": "Upgrades to WebSocket for bidirectional terminal streaming. JSON message protocol with stdin/stdout/resize/exit types.",
+      "id": "sessions_archive_prune",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/PruneArchive",
+      "method": "POST",
+      "summary": "Preview or apply archive retention",
+      "description": "Dry-run by default. Apply mode prunes agent history first and deletes only old message-less archived transcripts.",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_policy_get",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/GetPolicy",
+      "method": "POST",
+      "summary": "Get a session's expiration policy",
+      "description": "Returns the policy plus derived expires_at/ttl_seconds (present only when has_expiry = true).",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "PolicyView"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "sessions_policy_update",
+      "path": "/vrooli.web_console.v1.sessions.SessionsService/UpdatePolicy",
+      "method": "POST",
+      "summary": "Update a session's expiration policy",
+      "description": "Sets a new policy. Replaying the same mode+duration is a no-op for the audit event log.",
+      "category": "sessions",
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "PolicyView"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id, missing policy, or invalid mode/duration"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Session not found"
+        }
+      ]
+    },
+    {
+      "id": "settings_session_defaults_get",
+      "path": "/vrooli.web_console.v1.settings.SettingsService/GetSessionDefaults",
+      "method": "POST",
+      "summary": "Get session defaults",
+      "description": "Returns the backend and expiration policy applied to newly created sessions when the client doesn't override them.",
+      "category": "settings",
+      "response": {
+        "type": "object",
+        "properties": {
+          "defaults": "SessionDefaults"
+        }
+      }
+    },
+    {
+      "id": "settings_session_defaults_update",
+      "path": "/vrooli.web_console.v1.settings.SettingsService/UpdateSessionDefaults",
+      "method": "POST",
+      "summary": "Update session defaults",
+      "description": "Sparse update: only the fields the caller sets are applied. Returns the merged defaults.",
+      "category": "settings",
+      "request": {
+        "type": "object",
+        "properties": {
+          "default_backend": "string (optional)",
+          "default_policy": "ExpirationPolicy (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "defaults": "SessionDefaults"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown backend or malformed expiration policy"
+        }
+      ]
+    },
+    {
+      "id": "snippets_list",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/ListSnippets",
+      "method": "POST",
+      "summary": "List message snippets",
+      "description": "Returns snippets in pinned and recent-use order.",
+      "category": "snippets",
+      "response": {
+        "type": "object",
+        "properties": {
+          "snippets": "[]Snippet"
+        }
+      }
+    },
+    {
+      "id": "snippets_upsert",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/UpsertSnippet",
+      "method": "POST",
+      "summary": "Create or update a message snippet",
+      "description": "Upserts sender-owned reusable text by id and rejects a blank name.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank snippet name"
+        }
+      ]
+    },
+    {
+      "id": "snippets_delete",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/DeleteSnippet",
+      "method": "POST",
+      "summary": "Delete a message snippet",
+      "description": "Idempotently removes an ordinary snippet row.",
+      "category": "snippets"
+    },
+    {
+      "id": "snippets_touch",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/TouchSnippet",
+      "method": "POST",
+      "summary": "Record a snippet use",
+      "description": "Atomically increments use count and records the latest use time without rewriting content.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Snippet id does not exist"
+        }
+      ]
+    },
+    {
+      "id": "snippets_promote",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/PromoteSnippet",
+      "method": "POST",
+      "summary": "Promote a snippet to a governed skill",
+      "description": "Copies the snippet name and body one way into prompt-manager without linking the records.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Snippet id does not exist"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "prompt-manager binary is not available"
+        }
+      ]
+    },
+    {
+      "id": "shortcuts_get_effective",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/GetEffective",
+      "method": "POST",
+      "summary": "Get effective shortcuts",
+      "description": "Returns the resolved shortcut list — the highest-priority scope (parent > workspace > service) wins, falling back to built-in defaults if no profiles exist.",
+      "category": "shortcuts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "shortcuts": "[]Shortcut"
+        }
+      }
+    },
+    {
+      "id": "shortcuts_list_profiles",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/ListProfiles",
+      "method": "POST",
+      "summary": "List shortcut profiles",
+      "description": "Returns every stored shortcut profile across all scopes.",
+      "category": "shortcuts",
+      "response": {
+        "type": "object",
+        "properties": {
+          "profiles": "[]Profile"
+        }
+      }
+    },
+    {
+      "id": "shortcuts_upsert_profile",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/UpsertProfile",
+      "method": "POST",
+      "summary": "Create or update a shortcut profile",
+      "description": "Idempotent upsert keyed by id; updated_at is only bumped when content changes.",
+      "category": "shortcuts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string",
+          "name": "string",
+          "scope": "string (service|workspace|parent)",
+          "shortcuts": "[]Shortcut"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "profile": "Profile"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown scope, blank id/name, or shortcut entry missing label/command"
+        }
+      ]
+    },
+    {
+      "id": "shortcuts_delete_profile",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/DeleteProfile",
+      "method": "POST",
+      "summary": "Delete a shortcut profile",
+      "description": "Idempotent: succeeds whether the id exists or not.",
+      "category": "shortcuts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      }
+    },
+    {
+      "id": "targets_list",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/List",
+      "method": "POST",
+      "summary": "List terminal locations",
+      "description": "Returns local and remote locations with safe readiness metadata.",
+      "category": "targets",
+      "response": {
+        "type": "object",
+        "properties": {
+          "state": "CatalogState",
+          "targets": "[]Target"
+        }
+      }
+    },
+    {
+      "id": "targets_get",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/Get",
+      "method": "POST",
+      "summary": "Get a terminal location",
+      "description": "Returns one safe target projection by catalog ID.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        }
+      ]
+    },
+    {
+      "id": "targets_doctor",
+      "path": "/vrooli.web_console.v1.targets.TargetCatalogService/Doctor",
+      "method": "POST",
+      "summary": "Diagnose a terminal location",
+      "description": "Returns readiness facts and a first recovery action for one target.",
+      "category": "targets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "summary": "string",
+          "target": "Target"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Target catalog ID not found"
+        }
+      ]
+    },
+    {
+      "id": "terminal_get_screen",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/GetScreen",
+      "method": "POST",
+      "summary": "Read the decoded screen of a session",
+      "description": "Connect-RPC. Returns the cell grid, cursor, alt-buffer flag, scrollback line count, and plain-text rendering of the active screen.",
       "category": "terminal"
     },
     {
-      "id": "get-events",
-      "path": "/api/v1/events",
+      "id": "terminal_send_input",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/SendInput",
+      "method": "POST",
+      "summary": "Send programmatic input to a session",
+      "description": "Connect-RPC. Accepts text, named keys (resolved via the active KeyMap), or raw bytes; routes through the single Session SendInput seam.",
+      "category": "terminal"
+    },
+    {
+      "id": "terminal_wait_idle",
+      "path": "/vrooli.web_console.v1.terminal.TerminalService/WaitIdle",
+      "method": "POST",
+      "summary": "Block until a session is idle",
+      "description": "Connect-RPC. Blocks until the PTY has produced no output for quiet_window, or until timeout elapses, or until the session exits.",
+      "category": "terminal"
+    },
+    {
+      "id": "terminal_upload",
+      "path": "/api/v1/sessions/{id}/upload",
+      "method": "POST",
+      "summary": "Upload an image to a terminal session",
+      "description": "Multipart image upload that stores the image under the session workspace so the user can reference it from the terminal by path.",
+      "category": "terminal",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data upload. Stays REST even post-Connect because Connect's wire format does not natively carry multipart payloads.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "terminal_ws",
+      "path": "/api/v1/sessions/{id}/ws",
       "method": "GET",
-      "summary": "Recent structured events",
-      "description": "Returns recent lifecycle events from the in-memory ring buffer. Query param: limit (default 50, max 1000).",
-      "category": "observability",
-      "examples": [
+      "summary": "Terminal WebSocket bridge",
+      "description": "WebSocket upgrade endpoint for xterm.js. Streams stdin/stdout/resize/keepalive frames between the browser and the per-session PTY (or tmux pane). Migration to Connect server-streaming is deferred to the final streams phase.",
+      "category": "terminal",
+      "rest_exception": {
+        "reason": "stream_upgrade",
+        "note": "xterm.js requires a raw WebSocket upgrade — Connect-RPC cannot express that handshake. Stays REST until a Connect server-streaming RPC replaces it.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "workspace_get_layout",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/GetLayout",
+      "method": "POST",
+      "summary": "Get workspace layout",
+      "description": "Returns the active pane, ordered panes, and tab groups.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "active_pane": "string",
+          "groups": "[]Group",
+          "panes": "[]Pane"
+        }
+      }
+    },
+    {
+      "id": "workspace_save_layout",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/SaveLayout",
+      "method": "POST",
+      "summary": "Save workspace layout",
+      "description": "Persists pane ordering and the active pane selection.",
+      "category": "workspace",
+      "request": {
+        "type": "object",
+        "properties": {
+          "active_pane": "string",
+          "pane_order": "[]string"
+        }
+      }
+    },
+    {
+      "id": "workspace_update_pane",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdatePane",
+      "method": "POST",
+      "summary": "Create or update a pane",
+      "description": "Upserts a pane keyed by session_id. Only fields with has_* = true are applied.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "pane": "Pane"
+        }
+      }
+    },
+    {
+      "id": "workspace_delete_pane",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeletePane",
+      "method": "POST",
+      "summary": "Delete a pane",
+      "description": "Idempotent: succeeds whether the session_id exists or not.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_create_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/CreateGroup",
+      "method": "POST",
+      "summary": "Create a tab group",
+      "description": "Creates a new tab group with the given name and display color.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "group": "Group"
+        }
+      }
+    },
+    {
+      "id": "workspace_update_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdateGroup",
+      "method": "POST",
+      "summary": "Update a tab group",
+      "description": "Updates fields on an existing tab group. Only fields with has_* = true are applied.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "group": "Group"
+        }
+      },
+      "errors": [
         {
-          "name": "Get recent events",
-          "curl": "curl http://localhost:${API_PORT}/api/v1/events?limit=20"
+          "status": 404,
+          "code": "not_found",
+          "description": "Group id does not exist"
         }
       ]
-    }
-  ],
-  "cli_commands": [
+    },
     {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "workspace_delete_group",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteGroup",
+      "method": "POST",
+      "summary": "Delete a tab group",
+      "description": "Idempotent. Panes in the group have their group_id cleared; the group's roles are removed with it.",
+      "category": "workspace"
+    },
+    {
+      "id": "workspace_list_roles",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/ListRoles",
+      "method": "POST",
+      "summary": "List roles",
+      "description": "Returns roles ordered by group then sort_order. A non-empty group_id filters to one group. A role with an empty session_id is waiting: it holds a command and no process.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "roles": "[]Role"
+        }
+      }
+    },
+    {
+      "id": "workspace_create_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/CreateRole",
+      "method": "POST",
+      "summary": "Create a role in a group",
+      "description": "Adds a named position to a group. Omit session_id to create a waiting role, which costs no process until it is started.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "role": "Role"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank group_id, or a session_id already claimed by another role"
+        }
+      ]
+    },
+    {
+      "id": "workspace_update_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/UpdateRole",
+      "method": "POST",
+      "summary": "Update a role",
+      "description": "Updates fields on an existing role. Only fields with has_* = true are applied. Setting has_session_id with an empty session_id returns the role to waiting.",
+      "category": "workspace",
+      "response": {
+        "type": "object",
+        "properties": {
+          "role": "Role"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Role id does not exist"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank group_id, or a session_id already claimed by another role"
+        }
+      ]
+    },
+    {
+      "id": "workspace_delete_role",
+      "path": "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteRole",
+      "method": "POST",
+      "summary": "Delete a role",
+      "description": "Idempotent: succeeds whether the role id exists or not. Deleting a running role leaves its session untouched.",
+      "category": "workspace"
     }
   ]
 }

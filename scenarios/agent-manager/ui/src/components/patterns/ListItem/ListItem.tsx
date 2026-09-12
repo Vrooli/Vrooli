@@ -94,3 +94,62 @@ export function ListItemSubtitle({
     </p>
   );
 }
+
+interface BoundedListProps<T> {
+  items: T[];
+  getKey: (item: T, index: number) => React.Key;
+  renderItem: (item: T, index: number) => React.ReactNode;
+  initialCount?: number;
+  increment?: number;
+}
+
+const DEFAULT_INITIAL_LIST_COUNT = 80;
+const DEFAULT_LIST_INCREMENT = 80;
+
+export function BoundedList<T>({
+  items,
+  getKey,
+  renderItem,
+  initialCount = DEFAULT_INITIAL_LIST_COUNT,
+  increment = DEFAULT_LIST_INCREMENT,
+}: BoundedListProps<T>) {
+  const [visibleCount, setVisibleCount] = React.useState(() =>
+    Math.min(items.length, initialCount)
+  );
+
+  React.useEffect(() => {
+    setVisibleCount((current) => {
+      if (items.length <= initialCount) return items.length;
+      return Math.min(Math.max(current, initialCount), items.length);
+    });
+  }, [initialCount, items.length]);
+
+  const visibleItems = React.useMemo(
+    () => items.slice(0, visibleCount),
+    [items, visibleCount]
+  );
+  const hiddenCount = items.length - visibleItems.length;
+
+  return (
+    <>
+      {visibleItems.map((item, index) => (
+        <React.Fragment key={getKey(item, index)}>
+          {renderItem(item, index)}
+        </React.Fragment>
+      ))}
+      {hiddenCount > 0 && (
+        <div className="border-b border-border px-4 py-3">
+          <button
+            type="button"
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={() =>
+              setVisibleCount((current) => Math.min(items.length, current + increment))
+            }
+          >
+            Show more ({visibleItems.length} of {items.length})
+          </button>
+        </div>
+      )}
+    </>
+  );
+}

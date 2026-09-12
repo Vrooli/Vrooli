@@ -1321,17 +1321,17 @@ func TestValidatorSubflowNodeValidation(t *testing.T) {
 			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 		{
-			name: "inline definition with empty nodes",
+			name: "inline definition is rejected",
 			data: map[string]any{
 				"workflowDefinition": map[string]any{
 					"nodes": []any{},
 					"edges": []any{},
 				},
 			},
-			errorCodes: []string{"WF_SUBFLOW_INLINE_NODES"},
+			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 		{
-			name: "inline definition missing edges",
+			name: "inline definition without edges is rejected",
 			data: map[string]any{
 				"workflowDefinition": map[string]any{
 					"nodes": []any{
@@ -1339,7 +1339,7 @@ func TestValidatorSubflowNodeValidation(t *testing.T) {
 					},
 				},
 			},
-			errorCodes: []string{"WF_SUBFLOW_INLINE_EDGES"},
+			errorCodes: []string{"WF_SUBFLOW_TARGET"},
 		},
 	}
 

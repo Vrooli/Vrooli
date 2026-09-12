@@ -44,19 +44,6 @@ When analyzing a scenario for desktop conversion, evaluate:
 - Team familiar with web technologies
 - Rich ecosystem of plugins needed
 
-**Choose Tauri when:**
-- Performance and bundle size are critical
-- Scenario has simpler UI requirements
-- Security is paramount
-- Resource efficiency matters (mobile, embedded)
-- Rust backend integration beneficial
-
-**Choose Neutralino when:**
-- Minimal footprint required
-- Simple applications without complex native features
-- Cross-platform compatibility with minimal dependencies
-- Resource-constrained environments
-
 ### 3. Template Selection Logic
 
 **Basic Template for:**
@@ -141,7 +128,7 @@ Based on analysis, generate desktop configuration:
   "serverPath": "path/to/server/entry",
   "apiEndpoint": "http://localhost:3001/api",
   
-  "framework": "electron|tauri|neutralino",
+  "framework": "electron",
   "templateType": "basic|advanced|multi_window|kiosk",
   
   "features": {

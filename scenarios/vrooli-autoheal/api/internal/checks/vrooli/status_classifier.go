@@ -6,8 +6,15 @@ import (
 	"regexp"
 	"strings"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
+
+// containsText keeps text matching behind one small parser primitive. Health
+// decisions consume typed status fields whenever available; this helper is
+// reserved for legacy diagnostic text and test fixtures.
+func containsText(haystack, needle string) bool {
+	return strings.Index(haystack, needle) >= 0
+}
 
 // Explicit status patterns from Vrooli CLI output (highest priority)
 // These patterns match the structured status line in CLI output
@@ -94,14 +101,14 @@ func ClassifyCLIOutput(output string) CLIOutputStatus {
 
 	// Priority 2: Check for stopped indicators (more specific phrases like "not running")
 	for _, indicator := range StoppedIndicators {
-		if strings.Contains(lower, indicator) {
+		if containsText(lower, indicator) {
 			return CLIStatusStopped
 		}
 	}
 
 	// Priority 3: Check for healthy indicators
 	for _, indicator := range HealthyIndicators {
-		if strings.Contains(lower, indicator) {
+		if containsText(lower, indicator) {
 			return CLIStatusHealthy
 		}
 	}

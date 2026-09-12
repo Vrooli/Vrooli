@@ -1,4 +1,5 @@
 package services
+
 // DOC: docs/concepts/ARCHITECTURE.md#alerting
 
 import (
@@ -11,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"system-monitor-api/internal/config"
-	"system-monitor-api/internal/models"
-	"system-monitor-api/internal/repository"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // AlertService manages alerts and notifications

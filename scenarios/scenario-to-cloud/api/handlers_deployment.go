@@ -5,20 +5,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
+	"strings"
 	"time"
+
+	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/authz"
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/execplan"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/operations"
+	"scenario-to-cloud/vps"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"scenario-to-cloud/bundle"
-	"scenario-to-cloud/deployment"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/vps"
 )
 
 // handleListDeployments returns all deployment records.
@@ -34,13 +36,13 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 		filter.ScenarioID = &scenarioID
 	}
 
+	if environment := r.URL.Query().Get("environment"); environment != "" {
+		filter.Environment = &environment
+	}
+
 	deployments, err := s.repo.ListDeployments(r.Context(), filter)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "list_deployments_failed",
-			Message: "Failed to list deployments",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.Internal("Failed to list deployments", err))
 		return
 	}
 
@@ -51,6 +53,7 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 			ID:              d.ID,
 			Name:            d.Name,
 			ScenarioID:      d.ScenarioID,
+			Environment:     d.Environment,
 			Status:          d.Status,
 			ErrorMessage:    d.ErrorMessage,
 			ProgressStep:    d.ProgressStep,
@@ -63,11 +66,9 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 			var manifest domain.CloudManifest
 			if err := json.Unmarshal(d.Manifest, &manifest); err == nil {
 				summary.Domain = manifest.Edge.Domain
-				if manifest.Target.VPS != nil {
-					summary.Host = manifest.Target.VPS.Host
-				}
 			}
 		}
+		summary.Host = d.Target.Locator.Host
 		summaries[i] = summary
 	}
 
@@ -81,32 +82,20 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) {
 	req, err := httputil.DecodeJSON[domain.CreateDeploymentRequest](r.Body, 2<<20)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "invalid_json",
-			Message: "Request body must be valid JSON",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.New(apierrors.CodeInvalidJSON, "Request body must be valid JSON").WithDetail("cause", err.Error()))
 		return
 	}
 
 	// Parse and validate the manifest
 	var rawManifest map[string]interface{}
 	if err := json.Unmarshal(req.Manifest, &rawManifest); err != nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{
-			Code:    "invalid_manifest",
-			Message: "Manifest is not valid JSON",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.New(apierrors.CodeManifestInvalid, "Manifest is not valid JSON").WithDetail("cause", err.Error()))
 		return
 	}
 
 	normalized, issues, err := manifest.ValidateRaw(rawManifest)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "manifest_validate_failed",
-			Message: "Failed to validate manifest",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.Internal("Failed to validate manifest", err))
 		return
 	}
 	if manifest.HasBlockingIssues(issues) {
@@ -128,32 +117,26 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// Re-marshal the normalized manifest
 	manifestJSON, err := json.Marshal(normalized)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "marshal_failed",
-			Message: "Failed to marshal normalized manifest",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.Internal("Failed to marshal normalized manifest", err))
 		return
 	}
 
-	// Check for existing deployment with same host+scenario (for update-in-place)
-	var host string
-	if normalized.Target.VPS != nil {
-		host = normalized.Target.VPS.Host
-	}
-	existing, err := s.repo.GetDeploymentByHostAndScenario(r.Context(), host, normalized.Scenario.ID)
+	// A manifest names a scenario, an environment and a target. If that
+	// identity already exists the record is updated in place; the deployment
+	// ID is stable across manifest edits.
+	environment := identity.NormalizeEnvironment(normalized.Environment)
+	target := domain.TargetRefFromManifest(normalized)
+	existing, err := s.findDeploymentForManifest(r.Context(), normalized.Scenario.ID, environment, target)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "lookup_failed",
-			Message: "Failed to check for existing deployment",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, err)
 		return
 	}
 
 	if existing != nil {
 		// Update existing deployment in-place
 		existing.Manifest = manifestJSON
+		existing.Environment = environment
+		existing.Target = target
 		existing.Status = domain.StatusPending
 		existing.ErrorMessage = nil
 		existing.ErrorStep = nil
@@ -172,11 +155,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		}
 
 		if err := s.repo.UpdateDeployment(r.Context(), existing); err != nil {
-			httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-				Code:    "update_failed",
-				Message: "Failed to update existing deployment",
-				Hint:    err.Error(),
-			})
+			apierrors.Write(w, err)
 			return
 		}
 
@@ -197,13 +176,15 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// Create new deployment
 	now := time.Now()
 	deployment := &domain.Deployment{
-		ID:         uuid.New().String(),
-		Name:       name,
-		ScenarioID: normalized.Scenario.ID,
-		Status:     domain.StatusPending,
-		Manifest:   manifestJSON,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          uuid.New().String(),
+		Name:        name,
+		ScenarioID:  normalized.Scenario.ID,
+		Environment: environment,
+		Target:      target,
+		Status:      domain.StatusPending,
+		Manifest:    manifestJSON,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	// Store bundle info if provided
@@ -214,11 +195,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := s.repo.CreateDeployment(r.Context(), deployment); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "create_failed",
-			Message: "Failed to create deployment",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, err)
 		return
 	}
 
@@ -249,6 +226,112 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetDeploymentReceipt returns the durable owner receipt for a
+// successfully deployed VPS target. A deployment record alone is not proof
+// of an external effect, so incomplete or failed records refuse the receipt.
+// GET /deployments/{id}/receipt
+func (s *Server) handleGetDeploymentReceipt(w http.ResponseWriter, r *http.Request) {
+	_, deployment := s.FetchDeploymentOnly(w, r)
+	if deployment == nil {
+		return
+	}
+	receipt, err := s.signedDeploymentReceipt(r.Context(), deployment)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "receipt_unavailable",
+			Message: "Cloud deployment receipt is unavailable",
+			Hint:    err.Error(),
+		})
+		return
+	}
+	// The caller states what it expects; a receipt for another release,
+	// bundle or target is refused here rather than handed out to be
+	// misread. The signature is verified before the receipt leaves the owner.
+	query := r.URL.Query()
+	expect := domain.ReceiptExpectation{DeploymentID: deployment.ID, ReleaseDigest: query.Get("release_digest"), BundleSHA256: query.Get("bundle_sha256"), TargetKey: query.Get("target_key")}
+	if err := receipt.Check(expect); err != nil {
+		apierrors.Write(w, apierrors.New(apierrors.CodeReceiptInvalid, "Cloud deployment receipt does not match the requested identity").WithDetail("cause", err.Error()))
+		return
+	}
+	if err := receipt.VerifySignature(r.Context(), s.publication().signer); err != nil {
+		apierrors.Write(w, apierrors.New(apierrors.CodeReceiptInvalid, "Cloud deployment receipt attestation is invalid").WithDetail("cause", err.Error()))
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"receipt":     receipt,
+		"attestation": map[string]any{"producer_ref": receipt.ProducerRef, "production_signer": s.publication().signerProduction},
+		"timestamp":   time.Now().UTC().Format(time.RFC3339Nano),
+	})
+}
+
+// handleRecoverDeployment executes an owner-routed recovery action and
+// returns a receipt only after the owner observes the requested effect.
+// Halt is the currently supported irreversible-safe action. Other recovery
+// modes refuse explicitly until their owner contracts can prove compatibility.
+// POST /deployments/{id}/recovery
+func (s *Server) handleRecoverDeployment(w http.ResponseWriter, r *http.Request) {
+	id, deployment := s.FetchDeploymentOnly(w, r)
+	if deployment == nil {
+		return
+	}
+	if denied := s.authz.RequireEffect(r.Context(), id, authz.EffectHost); denied != nil {
+		apierrors.Write(w, denied)
+		return
+	}
+	var request cloudRecoveryHTTPRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_recovery_request", Message: "Recovery request is invalid", Hint: err.Error()})
+			return
+		}
+	}
+	if strings.TrimSpace(request.Action) == "" {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_recovery_action", Message: "Recovery action is required"})
+		return
+	}
+	if request.ExpectedBundleSHA != "" && (deployment.BundleSHA256 == nil || normalizeRecoverySHA(request.ExpectedBundleSHA) != normalizeRecoverySHA(*deployment.BundleSHA256)) {
+		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "identity_mismatch", Message: "Recovery target bundle does not match the requested identity"})
+		return
+	}
+	if request.Action != "halt" {
+		s.handleCloudRepairRecovery(w, r, id, deployment, request)
+		return
+	}
+	if request.DryRun {
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "preview", Health: "unknown", DryRun: true}, "timestamp": time.Now().UTC().Format(time.RFC3339Nano)})
+		return
+	}
+	if strings.TrimSpace(request.Confirmation) == "" {
+		httputil.WriteAPIError(w, http.StatusPreconditionFailed, httputil.APIError{Code: "confirmation_required", Message: "Recovery execution requires explicit confirmation"})
+		return
+	}
+	if deployment.Status == domain.StatusStopped {
+		receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "halted", Health: "stopped", ExternalReceipt: "scenario-to-cloud:recovery:" + id, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": receipt.ObservedAt})
+		return
+	}
+	haltCtx, derr := s.loadDeploymentContext(r.Context(), id)
+	if derr != nil {
+		apierrors.Write(w, derr)
+		return
+	}
+	if err := s.repo.UpdateDesiredState(r.Context(), id, domain.DesiredStopped); err != nil {
+		s.log("failed to record desired state", map[string]interface{}{"error": err.Error()})
+	}
+	result := s.stopDeploymentOnVPS(r.Context(), haltCtx)
+	if !result.OK {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{Code: "recovery_failed", Message: "Cloud owner could not halt the deployment", Hint: result.Error})
+		return
+	}
+	if err := s.repo.UpdateDeploymentStatus(r.Context(), id, domain.StatusStopped, nil, nil); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "recovery_persistence_failed", Message: "Cloud owner halted the deployment but could not persist recovery state", Hint: err.Error()})
+		return
+	}
+	s.appendHistoryEvent(r.Context(), id, domain.HistoryEvent{Type: domain.EventStopped, Timestamp: time.Now().UTC(), Message: "Deployment halted by governed recovery", Success: boolPtr(true)})
+	receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: request.Action, Outcome: "halted", Health: "stopped", ExternalReceipt: "scenario-to-cloud:recovery:" + id, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": receipt.ObservedAt})
+}
+
 // handleDeleteDeployment removes a deployment record, optionally stopping it first and cleaning up bundles.
 func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) {
 	stopOnVPS := r.URL.Query().Get("stop") == "true"
@@ -256,6 +339,10 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 
 	id, deployment := s.FetchDeploymentOnly(w, r)
 	if deployment == nil {
+		return
+	}
+	if denied := s.authz.RequireEffect(r.Context(), id, authz.EffectWorkloadMutation); denied != nil {
+		apierrors.Write(w, denied)
 		return
 	}
 
@@ -271,7 +358,10 @@ func (s *Server) handleDeleteDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if stopOnVPS && manifest.Target.VPS != nil {
-		stopResult := s.stopDeploymentOnVPS(r.Context(), manifest)
+		stopResult := domain.VPSDeployResult{OK: false, Error: "deployment context unavailable"}
+		if dctx, derr := s.loadDeploymentContext(r.Context(), id); derr == nil {
+			stopResult = s.stopDeploymentOnVPS(r.Context(), dctx)
+		}
 		if !stopResult.OK {
 			// Log the error but continue with deletion
 			s.log("failed to stop deployment on VPS", map[string]interface{}{
@@ -337,75 +427,53 @@ func (s *Server) cleanupDeploymentBundles(ctx context.Context, deployment *domai
 		}
 	}
 
-	// 2. Delete VPS bundle
-	if manifest.Target.VPS != nil && deployment.BundlePath != nil && *deployment.BundlePath != "" {
-		cfg := ssh.ConfigFromManifest(manifest)
-		workdir := manifest.Target.VPS.Workdir
-		bundleFilename := filepath.Base(*deployment.BundlePath)
-		remoteBundlePath := shellutil.SafeRemoteJoin(workdir, ".vrooli/cloud/bundles", bundleFilename)
-
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// 2. Retire the deployment's target releases through the owner. The
+	// owner keeps the active and previous releases; retirement of a running
+	// workload is the retirement plan's job, not a record deletion's.
+	if manifest.Target.VPS != nil && s.reach != nil {
+		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 		defer cancel()
-
-		cmd := fmt.Sprintf("rm -f %s", shellutil.QuoteSingle(remoteBundlePath))
-		if _, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions()); err != nil {
-			s.log("failed to delete VPS bundle", map[string]interface{}{
-				"path":  remoteBundlePath,
-				"error": err.Error(),
-			})
+		target := deployment.Target
+		if target.IsZero() {
+			target = domain.TargetRefFromManifest(manifest)
+		}
+		resp := bundle.GCTargetReleases(ctx, s.reach, target, deployment.ID, manifest.Scenario.ID, domain.VPSBundleGCRequest{ScenarioID: manifest.Scenario.ID, KeepLatest: 1})
+		if !resp.OK {
+			s.log("failed to prune target releases", map[string]interface{}{"deployment_id": deployment.ID, "error": resp.Error})
 		} else {
-			s.log("deleted VPS bundle", map[string]interface{}{
-				"path": remoteBundlePath,
-			})
+			s.log("pruned target releases", map[string]interface{}{"deployment_id": deployment.ID, "deleted": resp.DeletedCount})
 		}
 	}
 }
 
-// handleExecuteDeployment starts the deployment pipeline in the background.
-// Returns immediately with the deployment info. Clients can subscribe to
-// /deployments/{id}/progress for real-time progress updates via SSE.
-//
-// Idempotency: Uses atomic status transition via StartDeploymentRun to prevent
-// duplicate concurrent executions. The run_id allows tracking which execution
-// produced which results.
+// handleExecuteDeployment admits a durable operation for the full plan and
+// hands it to the operation owner. The response carries the operation id
+// clients wait on (GET /operations/{id}/wait); the SSE progress stream stays
+// available keyed by operation_id. Execution ownership is the durable
+// record, never this request or a goroutine: an owner restart resumes from
+// step receipts. Equal request keys replay the same operation.
 func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-
-	// Parse optional request body for provided secrets
-	var req domain.ExecuteDeploymentRequest
-	if r.Body != nil && r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			// Non-fatal: if body can't be parsed, just use empty secrets
-			s.log("failed to parse execute request body", map[string]interface{}{"error": err.Error()})
-		}
-	}
+	req := decodeExecuteRequest(r, s, "execute")
 
 	dep, err := s.repo.GetDeployment(r.Context(), id)
 	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "get_failed",
-			Message: "Failed to get deployment",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.Internal("Failed to get deployment", err))
 		return
 	}
-
 	if dep == nil {
-		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
-			Code:    "not_found",
-			Message: "Deployment not found",
-		})
+		apierrors.Write(w, deploymentNotFound(id))
+		return
+	}
+	if denied := s.authz.RequireEffect(r.Context(), id, authz.EffectWorkloadMutation); denied != nil {
+		apierrors.Write(w, denied)
 		return
 	}
 
 	// Parse manifest before attempting to start (fail fast on invalid manifest)
 	var m domain.CloudManifest
 	if err := json.Unmarshal(dep.Manifest, &m); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{
-			Code:    "manifest_parse_failed",
-			Message: "Failed to parse deployment manifest",
-			Hint:    err.Error(),
-		})
+		apierrors.Write(w, apierrors.Internal("Failed to parse deployment manifest", err))
 		return
 	}
 
@@ -457,39 +525,46 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Generate a unique run_id for this execution
-	runID := uuid.New().String()
+	// The release archive is a cloud-local input of the plan: build it now
+	// (or rebuild when forced) so the admitted plan pins a real digest.
+	if s.orchestrator != nil && (req.ForceBundleBuild || dep.BundlePath == nil || strings.TrimSpace(*dep.BundlePath) == "") {
+		if _, err := s.orchestrator.EnsureBundle(r.Context(), id, normalized, dep.BundlePath, req.ForceBundleBuild); err != nil {
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Bundle build failed").WithDetail("cause", err.Error()).WithDetail("step", "bundle_build"))
+			return
+		}
+	}
 
-	// Atomic status transition: prevents race conditions where two requests
-	// could both pass a status check and start duplicate deployments.
-	// StartDeploymentRun only succeeds if status is NOT already running.
-	if err := s.repo.StartDeploymentRun(r.Context(), id, runID); err != nil {
-		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
-			Code:    "already_running",
-			Message: "Deployment is already in progress or not found",
-			Hint:    err.Error(),
-		})
+	compiled, cerr := s.compileDeploymentPlan(r.Context(), id, execplan.ScopeFull)
+	if cerr != nil {
+		apierrors.Write(w, cerr)
 		return
 	}
-
-	s.log("deployment run started", map[string]interface{}{
-		"deployment_id": id,
-		"run_id":        runID,
-	})
-
-	// Start deployment in background with the run_id for tracking
-	options := deployment.ExecuteOptions{
-		RunPreflight:     req.RunPreflight,
-		ForceBundleBuild: req.ForceBundleBuild,
+	switch compiled.Plan.Outcome {
+	case execplan.OutcomeNeedsInput:
+		apierrors.Write(w, execplan.NeedsInputError(compiled.Plan.Handoff))
+		return
+	case execplan.OutcomeNoOp:
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{"state": "no_op", "plan_digest": compiled.PlanDigest, "deployment": dep, "timestamp": time.Now().UTC().Format(time.RFC3339)})
+		return
 	}
-	go s.orchestrator.RunPipeline(id, runID, normalized, dep.BundlePath, req.ProvidedSecrets, options)
-
-	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
-		"deployment": dep,
-		"run_id":     runID,
-		"message":    "Deployment started. Subscribe to /deployments/{id}/progress for real-time updates.",
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	requestKey := strings.TrimSpace(req.RequestKey)
+	if requestKey == "" {
+		requestKey = "execute:" + uuid.New().String()
+	}
+	if err := s.repo.UpdateDesiredState(r.Context(), id, domain.DesiredRunning); err != nil {
+		s.log("failed to record desired state", map[string]interface{}{"error": err.Error()})
+	}
+	op, created, aerr := s.admitAndSubmit(r, id, requestKey, compiled, operations.ExecuteOptions{
+		RunPreflight: req.RunPreflight, ForceBundleBuild: req.ForceBundleBuild, ProvidedSecrets: req.ProvidedSecrets,
 	})
+	if aerr != nil {
+		apierrors.Write(w, aerr)
+		return
+	}
+	s.log("deployment operation admitted", map[string]interface{}{
+		"deployment_id": id, "operation_id": op.ID, "request_key": requestKey, "replayed": !created, "plan_digest": op.PlanDigest,
+	})
+	writeOperationAccepted(w, dep, op, !created, "Operation admitted. Wait on /operations/{id}/wait or subscribe to /deployments/{id}/progress?operation_id=<id>.")
 }
 
 // handleInspectDeployment fetches status and logs from the deployed VPS.
@@ -503,7 +578,7 @@ func (s *Server) handleInspectDeployment(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	opts := vps.InspectOptions{TailLines: 200}
-	result := vps.RunInspect(ctx, dctx.Manifest, opts, s.sshRunner)
+	result := vps.RunInspect(ctx, dctx.Manifest, opts, s.proberFor(dctx))
 
 	s.appendHistoryEvent(ctx, dctx.ID, domain.HistoryEvent{
 		Type:      domain.EventInspection,
@@ -532,8 +607,17 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 	if dctx == nil {
 		return
 	}
+	if denied := s.authz.RequireEffect(r.Context(), dctx.ID, authz.EffectWorkloadMutation); denied != nil {
+		apierrors.Write(w, denied)
+		return
+	}
 
-	result := s.stopDeploymentOnVPS(r.Context(), dctx.Manifest)
+	// The intent is recorded first so observation never restarts the
+	// workload while the stop is in flight or after it.
+	if err := s.repo.UpdateDesiredState(r.Context(), dctx.ID, domain.DesiredStopped); err != nil {
+		s.log("failed to record desired state", map[string]interface{}{"error": err.Error()})
+	}
+	result := s.stopDeploymentOnVPS(r.Context(), dctx)
 
 	if result.OK {
 		if err := s.repo.UpdateDeploymentStatus(r.Context(), dctx.ID, domain.StatusStopped, nil, nil); err != nil {
@@ -556,79 +640,66 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleStartDeployment starts/resumes a stopped deployment.
+// handleStartDeployment starts/resumes a stopped deployment as a durable
+// operation over the start-scope plan.
 // POST /deployments/{id}/start
 //
-// This restarts the scenario and its resources without re-running VPS setup.
 // Only works for deployments in 'stopped' or 'setup_complete' status.
 func (s *Server) handleStartDeployment(w http.ResponseWriter, r *http.Request) {
 	dctx := s.FetchDeploymentContext(w, r)
 	if dctx == nil {
 		return
 	}
-
-	// Parse optional request body for provided secrets
-	var req domain.ExecuteDeploymentRequest
-	if r.Body != nil && r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			s.log("failed to parse start request body", map[string]interface{}{"error": err.Error()})
-		}
+	if denied := s.authz.RequireEffect(r.Context(), dctx.ID, authz.EffectWorkloadMutation); denied != nil {
+		apierrors.Write(w, denied)
+		return
 	}
+	req := decodeExecuteRequest(r, s, "start")
 
 	// Validate status - only stopped or setup_complete can be started
 	if dctx.Deployment.Status != domain.StatusStopped && dctx.Deployment.Status != domain.StatusSetupComplete {
-		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
-			Code:    "invalid_status",
-			Message: fmt.Sprintf("Cannot start deployment with status '%s'. Must be 'stopped' or 'setup_complete'.", dctx.Deployment.Status),
-		})
+		apierrors.Write(w, apierrors.New(apierrors.CodeOperationConflict, fmt.Sprintf("Cannot start deployment with status '%s'. Must be 'stopped' or 'setup_complete'.", dctx.Deployment.Status)).
+			WithDetail("status", string(dctx.Deployment.Status)))
 		return
 	}
-
-	// Generate run ID for this execution
-	runID := uuid.New().String()
-
-	// Atomic status transition
-	if err := s.repo.StartDeploymentStart(r.Context(), dctx.ID, runID); err != nil {
-		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
-			Code:    "start_failed",
-			Message: "Cannot start deployment",
-			Hint:    err.Error(),
-		})
+	compiled, cerr := s.compileDeploymentPlan(r.Context(), dctx.ID, execplan.ScopeStart)
+	if cerr != nil {
+		apierrors.Write(w, cerr)
 		return
 	}
-
-	s.log("deployment start initiated", map[string]interface{}{
-		"deployment_id": dctx.ID,
-		"run_id":        runID,
+	if compiled.Plan.Outcome == execplan.OutcomeNeedsInput {
+		apierrors.Write(w, execplan.NeedsInputError(compiled.Plan.Handoff))
+		return
+	}
+	requestKey := strings.TrimSpace(req.RequestKey)
+	if requestKey == "" {
+		requestKey = "start:" + uuid.New().String()
+	}
+	if err := s.repo.UpdateDesiredState(r.Context(), dctx.ID, domain.DesiredRunning); err != nil {
+		s.log("failed to record desired state", map[string]interface{}{"error": err.Error()})
+	}
+	op, created, aerr := s.admitAndSubmit(r, dctx.ID, requestKey, compiled, operations.ExecuteOptions{ProvidedSecrets: req.ProvidedSecrets})
+	if aerr != nil {
+		apierrors.Write(w, aerr)
+		return
+	}
+	s.log("deployment start operation admitted", map[string]interface{}{
+		"deployment_id": dctx.ID, "operation_id": op.ID, "replayed": !created,
 	})
-
-	// Start in background
-	go s.orchestrator.RunStartPipeline(dctx.ID, runID, dctx.Manifest, req.ProvidedSecrets)
-
-	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
-		"deployment_id": dctx.ID,
-		"run_id":        runID,
-		"message":       "Start initiated. Subscribe to /deployments/{id}/progress for real-time updates.",
-		"timestamp":     time.Now().UTC().Format(time.RFC3339),
-	})
+	writeOperationAccepted(w, dctx.Deployment, op, !created, "Start admitted. Wait on /operations/{id}/wait or subscribe to /deployments/{id}/progress?operation_id=<id>.")
 }
 
 // stopDeploymentOnVPS runs the stop command on the remote VPS.
-func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest) domain.VPSDeployResult {
-	normalized, _ := manifest.ValidateAndNormalize(m)
-	cfg := ssh.ConfigFromManifest(normalized)
-	workdir := normalized.Target.VPS.Workdir
-
+// stopDeploymentOnVPS is the scoped lifecycle stop of the deployment's
+// scenario through the target owner (privilegebroker process.stop.scoped):
+// it releases only this deployment's demand on shared resources.
+func (s *Server) stopDeploymentOnVPS(ctx context.Context, dctx *DeploymentContext) domain.VPSDeployResult {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-
-	cmd := shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario stop %s", shellutil.QuoteSingle(normalized.Scenario.ID)))
-
-	_, err := s.sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
+	rt := s.executionRuntime(dctx.Manifest, dctx.ID, "")
+	if _, err := managementRepair(ctx, rt, "process.stop.scoped", map[string]any{"process": map[string]any{"scenario": dctx.Manifest.Scenario.ID, "workdir": dctx.Workdir}}); err != nil {
 		return domain.VPSDeployResult{OK: false, Error: err.Error(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	}
-
 	return domain.VPSDeployResult{OK: true, Timestamp: time.Now().UTC().Format(time.RFC3339)}
 }
 

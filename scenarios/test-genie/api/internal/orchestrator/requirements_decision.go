@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"test-genie/internal/orchestrator/phases"
+
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 )
 
@@ -37,7 +38,7 @@ func newRequirementsSyncDecision(cfg *workspacepkg.Config, plan *phasePlan, resu
 	}
 
 	forced := envBool("TESTING_REQUIREMENTS_SYNC_FORCE")
-	missing, skipped := summarizePhaseCoverage(plan.Definitions, results)
+	missing, skipped := summarizePhaseCoverage(planCoverageDefinitions(plan), results)
 
 	var gatingReason string
 	if len(missing) > 0 {
@@ -61,39 +62,38 @@ func summarizePhaseCoverage(defs []phases.Definition, results []PhaseExecutionRe
 	if len(defs) == 0 {
 		return nil, nil
 	}
+	optional := legacyOptionalLookup(defs)
 	resultLookup := make(map[string]PhaseExecutionResult, len(results))
 	for _, result := range results {
-		key := normalizePhaseName(result.Name)
+		key := phases.NormalizeKey(result.Name)
 		if key == "" {
 			continue
 		}
 		resultLookup[key] = result
 	}
 	for _, def := range defs {
-		if def.Optional {
+		key := def.Name.Key()
+		if optional[key] {
 			continue
 		}
-		key := def.Name.Key()
 		result, exists := resultLookup[key]
 		if !exists {
 			missing = append(missing, def.Name.String())
 			continue
 		}
-		status := strings.ToLower(strings.TrimSpace(result.Status))
-		if isSkippedStatus(status) {
+		if isSkippedPhaseStatus(result.Status) {
 			skipped = append(skipped, def.Name.String())
 		}
 	}
 	return missing, skipped
 }
 
-func isSkippedStatus(status string) bool {
-	switch status {
-	case "skipped", "missing", "not_executable", "not_run":
-		return true
-	default:
-		return false
+func legacyOptionalLookup(defs []phases.Definition) map[string]bool {
+	optional := make(map[string]bool, len(defs))
+	for _, def := range defs {
+		optional[def.Name.Key()] = def.Optional
 	}
+	return optional
 }
 
 func disabledByEnv(key string) bool {

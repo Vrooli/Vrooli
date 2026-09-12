@@ -6,12 +6,18 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/validation"
+	"scenario-to-desktop-api/storagepaths"
+
+	sharedpath "scenario-to-desktop-api/shared/path"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // DefaultOrchestrator implements the Orchestrator interface.
@@ -97,25 +103,12 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	// Default scenario root
 	if o.scenarioRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			// Fallback to current directory if home directory is unavailable
-			// This is a defensive fallback - in practice, home dir is almost always available
-			cwd, cwdErr := os.Getwd()
-			if cwdErr != nil {
-				// Last resort: use a relative path (will be resolved against cwd at runtime)
-				o.scenarioRoot = "scenarios"
-			} else {
-				o.scenarioRoot = filepath.Join(cwd, "scenarios")
-			}
+		o.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if o.scenarioRoot == "" {
+			o.scenarioRoot = filepath.Clean("scenarios")
 			if o.logger != nil {
-				o.logger.Warn("UserHomeDir unavailable, using fallback",
-					"error", err.Error(),
-					"fallback_root", o.scenarioRoot,
-				)
+				o.logger.Warn("Scenario root unavailable from repo contract", "fallback_root", o.scenarioRoot)
 			}
-		} else {
-			o.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
 		}
 	}
 
@@ -125,13 +118,20 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 		// NewAnalyzer expects vrooliRoot (parent of scenarios directory), not scenarioRoot
 		vrooliRoot := filepath.Dir(o.scenarioRoot)
 		analyzer := generation.NewAnalyzer(vrooliRoot)
+		var targetRepo *deploy.TargetRepository
+		if locator, err := storagepaths.NewLocator(); err == nil {
+			if path, err := locator.DeployTargetsPath(); err == nil {
+				targetRepo = deploy.NewTargetRepository(path)
+			}
+		}
 		o.stages = []Stage{
+			NewResolveDeploymentStage(WithResolveDeploymentScenarioRoot(o.scenarioRoot)),
 			NewBundleStage(WithScenarioRoot(o.scenarioRoot)),
 			NewPreflightStage(WithBundleabilityChecker(analyzer)),
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
 			NewBuildStage(),
 			NewSmokeTestStage(),
-			NewDeployStage(WithDeployTargetRepo(deploy.NewTargetRepository(vrooliRoot))),
+			NewDeployStage(WithDeployTargetRepo(targetRepo)),
 		}
 	}
 
@@ -152,101 +152,125 @@ func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg
 // If an idempotency key is provided and a pipeline with that key exists, the existing
 // pipeline status is returned instead of starting a new one. This enables safe retries
 // where "running twice is no worse than running once".
-func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
-	// Validate config
+func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *PipelineConfig) (*Status, error) {
+	config = cloneConfigForExecution(config)
+	if err := validatePipelineConfig(config); err != nil {
+		return nil, err
+	}
+	if existing := o.idempotentPipeline(config.IdempotencyKey); existing != nil {
+		return existing, nil
+	}
+	if err := normalizePipelinePlatforms(config); err != nil {
+		return nil, err
+	}
+	status := o.newPipelineStatus(config)
+	o.store.Save(status)
+	// A pipeline is server-owned work. Its lifetime must not be coupled to the
+	// short-lived Connect request that created it; explicit cancellation remains
+	// available through the cancel manager.
+	pipelineCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	o.cancelManager.Set(status.PipelineID, cancel)
+	go o.runPipelineAsync(pipelineCtx, status.PipelineID, config)
+	return status, nil
+}
+
+// cloneConfigForExecution gives each asynchronous pipeline ownership of its
+// configuration. Callers commonly reuse a request object for retries; keeping
+// that object shared would make normalization and rollback bookkeeping race
+// with the executor of another run.
+func cloneConfigForExecution(config *PipelineConfig) *PipelineConfig {
+	if config == nil {
+		return nil
+	}
+	clone := *config
+	clone.Platforms = append([]string(nil), config.Platforms...)
+	clone.ExpectedArtifactDigests = copyStringMap(config.ExpectedArtifactDigests)
+	if config.PreflightSecrets != nil {
+		clone.PreflightSecrets = make(map[string]string, len(config.PreflightSecrets))
+		for key, value := range config.PreflightSecrets {
+			clone.PreflightSecrets[key] = value
+		}
+	}
+	return &clone
+}
+
+func validatePipelineConfig(config *PipelineConfig) error {
+	if err := config.ValidateFramework(); err != nil {
+		return err
+	}
 	if !validation.IsSafeScenarioName(config.ScenarioName) {
 		if config.ScenarioName == "" {
-			return nil, fmt.Errorf("scenario_name is required")
+			return fmt.Errorf("scenario_name is required")
 		}
-		return nil, fmt.Errorf("invalid scenario_name: contains path traversal characters")
+		return fmt.Errorf("invalid scenario_name: contains path traversal characters")
 	}
-
-	// Validate stop_after_stage if provided
 	if config.StopAfterStage != "" && !IsValidStageName(config.StopAfterStage) {
-		return nil, fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
+		return fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
 	}
-
-	// Validate resume_from_stage if provided
 	if config.ResumeFromStage != "" && !IsValidStageName(config.ResumeFromStage) {
-		return nil, fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
+		return fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
 	}
-
-	// Validate stages if provided
-	if stages := config.GetStages(); len(stages) > 0 {
-		for _, stage := range stages {
-			if !IsValidStageName(stage) {
-				return nil, fmt.Errorf("invalid stage name: %q", stage)
-			}
+	for _, stage := range config.GetStages() {
+		if !IsValidStageName(stage) {
+			return fmt.Errorf("invalid stage name: %q", stage)
 		}
 	}
+	return nil
+}
 
-	// Idempotency check: if an idempotency key is provided, check for existing pipeline
-	// This enables safe retries where replaying a request returns the existing pipeline
-	// instead of starting duplicate work.
-	if config.IdempotencyKey != "" {
-		if existing, ok := o.store.GetByIdempotencyKey(config.IdempotencyKey); ok {
-			o.logger.Info("Idempotency key matched existing pipeline",
-				"idempotency_key", config.IdempotencyKey,
-				"pipeline_id", existing.PipelineID,
-				"status", existing.Status,
-			)
-			return existing, nil
-		}
+func (o *DefaultOrchestrator) idempotentPipeline(key string) *Status {
+	if key == "" {
+		return nil
 	}
+	existing, ok := o.store.GetByIdempotencyKey(key)
+	if !ok {
+		return nil
+	}
+	o.logger.Info("Idempotency key matched existing pipeline", "idempotency_key", key, "pipeline_id", existing.PipelineID, "status", existing.Status)
+	return existing
+}
 
-	// Apply defaults
+func normalizePipelinePlatforms(config *PipelineConfig) error {
 	if len(config.Platforms) == 0 {
 		config.Platforms = []string{currentPlatform()}
 	}
-
-	// Generate pipeline ID
-	pipelineID := o.idGenerator.Generate()
-
-	// Build stage order (filtered if specific stages requested)
-	stagesToUse := o.stages
-	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToUse = o.filterStages(requestedStages)
+	normalized := make([]string, 0, len(config.Platforms))
+	for _, value := range config.Platforms {
+		platform, err := normalizeDesktopPlatform(value)
+		if err != nil {
+			return err
+		}
+		normalized = append(normalized, platform.String())
 	}
-	stageOrder := make([]string, 0, len(stagesToUse))
-	for _, stage := range stagesToUse {
-		stageOrder = append(stageOrder, stage.Name())
-	}
+	config.Platforms = normalized
+	return nil
+}
 
-	// Create initial status
-	status := &Status{
-		PipelineID:     pipelineID,
-		ScenarioName:   config.ScenarioName,
-		Status:         StatusPending,
-		Stages:         make(map[string]*StageResult),
-		StageOrder:     stageOrder,
-		Config:         config,
-		StartedAt:      o.timeProvider.Now(),
-		IdempotencyKey: config.IdempotencyKey, // Store for future lookups
+func (o *DefaultOrchestrator) newPipelineStatus(config *PipelineConfig) *Status {
+	stages := o.stagesForConfig(config)
+	order := make([]string, 0, len(stages))
+	for _, stage := range stages {
+		order = append(order, stage.Name())
 	}
-
-	// Set initial state and progress
+	status := &Status{PipelineID: o.idGenerator.Generate(), ScenarioName: config.ScenarioName, Status: StatusPending, Stages: make(map[string]*StageResult), StageOrder: order, Config: config, StartedAt: o.timeProvider.Now(), IdempotencyKey: config.IdempotencyKey}
 	status.TransitionTo(PipelineStateCreated, "Pipeline created and queued")
 	status.UpdateProgress()
+	return status
+}
 
-	// Save initial status
-	o.store.Save(status)
-
-	// Create cancellable context
-	pipelineCtx, cancel := context.WithCancel(ctx)
-	o.cancelManager.Set(pipelineID, cancel)
-
-	// Run pipeline asynchronously
-	go o.runPipelineAsync(pipelineCtx, pipelineID, config)
-
-	// Return immediately with pipeline ID
-	return status, nil
+func normalizeDesktopPlatform(value string) (resourcedeployment.Platform, error) {
+	value = strings.TrimSpace(value)
+	if !strings.ContainsAny(value, "-_/") {
+		return resourcedeployment.CanonicalPlatform(value, runtime.GOARCH)
+	}
+	return resourcedeployment.ParsePlatform(value)
 }
 
 // RunPipelineBlocking runs a pipeline and blocks until completion or timeout.
 // It starts the pipeline asynchronously, then polls for completion.
 // Returns the final status when complete, failed, or cancelled.
 // Returns an error if the timeout is exceeded or the pipeline disappears.
-func (o *DefaultOrchestrator) RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error) {
+func (o *DefaultOrchestrator) RunPipelineBlocking(ctx context.Context, config *PipelineConfig, timeoutSecs int) (*Status, error) {
 	// Start pipeline async
 	status, err := o.RunPipeline(ctx, config)
 	if err != nil {
@@ -273,7 +297,7 @@ func (o *DefaultOrchestrator) StartPipelineBlocking(ctx context.Context, pipelin
 // CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
 // The pipeline will remain idle until explicitly started via StartPipeline.
 // This is used for auto-creating pipelines when a scenario is selected.
-func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
+func (o *DefaultOrchestrator) CreateIdlePipeline(config *PipelineConfig) (*Status, error) {
 	// Validate config
 	if !validation.IsSafeScenarioName(config.ScenarioName) {
 		if config.ScenarioName == "" {
@@ -315,10 +339,7 @@ func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error
 	pipelineID := o.idGenerator.Generate()
 
 	// Build stage order (filtered if specific stages requested)
-	stagesToUse := o.stages
-	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
-		stagesToUse = o.filterStages(requestedStages)
-	}
+	stagesToUse := o.stagesForConfig(config)
 	stageOrder := make([]string, 0, len(stagesToUse))
 	for _, stage := range stagesToUse {
 		stageOrder = append(stageOrder, stage.Name())
@@ -383,7 +404,8 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 	})
 
 	// Create cancellable context
-	pipelineCtx, cancel := context.WithCancel(ctx)
+	// Resuming follows the same server-owned lifetime rule as a new pipeline.
+	pipelineCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	o.cancelManager.Set(pipelineID, cancel)
 
 	// Run pipeline asynchronously
@@ -397,7 +419,7 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 // UpdatePipelineConfig updates the config of an idle pipeline.
 // Returns error if pipeline is not idle or doesn't exist.
 // This allows updating stop_after_stage and other config fields before starting.
-func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpdates *Config) error {
+func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpdates *PipelineConfig) error {
 	// Get existing status
 	status, ok := o.store.Get(pipelineID)
 	if !ok {
@@ -416,14 +438,14 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 	// Update config fields
 	o.store.Update(pipelineID, func(s *Status) {
 		if s.Config == nil {
-			s.Config = &Config{}
+			s.Config = &PipelineConfig{}
 		}
 		applyConfigStringFields(s.Config, configUpdates)
 		applyConfigBoolFields(s.Config, configUpdates)
 		applyConfigComplexFields(s.Config, configUpdates)
 		if len(configUpdates.Stages) > 0 {
 			s.Config.Stages = configUpdates.Stages
-			stagesToUse := o.filterStages(configUpdates.Stages)
+			stagesToUse := o.stagesForConfig(s.Config)
 			s.StageOrder = make([]string, 0, len(stagesToUse))
 			for _, stage := range stagesToUse {
 				s.StageOrder = append(s.StageOrder, stage.Name())
@@ -440,7 +462,7 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 }
 
 // applyConfigStringFields applies non-empty string field updates from src to dst.
-func applyConfigStringFields(dst, src *Config) {
+func applyConfigStringFields(dst, src *PipelineConfig) {
 	if src.StopAfterStage != "" {
 		dst.StopAfterStage = src.StopAfterStage
 	}
@@ -449,6 +471,12 @@ func applyConfigStringFields(dst, src *Config) {
 	}
 	if src.BundleManifestPath != "" {
 		dst.BundleManifestPath = src.BundleManifestPath
+	}
+	if src.ResourceArtifactRoot != "" {
+		dst.ResourceArtifactRoot = src.ResourceArtifactRoot
+	}
+	if src.ToolArtifactRoot != "" {
+		dst.ToolArtifactRoot = src.ToolArtifactRoot
 	}
 	if src.DeploymentMode != "" {
 		dst.DeploymentMode = src.DeploymentMode
@@ -468,11 +496,20 @@ func applyConfigStringFields(dst, src *Config) {
 	if src.Version != "" {
 		dst.Version = src.Version
 	}
+	if src.ArtifactManifestDigest != "" {
+		dst.ArtifactManifestDigest = src.ArtifactManifestDigest
+	}
+	if src.ArtifactTrustMode != "" {
+		dst.ArtifactTrustMode = src.ArtifactTrustMode
+	}
+	if src.UpdateConfig != nil {
+		dst.UpdateConfig = src.UpdateConfig
+	}
 }
 
 // applyConfigBoolFields applies boolean field updates from src to dst.
 // Boolean fields are only updated when explicitly true (since default is false).
-func applyConfigBoolFields(dst, src *Config) {
+func applyConfigBoolFields(dst, src *PipelineConfig) {
 	if src.SkipPreflight {
 		dst.SkipPreflight = true
 	}
@@ -491,7 +528,7 @@ func applyConfigBoolFields(dst, src *Config) {
 }
 
 // applyConfigComplexFields applies non-nil/non-zero complex field updates from src to dst.
-func applyConfigComplexFields(dst, src *Config) {
+func applyConfigComplexFields(dst, src *PipelineConfig) {
 	if len(src.Platforms) > 0 {
 		dst.Platforms = src.Platforms
 	}
@@ -503,6 +540,9 @@ func applyConfigComplexFields(dst, src *Config) {
 	}
 	if len(src.PreflightSecrets) > 0 {
 		dst.PreflightSecrets = src.PreflightSecrets
+	}
+	if len(src.ExpectedArtifactDigests) > 0 {
+		dst.ExpectedArtifactDigests = copyStringMap(src.ExpectedArtifactDigests)
 	}
 	if src.DeployConfig != nil {
 		dst.DeployConfig = src.DeployConfig
@@ -529,7 +569,7 @@ func (o *DefaultOrchestrator) CancelPipeline(pipelineID string) bool {
 }
 
 // ResumePipeline resumes a stopped pipeline from its next stage.
-func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error) {
+func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *PipelineConfig) (*Status, error) {
 	// Get the parent pipeline
 	parentStatus, ok := o.store.Get(pipelineID)
 	if !ok {
@@ -551,15 +591,20 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 	}
 
 	// Create the resume config
-	resumeConfig := &Config{
+	resumeConfig := &PipelineConfig{
 		ScenarioName:            parentStatus.Config.ScenarioName,
 		Platforms:               parentStatus.Config.Platforms,
 		DeploymentMode:          parentStatus.Config.DeploymentMode,
 		TemplateType:            parentStatus.Config.TemplateType,
 		ProxyURL:                parentStatus.Config.ProxyURL,
 		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
+		ResourceArtifactRoot:    parentStatus.Config.ResourceArtifactRoot,
+		ToolArtifactRoot:        parentStatus.Config.ToolArtifactRoot,
 		Sign:                    parentStatus.Config.Sign,
+		ArtifactTrustMode:       parentStatus.Config.ArtifactTrustMode,
 		DeployConfig:            parentStatus.Config.DeployConfig,
+		ExpectedArtifactDigests: copyStringMap(parentStatus.Config.ExpectedArtifactDigests),
+		ArtifactManifestDigest:  parentStatus.Config.ArtifactManifestDigest,
 		Version:                 parentStatus.Config.Version,
 		PreflightSecrets:        parentStatus.Config.PreflightSecrets,
 		PreflightTimeoutSeconds: parentStatus.Config.PreflightTimeoutSeconds,

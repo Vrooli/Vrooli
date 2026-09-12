@@ -38,6 +38,16 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			allowedOrigin := config.AllowedOrigin
+			validationOrigin := r.Header.Get("Origin")
+			validationRequest := r.Header.Get("X-Vrooli-Test-Mode") == "1" &&
+				(validationOrigin == "http://localhost" || validationOrigin == "http://127.0.0.1" ||
+					strings.HasPrefix(validationOrigin, "http://localhost:") || strings.HasPrefix(validationOrigin, "http://127.0.0.1:"))
+			if validationRequest {
+				// Bundled validation renderers use an ephemeral loopback port. The
+				// marker is emitted only by the target-owned validation seam, so the
+				// exact loopback origin can be admitted without opening remote CORS.
+				allowedOrigin = validationOrigin
+			}
 
 			if allowedOrigin == "" {
 				// SECURITY: In development, UI_PORT must be provided by lifecycle system
@@ -81,7 +91,7 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID, X-Vrooli-Test-Mode, X-Vrooli-Validation-Context")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 			if r.Method == "OPTIONS" {
@@ -102,6 +112,20 @@ func CORSMiddlewareFromEnv(logger *slog.Logger) func(http.Handler) http.Handler 
 		UIPort:        os.Getenv("UI_PORT"),
 		Logger:        logger,
 	})
+}
+
+// SecurityHeaders stamps the baseline browser and transport protections on
+// every API response, including Connect procedures and CORS preflights.
+func SecurityHeaders() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("X-XSS-Protection", "0")
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // LoggingMiddleware creates a request logging middleware that writes Apache-style

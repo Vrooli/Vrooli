@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,8 +12,7 @@ import (
 	"time"
 
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
@@ -23,16 +23,17 @@ type LiveStateRequest struct {
 	DeploymentID string `json:"-"` // Set from URL path
 }
 
-// sshCommand represents a command to execute via SSH with its result destination.
-type sshCommand struct {
-	id      string
-	command string
+// probe is one typed read issued through reach: a vrooli verb or a host
+// observation program. There is no shell string anywhere in a probe.
+type probe struct {
+	id  string
+	cmd reach.Command
 }
 
-// sshCommandResult holds the result of an SSH command.
-type sshCommandResult struct {
+// probeResult holds the answer to one probe.
+type probeResult struct {
 	id         string
-	result     ssh.Result
+	result     reach.Result
 	err        error
 	durationMs int64
 }
@@ -53,16 +54,73 @@ type ProcessInfo struct {
 	Command       string
 }
 
-// RunLiveStateInspection executes SSH commands to gather live state from a VPS.
+func observe(id, program string, args ...string) probe {
+	cmd, err := reach.NewObservation(program, args...)
+	if err != nil {
+		// Probe definitions are static and must be reviewed with the owner
+		// mapping. Keep an invalid definition visible to the caller rather than
+		// silently falling back to a host program.
+		return probe{id: id, cmd: reach.Command{Verb: "cloud-target host observe", Args: []string{"--kind", "invalid"}, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+	}
+	cmd.Timeout = DefaultProbeTimeout
+	return probe{id: id, cmd: cmd}
+}
+
+func verb(id, verb string, args ...string) probe {
+	return probe{id: id, cmd: reach.Command{Verb: verb, Args: args, RequiredScope: "vrooli:read", Timeout: DefaultProbeTimeout}}
+}
+
+// cpuSampleInterval separates the two /proc/stat samples usage is derived
+// from. Tests shorten it.
+var cpuSampleInterval = time.Second
+
+// LiveStateProbes lists every read the inspection issues for a manifest;
+// exported so the architecture tests can prove none of them carries shell
+// syntax and every program is an observation program.
+func LiveStateProbes(manifest domain.CloudManifest, user string) []reach.Command {
+	probes := inspectionProbes(manifest, user, systemmetrics.CollectorForOS("linux"))
+	out := make([]reach.Command, 0, len(probes)+2)
+	out = append(out, observe("os_release", "cat", "/etc/os-release").cmd)
+	for _, p := range probes {
+		out = append(out, p.cmd)
+	}
+	return out
+}
+
+func inspectionProbes(manifest domain.CloudManifest, user string, collector systemmetrics.Collector) []probe {
+	workdir := manifest.Target.VPS.Workdir
+	targetScenario := manifest.Scenario.ID
+	probes := []probe{
+		observe("ps", "ps", "aux", "--no-headers"),
+		observe("ss", "ss", "-tlnp"),
+		observe("ssh_ping", "uname", "-s"),
+		verb("scenario_status", "scenario status", targetScenario, "--json"),
+		verb("resource_status", "resource status", "--json"),
+		observe("caddy_config", "cat", "/etc/caddy/Caddyfile"),
+		observe("caddy_running", "pgrep", "-x", "caddy"),
+		observe("ssh_key_check", "cat", path.Join(HomeDir(user), ".ssh", "authorized_keys")),
+		observe("dir_check", "stat", append([]string{"-c", "%n", "--"}, expectedDirectories(workdir, manifest)...)...),
+	}
+	for _, spec := range collector.SystemCommands() {
+		if spec.ID == systemmetrics.CPUUsageProbeID {
+			continue
+		}
+		probes = append(probes, observe(spec.ID, spec.Program, spec.Args...))
+	}
+	return probes
+}
+
+// RunLiveStateInspection gathers the live state of one target through the
+// prober: typed vrooli verbs for what the control plane reports and bounded
+// observation programs for host facts. Nothing here is effectful.
 // DOC: docs/reference/api-endpoints.md#get-deployment-live-state
 func RunLiveStateInspection(
 	ctx context.Context,
 	manifest domain.CloudManifest,
 	identity sshidentity.DeploymentSSHIdentity,
-	sshRunner ssh.Runner,
+	prober Prober,
 ) domain.LiveStateResult {
 	start := time.Now()
-	cfg := sshidentity.EffectiveSSHConfig(manifest, identity)
 	workdir := manifest.Target.VPS.Workdir
 	targetScenario := manifest.Scenario.ID
 
@@ -73,76 +131,19 @@ func RunLiveStateInspection(
 		}
 	}
 
-	// Build directory check command for expected processes
-	dirCheckCmd := buildDirCheckCommand(workdir, manifest)
-
 	// Determine the best system metrics collector based on OS identity.
 	collector := systemmetrics.CollectorForOS("linux")
-	if osReleaseRes, err := sshRunner.Run(ctx, cfg, "cat /etc/os-release 2>/dev/null || true", ssh.DefaultRunOptions()); err == nil {
+	if osReleaseRes, err := prober.Observe(ctx, "cat", "/etc/os-release"); err == nil {
 		if osID, _ := systemmetrics.ParseOSRelease(osReleaseRes.Stdout); osID != "" {
 			collector = systemmetrics.CollectorForOS(osID)
 		}
 	}
 
-	// Define all commands to execute
-	commands := []sshCommand{
-		{id: "ps", command: "ps aux --no-headers"},
-		{id: "ss", command: "ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null"},
-		{id: "ssh_ping", command: "echo ok"},
-		{id: "scenario_status", command: shellutil.VrooliCommand(workdir, fmt.Sprintf("vrooli scenario status %s --json 2>/dev/null", shellutil.QuoteSingle(targetScenario)))},
-		{id: "resource_status", command: shellutil.VrooliCommand(workdir, "vrooli resource status --json 2>/dev/null")},
-		{id: "caddy_config", command: "cat /etc/caddy/Caddyfile 2>/dev/null || echo ''"},
-		{id: "caddy_running", command: "pgrep -x caddy >/dev/null 2>&1 && echo 'running' || echo 'stopped'"},
-		// SSH health: check if our public key is in authorized_keys
-		{id: "ssh_key_check", command: "cat ~/.ssh/authorized_keys 2>/dev/null || echo ''"},
-		// Check directory existence for expected processes
-		{id: "dir_check", command: dirCheckCmd},
-	}
-	var cpuUsageCommand *sshCommand
-	for _, spec := range collector.SystemCommands() {
-		// Run CPU usage sampling separately after concurrent inspection commands to
-		// avoid self-inflating usage on small VPS instances.
-		if spec.ID == "cpuusage" {
-			cmd := cpuUsageCommandForLiveState(spec.Command)
-			cpuUsageCommand = &sshCommand{id: spec.ID, command: cmd}
-			continue
-		}
-		commands = append(commands, sshCommand{id: spec.ID, command: spec.Command})
-	}
-
-	// Execute commands in parallel
-	results := make(map[string]sshCommandResult)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-
-	for _, cmd := range commands {
-		wg.Add(1)
-		go func(c sshCommand) {
-			defer wg.Done()
-			cmdStart := time.Now()
-			res, err := sshRunner.Run(ctx, cfg, c.command, ssh.DefaultRunOptions())
-			mu.Lock()
-			results[c.id] = sshCommandResult{
-				id:         c.id,
-				result:     res,
-				err:        err,
-				durationMs: time.Since(cmdStart).Milliseconds(),
-			}
-			mu.Unlock()
-		}(cmd)
-	}
-
-	wg.Wait()
-	if cpuUsageCommand != nil {
-		cmdStart := time.Now()
-		res, err := sshRunner.Run(ctx, cfg, cpuUsageCommand.command, ssh.DefaultRunOptions())
-		results[cpuUsageCommand.id] = sshCommandResult{
-			id:         cpuUsageCommand.id,
-			result:     res,
-			err:        err,
-			durationMs: time.Since(cmdStart).Milliseconds(),
-		}
-	}
+	probes := inspectionProbes(manifest, prober.Target.Locator.User, collector)
+	results := runProbes(ctx, prober, probes)
+	// CPU usage sampling runs after the concurrent probes so the probes
+	// themselves do not inflate the reading on small hosts.
+	results[systemmetrics.CPUUsageProbeID] = sampleCPUUsage(ctx, prober, collector)
 
 	// Check for context cancellation
 	if ctx.Err() != nil {
@@ -189,13 +190,12 @@ func RunLiveStateInspection(
 	liveState.Processes = &processState
 
 	// Build expected processes list from manifest
-	dirCheckOutput := results["dir_check"].result.Stdout
-	liveState.Expected = buildExpectedProcesses(manifest, processState, dirCheckOutput)
+	liveState.Expected = buildExpectedProcesses(manifest, processState, parseExistingDirectories(results["dir_check"].result.Stdout, workdir, manifest))
 
 	// Parse Caddy state
 	caddyState := parseCaddyState(
 		results["caddy_config"].result.Stdout,
-		results["caddy_running"].result.Stdout,
+		results["caddy_running"],
 		manifest.Edge.Domain,
 	)
 	liveState.Caddy = &caddyState
@@ -206,14 +206,59 @@ func RunLiveStateInspection(
 	return liveState
 }
 
-func cpuUsageCommandForLiveState(base string) string {
-	if strings.TrimSpace(base) == "" {
-		return base
+// runProbes issues every probe concurrently and collects the answers.
+func runProbes(ctx context.Context, prober Prober, probes []probe) map[string]probeResult {
+	results := make(map[string]probeResult, len(probes)+1)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, p := range probes {
+		wg.Add(1)
+		go func(p probe) {
+			defer wg.Done()
+			cmdStart := time.Now()
+			res, err := prober.Reach.Exec(ctx, prober.Target, p.cmd)
+			mu.Lock()
+			results[p.id] = probeResult{id: p.id, result: res, err: err, durationMs: time.Since(cmdStart).Milliseconds()}
+			mu.Unlock()
+		}(p)
 	}
-	if strings.Contains(base, "/proc/stat") {
-		return "for i in 1 2 3 4; do cat /proc/stat | head -1; if [ \"$i\" -lt 4 ]; then sleep 1; fi; done"
+	wg.Wait()
+	return results
+}
+
+// sampleCPUUsage reads /proc/stat twice, one interval apart, and joins the
+// samples so the collector derives usage from the delta.
+func sampleCPUUsage(ctx context.Context, prober Prober, collector systemmetrics.Collector) probeResult {
+	var spec *systemmetrics.CommandSpec
+	for _, candidate := range collector.SystemCommands() {
+		if candidate.ID == systemmetrics.CPUUsageProbeID {
+			c := candidate
+			spec = &c
+			break
+		}
 	}
-	return base
+	if spec == nil {
+		return probeResult{id: systemmetrics.CPUUsageProbeID}
+	}
+	cmdStart := time.Now()
+	var samples []string
+	var lastErr error
+	for i := 0; i < 2; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return probeResult{id: spec.ID, err: ctx.Err(), durationMs: time.Since(cmdStart).Milliseconds()}
+			case <-time.After(cpuSampleInterval):
+			}
+		}
+		res, err := prober.Observe(ctx, spec.Program, spec.Args...)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		samples = append(samples, strings.TrimSpace(res.Stdout))
+	}
+	return probeResult{id: spec.ID, result: reach.Result{Stdout: strings.Join(samples, "\n")}, err: lastErr, durationMs: time.Since(cmdStart).Milliseconds()}
 }
 
 // buildProcessState constructs domain.ProcessState from raw data.
@@ -271,7 +316,6 @@ func buildProcessState(
 		"redis":        "redis",
 		"qdrant":       "qdrant",
 		"ollama":       "ollama",
-		"browserless":  "browserless",
 		"minio":        "minio",
 	}
 
@@ -483,54 +527,53 @@ func validRawJSON(s string) json.RawMessage {
 	return json.RawMessage(trimmed)
 }
 
-// buildDirCheckCommand creates a shell command to check if directories exist for expected processes.
-// Output format: "type:id:exists" or "type:id:missing" per line
-func buildDirCheckCommand(workdir string, manifest domain.CloudManifest) string {
-	var checks []string
-
-	// Check target scenario directory
-	scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)
-	checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-		shellutil.QuoteSingle(scenarioDir), manifest.Scenario.ID, manifest.Scenario.ID))
-
-	// Check dependent scenarios
+// expectedDirectories lists the scenario and resource directories the
+// manifest expects under the workdir, in a stable order. The stat probe
+// reports which of them exist; a missing one is simply absent from stdout.
+func expectedDirectories(workdir string, manifest domain.CloudManifest) []string {
+	dirs := []string{fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID)}
 	for _, scenarioID := range manifest.Dependencies.Scenarios {
 		if scenarioID == manifest.Scenario.ID {
-			continue // Already checked
+			continue
 		}
-		scenarioDir := fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID)
-		checks = append(checks, fmt.Sprintf("test -d %s && echo 'scenario:%s:exists' || echo 'scenario:%s:missing'",
-			shellutil.QuoteSingle(scenarioDir), scenarioID, scenarioID))
+		dirs = append(dirs, fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID))
 	}
-
-	// Check resource directories
 	for _, resourceID := range manifest.Dependencies.Resources {
-		resourceDir := fmt.Sprintf("%s/resources/%s", workdir, resourceID)
-		checks = append(checks, fmt.Sprintf("test -d %s && echo 'resource:%s:exists' || echo 'resource:%s:missing'",
-			shellutil.QuoteSingle(resourceDir), resourceID, resourceID))
+		dirs = append(dirs, fmt.Sprintf("%s/resources/%s", workdir, resourceID))
 	}
+	return dirs
+}
 
-	if len(checks) == 0 {
-		return "echo 'no_expected_processes'"
+// parseExistingDirectories maps the stat probe output (one existing path
+// per line) back to "type:id" keys.
+func parseExistingDirectories(output, workdir string, manifest domain.CloudManifest) map[string]bool {
+	existing := make(map[string]bool)
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		existing[line] = true
 	}
-
-	return strings.Join(checks, "; ")
+	keys := make(map[string]bool)
+	mark := func(kind, id, dir string) {
+		if existing[dir] {
+			keys[kind+":"+id] = true
+		}
+	}
+	mark("scenario", manifest.Scenario.ID, fmt.Sprintf("%s/scenarios/%s", workdir, manifest.Scenario.ID))
+	for _, scenarioID := range manifest.Dependencies.Scenarios {
+		mark("scenario", scenarioID, fmt.Sprintf("%s/scenarios/%s", workdir, scenarioID))
+	}
+	for _, resourceID := range manifest.Dependencies.Resources {
+		mark("resource", resourceID, fmt.Sprintf("%s/resources/%s", workdir, resourceID))
+	}
+	return keys
 }
 
 // buildExpectedProcesses constructs the expected processes list by comparing manifest with running state.
-func buildExpectedProcesses(manifest domain.CloudManifest, processState domain.ProcessState, dirCheckOutput string) []domain.ExpectedProcess {
+func buildExpectedProcesses(manifest domain.CloudManifest, processState domain.ProcessState, dirExists map[string]bool) []domain.ExpectedProcess {
 	expected := []domain.ExpectedProcess{}
-
-	// Parse directory check output
-	dirExists := make(map[string]bool)
-	for _, line := range strings.Split(dirCheckOutput, "\n") {
-		line = strings.TrimSpace(line)
-		parts := strings.Split(line, ":")
-		if len(parts) == 3 {
-			key := parts[0] + ":" + parts[1] // "scenario:id" or "resource:id"
-			dirExists[key] = parts[2] == "exists"
-		}
-	}
 
 	// Build map of running processes for quick lookup
 	runningScenarios := make(map[string]bool)
@@ -676,7 +719,7 @@ func ParseSSOutput(output string) []domain.PortBinding {
 
 // parseSystemState parses command output into domain.SystemState.
 func parseSystemState(
-	results map[string]sshCommandResult,
+	results map[string]probeResult,
 	identity sshidentity.DeploymentSSHIdentity,
 	pubKeyContent string,
 	collector systemmetrics.Collector,
@@ -738,9 +781,9 @@ func parseSystemState(
 }
 
 // parseCaddyState parses Caddy configuration and status.
-func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) domain.CaddyState {
+func parseCaddyState(caddyfileContent string, running probeResult, expectedDomain string) domain.CaddyState {
 	state := domain.CaddyState{
-		Running: strings.TrimSpace(runningStatus) == "running",
+		Running: running.err == nil && running.result.ExitCode == 0 && strings.TrimSpace(running.result.Stdout) != "",
 		Domain:  expectedDomain,
 		Routes:  []domain.CaddyRoute{},
 	}
@@ -752,18 +795,6 @@ func parseCaddyState(caddyfileContent, runningStatus, expectedDomain string) dom
 	}
 
 	return state
-}
-
-// parseCPUUsageFromTop is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseCPUUsageFromProcStat directly.
-func parseCPUUsageFromTop(output string) float64 {
-	return systemmetrics.ParseCPUUsageFromProcStat(output)
-}
-
-// parseHumanSize is a compatibility wrapper used by existing tests.
-// New code should use systemmetrics.ParseHumanSizeToGB directly.
-func parseHumanSize(s string) int {
-	return systemmetrics.ParseHumanSizeToGB(s)
 }
 
 // parseCaddyRoutes extracts routes from a Caddyfile.

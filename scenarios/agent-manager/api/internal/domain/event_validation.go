@@ -101,8 +101,15 @@ func validateMessageDeletedEvent(evt *RunEvent) {
 
 // validateMetricEvent logs warnings for metric events with suspicious data.
 func validateMetricEvent(evt *RunEvent) {
-	// Handle CostEventData (the primary metric type)
-	if data, ok := evt.Data.(*CostEventData); ok {
+	if _, ok := evt.Data.(*UsageEventData); ok {
+		return
+	}
+	if _, ok := evt.Data.(*ChargeEventData); ok {
+		return
+	}
+	// Usage is the primary metric type. A zero-token usage event is retained
+	// because some providers emit charge evidence separately.
+	if data, ok := evt.Data.(*UsageEventData); ok {
 		// Zero tokens might indicate a parsing issue
 		if data.InputTokens == 0 && data.OutputTokens == 0 {
 			log.Printf("[WARN] metric event has zero tokens (runID=%s)", evt.RunID)

@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "Preflight requirements policy",
+    "description": "Preflight publishes the supported OS identity, recommended version and actionable unsupported/compatibility behaviour before any artifact is copied.",
+    "tags": [
+      "e2e",
+      "api",
+      "preflight"
+    ],
+    "requirements": [
+      "STC-P0-003",
+      "STC-P0-009"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_target": "false",
+      "mutates_repository": "false",
+      "requirements_json": "[\"STC-P0-003\", \"STC-P0-009\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {"id":"requirements-open","action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"destination_type":"NAVIGATE_DESTINATION_TYPE_SCENARIO","scenario":"@scenario/self","scenario_path":"/api/v1/preflight/requirements","wait_for_selector":"body","wait_until":"NAVIGATE_WAIT_EVENT_NETWORKIDLE","timeout_ms":30000},"metadata":{"label":"GET /api/v1/preflight/requirements"}}}
+    ],
+    "edges":[]
+  }
+}

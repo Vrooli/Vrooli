@@ -1,0 +1,444 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — resource lifecycle/report output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of the remaining `vrooli resource ...` --json reports:
+// start-all/stop-all control reports; deprecate/restore + list-deprecated;
+// archive-to-blueprint/restore-blueprint + list-blueprint-archived; archive gc;
+// schema validate/sync; and template list/show/validate/generate. Marshaled
+// with protojson (UseProtoNames=true, EmitUnpopulated=true). All messages are
+// prefixed `Resource*` to stay globally unique within the shared cliv1 package.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Control reports (start-all / stop-all)
+// -----------------------------------------------------------------------------
+
+// ResourceControlResultItem is one resource control outcome (control.ResultItem).
+message ResourceControlResultItem {
+  // Resource slug.
+  string name = 1;
+
+  // Success detail message; empty if unset.
+  string message = 2;
+
+  // Error detail; empty on success.
+  string error = 3;
+}
+
+// ResourceStartAllResponse is `resource start-all --json`
+// (WriteSuccessJSON key "report" carrying control.StartReport).
+message ResourceStartAllResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The start report payload.
+  ResourceStartReport report = 2;
+}
+
+// ResourceStartReport is the start-all report body (control.StartReport).
+message ResourceStartReport {
+  // Resources that started successfully.
+  repeated ResourceControlResultItem started = 1;
+
+  // Resources that failed to start.
+  repeated ResourceControlResultItem failed = 2;
+
+  // Human-readable summary message.
+  string message = 3;
+}
+
+// ResourceStopAllResponse is `resource stop-all --json`
+// (WriteSuccessJSON key "report" carrying control.StopReport).
+message ResourceStopAllResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The stop report payload.
+  ResourceStopReport report = 2;
+}
+
+// ResourceStopReport is the stop-all report body (control.StopReport).
+message ResourceStopReport {
+  // Resources that stopped successfully.
+  repeated ResourceControlResultItem stopped = 1;
+
+  // Resources that failed to stop.
+  repeated ResourceControlResultItem failed = 2;
+
+  // Human-readable summary message.
+  string message = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Deprecation domain (deprecate / restore / list-deprecated)
+// -----------------------------------------------------------------------------
+
+// ResourceDeprecatedResource is one deprecated-resource record
+// (resources.DeprecatedResource).
+message ResourceDeprecatedResource {
+  // Resource slug.
+  string name = 1;
+
+  // Date the resource was deprecated (YYYY-MM-DD).
+  string deprecated_at = 2;
+
+  // Reason for deprecation.
+  string reason = 3;
+
+  // Replacement resource slug; empty if none.
+  string replacement = 4;
+
+  // Filesystem path to the archive; empty if not archived.
+  string archive_path = 5;
+
+  // Content hash of the archive; empty if not archived.
+  string archive_hash = 6;
+
+  // Retention policy in days before purge eligibility.
+  int32 retention_policy_days = 7;
+
+  // True when the archive can be restored.
+  bool restore_supported = 8;
+
+  // Date after which the archive may be purged (YYYY-MM-DD).
+  string purge_after = 9;
+
+  // Date the archive was purged (YYYY-MM-DD); empty if not yet purged.
+  string purged_at = 10;
+}
+
+// ResourceListDeprecatedResponse is `resource list-deprecated --json`
+// (WriteSuccessJSON key "resources").
+message ResourceListDeprecatedResponse {
+  // True when the listing completed; standard CLI success envelope.
+  bool success = 1;
+
+  // All deprecated resources, ordered by name.
+  repeated ResourceDeprecatedResource resources = 2;
+}
+
+// ResourceDeprecationResponse is `resource deprecate --json`
+// (WriteSuccessJSON key "report" carrying resources.DeprecationReport).
+message ResourceDeprecationResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The deprecation report payload.
+  ResourceDeprecationReport report = 2;
+}
+
+// ResourceDeprecationReport is the deprecate report body
+// (resources.DeprecationReport).
+message ResourceDeprecationReport {
+  // The deprecated-resource record produced by the operation.
+  ResourceDeprecatedResource resource = 1;
+
+  // True when an archive was written.
+  bool archived = 2;
+
+  // Archive directory path; empty if no archive was written.
+  string archive_dir = 3;
+}
+
+// ResourceRestoreResponse is `resource restore --json`
+// (WriteSuccessJSON key "report" carrying resources.RestoreReport).
+message ResourceRestoreResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The restore report payload.
+  ResourceRestoreReport report = 2;
+}
+
+// ResourceRestoreReport is the restore report body (resources.RestoreReport).
+message ResourceRestoreReport {
+  // The deprecated-resource record that was restored.
+  ResourceDeprecatedResource resource = 1;
+
+  // True when the resource was restored.
+  bool restored = 2;
+
+  // Filesystem path the resource was restored to; empty if not restored.
+  string restored_path = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Blueprint-archive domain (archive-to-blueprint / restore-blueprint /
+// list-blueprint-archived)
+// -----------------------------------------------------------------------------
+
+// ResourceBlueprintArchivedResource is one blueprint-archived record
+// (resources.BlueprintArchivedResource).
+message ResourceBlueprintArchivedResource {
+  // Resource slug.
+  string name = 1;
+
+  // Date the resource was archived (YYYY-MM-DD).
+  string archived_at = 2;
+
+  // Reason for archival.
+  string reason = 3;
+
+  // Preserved blueprint slug.
+  string blueprint_name = 4;
+
+  // Filesystem path to the archive; empty if not archived.
+  string archive_path = 5;
+
+  // Content hash of the archive; empty if not archived.
+  string archive_hash = 6;
+
+  // Retention policy in days before purge eligibility.
+  int32 retention_policy_days = 7;
+
+  // True when the archive can be restored.
+  bool restore_supported = 8;
+
+  // Date after which the archive may be purged (YYYY-MM-DD).
+  string purge_after = 9;
+
+  // Date the archive was purged (YYYY-MM-DD); empty if not yet purged.
+  string purged_at = 10;
+}
+
+// ResourceListBlueprintArchivedResponse is `resource list-blueprint-archived
+// --json` (WriteSuccessJSON key "resources").
+message ResourceListBlueprintArchivedResponse {
+  // True when the listing completed; standard CLI success envelope.
+  bool success = 1;
+
+  // All blueprint-archived resources, ordered by name.
+  repeated ResourceBlueprintArchivedResource resources = 2;
+}
+
+// ResourceBlueprintArchiveResponse is `resource archive-to-blueprint --json`
+// (WriteSuccessJSON key "report" carrying resources.BlueprintArchiveReport).
+message ResourceBlueprintArchiveResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The blueprint-archive report payload.
+  ResourceBlueprintArchiveReport report = 2;
+}
+
+// ResourceBlueprintArchiveReport is the archive-to-blueprint report body
+// (resources.BlueprintArchiveReport).
+message ResourceBlueprintArchiveReport {
+  // The blueprint-archived record produced by the operation.
+  ResourceBlueprintArchivedResource resource = 1;
+
+  // True when an archive was written.
+  bool archived = 2;
+
+  // Archive directory path; empty if no archive was written.
+  string archive_dir = 3;
+}
+
+// ResourceBlueprintRestoreResponse is `resource restore-blueprint --json`
+// (WriteSuccessJSON key "report" carrying resources.BlueprintRestoreReport).
+message ResourceBlueprintRestoreResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The blueprint-restore report payload.
+  ResourceBlueprintRestoreReport report = 2;
+}
+
+// ResourceBlueprintRestoreReport is the restore-blueprint report body
+// (resources.BlueprintRestoreReport).
+message ResourceBlueprintRestoreReport {
+  // The blueprint-archived record that was restored.
+  ResourceBlueprintArchivedResource resource = 1;
+
+  // True when the resource was restored.
+  bool restored = 2;
+
+  // Filesystem path the resource was restored to; empty if not restored.
+  string restored_path = 3;
+}
+
+// -----------------------------------------------------------------------------
+// Archive garbage collection (archive gc / archive gc-blueprints)
+// -----------------------------------------------------------------------------
+
+// ResourceArchiveGCItem is one archive considered during garbage collection
+// (resources.ArchiveGCItem).
+message ResourceArchiveGCItem {
+  // Resource slug.
+  string name = 1;
+
+  // Archive path; empty if unset.
+  string archive_path = 2;
+
+  // True when the archive was removed during this run.
+  bool removed = 3;
+}
+
+// ResourceArchiveGCResponse is `resource archive gc[-blueprints] --json`
+// (WriteSuccessJSON key "report" carrying resources.ArchiveGCReport).
+message ResourceArchiveGCResponse {
+  // True when the operation completed; standard CLI success envelope.
+  bool success = 1;
+
+  // The archive garbage-collection report payload.
+  ResourceArchiveGCReport report = 2;
+}
+
+// ResourceArchiveGCReport is the archive-gc report body
+// (resources.ArchiveGCReport).
+message ResourceArchiveGCReport {
+  // Archives removed during this run.
+  repeated ResourceArchiveGCItem removed = 1;
+
+  // Archives skipped (not yet eligible or already purged).
+  repeated ResourceArchiveGCItem skipped = 2;
+}
+
+// -----------------------------------------------------------------------------
+// Schema artifacts (schema validate / schema sync)
+// -----------------------------------------------------------------------------
+
+// ResourceSchemaArtifactIssue is one schema artifact problem
+// (resources.SchemaArtifactIssue).
+message ResourceSchemaArtifactIssue {
+  // Artifact path the issue applies to; empty if unset.
+  string path = 1;
+
+  // Human-readable issue message.
+  string message = 2;
+}
+
+// ResourceScenarioResourceReference is one scenario→resource reference that is
+// missing from the catalog (resources.ScenarioResourceReference).
+message ResourceScenarioResourceReference {
+  // Scenario slug that references the resource.
+  string scenario = 1;
+
+  // Referenced resource slug.
+  string resource = 2;
+
+  // Scenario manifest path holding the reference.
+  string manifest_path = 3;
+}
+
+// ResourceSchemaValidationResponse is `resource schema validate --json`
+// (WriteFieldsWithSuccess(passed, "report") — success mirrors report.passed).
+message ResourceSchemaValidationResponse {
+  // True when validation passed; mirrors report.passed.
+  bool success = 1;
+
+  // The schema validation report payload.
+  ResourceSchemaValidationReport report = 2;
+}
+
+// ResourceSchemaValidationReport is the schema-validate report body
+// (resources.ResourceSchemaValidationReport).
+message ResourceSchemaValidationReport {
+  // True when the artifact matched and no references were missing.
+  bool passed = 1;
+
+  // Number of resources considered.
+  int32 resource_count = 2;
+
+  // Path to the resource-definitions artifact that was checked.
+  string definition_path = 3;
+
+  // Artifact-level issues; empty when the artifact was current.
+  repeated ResourceSchemaArtifactIssue artifact_issues = 4;
+
+  // Scenario references missing from the catalog; empty when complete.
+  repeated ResourceScenarioResourceReference missing_references = 5;
+}
+
+// ResourceSchemaSyncResponse is `resource schema sync --json`
+// (WriteFieldsWithSuccess(passed, "report") — success mirrors report.passed).
+message ResourceSchemaSyncResponse {
+  // True when the sync completed clean; mirrors report.passed.
+  bool success = 1;
+
+  // The schema sync report payload.
+  ResourceSchemaSyncReport report = 2;
+}
+
+// ResourceSchemaSyncReport is the schema-sync report body
+// (resources.ResourceSchemaSyncReport).
+message ResourceSchemaSyncReport {
+  // True when no outstanding issues remained after the sync.
+  bool passed = 1;
+
+  // Number of resources considered.
+  int32 resource_count = 2;
+
+  // Path to the resource-definitions artifact that was written.
+  string definition_path = 3;
+
+  // Artifact paths written during the sync; empty if nothing changed.
+  repeated string written_paths = 4;
+
+  // Scenario references still missing from the catalog; empty when complete.
+  repeated ResourceScenarioResourceReference missing_references = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Resource validation (resource validate)
+// -----------------------------------------------------------------------------
+
+// ResourceValidationIssue is one validation issue (resources.ValidationIssue).
+message ResourceValidationIssue {
+  // Severity label (e.g. "error", "warning").
+  string severity = 1;
+
+  // Human-readable issue message.
+  string message = 2;
+}
+
+// ResourceValidationItem is one resource's validation result
+// (resources.ResourceValidationItem).
+message ResourceValidationItem {
+  // Resource slug.
+  string name = 1;
+
+  // Resource manifest path; empty if unset.
+  string manifest_path = 2;
+
+  // Backing driver identifier; empty if unset.
+  string driver = 3;
+
+  // Issues found for this resource; empty when clean.
+  repeated ResourceValidationIssue issues = 4;
+}
+
+// ResourceValidationReport is the resource-validate report body
+// (resources.ResourceValidationReport).
+message ResourceValidationReport {
+  // Number of resources considered.
+  int32 count = 1;
+
+  // True when no error-severity issues were found.
+  bool passed = 2;
+
+  // Per-resource validation results; empty when none.
+  repeated ResourceValidationItem items = 3;
+
+  // Report-level issues not tied to a single resource; empty when none.
+  repeated ResourceValidationIssue issues = 4;
+}
+
+// ResourceValidationResponse is `resource validate --json`
+// (WriteFieldsWithSuccess(passed, "report") — success mirrors report.passed).
+message ResourceValidationResponse {
+  // True when validation passed; mirrors report.passed.
+  bool success = 1;
+
+  // The resource validation report payload.
+  ResourceValidationReport report = 2;
+}

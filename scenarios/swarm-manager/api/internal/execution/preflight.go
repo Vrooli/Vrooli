@@ -7,20 +7,105 @@ import (
 	"path/filepath"
 	"strings"
 
-	"swarm-manager/internal/workshop"
+	"swarm-manager/internal/identity"
 )
 
-// ProcessPreflight evaluates whether a backlog item is ready for processing.
-func (s *Service) ProcessPreflight(_ context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
+// PreflightSpec is the caller-supplied form of a backlog item's spec. It
+// exists for callers that already hold the item loaded — a list projection
+// reads every spec once, and re-reading each one to answer readiness is pure
+// duplicate IO. Every field readiness consults is present, so a spec built
+// from an already-loaded item produces the same verdict as one read from disk.
+type PreflightSpec struct {
+	Kind               string
+	Name               string
+	Title              string
+	Description        string
+	Status             string
+	SourceScenarioName string
+	AcceptanceAllow    []string
+	AcceptanceDeny     []string
+	Creates            []string
+	ArchivedAt         *string
+	PlanRef            *PlanRefSpec
+	ExecutionStrategy  string
+	ExecutionLimits    *identity.ExecutionLimits
+	Continuation       string
+	ScopePolicy        string
+	PlanAcceptance     *PlanAcceptanceSpec
+}
+
+// PreflightPlanRef mirrors the plan_ref block of a backlog spec.
+type PlanRefSpec struct {
+	Provider string
+	PlanID   string
+	Slug     string
+	Role     string
+}
+
+// PlanAcceptanceSpec mirrors the plan_acceptance block of a backlog spec.
+type PlanAcceptanceSpec struct {
+	Actor           string
+	AcceptedAt      string
+	PlanContentHash string
+	SubjectVersion  string
+}
+
+// ProcessPreflight evaluates whether a backlog item is ready for processing,
+// reading the item's spec from disk.
+func (s *Service) ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (ProcessPreflight, error) {
 	item, err := s.loadBacklogItem(backlogKind, backlogName)
 	if err != nil {
 		return ProcessPreflight{}, err
 	}
-	return s.processPreflightForItem(item, true), nil
+	return s.processPreflightForItem(ctx, item, true), nil
 }
 
-func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool) ProcessPreflight {
+// ProcessPreflightForSpec evaluates readiness from an already-loaded spec.
+func (s *Service) ProcessPreflightForSpec(ctx context.Context, spec PreflightSpec) ProcessPreflight {
+	return s.processPreflightForItem(ctx, spec.toBacklogItem(), true)
+}
+
+func (spec PreflightSpec) toBacklogItem() backlogItem {
+	item := backlogItem{
+		Name:               strings.TrimSpace(spec.Name),
+		Title:              spec.Title,
+		Description:        spec.Description,
+		Status:             spec.Status,
+		Kind:               strings.ToLower(strings.TrimSpace(spec.Kind)),
+		SourceScenarioName: spec.SourceScenarioName,
+		AcceptanceAllow:    spec.AcceptanceAllow,
+		AcceptanceDeny:     spec.AcceptanceDeny,
+		Creates:            spec.Creates,
+		ArchivedAt:         spec.ArchivedAt,
+		Tags:               []string{},
+		ExecutionStrategy:  strings.ToLower(strings.TrimSpace(spec.ExecutionStrategy)),
+		ExecutionLimits:    spec.ExecutionLimits.Clone(),
+		Continuation:       strings.ToLower(strings.TrimSpace(spec.Continuation)),
+		ScopePolicy:        strings.ToLower(strings.TrimSpace(spec.ScopePolicy)),
+	}
+	if spec.PlanRef != nil {
+		item.PlanRef = &planRef{Provider: spec.PlanRef.Provider, PlanID: spec.PlanRef.PlanID, Slug: spec.PlanRef.Slug, Role: spec.PlanRef.Role}
+	}
+	if spec.PlanAcceptance != nil {
+		item.PlanAcceptance = &planAcceptance{
+			Actor:           spec.PlanAcceptance.Actor,
+			AcceptedAt:      spec.PlanAcceptance.AcceptedAt,
+			PlanContentHash: spec.PlanAcceptance.PlanContentHash,
+			SubjectVersion:  spec.PlanAcceptance.SubjectVersion,
+		}
+	}
+	return item
+}
+
+func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem, checkQueueable bool) ProcessPreflight {
 	targetScenarioID, archivedRevival := resolveTargetScenario(item)
+	planBacked := hasExecutionPlanRef(item)
+	// A plan-backed item can span several scenarios and its name identifies
+	// the work, not a scenario to generate. Preserve an explicit revival
+	// source, but never infer a new scenario from a canonical plan's item name.
+	if planBacked && strings.TrimSpace(item.SourceScenarioName) == "" {
+		targetScenarioID = ""
+	}
 	targetScenarioExists := false
 	if strings.TrimSpace(targetScenarioID) != "" {
 		targetScenarioExists = scenarioExists(filepath.Join(s.scenariosRootDir(), targetScenarioID))
@@ -36,51 +121,139 @@ func (s *Service) processPreflightForItem(item backlogItem, checkQueueable bool)
 		SuggestedOperation:       "generator",
 		SuggestedSteerProfileID:  "rapid-mvp",
 	}
+	if strategy := strings.TrimSpace(item.ExecutionStrategy); strategy != "" {
+		if strategy != defaultExecutionStrategy && strategy != adaptiveImprovementStrategy && strategy != "goal-session" {
+			appendPreflightBlocker(&preflight, "execution_strategy_invalid", fmt.Sprintf("execution strategy is not declared: %s", strategy), false)
+		}
+		if strategy == "goal-session" {
+			if capability, ok := s.agentService.(NativeGoalAvailability); ok {
+				nativeAvailable, capabilityErr := capability.NativeGoalRunnersAvailable(ctx)
+				if capabilityErr != nil {
+					appendPreflightBlocker(&preflight, "goal_session_runner_catalog_unavailable", fmt.Sprintf("native goal runner catalog is unavailable: %s", capabilityErr), false)
+				} else if !nativeAvailable {
+					appendPreflightBlocker(&preflight, "goal_session_runner_unavailable", "goal-session requires at least one available native-capable runner; force may bypass this capability preflight", true)
+				}
+			}
+		}
+	}
+	if value := strings.TrimSpace(item.Continuation); value != "" && value != "manual" && value != "until-allowance" {
+		appendPreflightBlocker(&preflight, "continuation_invalid", fmt.Sprintf("continuation is not declared: %s (accepted: manual, until-allowance)", value), false)
+	}
+	if value := strings.TrimSpace(item.ScopePolicy); value != "" && value != "fixed" && value != "extend-with-record" {
+		appendPreflightBlocker(&preflight, "scope_policy_invalid", fmt.Sprintf("scope policy is not declared: %s (accepted: fixed, extend-with-record)", value), false)
+	}
+	if err := item.ExecutionLimits.Validate(); err != nil {
+		appendPreflightBlocker(&preflight, "execution_limits_invalid", err.Error(), false)
+	}
 	if targetScenarioExists {
 		preflight.SuggestedOperation = "improver"
 		preflight.SuggestedSteerProfileID = "production-ready"
 	}
+	if planBacked {
+		preflight.SuggestedOperation = "plan.execute"
+		preflight.SuggestedSteerProfileID = ""
+	}
 
 	isArchived := item.ArchivedAt != nil
 	if checkQueueable && !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status))
+		appendPreflightBlocker(&preflight, "circuit_open", fmt.Sprintf("backlog item cannot be queued from current status: %s", item.Status), false)
 	}
 
-	// Check workshop readiness instead of clarify questions.
-	itemDir := s.itemDir(item.Kind, item.Name)
-	deliverablePath := deliverableForKind(item.Kind)
-	if !workshop.HasPlanByName(itemDir, deliverablePath) {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, missingDeliverableReason(item.Kind, deliverablePath))
+	// Execution requires an explicit acceptance of the current canonical plan.
+	// Workshop artifacts remain historical context only; score thresholds are
+	// deliberately not a release gate.
+	hasDeliverable := hasExecutionPlanRef(item)
+	if !hasDeliverable {
+		appendPreflightBlocker(&preflight, "plan_invalid", missingDeliverableReason(), false)
 	}
-	rounds, _ := workshop.LoadRounds(itemDir)
-	if len(rounds) > 0 {
-		latest := rounds[len(rounds)-1]
-		rawScores := make(map[string]int, len(workshop.ReadinessDimensions))
-		for _, dim := range workshop.ReadinessDimensions {
-			if v, ok := latest.Readiness[dim]; ok {
-				rawScores[dim] = v
-			}
+	if hasDeliverable {
+		acceptanceBlocker := s.planAcceptanceBlockingReason(ctx, item)
+		if acceptanceBlocker.Message != "" {
+			appendPreflightBlocker(&preflight, acceptanceBlocker.Code, acceptanceBlocker.Message, false)
 		}
-		effective := workshop.ComputeEffectiveScores(rawScores, len(rounds), item.Kind)
-		for _, dim := range workshop.ReadinessDimensions {
-			if effective[dim] < 3 {
-				preflight.BlockingReasons = append(preflight.BlockingReasons, fmt.Sprintf("readiness dimension %q is %d/3 — needs more workshop refinement", dim, effective[dim]))
-			}
-		}
-	} else if workshop.HasPlanByName(itemDir, deliverablePath) {
-		// Primary deliverable exists but no workshop rounds — allow execution
-		// (manually created artifact).
-	} else {
-		preflight.BlockingReasons = append(preflight.BlockingReasons, "no workshop rounds completed — run workshop or initialize first")
 	}
 
-	preflight.Ready = len(preflight.BlockingReasons) == 0
+	// Fix-before-feature gate applies only at queue time (checkQueueable),
+	// never on start/retry/followup of an already-running item.
+	if checkQueueable {
+		s.applyFixBeforeFeatureGate(item, &preflight)
+	}
+
+	preflight.Ready = len(preflight.BlockingReasons) == 0 && len(preflight.ForceableBlockingReasons) == 0
 	return preflight
 }
 
-// Old clarify-based blocking question types and loading have been removed.
-// The execution preflight now uses workshop readiness from backlog.LoadWorkshopRounds
-// and backlog.ComputeEffectiveScores instead.
+func appendPreflightBlocker(preflight *ProcessPreflight, code, message string, forceable bool) {
+	if forceable {
+		preflight.ForceableBlockingReasons = append(preflight.ForceableBlockingReasons, message)
+		preflight.ForceableBlockingDetails = append(preflight.ForceableBlockingDetails, ProcessBlockingReason{Code: code, Message: message})
+		return
+	}
+	preflight.BlockingReasons = append(preflight.BlockingReasons, message)
+	preflight.BlockingDetails = append(preflight.BlockingDetails, ProcessBlockingReason{Code: code, Message: message})
+}
+
+func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlogItem) ProcessBlockingReason {
+	if item.PlanAcceptance == nil {
+		return ProcessBlockingReason{Code: "plan_not_accepted", Message: "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}
+	}
+	// Production wiring always supplies the Plan Manager renderer. The nil
+	// seam is retained for narrow domain tests and embedded callers that can
+	// verify stored acceptance but do not own a Plan Manager connection.
+	if s.planRenderer == nil {
+		return ProcessBlockingReason{}
+	}
+	rendered, err := resolveRenderedPlanContent(ctx, item, s.planRenderer)
+	if err != nil {
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan validation unavailable: %s", err)}
+	}
+	if strings.TrimSpace(rendered.QualityStatus) != "pass" {
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not valid: quality status is %q", rendered.QualityStatus)}
+	}
+	// DRAFT is Plan Manager's computed never-started state, not evidence that
+	// authoring is incomplete. The quality result and accepted content hash are
+	// the execution-grade gates. Starting this plan is what moves it to ACTIVE.
+	if rendered.Status == "PLAN_STATUS_ARCHIVED" {
+		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not executable in status %q", rendered.Status)}
+	}
+	if strings.TrimSpace(rendered.ContentHash) == "" {
+		return ProcessBlockingReason{Code: "plan_invalid", Message: "canonical plan validation unavailable: plan-manager returned no content hash"}
+	}
+	if strings.TrimSpace(item.PlanAcceptance.PlanContentHash) != strings.TrimSpace(rendered.ContentHash) {
+		return ProcessBlockingReason{Code: "plan_changed", Message: "canonical plan changed after acceptance — accept the current revision before queueing"}
+	}
+	if strings.TrimSpace(item.PlanAcceptance.SubjectVersion) != executionPlanAcceptanceSubjectVersion(item) {
+		return ProcessBlockingReason{Code: "plan_changed", Message: "work contract changed after plan acceptance — accept the current revision before queueing"}
+	}
+	return ProcessBlockingReason{}
+}
+
+func executionPlanAcceptanceSubjectVersion(item backlogItem) string {
+	contract := identity.PlanAcceptanceContract{
+		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
+		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
+		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
+	}
+	if item.Continuation != "manual" {
+		contract.Continuation = item.Continuation
+	}
+	if item.ScopePolicy != "fixed" {
+		contract.ScopePolicy = item.ScopePolicy
+	}
+	if item.PlanRef != nil {
+		contract.PlanRef = &identity.PlanAcceptanceReference{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}
+	}
+	return contract.Digest()
+}
+
+func hasExecutionPlanRef(item backlogItem) bool {
+	if item.PlanRef == nil {
+		return false
+	}
+	return strings.TrimSpace(item.PlanRef.Provider) == planRefProviderPlanManager &&
+		strings.TrimSpace(item.PlanRef.Role) == planRefRoleExecutionSpec &&
+		(strings.TrimSpace(item.PlanRef.PlanID) != "" || strings.TrimSpace(item.PlanRef.Slug) != "")
+}
 
 func resolveTargetScenario(item backlogItem) (string, bool) {
 	source := strings.TrimSpace(item.SourceScenarioName)
@@ -90,18 +263,21 @@ func resolveTargetScenario(item backlogItem) (string, bool) {
 	return strings.TrimSpace(item.Name), item.ArchivedAt != nil
 }
 
-func hasNonForceableExecutionReasons(reasons []string) bool {
-	for _, reason := range reasons {
-		normalized := strings.ToLower(strings.TrimSpace(reason))
-		if normalized == "" {
-			continue
-		}
-		if strings.Contains(normalized, "workshop decision") || strings.Contains(normalized, "pending decision") {
-			continue
-		}
-		return true
+// allBlockingReasons returns every reason that makes a preflight not-ready —
+// both structural (non-forceable) and forceable — for display in error
+// messages. The Ready flag already accounts for both slices.
+func allBlockingReasons(preflight ProcessPreflight) []string {
+	if len(preflight.ForceableBlockingReasons) == 0 {
+		return preflight.BlockingReasons
 	}
-	return false
+	combined := make([]string, 0, len(preflight.BlockingReasons)+len(preflight.ForceableBlockingReasons))
+	combined = append(combined, preflight.BlockingReasons...)
+	combined = append(combined, preflight.ForceableBlockingReasons...)
+	return combined
+}
+
+func hasNonForceableExecutionReasons(reasons []string) bool {
+	return len(reasons) > 0
 }
 
 func scenarioExists(path string) bool {

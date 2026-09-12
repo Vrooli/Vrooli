@@ -18,6 +18,7 @@ import type { ActualViewport } from '../api/schemas';
 import type { Page } from '../hooks/usePages';
 import type { TimelineEntry } from '../api/schemas';
 import type { RetryState } from '../services';
+import type { FrameStats } from '../hooks/useFrameStats';
 
 // ============================================================================
 // Types
@@ -45,6 +46,13 @@ export interface FrameDimensions {
 export interface DisplayDimensions {
   width: number;
   height: number;
+}
+
+/** Live stream connection metadata displayed in browser chrome. */
+export interface StreamConnectionStatus {
+  isConnected: boolean;
+  isWebSocket: boolean;
+  lastFrameTime?: string;
 }
 
 // ============================================================================
@@ -80,6 +88,11 @@ interface SessionState {
   // Display dimensions (for coordinate mapping)
   frameDimensions: FrameDimensions | null;
   displayDimensions: DisplayDimensions | null;
+
+  // Live preview metadata (kept out of RecordingSession React state)
+  recordingPageTitle: string;
+  recordingFrameStats: FrameStats | null;
+  connectionStatus: StreamConnectionStatus | null;
 }
 
 // ============================================================================
@@ -124,6 +137,12 @@ interface SessionActions {
   // Display dimensions
   setFrameDimensions: (dims: FrameDimensions | null) => void;
   setDisplayDimensions: (dims: DisplayDimensions | null) => void;
+
+  // Live preview metadata
+  setRecordingPageTitle: (title: string) => void;
+  setRecordingFrameStats: (stats: FrameStats | null) => void;
+  setConnectionStatus: (status: StreamConnectionStatus | null) => void;
+  clearLivePreviewMetadata: () => void;
 }
 
 type SessionStore = SessionState & SessionActions;
@@ -170,6 +189,9 @@ const initialState: SessionState = {
   timelineHasMore: false,
   frameDimensions: null,
   displayDimensions: null,
+  recordingPageTitle: '',
+  recordingFrameStats: null,
+  connectionStatus: null,
 };
 
 // ============================================================================
@@ -373,6 +395,35 @@ export const useSessionStore = create<SessionStore>()(
     setFrameDimensions: (frameDimensions) => set({ frameDimensions }),
 
     setDisplayDimensions: (displayDimensions) => set({ displayDimensions }),
+
+    // ========================================================================
+    // Live Preview Metadata Actions
+    // ========================================================================
+
+    setRecordingPageTitle: (recordingPageTitle) =>
+      set((s) => (s.recordingPageTitle === recordingPageTitle ? {} : { recordingPageTitle })),
+
+    setRecordingFrameStats: (recordingFrameStats) => set({ recordingFrameStats }),
+
+    setConnectionStatus: (connectionStatus) =>
+      set((s) => {
+        const current = s.connectionStatus;
+        if (
+          current?.isConnected === connectionStatus?.isConnected &&
+          current?.isWebSocket === connectionStatus?.isWebSocket &&
+          current?.lastFrameTime === connectionStatus?.lastFrameTime
+        ) {
+          return {};
+        }
+        return { connectionStatus };
+      }),
+
+    clearLivePreviewMetadata: () =>
+      set({
+        recordingPageTitle: '',
+        recordingFrameStats: null,
+        connectionStatus: null,
+      }),
   }))
 );
 
@@ -441,6 +492,15 @@ export const useFrameDimensions = () => useSessionStore((s) => s.frameDimensions
 
 /** Get display dimensions */
 export const useDisplayDimensions = () => useSessionStore((s) => s.displayDimensions);
+
+/** Get recording page title for browser chrome */
+export const useRecordingPageTitle = () => useSessionStore((s) => s.recordingPageTitle);
+
+/** Get recording frame stats for browser chrome */
+export const useRecordingFrameStats = () => useSessionStore((s) => s.recordingFrameStats);
+
+/** Get recording stream connection status */
+export const useRecordingConnectionStatus = () => useSessionStore((s) => s.connectionStatus);
 
 /** Get combined session/validation state for components that need both */
 export const useSessionState = () =>

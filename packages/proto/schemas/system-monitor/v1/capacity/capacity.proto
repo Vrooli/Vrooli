@@ -1,0 +1,272 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.capacity;
+
+import "google/api/annotations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity;capacity";
+
+// =============================================================================
+// CAPACITY DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Read/governance surface over the platform `internal/capacity` claim ledger.
+// system-monitor depends on capacity (it reads the ledger + the live host
+// inventory); the broker never depends on system-monitor. This domain exposes
+// the live claim table, the contention picture (per-GPU total/used/claimed),
+// the unclaimed-consumer reconciliation findings, and the tunable policy
+// levers. It mutates only policy — all claim mutation flows through the
+// `vrooli capacity` CLI / the lifecycle admission hook, never through here.
+//
+// USAGE CONTEXTS:
+//   - API responses for /api/v1/capacity/* endpoints
+//   - system-monitor UI Capacity dashboard
+//   - CLI `system-monitor capacity` commands
+//
+// =============================================================================
+
+// CapacityClaim is one row of the claim ledger (mirrors the engine's ClaimView).
+message CapacityClaim {
+  // Stable claim identifier (uuid).
+  string claim_id = 1;
+
+  // Owner kind: "resource" | "scenario" | "op".
+  string owner_kind = 2;
+
+  // Owner identifier, e.g. "whisper", "image-tools", "image-tools:job-<id>".
+  string owner_id = 3;
+
+  // Linked scenarioruntime instance id, when applicable.
+  string instance_id = 4;
+
+  // Resource kind: "vram" | "ram" | "cpu" (V1 enforces vram).
+  string resource_kind = 5;
+
+  // GPU index for vram claims; unset for non-GPU resources.
+  optional int32 gpu_index = 6;
+
+  // Currently granted amount in bytes (the active degradation step).
+  int64 amount_bytes = 7;
+
+  // Top-of-profile preferred amount in bytes.
+  int64 preferred_bytes = 8;
+
+  // Min-viable floor amount in bytes.
+  int64 floor_bytes = 9;
+
+  // Numeric priority (higher wins).
+  int32 priority = 10;
+
+  // Human priority tier: "interactive" | "service" | "batch".
+  string priority_tier = 11;
+
+  // Whether the claim is protected from preemption/degradation while active.
+  bool protected = 12;
+
+  // Lifecycle status: reserved|granted|degraded|released|expired|preempted.
+  string status = 13;
+
+  // Work-owner reported activity: "active" | "idle".
+  string activity_state = 14;
+
+  // Optimistic-concurrency generation.
+  int64 generation = 15;
+
+  // Last activity report timestamp (RFC3339); empty when never reported.
+  string last_active_at = 16;
+
+  // Creation timestamp (RFC3339).
+  string created_at = 17;
+
+  // Last mutation timestamp (RFC3339); terminal claims use their terminal
+  // transition time.
+  string updated_at = 18;
+}
+
+// GpuCapacity is the per-GPU contention picture: live total/used capacity from
+// the host inventory plus the sum of active claims attributed to that GPU.
+message GpuCapacity {
+  // GPU index.
+  int32 index = 1;
+
+  // GPU model name.
+  string name = 2;
+
+  // Total VRAM in bytes.
+  int64 total_bytes = 3;
+
+  // Observed VRAM in use in bytes (live, from the inventory).
+  int64 used_bytes = 4;
+
+  // Free VRAM in bytes (total - used).
+  int64 free_bytes = 5;
+
+  // Sum of active claim amounts attributed to this GPU in bytes.
+  int64 claimed_bytes = 6;
+
+  // GPU memory utilization percent (observed).
+  double memory_utilization_percent = 7;
+}
+
+// CapacityFinding is one reconciliation classification (mirrors engine.Finding).
+message CapacityFinding {
+  // Classification: "claimed" | "unclaimed" | "over_claim".
+  string class = 1;
+
+  // Attributed owner (container/scenario/resource), or "unknown".
+  string owner_id = 2;
+
+  // Owner kind when known.
+  string owner_kind = 3;
+
+  // Resource kind ("vram").
+  string resource_kind = 4;
+
+  // GPU index the consumer occupies.
+  optional int32 gpu_index = 5;
+
+  // Observed process id.
+  int32 pid = 6;
+
+  // Observed process name.
+  string process_name = 7;
+
+  // Observed bytes held by the consumer.
+  int64 observed_bytes = 8;
+
+  // Claimed bytes (for claimed/over_claim classes).
+  int64 claimed_bytes = 9;
+
+  // Matched claim id (for claimed/over_claim classes).
+  string claim_id = 10;
+
+  // Severity: "info" | "warn".
+  string severity = 11;
+
+  // Human-readable finding message.
+  string message = 12;
+}
+
+// PolicyLever is one tunable capacity policy key/value.
+message PolicyLever {
+  // Lever key, e.g. "tracking_threshold", "enforce", "idle_grace".
+  string key = 1;
+
+  // Lever value rendered as a string.
+  string value = 2;
+}
+
+// =============================================================================
+// CAPACITY API MESSAGES
+// =============================================================================
+
+// GetCapacityOverviewRequest is empty - no parameters needed.
+message GetCapacityOverviewRequest {}
+
+// GetCapacityOverviewResponse is the dashboard payload: live per-GPU
+// contention, the active claim table, and any sensing warnings.
+message GetCapacityOverviewResponse {
+  // Whether the operation succeeded.
+  bool success = 1;
+
+  // Per-GPU contention picture.
+  repeated GpuCapacity gpus = 2;
+
+  // Active claims across all owners.
+  repeated CapacityClaim claims = 3;
+
+  // Whether capacity sensing (nvidia-smi) was available for this snapshot.
+  bool sensing_available = 4;
+
+  // Sensing/inventory warnings (never silently dropped).
+  repeated string warnings = 5;
+
+  // Error message (if failed).
+  string error = 6;
+}
+
+// ListCapacityClaimsRequest narrows the claim listing.
+message ListCapacityClaimsRequest {
+  // Filter to a single owner id (empty = all).
+  string owner_id = 1;
+
+  // When true, return only active (reserved/granted/degraded) claims.
+  bool active_only = 2;
+}
+
+// ListCapacityClaimsResponse returns the claim listing.
+message ListCapacityClaimsResponse {
+  bool success = 1;
+  repeated CapacityClaim claims = 2;
+  string error = 3;
+}
+
+// ReconcileCapacityRequest is empty - no parameters needed.
+message ReconcileCapacityRequest {}
+
+// ReconcileCapacityResponse returns the reconciliation findings (the
+// unclaimed-consumer warnings panel).
+message ReconcileCapacityResponse {
+  bool success = 1;
+  repeated CapacityFinding findings = 2;
+  string error = 3;
+}
+
+// GetCapacityPolicyRequest is empty - no parameters needed.
+message GetCapacityPolicyRequest {}
+
+// GetCapacityPolicyResponse returns all tunable policy levers.
+message GetCapacityPolicyResponse {
+  bool success = 1;
+  repeated PolicyLever levers = 2;
+  string error = 3;
+}
+
+// SetCapacityPolicyRequest sets a single policy lever.
+message SetCapacityPolicyRequest {
+  // Lever key to update.
+  string key = 1;
+
+  // New value (validated by the engine).
+  string value = 2;
+}
+
+// SetCapacityPolicyResponse returns the full policy after the update.
+message SetCapacityPolicyResponse {
+  bool success = 1;
+  repeated PolicyLever levers = 2;
+  string error = 3;
+}
+
+// CapacityService provides the capacity governance RPC surface.
+service CapacityService {
+  // GetCapacityOverview returns live per-GPU contention plus active claims.
+  rpc GetCapacityOverview(GetCapacityOverviewRequest) returns (GetCapacityOverviewResponse) {
+    option (google.api.http) = {get: "/api/v1/capacity/overview"};
+  }
+
+  // ListCapacityClaims returns the claim ledger, optionally filtered.
+  rpc ListCapacityClaims(ListCapacityClaimsRequest) returns (ListCapacityClaimsResponse) {
+    option (google.api.http) = {get: "/api/v1/capacity/claims"};
+  }
+
+  // ReconcileCapacity classifies observed GPU consumers against the ledger.
+  rpc ReconcileCapacity(ReconcileCapacityRequest) returns (ReconcileCapacityResponse) {
+    option (google.api.http) = {get: "/api/v1/capacity/reconcile"};
+  }
+
+  // GetCapacityPolicy returns all tunable policy levers.
+  rpc GetCapacityPolicy(GetCapacityPolicyRequest) returns (GetCapacityPolicyResponse) {
+    option (google.api.http) = {get: "/api/v1/capacity/policy"};
+  }
+
+  // SetCapacityPolicy updates a single policy lever and returns the full policy.
+  rpc SetCapacityPolicy(SetCapacityPolicyRequest) returns (SetCapacityPolicyResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/capacity/policy"
+      body: "*"
+    };
+  }
+}

@@ -1,0 +1,62 @@
+syntax = "proto3";
+package vrooli.portal.v1.surfaces;
+import "common/v1/surface.proto";
+import "device-control/v1/desktop/desktop.proto";
+import "scenario-authenticator/v1/accounts/accounts.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/surfaces;surfacesv1";
+// @stability stable
+// Portal aggregates safe references; execution authority stays with providers.
+service SurfaceCatalogService {
+ rpc List(ListRequest) returns (ListResponse);
+ rpc Resolve(ResolveRequest) returns (ResolveResponse);
+}
+// @stability stable
+// Authenticated transport to destination-owned desktop admission. Portal never
+// substitutes its local process identity for a caller's bearer credential.
+service DesktopSessionService {
+ rpc ReconcileOpen(vrooli.device_control.v1.desktop.OwnerOpenRequest) returns (vrooli.device_control.v1.desktop.OwnerOpenDisposition);
+ rpc ListAdmissions(vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest) returns (vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse);
+ rpc ReadCleanup(vrooli.device_control.v1.desktop.OwnerStopRequest) returns (vrooli.device_control.v1.desktop.OwnerCleanupResponse);
+ rpc RunFlow(vrooli.device_control.v1.desktop.OwnerRunFlowRequest) returns (vrooli.device_control.v1.desktop.FlowRecord);
+ rpc PromoteFlow(vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest) returns (vrooli.device_control.v1.desktop.SavedDesktopFlow);
+ rpc GetSavedFlow(vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest) returns (vrooli.device_control.v1.desktop.SavedDesktopFlow);
+ rpc RunSavedFlow(vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest) returns (vrooli.device_control.v1.desktop.FlowRecord);
+ rpc Resolve(vrooli.device_control.v1.desktop.OwnerResolveRequest) returns (vrooli.device_control.v1.desktop.ResolveResponse);
+ rpc Applications(vrooli.device_control.v1.desktop.OwnerApplicationsRequest) returns (vrooli.device_control.v1.desktop.ApplicationsResponse);
+ rpc Open(vrooli.device_control.v1.desktop.OwnerOpenRequest) returns (vrooli.device_control.v1.desktop.OwnerOpenResponse);
+ rpc Observe(vrooli.device_control.v1.desktop.OwnerObserveRequest) returns (vrooli.device_control.v1.desktop.ObserveResponse);
+ rpc Act(vrooli.device_control.v1.desktop.OwnerActRequest) returns (vrooli.device_control.v1.desktop.ActResponse);
+ rpc Stop(vrooli.device_control.v1.desktop.OwnerStopRequest) returns (vrooli.device_control.v1.desktop.StopResponse);
+}
+// @stability stable
+// Same-origin account transport. Identity and credential ownership stay with
+// scenario-authenticator; Portal neither stores passwords nor mints tokens.
+service OperatorSessionService {
+ rpc Login(vrooli.scenario_authenticator.v1.accounts.LoginRequest) returns (vrooli.scenario_authenticator.v1.accounts.LoginResponse);
+ rpc Register(vrooli.scenario_authenticator.v1.accounts.RegisterRequest) returns (vrooli.scenario_authenticator.v1.accounts.RegisterResponse);
+ rpc Refresh(vrooli.scenario_authenticator.v1.accounts.RefreshRequest) returns (vrooli.scenario_authenticator.v1.accounts.RefreshResponse);
+ rpc Logout(vrooli.scenario_authenticator.v1.accounts.LogoutRequest) returns (vrooli.scenario_authenticator.v1.accounts.LogoutResponse);
+}
+message SourceStatus {
+ string owner_scenario = 1;
+ // ready, partial, unavailable, invalid. These are inventory states, not grants.
+ string state = 2;
+ string reason_code = 3;
+}
+message ListRequest {}
+message ListResponse {
+ repeated common.v1.SurfaceDescriptor surfaces = 1;
+ repeated SourceStatus sources = 2;
+ google.protobuf.Timestamp observed_at = 3;
+}
+message ResolveRequest {
+ string display_label = 1;
+ common.v1.SurfaceRef exact_ref = 2;
+}
+message ResolveResponse {
+ // Empty means not found, multiple means ambiguous. Neither authorizes action.
+ repeated common.v1.SurfaceDescriptor matches = 1;
+ repeated SourceStatus sources = 2;
+ google.protobuf.Timestamp observed_at = 3;
+}

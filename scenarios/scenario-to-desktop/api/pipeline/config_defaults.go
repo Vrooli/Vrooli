@@ -58,7 +58,7 @@ const (
 	DefaultDeployTimeout = 30 * time.Minute
 
 	// DefaultPreflightTimeout is the default timeout for preflight validation.
-	// Can be overridden via Config.PreflightTimeoutSeconds.
+	// Can be overridden via PipelineConfig.PreflightTimeoutSeconds.
 	//
 	// Lever impacts:
 	//   Increase: Allow slow dependency installations or network checks.
@@ -218,9 +218,6 @@ const (
 const (
 	// FrameworkElectron is the Electron desktop framework.
 	FrameworkElectron = "electron"
-
-	// FrameworkTauri is the Tauri desktop framework (future support).
-	FrameworkTauri = "tauri"
 )
 
 // Template type constants.

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "swarm-manager-goal-work",
+  "profileKey": "swarm-manager/goal-work",
+  "description": "Long multi-file repairs in one warm harness goal session.",
+  "roleRef": "code.smart",
+  "roleReason": "Goal sessions are long multi-file repairs that need sustained context.",
+  "maxTurns": 400,
+  "timeout": "7200s",
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"],
+  "toolRestrictionPolicy": "advisory",
+  "skipPermissionPrompt": false,
+  "sandboxConfig": {"mode": "SANDBOX_MODE_TRACKING"},
+  "spawnPolicy": {
+    "axisOrder": ["executionMode", "sandboxMode"],
+    "executionMode": {"prefer": ["interactive", "codec_pipe"]},
+    "sandboxMode": {"prefer": ["tracking", "off"]},
+    "require": []
+  },
+  "effort": "medium",
+  "createdBy": "swarm-manager"
+}

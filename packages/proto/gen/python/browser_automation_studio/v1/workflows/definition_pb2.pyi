@@ -60,7 +60,7 @@ class WorkflowMetadataV2(_message.Message):
     def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., labels: _Optional[_Mapping[str, str]] = ..., version: _Optional[str] = ..., requirement: _Optional[str] = ..., owner: _Optional[str] = ..., execution_mode: _Optional[_Union[ExecutionMode, str]] = ...) -> None: ...
 
 class WorkflowSettingsV2(_message.Message):
-    __slots__ = ("viewport_width", "viewport_height", "user_agent", "locale", "headless", "entry_selector", "entry_selector_timeout_ms", "timeout_ms", "browser_profile")
+    __slots__ = ("viewport_width", "viewport_height", "user_agent", "locale", "headless", "entry_selector", "entry_selector_timeout_ms", "timeout_ms", "browser_profile", "fake_media")
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
     USER_AGENT_FIELD_NUMBER: _ClassVar[int]
@@ -70,6 +70,7 @@ class WorkflowSettingsV2(_message.Message):
     ENTRY_SELECTOR_TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
     BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    FAKE_MEDIA_FIELD_NUMBER: _ClassVar[int]
     viewport_width: int
     viewport_height: int
     user_agent: str
@@ -79,7 +80,14 @@ class WorkflowSettingsV2(_message.Message):
     entry_selector_timeout_ms: int
     timeout_ms: int
     browser_profile: _browser_profile_pb2.BrowserProfile
-    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., headless: _Optional[bool] = ..., entry_selector: _Optional[str] = ..., entry_selector_timeout_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ...) -> None: ...
+    fake_media: FakeMediaConfig
+    def __init__(self, viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., headless: _Optional[bool] = ..., entry_selector: _Optional[str] = ..., entry_selector_timeout_ms: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., fake_media: _Optional[_Union[FakeMediaConfig, _Mapping]] = ...) -> None: ...
+
+class FakeMediaConfig(_message.Message):
+    __slots__ = ("microphone_wav",)
+    MICROPHONE_WAV_FIELD_NUMBER: _ClassVar[int]
+    microphone_wav: str
+    def __init__(self, microphone_wav: _Optional[str] = ...) -> None: ...
 
 class WorkflowNodeV2(_message.Message):
     __slots__ = ("id", "action", "position", "execution_settings")

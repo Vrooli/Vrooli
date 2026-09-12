@@ -1,7 +1,7 @@
 # Documented Assumptions
 
 ## Last Updated
-2026-02-19
+2026-09-11
 
 ## Data Shape Assumptions
 - **PTY output is binary-safe**: WebSocket framing preserves arbitrary byte sequences from PTY stdout. If a program emits raw binary (e.g., `cat /dev/urandom`), the output loop must not corrupt it. Made in [CODE: api/terminal_ws.go] and [CODE: ui/src/hooks/useTerminalSocket.ts].
@@ -13,15 +13,22 @@
 - **Parent scenario handles authentication**: Web console trusts that the embedding parent has already authenticated the user. No token validation occurs in [CODE: api/main.go].
 - **Ollama is locally available**: AI generation assumes Ollama runs on `localhost:11434`. If unavailable, it falls back to OpenRouter (if configured). Made in [CODE: api/ai_generate.go].
 
+- **Claude Code prompt boxes keep their captured layout per version**: the screen parser reads questions and permissions against fixtures captured from live Claude Code 2.1.x screens; a box it cannot place (a new layout, or one still being drawn) is reported as "asking you something" (level 1), never guessed. Answering by keystrokes is allowed only for versions listed in [CODE: api/backends/claude/answerable_versions.go]. Made in [CODE: api/backends/claude/prompt_box.go].
+- **Local sessions run this host's Claude Code**: the version that gates answering is read from the host's `claude --version`; a session on a remote target is judged by the local version. Made in [CODE: api/prompt_answering.go].
+- **Claude's Notification hook names permission waits in its message**: "needs your permission" or "waiting for your input" marks a waiting session when the screen has no parsable box. Made in [CODE: api/hook_notification_handler.go].
+- **OpenCode permission events carry their request id**: an answer replies to the `id` of the `permission.asked` event the pane is waiting on. Made in [CODE: api/opencode_activity.go].
+
 ## Timing Assumptions
 - **WebSocket keepalive interval < proxy timeout**: The 30-second ping interval must be shorter than any reverse proxy's idle timeout (typically 60s). Made in [CODE: api/terminal_ws.go].
 - **Schema initialization completes before first request**: `initSchema()` runs synchronously in `main()` before the HTTP server starts. No request can race with schema creation. Made in [CODE: api/main.go].
 - **Expiration sweeper interval (60s) is acceptable resolution**: Session cleanup is not instant on TTL expiry — there's up to 60 seconds of drift. Made in [CODE: api/session_policy.go].
 
 ## Environment Assumptions
-- **POSIX runtime with PTY support**: The API requires `creack/pty` which needs `/dev/ptmx`. Will not run on Windows without WSL. Made in [CODE: api/pty.go].
+- **Platform-specific PTY seam**: Unix builds use `creack/pty` and Windows
+  builds use the native ConPTY adapter. Persistent tmux sessions are Unix-only;
+  the platform capability matrix in `.vrooli/service.json` is authoritative.
 - **SQLite available via `api-core/database`**: The database connection string is resolved by the `api-core` library from environment variables. Made in [CODE: api/main.go].
-- **SQL files exist relative to binary**: `initSchema()` reads `../initialization/sqlite/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
+- **SQL files exist relative to binary**: `initSchema()` reads `../api/internal/<domain>/schema.sql` relative to `os.Executable()`. Breaks if binary is moved without its sibling directories. Made in [CODE: api/main.go].
 
 ## Hardening Status
 | Assumption | Status | Moved to INVARIANTS |

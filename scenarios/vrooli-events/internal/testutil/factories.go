@@ -4,6 +4,9 @@
 // This package is designed for use by the api/ test package and any other
 // packages that don't create import cycles. Internal packages (store, broker)
 // keep their own local test helpers to avoid cycles.
+//
+// DOC: docs/internal/UNIT_TEST_ARCHITECTURE.md
+// DOC: docs/internal/SEAMS.md
 package testutil
 
 import (

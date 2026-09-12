@@ -17,8 +17,8 @@ export const SearchInput = ({ placeholder, value, onChange, icon }: SearchInputP
       type="text"
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => { onChange(e.target.value); }}
+      onClick={(e) => { e.stopPropagation(); }}
       className="search-input"
     />
   </div>

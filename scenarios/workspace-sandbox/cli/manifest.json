@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "workspace-sandbox",
+  "description": "Governed workspace creation, diff review, and promotion through WorkspaceSandboxService.",
+  "groups": [
+    {
+      "name": "sandbox",
+      "description": "Create an isolated workspace",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a copy-on-write sandbox workspace",
+          "flags": [
+            {"name": "name", "description": "Optional sandbox name"},
+            {"name": "scope-path", "description": "Directory to isolate"},
+            {"name": "project-root", "description": "Project root containing the scope"},
+            {"name": "owner", "description": "Owner identifier"},
+            {"name": "reserved-path", "description": "Reserved path; repeatable", "repeatable": true, "bind": {"field": "reserved_paths"}, "bind_waiver": "The CLI accepts one repeatable reserved-path flag and projects the complete sequence onto the repeated reserved_paths request field."},
+            {"name": "idempotency-key", "description": "Stable retry key"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "CreateSandbox"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    },
+    {
+      "name": "change",
+      "description": "Review and promote sandbox changes",
+      "commands": [
+        {
+          "name": "diff",
+          "description": "Produce a bounded reviewable sandbox diff",
+          "positionals": [{"name": "sandbox_id", "required": true}],
+          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "GetSandboxDiff"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "promote",
+          "description": "Promote explicitly confirmed sandbox changes",
+          "positionals": [{"name": "sandbox_id", "required": true}],
+          "flags": [
+            {"name": "mode", "default": "all", "description": "Approval mode"},
+            {"name": "actor", "description": "Actor performing the promotion"},
+            {"name": "commit-message", "description": "Optional commit message"},
+            {"name": "create-commit", "bool": true, "description": "Create a commit after applying"},
+            {"name": "force", "bool": true, "description": "Bypass conflict detection"},
+            {"name": "override-acceptance", "bool": true, "description": "Bypass acceptance filtering"},
+            {"name": "confirm", "bool": true, "description": "Confirm promotion to the canonical repository"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "WorkspaceSandboxService", "method": "PromoteSandbox"},
+          "governance": {"effect": "destructive", "run_eligible": true, "requires_confirmation": true, "permissions": ["network:internal", "filesystem:write"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "WorkspaceSandboxService",
+      "method": "ResolveWorkspace",
+      "reason": "Program Runtime consumes workspace resolution through the generated client; the CLI exposes the sanctioned create, diff, and promote change path only."
+    }
+  ],
+  "measures": {
+    "omitted": [
+      {"domain": "sandbox", "reason": "Workspace counts are operational state; the plan exposes the sanctioned change path, not a measure catalog."},
+      {"domain": "change", "reason": "Diff and promotion records are review artifacts rather than a stable analytical measure surface."}
+    ]
+  }
+}

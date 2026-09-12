@@ -1,0 +1,4055 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-cloud",
+  "description": "Operate cloud deployments over the canonical domain: identities and selectors, executable plans reviewed before apply, durable operations with server-side waits, recovery points, credentials, edge and publication. Typed surfaces use the generated Connect clients; exit codes are 0 ok, 1 failed, 2 refused, 3 pending, 124 observer timeout.",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "personal_local",
+    "supported_modes": [
+      "personal_local",
+      "shared_provider"
+    ],
+    "human_sign_in": "optional",
+    "provider": "scenario-authenticator",
+    "resource": "scenario-to-cloud",
+    "offline": true,
+    "public_routes": [
+      "/health",
+      "/api/v1/health"
+    ],
+    "protected_routes": [
+      "/api",
+      "/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService",
+      "/vrooli.scenario_to_cloud.v1.health.HealthService"
+    ],
+    "capabilities": [
+      {
+        "id": "scenario-to-cloud:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "scenario-to-cloud:write",
+        "effect": "write",
+        "agent_eligible": false
+      },
+      {
+        "id": "scenario-to-cloud:destructive",
+        "effect": "destructive",
+        "agent_eligible": true
+      }
+    ]
+  },
+  "exceptions": [
+    {
+      "command": "manifest",
+      "class": "passthrough",
+      "reason": "The root command dispatches the manifest domain's local and API-backed subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "bundle",
+      "class": "passthrough",
+      "reason": "The root command dispatches bundle subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "deployment",
+      "class": "passthrough",
+      "reason": "The root command dispatches deployment subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "publication",
+      "class": "passthrough",
+      "reason": "The root command dispatches publication subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "redeploy",
+      "class": "passthrough",
+      "reason": "The root command dispatches redeploy subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "preflight",
+      "class": "passthrough",
+      "reason": "The root command dispatches preflight subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "vps",
+      "class": "passthrough",
+      "reason": "The root command dispatches VPS subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "inspect",
+      "class": "passthrough",
+      "reason": "The root command dispatches inspect subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "process",
+      "class": "passthrough",
+      "reason": "The root command dispatches process subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "edge",
+      "class": "passthrough",
+      "reason": "The root command dispatches edge subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "secrets",
+      "class": "passthrough",
+      "reason": "The root command dispatches secrets subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "scenario",
+      "class": "passthrough",
+      "reason": "The root command dispatches scenario subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "task",
+      "class": "passthrough",
+      "reason": "The root command dispatches task subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "operation",
+      "class": "passthrough",
+      "reason": "The root command dispatches operation subcommands through the scenario CLI adapter."
+    },
+    {
+      "command": "credential",
+      "class": "passthrough",
+      "reason": "The root command dispatches credential subcommands through the scenario CLI adapter."
+    }
+  ],
+  "groups": [
+    {
+      "name": "manifest",
+      "description": "Cloud manifest authoring and validation",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a cloud manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "schema",
+          "description": "Print the manifest JSON schema",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "init",
+          "description": "Write a starter manifest for a scenario",
+          "flags": [
+            {
+              "name": "scenario"
+            },
+            {
+              "name": "host"
+            },
+            {
+              "name": "domain"
+            },
+            {
+              "name": "out"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "template",
+          "description": "Print a manifest template",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose a manifest against the repository",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fix",
+          "description": "Apply the manifest fixes the doctor proposes",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "write",
+              "description": "Write fixes back to the input manifest",
+              "bool": true
+            },
+            {
+              "name": "out",
+              "description": "Write the fixed manifest to this output path"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "bundle",
+      "description": "Release bundles (local store and target)",
+      "commands": [
+        {
+          "name": "build",
+          "description": "Build the mini-Vrooli bundle for a manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List local bundles",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stats",
+          "description": "Local bundle store statistics",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete one local bundle",
+          "flags": [
+            {
+              "name": "sha"
+            },
+            {
+              "name": "filename"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "cleanup",
+          "description": "Prune local bundles per scenario",
+          "flags": [
+            {
+              "name": "scenario"
+            },
+            {
+              "name": "keep"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "vps-list",
+          "description": "List bundles retained on the deployment's target (GET /deployments/{id}/bundles/vps) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "vps-gc",
+          "description": "Garbage-collect target bundles keeping the newest (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "keep",
+              "default": "2"
+            },
+            {
+              "name": "dry-run",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "deployment",
+      "description": "Deployment lifecycle over identities, executable plans and durable operations",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create or update a deployment record from a manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "resolve",
+          "description": "Resolve a selector to its stable identity (the facets fill the nested selector message); ambiguity is refused (exit 2) with candidates (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeploymentsService",
+            "method": "ResolveDeployment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List deployments (proto JSON with --json)",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario id",
+              "bind": {
+                "field": "scenario_id"
+              }
+            },
+            {
+              "name": "environment",
+              "description": "Filter by environment"
+            },
+            {
+              "name": "status",
+              "description": "Filter by status"
+            },
+            {
+              "name": "page-size",
+              "description": "Maximum records"
+            },
+            {
+              "name": "page-token",
+              "description": "Continuation token"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeploymentsService",
+            "method": "ListDeployments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read a deployment record (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted",
+              "bind": {
+                "field": "id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeploymentsService",
+            "method": "GetDeployment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a deployment record (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "stop",
+              "bool": true
+            },
+            {
+              "name": "cleanup",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "plan",
+          "description": "Preview the executable plan: digest, changes, data effects, downtime, recovery strategy, handoff (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "scope",
+              "description": "Plan scope: full (default), install, runtime, start"
+            },
+            {
+              "name": "force-bundle",
+              "description": "Rebuild the release bundle before compiling (sent as force_bundle_build)",
+              "bool": true,
+              "bind": {
+                "field": "force_bundle_build"
+              }
+            },
+            {
+              "name": "show-commands",
+              "description": "Also print the derived shell preview (display only)",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CompilePlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Admit a reviewed plan digest as a durable operation and wait once (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "plan-digest",
+              "description": "Digest printed by 'deployment plan'",
+              "required": true
+            },
+            {
+              "name": "scope"
+            },
+            {
+              "name": "request-key",
+              "description": "Idempotency key; same key + same digest replays the admitted operation"
+            },
+            {
+              "name": "preflight",
+              "description": "Run the target preflight checks inside the operation (sent as run_preflight)",
+              "bool": true,
+              "bind": {
+                "field": "run_preflight"
+              }
+            },
+            {
+              "name": "no-wait",
+              "description": "Return after admission (exit 3) instead of waiting once",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "timeout",
+              "description": "Observer bound for the server-side wait (exit 124 when it elapses)",
+              "default": "5m0s",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ApplyPlan"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "execute",
+          "description": "Plan, print the review (unless --yes), apply the exact digest shown and wait once (CompilePlan then ApplyPlan) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "yes",
+              "description": "Skip printing the review before applying",
+              "bool": true
+            },
+            {
+              "name": "scope",
+              "description": "Plan scope: full (default), install, runtime, start"
+            },
+            {
+              "name": "force-bundle",
+              "description": "Rebuild the release bundle before compiling the plan",
+              "bool": true
+            },
+            {
+              "name": "show-commands",
+              "description": "Also print the derived shell preview (display only)",
+              "bool": true
+            },
+            {
+              "name": "request-key",
+              "description": "Idempotency key; same key + same digest replays the admitted operation"
+            },
+            {
+              "name": "preflight",
+              "description": "Run the target preflight checks inside the operation",
+              "bool": true
+            },
+            {
+              "name": "no-wait",
+              "description": "Return after admission (exit 3) instead of waiting once",
+              "bool": true
+            },
+            {
+              "name": "timeout",
+              "description": "Observer bound for the server-side wait (exit 124 when it elapses)",
+              "default": "5m0s"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Plan and apply the start scope (CompilePlan then ApplyPlan with scope start) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "yes",
+              "bool": true
+            },
+            {
+              "name": "force-bundle",
+              "bool": true
+            },
+            {
+              "name": "show-commands",
+              "bool": true
+            },
+            {
+              "name": "request-key",
+              "description": "Idempotency key; same key + same digest replays the admitted operation"
+            },
+            {
+              "name": "preflight",
+              "description": "Run the target preflight checks inside the operation",
+              "bool": true
+            },
+            {
+              "name": "no-wait",
+              "description": "Return after admission (exit 3) instead of waiting once",
+              "bool": true
+            },
+            {
+              "name": "timeout",
+              "description": "Observer bound for the server-side wait (exit 124 when it elapses)",
+              "default": "5m0s"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop the workload on the target (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "history",
+          "description": "Deployment history events (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Typed health observation: status, freshness, checks, next actions (unknown is never healthy) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HealthService",
+            "method": "GetHealthObservation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "rollback",
+          "description": "Governed rollback to the published predecessor: --dry-run issues a preview reference, --confirm executes it (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "dry-run",
+              "bool": true
+            },
+            {
+              "name": "confirm",
+              "bool": true
+            },
+            {
+              "name": "preview-ref"
+            },
+            {
+              "name": "review-ref"
+            },
+            {
+              "name": "release-digest"
+            },
+            {
+              "name": "repair-bundle-sha256"
+            },
+            {
+              "name": "expected-bundle-sha256"
+            },
+            {
+              "name": "data-compatibility"
+            },
+            {
+              "name": "request-key"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "recovery-points",
+          "description": "Consistent recovery points and restore",
+          "commands": [
+            {
+              "name": "list",
+              "description": "Recovery points of the deployment (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+              "positionals": [
+                {
+                  "name": "deployment_id",
+                  "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (or pass the id as the positional argument)"
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+                },
+                {
+                  "name": "environment",
+                  "description": "Environment name (with --scenario)"
+                },
+                {
+                  "name": "domain",
+                  "description": "Edge domain (with --scenario)"
+                },
+                {
+                  "name": "host",
+                  "description": "Target host (with --scenario)"
+                },
+                {
+                  "name": "json",
+                  "description": "Machine output (proto JSON for typed surfaces)",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "capture",
+              "description": "Capture a consistent recovery point (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+              "positionals": [
+                {
+                  "name": "deployment_id",
+                  "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (or pass the id as the positional argument)"
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+                },
+                {
+                  "name": "environment",
+                  "description": "Environment name (with --scenario)"
+                },
+                {
+                  "name": "domain",
+                  "description": "Edge domain (with --scenario)"
+                },
+                {
+                  "name": "host",
+                  "description": "Target host (with --scenario)"
+                },
+                {
+                  "name": "retention"
+                },
+                {
+                  "name": "recovery-point"
+                },
+                {
+                  "name": "release-digest"
+                },
+                {
+                  "name": "json",
+                  "description": "Machine output (proto JSON for typed surfaces)",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "verify",
+              "description": "Verify a recovery point (--open also proves the recovery key resolves) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+              "positionals": [
+                {
+                  "name": "deployment_id",
+                  "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (or pass the id as the positional argument)"
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+                },
+                {
+                  "name": "environment",
+                  "description": "Environment name (with --scenario)"
+                },
+                {
+                  "name": "domain",
+                  "description": "Edge domain (with --scenario)"
+                },
+                {
+                  "name": "host",
+                  "description": "Target host (with --scenario)"
+                },
+                {
+                  "name": "recovery-point",
+                  "required": true
+                },
+                {
+                  "name": "open",
+                  "bool": true
+                },
+                {
+                  "name": "json",
+                  "description": "Machine output (proto JSON for typed surfaces)",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "restore",
+              "description": "Restore a recovery point onto a replacement target; --dry-run verifies and calls no restore (run-eligible under a scenario-to-cloud:destructive session grant; confirmation required) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+              "positionals": [
+                {
+                  "name": "deployment_id",
+                  "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+                }
+              ],
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id (or pass the id as the positional argument)"
+                },
+                {
+                  "name": "scenario",
+                  "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+                },
+                {
+                  "name": "environment",
+                  "description": "Environment name (with --scenario)"
+                },
+                {
+                  "name": "domain",
+                  "description": "Edge domain (with --scenario)"
+                },
+                {
+                  "name": "host",
+                  "description": "Target host (with --scenario)"
+                },
+                {
+                  "name": "recovery-point",
+                  "required": true
+                },
+                {
+                  "name": "target-ref"
+                },
+                {
+                  "name": "into",
+                  "description": "binding=locator on the replacement host (repeatable)"
+                },
+                {
+                  "name": "dry-run",
+                  "bool": true
+                },
+                {
+                  "name": "json",
+                  "description": "Machine output (proto JSON for typed surfaces)",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": true,
+                "requires_confirmation": true,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "publication",
+      "description": "Governed publication bound to an approved review",
+      "commands": [
+        {
+          "name": "request",
+          "description": "Open a publication and prepare its review (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "request-key",
+              "required": true
+            },
+            {
+              "name": "profile",
+              "description": "Placed in identity.profile_id (nested field; not bindable by name)",
+              "local_only": true
+            },
+            {
+              "name": "candidate-commit",
+              "description": "Placed in identity.candidate_commit",
+              "local_only": true
+            },
+            {
+              "name": "artifact-digest",
+              "description": "Placed in identity.artifact_digest",
+              "local_only": true
+            },
+            {
+              "name": "channel",
+              "description": "Placed in identity.channel",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "RequestPublication"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Activate the approved publication by its reviewed digest (approval re-checked server-side) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "request-key",
+              "required": true
+            },
+            {
+              "name": "review-ref",
+              "required": true
+            },
+            {
+              "name": "plan-digest",
+              "required": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ApplyPublication"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Publication standing (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "request-key",
+              "required": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "GetPublication"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "redeploy",
+      "flat": true,
+      "description": "Manifest-first convenience wrapper",
+      "commands": [
+        {
+          "name": "redeploy",
+          "description": "Create or update the record from a manifest, then plan, review, apply and wait once (same path as deployment execute)",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "name"
+            },
+            {
+              "name": "yes",
+              "bool": true
+            },
+            {
+              "name": "no-wait",
+              "bool": true
+            },
+            {
+              "name": "request-key"
+            },
+            {
+              "name": "timeout"
+            },
+            {
+              "name": "force-bundle",
+              "bool": true
+            },
+            {
+              "name": "preflight",
+              "bool": true
+            },
+            {
+              "name": "show-commands",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "preflight",
+      "description": "Target readiness checks and host fixes",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run preflight checks for a manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "requirements",
+          "description": "Print the canonical VPS requirement policy",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fix-firewall",
+          "description": "Open the required inbound ports on the target (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "user",
+              "description": "Override SSH user"
+            },
+            {
+              "name": "key-path",
+              "description": "Override SSH key path"
+            },
+            {
+              "name": "ssh-port",
+              "description": "Override SSH port"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "fix-processes",
+          "description": "Stop stale scenario processes on the target (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)"
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host"
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)"
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)"
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)"
+            },
+            {
+              "name": "user",
+              "description": "Override SSH user"
+            },
+            {
+              "name": "key-path",
+              "description": "Override SSH key path"
+            },
+            {
+              "name": "ssh-port",
+              "description": "Override SSH port"
+            },
+            {
+              "name": "workdir"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "vps",
+      "description": "Manifest-scoped VPS setup/deploy plans and disposable QEMU instances",
+      "groups": [
+        {
+          "name": "setup",
+          "description": "Host setup plan",
+          "commands": [
+            {
+              "name": "plan",
+              "description": "Compile the setup plan",
+              "positionals": [
+                {
+                  "name": "manifest",
+                  "required": true
+                },
+                {
+                  "name": "bundle",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "apply",
+              "description": "Apply the setup plan by its reviewed digest (compiles first when no digest is given)",
+              "positionals": [
+                {
+                  "name": "manifest",
+                  "required": true
+                },
+                {
+                  "name": "bundle",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "plan-digest"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "deploy",
+          "description": "Runtime deploy plan",
+          "commands": [
+            {
+              "name": "plan",
+              "description": "Compile the deploy plan",
+              "positionals": [
+                {
+                  "name": "manifest",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "apply",
+              "description": "Apply the deploy plan by its reviewed digest (compiles first when no digest is given)",
+              "positionals": [
+                {
+                  "name": "manifest",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "plan-digest"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "instance",
+          "description": "Disposable local QEMU instances",
+          "commands": [
+            {
+              "name": "plan",
+              "description": "Validate the local QEMU lane",
+              "flags": [
+                {
+                  "name": "name"
+                },
+                {
+                  "name": "image"
+                },
+                {
+                  "name": "workdir"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "create",
+              "description": "Register a disposable VM",
+              "flags": [
+                {
+                  "name": "name"
+                },
+                {
+                  "name": "image"
+                },
+                {
+                  "name": "workdir"
+                },
+                {
+                  "name": "memory"
+                },
+                {
+                  "name": "cpus"
+                },
+                {
+                  "name": "profile"
+                },
+                {
+                  "name": "user"
+                },
+                {
+                  "name": "authorized-key"
+                },
+                {
+                  "name": "ssh-port"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "start",
+              "description": "Start a registered VM",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "stop",
+              "description": "Stop a registered VM",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "wait-for-ssh",
+              "description": "Wait until the VM accepts SSH",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              }
+            },
+            {
+              "name": "snapshot",
+              "description": "Snapshot a VM",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                },
+                {
+                  "name": "snapshot"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "reset",
+              "description": "Reset a VM to a snapshot",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                },
+                {
+                  "name": "snapshot"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            },
+            {
+              "name": "destroy",
+              "description": "Destroy a VM",
+              "positionals": [
+                {
+                  "name": "instance_id",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "network:internal",
+                  "network:external"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inspect",
+      "description": "Remote state, drift, metrics, bounded logs and files",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Preview the inspection commands for a manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Fetch remote status and logs for a manifest",
+          "positionals": [
+            {
+              "name": "manifest",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "live",
+          "description": "Live state of a deployment",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "drift",
+          "description": "Drift between desired and observed state",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics",
+          "description": "Deployment metrics",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Bounded, API-redacted log retrieval (--tail max 2000, --max-bytes bounds the output)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "source"
+            },
+            {
+              "name": "level"
+            },
+            {
+              "name": "search"
+            },
+            {
+              "name": "tail",
+              "default": "100"
+            },
+            {
+              "name": "since"
+            },
+            {
+              "name": "max-bytes",
+              "default": "1048576"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "files",
+          "description": "List or read files under the deployment workdir",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "content",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "process",
+      "description": "Remote process control",
+      "commands": [
+        {
+          "name": "kill",
+          "description": "Kill a remote process",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            },
+            {
+              "name": "pid",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "signal"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Restart a remote scenario process",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "control",
+          "description": "Scenario control action on the target",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            },
+            {
+              "name": "action",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "vps-action",
+          "description": "Host-level action on the target",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            },
+            {
+              "name": "action",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "edge",
+      "description": "Edge routing, DNS and TLS",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Typed edge observation: routes, private listeners, DNS, TLS, readiness (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EdgeService",
+            "method": "GetEdgeObservation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dns-check",
+          "description": "Check DNS configuration",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "dns-records",
+          "description": "List DNS records",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "caddy",
+          "description": "Caddy control (reload, restart, status, validate)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            },
+            {
+              "name": "action",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "tls",
+          "description": "TLS certificate information",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "tls-renew",
+          "description": "Renew TLS certificates",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "domain"
+            },
+            {
+              "name": "force",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "secrets",
+      "description": "Workspace, scenario and deployment secrets (values never in arguments)",
+      "commands": [
+        {
+          "name": "set",
+          "description": "Set a secret on the selected targets",
+          "positionals": [
+            {
+              "name": "key",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "value"
+            },
+            {
+              "name": "generate"
+            },
+            {
+              "name": "targets",
+              "default": "scenario"
+            },
+            {
+              "name": "restart",
+              "bool": true
+            },
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "bind_waiver": "Deployment id resolved locally; this command uses REST routes keyed by the id."
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "all-deployments",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read secret metadata (or the value with --reveal)",
+          "positionals": [
+            {
+              "name": "key",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "targets",
+              "default": "scenario"
+            },
+            {
+              "name": "reveal",
+              "bool": true
+            },
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "bind_waiver": "Deployment id resolved locally; this command uses REST routes keyed by the id."
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "all-deployments",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "verify",
+          "description": "Verify a secret matches across targets",
+          "positionals": [
+            {
+              "name": "key",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "targets",
+              "default": "scenario"
+            },
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "bind_waiver": "Deployment id resolved locally; this command uses REST routes keyed by the id."
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "all-deployments",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a secret from the selected targets",
+          "positionals": [
+            {
+              "name": "key",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "targets",
+              "default": "scenario"
+            },
+            {
+              "name": "restart",
+              "bool": true
+            },
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "bind_waiver": "Deployment id resolved locally; this command uses REST routes keyed by the id."
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "bind_waiver": "Selector facet: resolved to one deployment id through DeploymentsService.ResolveDeployment before this request is built; ambiguity is the server's typed refusal."
+            },
+            {
+              "name": "all-deployments",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "plan-get",
+          "description": "Read the scenario secrets plan",
+          "positionals": [
+            {
+              "name": "scenario_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scenario",
+      "description": "Scenario inventory used by manifests",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List deployable scenarios",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ports",
+          "description": "Ports a scenario declares",
+          "positionals": [
+            {
+              "name": "scenario_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps",
+          "description": "Dependency closure of a scenario",
+          "positionals": [
+            {
+              "name": "scenario_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "impact",
+              "bool": true
+            },
+            {
+              "name": "verbose",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "task",
+      "description": "Investigation tasks",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create an investigation task",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "type"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List tasks",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Read a task",
+          "positionals": [
+            {
+              "name": "task_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a task",
+          "positionals": [
+            {
+              "name": "task_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "agent-status",
+          "description": "Investigation agent status",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "operation",
+      "description": "Durable cloud operations: attach by id across disconnects and owner restarts",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Typed standing of one operation (exit 3 while non-terminal; proto JSON with --json)",
+          "positionals": [
+            {
+              "name": "operation_id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperationsService",
+            "method": "GetOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once server-side until terminal; exit 124 when the observer bound elapses (operation unchanged)",
+          "positionals": [
+            {
+              "name": "operation_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Observer bound as a duration, sent as timeout_seconds",
+              "default": "5m0s",
+              "bind": {
+                "field": "timeout_seconds"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperationsService",
+            "method": "WaitOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Attach to an operation started elsewhere (API, UI) after a disconnect; same contract as wait (WaitOperation)",
+          "positionals": [
+            {
+              "name": "operation_id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "default": "5m0s"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Record a cancellation intent, honoured at the next declared cancel point",
+          "positionals": [
+            {
+              "name": "operation_id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperationsService",
+            "method": "CancelOperation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "Operations admitted against a deployment (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OperationsService",
+            "method": "ListDeploymentOperations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "credential",
+      "description": "Deployment credential bindings (values only on standard input)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Bindings, versions, consumers and acknowledgements (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "ListBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "rotate",
+          "description": "Rotate one binding (versioned; consumers verified before the predecessor is retired) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "binding",
+              "required": true,
+              "bind": {
+                "field": "binding_id"
+              }
+            },
+            {
+              "name": "value-stdin",
+              "description": "Read the replacement value from standard input; it is placed in the request field value and never appears in argv",
+              "bool": true,
+              "local_only": true
+            },
+            {
+              "name": "request-key"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "RotateCredential"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke one binding everywhere it was distributed (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "binding",
+              "required": true,
+              "bind": {
+                "field": "binding_id"
+              }
+            },
+            {
+              "name": "request-key"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "RevokeCredential"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "recover",
+          "description": "Recover the credential store onto a replacement host (passphrase on stdin) (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "bundle-ref",
+              "required": true
+            },
+            {
+              "name": "passphrase-stdin",
+              "description": "Read the passphrase from standard input; it is placed in the request field passphrase and never appears in argv",
+              "bool": true,
+              "required": true,
+              "local_only": true
+            },
+            {
+              "name": "request-key"
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "RecoverCredentials"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "rotation-get",
+          "description": "Standing of one credential operation (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "rotation",
+              "required": true,
+              "bind": {
+                "field": "rotation_id"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "GetRotation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "rotation-resume",
+          "description": "Resume an operation parked on operator input (--deployment <id> | <id> | --scenario <id> --environment <env> | --scenario <id> --domain <domain> | --scenario <id> --host <host>)",
+          "positionals": [
+            {
+              "name": "deployment_id",
+              "description": "Deployment id (alternative to --deployment); resolved from the selector flags when omitted"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deployment",
+              "description": "Deployment id (or pass the id as the positional argument)",
+              "local_only": true
+            },
+            {
+              "name": "scenario",
+              "description": "Scenario id; pair with exactly one of --environment, --domain, --host",
+              "local_only": true
+            },
+            {
+              "name": "environment",
+              "description": "Environment name (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "domain",
+              "description": "Edge domain (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "host",
+              "description": "Target host (with --scenario)",
+              "local_only": true
+            },
+            {
+              "name": "rotation",
+              "required": true,
+              "bind": {
+                "field": "rotation_id"
+              }
+            },
+            {
+              "name": "operator-confirmed",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Machine output (proto JSON for typed surfaces)",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CredentialsService",
+            "method": "ResumeRotation"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "OperationsService",
+      "method": "ReconcileOperations",
+      "reason": "Owner-only reconciliation pass; run by the API on startup and periodically, not an operator command."
+    },
+    {
+      "service": "CredentialsService",
+      "method": "BreakGlass",
+      "reason": "Emergency access requires the confirmation string on the API surface with an audited operator identity; no headless alias."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "GetReleaseEvidence",
+      "reason": "Evidence cells are read through Deployment Manager's readiness surfaces; the CLI exposes the publication standing only."
+    },
+    {
+      "service": "DataService",
+      "method": "CaptureRecoveryPoint",
+      "reason": "DataService is not mounted by the API; recovery points use the REST routes under deployment recovery-points."
+    },
+    {
+      "service": "DataService",
+      "method": "ListRecoveryPoints",
+      "reason": "See CaptureRecoveryPoint: REST route used."
+    },
+    {
+      "service": "DataService",
+      "method": "RestoreRecoveryPoint",
+      "reason": "See CaptureRecoveryPoint: REST route used."
+    },
+    {
+      "service": "DataService",
+      "method": "VerifyRecoveryPoint",
+      "reason": "See CaptureRecoveryPoint: REST route used."
+    },
+    {
+      "service": "DataService",
+      "method": "EvaluateRollback",
+      "reason": "Rollback admission is evaluated inside deployment rollback --dry-run through the recovery route."
+    },
+    {
+      "service": "DataService",
+      "method": "PruneRecoveryPoints",
+      "reason": "Retention pruning is owned by the API's retention policy, not an operator command."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "BuildRelease",
+      "reason": "Release identity is built by the API during execute/plan; bundle build is the operator's input."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "GetRelease",
+      "reason": "Release facts are printed inside deployment plan/get output."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "VerifyRelease",
+      "reason": "Verification runs as the release.verify plan action; no standalone operator verb."
+    }
+  ]
+}

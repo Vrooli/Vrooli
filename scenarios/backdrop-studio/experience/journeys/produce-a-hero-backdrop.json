@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "produce-a-hero-backdrop",
+    "title": "Produce a hero backdrop with no model and no spend",
+    "purpose": "The core loop, and the one that must work on any machine with no network, no GPU, and no account: find a procedural style, bind it to a brand, render candidates, confirm the headline stays readable over the image, and release it for a landing page to reference.",
+    "prd_refs": ["OT-P0-003", "OT-P0-005", "OT-P0-007", "OT-P0-011", "OT-P0-012", "OT-P0-015"]
+  },
+  "steps": [
+    {
+      "page": "catalog",
+      "state": "populated",
+      "intent": "Narrow the catalog to ambient styles that suit a full-bleed hero and cost nothing to run.",
+      "via": "axis facets for role, placement, and strategy"
+    },
+    {
+      "page": "style",
+      "state": "viewing",
+      "intent": "Confirm the style's treatment chain, reserved regions, and contrast threshold before committing to it.",
+      "via": "specimen tile"
+    },
+    {
+      "page": "compose",
+      "state": "plan-resolved",
+      "intent": "See exactly what will run, and see the brand palette slots resolve to concrete inks, before anything executes.",
+      "via": "use this style"
+    },
+    {
+      "page": "candidates",
+      "state": "mixed-verdicts",
+      "intent": "Understand that some candidates are unusable despite looking good, because the measured worst pixel under the headline falls below the threshold.",
+      "via": "render"
+    },
+    {
+      "page": "placements",
+      "state": "viewport-specific-failure",
+      "intent": "Discover that the chosen candidate passes at desktop but fails as a mobile crop, before it reaches a page rather than after.",
+      "via": "preview placements"
+    },
+    {
+      "page": "placements",
+      "state": "scrim-proposed",
+      "intent": "Accept the computed minimum scrim that brings the mobile crop above threshold, and see the before-and-after.",
+      "via": "apply proposed scrim"
+    },
+    {
+      "page": "backdrops",
+      "state": "detail",
+      "intent": "Copy the stable identifier the landing page will reference, with the reserved regions and measured contrast attached to it.",
+      "via": "release"
+    }
+  ]
+}

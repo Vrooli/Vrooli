@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.operatorinputs;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "setup/v1/operator_input.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs;operatorinputsv1";
+
+// OperatorInputsService is the typed transport for the durable operator-input
+// queue. The target belongs to the transport request; it is never persisted
+// with the queue.
+service OperatorInputsService {
+  rpc ListOperatorInputs(ListOperatorInputsRequest) returns (ListOperatorInputsResponse);
+  rpc ResolveOperatorInputs(ResolveOperatorInputsRequest) returns (ResolveOperatorInputsResponse);
+}
+
+message ListOperatorInputsRequest {
+  string target = 1;
+}
+
+message ListOperatorInputsResponse {
+  int32 version = 1;
+  google.protobuf.Timestamp updated_at = 2;
+  repeated setup.v1.OperatorInputRequest requests = 3;
+  // Stable API contract marker. Consumers use this during target preflight
+  // so an older onboarding deployment is reported as incompatible instead of
+  // failing later with a generic gateway error.
+  string contract_version = 4;
+}
+
+message Answer {
+  string request_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Secret values are used in memory only. The queue never persists them and
+  // diagnostics must never log them.
+  string value = 2;
+  bool declined = 3;
+}
+
+message ResolveOperatorInputsRequest {
+  string target = 1;
+  // The configuration revision observed with ListOperatorInputs or readiness.
+  // A non-empty value makes answer submission compare-and-swap against the
+  // target's current desired document before any capability is applied.
+  string expected_revision = 3;
+  repeated Answer answers = 2 [(buf.validate.field).repeated.min_items = 1];
+}
+
+enum AnswerOutcomeStatus {
+  ANSWER_OUTCOME_STATUS_UNSPECIFIED = 0;
+  ANSWER_OUTCOME_STATUS_ACCEPTED = 1;
+  ANSWER_OUTCOME_STATUS_APPLIED = 2;
+  ANSWER_OUTCOME_STATUS_DECLINED = 3;
+}
+
+message AnswerOutcome {
+  string request_id = 1;
+  AnswerOutcomeStatus status = 2;
+  string remediation = 3;
+}
+
+message ResolveOperatorInputsResponse {
+  bool configuration_pending = 1;
+  repeated AnswerOutcome outcomes = 2;
+}

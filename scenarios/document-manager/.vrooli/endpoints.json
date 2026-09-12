@@ -1,0 +1,218 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.document_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.document_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET capability probe is used by lifecycle and operator tooling.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "intake_ingest",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/Ingest",
+      "method": "POST",
+      "summary": "Ingest bytes by content hash",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_get_document",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/GetDocument",
+      "method": "POST",
+      "summary": "Get an ingested document",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_list_documents",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ListDocuments",
+      "method": "POST",
+      "summary": "List ingested documents",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_list_sources",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ListSources",
+      "method": "POST",
+      "summary": "List document sources",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_configure_watch",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ConfigureWatch",
+      "method": "POST",
+      "summary": "Configure a watched intake path",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_get_type_verdict",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/GetTypeVerdict",
+      "method": "POST",
+      "summary": "Read the stored type verdict",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "corpus_create_collection",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/CreateCollection",
+      "method": "POST",
+      "summary": "Create a privacy-scoped collection",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_get_collection",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/GetCollection",
+      "method": "POST",
+      "summary": "Get collection metadata",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_list_collections",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/ListCollections",
+      "method": "POST",
+      "summary": "List collections",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_add_document",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/AddDocument",
+      "method": "POST",
+      "summary": "Add a document to a collection",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_list_documents",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/ListDocuments",
+      "method": "POST",
+      "summary": "List collection documents",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_export",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Export",
+      "method": "POST",
+      "summary": "Export a collection as open JSON",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_import",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Import",
+      "method": "POST",
+      "summary": "Import an open JSON collection archive",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_prune",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Prune",
+      "method": "POST",
+      "summary": "Coordinate safe regeneration pruning",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "enrichment_enrich",
+      "path": "/vrooli.document_manager.v1.enrichment.EnrichmentService/Enrich",
+      "method": "POST",
+      "summary": "Enrich a document through AI Gateway",
+      "description": "",
+      "category": "enrichment"
+    },
+    {
+      "id": "enrichment_embed",
+      "path": "/vrooli.document_manager.v1.enrichment.EnrichmentService/Embed",
+      "method": "POST",
+      "summary": "Create gateway-governed embedding metadata",
+      "description": "",
+      "category": "enrichment"
+    },
+    {
+      "id": "retrieval_query",
+      "path": "/vrooli.document_manager.v1.retrieval.RetrievalService/Query",
+      "method": "POST",
+      "summary": "Hybrid lexical and semantic corpus query",
+      "description": "",
+      "category": "retrieval"
+    },
+    {
+      "id": "retrieval_similar",
+      "path": "/vrooli.document_manager.v1.retrieval.RetrievalService/Similar",
+      "method": "POST",
+      "summary": "Find similar corpus units",
+      "description": "",
+      "category": "retrieval"
+    }
+  ]
+}

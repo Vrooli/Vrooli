@@ -5,16 +5,19 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/generation"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // Stage names as constants for consistency.
 const (
-	StageBundle    = "bundle"
-	StagePreflight = "preflight"
-	StageGenerate  = "generate"
-	StageBuild     = "build"
-	StageSmokeTest = "smoketest"
-	StageDeploy    = "deploy"
+	StageResolveDeployment = "resolve-deployment"
+	StageBundle            = "bundle"
+	StagePreflight         = "preflight"
+	StageGenerate          = "generate"
+	StageBuild             = "build"
+	StageSmokeTest         = "smoketest"
+	StageDeploy            = "deploy"
 )
 
 // Pipeline status values.
@@ -133,12 +136,18 @@ type PipelineStateTransition struct {
 	DurationMs int64         `json:"duration_ms,omitempty"` // Time spent in From state (ms)
 }
 
-// Config represents the configuration for a pipeline run.
-type Config struct {
+// PipelineConfig represents the configuration for a pipeline run.
+type PipelineConfig struct {
+	NativeExtension *generation.NativeExtension `json:"native_extension,omitempty"`
+	// ExpectedArtifactDigests binds governed publication to the finalized
+	// candidate bytes, keyed by exact target identifier.
+	ExpectedArtifactDigests map[string]string `json:"expected_artifact_digests,omitempty"`
+	ArtifactManifestDigest  string            `json:"artifact_manifest_digest,omitempty"`
 	// ScenarioName is the name of the scenario to deploy (required).
 	ScenarioName string `json:"scenario_name" validate:"required"`
 
-	// Platforms to build for. Defaults to current platform if empty.
+	// Platforms to build for. Empty input is normalized to the concrete current
+	// OS/architecture before resource deployment resolution.
 	Platforms []string `json:"platforms,omitempty"`
 
 	// SkipPreflight skips the preflight validation stage.
@@ -160,7 +169,7 @@ type Config struct {
 	TemplateType string `json:"template_type,omitempty"`
 
 	// LocationMode controls where the desktop output is written.
-	// Options: proper (default), staging/temp (write to scenario-to-desktop/data/staging), custom (requires output_path).
+	// Options: proper (default), staging/temp (write to the scenario-to-desktop cache staging root), custom (requires output_path).
 	LocationMode string `json:"location_mode,omitempty"`
 
 	// WebhookURL is an optional URL for webhook notifications.
@@ -171,6 +180,19 @@ type Config struct {
 
 	// BundleManifestPath overrides the default manifest path.
 	BundleManifestPath string `json:"bundle_manifest_path,omitempty"`
+
+	// ResourceArtifactRoot is a verified Vrooli release directory containing
+	// resource artifacts plus SHA256SUMS. Bundled resource modes refuse to
+	// package from source when this is absent.
+	ResourceArtifactRoot string `json:"resource_artifact_root,omitempty"`
+
+	// ToolArtifactRoot is a verified Vrooli release directory containing
+	// vendored tool artifacts plus SHA256SUMS.
+	ToolArtifactRoot string `json:"tool_artifact_root,omitempty"`
+
+	// ArtifactTrustMode governs Vrooli release-manifest admission. It is
+	// independent of installer/app code signing.
+	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode,omitempty"`
 
 	// Clean forces a clean build (removes existing desktop output).
 	Clean bool `json:"clean,omitempty"`
@@ -228,6 +250,19 @@ type Config struct {
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
 }
 
+func (c *PipelineConfig) GetArtifactTrustMode() resourcedeployment.ArtifactTrustMode {
+	return c.ArtifactTrustMode
+}
+
+// ValidateFramework rejects framework values that the generation pipeline does
+// not implement. An empty value is valid because Electron is the default.
+func (c *PipelineConfig) ValidateFramework() error {
+	if c.Framework == "" || c.Framework == FrameworkElectron {
+		return nil
+	}
+	return fmt.Errorf("unsupported framework %q: only %q is supported", c.Framework, FrameworkElectron)
+}
+
 // DeployConfig configures the deploy stage for LPBS deployment.
 type DeployConfig struct {
 	// TargetName is the saved deploy target key from deploy-targets.json.
@@ -240,21 +275,42 @@ type DeployConfig struct {
 	RemoteProfile string `json:"remote_profile,omitempty"`
 
 	// AppKey is the download app key on the remote LPBS (always required).
+	// Release-bound deploys require the exact approved value.
 	AppKey string `json:"app_key"`
 
-	// UpdateURL is auto-derived from the remote profile if empty.
+	// UpdateURL is auto-derived from the remote profile if empty. Release-bound
+	// deploys always derive the owner destination and reject a configured value
+	// that does not match it.
 	UpdateURL string `json:"update_url,omitempty"`
 
 	// ReleaseID is the deployment-manager release UUID for traceability.
 	// When set, stored on the LPBS artifact for correlation.
 	ReleaseID string `json:"release_id,omitempty"`
 
+	// CandidateID binds a governed publication to the immutable build
+	// candidate that was reviewed by Deployment Manager.
+	CandidateID string `json:"candidate_id,omitempty"`
+
+	// DestinationRevisionID binds a governed publication to the exact owner
+	// destination revision selected by Deployment Manager.
+	DestinationRevisionID string `json:"destination_revision_id,omitempty"`
+
+	// AuthorizationEpoch prevents an older readiness decision from authorizing
+	// a newer release operation.
+	AuthorizationEpoch uint64 `json:"authorization_epoch,omitempty"`
+
+	// ReadinessReviewKey identifies the current approved review for this exact
+	// release identity.
+	ReadinessReviewKey string `json:"readiness_review_key,omitempty"`
+
 	// Channel is the update channel (e.g. "stable", "beta", "nightly").
-	// Maps to variant_key on the LPBS asset. Defaults to "stable" if empty.
+	// Maps to variant_key on the LPBS asset. Release-bound deploys require the
+	// exact approved value; local packaging may use the stable default.
 	Channel string `json:"channel,omitempty"`
 
-	// DeploymentManagerProfileID is the deployment-manager profile to check for approval gates.
-	// If empty, the deploy stage skips gate checks.
+	// DeploymentManagerProfileID selects the legacy profile approval gate for
+	// non-release-bound local preparation. Release-bound deploys use the exact
+	// readiness review carried by Deployment Manager and skip this gate.
 	DeploymentManagerProfileID string `json:"deployment_manager_profile_id,omitempty"`
 
 	// GateTimeout overrides DefaultGateTimeout for how long to wait for gates to clear.
@@ -275,8 +331,10 @@ type DeployResult struct {
 
 // DeployArtifactResult tracks a single artifact upload.
 type DeployArtifactResult struct {
-	ArtifactID int64  `json:"artifact_id"`
-	Platform   string `json:"platform"`
+	ArtifactID        int64  `json:"artifact_id"`
+	Platform          string `json:"platform"`
+	SHA512            string `json:"sha512,omitempty"`
+	DestinationObject string `json:"destination_object,omitempty"`
 }
 
 // VersionUpdateRequest controls how a scenario version is resolved for a pipeline run.
@@ -338,8 +396,8 @@ type Status struct {
 	// StageOrder defines the execution order of stages.
 	StageOrder []string `json:"stage_order"`
 
-	// Config is the configuration used for this pipeline run.
-	Config *Config `json:"config"`
+	// PipelineConfig is the configuration used for this pipeline run.
+	Config *PipelineConfig `json:"config"`
 
 	// StartedAt is the Unix timestamp when the pipeline started.
 	StartedAt int64 `json:"started_at"`
@@ -408,7 +466,7 @@ func (s *Status) TransitionTo(target PipelineState, message string) bool {
 }
 
 // GetStopOnFailure returns the stop_on_failure setting with default true.
-func (c *Config) GetStopOnFailure() bool {
+func (c *PipelineConfig) GetStopOnFailure() bool {
 	if c.StopOnFailure == nil {
 		return true
 	}
@@ -425,7 +483,7 @@ func (c *Config) GetStopOnFailure() bool {
 //
 // Other modes (external-server, cloud-api, proxy) are thin-client modes that
 // require a running server. These should be explicitly requested when needed.
-func (c *Config) GetDeploymentMode() string {
+func (c *PipelineConfig) GetDeploymentMode() string {
 	if c.DeploymentMode == "" {
 		return DeploymentModeBundled
 	}
@@ -433,7 +491,7 @@ func (c *Config) GetDeploymentMode() string {
 }
 
 // GetTemplateType returns the template type with default "basic".
-func (c *Config) GetTemplateType() string {
+func (c *PipelineConfig) GetTemplateType() string {
 	if c.TemplateType == "" {
 		return "basic"
 	}
@@ -441,31 +499,31 @@ func (c *Config) GetTemplateType() string {
 }
 
 // GetStopAfterStage returns the stop_after_stage setting.
-func (c *Config) GetStopAfterStage() string {
+func (c *PipelineConfig) GetStopAfterStage() string {
 	return c.StopAfterStage
 }
 
 // GetResumeFromStage returns the resume_from_stage setting.
-func (c *Config) GetResumeFromStage() string {
+func (c *PipelineConfig) GetResumeFromStage() string {
 	return c.ResumeFromStage
 }
 
 // GetStages returns the stages to run, or nil for all stages.
-func (c *Config) GetStages() []string {
+func (c *PipelineConfig) GetStages() []string {
 	if c == nil || len(c.Stages) == 0 {
 		return nil
 	}
 	return c.Stages
 }
 
-func (c *Config) setVersionRollback(rollback *versionRollback) {
+func (c *PipelineConfig) setVersionRollback(rollback *versionRollback) {
 	if c == nil {
 		return
 	}
 	c.versionRollback = rollback
 }
 
-func (c *Config) takeVersionRollback() *versionRollback {
+func (c *PipelineConfig) takeVersionRollback() *versionRollback {
 	if c == nil {
 		return nil
 	}
@@ -477,7 +535,7 @@ func (c *Config) takeVersionRollback() *versionRollback {
 // IsValidStageName checks if a stage name is valid.
 func IsValidStageName(name string) bool {
 	switch name {
-	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
+	case StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy:
 		return true
 	default:
 		return false
@@ -584,7 +642,7 @@ func (s *Status) GetNextResumeStage() string {
 	}
 
 	// Define stage order
-	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
+	stageOrder := []string{StageResolveDeployment, StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDeploy}
 
 	// Find the stopped stage and return the next one
 	for i, stage := range stageOrder {

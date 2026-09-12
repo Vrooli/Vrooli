@@ -98,7 +98,7 @@ export async function fetchAppLimits(
   appBundleKey: string
 ): Promise<Record<string, TierLimit[]>> {
   const response = await getAppLimits(appBundleKey);
-  return response.limits || {};
+  return response.limits;
 }
 
 /**

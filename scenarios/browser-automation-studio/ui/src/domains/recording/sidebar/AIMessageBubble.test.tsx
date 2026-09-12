@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test-utils';
 import userEvent from '@testing-library/user-event';
 import { AIMessageBubble } from './AIMessageBubble';
 import { createUserMessage, createAssistantMessage, createSystemMessage, type AIMessage } from './types';
@@ -77,7 +77,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      expect(screen.getByText('Starting...')).toBeInTheDocument();
+      expect(screen.getByText('Starting')).toBeInTheDocument();
       expect(screen.getByText('Starting navigation...')).toBeInTheDocument();
     });
 
@@ -103,7 +103,7 @@ describe('AIMessageBubble', () => {
       render(<AIMessageBubble message={message} />);
 
       expect(screen.getByText('Completed')).toBeInTheDocument();
-      expect(screen.getByText('Completed in 1 step')).toBeInTheDocument();
+      expect(screen.getByText('Goal achieved in 1 step')).toBeInTheDocument();
     });
 
     it('should render failed status with error', () => {
@@ -126,7 +126,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      expect(screen.getByText('Aborted')).toBeInTheDocument();
+      expect(screen.getByText('Stopped')).toBeInTheDocument();
     });
 
     it('should render awaiting_human status', () => {
@@ -157,7 +157,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      expect(screen.getByText('1,500 tokens')).toBeInTheDocument();
+      expect(screen.getByText('1,500 tokens used')).toBeInTheDocument();
     });
   });
 
@@ -170,7 +170,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} onAbort={() => {}} />);
 
-      expect(screen.getByRole('button', { name: /Abort Navigation/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /Stop navigation/i })).toHaveLength(2);
     });
 
     it('should not show abort button when completed', () => {
@@ -181,7 +181,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} onAbort={() => {}} />);
 
-      expect(screen.queryByRole('button', { name: /Abort Navigation/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Stop navigation/i })).not.toBeInTheDocument();
     });
 
     it('should call onAbort when abort button is clicked', async () => {
@@ -194,7 +194,7 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} onAbort={onAbort} />);
 
-      await user.click(screen.getByRole('button', { name: /Abort Navigation/i }));
+      await user.click(screen.getAllByRole('button', { name: /Stop navigation/i })[0]);
 
       expect(onAbort).toHaveBeenCalled();
     });
@@ -238,8 +238,8 @@ describe('AIMessageBubble', () => {
     });
   });
 
-  describe('expandable steps', () => {
-    it('should show expand button when completed with steps', () => {
+  describe('timeline steps', () => {
+    it('renders completed steps as timeline cards', () => {
       const message: AIMessage = {
         ...createAssistantMessage('nav-1'),
         status: 'completed',
@@ -247,10 +247,10 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      expect(screen.getByRole('button', { name: /Show 2 steps/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /Click/i })).toHaveLength(2);
     });
 
-    it('should not show expand button when running', () => {
+    it('renders running steps without hiding the timeline', () => {
       const message: AIMessage = {
         ...createAssistantMessage('nav-1'),
         status: 'running',
@@ -258,10 +258,10 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      expect(screen.queryByRole('button', { name: /Show/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Click/i })).toBeInTheDocument();
     });
 
-    it('should toggle steps visibility on click', async () => {
+    it('toggles an individual step\'s details on click', async () => {
       const user = userEvent.setup();
       const message: AIMessage = {
         ...createAssistantMessage('nav-1'),
@@ -270,20 +270,15 @@ describe('AIMessageBubble', () => {
       };
       render(<AIMessageBubble message={message} />);
 
-      // Initially hidden
+      // The step reasoning is initially hidden.
       expect(screen.queryByText('Clicking the login button')).not.toBeInTheDocument();
 
-      // Click to expand
-      await user.click(screen.getByRole('button', { name: /Show 1 step/i }));
+      await user.click(screen.getByRole('button', { name: /Click/i }));
 
-      // Now visible
       expect(screen.getByText('Clicking the login button')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Hide 1 step/i })).toBeInTheDocument();
 
-      // Click to collapse
-      await user.click(screen.getByRole('button', { name: /Hide 1 step/i }));
+      await user.click(screen.getByRole('button', { name: /Click/i }));
 
-      // Hidden again
       expect(screen.queryByText('Clicking the login button')).not.toBeInTheDocument();
     });
   });

@@ -58,14 +58,14 @@ describe("Drawer", () => {
     expect(screen.getByText("Save")).toBeInTheDocument();
   });
 
-  it("calls onClose when X button is clicked", () => {
+  it("calls onClose when the shared mobile dismiss affordance is clicked", () => {
     const onClose = vi.fn();
     render(
       <Drawer isOpen={true} onClose={onClose} title="T">
         <p>body</p>
       </Drawer>,
     );
-    fireEvent.click(screen.getByLabelText("Close drawer"));
+    fireEvent.click(screen.getByTestId("overlays.responsive-dialog.grabber"));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -89,10 +89,6 @@ describe("Drawer", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("data-testid", "my-drawer");
-    // aria-labelledby should point to the title element
-    const labelledBy = dialog.getAttribute("aria-labelledby");
-    expect(labelledBy).toBeTruthy();
-    const titleEl = labelledBy ? document.getElementById(labelledBy) : null;
-    expect(titleEl?.textContent).toBe("Accessible Title");
+    expect(dialog).toHaveAttribute("aria-label", "Accessible Title");
   });
 });

@@ -1,0 +1,260 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "landing-page-react-vite/v1/content.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// VARIANT DOMAIN
+// =============================================================================
+//
+// @layer 2
+// @domain variant
+// @imports content
+// @stability stable
+//
+// A/B landing variants: authored page variations selected by weighted random
+// draw. Each variant carries axis selections (validated against the variant
+// space), an ordered set of content sections, a header presentation config,
+// and optional SEO overrides. Admin CRUD plus public selection and export/import
+// snapshots live here.
+//
+// =============================================================================
+
+// === HEADER CONFIG ===
+// Server-normalized presentation controls for the public landing header.
+
+// HeaderBrandingConfig controls the header brand lockup.
+message HeaderBrandingConfig {
+  // none | logo | name | logo_and_name.
+  string mode = 1;
+  string label = 2;
+  string subtitle = 3;
+  // auto | logo | name | stacked.
+  string mobile_preference = 4;
+}
+
+// HeaderVisibilityConfig toggles a nav link per breakpoint.
+message HeaderVisibilityConfig {
+  bool desktop = 1;
+  bool mobile = 2;
+}
+
+// HeaderNavLink is a (possibly nested) header navigation entry.
+message HeaderNavLink {
+  string id = 1;
+  // section | downloads | custom | menu.
+  string type = 2;
+  string label = 3;
+  string section_type = 4;
+  optional int32 section_id = 5;
+  string anchor = 6;
+  string href = 7;
+  HeaderVisibilityConfig visible_on = 8;
+  repeated HeaderNavLink children = 9;
+}
+
+// HeaderNavConfig is the ordered set of header nav links.
+message HeaderNavConfig {
+  repeated HeaderNavLink links = 1;
+}
+
+// HeaderCTAConfig is a single header call-to-action.
+message HeaderCTAConfig {
+  // inherit_hero | downloads | custom | hidden.
+  string mode = 1;
+  string label = 2;
+  string href = 3;
+  // solid | ghost.
+  string variant = 4;
+}
+
+// HeaderCTAGroup holds the primary and secondary header CTAs.
+message HeaderCTAGroup {
+  HeaderCTAConfig primary = 1;
+  HeaderCTAConfig secondary = 2;
+}
+
+// HeaderBehaviorConfig controls sticky/hide-on-scroll behavior.
+message HeaderBehaviorConfig {
+  bool sticky = 1;
+  bool hide_on_scroll = 2;
+}
+
+// LandingHeaderConfig is the full per-variant header presentation config.
+message LandingHeaderConfig {
+  HeaderBrandingConfig branding = 1;
+  HeaderNavConfig nav = 2;
+  HeaderCTAGroup ctas = 3;
+  HeaderBehaviorConfig behavior = 4;
+}
+
+// === SEO ===
+
+// VariantSEOConfig holds per-variant SEO overrides stored on the variant.
+message VariantSEOConfig {
+  string title = 1;
+  string description = 2;
+  string og_title = 3;
+  string og_description = 4;
+  string og_image_url = 5;
+  string twitter_card = 6;
+  string canonical_path = 7;
+  bool noindex = 8;
+  google.protobuf.Struct structured_data = 9;
+}
+
+// === VARIANT ===
+
+// Variant is an authored A/B landing variation.
+message Variant {
+  int64 id = 1;
+  string slug = 2;
+  string name = 3;
+  string description = 4;
+  // Selection weight (0..100).
+  int32 weight = 5;
+  // active | archived | deleted.
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  google.protobuf.Timestamp archived_at = 9;
+  // Axis id -> selected variant value.
+  map<string, string> axes = 10;
+  LandingHeaderConfig header_config = 11;
+  // Present only on admin single-variant reads (Get/Export), not list.
+  optional VariantSEOConfig seo_config = 12;
+}
+
+// AxesSelection wraps an axis map so callers can distinguish "replace axes"
+// (message present) from "leave unchanged" (message absent) on update/import.
+message AxesSelection {
+  map<string, string> values = 1;
+}
+
+// VariantSnapshot is the portable export/import payload for a variant: its
+// authoring fields plus ordered sections and axis selections.
+message VariantSnapshot {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  string status = 5;
+  map<string, string> axes = 6;
+  LandingHeaderConfig header_config = 7;
+  optional VariantSEOConfig seo_config = 8;
+  repeated ContentSection sections = 9;
+}
+
+// === API MESSAGES ===
+
+// SelectVariantRequest requests a weighted-random active variant (public).
+message SelectVariantRequest {}
+
+// GetPublicVariantRequest fetches an active variant by slug (public).
+message GetPublicVariantRequest {
+  string slug = 1;
+}
+
+// GetVariantRequest fetches a variant by slug including SEO (admin).
+message GetVariantRequest {
+  string slug = 1;
+}
+
+// VariantResponse returns a single variant.
+message VariantResponse {
+  Variant variant = 1;
+}
+
+// ListVariantsRequest lists variants, optionally filtered by status (admin).
+message ListVariantsRequest {
+  // Optional status filter (active|archived); empty returns non-deleted.
+  string status_filter = 1;
+}
+
+// ListVariantsResponse returns the matching variants (without SEO).
+message ListVariantsResponse {
+  repeated Variant variants = 1;
+}
+
+// CreateVariantRequest creates a new active variant. Axes are required and
+// validated against the variant space; sections are copied from the control.
+message CreateVariantRequest {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  map<string, string> axes = 5;
+}
+
+// UpdateVariantRequest partially updates a variant. Presence-tracked scalar
+// fields update in place; axes replace only when the AxesSelection is present;
+// header_config replaces only when present.
+message UpdateVariantRequest {
+  string slug = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional int32 weight = 4;
+  AxesSelection axes = 5;
+  LandingHeaderConfig header_config = 6;
+}
+
+// ArchiveVariantRequest archives a variant by slug (admin).
+message ArchiveVariantRequest {
+  string slug = 1;
+}
+
+// DeleteVariantRequest soft-deletes a variant by slug (admin).
+message DeleteVariantRequest {
+  string slug = 1;
+}
+
+// DeleteVariantResponse acknowledges a soft delete.
+message DeleteVariantResponse {
+  bool deleted = 1;
+}
+
+// ExportVariantSnapshotRequest exports a variant snapshot by slug (admin).
+message ExportVariantSnapshotRequest {
+  string slug = 1;
+}
+
+// ExportVariantSnapshotResponse returns the exported snapshot.
+message ExportVariantSnapshotResponse {
+  VariantSnapshot snapshot = 1;
+}
+
+// ImportVariantSnapshotRequest fully replaces a variant from a snapshot. The
+// snapshot slug must equal the path slug.
+message ImportVariantSnapshotRequest {
+  string slug = 1;
+  VariantSnapshot snapshot = 2;
+}
+
+// VariantService manages A/B variants and their selection.
+service VariantService {
+  // Returns a weighted-random active variant (public).
+  rpc SelectVariant(SelectVariantRequest) returns (VariantResponse);
+  // Fetches an active variant by slug (public).
+  rpc GetPublicVariant(GetPublicVariantRequest) returns (VariantResponse);
+  // Fetches a variant by slug including SEO (admin).
+  rpc GetVariant(GetVariantRequest) returns (VariantResponse);
+  // Lists variants filtered by status (admin).
+  rpc ListVariants(ListVariantsRequest) returns (ListVariantsResponse);
+  // Creates a new variant (admin).
+  rpc CreateVariant(CreateVariantRequest) returns (VariantResponse);
+  // Partially updates a variant (admin).
+  rpc UpdateVariant(UpdateVariantRequest) returns (VariantResponse);
+  // Archives a variant (admin).
+  rpc ArchiveVariant(ArchiveVariantRequest) returns (VariantResponse);
+  // Soft-deletes a variant (admin).
+  rpc DeleteVariant(DeleteVariantRequest) returns (DeleteVariantResponse);
+  // Exports a variant snapshot (admin).
+  rpc ExportVariantSnapshot(ExportVariantSnapshotRequest) returns (ExportVariantSnapshotResponse);
+  // Replaces a variant from a snapshot (admin).
+  rpc ImportVariantSnapshot(ImportVariantSnapshotRequest) returns (VariantResponse);
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.split-pane-workspace",
+    "name": "SplitPaneWorkspace",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The multi-region workspace with resizing, collapse, persistence, keyboard controls, responsive stacking, and an independent loading and error boundary for each region.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.split-view",
+        "reason": "Region layout, resizing, and responsive stacking are shared."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary rather than reimplemented per workflow."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "content-reflow",
+    "density-adaptive-layout",
+    "entrance-restraint",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "partial",
+    "request-error",
+    "offline"
+  ],
+  "rationale": "What it adds over navigation.split-view is per-region failure isolation: one pane failing to load must not blank the others, which is the difference between a layout and a workspace."
+}

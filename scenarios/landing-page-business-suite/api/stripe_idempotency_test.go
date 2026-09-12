@@ -21,7 +21,6 @@ import (
 // an event ID are rejected to prevent unsafe processing.
 func TestHandleWebhook_MissingEventID_ReturnsError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_test_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -92,7 +91,6 @@ func TestHandleWebhook_MissingEventID_ReturnsError(t *testing.T) {
 // event ID only results in credits being added once.
 func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure credit tables exist with unique constraint
@@ -125,7 +123,7 @@ func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 	service := requireTestStripeService(t, db)
 
 	// Add credits first time
-	err = service.addCredits("test@example.com", 100, "credit_topup", "evt_test_123", map[string]interface{}{
+	err = service.creditWallet.AddCredits("test@example.com", 100, "credit_topup", "evt_test_123", map[string]interface{}{
 		"test": true,
 	})
 	require.NoError(t, err)
@@ -137,7 +135,7 @@ func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 	assert.Equal(t, int64(100), balance)
 
 	// Try to add credits with same event ID
-	err = service.addCredits("test@example.com", 100, "credit_topup", "evt_test_123", map[string]interface{}{
+	err = service.creditWallet.AddCredits("test@example.com", 100, "credit_topup", "evt_test_123", map[string]interface{}{
 		"test": true,
 	})
 	require.NoError(t, err) // Should succeed (idempotent)
@@ -158,7 +156,6 @@ func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 // webhook processing with the same event ID only credits the user once.
 func TestAddCredits_ConcurrentSameEvent_OnlyOneSucceeds(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure credit tables exist with unique constraint
@@ -209,7 +206,7 @@ func TestAddCredits_ConcurrentSameEvent_OnlyOneSucceeds(t *testing.T) {
 			// Wait for signal to start
 			<-startCh
 
-			err := service.addCredits("concurrent@example.com", creditsPerAttempt, "credit_topup", eventID, map[string]interface{}{
+			err := service.creditWallet.AddCredits("concurrent@example.com", creditsPerAttempt, "credit_topup", eventID, map[string]interface{}{
 				"goroutine": i,
 			})
 			if err != nil {
@@ -245,7 +242,6 @@ func TestAddCredits_ConcurrentSameEvent_OnlyOneSucceeds(t *testing.T) {
 // for credit topup scenarios.
 func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -254,7 +250,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS checkout_sessions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+ 
 		CREATE TABLE credit_wallets (
 			id SERIAL PRIMARY KEY,
 			customer_email VARCHAR(255) UNIQUE NOT NULL,
@@ -272,7 +268,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
 		ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
-
+ 
 		CREATE TABLE checkout_sessions (
 			id SERIAL PRIMARY KEY,
 			session_id VARCHAR(255) UNIQUE NOT NULL,
@@ -288,7 +284,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
 		);
-
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,

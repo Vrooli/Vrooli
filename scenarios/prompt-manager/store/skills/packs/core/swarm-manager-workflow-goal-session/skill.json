@@ -1,0 +1,20 @@
+{
+  "createdAt": "2026-09-10T00:00:00Z",
+  "description": "Typed prompt contract for one warm native-goal session in an accepted plan.",
+  "entry": "SKILL.md",
+  "id": "swarm-manager-workflow-goal-session",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": ["contract"],
+  "name": "swarm-manager-workflow-goal-session",
+  "origin": {"kind": "authored"},
+  "requires": {
+    "commands": ["prompt-manager discover", "swarm-manager"],
+    "scenarios": ["prompt-manager", "swarm-manager"]
+  },
+  "revision": 4,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": ["swarm-manager", "agent-manager", "workflow", "prompt-contract"],
+  "updatedAt": "2026-09-11T06:40:00Z"
+}

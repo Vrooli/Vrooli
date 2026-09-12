@@ -1,0 +1,5 @@
+[data-rcl-link] {
+  color: var(--color-primary);
+  text-underline-offset: var(--space-3xs);
+  transition: color var(--dur-quick) var(--ease-standard);
+}

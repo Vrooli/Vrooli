@@ -1,0 +1,480 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "app.eyebrow": {
+      "testId": "app-eyebrow",
+      "selector": "[data-testid=\"app-eyebrow\"]"
+    },
+    "app.description": {
+      "testId": "app-description",
+      "selector": "[data-testid=\"app-description\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "brands.card": {
+      "testId": "brands-card",
+      "selector": "[data-testid=\"brands-card\"]"
+    },
+    "brands.list": {
+      "testId": "brands-list",
+      "selector": "[data-testid=\"brands-list\"]"
+    },
+    "brands.loading": {
+      "testId": "brands-loading",
+      "selector": "[data-testid=\"brands-loading\"]"
+    },
+    "brands.empty": {
+      "testId": "brands-empty",
+      "selector": "[data-testid=\"brands-empty\"]"
+    },
+    "brands.error": {
+      "testId": "brands-error",
+      "selector": "[data-testid=\"brands-error\"]"
+    },
+    "brands.createButton": {
+      "testId": "brands-create-button",
+      "selector": "[data-testid=\"brands-create-button\"]"
+    },
+    "brands.updatedAt": {
+      "testId": "brands-updated-at",
+      "selector": "[data-testid=\"brands-updated-at\"]"
+    },
+    "brands.version": {
+      "testId": "brands-version",
+      "selector": "[data-testid=\"brands-version\"]"
+    },
+    "assignments.card": {
+      "testId": "assignments-card",
+      "selector": "[data-testid=\"assignments-card\"]"
+    },
+    "assignments.list": {
+      "testId": "assignments-list",
+      "selector": "[data-testid=\"assignments-list\"]"
+    },
+    "assignments.loading": {
+      "testId": "assignments-loading",
+      "selector": "[data-testid=\"assignments-loading\"]"
+    },
+    "assignments.empty": {
+      "testId": "assignments-empty",
+      "selector": "[data-testid=\"assignments-empty\"]"
+    },
+    "assignments.error": {
+      "testId": "assignments-error",
+      "selector": "[data-testid=\"assignments-error\"]"
+    },
+    "assignments.scenario": {
+      "testId": "assignments-scenario",
+      "selector": "[data-testid=\"assignments-scenario\"]"
+    },
+    "assignments.brand": {
+      "testId": "assignments-brand",
+      "selector": "[data-testid=\"assignments-brand\"]"
+    },
+    "assignments.version": {
+      "testId": "assignments-version",
+      "selector": "[data-testid=\"assignments-version\"]"
+    },
+    "assets.card": {
+      "testId": "assets-card",
+      "selector": "[data-testid=\"assets-card\"]"
+    },
+    "assets.list": {
+      "testId": "assets-list",
+      "selector": "[data-testid=\"assets-list\"]"
+    },
+    "assets.loading": {
+      "testId": "assets-loading",
+      "selector": "[data-testid=\"assets-loading\"]"
+    },
+    "assets.empty": {
+      "testId": "assets-empty",
+      "selector": "[data-testid=\"assets-empty\"]"
+    },
+    "assets.error": {
+      "testId": "assets-error",
+      "selector": "[data-testid=\"assets-error\"]"
+    },
+    "assets.filename": {
+      "testId": "assets-filename",
+      "selector": "[data-testid=\"assets-filename\"]"
+    },
+    "assets.brand": {
+      "testId": "assets-brand",
+      "selector": "[data-testid=\"assets-brand\"]"
+    },
+    "assets.mimeType": {
+      "testId": "assets-mime-type",
+      "selector": "[data-testid=\"assets-mime-type\"]"
+    },
+    "assets.size": {
+      "testId": "assets-size",
+      "selector": "[data-testid=\"assets-size\"]"
+    },
+    "generation.card": {
+      "testId": "generation-card",
+      "selector": "[data-testid=\"generation-card\"]"
+    },
+    "generation.loading": {
+      "testId": "generation-loading",
+      "selector": "[data-testid=\"generation-loading\"]"
+    },
+    "generation.error": {
+      "testId": "generation-error",
+      "selector": "[data-testid=\"generation-error\"]"
+    },
+    "generation.summary": {
+      "testId": "generation-summary",
+      "selector": "[data-testid=\"generation-summary\"]"
+    },
+    "generation.list": {
+      "testId": "generation-list",
+      "selector": "[data-testid=\"generation-list\"]"
+    },
+    "generation.providerName": {
+      "testId": "generation-provider-name",
+      "selector": "[data-testid=\"generation-provider-name\"]"
+    },
+    "generation.providerStatus": {
+      "testId": "generation-provider-status",
+      "selector": "[data-testid=\"generation-provider-status\"]"
+    },
+    "generation.imageCard": {
+      "testId": "generation-image-card",
+      "selector": "[data-testid=\"generation-image-card\"]"
+    },
+    "generation.imageSummary": {
+      "testId": "generation-image-summary",
+      "selector": "[data-testid=\"generation-image-summary\"]"
+    },
+    "generation.imageList": {
+      "testId": "generation-image-list",
+      "selector": "[data-testid=\"generation-image-list\"]"
+    },
+    "generation.imageOpName": {
+      "testId": "generation-image-op-name",
+      "selector": "[data-testid=\"generation-image-op-name\"]"
+    },
+    "generation.imageOpStatus": {
+      "testId": "generation-image-op-status",
+      "selector": "[data-testid=\"generation-image-op-status\"]"
+    },
+    "apply.card": {
+      "testId": "apply-card",
+      "selector": "[data-testid=\"apply-card\"]"
+    },
+    "apply.brandInput": {
+      "testId": "apply-brand-input",
+      "selector": "[data-testid=\"apply-brand-input\"]"
+    },
+    "apply.scenarioInput": {
+      "testId": "apply-scenario-input",
+      "selector": "[data-testid=\"apply-scenario-input\"]"
+    },
+    "apply.previewButton": {
+      "testId": "apply-preview-button",
+      "selector": "[data-testid=\"apply-preview-button\"]"
+    },
+    "apply.results": {
+      "testId": "apply-results",
+      "selector": "[data-testid=\"apply-results\"]"
+    },
+    "apply.summary": {
+      "testId": "apply-summary",
+      "selector": "[data-testid=\"apply-summary\"]"
+    },
+    "apply.appliedList": {
+      "testId": "apply-applied-list",
+      "selector": "[data-testid=\"apply-applied-list\"]"
+    },
+    "apply.skippedList": {
+      "testId": "apply-skipped-list",
+      "selector": "[data-testid=\"apply-skipped-list\"]"
+    },
+    "apply.empty": {
+      "testId": "apply-empty",
+      "selector": "[data-testid=\"apply-empty\"]"
+    },
+    "apply.error": {
+      "testId": "apply-error",
+      "selector": "[data-testid=\"apply-error\"]"
+    },
+    "discovery.card": {
+      "testId": "discovery-card",
+      "selector": "[data-testid=\"discovery-card\"]"
+    },
+    "discovery.scenarioInput": {
+      "testId": "discovery-scenario-input",
+      "selector": "[data-testid=\"discovery-scenario-input\"]"
+    },
+    "discovery.scanButton": {
+      "testId": "discovery-scan-button",
+      "selector": "[data-testid=\"discovery-scan-button\"]"
+    },
+    "discovery.results": {
+      "testId": "discovery-results",
+      "selector": "[data-testid=\"discovery-results\"]"
+    },
+    "discovery.summary": {
+      "testId": "discovery-summary",
+      "selector": "[data-testid=\"discovery-summary\"]"
+    },
+    "discovery.sourcesList": {
+      "testId": "discovery-sources-list",
+      "selector": "[data-testid=\"discovery-sources-list\"]"
+    },
+    "discovery.draft": {
+      "testId": "discovery-draft",
+      "selector": "[data-testid=\"discovery-draft\"]"
+    },
+    "discovery.suggestionsList": {
+      "testId": "discovery-suggestions-list",
+      "selector": "[data-testid=\"discovery-suggestions-list\"]"
+    },
+    "discovery.empty": {
+      "testId": "discovery-empty",
+      "selector": "[data-testid=\"discovery-empty\"]"
+    },
+    "discovery.error": {
+      "testId": "discovery-error",
+      "selector": "[data-testid=\"discovery-error\"]"
+    },
+    "design.card": {
+      "testId": "design-card",
+      "selector": "[data-testid=\"design-card\"]"
+    },
+    "design.brandInput": {
+      "testId": "design-brand-input",
+      "selector": "[data-testid=\"design-brand-input\"]"
+    },
+    "design.generateButton": {
+      "testId": "design-generate-button",
+      "selector": "[data-testid=\"design-generate-button\"]"
+    },
+    "design.result": {
+      "testId": "design-result",
+      "selector": "[data-testid=\"design-result\"]"
+    },
+    "design.markdown": {
+      "testId": "design-markdown",
+      "selector": "[data-testid=\"design-markdown\"]"
+    },
+    "design.error": {
+      "testId": "design-error",
+      "selector": "[data-testid=\"design-error\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "layout.topBar": {
+      "testId": "layout-top-bar",
+      "selector": "[data-testid=\"layout-top-bar\"]"
+    },
+    "layout.sidebar": {
+      "testId": "layout-sidebar",
+      "selector": "[data-testid=\"layout-sidebar\"]"
+    },
+    "layout.bottomNav": {
+      "testId": "layout-bottom-nav",
+      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    },
+    "layout.main": {
+      "testId": "layout-main",
+      "selector": "[data-testid=\"layout-main\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.brands": {
+      "testId": "page-brands",
+      "selector": "[data-testid=\"page-brands\"]"
+    },
+    "pages.assignments": {
+      "testId": "page-assignments",
+      "selector": "[data-testid=\"page-assignments\"]"
+    },
+    "pages.assets": {
+      "testId": "page-assets",
+      "selector": "[data-testid=\"page-assets\"]"
+    },
+    "pages.generation": {
+      "testId": "page-generation",
+      "selector": "[data-testid=\"page-generation\"]"
+    },
+    "pages.apply": {
+      "testId": "page-apply",
+      "selector": "[data-testid=\"page-apply\"]"
+    },
+    "pages.discovery": {
+      "testId": "page-discovery",
+      "selector": "[data-testid=\"page-discovery\"]"
+    },
+    "pages.design": {
+      "testId": "page-design",
+      "selector": "[data-testid=\"page-design\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.sidebarLink": {
+      "description": "Sidebar navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
+      "testIdPattern": "layout-sidebar-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "brands",
+            "assignments",
+            "assets",
+            "generation",
+            "apply",
+            "discovery",
+            "design",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "layout.bottomNavLink": {
+      "description": "Bottom-nav link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
+      "testIdPattern": "layout-bottom-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "brands",
+            "assignments",
+            "assets",
+            "generation",
+            "apply",
+            "discovery",
+            "design",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "d1e153e7e08dd111d0300bccb2eb281db8c8160c32a515e2953714cf72e332e4",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

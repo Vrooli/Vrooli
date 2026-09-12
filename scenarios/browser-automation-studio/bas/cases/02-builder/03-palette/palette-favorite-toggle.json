@@ -3,12 +3,6 @@
     {
       "id": "call-open-builder-to-wait-for-builder",
       "source": "call-open-builder",
-      "target": "wait-for-builder",
-      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
-    },
-    {
-      "id": "e7",
-      "source": "wait-for-builder",
       "target": "assert-node-card-visible",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -33,11 +27,14 @@
   ],
   "metadata": {
     "description": "Validates toggling node favorites in the palette",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Palette Favorite Toggle",
+    "version": "1"
   },
   "nodes": [
     {
@@ -55,18 +52,6 @@
         "type": "ACTION_TYPE_SUBFLOW"
       },
       "id": "call-open-builder"
-    },
-    {
-      "action": {
-        "metadata": {
-          "label": "Wait for workflow builder"
-        },
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "duration_ms": 3000
-        }
-      },
-      "id": "wait-for-builder"
     },
     {
       "action": {
@@ -107,9 +92,6 @@
           "label": "Click favorite button to toggle"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 1000
       },
       "id": "click-favorite-button"
     },

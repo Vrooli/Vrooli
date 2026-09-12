@@ -1,0 +1,218 @@
+package conflicts
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
+	"architecture-cartographer/internal/signals"
+
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/google/uuid"
+)
+
+// SQLExecutor is the narrow database surface.
+type SQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+type sqliteRepository struct {
+	db    SQLExecutor
+	clock schedule.Clock
+}
+
+// NewSQLiteRepository constructs the production Repository.
+func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+	return &sqliteRepository{db: db, clock: clk}
+}
+
+var _ Repository = (*sqliteRepository)(nil)
+
+const conflictTimeFormat = time.RFC3339Nano
+
+const (
+	upsertConflictSQL = `
+INSERT INTO conflicts
+  (id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  instance_id = excluded.instance_id,
+  subtype = excluded.subtype,
+  severity = excluded.severity,
+  snapshot_id = excluded.snapshot_id,
+  payload = excluded.payload,
+  updated_at = excluded.updated_at`
+
+	selectConflictByIDSQL = `
+SELECT id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at
+FROM conflicts WHERE id = ?`
+
+	listConflictsSQL = `
+SELECT id, instance_id, scenario, detector, type, subtype, severity, snapshot_id, payload, detected_at, updated_at
+FROM conflicts
+WHERE scenario = ?
+ORDER BY detected_at DESC, id DESC
+LIMIT ?`
+)
+
+type conflictPayload struct {
+	Locations         []string         `json:"locations,omitempty"`
+	Domains           []string         `json:"domains,omitempty"`
+	FindingClass      FindingClass     `json:"finding_class,omitempty"`
+	Evidence          []Evidence       `json:"evidence,omitempty"`
+	SuggestedFixes    []Fix            `json:"suggested_fixes,omitempty"`
+	Verdict           *signals.Verdict `json:"verdict,omitempty"`
+	Suppressed        bool             `json:"suppressed,omitempty"`
+	SuppressionReason string           `json:"suppression_reason,omitempty"`
+}
+
+func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conflict, error) {
+	// v0.2 identity contract: ID is the deterministic stable_id; the
+	// per-run UUID lives in InstanceID. Detectors don't have to set
+	// either — the service layer (DetectConflicts) does — but callers
+	// who upsert directly (tests, ad-hoc tooling) get the same defaults
+	// here so we never persist a row with an empty primary key.
+	if c.StableID == "" {
+		c.StableID = StableID(c)
+	}
+	if c.ID == "" {
+		c.ID = c.StableID
+	}
+	if c.InstanceID == "" {
+		c.InstanceID = uuid.NewString()
+	}
+	now := r.clock.Now().UTC()
+	if c.DetectedAt.IsZero() {
+		c.DetectedAt = now
+	}
+	c.UpdatedAt = now
+	payload, err := json.Marshal(conflictPayload{
+		Locations:         c.Locations,
+		Domains:           c.Domains,
+		FindingClass:      c.FindingClass,
+		Evidence:          c.Evidence,
+		SuggestedFixes:    c.SuggestedFixes,
+		Verdict:           c.Verdict,
+		Suppressed:        c.Suppressed,
+		SuppressionReason: c.SuppressionReason,
+	})
+	if err != nil {
+		return Conflict{}, fmt.Errorf("encode conflict %q payload: %w", c.ID, err)
+	}
+	_, err = r.db.ExecContext(ctx, upsertConflictSQL,
+		c.ID, c.InstanceID, c.Scenario, c.Detector, c.Type, c.Subtype, string(c.Severity),
+		c.SnapshotID, payload,
+		c.DetectedAt.Format(conflictTimeFormat), c.UpdatedAt.Format(conflictTimeFormat),
+	)
+	if err != nil {
+		return Conflict{}, fmt.Errorf("upsert conflict %q: %w", c.ID, err)
+	}
+	return c, nil
+}
+
+func (r *sqliteRepository) GetConflict(ctx context.Context, id string) (Conflict, error) {
+	row := r.db.QueryRowContext(ctx, selectConflictByIDSQL, id)
+	c, err := scanConflict(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Conflict{}, ErrConflictNotFound{ID: id}
+	}
+	if err != nil {
+		return Conflict{}, fmt.Errorf("get conflict %q: %w", id, err)
+	}
+	return c, nil
+}
+
+func (r *sqliteRepository) ListConflicts(ctx context.Context, f ListConflictsFilter) (ConflictPage, error) {
+	limit := f.PageSize
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, listConflictsSQL, f.Scenario, limit)
+	if err != nil {
+		return ConflictPage{}, fmt.Errorf("list conflicts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Conflict
+	for rows.Next() {
+		c, err := scanConflict(rows)
+		if err != nil {
+			return ConflictPage{}, err
+		}
+		if !matchesTypes(c.Type, f.Types) {
+			continue
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return ConflictPage{}, fmt.Errorf("iterate conflicts: %w", err)
+	}
+	return ConflictPage{Conflicts: out}, nil
+}
+
+type rowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanConflict(s rowScanner) (Conflict, error) {
+	var (
+		c          Conflict
+		severity   string
+		payload    []byte
+		detectedAt string
+		updatedAt  string
+	)
+	if err := s.Scan(
+		&c.ID, &c.InstanceID, &c.Scenario, &c.Detector, &c.Type, &c.Subtype, &severity,
+		&c.SnapshotID, &payload,
+		&detectedAt, &updatedAt,
+	); err != nil {
+		return Conflict{}, err
+	}
+	// The stored primary key IS the stable_id since v0.2.
+	c.StableID = c.ID
+	c.Severity = Severity(severity)
+	det, err := time.Parse(conflictTimeFormat, detectedAt)
+	if err != nil {
+		return Conflict{}, fmt.Errorf("parse detected_at: %w", err)
+	}
+	upd, err := time.Parse(conflictTimeFormat, updatedAt)
+	if err != nil {
+		return Conflict{}, fmt.Errorf("parse updated_at: %w", err)
+	}
+	c.DetectedAt = det
+	c.UpdatedAt = upd
+	if len(payload) > 0 {
+		var p conflictPayload
+		if err := json.Unmarshal(payload, &p); err != nil {
+			return Conflict{}, fmt.Errorf("decode payload: %w", err)
+		}
+		c.Locations = p.Locations
+		c.Domains = p.Domains
+		c.FindingClass = p.FindingClass
+		c.Evidence = p.Evidence
+		c.SuggestedFixes = p.SuggestedFixes
+		c.Verdict = p.Verdict
+		c.Suppressed = p.Suppressed
+		c.SuppressionReason = p.SuppressionReason
+	}
+	return c, nil
+}
+
+func matchesTypes(t string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, a := range allowed {
+		if a == t {
+			return true
+		}
+	}
+	return false
+}

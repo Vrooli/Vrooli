@@ -1,0 +1,73 @@
+import {
+  create,
+  fromJson,
+  type JsonValue,
+} from "@bufbuild/protobuf";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { buildApiUrl } from "@vrooli/api-base";
+import {
+  ErrorEnvelopeSchema,
+  type ErrorEnvelope,
+} from "@vrooli/proto-types/audio-tools/v1/errors/errors_pb";
+
+import { createFallbackInterceptor } from "./fallbackInterceptor";
+import { API_BASE, REST_API_BASE } from "./base";
+
+const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
+
+// Connect transport wired with the fallback-observability interceptor.
+// We construct the transport directly here (instead of using the shared
+// createScenarioConnectTransport helper) because that helper does not yet
+// expose an interceptors hook; the rest of the configuration is identical.
+export const transport = createConnectTransport({
+  baseUrl: API_BASE,
+  interceptors: [createFallbackInterceptor()],
+});
+
+
+/**
+ * Typed error thrown when the API returns a non-2xx response. The
+ * server-side ErrorEnvelope round-trips through here so callers branch on
+ * structured code/status instead of parsing strings.
+ */
+export class ApiError extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(envelope: ErrorEnvelope, status: number) {
+    super(`${envelope.code}: ${envelope.message}`);
+    this.name = "ApiError";
+    this.code = envelope.code;
+    this.status = status;
+  }
+}
+
+export function makeApiError(code: string, message: string, status = 500): ApiError {
+  const envelope = create(ErrorEnvelopeSchema, { code, message });
+  return new ApiError(envelope, status);
+}
+
+export async function decodeApiError(res: Response): Promise<ApiError> {
+  let envelope: ErrorEnvelope;
+  try {
+    const json = (await res.json()) as JsonValue;
+    envelope = fromJson(ErrorEnvelopeSchema, json, PROTO_READ_OPTIONS);
+  } catch {
+    envelope = create(ErrorEnvelopeSchema, {
+      code: "internal",
+      message: `unexpected ${res.status} response (no envelope)`,
+    });
+  }
+  return new ApiError(envelope, res.status);
+}
+
+export async function uploadFile(path: string, formData: FormData): Promise<Response> {
+  return fetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
+    method: "POST",
+    body: formData,
+    cache: "no-store",
+  });
+}
+
+export { fromJson, PROTO_READ_OPTIONS };
+export type { ErrorEnvelope, JsonValue };

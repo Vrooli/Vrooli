@@ -45,6 +45,36 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 - **UI**: Operator dashboard for search, graph, metrics. [CODE: ui/src/main.tsx]
 - **CLI**: Thin wrapper over the API for terminal workflows. [CODE: cli/app.go]
 
+## Domain Map
+
+| Domain | Surface(s) | Primary Archetype | Secondary Traits | Source Paths | Notes |
+|---|---|---|---|---|---|
+| ingest | API, CLI | Orchestration | Integration/client, temporal workflow | `path:api/ingest.go`, `path:api/document_ingest.go`, `path:api/internal/services/ingest/`, `path:api/internal/services/ingestjobs/` | Canonical write path for records/documents and async ingest jobs. |
+| search | API, UI, CLI | Reporting / query | Integration/client | `path:api/search.go`, `path:api/docs_search.go`, `path:api/internal/services/search/`, `path:api/internal/services/docsearch/` | File/text/semantic/unified search over scenario docs and Qdrant memory. |
+| deep-search | API, UI | Orchestration | Integration/client, temporal workflow | `path:api/docs_deep_search.go`, `path:api/internal/services/deepsearch/`, `path:api/internal/adapters/agentmanager/` | Agent-backed search jobs with polling and persisted job state. |
+| graph | API, UI | Reporting / query | Integration/client | `path:api/graph.go`, `path:api/internal/services/graph/` | Materializes concept graph data from vector similarity. |
+| metrics | API, UI | Reporting / query | Scheduled/background work | `path:api/metrics.go` | Samples vector collections and persists quality metrics. |
+| documentation-health | API (Connect-RPC), CLI | Policy / rules | Configuration/settings | `path:api/handlers/dochealth/`, `path:api/internal/doccontract/`, `path:api/internal/doctemplates/`, `path:api/internal/docvalidation/`, `path:api/internal/doclogs/`, `path:api/internal/services/dochealth/` | Single source of truth for scenario documentation health. The `KnowledgeObservatoryService.DocHealth` RPC runs structural placement + markdown/mermaid/links/paths + bidirectional refs + command snippets + manifest coverage in one call. Explicit `cli:` marked references and conservative Vrooli-owned fenced shell snippets are delegated to CLI Health for command validation; Knowledge Observatory owns docs policy and reporting, not command catalogs. All callers (knowledge-observatory CLI, test-genie docs phase, CI hooks) consume this surface — no inline validators live elsewhere. Reset is a separate REST endpoint (`api/docs_reset.go`) until its own RPC migration. |
+| documentation-healing | API, UI | Orchestration | Integration/client, approvals | `path:api/docs_heal.go`, `path:api/internal/services/dochealing/`, `path:api/internal/adapters/dochealingstore/` | Coordinates agent-backed documentation fixes and approval workflow. |
+
+## Shared Infrastructure
+
+| Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
+|---|---|---|---|
+| `path:api/server.go` | API runtime, configuration defaults, routing, CORS, dependency wiring. | Cross-cutting bootstrap/runtime layer for all API domains. | All HTTP handlers and services. |
+| `path:api/internal/ports/` | Interfaces for vector store, embedder, metadata store, and job store. | Integration seams are shared by multiple service domains. | Ingest, search, graph, metrics, deep search. |
+| `path:api/internal/adapters/` | Concrete adapters for Qdrant, Ollama, Postgres, agent-manager, prompt-manager. | External integrations are reusable infrastructure behind ports. | Service domains through ports/client seams. |
+| `path:ui/src/shared/` | Shared UI controllers, API helpers, selectors, and primitives. | Cross-surface UI mechanics, not one feature's product behavior. | Dashboard, search, graph, metrics, explorer surfaces. |
+
+## Architecture Maturity
+
+| Surface | Level | Evidence | Remaining Drift |
+|---|---|---|---|
+| API | 3 | Services, ports, and adapters are separated; bootstrap is isolated in `api/server.go`. | Some domain entrypoints remain flat top-level handler files rather than capability-owned handler packages. |
+| UI | 3 | Major surfaces are named by user-facing capability and share common primitives/controllers. | Feature boundaries should stay aligned as new panels/routes are added. |
+| CLI | 3 | CLI delegates to API endpoints and keeps destructive policy server-side. | Domain command organization should be preserved as commands expand. |
+| Docs | 4 | Architecture, seams, and problems now hold architecture memory without a standalone audit report. | Keep domain map current when capabilities are added or retired. |
+
 ---
 
 ## Ingest Flow
@@ -68,7 +98,7 @@ Document / Text
        │
        ▼
 ┌──────────────┐
-│  Embed via   │  768-dim vectors (nomic-embed-text)
+│  Embed via   │  dimensions from `embedding.default`
 │   Ollama     │
 └──────┬───────┘
        │
@@ -217,7 +247,8 @@ A background loop runs every 5 minutes, sampling vectors and computing health sc
 
 ## Documentation Health Flow
 
-Validates scenario documentation layout against 15 canonical doc types.
+Validates scenario documentation layout against the scenario's resolved
+documentation contract.
 
 ```
 Scenario name
@@ -225,32 +256,36 @@ Scenario name
        ▼
 ┌──────────────────┐
 │  Resolve scenario│  Filesystem path via VROOLI_SCENARIOS_ROOT
-│  root directory  │
+│  root directory  │  + .vrooli/service.json template provenance
 └──────┬───────────┘
        │
        ▼
-┌──────────────────┐    Known doc types:
-│  Validate layout │    README, PROBLEMS, PROGRESS, SEAMS,
-│  against         │    INVARIANTS, ASSUMPTIONS, ERROR-SEMANTICS,
-│  docschema       │    SECURITY-POSTURE, TEMPORAL-FLOWS,
-│  standards       │    COHERENCE-NOTES, EXPERIENCE-AUDIT,
-└──────┬───────────┘    QUICKSTART, ARCHITECTURE, GLOSSARY,
-       │                PRD, manifest.json
+┌──────────────────┐    Contract source:
+│  Resolve docs    │    scenario docs/manifest.json when present,
+│  contract        │    otherwise template docs/manifest.json
+└──────┬───────────┘    with react-vite fallback
+       │
+       ▼
+┌──────────────────┐
+│  Validate files  │    Paths, aliases, required docs,
+│  against         │    content rules, append-log operations,
+│  manifest rules  │    unregistered docs, temporary artifacts
+└──────┬───────────┘
        ▼
 ┌──────────────────┐
 │  Generate report │    • health_score (0-1)
-│  • missing docs  │    • misplaced docs (wrong path)
-│  • extra docs    │    • warnings + auto-fix hints
-│  • warnings      │
+│  • missing docs  │    • contract/content findings
+│  • extra docs    │    • misplaced docs (wrong path)
+│  • warnings      │    • reset/add support from appendLog
 └──────┬───────────┘
        │
        ▼
   Health response ──► UI Explorer + Dashboard
 ```
 
-[CODE: api/docs_health.go]
-[CODE: api/internal/docschema/validation.go]
-[CODE: api/internal/docschema/types.go]
+[CODE: api/handlers/dochealth/handler.go]
+[CODE: api/internal/doccontract/manifest.go]
+[CODE: api/internal/docvalidation/validation.go]
 [CODE: api/internal/services/dochealth/service.go]
 
 ---
@@ -369,7 +404,7 @@ Scenario name ──► Validate current doc health
                  dashboard_metrics (materialized view)
 ```
 
-[CODE: initialization/postgres/schema.sql]
+[CODE: api/internal/<domain>/schema.sql]
 
 ---
 
@@ -422,10 +457,10 @@ Quick search, documentation health, scenario coverage, and activity feed are sur
 │      │  │      │  │        │  │prompt-manager│
 └──────┘  └──────┘  └────────┘  └──────────────┘
  vectors   embed     metadata    AI agent runs
- search    768-dim   jobs        skill retrieval
- upsert    nomic-    metrics     deep search
- delete    embed-    history     doc healing
-           text      relations
+ search    role      jobs        skill retrieval
+ upsert    policy    metrics     deep search
+ delete              history     doc healing
+                     relations
 ```
 
 - **Qdrant**: Vector storage + similarity search. [CODE: api/internal/adapters/vectorstore/qdrant.go]

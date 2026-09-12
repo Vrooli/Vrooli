@@ -62,6 +62,10 @@ func StringToActionType(actionType string) basactions.ActionType {
 		return basactions.ActionType_ACTION_TYPE_EXTRACT
 	case "shortcut":
 		return basactions.ActionType_ACTION_TYPE_SHORTCUT
+	case "dragdrop", "drag_drop":
+		return basactions.ActionType_ACTION_TYPE_DRAG_DROP
+	case "gesture", "swipe", "pinch", "zoom":
+		return basactions.ActionType_ACTION_TYPE_GESTURE
 	default:
 		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}

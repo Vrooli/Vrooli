@@ -1,0 +1,176 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.learn-verbs-example",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Checked-in executable example covering the in-code learning verbs (including the later-run feedback verb), durable fragment reuse, and derived advice.",
+  "inputs": {
+    "value": {
+      "type": "string",
+      "default": "fixture-value",
+      "free_text": true
+    },
+    "workflow_key": {
+      "type": "string",
+      "default": "agent-manager/investigate-typed"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "baseline",
+        "adapt",
+        "all"
+      ],
+      "default": "baseline"
+    }
+  },
+  "assumptions": [
+    "The baseline mode requires Program Runtime only; optional learning delivery remains explicit.",
+    "The all mode exercises inference and delegation and reports their unavailability."
+  ],
+  "invariants": [
+    "the task key is explicit because value is free text",
+    "the root outcome is verified only for the deterministic local result",
+    "the envelope is printed exactly once"
+  ],
+  "bindings": [],
+  "verbs": [
+    "learn.act",
+    "learn.choose",
+    "learn.delegate",
+    "learn.feedback",
+    "learn.infer",
+    "learn.note",
+    "learn.outcome",
+    "learn.recall",
+    "learn.result",
+    "learn.step",
+    "learn.task"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "choice": "selected option and advice evidence",
+      "inferred": "schema-validated inference result",
+      "acted": "fragment result, source, and model-call count",
+      "delegated": "verified or degraded delegated result",
+      "identity": "stable task identity",
+      "mode": "Baseline, adaptive generation, or all verbs",
+      "learning": "Durable feedback_ref identifies this task or exact artifact; preserve it and send a later correction with program-runtime.learning-feedback or learn.feedback."
+    },
+    "errors": {
+      "classes": [
+        "delegate_unavailable",
+        "inference_failed",
+        "fragment_failed"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 3,
+    "delegated_runs": 1,
+    "materialize_limit": 0,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "portable-alpha",
+      "inputs": {
+        "value": "alpha",
+        "mode": "baseline"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "portable-beta",
+      "inputs": {
+        "value": "beta",
+        "mode": "baseline"
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime",
+  "learning": {
+    "baselines": {
+      "find-account": {
+        "version": 1,
+        "fragment": "def step(inputs, bindings):\n    return {'value': inputs['value']}",
+        "compatibility": {
+          "version": 2,
+          "intent": "Return the input value in an object with the key value.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "value"
+            ]
+          },
+          "bindings": [],
+          "binding_contracts": [],
+          "verifier_revision": "value-equality/v1",
+          "environment": {}
+        },
+        "reviewed_by": "operator-authorized-implementation",
+        "evidence": [
+          "fixture:echo-alpha",
+          "fixture:echo-beta"
+        ],
+        "fixtures": [
+          {
+            "inputs": {
+              "value": "alpha"
+            },
+            "expected": {
+              "value": "alpha"
+            }
+          },
+          {
+            "inputs": {
+              "value": "beta"
+            },
+            "expected": {
+              "value": "beta"
+            }
+          }
+        ],
+        "digest": "6400803f8458f568a560d6ac028a1afb09aa7bcb67840e2269fc4886331abbec"
+      }
+    }
+  }
+}

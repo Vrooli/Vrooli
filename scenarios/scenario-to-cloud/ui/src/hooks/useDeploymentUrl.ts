@@ -35,7 +35,7 @@ export function parseDeploymentHash(hash: string): DeploymentUrlState {
   }
 
   // Split path and query string
-  const [pathPart, queryPart] = cleanHash.split("?");
+  const [pathPart = "", queryPart] = cleanHash.split("?");
   const pathSegments = pathPart.split("/");
 
   // pathSegments[0] is "deployments"

@@ -1,48 +1,68 @@
 # Product Requirements Document (PRD)
 
 ## 🎯 Overview
-- **Purpose**: Transform Vrooli's manual setup process into a guided, user-friendly onboarding experience
-- **Primary users/verticals**: Non-technical users, new developers, returning configuration managers
-- **Deployment surfaces**: Web UI, CLI, REST API
-- **Value promise**: Reduce time-to-first-working-agent from hours to under 10 minutes through guided setup
+- **Purpose**: Vrooli Onboarding is the permanent operator surface for helping a person configure a safe, understandable Vrooli installation for a purpose. It turns reviewed purpose profiles or complete manual choices into one explained capability selection, commits operator decisions through a single typed authority, applies them through owning control-plane operations, and reports honest readiness and recovery standing on a workstation, desktop bundle, or remote VPS.
+- **Primary users/verticals**: First-run operators installing Vrooli; returning operators changing a running install; agents and remote coordinators (vrooli-bridge, scenario-to-cloud) configuring a host they cannot see.
+- **Deployment surfaces**: Web UI, interactive CLI, non-interactive CLI, REST API, bundled desktop app.
+- **Value promise**: An operator reaches a configured, applied, verifiably ready install in under ten minutes on any deployment tier, and never has to hand-edit a JSON file to do it.
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Resource Configuration Wizard | Complete guided setup flow for coding agents and AI providers with 100% validation coverage
-- [x] OT-P0-002 | Configuration State Management | Generate and validate service.json with all dependencies resolved and proper schema compliance
+- [x] OT-P0-001 | Scenario-first capability selection | When an operator selects a scenario, the wizard shall resolve its transitive scenario and resource dependencies from manifests and shall show the resulting stack before the operator continues.
+- [x] OT-P0-002 | Non-destructive operator-state writes | When a surface commits a choice, the system shall merge only the changed fields into operator state and shall preserve every field it does not own.
+- [x] OT-P0-003 | Single operator-state write authority | The system shall expose one typed operator-state service, and every writer shall write operator state only through it.
+- [x] OT-P0-004 | Manifest-driven operator surface | The wizard shall render every operator-controllable choice from manifest declarations and shall hold no hard-coded inventory of scenarios, resources, categories, tools, safeguards, or safeguard config fields.
+- [x] OT-P0-005 | Deployment-tier parity | While the wizard runs from a desktop bundle, every step shall resolve its data from the bundled catalog and no step shall return an error.
+- [x] OT-P0-006 | Apply and completion | When the operator confirms setup, the system shall install opted-in host tools, apply opted-in safeguards, enable selected resources, start selected scenarios, report a per-item result, and record a durable completion marker.
+- [x] OT-P0-007 | Credential provisioning without disclosure | If a credential value is submitted, then the system shall relay it to the credential authority and shall not write it to operator state, logs, URLs, browser storage, or any response body.
+- [x] OT-P0-008 | Surface parity across UI, CLI, and API | The wizard shall be completable through the UI, an interactive CLI, and a non-interactive CLI or API call, and the three shall produce identical operator state for identical choices.
+- [x] OT-P0-009 | Declared supervision authority | The wizard shall show the current `core.seed`, prevent removal of `core.trusted_base`, preview the computed supervision closure before confirmation, and commit membership only through the typed operator-state authority. Scenario `auto_restart` choices shall remain lifecycle recommendations and shall not alter supervision membership.
+- [x] OT-P0-010 | Actionable readiness report | The readiness report shall probe declared credentials, host tools, host safeguards, and resource reachability, and shall name a remediation for every item that is not ready.
+- [x] OT-P0-011 | Re-enterable setup | When an operator re-opens the wizard on a configured install, it shall load committed state, resume at the first unsatisfied step, and allow revision of any decision that is not deferred.
+- [ ] OT-P0-012 | Remote and headless onboarding | The non-interactive surface shall let vrooli-bridge and scenario-to-cloud configure a remote host or VPS with no hand-edited file.
+- [x] OT-P0-013 | Accessible, themed operator experience | The wizard shall meet WCAG 2.1 AA, shall be operable by keyboard alone, and shall render correctly in light and dark themes.
+- [x] OT-P0-014 | Configuration discovery | The wizard shall publish its configuration surface to search-hub so an operator may find a setting by intent rather than by path.
+- [x] OT-P0-015 | Purpose-led setup and profiles | When setup begins, the wizard shall offer reviewed local, general-purpose, development/publishing, and customer-preinstalled purpose profiles through the shared evaluator, while preserving complete manual selection and explicit overrides across UI, CLI, and API surfaces. The data-driven implementation exists; cross-interface semantic certification remains open.
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Health Monitoring Dashboard | Real-time resource status visualization with health checks and status indicators
-- [x] OT-P1-002 | Progress Persistence System | Save and resume capability for partial onboarding progress across sessions
+- [x] OT-P1-003 | Descriptor-complete credential guidance | Each credential card should present the declared purpose and the obtain link carried by the credential descriptor.
+- [x] OT-P1-008 | Explicit local credential reveal | When an operator explicitly requests recovery of a configured credential from the onboarding CLI, the system shall require a confirmation flag, refuse machine-readable output and redirected output, resolve the value only from the local credential authority, and leave the UI, API, browser, logs, and operator state write-only/metadata-only.
+- [x] OT-P1-005 | Deployment union export | The wizard should export the union of scenarios, resources, tools, and safeguards implied by a selection, for bundle, VPS, and bridge targets to consume.
+- [x] OT-P1-007 | Declared-surface honesty | The published endpoint, CLI, and requirement contracts should match the running code, and drift should fail a test rather than wait for review.
 
 ### 🟢 P2 – Future / expansion
-- [x] OT-P2-001 | Smart Flow Optimization | Intelligent setup order suggestions while maintaining flow flexibility
-- [x] OT-P2-002 | User-Friendly Documentation | Context-aware help content with plain language descriptions replacing technical terms
+- [x] OT-P2-001 | Per-scenario operating mode | The wizard may expose the manifest-recommended auto-restart choice per scenario and may persist operator overrides.
+- [x] OT-P2-002 | Deferred integrations contract | If a scenario declares an integration before integration-hub ships, then the integrations step shall present it as deferred and shall create no placeholder binding.
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks: Go (API/CLI), React/TypeScript (UI)
-- Data + storage expectations: Local file system (.vrooli/), HTTP endpoints for health checks
-- Integration strategy: API-first architecture with thin CLI/UI layers
-- Non-goals: Custom resource implementations, complex workflow automation
+- Preferred stacks: Go for the API, CLI, and the shared control-plane state service; React + TypeScript + Vite for the UI, consuming the shared component library and design tokens.
+- Data + storage expectations: No scenario-owned database. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is the sole durable record and is owned by a control-plane service, not by this scenario. Credential values live only in the credential authority.
+- Integration strategy: Manifest-derived read models and a field-scoped write API. Every other surface — CLI, bridge, cloud, desktop — is a client of the same service and evaluator.
+- Non-goals: Authoring `service.json`; owning connector or OAuth lifecycles (integration-hub); implementing host remediation itself (the control plane owns detection and repair); replacing `secrets-manager` for credential lifecycle.
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: running-resources.json, service.json, secrets.json
-- Scenario dependencies: tunnel-manager, browser-automation-studio
-- Operational risks: API key security, configuration file corruption, health check reliability
+- Required resources: none. The scenario reads manifests and delegates storage.
+- Scenario dependencies: secrets-manager and web-console (system-required peers); browser-automation-studio for journey evidence; experience-manager for the UX contract; plan-manager and test-genie for validation.
+- Control-plane dependencies: the operator-state service, the credential authority, and the host-requirement resolver.
+- Operational risks: silent operator-state field loss; deployment-tier drift between repo and bundle catalogs; a wizard that records intent but never applies it; declared contracts that drift from the running router.
 - Launch sequencing:
-  1. Core API implementation
-  2. CLI frontend
-  3. Web UI deployment
-  4. Integration validation
+  1. State integrity and deployment-tier parity.
+  2. Wizard contract completion, including apply and completion.
+  3. Configuration-substrate consolidation onto one write authority.
+  4. CLI and API surface parity.
+  5. Remote and bundled onboarding through vrooli-bridge.
+  6. Journey evidence, coverage floors, and contract-drift gates.
 
 ## 🎨 UX & Branding
-- Look & feel: Clean, minimal interface with clear progress indicators
-- Accessibility: WCAG 2.1 AA compliance, keyboard navigation support
-- Voice & messaging: Friendly, instructional tone avoiding technical jargon
-- Branding hooks: Standard Vrooli color scheme and component library
+- Look & feel: Calm, dense, instrument-like. Progressive disclosure over dialogs. Consequences of a choice are visible on the same screen as the choice.
+- Accessibility: WCAG 2.1 AA, complete keyboard operation, visible focus, announced step changes, and reduced-motion support.
+- Voice & messaging: Plain operator language. Every non-ready state names its cause and the next action. No apology copy and no unexplained failure.
+- Branding hooks: The shared design-token set and the Vrooli component library; light and dark themes are both first-class.
 
 ## 📎 Appendix
-- Reference: GuidedTour implementation from browser-automation-studio
-- Schema: service.json validation requirements
-- Health check endpoint specifications
+- **Configuration substrate**: [`/docs/configuration/`](../../docs/configuration/) — the source-of-truth contract this scenario implements. New configurability is documented there before it becomes a wizard step.
+- **Wizard flow + wireframes**: [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md) — the step-by-step implementation contract.
+- **UX contract**: [`experience/`](experience/) — page, component, and journey specs validated by experience-manager.
+- **State schema**: [`/.vrooli/schemas/operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json).
+- Operational targets carry RFC 2119 obligation by tier: P0 is `shall`/`must`, P1 is `should`, P2 is `may`. Checkboxes are flipped by requirement sync from passing evidence, never by hand.

@@ -1,0 +1,58 @@
+{
+  "options": [
+    {
+      "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+      "available": true,
+      "message": "claude CLI is available",
+      "native_objective": true,
+      "sandbox_modes_with_native_objective": ["tracking", "off"],
+      "effort_levels": ["max", "low", "medium", "high", "xhigh"]
+    },
+    {
+      "runner_type": "RUNNER_TYPE_CODEX",
+      "available": true,
+      "message": "codex CLI is available",
+      "native_objective": true,
+      "sandbox_modes_with_native_objective": ["tracking", "off"],
+      "default_model": "ollama/gemma4:12b",
+      "models": [
+        {"id": "ollama/gemma4:12b", "canonical_model": "ollama/gemma4:12b", "is_default": true},
+        {"id": "ollama/llama3.1:8b", "canonical_model": "ollama/llama3.1:8b"},
+        {"id": "ollama/llama3.2:1b", "canonical_model": "ollama/llama3.2:1b"},
+        {"id": "ollama/llama3.2:3b", "canonical_model": "ollama/llama3.2:3b"},
+        {"id": "ollama/llava:7b", "canonical_model": "ollama/llava:7b"},
+        {"id": "ollama/nomic-embed-text:latest", "canonical_model": "ollama/nomic-embed-text:latest"},
+        {"id": "ollama/qwen3-vl:2b", "canonical_model": "ollama/qwen3-vl:2b"},
+        {"id": "ollama/qwen3-vl:4b", "canonical_model": "ollama/qwen3-vl:4b"},
+        {"id": "ollama/qwen3.5:4b", "canonical_model": "ollama/qwen3.5:4b"},
+        {"id": "ollama/qwen3.5:9b", "canonical_model": "ollama/qwen3.5:9b"},
+        {"id": "ollama/qwen3:1.7b", "canonical_model": "ollama/qwen3:1.7b"},
+        {"id": "ollama/qwen3:4b", "canonical_model": "ollama/qwen3:4b"}
+      ],
+      "effort_levels": ["low", "medium", "high", "xhigh"]
+    },
+    {
+      "runner_type": "RUNNER_TYPE_OPENCODE",
+      "available": true,
+      "message": "opencode CLI is available",
+      "native_objective": false,
+      "default_model": "ollama/gemma4:12b",
+      "models": [
+        {"id": "ollama/gemma4:12b", "canonical_model": "ollama/gemma4:12b", "is_default": true},
+        {"id": "ollama/llama3.1:8b", "canonical_model": "ollama/llama3.1:8b"},
+        {"id": "ollama/llama3.2:1b", "canonical_model": "ollama/llama3.2:1b"},
+        {"id": "ollama/llama3.2:3b", "canonical_model": "ollama/llama3.2:3b"},
+        {"id": "ollama/llava:7b", "canonical_model": "ollama/llava:7b"},
+        {"id": "ollama/nomic-embed-text:latest", "canonical_model": "ollama/nomic-embed-text:latest"},
+        {"id": "ollama/qwen3-vl:2b", "canonical_model": "ollama/qwen3-vl:2b"},
+        {"id": "ollama/qwen3-vl:4b", "canonical_model": "ollama/qwen3-vl:4b"},
+        {"id": "ollama/qwen3.5:4b", "canonical_model": "ollama/qwen3.5:4b"},
+        {"id": "ollama/qwen3.5:9b", "canonical_model": "ollama/qwen3.5:9b"},
+        {"id": "ollama/qwen3:1.7b", "canonical_model": "ollama/qwen3:1.7b"},
+        {"id": "ollama/qwen3:4b", "canonical_model": "ollama/qwen3:4b"}
+      ]
+    },
+    {"runner_type": "RUNNER_TYPE_GROK", "available": true, "message": "grok CLI is available", "native_objective": false, "effort_levels": ["high", "xhigh", "max", "low", "medium"]},
+    {"runner_type": "RUNNER_TYPE_ANTIGRAVITY", "available": true, "message": "Antigravity CLI is available", "native_objective": false}
+  ]
+}

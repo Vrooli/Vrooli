@@ -1,6 +1,6 @@
 package registry
 
-import apiRegistry "test-genie/internal/playbooks/registry"
+import apiRegistry "test-genie/cli/internal/playbookregistry"
 
 const RegistryFileName = apiRegistry.RegistryFileName
 

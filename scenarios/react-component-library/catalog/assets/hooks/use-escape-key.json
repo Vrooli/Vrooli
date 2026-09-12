@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-escape-key",
+    "name": "useEscapeKey",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A layered escape-key primitive that dismisses only the highest eligible surface, leaving surfaces beneath it open.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ],
+  "requiredCapabilities": [
+    "layered-dismissal"
+  ],
+  "rationale": "Already implemented in the catalog at 1.0.0, but with no layer manager behind it, so its layering behavior is asserted only in prose."
+}

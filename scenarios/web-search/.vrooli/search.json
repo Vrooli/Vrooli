@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "web-search.learnings",
+      "lifecycle": "experimental",
+      "declared_at": "2026-08-13T20:38:00Z",
+      "provider_group": "web-search",
+      "bucket": "BUCKET_KNOW",
+      "type": "learning",
+      "description": "Cited research findings about the external world, distilled from prior web research and verified across sources: software release versions and feature lists (e.g. 'key features of Go 1.26', 'latest stable Rust version'), current events, third-party vendor and product facts, and other 'what is the latest X' answers. Route here for ANY external-world factual question — the store may already hold the verified, citation-backed answer (project-scope knowledge) without touching the live internet. Not for questions about this project's own code, scenarios, configuration, or how past work here was done.",
+      "scope": "SCOPE_PROJECT",
+      "class": "external",
+      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.20, "telemetry_required": true, "minimum_samples": 1},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "web-search",
+          "path": "/vrooli.web_search.v1.findings.FindingsService/SearchFindings",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "finding.id",
+        "title_field": "finding.claim",
+        "score_field": "score",
+        "snippet_field": "finding.claim",
+        "path_field": "finding.id",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": true,
+        "rerank_blend": true,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "name": "web-search findings — semantic recall corpus",
+        "description": "Reviewed corpus for stable cited findings already stored in the web-search findings database. Positives assert stored finding ids; the live web provider uses separate smoke coverage.",
+        "coverage": {
+          "required_tag_groups": [
+            {
+              "id": "language-release-findings",
+              "description": "Current external-world software release facts captured as stable cited findings.",
+              "tags": [
+                "python",
+                "rust",
+                "go"
+              ],
+              "min_reviewed_positive": 3
+            }
+          ]
+        },
+        "cases": [
+          {
+            "id": "python-latest-release",
+            "query": "latest stable Python release",
+            "tags": [
+              "strong",
+              "python"
+            ],
+            "expect_ids": [
+              "4abddafe-e394-4497-ad54-9154cfb70e35"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "rust-latest-release",
+            "query": "latest stable Rust programming language release",
+            "tags": [
+              "weak-real",
+              "rust"
+            ],
+            "expect_ids": [
+              "91a82eca-db2c-457a-a5b3-8ed9f4e18d2c"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "go-current-version",
+            "query": "current stable Go version",
+            "tags": [
+              "hard",
+              "go"
+            ],
+            "expect_ids": [
+              "67d677d8-6f4f-4b44-99a6-62b23507adaa"
+            ],
+            "expect_within_top_k": 5
+          },
+          {
+            "id": "junk-gibberish",
+            "query": "florbnax qwop zxcv external nonsense",
+            "tags": [
+              "gibberish"
+            ],
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.3
+          }
+        ]
+      }
+    },
+    {
+      "provider_id": "web-search.live",
+      "lifecycle": "fixture",
+      "provider_group": "web-search",
+      "bucket": "BUCKET_KNOW",
+      "type": "web",
+      "description": "Live web search via SearXNG. External, rate-limited corpus: reached only on an explicit --type web / --all selector, never on the default federated (auto) query path. Returns raw web results; no synthesis on the federation path.",
+      "scope": "SCOPE_EXTERNAL",
+      "class": "external",
+      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.20, "telemetry_required": true, "minimum_samples": 1},
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "web-search",
+          "path": "/vrooli.web_search.v1.livesearch.LiveSearchService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"synthesize\":false}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "url",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "url",
+        "score_scale": "SCORE_SCALE_RAW"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text"
+      },
+      "tests": {
+        "name": "web-search live — reachability smoke corpus",
+        "description": "Smoke-only corpus for the volatile live web provider. It proves controlled reachability for explicit external searches without pretending raw web recall is deterministic.",
+        "cases": [
+          {
+            "id": "official-python-release-notes-smoke",
+            "query": "official Python release notes",
+            "tags": [
+              "smoke",
+              "reachability"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

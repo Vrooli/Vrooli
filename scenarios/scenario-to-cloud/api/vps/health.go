@@ -81,6 +81,16 @@ func ComputeHealth(
 	return resp
 }
 
+// LiveStateReachable reports whether the live-state inspection actually
+// reached the target: the inspection ran, produced system data and the SSH
+// ping succeeded. RunLiveStateInspection returns OK=true even when every
+// command failed (only cancellation sets OK=false), so OK alone is not
+// evidence of reach; a report built on unreachable evidence must be unknown,
+// never unhealthy or healthy.
+func LiveStateReachable(liveState *domain.LiveStateResult) bool {
+	return liveState != nil && liveState.OK && liveState.System != nil && liveState.System.SSH.Connected
+}
+
 // computeOverallHealth determines the overall health level based on deployment status and check results.
 func computeOverallHealth(dep *domain.Deployment, liveState *domain.LiveStateResult, fails, warns int) domain.HealthLevel {
 	// Status overrides
@@ -97,8 +107,8 @@ func computeOverallHealth(dep *domain.Deployment, liveState *domain.LiveStateRes
 		return domain.HealthStarting
 	}
 
-	// If SSH unreachable and no live state data
-	if liveState == nil || !liveState.OK {
+	// If SSH unreachable, nothing below is evidence about the deployment.
+	if !LiveStateReachable(liveState) {
 		return domain.HealthUnknown
 	}
 
@@ -200,6 +210,16 @@ func buildSSHSection(identity sshidentity.DeploymentSSHIdentity, liveState *doma
 		})
 		return sec
 	}
+	if !system.SSH.Connected {
+		addCheckToSection(&sec, domain.HealthCheck{
+			ID:      "ssh_connected",
+			Title:   "SSH connectivity",
+			Status:  domain.HealthCheckFail,
+			Message: "VPS unreachable via SSH (connectivity probe failed)",
+			Details: map[string]string{"auth_mode": string(identity.AuthMode)},
+		})
+		return sec
+	}
 
 	// Connection check
 	details := map[string]string{
@@ -270,7 +290,7 @@ func buildProcessesSection(liveState *domain.LiveStateResult, manifest domain.Cl
 		Title:    "Processes",
 	}
 
-	if liveState == nil || !liveState.OK || liveState.Processes == nil {
+	if !LiveStateReachable(liveState) || liveState.Processes == nil {
 		addCheckToSection(&sec, domain.HealthCheck{
 			ID:      "processes_unavailable",
 			Title:   "Process state",
@@ -605,7 +625,7 @@ func buildSystemSection(liveState *domain.LiveStateResult) domain.HealthSection 
 		Title:    "System Resources",
 	}
 
-	if liveState == nil || !liveState.OK || liveState.System == nil {
+	if !LiveStateReachable(liveState) {
 		addCheckToSection(&sec, domain.HealthCheck{
 			ID:      "system_unavailable",
 			Title:   "System metrics",

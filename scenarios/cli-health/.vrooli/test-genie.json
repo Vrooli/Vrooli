@@ -1,0 +1,742 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "cli-health",
+  "phase": "contracts",
+  "displayName": "Contracts",
+  "description": "Validates CLI manifest, proto bindings, and runtime CLI surface through cli-health.",
+  "source": "validation-provider",
+  "orderHint": 1,
+  "timeout": "120s",
+  "findingSource": "cli",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "CLI Health validates the repository-root CLI contract, while control-plane targets are bounded internal or cmd subtrees without their own CLI manifest."
+      }
+    ]
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/contracts/README.md"
+  },
+  "maturity": {
+    "version": "2.0.0",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "CLI contract blocked",
+        "status_label": "Unavailable",
+        "description": "The target scenario's CLI contract cannot be trusted by downstream command discovery.",
+        "summary": "CLI contract validation is blocked.",
+        "next_unlock": "Resolve manifest, proto binding, runtime, measure, and entrypoint blockers."
+      },
+      {
+        "id": "L1",
+        "name": "CLI contract inspectable",
+        "status_label": "Foundation",
+        "description": "The target scenario exposes enough CLI structure for cli-health to inspect its contract.",
+        "summary": "CLI contract validation can inspect the target surface.",
+        "next_unlock": "Clear schema, binding, runtime, measure, and entrypoint findings."
+      },
+      {
+        "id": "L2",
+        "name": "CLI contract reusable",
+        "status_label": "Ready",
+        "description": "The target scenario's CLI contract is usable by command discovery with only higher-level or advisory debt remaining.",
+        "summary": "CLI contract validation is reusable by discovery.",
+        "next_unlock": "Clear remaining provider-owned cli-health findings."
+      },
+      {
+        "id": "L3",
+        "name": "CLI contract clean",
+        "status_label": "Complete",
+        "description": "The target scenario's CLI manifest, bindings, runtime surface, measures metadata, and entrypoint are clean for cli-health.",
+        "summary": "CLI contract validation is clean.",
+        "next_unlock": "Maximum CLI contract maturity."
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "manifest_contract",
+        "label": "Manifest Contract",
+        "description": "CLI manifest presence, readability, schema validity, and parseability.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No CLI manifest contract",
+            "status_label": "Unavailable",
+            "description": "The target scenario has no readable CLI manifest contract for cli-health to validate.",
+            "capability_summary": "CLI contract validation cannot run against a readable manifest.",
+            "next_unlock": "A present, parseable cli/manifest.json."
+          },
+          {
+            "id": "L1",
+            "name": "Manifest parseable",
+            "status_label": "Foundation",
+            "description": "The CLI manifest can be parsed and schema validation can run.",
+            "capability_summary": "CLI manifest syntax is usable.",
+            "next_unlock": "Canonical cli-core schema validity."
+          },
+          {
+            "id": "L2",
+            "name": "Manifest schema valid",
+            "status_label": "Ready",
+            "description": "The CLI manifest conforms to the canonical schema and can be parsed by cli-core.",
+            "capability_summary": "CLI manifest contract is schema-valid.",
+            "next_unlock": "Maximum manifest-contract maturity."
+          },
+          {
+            "id": "L3",
+            "name": "Manifest clean",
+            "status_label": "Complete",
+            "description": "The manifest contract has no provider-owned blocking findings.",
+            "capability_summary": "CLI manifest contract is clean enough for downstream checks."
+          }
+        ]
+      },
+      {
+        "id": "proto_bindings",
+        "label": "Proto Bindings",
+        "description": "Declared CLI commands bind to generated proto services and methods, with intentional omissions documented.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Proto surface unavailable",
+            "status_label": "Unavailable",
+            "description": "The scenario proto surface cannot be loaded for CLI binding checks.",
+            "capability_summary": "CLI/proto binding coverage cannot be evaluated.",
+            "next_unlock": "A buildable proto descriptor surface."
+          },
+          {
+            "id": "L1",
+            "name": "Proto surface readable",
+            "status_label": "Foundation",
+            "description": "The scenario proto surface can be loaded and compared with manifest bindings.",
+            "capability_summary": "CLI bindings can be compared with proto services.",
+            "next_unlock": "Every declared command binding resolves."
+          },
+          {
+            "id": "L2",
+            "name": "Command bindings valid",
+            "status_label": "Ready",
+            "description": "Every declared command binding resolves to a known generated proto service and method.",
+            "capability_summary": "Manifest command bindings resolve to proto methods.",
+            "next_unlock": "Every proto method is bound or intentionally omitted."
+          },
+          {
+            "id": "L3",
+            "name": "Proto/API coverage complete",
+            "status_label": "Complete",
+            "description": "The scenario's proto methods are either exposed through CLI commands or deliberately omitted with a reason.",
+            "capability_summary": "CLI/proto coverage is complete and intentional."
+          }
+        ]
+      },
+      {
+        "id": "runtime_surface",
+        "label": "Runtime CLI Surface",
+        "description": "Optional runtime probing of the installed CLI binary and help-derived command surface.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Runtime CLI unavailable",
+            "status_label": "Unavailable",
+            "description": "The declared CLI binary cannot be resolved or executed in this run context.",
+            "capability_summary": "Runtime CLI behavior cannot be checked here.",
+            "next_unlock": "A resolvable CLI binary for runtime probing."
+          },
+          {
+            "id": "L1",
+            "name": "CLI binary runnable",
+            "status_label": "Foundation",
+            "description": "The declared CLI binary can be executed for runtime surface checks.",
+            "capability_summary": "Runtime CLI probing can execute the binary.",
+            "next_unlock": "A readable help surface."
+          },
+          {
+            "id": "L2",
+            "name": "Help surface readable",
+            "status_label": "Ready",
+            "description": "The runtime help surface can be parsed and compared with the manifest.",
+            "capability_summary": "Runtime command discovery is readable.",
+            "next_unlock": "Runtime commands agree with the manifest."
+          },
+          {
+            "id": "L3",
+            "name": "Runtime surface aligned",
+            "status_label": "Complete",
+            "description": "The runtime CLI command surface matches the manifest when execution checks are requested.",
+            "capability_summary": "Runtime CLI behavior is aligned with the manifest."
+          }
+        ]
+      },
+      {
+        "id": "measures_metadata",
+        "label": "Measures Metadata",
+        "description": "CLI command measure blocks are well-formed against proto-derived parameter schemas.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Measure metadata invalid",
+            "status_label": "Unavailable",
+            "description": "CLI measure blocks cannot be assembled or validated.",
+            "capability_summary": "CLI measure metadata cannot be trusted.",
+            "next_unlock": "Valid measure blocks and known parameter type annotations."
+          },
+          {
+            "id": "L1",
+            "name": "Measure metadata readable",
+            "status_label": "Foundation",
+            "description": "Measure metadata is present enough for schema comparison, though degraded schema reads may remain.",
+            "capability_summary": "CLI measure metadata can be inspected.",
+            "next_unlock": "Measure blocks align with proto-derived schemas."
+          },
+          {
+            "id": "L2",
+            "name": "Measures metadata valid",
+            "status_label": "Ready",
+            "description": "CLI command measure blocks are well-formed against proto-derived parameter schemas.",
+            "capability_summary": "CLI measure metadata is valid.",
+            "next_unlock": "Full adoption-tier reporting without advisory gaps."
+          },
+          {
+            "id": "L3",
+            "name": "Measures adoption clean",
+            "status_label": "Complete",
+            "description": "Measure metadata is valid and adoption-tier findings are only informational or clean.",
+            "capability_summary": "CLI measure metadata is clean enough for discovery and governance reuse."
+          }
+        ]
+      },
+      {
+        "id": "entrypoint_structure",
+        "label": "Entrypoint Structure",
+        "description": "CLI main.go stays a thin process boundary that delegates behavior to the scenario app or command runner.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Entrypoint unavailable",
+            "status_label": "Unavailable",
+            "description": "cli-health cannot inspect cli/main.go for entrypoint structure.",
+            "capability_summary": "CLI entrypoint structure cannot be evaluated.",
+            "next_unlock": "Readable, parseable cli/main.go."
+          },
+          {
+            "id": "L1",
+            "name": "Entrypoint inspectable",
+            "status_label": "Foundation",
+            "description": "cli/main.go is readable and parseable enough for structural checks.",
+            "capability_summary": "CLI entrypoint structure is visible.",
+            "next_unlock": "main() delegates to NewApp/app.Run, cmd.Execute, or an equivalent command runner."
+          },
+          {
+            "id": "L2",
+            "name": "Entrypoint delegates",
+            "status_label": "Ready",
+            "description": "main() delegates CLI behavior to an app or command runner instead of owning the command surface directly.",
+            "capability_summary": "CLI entrypoint delegates to the application layer.",
+            "next_unlock": "No direct infrastructure or business setup remains in main()."
+          },
+          {
+            "id": "L3",
+            "name": "Entrypoint lightweight",
+            "status_label": "Complete",
+            "description": "main() is a small process boundary for construction, execution, error reporting, and exit codes.",
+            "capability_summary": "CLI entrypoint structure is clean."
+          }
+        ]
+      },
+      {
+        "id": "discovery_readiness",
+        "label": "Discovery Readiness",
+        "description": "The overall CLI contract is clean enough for command indexing, discovery, and governance reuse.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Discovery blocked",
+            "status_label": "Unavailable",
+            "description": "CLI discovery cannot rely on the current manifest, binding, runtime, or measures posture.",
+            "capability_summary": "Command discovery cannot safely reuse this CLI surface.",
+            "next_unlock": "Manifest, binding, runtime, and measure checks free of blocking findings."
+          },
+          {
+            "id": "L1",
+            "name": "Discovery usable",
+            "status_label": "Ready",
+            "description": "The CLI surface is usable for command discovery with only advisory debt remaining.",
+            "capability_summary": "Command discovery can index the CLI surface.",
+            "next_unlock": "No cli-health findings block or degrade command discovery."
+          },
+          {
+            "id": "L2",
+            "name": "Discoverable CLI surface",
+            "status_label": "Complete",
+            "description": "The CLI manifest is clean enough for command indexing, discovery, and governance reuse.",
+            "capability_summary": "CLI discovery readiness is clean."
+          }
+        ]
+      },
+      {
+        "id": "command_architecture",
+        "label": "Command Architecture",
+        "description": "Commands converge on cli-core renderer-separated primitives; special cases declare explicit exceptions instead of bespoke output-format control flow. Classified from declared manifest metadata and structural evidence, never handler AST or live command-parity probing.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Command architecture unclassifiable",
+            "status_label": "Unavailable",
+            "description": "There is no manifest to classify command architecture from.",
+            "capability_summary": "Command architecture cannot be classified.",
+            "next_unlock": "A manifest-backed CLI surface."
+          },
+          {
+            "id": "L1",
+            "name": "cli-core shell",
+            "status_label": "Foundation",
+            "description": "Commands run on the cli-core app shell.",
+            "capability_summary": "Commands run on the cli-core shell.",
+            "next_unlock": "Declarative RunCtx + ArgSchema commands."
+          },
+          {
+            "id": "L2",
+            "name": "Declarative commands",
+            "status_label": "Ready",
+            "description": "Commands parse declaratively through RunCtx + ArgSchema.",
+            "capability_summary": "Commands parse declaratively.",
+            "next_unlock": "Manifest/API-bound command declarations."
+          },
+          {
+            "id": "L3",
+            "name": "Declared, not yet verified",
+            "status_label": "Ready",
+            "description": "Commands bind to proto methods through the manifest and may declare a renderer-separated primitive class, but that declaration is not yet verified against cli-core primitive evidence (declared primitives cannot reach top maturity on manifest text alone).",
+            "capability_summary": "Commands declare architecture but it is not yet verified.",
+            "next_unlock": "Prove each declared primitive with matching cli-core evidence (build handlers with cli-core primitives and register via LoadFromManifestPrimitives)."
+          },
+          {
+            "id": "L4",
+            "name": "Verified renderer-separated primitives",
+            "status_label": "Complete",
+            "description": "Every command's declared primitive class (or reasoned exception) is verified by matching cli-core primitive evidence, so operation execution lives outside any output-format branch and cannot be claimed by manifest text alone.",
+            "capability_summary": "Commands are verified renderer-separated primitives."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "manifest.missing": {
+        "capability_id": "manifest_contract",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "manifest.required": {
+        "capability_id": "manifest_contract",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "manifest.parse_error": {
+        "capability_id": "manifest_contract",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "manifest.schema_error": {
+        "capability_id": "manifest_contract",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "proto.build_failed": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "proto-health",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "proto-contract-audit",
+          "cli-steer"
+        ]
+      },
+      "binding.unknown_service": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "api-steer"
+        ]
+      },
+      "binding.unknown_method": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "api-steer"
+        ]
+      },
+      "binding.duplicate": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "proto.orphan_method": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "api-steer"
+        ]
+      },
+      "omission.orphan": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "cli.binary_unrunnable": {
+        "capability_id": "runtime_surface",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "scientific-debugging"
+        ]
+      },
+      "cli.help_failed": {
+        "capability_id": "runtime_surface",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "scientific-debugging"
+        ]
+      },
+      "cli.command_undeclared": {
+        "capability_id": "runtime_surface",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "cli.command_missing": {
+        "capability_id": "runtime_surface",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "scientific-debugging"
+        ]
+      },
+      "cli.discovery_coverage_low": {
+        "capability_id": "discovery_readiness",
+        "local_level_impact": "L2",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cli-steer"]
+      },
+      "cli.omission_contradicts_command": {
+        "capability_id": "proto_bindings",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["cli-steer"]
+      },
+      "project.cli_empty": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L0",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The project target emitted no registered commands, so an empty runtime surface must not pass command architecture by vacuity.",
+        "recommended_skill_ids": ["cli-steer"]
+      },
+      "measure.invalid": {
+        "capability_id": "measures_metadata",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "cli-steer"
+        ]
+      },
+      "measure.unknown_param_type": {
+        "capability_id": "measures_metadata",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "cli-steer"
+        ]
+      },
+      "measure.schema_unread": {
+        "capability_id": "measures_metadata",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "measures-adoption",
+          "proto-contract-audit"
+        ]
+      },
+      "measure.tier": {
+        "capability_id": "measures_metadata",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "measures",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "measures-adoption"
+        ]
+      },
+      "cli.main_unreadable": {
+        "capability_id": "entrypoint_structure",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "uncheckable",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "scientific-debugging"
+        ]
+      },
+      "cli.main_heavy": {
+        "capability_id": "entrypoint_structure",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "fix_class": "manual",
+        "reason": "Extracting arbitrary main() setup changes function boundaries, defers, imports, and exit/error semantics; cli-health should identify the smell but not rewrite it without scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.unclassifiable": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L0",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Adding a manifest and choosing a per-command primitive is scenario-specific architecture work; cli-health identifies the gap but cannot author the manifest.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.primitive_undeclared": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Choosing the correct primitive class and moving a handler onto it changes handler boundaries and requires scenario-specific judgment; cli-health flags the missing declaration but does not rewrite the handler.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.primitive_unverified": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A declared primitive is forgeable manifest text; reaching verified maturity requires building the handler with the matching cli-core primitive and registering it via LoadFromManifestPrimitives, which is scenario-specific handler work cli-health cannot perform.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.primitive_mismatch": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The declared primitive and the cli-core-observed primitive disagree — a contradiction between manifest and implementation; resolving which side is correct needs scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.metadata_invalid": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A stale exceptions[] declaration must be corrected by the author to match the real runtime surface; the correct command path is not machine-derivable.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.claimed_maturity_violation": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A false special-case claim is a contradiction between declared and real command shape; resolving it (remove the exception or move the command) needs scenario-specific judgment.",
+        "recommended_skill_ids": [
+          "cli-steer",
+          "change-axis-and-evolution-resilience-audit"
+        ]
+      },
+      "arch.evidence_malformed": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The committed static primitive-evidence artifact is unparseable or carries an unrecognized schema, so verified maturity cannot be derived from it; it must be regenerated from the scenario's evidence generator rather than hand-edited.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      },
+      "arch.evidence_stale": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L4",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The static primitive-evidence artifact's recorded manifest hash no longer matches cli/manifest.json, so its evidence describes an older command surface; regenerating it after the manifest/handler change restores verified maturity.",
+        "recommended_skill_ids": [
+          "cli-steer"
+        ]
+      }
+    },
+    "fallback": {
+      "capability_id": "discovery_readiness",
+      "local_level_impact": "L0",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    }
+  },
+  "profileMembership": [
+    "architecture-audit"
+  ],
+  "freshnessRequirement": "never",
+  "phaseClass": "architecture",
+  "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
+  "dimensions": [
+    "contracts"
+  ]
+}

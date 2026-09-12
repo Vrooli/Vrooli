@@ -3,7 +3,7 @@ import {
   DEFAULT_SERVER_TYPE,
   decideConnection,
   type DeploymentMode,
-  type ServerType
+  type ServerType,
 } from "./deployment";
 
 describe("decideConnection", () => {

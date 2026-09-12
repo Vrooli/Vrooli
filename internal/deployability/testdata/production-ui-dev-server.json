@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "service": { "name": "dev-server-fixture" },
+  "components": {
+    "ui": {
+      "role": "ui",
+      "build": { "kind": "pnpm_vite", "dir": "ui" },
+      "run": { "argv": ["pnpm", "run", "dev"] }
+    }
+  }
+}

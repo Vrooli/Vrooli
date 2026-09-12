@@ -1,0 +1,413 @@
+// Unit tests for the StreamConfig codec: decodeStreamConfig must surface
+// the five advanced fields (streamingMode, strategyPreference, vadSilenceMs,
+// overlapWindowMs, overlapCommitRuns), and updateVoiceStreamConfig must
+// build a FieldMask that includes every patched advanced path.
+
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+
+import { toBinary } from "@bufbuild/protobuf";
+
+import {
+  streamingModeLabel,
+  strategyPreferenceLabel,
+} from "@vrooli/audio-capture-browser";
+import {
+  AudioFormat,
+  StreamingMode,
+  StrategyPreference,
+} from "@vrooli/proto-types/web-console/v1/audio_common/audio_common_pb";
+import {
+  WakeWordTemplateSchema,
+  type UpdateWakeWordTemplateRequest,
+} from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
+
+const initialLocation = globalThis.location.href;
+
+vi.mock("../../api/client", () => ({
+  transport: {},
+  API_BASE: "http://test",
+}));
+
+interface UpdateStreamConfigArg {
+  updateMask: { paths: string[] };
+  config: {
+    vadSilenceMs?: number;
+    strategyPreference?: StrategyPreference;
+    streamingMode?: StreamingMode;
+  };
+}
+
+function requireDefined<T>(value: T | undefined, message: string): T {
+  if (value === undefined) throw new Error(message);
+  return value;
+}
+
+// jsdom's Blob doesn't implement arrayBuffer(); blobToBytes/blobFormat only
+// need .arrayBuffer() and .type, so a minimal stand-in is enough here.
+function fakeBlob(bytes: Uint8Array, type: string): Blob {
+  return {
+    type,
+    size: bytes.byteLength,
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  } as unknown as Blob;
+}
+
+const updateMock = vi.fn<(req: UpdateStreamConfigArg) => Promise<{ config: Record<string, unknown> }>>();
+const getMock = vi.fn();
+const wwUpdateMock = vi.fn<(req: UpdateWakeWordTemplateRequest) => Promise<{ config: unknown }>>();
+const wwGetMock = vi.fn<() => Promise<{ config: unknown }>>();
+const rpcMocks = {
+  deleteWakeWordTemplate: vi.fn(),
+  getSpeakerConfig: vi.fn(),
+  updateSpeakerConfig: vi.fn(),
+  getSpeakerStatus: vi.fn(),
+  listSpeakerProfiles: vi.fn(),
+  enrollSpeakerProfile: vi.fn(),
+  clearSpeakerProfileBinding: vi.fn(),
+  unbindSpeakerProfile: vi.fn(),
+  deleteSpeakerProfile: vi.fn(),
+  transcribe: vi.fn(),
+};
+
+vi.mock("@connectrpc/connect", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@connectrpc/connect")>();
+  return {
+    ...actual,
+    createClient: () => ({
+      getStreamConfig: getMock,
+      updateStreamConfig: updateMock,
+      getWakeWordConfig: wwGetMock,
+      updateWakeWordTemplate: wwUpdateMock,
+      ...rpcMocks,
+    }),
+  };
+});
+
+describe("streamingModeLabel", () => {
+  it("maps each enum value to its CLI label", () => {
+    expect(streamingModeLabel(StreamingMode.AUTO)).toBe("auto");
+    expect(streamingModeLabel(StreamingMode.OFF)).toBe("off");
+    expect(streamingModeLabel(StreamingMode.UNSPECIFIED)).toBe("unspecified");
+    expect(streamingModeLabel(undefined)).toBe("unspecified");
+  });
+});
+
+describe("strategyPreferenceLabel", () => {
+  it("maps each enum value to its CLI label", () => {
+    expect(strategyPreferenceLabel(StrategyPreference.AUTO)).toBe("auto");
+    expect(strategyPreferenceLabel(StrategyPreference.VAD)).toBe("vad");
+    expect(strategyPreferenceLabel(StrategyPreference.OVERLAP)).toBe("overlap");
+    expect(strategyPreferenceLabel(StrategyPreference.PASSTHROUGH)).toBe("passthrough");
+    expect(strategyPreferenceLabel(StrategyPreference.UNSPECIFIED)).toBe("unspecified");
+    expect(strategyPreferenceLabel(undefined)).toBe("unspecified");
+  });
+});
+
+describe("buildVoiceStreamWsUrl", () => {
+  afterEach(() => {
+    globalThis.history.replaceState({}, "", initialLocation);
+    vi.resetModules();
+  });
+
+  it("forwards an explicitly armed page fault through the same-origin proxy", async () => {
+    globalThis.history.replaceState({}, "", "/?stt_test_mode=1&stt_test_fault=suppress_processed_ack");
+    const { buildVoiceStreamWsUrl } = await import("./voice");
+
+    const url = new URL(buildVoiceStreamWsUrl("en", "session-1", "resume-1"));
+    expect(url.searchParams.get("test_mode")).toBe("1");
+    expect(url.searchParams.get("test_fault")).toBe("suppress_processed_ack");
+    expect(url.searchParams.get("protocol_version")).toBe("2");
+    expect(url.searchParams.get("session_id")).toBe("session-1");
+  });
+
+  it("does not forward a fault unless page test mode is explicitly armed", async () => {
+    globalThis.history.replaceState({}, "", "/?stt_test_fault=suppress_processed_ack");
+    const { buildVoiceStreamWsUrl } = await import("./voice");
+
+    const url = new URL(buildVoiceStreamWsUrl());
+    expect(url.searchParams.has("test_mode")).toBe(false);
+    expect(url.searchParams.has("test_fault")).toBe(false);
+  });
+});
+
+describe("getVoiceStreamConfig", () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    updateMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("decodes the five advanced fields", async () => {
+    getMock.mockResolvedValueOnce({
+      config: {
+        flushIntervalMs: 250,
+        minDeltaBytes: 16384,
+        overlapBytes: 2048,
+        persistentMode: false,
+        wakeWordEnabled: false,
+        wakeWordThreshold: 0,
+        segmentSilenceMs: 800,
+        streamingMode: StreamingMode.AUTO,
+        strategyPreference: StrategyPreference.OVERLAP,
+        vadSilenceMs: 1200,
+        overlapWindowMs: 3000,
+        overlapCommitRuns: 3,
+      },
+    });
+    const { getVoiceStreamConfig } = await import("./voice");
+    const cfg = await getVoiceStreamConfig();
+    expect(cfg.streamingMode).toBe("auto");
+    expect(cfg.strategyPreference).toBe("overlap");
+    expect(cfg.vadSilenceMs).toBe(1200);
+    expect(cfg.overlapWindowMs).toBe(3000);
+    expect(cfg.overlapCommitRuns).toBe(3);
+  });
+
+  it("defaults advanced fields when the server omits them", async () => {
+    getMock.mockResolvedValueOnce({ config: undefined });
+    const { getVoiceStreamConfig } = await import("./voice");
+    const cfg = await getVoiceStreamConfig();
+    expect(cfg.streamingMode).toBe("unspecified");
+    expect(cfg.strategyPreference).toBe("unspecified");
+    expect(cfg.vadSilenceMs).toBe(0);
+    expect(cfg.overlapWindowMs).toBe(0);
+    expect(cfg.overlapCommitRuns).toBe(0);
+  });
+});
+
+describe("updateVoiceStreamConfig", () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    updateMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("builds a FieldMask that includes patched advanced paths", async () => {
+    updateMock.mockResolvedValueOnce({
+      config: {
+        flushIntervalMs: 0, minDeltaBytes: 0, overlapBytes: 0,
+        persistentMode: false, wakeWordEnabled: false, wakeWordThreshold: 0, segmentSilenceMs: 0,
+        streamingMode: StreamingMode.AUTO,
+        strategyPreference: StrategyPreference.VAD,
+        vadSilenceMs: 1500,
+        overlapWindowMs: 0,
+        overlapCommitRuns: 0,
+      },
+    });
+    const { updateVoiceStreamConfig } = await import("./voice");
+    await updateVoiceStreamConfig({
+      vadSilenceMs: 1500,
+      strategyPreference: "vad",
+      streamingMode: "auto",
+      overlapWindowMs: 2500,
+      overlapCommitRuns: 2,
+    });
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const callArg = requireDefined(updateMock.mock.calls[0], "updateStreamConfig was not called")[0];
+    const paths: string[] = callArg.updateMask.paths;
+    expect(paths).toContain("vad_silence_ms");
+    expect(paths).toContain("strategy_preference");
+    expect(paths).toContain("streaming_mode");
+    expect(paths).toContain("overlap_window_ms");
+    expect(paths).toContain("overlap_commit_runs");
+    expect(callArg.config.vadSilenceMs).toBe(1500);
+    expect(callArg.config.strategyPreference).toBe(StrategyPreference.VAD);
+    expect(callArg.config.streamingMode).toBe(StreamingMode.AUTO);
+  });
+
+  it("omits paths for fields that were not patched", async () => {
+    updateMock.mockResolvedValueOnce({ config: {} });
+    const { updateVoiceStreamConfig } = await import("./voice");
+    await updateVoiceStreamConfig({ vadSilenceMs: 900 });
+    const callArg = requireDefined(updateMock.mock.calls[0], "updateStreamConfig was not called")[0];
+    const paths: string[] = callArg.updateMask.paths;
+    expect(paths).toEqual(["vad_silence_ms"]);
+  });
+});
+
+describe("updateWakeWordConfig", () => {
+  beforeEach(() => {
+    wwUpdateMock.mockReset();
+    wwGetMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("builds a proto request from raw blobs that encodes without throwing", async () => {
+    // Regression for `[internal] Invalid time value`: the old code force-cast
+    // an ISO-string `updatedAt` onto the Timestamp field, and protobuf-es threw
+    // while encoding. Here we build the message the production way and prove the
+    // wire-encoding step (where it used to crash) succeeds, with updatedAt unset.
+    wwUpdateMock.mockImplementationOnce(async (req) => ({ config: { configured: true, template: req.template } }));
+    const { updateWakeWordConfig } = await import("./voice");
+
+    const blobs = [0, 1, 2].map(() => fakeBlob(new Uint8Array([1, 2, 3, 4, 5]), "audio/webm"));
+    const result = await updateWakeWordConfig({
+      label: "Hey Vrooli",
+      threshold: 0.65,
+      samples: blobs.map((audio) => ({ audio, sampleRateHz: 16000 })),
+    });
+
+    expect(wwUpdateMock).toHaveBeenCalledTimes(1);
+    const tmpl = requireDefined(
+      requireDefined(wwUpdateMock.mock.calls[0], "updateWakeWordTemplate was not called")[0].template,
+      "request template was undefined",
+    );
+    expect(tmpl.label).toBe("Hey Vrooli");
+    expect(tmpl.threshold).toBeCloseTo(0.65);
+    expect(tmpl.samples).toHaveLength(3);
+    expect(tmpl.samples[0]?.audio.length).toBe(5);
+    expect(tmpl.samples[0]?.format).toBe(AudioFormat.WEBM);
+    expect(tmpl.samples[0]?.sampleRateHz).toBe(16000);
+    // The crash site: encoding the message. updatedAt must be unset.
+    expect(tmpl.updatedAt).toBeUndefined();
+    expect(() => toBinary(WakeWordTemplateSchema, tmpl)).not.toThrow();
+    // And the decoded round-trip exposes raw samples, not feature objects.
+    expect(result.configured).toBe(true);
+    expect(result.template?.samples[0]?.mime).toBe("audio/webm");
+  });
+});
+
+describe("getWakeWordConfig", () => {
+  beforeEach(() => {
+    wwUpdateMock.mockReset();
+    wwGetMock.mockReset();
+  });
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("decodes persisted samples as RAW audio (bytes + mime), not feature objects", async () => {
+    // Regression for the broken load path: it used to cast raw-audio samples to
+    // feature-less AudioFeatures (no `data`/`kind`), so detection could never
+    // match. Decoded samples must carry the audio bytes + a playable mime.
+    wwGetMock.mockResolvedValueOnce({
+      config: {
+        configured: true,
+        template: {
+          label: "Hey Vrooli",
+          threshold: 0.7,
+          samples: [
+            { audio: new Uint8Array([9, 8, 7]), format: AudioFormat.WEBM, sampleRateHz: 16000 },
+            { audio: new Uint8Array([1, 2]), format: AudioFormat.WAV, sampleRateHz: 16000 },
+          ],
+          updatedAt: undefined,
+        },
+      },
+    });
+    const { getWakeWordConfig } = await import("./voice");
+    const cfg = await getWakeWordConfig();
+
+    expect(cfg.configured).toBe(true);
+    expect(cfg.template?.label).toBe("Hey Vrooli");
+    expect(cfg.template?.samples).toHaveLength(2);
+    const first = requireDefined(cfg.template?.samples[0], "missing first sample");
+    expect(Array.from(first.audio)).toEqual([9, 8, 7]);
+    expect(first.mime).toBe("audio/webm");
+    expect(first.sampleRateHz).toBe(16000);
+    expect(cfg.template?.samples[1]?.mime).toBe("audio/wav");
+    // Not cast to engine features.
+    expect(first).not.toHaveProperty("data");
+    expect(first).not.toHaveProperty("kind");
+  });
+});
+
+describe("voice runtime and speaker API adapters", () => {
+  beforeEach(() => {
+    Object.values(rpcMocks).forEach((mock) => mock.mockReset());
+  });
+
+  it("transcribes with and without speaker filtering and retries transient failures", async () => {
+    const blob = fakeBlob(new Uint8Array([4, 5]), "audio/wav");
+    rpcMocks.transcribe.mockResolvedValue({ text: "heard" });
+    const { transcribeAudio, transcribeAudioBypassFilter } = await import("./voice");
+    await expect(transcribeAudio(blob, "en")).resolves.toBe("heard");
+    await expect(transcribeAudioBypassFilter(blob)).resolves.toBe("heard");
+    expect(rpcMocks.transcribe.mock.calls[0]?.[0]).toMatchObject({
+      language: "en", skipSpeakerVerification: false, format: AudioFormat.WAV,
+    });
+    expect(rpcMocks.transcribe.mock.calls[1]?.[0]).toMatchObject({
+      language: "", skipSpeakerVerification: true, format: AudioFormat.WAV,
+    });
+
+    rpcMocks.transcribe.mockReset();
+    rpcMocks.transcribe
+      .mockRejectedValueOnce(new Error("temporary"))
+      .mockResolvedValueOnce({ text: "recovered" });
+    const { transcribeAudioWithRetry } = await import("./voice");
+    await expect(transcribeAudioWithRetry(blob, 2)).resolves.toBe("recovered");
+    expect(rpcMocks.transcribe).toHaveBeenCalledTimes(2);
+	}, 10 * 1000);
+
+  it("rejects after exhausting retry attempts", async () => {
+    const blob = fakeBlob(new Uint8Array([1]), "audio/ogg");
+    const failure = new Error("permanent");
+    rpcMocks.transcribe.mockRejectedValue(failure);
+    const { transcribeAudioWithRetry } = await import("./voice");
+    await expect(transcribeAudioWithRetry(blob, 1)).rejects.toBe(failure);
+  });
+
+  it("maps speaker configuration, status, profiles, enrollment, and mutations", async () => {
+    const config = { enabled: true, profileIds: ["p1"], threshold: 0.8, mode: 1, rejectBehavior: 1, fallbackWithoutVerification: true };
+    rpcMocks.getSpeakerConfig.mockResolvedValue({ config });
+    rpcMocks.updateSpeakerConfig.mockResolvedValue({ config });
+    rpcMocks.getSpeakerStatus.mockResolvedValue({ status: {
+      config, capability: 1, capabilityLabel: "ready", resourceReady: true,
+      profileConfigured: true, profileExists: true, profileCount: 1, profiles: [],
+      info: { backend: "x", model: "m", device: "cpu", sampleRate: 16000, version: "1", embeddingDim: 3 },
+    }});
+    rpcMocks.listSpeakerProfiles.mockResolvedValue({ profiles: [{
+      id: "p1",
+      displayName: "Me",
+      createdAt: { seconds: 1, nanos: 0 },
+      updatedAt: { seconds: 2, nanos: 0 },
+      modelName: "m",
+      embeddingDim: 3,
+      sampleRate: 16000,
+      enrollmentAudioSeconds: 2,
+      notes: "n",
+    }] });
+    rpcMocks.enrollSpeakerProfile.mockResolvedValue({
+      enrollment: { profileId: "p1", displayName: "Me", embeddingDim: 3, sampleRate: 16000, enrollmentAudioSeconds: 2, modelName: "m" },
+      config,
+    });
+    rpcMocks.clearSpeakerProfileBinding.mockResolvedValue({ config });
+    rpcMocks.unbindSpeakerProfile.mockResolvedValue({ config });
+    rpcMocks.deleteSpeakerProfile.mockResolvedValue({ config });
+    const {
+      getSpeakerVerificationConfig, updateSpeakerVerificationConfig, getSpeakerVerificationStatus,
+      listSpeakerVerificationProfiles, enrollSpeakerVerificationProfile,
+      clearSpeakerVerificationProfile, removeSpeakerVerificationProfile, deleteSpeakerVerificationProfile,
+    } = await import("./voice");
+
+    await expect(getSpeakerVerificationConfig()).resolves.toMatchObject({ enabled: true, profileIds: ["p1"] });
+    await expect(updateSpeakerVerificationConfig({ enabled: true, profileIds: ["p1"], threshold: 0.8, mode: "filter", rejectBehavior: "show-muted", fallbackWithoutVerification: true })).resolves.toMatchObject({ enabled: true });
+    await expect(getSpeakerVerificationStatus()).resolves.toMatchObject({ resourceReady: true, profileCount: 1, info: { sample_rate: 16000 } });
+    await expect(listSpeakerVerificationProfiles()).resolves.toMatchObject([{
+      id: "p1",
+      display_name: "Me",
+      created_at: new Date(1000).toISOString(),
+      updated_at: new Date(2000).toISOString(),
+    }]);
+    await expect(enrollSpeakerVerificationProfile({ audioBlob: fakeBlob(new Uint8Array([1, 2]), "audio/webm"), profileId: "p1", displayName: "Me", notes: "n", addToActive: true, enable: true })).resolves.toMatchObject({ enrollment: { profile_id: "p1", display_name: "Me" } });
+    await expect(clearSpeakerVerificationProfile()).resolves.toMatchObject({ enabled: true });
+    await expect(removeSpeakerVerificationProfile("p1")).resolves.toMatchObject({ enabled: true });
+    await expect(deleteSpeakerVerificationProfile("p1")).resolves.toMatchObject({ enabled: true });
+    expect(rpcMocks.updateSpeakerConfig.mock.calls[0]?.[0].updateMask.paths).toEqual([
+      "enabled", "profile_ids", "threshold", "mode", "reject_behavior", "fallback_without_verification",
+    ]);
+  });
+
+  it("deletes wake-word configuration and handles absent speaker status", async () => {
+    rpcMocks.deleteWakeWordTemplate.mockResolvedValue({ config: { configured: false } });
+    const { deleteWakeWordConfig, getSpeakerVerificationStatus } = await import("./voice");
+    await expect(deleteWakeWordConfig()).resolves.toEqual({ configured: false, template: null });
+    rpcMocks.getSpeakerStatus.mockResolvedValue({ status: undefined });
+    await expect(getSpeakerVerificationStatus()).rejects.toThrow("speaker status response missing status field");
+  });
+});

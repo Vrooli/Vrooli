@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+enum TransitionKind {
+  TRANSITION_KIND_UNSPECIFIED = 0;
+  TRANSITION_KIND_SESSION = 1;
+  TRANSITION_KIND_WORKFLOW = 2;
+  TRANSITION_KIND_DETERMINISTIC = 3;
+}
+
+message WorkflowLocator {
+  string owner = 1;
+  string key = 2;
+}
+
+message ExecutionStrategy {
+  string id = 1;
+  string workflow_key = 2;
+  string display_name = 3;
+  string description = 4;
+  string when_to_use = 5;
+  string cost_band = 6;
+}
+
+message HumanGate {
+  string id = 1;
+  string decides = 2;
+  string default_mode = 3;
+  double threshold = 4;
+  int32 min_sample = 5;
+  string mode = 6;
+  double acceptance_rate = 7;
+  int32 sample_size = 8;
+  string readiness = 9;
+}
+
+message Transition {
+  string key = 1;
+  string subject = 2;
+  TransitionKind kind = 3;
+  WorkflowLocator workflow = 4;
+  repeated string requires = 5;
+  string input_contract = 6;
+  repeated string terminal_outcomes = 7;
+  string apply_action = 8;
+  repeated ExecutionStrategy strategies = 9;
+  repeated HumanGate human_gates = 10;
+  bool human_wait = 11;
+}

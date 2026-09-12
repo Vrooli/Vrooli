@@ -57,7 +57,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
             <article
               key={index}
               className="relative rounded-[28px] border border-white/8 bg-surface-primary p-8 shadow-[0_25px_50px_rgba(0,0,0,0.35)]"
-              data-testid={`testimonial-${index}`}
+              data-testid={`testimonial-${String(index)}`}
             >
               <Quote className="absolute right-6 top-6 h-8 w-8 text-accent/30" />
               {testimonial.rating && (

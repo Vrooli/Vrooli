@@ -1,7 +1,19 @@
 import { createScenarioServer, injectBaseTag, proxyWebSocketUpgrade } from '@vrooli/api-base/server'
 
-const uiPort = process.env.UI_PORT || 3000
-const apiPort = process.env.API_PORT || 8080
+function requiredPort(name) {
+  const raw = process.env[name]
+  if (!raw || !/^\d+$/.test(raw)) {
+    throw new Error(`${name} must be set to a lifecycle-assigned TCP port`)
+  }
+  const port = Number(raw)
+  if (port < 1 || port > 65535) {
+    throw new Error(`${name} must be between 1 and 65535`)
+  }
+  return port
+}
+
+const uiPort = requiredPort('UI_PORT')
+const apiPort = requiredPort('API_PORT')
 
 const app = createScenarioServer({
   uiPort,
@@ -9,7 +21,7 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'agent-manager',
   corsOrigins: '*',
-  verbose: process.env.NODE_ENV === 'development',
+  verbose: false,
   // Extended timeout for LLM-based operations (recommendation extraction)
   proxyTimeoutMs: 180000, // 3 minutes
   embeddedProxy: true,
@@ -50,7 +62,7 @@ server.on('upgrade', (req, socket, head) => {
     proxyWebSocketUpgrade(req, socket, head, {
       apiPort,
       apiHost: '127.0.0.1',
-      verbose: process.env.NODE_ENV === 'development',
+      verbose: false,
     })
   } else {
     // Reject non-API WebSocket connections

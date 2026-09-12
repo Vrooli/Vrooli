@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "undoable-destructive-action",
+    "title": "UndoableDestructiveAction",
+    "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path.",
+    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.8/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Reversible removal is clearly explained and keyboard-operable."
+    },
+    {
+      "id": "submitting",
+      "example": "default",
+      "description": "The request is in flight without duplicate submission."
+    },
+    {
+      "id": "success",
+      "example": "default",
+      "description": "Removal completed with clear closure."
+    },
+    {
+      "id": "request-error",
+      "example": "default",
+      "description": "Failure includes a useful retry path."
+    }
+  ],
+  "elements": [
+    { "id": "surface", "role": "region", "description": "The reversible destructive-action surface." },
+    { "id": "action", "role": "button", "description": "The destructive action or recovery control." }
+  ],
+  "claims": [
+    {
+      "id": "recovery",
+      "type": "custom",
+      "statement": "Reversible removal exposes an explicit, time-bounded undo path.",
+      "tier": "manual",
+      "states": ["default", "success"]
+    },
+    {
+      "id": "responsive",
+      "type": "custom",
+      "statement": "Action controls become full-width on narrow viewports without clipping content.",
+      "tier": "manual",
+      "states": ["default", "request-error"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "surface": { "selector": "[data-rcl-undoable-action]" },
+      "action": { "selector": "[data-rcl-undoable-action-button], [data-rcl-undoable-action-retry]" }
+    }
+  }
+}

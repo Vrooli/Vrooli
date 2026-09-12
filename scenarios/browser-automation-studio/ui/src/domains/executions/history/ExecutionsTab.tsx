@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -15,6 +15,7 @@ import { TabEmptyState, ExecutionsEmptyPreview } from '@/views/DashboardView/pre
 import { ExecutionCard, type ExecutionCardData } from './ExecutionCard';
 import { ExecutionFilters, type StatusFilter } from './ExecutionFilters';
 import { InlineExecutionViewer } from '../InlineExecutionViewer';
+import { onProfilerRender } from '@/lib/profiler';
 import { logger } from '@utils/logger';
 import toast from 'react-hot-toast';
 
@@ -59,20 +60,13 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
 
   const isViewerOpen = Boolean(currentExecution) && Boolean(selectedExecutionId);
 
-  // Auto-refresh running executions every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (runningExecutions.length > 0) {
-        void fetchRunningExecutions();
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [runningExecutions.length, fetchRunningExecutions]);
-
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchRecentExecutions(), fetchRunningExecutions()]);
-    setIsRefreshing(false);
+    try {
+      await Promise.all([fetchRecentExecutions(), fetchRunningExecutions()]);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [fetchRecentExecutions, fetchRunningExecutions]);
 
   const handleStopExecution = useCallback(async (executionId: string) => {
@@ -116,40 +110,62 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
     }
   }, [onRerunWorkflow]);
 
-  // Combine and filter executions
-  const allExecutions = useMemo(
-    () => [...runningExecutions, ...recentExecutions],
-    [runningExecutions, recentExecutions],
-  );
-  const filteredExecutions = allExecutions.filter((execution) => {
-    if (statusFilter === 'all') return true;
-    if (statusFilter === 'running') return execution.status === 'running' || execution.status === 'pending';
-    if (statusFilter === 'completed') return execution.status === 'completed';
-    if (statusFilter === 'failed') return execution.status === 'failed' || execution.status === 'cancelled';
-    return true;
-  });
-
-  const completedExecutions = filteredExecutions.filter(
-    (e) => e.status !== 'running' && e.status !== 'pending'
-  );
-
-  // Get counts for each status (for notification badges)
-  const statusCounts = useMemo(() => {
-    const running = allExecutions.filter(e => e.status === 'running' || e.status === 'pending').length;
-    const completed = allExecutions.filter(e => e.status === 'completed').length;
-    const failed = allExecutions.filter(e => e.status === 'failed' || e.status === 'cancelled').length;
-    return {
-      all: allExecutions.length,
-      running,
-      completed,
-      failed,
+  const executionModel = useMemo(() => {
+    const all = [...runningExecutions, ...recentExecutions];
+    const counts = {
+      all: all.length,
+      running: 0,
+      completed: 0,
+      failed: 0,
     };
-  }, [allExecutions]);
+    const filtered: RecentExecution[] = [];
+    const completed: RecentExecution[] = [];
+
+    for (const execution of all) {
+      const isRunning = execution.status === 'running' || execution.status === 'pending';
+      const isCompleted = execution.status === 'completed';
+      const isFailed = execution.status === 'failed' || execution.status === 'cancelled';
+
+      if (isRunning) counts.running += 1;
+      if (isCompleted) counts.completed += 1;
+      if (isFailed) counts.failed += 1;
+
+      const matchesFilter =
+        statusFilter === 'all' ||
+        (statusFilter === 'running' && isRunning) ||
+        (statusFilter === 'completed' && isCompleted) ||
+        (statusFilter === 'failed' && isFailed);
+
+      if (matchesFilter) {
+        filtered.push(execution);
+        if (!isRunning) {
+          completed.push(execution);
+        }
+      }
+    }
+
+    return {
+      allExecutions: all,
+      filteredExecutions: filtered,
+      statusCounts: counts,
+      runningCards: runningExecutions.map(toCardData),
+      completedCards: completed.map(toCardData),
+    };
+  }, [runningExecutions, recentExecutions, statusFilter]);
+
+  const {
+    allExecutions,
+    filteredExecutions,
+    statusCounts,
+    runningCards,
+    completedCards,
+  } = executionModel;
 
   // For the pulse strip summary
   const failedCount = statusCounts.failed;
 
   return (
+    <React.Profiler id="ExecutionsTab" onRender={onProfilerRender}>
     <div className="absolute inset-0 flex">
       {/* Left side: Execution list */}
       <div className={`flex flex-col ${isViewerOpen ? 'w-1/2 border-r border-gray-800' : 'w-full'} transition-all duration-200`}>
@@ -204,10 +220,10 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
                 Running Now ({runningExecutions.length})
               </h3>
               <div className="space-y-2">
-                {runningExecutions.map((execution) => (
+                {runningCards.map((execution) => (
                   <ExecutionCard
                     key={execution.id}
-                    execution={toCardData(execution)}
+                    execution={execution}
                     isRunning
                     isSelected={selectedExecutionId === execution.id}
                     onClick={handleSelectExecution}
@@ -276,10 +292,10 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
               />
             ) : (
               <div className="space-y-2">
-                {completedExecutions.map((execution) => (
+                {completedCards.map((execution) => (
                   <ExecutionCard
                     key={execution.id}
-                    execution={toCardData(execution)}
+                    execution={execution}
                     isSelected={selectedExecutionId === execution.id}
                     onClick={handleSelectExecution}
                     onRerun={onRerunWorkflow ? handleRerunFromCard : undefined}
@@ -311,6 +327,7 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
         </div>
       )}
     </div>
+    </React.Profiler>
   );
 };
 

@@ -190,7 +190,9 @@ type PrerequisiteCheckerI interface {
 }
 
 // Clock abstracts time operations for testability.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	// Now returns the current time.
 	Now() time.Time
 

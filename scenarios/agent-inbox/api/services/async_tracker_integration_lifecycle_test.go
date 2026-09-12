@@ -13,7 +13,7 @@ import (
 // TestAsyncFlow_OperationLifecycle verifies the full lifecycle of an async operation
 // from creation through completion including subscriber notifications.
 func TestAsyncFlow_OperationLifecycle(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Subscribe to updates
 	sub := svc.SubscribeWithID("chat-1")
@@ -94,7 +94,7 @@ func TestAsyncFlow_OperationLifecycle(t *testing.T) {
 
 // TestAsyncFlow_MultipleOperationsParallel verifies handling of multiple concurrent operations.
 func TestAsyncFlow_MultipleOperationsParallel(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	const numOps = 10
 	var wg sync.WaitGroup
@@ -181,7 +181,7 @@ drainLoop:
 
 // TestAsyncFlow_CleanupRemovesStaleOperations verifies cleanup of old operations.
 func TestAsyncFlow_CleanupRemovesStaleOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	now := time.Now()
 	old := now.Add(-2 * time.Hour)

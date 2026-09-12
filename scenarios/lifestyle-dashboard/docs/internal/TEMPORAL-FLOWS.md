@@ -94,7 +94,7 @@ This document describes the **temporal patterns** (async operations, polling, sc
 
 ```
 1. Preflight checks (rebuild if stale)
-2. Configure SQLITE_PATH with WAL mode
+2. WAL mode is applied by the canonical DSN
 3. database.Connect() with retry (3 attempts, 100ms base, 500ms max)
 4. domain.InitSchema() creates tables if not exist
 5. NewServer() creates repositories and routes

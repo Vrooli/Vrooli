@@ -1,0 +1,183 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.jobs;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs;jobs_v1";
+
+// =============================================================================
+// JOBS DOMAIN — durable async job lifecycle
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for JobsService: the read + control surface over image-tools'
+// server-owned, durable async job system (api/internal/jobs). The system
+// mirrors the test-genie run-lifecycle philosophy: a submit returns a job id +
+// ETA immediately, work runs under a server-lifetime context (so a client
+// disconnect never destroys it), callers block ONCE on WaitJob (no polling),
+// and progress streams over WatchJob for SSE-style UIs.
+//
+// Job *submission* is op-specific and lands with each operation domain
+// (generate/enhance/analyze) from Phase 2 onward — those handlers enqueue work
+// on the shared Manager and return a JobRef. This service owns the lifecycle
+// verbs every op shares: inspect, block-once wait, list, cancel, and watch.
+//
+// Heavy GPU jobs are serialized (one at a time) while cheap CPU jobs run
+// concurrently; the lane is reported on each Job so operators can see why a job
+// is queued.
+//
+// Consumed by:
+//   - API: handlers/jobs/connect_handler.go implements JobsServiceHandler.
+//   - CLI: cli/domains/jobs calls the generated Connect-Go client; `jobs wait`
+//          is the block-once verb (no polling).
+//   - UI:  ui/src/api/jobs.ts wraps the generated Connect-Web client; the job
+//          monitor consumes WatchJob for live progress + cancel.
+// =============================================================================
+
+service JobsService {
+  // GetJob returns the current record for one job.
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+
+  // WaitJob blocks ONCE, server-side, until the job reaches a terminal state
+  // and then returns it. A client disconnect does NOT affect the job — the
+  // work continues server-side. This is the canonical "wait" verb; callers
+  // must never poll GetJob in a loop.
+  rpc WaitJob(WaitJobRequest) returns (WaitJobResponse);
+
+  // ListJobs returns recent jobs, newest first.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+
+  // CancelJob aborts a job: a running job's context is canceled; a still-queued
+  // job is marked canceled immediately. Returns the job's post-cancel record.
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+
+  // WatchJob streams progress events for a job until it reaches a terminal
+  // state. The latest known event is replayed first so a late subscriber is
+  // never blind. Backs SSE-style live progress in the UI.
+  rpc WatchJob(WatchJobRequest) returns (stream ProgressEvent);
+}
+
+// JobState is a job's lifecycle state. Mirrors api/internal/jobs.State.
+enum JobState {
+  JOB_STATE_UNSPECIFIED = 0;
+  // Accepted, waiting for a worker.
+  JOB_STATE_QUEUED = 1;
+  // A worker is executing it.
+  JOB_STATE_RUNNING = 2;
+  // Finished successfully (terminal).
+  JOB_STATE_SUCCEEDED = 3;
+  // Finished with an error, incl. restart-interruption (terminal).
+  JOB_STATE_FAILED = 4;
+  // Aborted by request before completing (terminal).
+  JOB_STATE_CANCELED = 5;
+}
+
+// JobLane selects the execution lane. GPU jobs are serialized to avoid VRAM
+// contention; CPU jobs run concurrently.
+enum JobLane {
+  JOB_LANE_UNSPECIFIED = 0;
+  JOB_LANE_GPU = 1;
+  JOB_LANE_CPU = 2;
+}
+
+// Job is the persisted, observable record of a submitted unit of work.
+message Job {
+  // Server-assigned job id (UUID).
+  string id = 1;
+
+  // The operation this job runs (e.g. "upscale", "resize"). Informational.
+  string operation = 2;
+
+  // Execution lane (gpu serialized / cpu concurrent).
+  JobLane lane = 3;
+
+  // Current lifecycle state.
+  JobState state = 4;
+
+  // Progress percentage, 0..100.
+  int32 progress = 5;
+
+  // Latest progress / status message.
+  string message = 6;
+
+  // Failure detail; set only when state == FAILED.
+  string error = 7;
+
+  // Output reference (blob key or local path) when state == SUCCEEDED.
+  string result_ref = 8;
+
+  // Caller's pre-run estimate in seconds, surfaced as the initial ETA. 0 means
+  // "unknown".
+  int32 estimated_seconds = 9;
+
+  // Server time the job was first persisted (queued).
+  google.protobuf.Timestamp created_at = 10;
+
+  // Server time a worker began executing it; unset while queued.
+  google.protobuf.Timestamp started_at = 11;
+
+  // Server time the job reached a terminal state; unset until terminal.
+  google.protobuf.Timestamp finished_at = 12;
+
+  // result_meta is the backend's own record of the run, keyed by the backend's
+  // vocabulary: "model" (what actually served it), "backend", "tier",
+  // "cost_usd" (what the route cost, always written by the BYOK/gateway path
+  // even when zero), and "warnings".
+  //
+  // It exists because these facts are learned only while the job runs and were
+  // previously discarded one stack frame after they were assembled — so a
+  // caller could be billed for a cloud generation with no record of the charge
+  // anywhere in the system. Present only on a succeeded job, and only for
+  // backends that report it: an empty map means "nobody reported", which is a
+  // different fact from a reported zero.
+  map<string, string> result_meta = 13;
+}
+
+// ProgressEvent is one progress update streamed by WatchJob.
+message ProgressEvent {
+  string job_id = 1;
+  JobState state = 2;
+  int32 progress = 3;
+  string message = 4;
+  google.protobuf.Timestamp at = 5;
+}
+
+message GetJobRequest {
+  string id = 1;
+}
+
+message GetJobResponse {
+  Job job = 1;
+}
+
+message WaitJobRequest {
+  string id = 1;
+}
+
+message WaitJobResponse {
+  Job job = 1;
+}
+
+message ListJobsRequest {
+  // Maximum number of jobs to return, newest first. 0 applies the server
+  // default.
+  int32 limit = 1;
+}
+
+message ListJobsResponse {
+  repeated Job jobs = 1;
+}
+
+message CancelJobRequest {
+  string id = 1;
+}
+
+message CancelJobResponse {
+  Job job = 1;
+}
+
+message WatchJobRequest {
+  string id = 1;
+}

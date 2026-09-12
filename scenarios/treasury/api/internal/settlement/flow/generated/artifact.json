@@ -1,0 +1,976 @@
+{
+  "schemaVersion": 6,
+  "flowId": "settlement.lifecycle",
+  "source": {
+    "contractPath": "api/internal/settlement/flow/flow.json",
+    "contractSha256": "77ac9342f3d67b8332c4a3d1f077238e5eb56579c484e157764d237fe2cae489",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/settlement/flow/generated/model.qnt",
+    "modelSha256": "5e4d33aa12b92e932611d608098c047f713d4db97ca006f57a663e09759ab466",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/settlement/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026081804",
+      "--max-samples",
+      "14",
+      "--n-traces",
+      "14",
+      "--max-steps",
+      "6",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/settlement/flow/generated/model.qnt",
+      "--seed",
+      "2026081804"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/settlement/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/settlement/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "NoSecondRailCall",
+      "UnknownFailureRequiresQuery",
+      "--max-steps",
+      "6"
+    ]
+  },
+  "states": [
+    "ready",
+    "calling",
+    "settled",
+    "failed",
+    "unknown"
+  ],
+  "events": [
+    "begin_call",
+    "rail_settled",
+    "rail_failed",
+    "response_lost",
+    "query_settled",
+    "query_failed",
+    "query_unknown"
+  ],
+  "transitions": [
+    {
+      "from": "ready",
+      "event": "begin_call",
+      "to": "calling",
+      "wantError": false
+    },
+    {
+      "from": "ready",
+      "event": "rail_settled",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "ready",
+      "event": "rail_failed",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "ready",
+      "event": "response_lost",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "ready",
+      "event": "query_settled",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "ready",
+      "event": "query_failed",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "ready",
+      "event": "query_unknown",
+      "to": "ready",
+      "wantError": true
+    },
+    {
+      "from": "calling",
+      "event": "begin_call",
+      "to": "calling",
+      "wantError": true
+    },
+    {
+      "from": "calling",
+      "event": "rail_settled",
+      "to": "settled",
+      "wantError": false
+    },
+    {
+      "from": "calling",
+      "event": "rail_failed",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "calling",
+      "event": "response_lost",
+      "to": "unknown",
+      "wantError": false
+    },
+    {
+      "from": "calling",
+      "event": "query_settled",
+      "to": "calling",
+      "wantError": true
+    },
+    {
+      "from": "calling",
+      "event": "query_failed",
+      "to": "calling",
+      "wantError": true
+    },
+    {
+      "from": "calling",
+      "event": "query_unknown",
+      "to": "calling",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "begin_call",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "rail_settled",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "rail_failed",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "response_lost",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "query_settled",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "query_failed",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "settled",
+      "event": "query_unknown",
+      "to": "settled",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "begin_call",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "rail_settled",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "rail_failed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "response_lost",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "query_settled",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "query_failed",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "failed",
+      "event": "query_unknown",
+      "to": "failed",
+      "wantError": true
+    },
+    {
+      "from": "unknown",
+      "event": "begin_call",
+      "to": "unknown",
+      "wantError": true
+    },
+    {
+      "from": "unknown",
+      "event": "rail_settled",
+      "to": "unknown",
+      "wantError": true
+    },
+    {
+      "from": "unknown",
+      "event": "rail_failed",
+      "to": "unknown",
+      "wantError": true
+    },
+    {
+      "from": "unknown",
+      "event": "response_lost",
+      "to": "unknown",
+      "wantError": true
+    },
+    {
+      "from": "unknown",
+      "event": "query_settled",
+      "to": "settled",
+      "wantError": false
+    },
+    {
+      "from": "unknown",
+      "event": "query_failed",
+      "to": "failed",
+      "wantError": false
+    },
+    {
+      "from": "unknown",
+      "event": "query_unknown",
+      "to": "unknown",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "settles_once",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "rail_settled",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "definite_failure",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "rail_failed",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "lost_response_queries_settled",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "query_settled",
+          "want": "settled",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "lost_response_queries_failed",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "still_unknown",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "query_unknown",
+          "want": "unknown",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "rail_failed",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "query_unknown",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "settled",
+          "wantError": false
+        },
+        {
+          "event": "query_settled",
+          "want": "settled",
+          "wantError": true
+        },
+        {
+          "event": "query_unknown",
+          "want": "settled",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "rail_failed",
+          "want": "failed",
+          "wantError": false
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "failed",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "failed",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "begin_call",
+          "want": "unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_009",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "query_unknown",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_010",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "query_unknown",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_011",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "calling",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "query_failed",
+          "want": "failed",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_012",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "begin_call",
+          "want": "calling",
+          "wantError": false
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": false
+        },
+        {
+          "event": "rail_settled",
+          "want": "unknown",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "unknown",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_013",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_failed",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_014",
+      "initial": "ready",
+      "steps": [
+        {
+          "event": "response_lost",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_unknown",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "query_settled",
+          "want": "ready",
+          "wantError": true
+        },
+        {
+          "event": "rail_failed",
+          "want": "ready",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "NoSecondRailCall",
+    "UnknownFailureRequiresQuery"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "ready",
+        "calling",
+        "settled",
+        "failed",
+        "unknown"
+      ],
+      "coveredEvents": [
+        "begin_call",
+        "rail_settled",
+        "rail_failed",
+        "response_lost",
+        "query_settled",
+        "query_failed",
+        "query_unknown"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "ready",
+        "calling",
+        "settled",
+        "failed",
+        "unknown"
+      ],
+      "coveredEvents": [
+        "begin_call",
+        "rail_settled",
+        "rail_failed",
+        "response_lost",
+        "query_settled",
+        "query_failed",
+        "query_unknown"
+      ],
+      "coveredPairs": [
+        "ready/begin_call",
+        "ready/rail_settled",
+        "ready/rail_failed",
+        "ready/response_lost",
+        "ready/query_settled",
+        "ready/query_failed",
+        "ready/query_unknown",
+        "calling/begin_call",
+        "calling/rail_settled",
+        "calling/rail_failed",
+        "calling/response_lost",
+        "calling/query_settled",
+        "calling/query_failed",
+        "calling/query_unknown",
+        "settled/query_settled",
+        "settled/query_unknown",
+        "failed/rail_failed",
+        "failed/query_settled",
+        "failed/query_failed",
+        "unknown/begin_call",
+        "unknown/rail_settled",
+        "unknown/response_lost",
+        "unknown/query_failed"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

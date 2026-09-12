@@ -1,0 +1,157 @@
+{
+  "schema_version": "v6",
+  "artifact_trust_mode": "development-local",
+  "promotable": false,
+  "resources": [
+    {
+      "requested_resource": "postgres",
+      "resource": "postgres",
+      "os": "linux",
+      "architecture": "amd64",
+      "mode": "docker-desktop",
+      "support": "conditional",
+      "privilege": "user",
+      "bundling": "host-required",
+      "eligibility": "eligible",
+      "requires": [
+        "docker"
+      ],
+      "limitations": [
+        "Docker images, storage, and networking remain host-managed."
+      ],
+      "evidence": [
+        "manifest-validation",
+        "docker-preflight"
+      ]
+    },
+    {
+      "requested_resource": "vault",
+      "resource": "vault",
+      "os": "linux",
+      "architecture": "amd64",
+      "mode": "bundled-service",
+      "support": "conditional",
+      "privilege": "user",
+      "bundling": "vendorable",
+      "eligibility": "eligible",
+      "requires": [
+        "secret-tool"
+      ],
+      "limitations": [
+        "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
+      ],
+      "evidence": [
+        "manifest-validation",
+        "artifact-checksum",
+        "fixture-runtime-test"
+      ],
+      "artifact": "resource-vault_linux_amd64",
+      "files": [
+        {
+          "name": "resource-vault_linux_amd64",
+          "sha256": "6ebc8f37b6620413a3343e1bb7719c0ec5c73c1b881bb8671f99e323c40072cf"
+        },
+        {
+          "name": "resource-vault_linux_amd64.manifest.json",
+          "sha256": "670f1f516574ba256a5ca8c79b222bc2764e33824fa1bc91399bf65ec40a3fc2"
+        },
+        {
+          "name": "resource-vault_linux_amd64.build.json",
+          "sha256": "48dc3b91f66e16a4064aa15003ef9ef55bebba4740a48029bcc45a5d0857a581"
+        }
+      ],
+      "service": {
+        "provider_policy": {
+          "default_mode": "",
+          "target_defaults": {
+            "control-plane": "managed-shared",
+            "desktop-bundle": "managed-private"
+          },
+          "allowed_modes": [
+            "managed-private",
+            "managed-shared",
+            "attach-only",
+            "remote-vrooli",
+            "managed-discovered"
+          ],
+          "shared_reuse_requires_consent": true,
+          "external_management": "forbidden",
+          "external_access_capabilities": [
+            "read-only",
+            "read-write"
+          ]
+        },
+        "artifact": "vault_linux_amd64",
+        "version": "1.17.6",
+        "sha256": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0",
+        "arguments": [
+          "server",
+          "-config=${RESOURCE_CONFIG_DIR}/vault.hcl"
+        ],
+        "environment": {
+          "VAULT_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}",
+          "VAULT_API_ADDR": "http://127.0.0.1:${RESOURCE_PORT_HTTP}",
+          "VROOLI_VAULT_RUNTIME": "managed"
+        },
+        "config": {
+          "path": "vault.hcl",
+          "content": "storage \"file\" {\n  path = \"${RESOURCE_DATA_DIR}\"\n}\n\nlistener \"tcp\" {\n  address = \"127.0.0.1:${RESOURCE_PORT_HTTP}\"\n  tls_disable = true\n}\n\napi_addr = \"http://127.0.0.1:${RESOURCE_PORT_HTTP}\"\ndisable_mlock = true\nui = false\n"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "host": 8200
+          }
+        ],
+        "health_checks": [
+          {
+            "type": "http",
+            "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
+            "expected_status": [
+              200,
+              429,
+              472,
+              473
+            ],
+            "timeout_seconds": 10
+          }
+        ],
+        "files": [
+          {
+            "name": "vault_linux_amd64",
+            "sha256": "9929f66df86b1bb64c2ff5dca14cb3da34f3c064d11e4af2e50ba33177e5cdb0"
+          }
+        ]
+      }
+    }
+  ],
+  "host_requirements": [
+    {
+      "name": "docker",
+      "kind": "tool",
+      "os": "linux",
+      "privilege": "elevated",
+      "bundling": "host-required",
+      "required": true,
+      "verdict": "eligible",
+      "reason": "host-required tool \"docker\" is present",
+      "provenance": [
+        "resource:postgres:resources/postgres/resource.json"
+      ]
+    },
+    {
+      "name": "secret-tool",
+      "kind": "tool",
+      "os": "linux",
+      "privilege": "elevated",
+      "bundling": "host-required",
+      "required": true,
+      "verdict": "eligible",
+      "reason": "host-required tool \"secret-tool\" is present",
+      "provenance": [
+        "resource:vault:resources/vault/resource.json",
+        "resource:vault:resources/vault/resource.json"
+      ]
+    }
+  ]
+}

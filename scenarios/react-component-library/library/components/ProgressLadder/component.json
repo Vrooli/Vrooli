@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.progress-ladder",
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible",
+      "reason": "The ladder is suitable for readiness and maturity panel beats."
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.7",
+    "1.0.6"
+  ],
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:ProgressLadder"
+}

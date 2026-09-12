@@ -113,10 +113,10 @@ store/team-queue-{teamID}.json
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 2,
   "running": [
-    { "agentId": "agent-1", "profileKey": "prompt-manager-heartbeat" }
+    { "agentId": "agent-1", "profileKey": "prompt-manager/heartbeat" }
   ],
   "queue": [
-    { "agentId": "agent-2", "profileKey": "prompt-manager-heartbeat" },
+    { "agentId": "agent-2", "profileKey": "prompt-manager/heartbeat" },
     { "agentId": "agent-3", "profileKey": "custom-profile" }
   ]
 }

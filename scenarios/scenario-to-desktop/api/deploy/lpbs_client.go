@@ -7,6 +7,7 @@ package deploy
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -74,21 +75,29 @@ type ServiceAuthStatus struct {
 
 // UploadRequest describes one artifact to upload.
 type UploadRequest struct {
-	RemoteProfile  string
-	AppKey         string
-	Platform       string
-	FilePath       string
-	ReleaseVersion string
-	ReleaseNotes   string
-	GitCommitHash  string
-	ReleaseID      string
-	Channel        string
+	RemoteProfile          string
+	ScenarioName           string
+	AppKey                 string
+	Platform               string
+	FilePath               string
+	ReleaseVersion         string
+	ReleaseNotes           string
+	GitCommitHash          string
+	ReleaseID              string
+	CandidateID            string
+	DestinationRevisionID  string
+	AuthorizationEpoch     uint64
+	ReadinessReviewKey     string
+	Channel                string
+	ArtifactManifestDigest string
 }
 
 // UploadResult is the outcome of a single artifact upload.
 type UploadResult struct {
-	ArtifactID int64  `json:"artifact_id"`
-	Platform   string `json:"platform"`
+	ArtifactID        int64  `json:"artifact_id"`
+	Platform          string `json:"platform"`
+	SHA512            string `json:"sha512"`
+	DestinationObject string `json:"destination_object,omitempty"`
 }
 
 // ListRemoteProfiles returns all remote profiles from the local LPBS.
@@ -163,12 +172,29 @@ func (c *LPBSClient) ProxyRequest(ctx context.Context, profileTag, method, path 
 		proxyPayload)
 }
 
-// UploadArtifact orchestrates the full deploy flow for one artifact:
+// UploadArtifact orchestrates staging for one artifact:
 //  1. Proxy → presign-upload → get S3 URL
 //  2. HTTP PUT to S3 presigned URL (direct, no proxy)
 //  3. Proxy → commit → register artifact
-//  4. Proxy → apply → link to download asset
+//
+// Commercial release callers promote the complete target set separately so a
+// partial upload never becomes visible on a channel.
 func (c *LPBSClient) UploadArtifact(ctx context.Context, req *UploadRequest) (*UploadResult, error) {
+	if req == nil {
+		return nil, fmt.Errorf("upload request is required")
+	}
+	manifest, err := LoadMonetizationManifest("", req.ScenarioName)
+	if err != nil {
+		return nil, err
+	}
+	requiresEntitlement := false
+	if manifest != nil {
+		if strings.TrimSpace(req.AppKey) != manifest.AppKey {
+			return nil, fmt.Errorf("deployment app_key %q does not match monetization manifest app_key %q", req.AppKey, manifest.AppKey)
+		}
+		requiresEntitlement = manifest.RequiresEntitlement != nil && *manifest.RequiresEntitlement
+	}
+
 	// Open and hash the file
 	f, err := os.Open(req.FilePath)
 	if err != nil {
@@ -176,11 +202,14 @@ func (c *LPBSClient) UploadArtifact(ctx context.Context, req *UploadRequest) (*U
 	}
 	defer f.Close()
 
-	hasher := sha512.New()
+	sha256Hasher := sha256.New()
+	sha512Hasher := sha512.New()
+	hasher := io.MultiWriter(sha256Hasher, sha512Hasher)
 	if _, err := io.Copy(hasher, f); err != nil {
 		return nil, fmt.Errorf("hash artifact: %w", err)
 	}
-	sha512Hex := hex.EncodeToString(hasher.Sum(nil))
+	sha256Hex := hex.EncodeToString(sha256Hasher.Sum(nil))
+	sha512Hex := hex.EncodeToString(sha512Hasher.Sum(nil))
 
 	// Rewind for upload
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
@@ -200,22 +229,153 @@ func (c *LPBSClient) UploadArtifact(ctx context.Context, req *UploadRequest) (*U
 	if err := c.uploadToS3(ctx, presignResp, f, contentType); err != nil {
 		return nil, err
 	}
+	// The build output is the source of truth. Re-read it after upload so a
+	// file changed during the transfer cannot be committed under a stale
+	// checksum or advertised as a different artifact than the bytes shipped.
+	verifiedSHA256, verifiedSHA512, err := hashArtifact(req.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("verify artifact after upload: %w", err)
+	}
+	if verifiedSHA256 != sha256Hex || verifiedSHA512 != sha512Hex {
+		return nil, fmt.Errorf("artifact changed during upload: checksum before=%s after=%s", sha256Hex, verifiedSHA256)
+	}
 
 	// Step 3: Commit
-	artifactID, err := c.proxyCommit(ctx, req, presignResp, filename, contentType, sha512Hex)
+	artifactID, err := c.proxyCommit(ctx, req, presignResp, filename, contentType, sha256Hex, sha512Hex, requiresEntitlement, manifest)
 	if err != nil {
 		return nil, err
 	}
 
-	// Step 4: Apply
-	if err := c.proxyApply(ctx, req, artifactID); err != nil {
-		return nil, err
+	// Local packaging keeps the legacy single-asset apply behavior. A release
+	// identity selects the atomic channel promotion path in DeployStage.
+	if req.ReleaseID == "" {
+		if err := c.proxyApply(ctx, req, artifactID, sha256Hex, requiresEntitlement, manifest, sha512Hex); err != nil {
+			return nil, err
+		}
 	}
 
 	return &UploadResult{
-		ArtifactID: artifactID,
-		Platform:   req.Platform,
+		ArtifactID:        artifactID,
+		Platform:          req.Platform,
+		SHA512:            sha512Hex,
+		DestinationObject: fmt.Sprintf("s3://%s/%s", presignResp.Bucket, presignResp.ObjectKey),
 	}, nil
+}
+
+type ChannelHead struct {
+	Revision int64 `json:"revision"`
+}
+
+// ChannelPromotionReceipt is the destination-owned proof that the complete
+// artifact set advanced from the revision S2D observed. Release-bound
+// promotion also echoes the exact identity that authorized the effect.
+type ChannelPromotionReceipt struct {
+	AppKey                 string           `json:"app_key"`
+	VariantKey             string           `json:"variant_key"`
+	Revision               int64            `json:"revision"`
+	PredecessorRevision    int64            `json:"predecessor_revision"`
+	ArtifactIDs            map[string]int64 `json:"artifact_ids"`
+	ReleaseID              string           `json:"release_id,omitempty"`
+	ArtifactManifestDigest string           `json:"artifact_manifest_digest,omitempty"`
+	CandidateID            string           `json:"candidate_id,omitempty"`
+	DestinationRevisionID  string           `json:"destination_revision_id,omitempty"`
+	AuthorizationEpoch     uint64           `json:"authorization_epoch,omitempty"`
+	ReadinessReviewKey     string           `json:"readiness_review_key,omitempty"`
+}
+
+// GetChannelHead returns the current destination revision. A missing head is
+// the initial revision zero and is safe for the first commercial promotion.
+func (c *LPBSClient) GetChannelHead(ctx context.Context, req *UploadRequest) (*ChannelHead, error) {
+	variantKey := req.Channel
+	if variantKey == "" || variantKey == "stable" {
+		variantKey = "default"
+	}
+	path := "/admin/download-channels/head?app_key=" + url.QueryEscape(req.AppKey) + "&variant_key=" + url.QueryEscape(variantKey)
+	body, err := c.ProxyRequest(ctx, req.RemoteProfile, "GET", path, nil)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "status 404") {
+			return &ChannelHead{}, nil
+		}
+		return nil, fmt.Errorf("get channel head: %w", err)
+	}
+	var head ChannelHead
+	if err := json.Unmarshal(body, &head); err != nil {
+		return nil, fmt.Errorf("decode channel head: %w", err)
+	}
+	return &head, nil
+}
+
+func (c *LPBSClient) PromoteChannel(ctx context.Context, req *UploadRequest, artifacts []UploadResult) error {
+	if req == nil || req.ReleaseID == "" {
+		return fmt.Errorf("release-bound upload request is required")
+	}
+	if strings.TrimSpace(req.ArtifactManifestDigest) == "" || strings.TrimSpace(req.CandidateID) == "" || strings.TrimSpace(req.DestinationRevisionID) == "" || req.AuthorizationEpoch == 0 || strings.TrimSpace(req.ReadinessReviewKey) == "" {
+		return fmt.Errorf("release-bound promotion requires manifest, candidate, destination, authorization epoch, and readiness review identity")
+	}
+	head, err := c.GetChannelHead(ctx, req)
+	if err != nil {
+		return err
+	}
+	variantKey := req.Channel
+	if variantKey == "" || variantKey == "stable" {
+		variantKey = "default"
+	}
+	artifactIDs := make(map[string]int64, len(artifacts))
+	for _, artifact := range artifacts {
+		if artifact.Platform == "" || artifact.ArtifactID <= 0 {
+			return fmt.Errorf("promotion artifact identity is incomplete")
+		}
+		artifactIDs[artifact.Platform] = artifact.ArtifactID
+	}
+	if len(artifactIDs) == 0 {
+		return fmt.Errorf("promotion requires at least one artifact")
+	}
+	body, err := c.ProxyRequest(ctx, req.RemoteProfile, "POST", "/admin/download-channels/promote", map[string]interface{}{
+		"app_key": req.AppKey, "variant_key": variantKey,
+		"expected_revision": head.Revision, "artifact_ids": artifactIDs,
+		"release_id":               req.ReleaseID,
+		"artifact_manifest_digest": req.ArtifactManifestDigest,
+		"candidate_id":             req.CandidateID,
+		"destination_revision_id":  req.DestinationRevisionID,
+		"authorization_epoch":      req.AuthorizationEpoch,
+		"readiness_review_key":     req.ReadinessReviewKey,
+	})
+	if err != nil {
+		return fmt.Errorf("promote channel: %w", err)
+	}
+	var receipt ChannelPromotionReceipt
+	if err := json.Unmarshal(body, &receipt); err != nil {
+		return fmt.Errorf("decode channel promotion receipt: %w", err)
+	}
+	if receipt.AppKey != req.AppKey || receipt.VariantKey != variantKey || receipt.PredecessorRevision != head.Revision || receipt.Revision != head.Revision+1 {
+		return fmt.Errorf("channel promotion receipt does not match observed predecessor")
+	}
+	if len(receipt.ArtifactIDs) != len(artifactIDs) {
+		return fmt.Errorf("channel promotion receipt does not contain the complete artifact set")
+	}
+	for platform, artifactID := range artifactIDs {
+		if receipt.ArtifactIDs[platform] != artifactID {
+			return fmt.Errorf("channel promotion receipt artifact %q does not match request", platform)
+		}
+	}
+	if receipt.ReleaseID != req.ReleaseID || receipt.ArtifactManifestDigest != req.ArtifactManifestDigest || receipt.CandidateID != req.CandidateID || receipt.DestinationRevisionID != req.DestinationRevisionID || receipt.AuthorizationEpoch != req.AuthorizationEpoch || receipt.ReadinessReviewKey != req.ReadinessReviewKey {
+		return fmt.Errorf("channel promotion receipt does not match release identity")
+	}
+	return nil
+}
+
+func hashArtifact(path string) (string, string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", "", err
+	}
+	defer f.Close()
+	sha256Hasher := sha256.New()
+	sha512Hasher := sha512.New()
+	if _, err := io.Copy(io.MultiWriter(sha256Hasher, sha512Hasher), f); err != nil {
+		return "", "", err
+	}
+	return hex.EncodeToString(sha256Hasher.Sum(nil)), hex.EncodeToString(sha512Hasher.Sum(nil)), nil
 }
 
 // DeriveUpdateURL returns the update URL for an app from the remote profile's API base.
@@ -306,17 +466,20 @@ func (c *LPBSClient) uploadToS3(ctx context.Context, presign *presignResponse, b
 	return nil
 }
 
-func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presign *presignResponse, filename, contentType, sha512Hex string) (int64, error) {
+func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presign *presignResponse, filename, contentType, sha256Hex, sha512Hex string, requiresEntitlement bool, manifest *MonetizationManifest) (int64, error) {
 	commitPayload := map[string]interface{}{
-		"bucket":            presign.Bucket,
-		"object_key":        presign.ObjectKey,
-		"original_filename": filename,
-		"content_type":      contentType,
-		"app_key":           req.AppKey,
-		"platform":          req.Platform,
-		"release_version":   req.ReleaseVersion,
-		"sha512":            sha512Hex,
-		"git_commit_hash":   req.GitCommitHash,
+		"bucket":                   presign.Bucket,
+		"object_key":               presign.ObjectKey,
+		"original_filename":        filename,
+		"content_type":             contentType,
+		"app_key":                  req.AppKey,
+		"platform":                 req.Platform,
+		"release_version":          req.ReleaseVersion,
+		"sha256":                   sha256Hex,
+		"sha512":                   sha512Hex,
+		"metadata":                 artifactMetadata(req, manifest, sha256Hex, sha512Hex, requiresEntitlement),
+		"git_commit_hash":          req.GitCommitHash,
+		"artifact_manifest_digest": req.ArtifactManifestDigest,
 	}
 	if req.ReleaseID != "" {
 		commitPayload["release_id"] = req.ReleaseID
@@ -336,12 +499,15 @@ func (c *LPBSClient) proxyCommit(ctx context.Context, req *UploadRequest, presig
 	return resp.ID, nil
 }
 
-func (c *LPBSClient) proxyApply(ctx context.Context, req *UploadRequest, artifactID int64) error {
+func (c *LPBSClient) proxyApply(ctx context.Context, req *UploadRequest, artifactID int64, checksum string, requiresEntitlement bool, manifest *MonetizationManifest, sha512Hex string) error {
 	payload := map[string]interface{}{
-		"app_key":         req.AppKey,
-		"platform":        req.Platform,
-		"artifact_id":     artifactID,
-		"release_version": req.ReleaseVersion,
+		"app_key":              req.AppKey,
+		"platform":             req.Platform,
+		"artifact_id":          artifactID,
+		"release_version":      req.ReleaseVersion,
+		"checksum":             checksum,
+		"requires_entitlement": requiresEntitlement,
+		"metadata":             artifactMetadata(req, manifest, checksum, sha512Hex, requiresEntitlement),
 	}
 	if strings.TrimSpace(req.ReleaseNotes) != "" {
 		payload["release_notes"] = strings.TrimSpace(req.ReleaseNotes)
@@ -360,6 +526,34 @@ func (c *LPBSClient) proxyApply(ctx context.Context, req *UploadRequest, artifac
 		return fmt.Errorf("apply asset: %w", err)
 	}
 	return nil
+}
+
+// artifactMetadata is the release manifest carried with the managed asset. It
+// is derived from the built file and the scenario declaration in the same
+// upload transaction, so LPBS does not need a second hand-typed release
+// registration step.
+func artifactMetadata(req *UploadRequest, manifest *MonetizationManifest, sha256Hex, sha512Hex string, requiresEntitlement bool) map[string]interface{} {
+	metadata := map[string]interface{}{
+		"app_key":              req.AppKey,
+		"platform":             req.Platform,
+		"release_version":      req.ReleaseVersion,
+		"sha256":               sha256Hex,
+		"sha512":               sha512Hex,
+		"requires_entitlement": requiresEntitlement,
+	}
+	if strings.TrimSpace(req.ReleaseID) != "" {
+		metadata["release_id"] = strings.TrimSpace(req.ReleaseID)
+		metadata["artifact_manifest_digest"] = strings.TrimSpace(req.ArtifactManifestDigest)
+		metadata["candidate_id"] = strings.TrimSpace(req.CandidateID)
+		metadata["destination_revision_id"] = strings.TrimSpace(req.DestinationRevisionID)
+		metadata["authorization_epoch"] = req.AuthorizationEpoch
+		metadata["readiness_review_key"] = strings.TrimSpace(req.ReadinessReviewKey)
+	}
+	if manifest != nil {
+		metadata["bundle_key"] = manifest.BundleKey
+		metadata["manifest_version"] = manifest.Version
+	}
+	return metadata
 }
 
 // adminRequest makes an authenticated request to the local LPBS instance.

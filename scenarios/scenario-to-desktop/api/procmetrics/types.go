@@ -23,6 +23,53 @@ type Summary struct {
 	DurationMs   int64   `json:"duration_ms"`
 }
 
+// ProcessRole identifies the startup component that owns a process.
+type ProcessRole string
+
+const (
+	RoleElectronMain    ProcessRole = "electron_main"
+	RoleElectronRender  ProcessRole = "electron_renderer"
+	RoleElectronGPU     ProcessRole = "electron_gpu"
+	RoleBundledRuntime  ProcessRole = "bundled_runtime"
+	RoleScenarioService ProcessRole = "scenario_service"
+	RoleUnknown         ProcessRole = "unknown"
+)
+
+// ProcessInfo is one node in a sampled process tree.
+type ProcessInfo struct {
+	PID        int         `json:"pid"`
+	PPID       int         `json:"ppid"`
+	Command    string      `json:"command,omitempty"`
+	Role       ProcessRole `json:"role"`
+	CPUJiffies int64       `json:"cpu_jiffies"`
+	RSSBytes   int64       `json:"rss_bytes"`
+	PeakBytes  int64       `json:"peak_bytes"`
+	Threads    int         `json:"threads"`
+}
+
+// RoleSummary aggregates unique process nodes. Unsupported roles remain
+// unavailable instead of becoming zero-valued measurements.
+type RoleSummary struct {
+	Role         ProcessRole `json:"role"`
+	Available    bool        `json:"available"`
+	Unsupported  bool        `json:"unsupported,omitempty"`
+	ProcessCount int         `json:"process_count"`
+	CPUPercent   float64     `json:"cpu_percent"`
+	PeakCPU      float64     `json:"peak_cpu_percent"`
+	RSSBytes     int64       `json:"rss_bytes"`
+	PeakRSSBytes int64       `json:"peak_rss_bytes"`
+	Threads      int         `json:"threads"`
+	DurationMs   int64       `json:"duration_ms"`
+	SampleCount  int         `json:"sample_count"`
+}
+
+// ProcessTreeReport describes the attribution scope and role totals.
+type ProcessTreeReport struct {
+	Supported bool                        `json:"supported"`
+	Scope     string                      `json:"scope"`
+	Roles     map[ProcessRole]RoleSummary `json:"roles,omitempty"`
+}
+
 // StartupTiming records app startup in two phases:
 //   - Splash: launch → first visible window of any size (e.g. splash screen)
 //   - Ready:  launch → main application window (meets expected size threshold)
@@ -42,7 +89,8 @@ type StartupTiming struct {
 
 // Report is the complete metrics output for a monitored process.
 type Report struct {
-	Startup StartupTiming `json:"startup"`
-	Samples []Sample      `json:"samples"`
-	Summary *Summary      `json:"summary,omitempty"`
+	Startup     StartupTiming      `json:"startup"`
+	Samples     []Sample           `json:"samples"`
+	Summary     *Summary           `json:"summary,omitempty"`
+	ProcessTree *ProcessTreeReport `json:"process_tree,omitempty"`
 }

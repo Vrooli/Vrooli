@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
@@ -28,7 +28,7 @@ function TreeNode({ entry, level, selectedPath, expandedPaths, onSelect, onToggl
       <div>
         <button
           type="button"
-          onClick={() => onToggle(entry.path)}
+          onClick={() => { onToggle(entry.path); }}
           className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/5 transition-colors"
           style={{ paddingLeft }}
         >
@@ -66,7 +66,7 @@ function TreeNode({ entry, level, selectedPath, expandedPaths, onSelect, onToggl
   return (
     <button
       type="button"
-      onClick={() => onSelect(entry.path)}
+      onClick={() => { onSelect(entry.path); }}
       className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors ${
         isSelected ? 'bg-blue-500/20 text-blue-300' : 'hover:bg-white/5 text-slate-300'
       }`}
@@ -88,7 +88,7 @@ function buildHeadingId(text: string, counts: Map<string, number>): string {
     .replace(/-+/g, '-');
 
   if (!base) {
-    const fallback = `section-${counts.size + 1}`;
+    const fallback = `section-${String(counts.size + 1)}`;
     counts.set(fallback, 1);
     return fallback;
   }
@@ -98,13 +98,13 @@ function buildHeadingId(text: string, counts: Map<string, number>): string {
   if (count === 0) {
     return base;
   }
-  return `${base}-${count + 1}`;
+  return `${base}-${String(count + 1)}`;
 }
 
 function MarkdownRenderer({ content }: { content: string }) {
   // Simple markdown rendering with basic formatting
   const lines = content.split('\n');
-  const elements: JSX.Element[] = [];
+  const elements: ReactNode[] = [];
   let i = 0;
   let inCodeBlock = false;
   let codeBlockContent: string[] = [];
@@ -257,10 +257,10 @@ function MarkdownRenderer({ content }: { content: string }) {
   return <div className="prose prose-invert max-w-none">{elements}</div>;
 }
 
-function renderTable(lines: string[], key: number): JSX.Element {
+function renderTable(lines: string[], key: number): ReactNode {
   const rows = lines.filter(line => !line.match(/^[\s|:-]+$/));
   const firstRow = rows[0];
-  if (rows.length === 0 || !firstRow) return <></>;
+  if (rows.length === 0 || !firstRow) return null;
 
   const parseCells = (row: string) =>
     row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
@@ -296,8 +296,8 @@ function renderTable(lines: string[], key: number): JSX.Element {
   );
 }
 
-function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
-  const parts: (string | JSX.Element)[] = [];
+function formatInlineMarkdown(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
   let remaining = text;
   let keyIdx = 0;
 
@@ -433,9 +433,7 @@ export function DocsViewer() {
       return;
     }
 
-    const schedule = window.requestAnimationFrame ?? ((cb: FrameRequestCallback) => window.setTimeout(cb, 0));
-    const cancel = window.cancelAnimationFrame ?? window.clearTimeout;
-    const handle = schedule(() => {
+    const handle = window.requestAnimationFrame(() => {
       const element = document.getElementById(requestedAnchor);
       if (element && contentRef.current) {
         const elementTop = element.offsetTop;
@@ -443,7 +441,7 @@ export function DocsViewer() {
       }
     });
 
-    return () => cancel(handle);
+    return () => { window.cancelAnimationFrame(handle); };
   }, [loadingDoc, requestedAnchor, selectedDoc]);
 
   const toggleSidebar = useCallback(() => {
@@ -454,7 +452,6 @@ export function DocsViewer() {
     <AdminLayout maxWidth="extraWide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Template Documentation"
           description="Browse the documentation files for this landing page template. Learn about configuration, customization, and deployment."
           icon={Book}
@@ -462,7 +459,7 @@ export function DocsViewer() {
           iconColorClass="text-amber-400"
           testId="docs-header"
           actions={
-            <Button variant="ghost" size="sm" onClick={loadTree} className="gap-2" data-testid="docs-refresh">
+            <Button variant="ghost" size="sm" onClick={() => { void loadTree(); }} className="gap-2" data-testid="docs-refresh">
               <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
@@ -512,7 +509,7 @@ export function DocsViewer() {
             <div
               ref={containerRef}
               className="flex relative"
-              style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
+              style={{ height: 'calc(100% - 280px)', minHeight: '400px' }}
             >
               {/* Sidebar - File Tree */}
               <div
@@ -537,7 +534,7 @@ export function DocsViewer() {
                           level={0}
                           selectedPath={selectedPath}
                           expandedPaths={expandedPaths}
-                          onSelect={loadDoc}
+                          onSelect={(path) => { void loadDoc(path); }}
                           onToggle={handleToggle}
                         />
                       ))}

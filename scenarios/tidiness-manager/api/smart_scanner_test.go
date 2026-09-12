@@ -33,6 +33,7 @@ func mustCreateScanner() *SmartScanner {
 func setupTempVrooliRoot(t *testing.T, scenarioName string) (vrooliRoot, scenarioDir string, cleanup func()) {
 	t.Helper()
 	vrooliRoot = t.TempDir()
+	writeRepoContractFixture(t, vrooliRoot)
 	scenarioDir = filepath.Join(vrooliRoot, "scenarios", scenarioName)
 
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -324,8 +325,9 @@ func TestSmartScanner_UsesScenarioLocator(t *testing.T) {
 	scanner := createTestScanner(t)
 
 	tmpRoot := t.TempDir()
+	writeRepoContractFixture(t, tmpRoot)
 	locator := &ScenarioLocator{
-		vrooliRoot:   tmpRoot,
+		repoRoot:     tmpRoot,
 		scenariosDir: filepath.Join(tmpRoot, "scenarios"),
 		cacheTTL:     time.Minute,
 	}

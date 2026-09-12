@@ -1,3 +1,5 @@
+// DOC: docs/guides/integrating-a-scenario.md
+// DOC: docs/internal/ERROR-SEMANTICS.md
 package fallback
 
 import (

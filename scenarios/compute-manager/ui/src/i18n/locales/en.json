@@ -1,0 +1,103 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Compute Manager are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Compute Manager"
+  },
+  "data-display": {
+    "data-table": {
+      "access-is-limited": "Access is limited",
+      "all": "All",
+      "data-table-content": "Data table content",
+      "dense": "Dense",
+      "next": "Next",
+      "previous": "Previous",
+      "roomy": "Roomy",
+      "row-density": "Row density"
+    }
+  },
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "health": {
+    "description": "Polls this scenario's API and reports what it says.",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "layout": {
+    "closeNavigation": "Close navigation",
+    "mobileNavigationLabel": "Mobile navigation",
+    "nav": {
+      "dashboard": "Home",
+      "findings": "Findings",
+      "request": "Request",
+      "settings": "Settings"
+    },
+    "navigationLabel": "Primary navigation",
+    "openNavigation": "Open navigation",
+    "skipToContent": "Skip to content"
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
+      "title": "Home",
+      "inventoryTitle": "Compute inventory",
+      "inventoryDescription": "Live instances, remaining lifetime, and open findings.",
+      "loading": "Loading inventory…", "error": "Unable to load inventory.", "empty": "No instances are running.", "openFindings": "Open findings", "noFindings": "No open reconciliation findings.", "state": "State", "region": "Region", "size": "Size", "remaining": "Remaining"
+    },
+    "findings": { "title": "Open findings", "description": "Reconciliation findings requiring operator attention.", "kind": "Kind", "providerInstance": "Provider instance", "detail": "Detail", "error": "Unable to load findings.", "empty": "No open reconciliation findings." },
+    "instance": { "title": "Instance details", "description": "Provider, reservation, and enrollment state for one instance.", "error": "Unable to load instance.", "loading": "Loading instance…", "state": "State", "address": "Address", "provider": "Provider"
+    },
+    "request": { "title": "Request capacity", "description": "Choose a bounded machine lifetime before creating capacity.", "provider": "Provider", "region": "Region", "size": "Size", "lifetime": "Lifetime (seconds)", "estimate": "The estimate uses the provider minimum billable unit.", "submit": "Request capacity", "submitting": "Requesting capacity…", "success": "Capacity request accepted.", "error": "Capacity request failed. No machine was created.", "validation": "Choose a positive lifetime." },
+    "settings": {
+      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "localeHeading": "Language",
+      "localeHint": "Applies to this console only.",
+      "preferences": "Preferences",
+      "themeHeading": "Appearance",
+      "themeHint": "Light, dark, or follow the system.",
+      "title": "Settings"
+    }
+  },
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  }
+}

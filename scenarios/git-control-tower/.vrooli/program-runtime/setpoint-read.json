@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "git-control-tower.setpoint-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Report measured Git Control Tower improvement rows without inventing a baseline or lowering a target.",
+  "inputs": {
+    "observations": {
+      "type": "array",
+      "required": true
+    }
+  },
+  "assumptions": [
+    "An absent observation is unavailable, not healthy zero."
+  ],
+  "invariants": [
+    "no target or authority changes",
+    "failed observations remain visible",
+    "one bounded envelope"
+  ],
+  "bindings": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "dated observations with standing"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "unreliable_observation",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Caller-supplied measured observations"
+  },
+  "budget": {
+    "wall_ms": 10000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 32
+  },
+  "fixtures": [
+    {
+      "id": "cold-start",
+      "inputs": {
+        "observations": []
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      },
+      "requires": [
+        "git-control-tower"
+      ]
+    },
+    {
+      "id": "measured",
+      "inputs": {
+        "observations": [
+          {
+            "row": "capture-terminal",
+            "standing": "in_band",
+            "evidence": "run-1"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "git-control-tower"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "git-control-tower-improve",
+  "verbs": [
+    "tasks.get",
+    "validate"
+  ]
+}

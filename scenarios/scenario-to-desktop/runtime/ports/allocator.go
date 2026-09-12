@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
 // Range defines a range of port numbers for allocation.
@@ -62,7 +62,6 @@ func (p *Manager) Allocate() error {
 	}
 
 	reserved := p.buildReservedSet()
-	nextPort := defaultRange.Min
 
 	for _, svc := range p.manifest.Services {
 		if p.portMap[svc.ID] == nil {
@@ -77,12 +76,25 @@ func (p *Manager) Allocate() error {
 			if req.Range.Min != 0 && req.Range.Max != 0 {
 				rng = Range{Min: req.Range.Min, Max: req.Range.Max}
 			}
-			port, err := p.pickPort(rng, reserved, &nextPort)
+			port, err := p.pickPort(rng, reserved)
 			if err != nil {
 				return fmt.Errorf("allocate port for %s:%s: %w", svc.ID, req.Name, err)
 			}
 			p.portMap[svc.ID][req.Name] = port
+			reserved[port] = true
 		}
+	}
+
+	// Port zero is an allocator request, not a fixed well-known port. Allocate
+	// the authenticated control API from the same namespace as service ports so
+	// independently installed bundles cannot collide with each other or with a
+	// declared service.
+	if p.manifest.IPC.Port == 0 && p.manifest.IPC.Host != "" {
+		ipcPort, err := p.pickPort(defaultRange, reserved)
+		if err != nil {
+			return fmt.Errorf("allocate IPC port: %w", err)
+		}
+		p.manifest.IPC.Port = ipcPort
 	}
 
 	return nil
@@ -140,7 +152,7 @@ func (p *Manager) buildReservedSet() map[int]bool {
 // pickPort finds an available port within the given range.
 // It skips reserved ports and verifies the port is actually available
 // by attempting to bind to it.
-func (p *Manager) pickPort(rng Range, reserved map[int]bool, next *int) (int, error) {
+func (p *Manager) pickPort(rng Range, reserved map[int]bool) (int, error) {
 	if rng.Min == 0 || rng.Max == 0 || rng.Max < rng.Min {
 		return 0, fmt.Errorf("invalid range %d-%d", rng.Min, rng.Max)
 	}
@@ -149,13 +161,9 @@ func (p *Manager) pickPort(rng Range, reserved map[int]bool, next *int) (int, er
 		if reserved[port] {
 			continue
 		}
-		if port < *next {
-			continue
-		}
 		if !p.isPortAvailable(port) {
 			continue
 		}
-		*next = port + 1
 		return port, nil
 	}
 	return 0, fmt.Errorf("no free port in %d-%d", rng.Min, rng.Max)

@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.schema;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/schema;schema";
+
+// =============================================================================
+// SCHEMA DOMAIN — workflow JSON-Schema + step-definition discovery.
+// =============================================================================
+//
+// @stability beta
+//
+// SchemaService exposes the canonical workflow JSON-Schema and step-type
+// catalogue that drives both UI authoring (SchemaReference) and CLI
+// documentation (`bas schema workflow|node-types|steps`). The workflow
+// schema itself is a JSON-Schema document; it travels as a
+// google.protobuf.Struct so the wire shape stays identical to the historical
+// REST payload and so future schema-vocabulary changes don't require proto
+// churn.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/schema/service.go
+//   - UI:   ui/src/api/schema.ts (SchemaReference docs viewer)
+//   - CLI:  bas schema workflow | bas schema node-types | bas schema steps
+// =============================================================================
+
+service SchemaService {
+  // GetWorkflowSchema returns the workflow JSON-Schema. When node_types is
+  // populated, the schema is filtered to those node types (always-keep
+  // structural definitions are preserved by the server).
+  rpc GetWorkflowSchema(GetWorkflowSchemaRequest) returns (GetWorkflowSchemaResponse);
+
+  // GetNodeTypes returns the list of node-type slugs defined by the schema.
+  rpc GetNodeTypes(GetNodeTypesRequest) returns (GetNodeTypesResponse);
+
+  // GetStepDefinitions returns the CLI-syntax catalogue for workflow steps.
+  // Filterable by type and by CLI-supported subset.
+  rpc GetStepDefinitions(GetStepDefinitionsRequest) returns (GetStepDefinitionsResponse);
+}
+
+message GetWorkflowSchemaRequest {
+  // Optional filter — when non-empty the returned schema contains only
+  // these node-type definitions plus the always-keep structural ones.
+  repeated string node_types = 1;
+}
+
+message GetWorkflowSchemaResponse {
+  // The workflow JSON-Schema as a free-shape Struct. Treat as opaque
+  // JSON-Schema; do not match on individual keys at the proto boundary.
+  google.protobuf.Struct schema = 1;
+}
+
+message GetNodeTypesRequest {}
+
+message GetNodeTypesResponse {
+  repeated string node_types = 1;
+}
+
+message GetStepDefinitionsRequest {
+  // Optional filter — when non-empty, only step definitions whose type is
+  // in this list are returned.
+  repeated string types = 1;
+
+  // When true, only step types that support `--step <type> …` CLI syntax
+  // are returned.
+  bool cli_only = 2;
+}
+
+message StepPositional {
+  string name = 1;
+  string maps_to = 2;
+  string description = 3;
+}
+
+message StepKV {
+  string key = 1;
+  string type = 2;
+  string description = 3;
+}
+
+message StepRequireOneOf {
+  repeated string keys = 1;
+}
+
+message StepExample {
+  string description = 1;
+  string cli = 2;
+}
+
+message StepDefinition {
+  string type = 1;
+  string description = 2;
+  StepPositional positional = 3;
+  repeated StepKV required_kvs = 4;
+  repeated StepKV optional_kvs = 5;
+  repeated StepRequireOneOf require_one_of = 6;
+  repeated StepExample examples = 7;
+  bool cli_supported = 8;
+}
+
+message GetStepDefinitionsResponse {
+  repeated StepDefinition steps = 1;
+}

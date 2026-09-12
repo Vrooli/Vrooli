@@ -25,7 +25,7 @@ export function buildEditableSEOConfig(
     og_image_url: valueOrUndefined(response.og_image_url, branding?.default_og_image_url),
     twitter_card: (response.twitter_card as VariantSEOConfig['twitter_card']) || undefined,
     canonical_path: undefined, // API does not expose path today; keep undefined instead of guessing
-    noindex: response.noindex ?? false,
+    noindex: response.noindex,
     structured_data: response.structured_data ?? undefined,
   };
 }

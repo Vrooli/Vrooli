@@ -4,17 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
 
-const defaultOllamaModel = "llama3.2"
+const defaultOllamaRole = "chat.small"
 
 // ollamaSuggestionGenerator handles AI-powered workflow suggestions using Ollama.
 type ollamaSuggestionGenerator struct {
 	log    *logrus.Logger
 	client OllamaClient
-	model  string
+	role   string
 }
 
 // OllamaSuggestionOption configures the ollamaSuggestionGenerator.
@@ -27,18 +28,18 @@ func WithOllamaClient(client OllamaClient) OllamaSuggestionOption {
 	}
 }
 
-// WithOllamaModel sets the Ollama model to use.
-func WithOllamaModel(model string) OllamaSuggestionOption {
+// WithOllamaRole sets the Ollama role to use.
+func WithOllamaRole(role string) OllamaSuggestionOption {
 	return func(g *ollamaSuggestionGenerator) {
-		g.model = model
+		g.role = role
 	}
 }
 
 // newOllamaSuggestionGenerator creates a new Ollama suggestion generator.
 func newOllamaSuggestionGenerator(log *logrus.Logger, opts ...OllamaSuggestionOption) *ollamaSuggestionGenerator {
 	generator := &ollamaSuggestionGenerator{
-		log:   log,
-		model: defaultOllamaModel,
+		log:  log,
+		role: defaultOllamaRole,
 	}
 
 	// Apply options first
@@ -61,20 +62,31 @@ func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, e
 	prompt := g.buildElementAnalysisPrompt(elements, pageContext)
 
 	// Query Ollama via the client interface
-	response, err := g.client.Query(ctx, g.model, prompt)
+	suggestionsPayload, err := g.client.Query(ctx, g.role, prompt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call ollama: %w", err)
 	}
 
-	// Parse the response
+	// Parse both the documented object shape and the array shape emitted by
+	// models that follow the element-analysis response convention. A valid
+	// array must not silently become an empty object response.
+	payload := strings.TrimSpace(suggestionsPayload)
+	if strings.HasPrefix(payload, "[") {
+		var suggestions []AISuggestion
+		if err := json.Unmarshal([]byte(payload), &suggestions); err == nil {
+			return suggestions, nil
+		} else {
+			g.log.WithError(err).Warn("Failed to parse Ollama suggestion array, trying fallback parsing")
+			return g.parseOllamaFallback(suggestionsPayload)
+		}
+	}
 	var ollamaResponse struct {
 		Suggestions []AISuggestion `json:"suggestions"`
 	}
-
-	if err := json.Unmarshal([]byte(response), &ollamaResponse); err != nil {
+	if err := json.Unmarshal([]byte(payload), &ollamaResponse); err != nil {
 		// If JSON parsing fails, try to extract from the raw response
 		g.log.WithError(err).Warn("Failed to parse Ollama JSON response, trying fallback parsing")
-		return g.parseOllamaFallback(response)
+		return g.parseOllamaFallback(suggestionsPayload)
 	}
 
 	return ollamaResponse.Suggestions, nil

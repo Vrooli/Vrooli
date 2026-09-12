@@ -27,7 +27,7 @@ flowchart TB
     Artifacts -.-> Storage
 ```
 
-Tests: `file_writer_test.go` covers artifact shape and truncation; integration tests in `executor/integration_test.go` exercise writer with Postgres + MemorySink.
+Tests: `file_writer_test.go` covers artifact shape and truncation; integration tests in `executor/integration_test.go` exercise writer with SQLite + MemorySink.
 
 ## Migration Notes
 

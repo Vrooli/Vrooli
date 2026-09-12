@@ -1,0 +1,2548 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "landing-page-business-suite",
+  "description": "Authoritative catalog of the Silent Founder OS CLI. Legacy REST façade commands remain cataloged as local while migrated domains declare generated Connect bindings and verified renderer-separated primitives.",
+  "groups": [
+    {
+      "name": "legacy",
+      "description": "Current flat local command surface; migrate command-by-command to proto-first domain groups without changing behavior.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "fixture-seed",
+          "description": "Seed a local subscription fixture for development smoke tests.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "fixture-token",
+          "description": "Mint a local fixture consumer token for development smoke tests.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "fixture-balance",
+          "description": "Read a local fixture credit balance for development smoke tests.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "fixture-zero",
+          "description": "Reset a local fixture credit balance for development smoke tests.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "admin-api-keys-create",
+          "description": "Legacy local command: admin-api-keys-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-api-keys-delete",
+          "description": "Legacy local command: admin-api-keys-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-api-keys-list",
+          "description": "Legacy local command: admin-api-keys-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-api-keys-test",
+          "description": "Legacy local command: admin-api-keys-test.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-api-keys-toggle",
+          "description": "Legacy local command: admin-api-keys-toggle.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-app-limits",
+          "description": "Legacy local command: admin-app-limits.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-assets-delete",
+          "description": "Legacy local command: admin-assets-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-assets-get",
+          "description": "Legacy local command: admin-assets-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-assets-list",
+          "description": "Legacy local command: admin-assets-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-assets-upload",
+          "description": "Legacy local command: admin-assets-upload.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-branding-clear-field",
+          "description": "Legacy local command: admin-branding-clear-field.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-branding-get",
+          "description": "Legacy local command: admin-branding-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-branding-update",
+          "description": "Legacy local command: admin-branding-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-bundle-price-create",
+          "description": "Legacy local command: admin-bundle-price-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-bundle-price-delete",
+          "description": "Legacy local command: admin-bundle-price-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-bundle-price-update",
+          "description": "Update a bundle price through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BundleAdminService",
+            "method": "UpdateBundlePrice"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-bundles",
+          "description": "List editable bundles through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BundleAdminService",
+            "method": "ListBundleCatalog"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupon-mappings",
+          "description": "List coupon mappings through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCouponMappings"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-create",
+          "description": "Create a coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "CreateCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-delete",
+          "description": "Delete a coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "DeleteCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-get",
+          "description": "Get a coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-list",
+          "description": "List coupons through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "ListCoupons"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-update",
+          "description": "Update a coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "UpdateCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-coupons-usage",
+          "description": "List coupon usage through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "ListCouponUsage"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-docs-content",
+          "description": "Legacy local command: admin-docs-content.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-docs-tree",
+          "description": "Legacy local command: admin-docs-tree.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-apps-create",
+          "description": "Legacy local command: admin-download-apps-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-apps-delete",
+          "description": "Delete a download app through the generated DownloadService Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DownloadService",
+            "method": "DeleteDownloadApp"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-apps-list",
+          "description": "Legacy local command: admin-download-apps-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-apps-save",
+          "description": "Legacy local command: admin-download-apps-save.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-artifacts-by-app",
+          "description": "Legacy local command: admin-download-artifacts-by-app.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-artifacts-commit",
+          "description": "Legacy local command: admin-download-artifacts-commit.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-artifacts-list",
+          "description": "Legacy local command: admin-download-artifacts-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-artifacts-presign-get",
+          "description": "Legacy local command: admin-download-artifacts-presign-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-artifacts-presign-upload",
+          "description": "Legacy local command: admin-download-artifacts-presign-upload.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-assets-apply",
+          "description": "Legacy local command: admin-download-assets-apply.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-assets-set-current",
+          "description": "Legacy local command: admin-download-assets-set-current.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-storage-get",
+          "description": "Legacy local command: admin-download-storage-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-storage-test",
+          "description": "Legacy local command: admin-download-storage-test.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-download-storage-update",
+          "description": "Legacy local command: admin-download-storage-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-downloads-upload-managed",
+          "description": "Legacy local command: admin-downloads-upload-managed.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-feedback-bulk-delete",
+          "description": "Bulk delete feedback through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "DeleteFeedbackBulk"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-feedback-delete",
+          "description": "Delete feedback through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "DeleteFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-feedback-get",
+          "description": "Get feedback through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "GetFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-feedback-list",
+          "description": "List feedback through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "ListFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-feedback-status-update",
+          "description": "Update feedback status through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "UpdateFeedbackStatus"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-limits-create",
+          "description": "Legacy local command: admin-limits-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-limits-delete",
+          "description": "Legacy local command: admin-limits-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-login",
+          "description": "Legacy local command: admin-login.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-logout",
+          "description": "Legacy local command: admin-logout.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-plan-coupon-remove",
+          "description": "Remove a plan coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "RemoveCouponFromPlan"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-plan-coupon-set",
+          "description": "Set a plan coupon through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "SetCouponForPlan"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-profile",
+          "description": "Legacy local command: admin-profile.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-profile-update",
+          "description": "Legacy local command: admin-profile-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-reset-demo-data",
+          "description": "Legacy local command: admin-reset-demo-data.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-session",
+          "description": "Legacy local command: admin-session.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-coupons-preview",
+          "description": "Preview Stripe coupons through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCouponImportPreview"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-import",
+          "description": "Legacy local command: admin-stripe-import.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-import-preview",
+          "description": "Legacy local command: admin-stripe-import-preview.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-secret",
+          "description": "Reveal one explicitly requested Stripe setting through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "RevealStripeSecret"
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-settings",
+          "description": "Read redacted Stripe settings through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "GetStripeSettings"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-settings-update",
+          "description": "Update Stripe settings through the admin Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "UpdateStripeSettings"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-stripe-verify-price",
+          "description": "Legacy local command: admin-stripe-verify-price.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-tier-limits",
+          "description": "Legacy local command: admin-tier-limits.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-tier-limits-update",
+          "description": "Legacy local command: admin-tier-limits-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-tiers-limits",
+          "description": "Legacy local command: admin-tiers-limits.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-usage-summary",
+          "description": "Legacy local command: admin-usage-summary.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-users-get",
+          "description": "Legacy local command: admin-users-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-users-list",
+          "description": "Legacy local command: admin-users-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-users-session-revoke",
+          "description": "Legacy local command: admin-users-session-revoke.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-users-sessions",
+          "description": "Legacy local command: admin-users-sessions.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-users-sessions-revoke-all",
+          "description": "Legacy local command: admin-users-sessions-revoke-all.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-variant-seo-update",
+          "description": "Update variant SEO through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SeoService",
+            "method": "UpdateVariantSEO"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-variants-export",
+          "description": "Legacy local command: admin-variants-export.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-variants-import",
+          "description": "Legacy local command: admin-variants-import.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-variants-sync",
+          "description": "Legacy local command: admin-variants-sync.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-waitlist-delete",
+          "description": "Delete a waitlist entry through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "DeleteWaitlistEntry"
+          },
+          "architecture": { "primitive": "proto_mutation" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-waitlist-export",
+          "description": "Export waitlist entries through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "ExportWaitlistEntries"
+          },
+          "architecture": { "primitive": "proto_list" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "admin-waitlist-list",
+          "description": "List waitlist entries through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "ListWaitlistEntries"
+          },
+          "architecture": { "primitive": "proto_list" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ai-chat",
+          "description": "Run AI chat through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "Chat"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ai-health",
+          "description": "Get metered inference health through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "Health"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ai-models",
+          "description": "List AI models through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "ListModels"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ai-stream",
+          "description": "Legacy local command: ai-stream.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ai-usage",
+          "description": "Get AI usage through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "GetUsage"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "auth-logout",
+          "description": "Legacy local command: auth-logout.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "auth-magic-link",
+          "description": "Legacy local command: auth-magic-link.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "auth-me",
+          "description": "Legacy local command: auth-me.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "auth-refresh",
+          "description": "Legacy local command: auth-refresh.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "auth-verify",
+          "description": "Legacy local command: auth-verify.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "billing-checkout",
+          "description": "Legacy local command: billing-checkout.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "billing-credits-checkout",
+          "description": "Legacy local command: billing-credits-checkout.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "billing-portal",
+          "description": "Legacy local command: billing-portal.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "branding",
+          "description": "Legacy local command: branding.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "checkout-create",
+          "description": "Legacy local command: checkout-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "customize",
+          "description": "Legacy local command: customize.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deploy-readiness",
+          "description": "Legacy local command: deploy-readiness.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "downloads",
+          "description": "Legacy local command: downloads.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "entitlements",
+          "description": "Legacy local command: entitlements.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "feedback-create",
+          "description": "Submit feedback through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "CreateFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "landing-config",
+          "description": "Fetch landing configuration through the generated Connect contract.",
+          "flags": [
+            {
+              "name": "variant",
+              "description": "Variant slug to render."
+            },
+            {
+              "name": "query",
+              "description": "Legacy query compatibility; only variant=SLUG is accepted."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LandingConfigService",
+            "method": "GetLandingConfig"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "me-credits",
+          "description": "Legacy local command: me-credits.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "me-subscription",
+          "description": "Legacy local command: me-subscription.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics-summary",
+          "description": "Get metrics summary through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "GetAnalyticsSummary"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics-track",
+          "description": "Track a metrics event through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "TrackEvent"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics-variants",
+          "description": "Get variant metrics through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "GetVariantStats"
+          },
+          "architecture": {"primitive": "action"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "plans",
+          "description": "Legacy local command: plans.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "public-variant",
+          "description": "Legacy local command: public-variant.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "public-variant-sections",
+          "description": "Legacy local command: public-variant-sections.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-create",
+          "description": "Legacy local command: remote-profiles-create.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-delete",
+          "description": "Legacy local command: remote-profiles-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-download-apps-list",
+          "description": "Legacy local command: remote-profiles-download-apps-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-download-storage-test",
+          "description": "Legacy local command: remote-profiles-download-storage-test.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-list",
+          "description": "Legacy local command: remote-profiles-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-login",
+          "description": "Legacy local command: remote-profiles-login.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-logout",
+          "description": "Legacy local command: remote-profiles-logout.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-proxy",
+          "description": "Legacy local command: remote-profiles-proxy.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-test",
+          "description": "Legacy local command: remote-profiles-test.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remote-profiles-update",
+          "description": "Legacy local command: remote-profiles-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "robots",
+          "description": "Legacy local command: robots.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "seo",
+          "description": "Get variant SEO through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SeoService",
+            "method": "GetVariantSEO"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "service-auth-status",
+          "description": "Legacy local command: service-auth-status.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sitemap",
+          "description": "Legacy local command: sitemap.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "subscription-cancel",
+          "description": "Legacy local command: subscription-cancel.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "subscription-verify",
+          "description": "Legacy local command: subscription-verify.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "uploads-get",
+          "description": "Legacy local command: uploads-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage-check",
+          "description": "Legacy local command: usage-check.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage-health",
+          "description": "Legacy local command: usage-health.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage-report",
+          "description": "Legacy local command: usage-report.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage-summary",
+          "description": "Legacy local command: usage-summary.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variant-space",
+          "description": "Fetch variant space through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VariantSpaceService",
+            "method": "GetVariantSpace"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-delete",
+          "description": "Legacy local command: variants-delete.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-get",
+          "description": "Legacy local command: variants-get.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-list",
+          "description": "Legacy local command: variants-list.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-sections",
+          "description": "Legacy local command: variants-sections.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-select",
+          "description": "Legacy local command: variants-select.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "variants-update",
+          "description": "Legacy local command: variants-update.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "waitlist-create",
+          "description": "Create a waitlist entry through the generated Connect contract.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "CreateWaitlistEntry"
+          },
+          "architecture": { "primitive": "proto_mutation" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "webhook-stripe",
+          "description": "Legacy local command: webhook-stripe.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "Typed, read-only commercial measures served through MeasuresService.",
+      "commands": [
+        {
+          "name": "measures-subscriptions-created",
+          "description": "Count subscriptions created in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Canonical time window.",
+              "bind_waiver": "The measures adapter converts this public token into the structured TimeWindow RPC message.",
+              "default": "this_week",
+              "values": ["this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"]
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "CountSubscriptionsCreated"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "subscriptions",
+            "intent": "How many subscriptions were created in a time window.",
+            "questions": ["how many subscriptions were created this week", "new subscriptions last month", "subscription signups in the last 30 days"],
+            "params": {"window": {"type": "time_window", "default": "this_week"}},
+            "result": {"kind": "scalar", "value_field": "count", "unit": "records", "summary_template": "{count} subscriptions created ({window})"}
+          }
+        },
+        {
+          "name": "measures-credit-transactions-created",
+          "description": "Count credit transactions created in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Canonical time window.",
+              "bind_waiver": "The measures adapter converts this public token into the structured TimeWindow RPC message.",
+              "default": "this_week",
+              "values": ["this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"]
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "CountCreditTransactionsCreated"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "credit_transactions",
+            "intent": "How many credit transactions were recorded in a time window.",
+            "questions": ["how many credit transactions occurred this week", "credit transactions last month", "credit activity in the last 30 days"],
+            "params": {"window": {"type": "time_window", "default": "this_week"}},
+            "result": {"kind": "scalar", "value_field": "count", "unit": "records", "summary_template": "{count} credit transactions created ({window})"}
+          }
+        },
+        {
+          "name": "measures-checkout-sessions-created",
+          "description": "Count checkout sessions created in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Canonical time window.",
+              "bind_waiver": "The measures adapter converts this public token into the structured TimeWindow RPC message.",
+              "default": "this_week",
+              "values": ["this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"]
+            }
+          ],
+          "binding": {"kind": "connect-rpc", "service": "MeasuresService", "method": "CountCheckoutSessionsCreated"},
+          "architecture": {"primitive": "proto_list"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "measure": {
+            "domain": "checkout_sessions",
+            "intent": "How many checkout sessions were created in a time window.",
+            "questions": ["how many checkout sessions were created this week", "checkout starts last month", "checkout sessions in the last 30 days"],
+            "params": {"window": {"type": "time_window", "default": "this_week"}},
+            "result": {"kind": "scalar", "value_field": "count", "unit": "records", "summary_template": "{count} checkout sessions created ({window})"}
+          }
+        },
+        {
+          "name": "measures-bundle-products-created", "description": "Count bundle products created in a time window.", "flags": [{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountBundleProductsCreated"}, "architecture":{"primitive":"proto_list"}, "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "measure":{"domain":"bundle_products","intent":"How many bundle products were added to the commercial catalog in a time window.","questions":["how many bundle products were added this week","new bundle products last month","catalog products created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} bundle products created ({window})"}}
+        },
+        {
+          "name": "measures-bundle-prices-created", "description": "Count bundle prices created in a time window.", "flags": [{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountBundlePricesCreated"}, "architecture":{"primitive":"proto_list"}, "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "measure":{"domain":"bundle_prices","intent":"How many bundle prices were added to the commercial catalog in a time window.","questions":["how many bundle prices were added this week","new pricing options last month","catalog prices created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} bundle prices created ({window})"}}
+        },
+        {
+          "name": "measures-subscription-schedules-created", "description": "Count subscription schedules created in a time window.", "flags": [{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountSubscriptionSchedulesCreated"}, "architecture":{"primitive":"proto_list"}, "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "measure":{"domain":"subscription_schedules","intent":"How many subscription schedules were created in a time window.","questions":["how many subscription schedules were created this week","scheduled subscriptions last month","subscription schedules in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} subscription schedules created ({window})"}}
+        },
+        {
+          "name": "measures-intro-coupon-usage-created", "description": "Count introductory coupon usage in a time window.", "flags": [{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountIntroCouponUsageCreated"}, "architecture":{"primitive":"proto_list"}, "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "measure":{"domain":"intro_coupon_usage","intent":"How many introductory coupons were used in a time window.","questions":["how many introductory coupons were used this week","intro coupon usage last month","coupon redemptions in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} introductory coupon uses ({window})"}}
+        },
+        {
+          "name": "measures-payment-anomalies-created", "description": "Count payment anomalies created in a time window.", "flags": [{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountPaymentAnomaliesCreated"}, "architecture":{"primitive":"proto_list"}, "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "measure":{"domain":"payment_anomaly_log","intent":"How many payment anomalies were recorded in a time window.","questions":["how many payment anomalies occurred this week","payment anomaly count last month","payment issues in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} payment anomalies ({window})"}}
+        },
+        {"name":"measures-users-created","description":"Count users created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountUsersCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"users","intent":"How many customer accounts were created in a time window.","questions":["how many users signed up this week","new customer accounts last month","user registrations in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} users created ({window})"}}},
+        {"name":"measures-user-sessions-created","description":"Count user sessions created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountUserSessionsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"user_sessions","intent":"How many user sessions were created in a time window.","questions":["how many user sessions were created this week","new customer sessions last month","sessions issued in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} user sessions created ({window})"}}},
+        {"name":"measures-auth-tokens-created","description":"Count auth tokens created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountAuthTokensCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"auth_tokens","intent":"How many authentication tokens were issued in a time window.","questions":["how many auth tokens were issued this week","authentication tokens last month","tokens issued in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} auth tokens created ({window})"}}},
+        {"name":"measures-api-keys-created","description":"Count API keys created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountAPIKeysCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"api_keys","intent":"How many provider API keys were registered in a time window.","questions":["how many API keys were registered this week","new provider keys last month","API key registrations in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} API keys created ({window})"}}},
+        {"name":"measures-credit-reservations-created","description":"Count credit reservations created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountCreditReservationsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"credit_reservations","intent":"How many credit reservations were created in a time window.","questions":["how many credit reservations were created this week","credit reservations last month","credit holds in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} credit reservations created ({window})"}}},
+        {"name":"measures-subscription-tier-limits-created","description":"Count subscription tier limits created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountSubscriptionTierLimitsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"subscription_tier_limits","intent":"How many subscription tier limits were configured in a time window.","questions":["how many tier limits were configured this week","new subscription limits last month","tier limits created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} tier limits created ({window})"}}},
+        {"name":"measures-usage-records-created","description":"Count usage records created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountUsageRecordsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"usage_records","intent":"How many usage records were created in a time window.","questions":["how many usage records were created this week","usage records last month","usage records in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} usage records created ({window})"}}},
+        {"name":"measures-admin-sessions-created","description":"Count administrator sessions created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountAdminSessionsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"admin_sessions","intent":"How many administrator sessions were created in a time window.","questions":["how many admin sessions were created this week","administrator sessions last month","admin sign-ins in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} admin sessions created ({window})"}}},
+        {"name":"measures-admin-users-created","description":"Count administrator accounts created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountAdminUsersCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"admin_users","intent":"How many administrator accounts were created in a time window.","questions":["how many admin users were created this week","new administrators last month","admin account registrations in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} admin users created ({window})"}}},
+        {"name":"measures-assets-created","description":"Count content assets created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountAssetsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"assets","intent":"How many content assets were created in a time window.","questions":["how many content assets were created this week","new assets last month","assets created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} assets created ({window})"}}},
+        {"name":"measures-download-apps-created","description":"Count downloadable applications created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountDownloadAppsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"download_apps","intent":"How many downloadable applications were created in a time window.","questions":["how many download apps were created this week","new downloadable applications last month","download apps created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} download apps created ({window})"}}},
+        {"name":"measures-download-artifacts-created","description":"Count downloadable artifacts created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountDownloadArtifactsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"download_artifacts","intent":"How many downloadable artifacts were created in a time window.","questions":["how many download artifacts were created this week","new download artifacts last month","release artifacts created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} download artifacts created ({window})"}}},
+        {"name":"measures-download-assets-created","description":"Count downloadable assets created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountDownloadAssetsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"download_assets","intent":"How many downloadable assets were created in a time window.","questions":["how many download assets were created this week","new downloadable assets last month","download assets created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} download assets created ({window})"}}},
+        {"name":"measures-download-storage-settings-created","description":"Count download storage settings created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountDownloadStorageSettingsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"download_storage_settings","intent":"How many download storage settings were created in a time window.","questions":["how many download storage settings were created this week","new download storage settings last month","download storage settings created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} download storage settings created ({window})"}}},
+        {"name":"measures-feedback-requests-created","description":"Count feedback requests created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountFeedbackRequestsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"feedback_requests","intent":"How many feedback requests were created in a time window.","questions":["how many feedback requests were created this week","new feedback requests last month","feedback requests in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} feedback requests created ({window})"}}},
+        {"name":"measures-metrics-events-created","description":"Count metrics events created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountMetricsEventsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"metrics_events","intent":"How many analytics events were recorded in a time window.","questions":["how many metrics events were recorded this week","analytics events last month","metrics events in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} metrics events created ({window})"}}},
+        {"name":"measures-remote-profiles-created","description":"Count remote profiles created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountRemoteProfilesCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"remote_profiles","intent":"How many remote profiles were created in a time window.","questions":["how many remote profiles were created this week","new remote profiles last month","remote profiles created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} remote profiles created ({window})"}}},
+        {"name":"measures-waitlist-emails-created","description":"Count waitlist signups created in a time window.","flags":[{"name":"window","description":"Canonical time window.","bind_waiver":"The measures adapter converts this public token into the structured TimeWindow RPC message.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"]}],"binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CountWaitlistEmailsCreated"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"waitlist_emails","intent":"How many waitlist signups were created in a time window.","questions":["how many waitlist signups were created this week","new waitlist signups last month","waitlist emails in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"records","summary_template":"{count} waitlist signups created ({window})"}}}
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "AccountService",
+      "method": "GetEntitlements",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AccountService",
+      "method": "GetMyCredits",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AccountService",
+      "method": "GetMySubscription",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AdminAuthService",
+      "method": "Login",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AdminAuthService",
+      "method": "Logout",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AdminAuthService",
+      "method": "Session",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AdminResetService",
+      "method": "ResetDemoData",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AdminProfileService",
+      "method": "GetAdminProfile",
+      "reason": "Administrator profile operations are browser-session workflows owned by the admin portal; the CLI intentionally exposes no credential-reading command."
+    },
+    {
+      "service": "AdminProfileService",
+      "method": "UpdateAdminProfile",
+      "reason": "Administrator profile updates require an interactive current-password confirmation and are intentionally limited to the authenticated admin portal."
+    },
+    {
+      "service": "AssetsService",
+      "method": "DeleteAsset",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AssetsService",
+      "method": "GetAsset",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "AssetsService",
+      "method": "ListAssets",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "BrandingService",
+      "method": "ClearBrandingField",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "BrandingService",
+      "method": "GetBranding",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "BrandingService",
+      "method": "GetPublicBranding",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "BrandingService",
+      "method": "UpdateBranding",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DocsService",
+      "method": "GetDocContent",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DocsService",
+      "method": "GetDocsTree",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DownloadService",
+      "method": "AuthorizeDownload",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DownloadService",
+      "method": "CreateDownloadApp",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DownloadService",
+      "method": "ListDownloadApps",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DownloadService",
+      "method": "SaveDownloadApp",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "LandingPagePaymentsService",
+      "method": "CancelSubscription",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "LandingPagePaymentsService",
+      "method": "CreateCheckoutSession",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "LandingPagePaymentsService",
+      "method": "GetBillingPortal",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+  {
+    "service": "PricingService",
+      "method": "GetPricing",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "LandingPagePaymentsService",
+      "method": "VerifySubscription",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetAnalyticsSummary",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetVariantStats",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "MetricsService",
+      "method": "TrackEvent",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "ArchiveVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "CreateVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "DeleteVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "ExportVariantSnapshot",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "GetPublicVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "GetVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "ImportVariantSnapshot",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "ListVariants",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "SelectVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "VariantService",
+      "method": "SyncVariantSnapshots",
+      "reason": "Snapshot synchronization is an administrator UI/service maintenance operation; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantService",
+      "method": "UpdateVariant",
+      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DeploymentService",
+      "method": "CheckReadiness",
+      "reason": "Deployment readiness is an admin-or-service preflight invoked by deployment automation; it is intentionally not exposed as an end-user CLI command."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "ListAPIKeys",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "CreateAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "DeleteAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "TestAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "SetAPIKeyActive",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "GetVariantSections",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "GetVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "CreateVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "UpdateVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "DeleteVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "AccountService",
+      "method": "GetCommercialContext",
+      "reason": "Commercial context is consumed by the authenticated web application and intentionally has no standalone CLI command."
+    },
+    {
+      "service": "AdminRevenueService",
+      "method": "GetRevenue",
+      "reason": "The legacy revenue projection remains available for compatibility; the CLI intentionally exposes no credential-bearing revenue command and the canonical typed rollup is GetRevenueSummary."
+    },
+    {
+      "service": "AdminRevenueService",
+      "method": "GetRevenueSummary",
+      "reason": "The finance rollup is an admin dashboard endpoint; the CLI exposes no credential-bearing revenue command."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetTrafficBreakdown",
+      "reason": "Traffic breakdowns are consumed by the Command Center dashboard and intentionally have no standalone CLI command."
+    },
+    {
+      "service": "MetricsService",
+      "method": "GetTrafficSeries",
+      "reason": "Traffic series are consumed by the Command Center dashboard and intentionally have no standalone CLI command."
+    }
+  ]
+}

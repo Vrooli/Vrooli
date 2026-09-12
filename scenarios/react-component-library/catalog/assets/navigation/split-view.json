@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "navigation.split-view",
+    "name": "SplitView",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The structural layout for two or more adjacent regions with resizable boundaries, collapse, persisted sizes, keyboard resizing, and responsive stacking.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "manipulation.split-pane",
+        "reason": "Two-region resizing, collapse, and persistence are the shared mechanic; SplitView adds only the structural and responsive layer above it."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "responsive-transformation",
+    "content-reflow",
+    "no-horizontal-overflow",
+    "density-adaptive-layout"
+  ]
+}

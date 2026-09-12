@@ -1,0 +1,250 @@
+{
+  "version": 10,
+  "note": "Declares a plate spec for every vector style, so the depth planes their generators already draw ship as plates instead of being flattened away. No style's art direction changes.",
+  "retune_reasons": [
+    "The vector generators have always drawn named depth groups — the colonnade separates distance, headland, arcade and canopy; the survey plate separates paper, contours and furniture — and the render path flattened them at the moment of render. A consumer wanting parallax had to infer depth from a picture that no longer contained it. These specs stop discarding what the generator already knows.",
+    "The alpha is exact, not estimated. Each plate is the whole document with every other plane's marks removed, so a hairline that a segmentation model would smear across two layers stays wholly in its own. That is the property a derived matte cannot have and the reason native plates come before derived ones.",
+    "engraved-colonnade-vector draws four planes and this plan caps a stack at three, so its distance plate merges the sea-and-horizon plane with the headland mass. That is an art-direction choice rather than an arithmetic one: both are the far ground and move together, so merging them loses no parallax, where dropping either would lose a layer of the picture. The alternative — enforcing a cap by deleting content — is how a boundary meant to limit scope ends up limiting the work.",
+    "survey-relief, pale-moon and tidal-halftone declare three each, matching their generators exactly. Naming fewer would be legal — a style may ship fewer plates than its generator separates — but none of these has an art-direction reason to merge two layers, and a spec that under-declares would quietly lose a layer of parallax for nothing.",
+    "Every plate blends normal at full opacity. The generators already compose correctly when flattened, and a blend or opacity here would change what the style looks like — which this version explicitly does not do. Per-plate treatment chains and non-normal blends are art-direction decisions that belong with the work that measures their effect, not with the plumbing that makes them expressible.",
+    "The remaining forty styles declare no plate spec and are unchanged. Their raster generators draw one buffer, so a declaration would be a promise nothing can keep: the render path refuses a multi-plate style whose generator does not separate, by name, rather than silently flattening it.",
+    "Every style's version is incremented so an install that already holds these rows takes the new value. The seed upserts on id and replaces the row, so a version that does not bump is indistinguishable from one that was never applied."
+  ],
+  "styles": [
+    {
+      "id": "engraved-colonnade-vector",
+      "name": "Engraved Colonnade (Vector)",
+      "version": 2,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "metaphysical",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "plate_spec": [
+        {
+          "name": "distance",
+          "depth": 0,
+          "blend": "normal",
+          "planes": [
+            "distance",
+            "headland"
+          ],
+          "opacity": 1.0
+        },
+        {
+          "name": "arcade",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "canopy",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0
+        }
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#12327a",
+        "$brand.background": "#efe7d3",
+        "$brand.accent": "#c9432f"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.1,
+          "width": 0.42,
+          "height": 0.3,
+          "kind": "overlay",
+          "text_color": "#12327a"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "colonnade",
+        "conditioner": "",
+        "params_json": "{\"bays\": 3, \"horizon\": 0.60, \"focal_x\": 0.5}"
+      }
+    },
+    {
+      "id": "survey-relief",
+      "name": "Survey Relief",
+      "version": 2,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "scientific_plate",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "plate_spec": [
+        {
+          "name": "paper",
+          "depth": 0,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "contours",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "survey",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0
+        }
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#123a6b",
+        "$brand.background": "#f1e7d2",
+        "$brand.accent": "#b1442c"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.12,
+          "width": 0.38,
+          "height": 0.28,
+          "kind": "overlay",
+          "text_color": "#123a6b"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "contour-relief",
+        "conditioner": "",
+        "params_json": "{\"bands\": 24, \"relief\": 0.72}"
+      }
+    },
+    {
+      "id": "pale-moon",
+      "name": "Pale Moon",
+      "version": 2,
+      "role": "focal",
+      "subject": "celestial",
+      "lineage": "wpa_poster",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "plate_spec": [
+        {
+          "name": "void",
+          "depth": 0,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "burst",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "orb",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0
+        }
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset",
+        "type_mask"
+      ],
+      "inks": {
+        "$brand.primary": "#13275e",
+        "$brand.background": "#ece3cd",
+        "$brand.accent": "#c9432f"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.08,
+          "width": 0.34,
+          "height": 0.24,
+          "kind": "overlay",
+          "text_color": "#ece3cd"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "radiant-orb",
+        "conditioner": "",
+        "params_json": "{\"orb_radius\": 0.34, \"focal_x\": 0.52, \"focal_y\": 0.44, \"ground\": 0.86, \"figure_x\": 0.30}"
+      }
+    },
+    {
+      "id": "tidal-halftone",
+      "name": "Tidal Halftone",
+      "version": 2,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "riso_zine",
+      "strategy": "vector",
+      "quality_tier": "procedural",
+      "treatments": [],
+      "plate_spec": [
+        {
+          "name": "paper",
+          "depth": 0,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "sky",
+          "depth": 1,
+          "blend": "normal",
+          "opacity": 1.0
+        },
+        {
+          "name": "headland",
+          "depth": 2,
+          "blend": "normal",
+          "opacity": 1.0
+        }
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#123a8c",
+        "$brand.background": "#f0e8d6",
+        "$brand.accent": "#d4452c"
+      },
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.62,
+          "width": 0.44,
+          "height": 0.26,
+          "kind": "overlay",
+          "text_color": "#f0e8d6"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "halftone-horizon",
+        "conditioner": "",
+        "params_json": "{\"horizon\": 0.56, \"focal_x\": 0.68, \"cells\": 132}"
+      }
+    }
+  ]
+}

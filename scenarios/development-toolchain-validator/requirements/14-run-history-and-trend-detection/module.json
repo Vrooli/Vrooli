@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P1-004",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "title": "Run History & Trend Detection",
+  "description": "Detect verdict regressions (previously passing tuple now failing) and manifest tightening (wildcard → explicit allowlist → shrinking allowlist). Surface as timeline events.",
+  "requirements": [
+    {
+      "id": "REQ-P1-004",
+      "prd_ref": "OT-P1-004",
+      "title": "Event derivation + timeline view",
+      "description": "Periodic job (or on-write trigger) that walks validation records and manifest history, emits typed events (regression, tightening, convergence-reached, run-failure-streak). Render as a per-golden timeline in the UI.",
+      "category": "core",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

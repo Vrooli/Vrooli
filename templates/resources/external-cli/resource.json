@@ -1,0 +1,153 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "{{RESOURCE_NAME}}",
+  "display_name": "{{RESOURCE_DISPLAY_NAME}}",
+  "description": "{{RESOURCE_DESCRIPTION}}",
+  "cli": {
+    "enabled": true,
+    "command": "{{RESOURCE_CLI_COMMAND}}",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "{{RESOURCE_CLI_COMMAND}}_${os}_${arch}"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "{{RESOURCE_CLI_COMMAND}}"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "external-cli",
+  "driver": "external-cli",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "{{RESOURCE_BINARY}}"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "{{RESOURCE_BINARY}}"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [
+            "{{RESOURCE_BINARY}}"
+          ],
+          "limitations": [
+            "The upstream executable, licensing, authentication, and version policy are host-managed."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "resource-cli-unit-tests",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  },
+  "binary": "{{RESOURCE_BINARY}}",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
+  "category": "{{RESOURCE_CATEGORY}}",
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for {{RESOURCE_NAME}}.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ],
+      "macos": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ],
+      "windows": [
+        "echo",
+        "Document installation steps for {{RESOURCE_NAME}}"
+      ]
+    }
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "{{RESOURCE_BINARY}}",
+        "--version"
+      ]
+    }
+  ],
+  "template_version": "2"
+}

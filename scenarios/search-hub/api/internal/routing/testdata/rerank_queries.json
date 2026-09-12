@@ -1,0 +1,52 @@
+{
+  "_comment": "Rerank-ordering / MRR gate (plan §6 #2). Each case is a query plus a fixed candidate shortlist whose truly-relevant member (expected_id) is deliberately placed LAST in the input order, so the pre-rerank baseline (which keeps input order) scores poorly and a working reranker must float the relevant hit toward the top. The gate runs the REAL qwen3:4b reranker, asserts the reranked MRR clears a floor, and reports reranked-vs-baseline MRR so the rerank cost is justified with numbers.",
+  "cases": [
+    {
+      "query": "how do I restart a scenario from the command line",
+      "candidates": [
+        {"id": "c1", "type": "record", "title": "Postmortem: database outage", "snippet": "incident notes about a postgres outage and recovery steps"},
+        {"id": "c2", "type": "component", "title": "UserAvatar", "snippet": "react component rendering a circular profile image"},
+        {"id": "c3", "type": "doc", "title": "Color palette guidelines", "snippet": "brand colors and contrast ratios for the design system"},
+        {"id": "expected", "type": "command", "title": "vrooli scenario restart", "snippet": "stop and start a scenario's services through the lifecycle system"}
+      ],
+      "expected_id": "expected"
+    },
+    {
+      "query": "where is the button component defined",
+      "candidates": [
+        {"id": "c1", "type": "command", "title": "vrooli scenario logs", "snippet": "tail the logs of a running scenario"},
+        {"id": "c2", "type": "record", "title": "Sprint retro 2026-05", "snippet": "what went well and what to improve this sprint"},
+        {"id": "expected", "type": "component", "title": "PrimaryButton", "snippet": "the shared clickable button UI surface used across pages"}
+      ],
+      "expected_id": "expected"
+    },
+    {
+      "query": "what did we learn fixing the sandbox read-only home bug",
+      "candidates": [
+        {"id": "c1", "type": "command", "title": "vrooli setup", "snippet": "install dependencies and configure the system"},
+        {"id": "c2", "type": "component", "title": "SettingsPanel", "snippet": "form for editing user preferences"},
+        {"id": "expected", "type": "record", "title": "Sandbox read-only HOME regression fix", "snippet": "stripped CODEX_HOME from the sandbox env denylist; had broken host agent runs"}
+      ],
+      "expected_id": "expected"
+    },
+    {
+      "query": "how do I tail a scenario's logs",
+      "candidates": [
+        {"id": "c1", "type": "doc", "title": "Deployment tiers overview", "snippet": "local, desktop, SaaS and enterprise delivery tiers"},
+        {"id": "c2", "type": "record", "title": "Voice auto-stop race fix", "snippet": "one-shot mic wedged at silence; fixed with a server flag"},
+        {"id": "c3", "type": "component", "title": "NavSidebar", "snippet": "left-hand navigation surface with section links"},
+        {"id": "expected", "type": "command", "title": "vrooli scenario logs", "snippet": "stream and follow the log output of a running scenario"}
+      ],
+      "expected_id": "expected"
+    },
+    {
+      "query": "find the page that shows search provider health and freshness",
+      "candidates": [
+        {"id": "c1", "type": "command", "title": "search-hub providers register", "snippet": "register a provider descriptor with the hub"},
+        {"id": "c2", "type": "record", "title": "Federation design note", "snippet": "why routing, retrieval and corpus data live in three homes"},
+        {"id": "expected", "type": "component", "title": "ProviderStatusPage", "snippet": "UI surface listing each provider's reachability, last sync and point count"}
+      ],
+      "expected_id": "expected"
+    }
+  ]
+}

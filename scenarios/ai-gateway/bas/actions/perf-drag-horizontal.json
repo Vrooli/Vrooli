@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "name": "perf-drag-horizontal",
+    "description": "Perf interaction helper: drag a target horizontally by dx over stepped pointer moves (mousedown → stepped mousemove → mouseup). Use it to exercise resize handles / draggable dividers whose lag you are auditing. Stepped moves settle transition queues so resize-lag traces reproduce.",
+    "labels": {
+      "intent": "performance",
+      "reset": "none",
+      "requires_confirmation": "true",
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dx\",\"type\":\"number\",\"required\":false,\"default\":80,\"description\":\"Horizontal drag distance in pixels\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":20,\"description\":\"Number of intermediate pointer moves\"}]",
+      "routed_isolation": "true"
+    },
+    "version": "1",
+    "execution_mode": "mutating"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "drag-handle-horizontal",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const el = document.querySelector(\"${@params/selector}\"); if (!el) throw new Error('perf-drag-horizontal: ${@params/selector} not found'); const dx = Number(\"${@params/dx}\") || 80; const steps = Math.max(1, Number(\"${@params/steps}\") || 20); const r = el.getBoundingClientRect(); const sx = r.left + r.width / 2, sy = r.top + r.height / 2; const fire = (type, x) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: sy, buttons: type === 'mouseup' ? 0 : 1 })); fire('mousedown', sx); for (let i = 1; i <= steps; i++) { fire('mousemove', sx + (dx * i) / steps); } fire('mouseup', sx + dx); return true; })()"
+        },
+        "metadata": {
+          "label": "Drag ${@params/selector} horizontally by ${@params/dx}px"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "acquire-capacity",
+    "title": "Acquire capacity and watch what it costs",
+    "purpose": "The primary loop. An operator finds they need a machine, sees the cost and the minimum billable unit before committing, watches the instance become a trusted node, and then lets it drain or destroys it deliberately. The journey exists to make cost and expiry visible at every step, because both are irreversible once missed.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004",
+      "OT-P0-005",
+      "OT-P0-006",
+      "OT-P1-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "See the whole current liability and notice there is not enough capacity for the work at hand.",
+      "via": "inventory-table"
+    },
+    {
+      "page": "request-capacity",
+      "state": "default",
+      "intent": "Choose a size, region and lifetime, and read the estimated cost and the minimum billable unit before committing. Hourly rounding is stated here rather than discovered on an invoice.",
+      "via": "spec-form"
+    },
+    {
+      "page": "request-capacity",
+      "state": "submitting",
+      "intent": "Understand that credit is reserved before any provider is called, so a refusal costs nothing and leaves nothing behind.",
+      "via": "submit-action"
+    },
+    {
+      "page": "instance-detail",
+      "state": "syncing",
+      "intent": "Watch the instance move from creating to running, with elapsed cost beginning to accrue from the running transition.",
+      "via": "cost-panel"
+    },
+    {
+      "page": "instance-detail",
+      "state": "partial",
+      "intent": "See that enrollment is queued rather than failed, and that the instance is still real, metered and expiring while bridge catches up.",
+      "via": "enrollment-panel"
+    },
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "See the new instance alongside the rest of the fleet with its remaining lifetime visible.",
+      "via": "inventory-table"
+    },
+    {
+      "page": "instance-detail",
+      "state": "success",
+      "intent": "Destroy the instance by typing its name, and read the settled figure rather than a live estimate.",
+      "via": "destroy-action"
+    }
+  ]
+}

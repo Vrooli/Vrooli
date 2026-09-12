@@ -8,7 +8,7 @@ import {
 /**
  * Central keyboard shortcut handler for this scenario.
  *
- * Architecture rules (see vrooli-ui-interop skill):
+ * Architecture rules (see ui-health skill):
  * - This is the ONE place that owns window keydown listeners
  * - Components do NOT add their own keydown listeners for app shortcuts
  *   (dialog-local Escape handlers are fine)

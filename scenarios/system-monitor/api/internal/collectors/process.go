@@ -3,15 +3,36 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
 // ProcessCollector collects process metrics
 type ProcessCollector struct {
 	BaseCollector
+	forkRate forkRateTracker
+}
+
+var (
+	topProcessSamplerMu sync.Mutex
+	topProcessSampler   procsampler.Sampler = procsampler.NewSampler()
+)
+
+func SetTopProcessSampler(sampler procsampler.Sampler) {
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	if sampler == nil {
+		topProcessSampler = procsampler.NewSampler()
+		return
+	}
+	topProcessSampler = sampler
 }
 
 // NewProcessCollector creates a new process collector
@@ -21,127 +42,111 @@ func NewProcessCollector() *ProcessCollector {
 	}
 }
 
-// Collect gathers process metrics
+// Collect gathers process metrics. Zombie and high-thread results are computed
+// once here and reused for the health summary — previously getProcessHealth
+// re-shelled both queries, doubling the forks per cycle.
 func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
-	totalProcesses := c.getTotalProcessCount(ctx)
-	zombieProcesses := c.getZombieProcesses(ctx)
-	highThreadProcesses := c.getHighThreadProcesses(ctx)
+	if collectorOS != runtime.GOOS {
+		return unsupportedMetricData(c.GetName(), "process"), nil
+	}
+	samples, err := currentProcessSamples(ctx)
+	if err != nil {
+		if err == procsampler.ErrUnsupported {
+			return unsupportedMetricData(c.GetName(), "process"), nil
+		}
+		return &MetricData{
+			CollectorName: c.GetName(),
+			Timestamp:     time.Now(),
+			Type:          "process",
+			Values: map[string]interface{}{
+				"status": "failed",
+				"reason": "native process table unavailable: " + err.Error(),
+			},
+		}, nil
+	}
+	totalProcesses := len(samples)
+	zombieProcesses := zombieProcessesFromSamples(samples)
+	highThreadProcesses := highThreadProcessesFromSamples(samples)
 	topProcesses, _ := GetTopProcessesByCPU(10)
+
+	now := time.Now()
+	values := map[string]interface{}{
+		"total_count":       totalProcesses,
+		"zombie_processes":  zombieProcesses,
+		"high_thread_count": highThreadProcesses,
+		"top_by_cpu":        topProcesses,
+		"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
+	}
+	// Process-creation rate. A fork storm is invisible in total_count because
+	// the processes are short-lived: the population stays flat while the host
+	// burns its CPU in the kernel creating and reaping them.
+	for key, value := range forkRateValues(&c.forkRate, readForkRate(), now) {
+		values[key] = value
+	}
 
 	return &MetricData{
 		CollectorName: c.GetName(),
-		Timestamp:     time.Now(),
+		Timestamp:     now,
 		Type:          "process",
-		Values: map[string]interface{}{
-			"total_count":       totalProcesses,
-			"zombie_processes":  zombieProcesses,
-			"high_thread_count": highThreadProcesses,
-			"top_by_cpu":        topProcesses,
-			"process_health":    c.getProcessHealth(ctx),
-		},
+		Values:        values,
 	}, nil
 }
 
-// getTotalProcessCount returns the total number of processes
-func (c *ProcessCollector) getTotalProcessCount(ctx context.Context) int {
-	if runtime.GOOS != "linux" {
-		return 250
-	}
-
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -e --no-headers | wc -l")
-	if err != nil {
-		return 0
-	}
-
-	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
-	return count
+func currentProcessSamples(ctx context.Context) ([]procsampler.ProcessSample, error) {
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	return topProcessSampler.Sample(ctx)
 }
 
-// getZombieProcesses returns zombie processes
-func (c *ProcessCollector) getZombieProcesses(ctx context.Context) []map[string]interface{} {
-	var zombies []map[string]interface{}
-
-	if runtime.GOOS != "linux" {
-		return zombies
-	}
-
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -eo pid,comm,stat | grep ' Z' | head -10")
-	if err != nil {
-		return zombies
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if line == "" {
+func zombieProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
+	zombies := make([]map[string]interface{}, 0)
+	for _, sample := range samples {
+		if sample.State != "Z" && sample.State != "z" {
 			continue
 		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 2 {
-			pid, _ := strconv.Atoi(fields[0])
-			zombies = append(zombies, map[string]interface{}{
-				"pid":    pid,
-				"name":   fields[1],
-				"status": "zombie",
-			})
+		zombies = append(zombies, map[string]interface{}{
+			"pid":    sample.PID,
+			"name":   sample.Comm,
+			"status": "zombie",
+		})
+		if len(zombies) >= 10 {
+			break
 		}
 	}
-
 	return zombies
 }
 
-// getHighThreadProcesses returns processes with high thread counts
-func (c *ProcessCollector) getHighThreadProcesses(ctx context.Context) []map[string]interface{} {
-	var processes []map[string]interface{}
-
-	if runtime.GOOS != "linux" {
-		return processes
-	}
-
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -eo pid,comm,nlwp --sort=-nlwp --no-headers | head -5")
-	if err != nil {
-		return processes
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if line == "" {
+func highThreadProcessesFromSamples(samples []procsampler.ProcessSample) []map[string]interface{} {
+	ordered := append([]procsampler.ProcessSample(nil), samples...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Threads > ordered[j].Threads })
+	processes := make([]map[string]interface{}, 0)
+	for _, sample := range ordered {
+		if sample.Threads <= 20 {
 			continue
 		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 3 {
-			pid, _ := strconv.Atoi(fields[0])
-			threads, _ := strconv.Atoi(fields[2])
-
-			if threads > 20 { // Only include processes with >20 threads
-				processes = append(processes, map[string]interface{}{
-					"pid":     pid,
-					"name":    fields[1],
-					"threads": threads,
-				})
-			}
+		processes = append(processes, map[string]interface{}{
+			"pid":     sample.PID,
+			"name":    sample.Comm,
+			"threads": sample.Threads,
+		})
+		if len(processes) >= 5 {
+			break
 		}
 	}
-
 	return processes
 }
 
-// getProcessHealth returns overall process health metrics
-func (c *ProcessCollector) getProcessHealth(ctx context.Context) map[string]interface{} {
+// processHealth builds the health summary from the zombie and high-thread
+// results already computed in Collect (no re-shelling), plus a single
+// process-table scan for critical-process presence (replaces 4 pgrep forks).
+func (c *ProcessCollector) processHealth(ctx context.Context, zombies, highThread []map[string]interface{}) map[string]interface{} {
 	health := map[string]interface{}{
 		"status":             "healthy",
-		"zombie_count":       0,
-		"high_thread_count":  0,
+		"zombie_count":       len(zombies),
+		"high_thread_count":  len(highThread),
 		"leak_candidates":    0,
 		"critical_processes": c.checkCriticalProcesses(ctx),
 	}
-
-	zombies := c.getZombieProcesses(ctx)
-	health["zombie_count"] = len(zombies)
-
-	highThread := c.getHighThreadProcesses(ctx)
-	health["high_thread_count"] = len(highThread)
 
 	if len(zombies) > 5 || len(highThread) > 10 {
 		health["status"] = "warning"
@@ -150,67 +155,128 @@ func (c *ProcessCollector) getProcessHealth(ctx context.Context) map[string]inte
 	return health
 }
 
-// checkCriticalProcesses checks if critical processes are running
+// criticalProcessNames are the processes whose presence is reported in the
+// health summary.
+var criticalProcessNames = []string{
+	"postgres",
+	"redis-server",
+	"node",
+	"system-monitor-api",
+}
+
+// checkCriticalProcesses reports presence of each critical process using one
+// native /proc scan rather than one pgrep fork per name.
 func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[string]interface{} {
-	criticalProcesses := []string{
-		"postgres",
-		"redis-server",
-		"node",
-		"system-monitor-api",
-	}
+	running := c.runningCommandSet(ctx)
 
-	var status []map[string]interface{}
-
-	for _, process := range criticalProcesses {
-		running := c.isProcessRunning(ctx, process)
+	status := make([]map[string]interface{}, 0, len(criticalProcessNames))
+	for _, process := range criticalProcessNames {
 		status = append(status, map[string]interface{}{
 			"name":    process,
-			"running": running,
+			"running": runningContains(running, process),
 		})
 	}
-
 	return status
 }
 
-// isProcessRunning checks if a process is running
-func (c *ProcessCollector) isProcessRunning(ctx context.Context, processName string) bool {
-	if runtime.GOOS != "linux" {
-		return true // Assume running in non-Linux environments
+// runningCommandSet returns the set of running process command names from a
+// single /proc scan. On non-Linux platforms it returns nil and callers treat
+// every critical process as present (the prior behavior).
+func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]struct{} {
+	samples, err := currentProcessSamples(ctx)
+	if err != nil {
+		return map[string]struct{}{}
 	}
+	set := map[string]struct{}{}
+	for _, sample := range samples {
+		if sample.Comm != "" {
+			set[sample.Comm] = struct{}{}
+		}
+	}
+	return set
+}
 
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", fmt.Sprintf("pgrep -f %s", processName))
-
-	return err == nil && len(strings.TrimSpace(string(output))) > 0
+// runningContains reports whether any running command name contains the target
+// substring (matching pgrep -f's loose semantics for names like "redis-server"
+// that ps may truncate).
+func runningContains(set map[string]struct{}, target string) bool {
+	for name := range set {
+		if name == target || strings.Contains(name, target) || strings.Contains(target, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetProcessFileDescriptors returns file descriptor count for a process
 func GetProcessFileDescriptors(pid int) int {
-	if runtime.GOOS != "linux" {
-		return 10
-	}
-
 	fdDir := fmt.Sprintf("/proc/%d/fd", pid)
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", fmt.Sprintf("ls %s 2>/dev/null | wc -l", fdDir))
+	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		return 0
 	}
 
-	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
-	return count
+	return len(entries)
 }
 
 // GetResourceLeakCandidates identifies processes that might have resource leaks
 func GetResourceLeakCandidates() []map[string]interface{} {
-	// This would require historical tracking
-	// For now, return mock data
-	return []map[string]interface{}{
-		{
-			"pid":         1234,
-			"name":        "scenario-api-1",
-			"status":      "fd_leak_risk",
-			"fd_count":    512,
-			"memory_mb":   1024,
-			"description": "High file descriptor count",
-		},
+	// Leak candidates require historical process observations. Do not invent
+	// candidates when that evidence has not been collected.
+	return nil
+}
+
+func topProcessSamples(limit int, less func(a, b procsampler.ProcessSample) bool) ([]procsampler.ProcessSample, error) {
+	if limit <= 0 {
+		return nil, nil
 	}
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	samples, err := topProcessSampler.Sample(context.Background())
+	if err != nil {
+		if err == procsampler.ErrUnsupported {
+			return []procsampler.ProcessSample{}, nil
+		}
+		return nil, err
+	}
+	filtered := samples[:0]
+	for _, sample := range samples {
+		if sample.MetricsStatus != "unsupported" {
+			filtered = append(filtered, sample)
+		}
+	}
+	samples = filtered
+	sort.SliceStable(samples, func(i, j int) bool {
+		return less(samples[i], samples[j])
+	})
+	if len(samples) > limit {
+		samples = samples[:limit]
+	}
+	return samples, nil
+}
+
+func totalMemoryKB() int64 {
+	raw, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0
+		}
+		n, _ := strconv.ParseInt(fields[1], 10, 64)
+		return n
+	}
+	return 0
+}
+
+func memoryPercent(rssKB, totalKB int64) float64 {
+	if rssKB <= 0 || totalKB <= 0 {
+		return 0
+	}
+	return float64(rssKB) / float64(totalKB) * 100
 }

@@ -5,7 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: vrooli/claude-code-sandbox:latest
     container_name: claude-code-sandbox
     
     # Security configurations

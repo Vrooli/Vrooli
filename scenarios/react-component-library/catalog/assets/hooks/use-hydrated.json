@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "hooks.use-hydrated",
+    "name": "useHydrated",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A hydration-awareness primitive that gates browser-only behavior safely, so capability reads never produce a server and client markup mismatch.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "hook",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  }
+}

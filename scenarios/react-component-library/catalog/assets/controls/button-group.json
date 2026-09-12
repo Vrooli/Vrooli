@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "controls.button-group",
+    "name": "ButtonGroup",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "controls",
+    "description": "The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.menu",
+        "reason": "Overflow collapse needs a menu only when the group can actually exceed its container."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "responsive-transformation",
+    "focus-order"
+  ]
+}

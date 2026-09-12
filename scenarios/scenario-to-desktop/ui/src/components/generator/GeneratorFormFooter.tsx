@@ -26,10 +26,7 @@ export function GeneratorFormFooter({
   return (
     <>
       {/* Validation errors - shown above submit button */}
-      <ValidationErrors
-        errors={validationErrors}
-        onDismiss={onDismissErrors}
-      />
+      <ValidationErrors errors={validationErrors} onDismiss={onDismissErrors} />
 
       <Button
         type="submit"

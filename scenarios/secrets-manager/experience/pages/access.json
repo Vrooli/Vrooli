@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "access",
+    "title": "Access",
+    "routes": [
+      "/access"
+    ],
+    "purpose": "Review bounded grants and access requests with decisions tied to an immutable request digest.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The scope, expiry, and consequence of an access decision are visible together."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The page is ready for its primary task."
+    },
+    {
+      "id": "loading",
+      "description": "The page is loading protected metadata."
+    },
+    {
+      "id": "empty",
+      "description": "The page is ready but has no records to show."
+    },
+    {
+      "id": "partial",
+      "description": "The primary task is usable while supporting evidence is unavailable."
+    },
+    {
+      "id": "request-error",
+      "description": "The page explains the failed request and offers a recovery path."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot use this destination or action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "access-region",
+      "role": "region",
+      "name": "Access control"
+    },
+    {
+      "id": "grant-action",
+      "role": "button",
+      "name": "Create reviewed grant"
+    },
+    {
+      "id": "request-list",
+      "role": "list",
+      "name": "Approval requests"
+    }
+  ],
+  "claims": [
+    {
+      "id": "decision-scope",
+      "type": "element-present",
+      "statement": "Approval requests and their decision actions are presented in the access control region.",
+      "tier": "manual",
+      "elements": [
+        "access-region",
+        "request-list"
+      ],
+      "states": [
+        "default",
+        "empty"
+      ]
+    },
+    {
+      "id": "permission-boundary",
+      "type": "state-covered",
+      "statement": "A denied principal receives an explicit permission state instead of an implied success.",
+      "tier": "manual",
+      "elements": [
+        "access-region"
+      ],
+      "states": [
+        "permission-denied"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "access-workspace",
+      "purpose": "Create grants and review pending requests.",
+      "component": {
+        "library": {
+          "component": "approval-prompt",
+          "version": "1.2.1"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "access-workspace": {
+        "selector": "[data-experience-surface=\"access-workspace\"]"
+      }
+    },
+    "elements": {
+      "access-region": {
+        "selector": "[data-experience-surface=\"access-workspace\"]"
+      },
+      "grant-action": {
+        "selector": "button.button-primary"
+      },
+      "request-list": {
+        "selector": ".muted-card"
+      }
+    }
+  }
+}

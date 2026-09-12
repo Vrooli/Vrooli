@@ -26,9 +26,17 @@ export {
   // Runtime configuration
   fetchRuntimeConfig,
   getInjectedConfig,
+  getRuntimeConfigValue,
   resolveWithConfig,
   createConfigCache,
+  createScenarioConnectTransport,
+  // Stale-chunk recovery
+  installChunkReloadGuard,
+  isStaleChunkError,
+  reloadForStaleChunk,
 } from './client/index.js'
+
+export type { ScenarioConnectTransportOptions } from './client/index.js'
 
 // ============================================================================
 // Type exports

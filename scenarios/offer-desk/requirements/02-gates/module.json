@@ -1,0 +1,186 @@
+{
+  "_metadata": {
+    "description": "Revisit triggers, their evaluation, and the operator-only promotion boundary.",
+    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "module": "gates",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GATE-001",
+      "title": "A candidate must carry a machine-evaluable trigger",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Creating or holding a node in `candidate` without a parseable revisit trigger is refused. The source documents state this as a prose rule with the word 'must' and nothing able to enforce it, which is the canonical shape of a capability requirement in disguise.",
+      "tags": [
+        "policy",
+        "gate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "Reject a candidate node with an absent, empty, or unparseable trigger."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A node already in `candidate` cannot be updated in a way that removes its trigger."
+        }
+      ]
+    },
+    {
+      "id": "GATE-002",
+      "title": "Triggers are declared over facts, not free text",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "domain",
+      "criticality": "P0",
+      "description": "A trigger is a declared predicate over named facts with comparison operators and boolean composition. Free-text conditions are not accepted. The first version deliberately admits only operator-supplied and scenario-supplied facts; a more expressive language would become an unmaintainable rules engine.",
+      "tags": [
+        "domain",
+        "schema"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "Parse-and-evaluate table covering each operator, composition, unknown fact, and type mismatch."
+        }
+      ]
+    },
+    {
+      "id": "GATE-003",
+      "title": "Scheduled evaluation reaches trigger-met",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "service",
+      "criticality": "P0",
+      "description": "An evaluation run scores every candidate's trigger against current facts and transitions the satisfied ones to `trigger-met`, recording which fact satisfied which clause. This is the first capability in the replaced surface that does something no document could.",
+      "tags": [
+        "service",
+        "scheduler"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "A satisfied trigger transitions the node and records the satisfying facts; an unsatisfied one does not."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A full evaluation run over a seeded graph is idempotent — re-running changes nothing."
+        }
+      ]
+    },
+    {
+      "id": "GATE-004",
+      "title": "Unknown facts block rather than fire",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "A trigger referencing a fact with no current value evaluates to unknown, not false. The node stays in `candidate` and the run reports the missing fact. Treating unknown as false would silently keep candidates asleep forever, which is the failure this scenario exists to end.",
+      "tags": [
+        "policy",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "A trigger over a missing fact yields unknown; the run output names the fact."
+        }
+      ]
+    },
+    {
+      "id": "GATE-005",
+      "title": "Promotion to active is operator-only",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "security",
+      "criticality": "P0",
+      "description": "An agent-role caller may create a promotion proposal and may not transition a node to `active`. Only an operator-role call performs that transition. The source canon states 'agents never self-promote'; this makes it a permission rather than an instruction.",
+      "tags": [
+        "security",
+        "policy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "An agent-role transition to `active` is refused; the same call from an operator role succeeds."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A proposal survives across restarts and carries its proposing actor."
+        }
+      ]
+    },
+    {
+      "id": "GATE-006",
+      "title": "Triggers can be dry-run before saving",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "service",
+      "criticality": "P1",
+      "description": "A caller can evaluate a candidate trigger against current facts without saving it, so an author learns that a trigger is unsatisfiable or already satisfied at write time rather than a quarter later.",
+      "tags": [
+        "service",
+        "authoring"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "Dry-run returns the verdict and the facts consulted, and writes nothing."
+        }
+      ]
+    },
+    {
+      "id": "GATE-008",
+      "title": "A fact may carry a staleness window, and a stale fact is unknown",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "A fact may declare an observation date and a staleness window. Past that window it evaluates as unknown rather than as its last value, so a trigger resting on an expired observation reports the gap instead of firing on an old number. This is what lets market benchmarks live in the fact registry: a competitor comp is an observation with a dimension-derived window — pricing 90d, retention and activation 180d, channel-cac 120d, everything else 365d — and the sweep that currently enqueues expired comps by hand becomes a scheduled evaluation. Windows are a property of the fact's dimension, not of the trigger that reads it, so two triggers over the same comp cannot disagree about whether it is current.",
+      "tags": [
+        "policy",
+        "honesty",
+        "benchmarks"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "A fact past its window evaluates to unknown, not to false and not to its last value; the evaluation run names it as a gap with its observation date."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/store_test.go",
+          "status": "implemented",
+          "notes": "Window is derived from the fact's declared dimension; a fact with no dimension takes the default window rather than never expiring."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "A trigger referencing a stale comp leaves its node in candidate and reports the stale fact, matching GATE-004's unknown-blocks-rather-than-fires behaviour."
+        }
+      ]
+    }
+  ]
+}

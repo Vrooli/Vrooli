@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Lume">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="44%" r="58%">
+      <stop offset="0%" stop-color="#fbeec2"/><stop offset="34%" stop-color="#e9cf86"/>
+      <stop offset="68%" stop-color="#cba74f"/><stop offset="100%" stop-color="#9c7415"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0b1020"/>
+  <circle cx="256" cy="248" r="132" fill="url(#glow)"/>
+  <circle cx="256" cy="248" r="132" fill="none" stroke="#fbeec2" stroke-opacity="0.4" stroke-width="5"/>
+  <circle cx="222" cy="214" r="30" fill="#fff6dd" fill-opacity="0.55"/>
+</svg>

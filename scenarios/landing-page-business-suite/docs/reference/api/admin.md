@@ -22,7 +22,7 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "<replace-at-deploy>"
 }
 ```
 
@@ -143,7 +143,8 @@ Updates the admin email and/or password. `current_password` is required for all 
 
 Remote profiles let the admin UI/CLI manage a deployed LPBS instance by storing an encrypted
 `admin_session` cookie and proxying allowlisted admin requests. Remote sessions are encrypted
-at rest using `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` (or `LPBS_API_KEY_ENCRYPTION_KEY` fallback).
+at rest using the independent credential-authority-backed
+`remote-profile-encryption-key` ring.
 
 ### GET /admin/remote-profiles
 
@@ -247,7 +248,7 @@ Logs in to the remote LPBS instance and stores the remote session cookie.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "your-remote-admin-password"
 }
 ```
 
@@ -398,6 +399,21 @@ Proxies an allowlisted remote admin request using the stored remote session cook
 - `/admin/download-artifacts`
 - `/admin/download-assets`
 - `/admin/download-apps`
+
+The proxy also permits these exact Connect settings procedures, always with
+`POST` and the Connect protocol header:
+
+- `/landing_page_business_suite.v1.AdministrationService/ListAPIKeys`
+- `/landing_page_business_suite.v1.AdministrationService/CreateAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/TestAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive`
+- `/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings`
+- `/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings`
+
+Secret reveal procedures and arbitrary Connect methods remain unavailable. The
+remote profile identifies the target; credentials are kept in the remote
+session and response bodies are returned only to the authenticated local admin.
 
 **Response:** Pass-through status + body from remote LPBS
 
@@ -707,6 +723,6 @@ Resets all data to demo defaults.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Admin Guide](../../guides/ADMIN_GUIDE.md) - Using the admin portal
 - [Payments](payments.md) - Stripe settings

@@ -1,95 +1,83 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as api from '../../../shared/api';
+import type { RemoteProfile } from '../../../shared/api';
 import {
+  createRemoteProfile,
+  DEFAULT_REMOTE_PROFILE_FORM,
+  DEFAULT_REMOTE_PROFILE_LOGIN,
+  deleteRemoteProfile,
   fetchIncomingRemoteProfileSessions,
+  fetchRemoteProfiles,
   getRemoteProfileSessionLinks,
+  getRemoteProfileStatusMeta,
+  loginRemoteProfile,
+  logoutRemoteProfile,
   normalizeRemoteProfileForm,
+  revokeIncomingRemoteProfileSession,
+  revokeRemoteProfileSessions,
+  testRemoteProfile,
+  updateRemoteProfile,
   validateRemoteProfileForm,
   validateRemoteProfileLoginForm,
 } from './remoteProfiles.service';
-import type {
-  getRemoteProfileSessionLinksAdmin,
-  listIncomingRemoteProfileSessionsAdmin,
-} from '../../../shared/api';
 
-type GetSessionLinksFn = typeof getRemoteProfileSessionLinksAdmin;
-type ListIncomingFn = typeof listIncomingRemoteProfileSessionsAdmin;
+vi.mock('../../../shared/api');
 
-const getRemoteProfileSessionLinksAdminMock = vi.fn<Parameters<GetSessionLinksFn>, ReturnType<GetSessionLinksFn>>();
-const listIncomingRemoteProfileSessionsAdminMock = vi.fn<Parameters<ListIncomingFn>, ReturnType<ListIncomingFn>>();
+describe('remote profile service', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
 
-vi.mock('../../../shared/api', async () => {
-  const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
-  return {
-    ...actual,
-    getRemoteProfileSessionLinksAdmin: (...args: Parameters<GetSessionLinksFn>) =>
-      getRemoteProfileSessionLinksAdminMock(...args),
-    listIncomingRemoteProfileSessionsAdmin: (...args: Parameters<ListIncomingFn>) =>
-      listIncomingRemoteProfileSessionsAdminMock(...args),
-  };
-});
-
-describe('remoteProfiles.service', () => {
-  it('normalizes form by trimming values', () => {
-    const payload = normalizeRemoteProfileForm({
-      tag: '  prod  ',
-      label: '  Production  ',
-      apiBase: '  https://example.com/api/v1  ',
-    });
-
-    expect(payload).toEqual({
-      tag: 'prod',
-      label: 'Production',
-      api_base: 'https://example.com/api/v1',
-    });
-  });
-
-  it('validates required remote profile form fields', () => {
+  it('normalizes and validates profile and login forms before sending credentials', () => {
+    expect(DEFAULT_REMOTE_PROFILE_FORM).toEqual({ tag: '', label: '', apiBase: '' });
+    expect(DEFAULT_REMOTE_PROFILE_LOGIN).toEqual({ email: '', password: '' });
+    expect(normalizeRemoteProfileForm({ tag: ' partner ', label: ' Partner admin ', apiBase: ' https://partner.example/api/v1 ' })).toEqual({ tag: 'partner', label: 'Partner admin', api_base: 'https://partner.example/api/v1' });
     expect(validateRemoteProfileForm({ tag: '', label: '', apiBase: '' })).toBe('Tag is required');
-    expect(validateRemoteProfileForm({ tag: 'prod', label: '', apiBase: '' })).toBe('API base is required');
-    expect(validateRemoteProfileForm({ tag: 'prod', label: '', apiBase: 'https://example.com' })).toBe(
-      'API base must include /api/v1'
-    );
-    expect(validateRemoteProfileForm({ tag: 'prod', label: '', apiBase: 'https://example.com/api/v1' })).toBeNull();
-  });
-
-  it('validates remote login form fields', () => {
-    expect(validateRemoteProfileLoginForm({ email: '', password: 'x' })).toBe('Email is required');
+    expect(validateRemoteProfileForm({ tag: 'partner', label: '', apiBase: '' })).toBe('API base is required');
+    expect(validateRemoteProfileForm({ tag: 'partner', label: '', apiBase: 'https://partner.example' })).toBe('API base must include /api/v1');
+    expect(validateRemoteProfileForm({ tag: 'partner', label: '', apiBase: 'https://partner.example/api/v1' })).toBeNull();
+    expect(validateRemoteProfileLoginForm({ email: '', password: '' })).toBe('Email is required');
     expect(validateRemoteProfileLoginForm({ email: 'admin@example.com', password: '' })).toBe('Password is required');
     expect(validateRemoteProfileLoginForm({ email: 'admin@example.com', password: 'secret' })).toBeNull();
   });
 
-  it('normalizes undefined remote sessions to empty list', async () => {
-    getRemoteProfileSessionLinksAdminMock.mockResolvedValue({
-      profile_id: 7,
-      profile_tag: 'prod',
-      connector_id: 'connector-1',
-      local_has_session: true,
-      local_status: 'active',
-      remote_sessions: undefined,
+  it('maps profile status to operator-facing state', () => {
+    const profile = (status: RemoteProfile['status'], hasSession = true): RemoteProfile => ({
+      id: 1, tag: 'partner', api_base: 'https://partner.example/api/v1', status, has_session: hasSession,
+      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
     });
-
-    const result = await getRemoteProfileSessionLinks(7);
-
-    expect(result.remote_sessions).toEqual([]);
+    expect(getRemoteProfileStatusMeta(profile('active'))).toMatchObject({ label: 'Active', tone: 'success', description: 'Session active' });
+    expect(getRemoteProfileStatusMeta(profile('expired'))).toMatchObject({ label: 'Expired', tone: 'warning' });
+    expect(getRemoteProfileStatusMeta(profile('error'))).toMatchObject({ label: 'Error', tone: 'error' });
+    expect(getRemoteProfileStatusMeta(profile('unknown', false))).toMatchObject({ label: 'Unknown', tone: 'info', description: 'No session' });
   });
 
-  it('returns incoming sessions from API response', async () => {
-    listIncomingRemoteProfileSessionsAdminMock.mockResolvedValue({
-      sessions: [
-        {
-          session_id: 'remote-session-1',
-          admin_email: 'admin@example.com',
-          connector_id: 'connector-1',
-          created_at: '2025-01-01T00:00:00Z',
-          last_activity: '2025-01-01T01:00:00Z',
-          expires_at: '2025-01-01T02:00:00Z',
-        },
-      ],
-    });
+  it('delegates lifecycle, session, and incoming-session actions with normalized results', async () => {
+    vi.mocked(api.listRemoteProfilesAdmin).mockResolvedValue({ profiles: [] });
+    vi.mocked(api.createRemoteProfileAdmin).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(api.updateRemoteProfileAdmin).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(api.loginRemoteProfileAdmin).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(api.logoutRemoteProfileAdmin).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(api.testRemoteProfileAdmin).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(api.getRemoteProfileSessionLinksAdmin).mockResolvedValue({ profile_id: 1 } as never);
+    vi.mocked(api.revokeRemoteProfileSessionsAdmin).mockResolvedValue({ profile_id: 1 } as never);
+    vi.mocked(api.listIncomingRemoteProfileSessionsAdmin).mockResolvedValue({} as never);
+    vi.mocked(api.deleteRemoteProfileAdmin).mockResolvedValue({});
+    vi.mocked(api.revokeIncomingRemoteProfileSessionAdmin).mockResolvedValue({});
 
-    const sessions = await fetchIncomingRemoteProfileSessions();
-
-    expect(sessions).toHaveLength(1);
-    expect(sessions[0]?.session_id).toBe('remote-session-1');
+    await expect(fetchRemoteProfiles()).resolves.toEqual([]);
+    await createRemoteProfile({ tag: ' partner ', label: ' Partner ', apiBase: ' https://partner.example/api/v1 ' });
+    await updateRemoteProfile(1, { tag: ' partner ', label: '', apiBase: ' https://partner.example/api/v1 ' });
+    await deleteRemoteProfile(1);
+    await loginRemoteProfile(1, { email: ' admin@example.com ', password: 'secret' });
+    await logoutRemoteProfile(1);
+    await testRemoteProfile(1);
+    await getRemoteProfileSessionLinks(1);
+    await revokeRemoteProfileSessions(1);
+    await expect(fetchIncomingRemoteProfileSessions('connector-1')).resolves.toEqual([]);
+    await revokeIncomingRemoteProfileSession('session-1');
+    expect(api.createRemoteProfileAdmin).toHaveBeenCalledWith({ tag: 'partner', label: 'Partner', api_base: 'https://partner.example/api/v1' });
+    expect(api.loginRemoteProfileAdmin).toHaveBeenCalledWith(1, { email: 'admin@example.com', password: 'secret' });
+    expect(api.getRemoteProfileSessionLinksAdmin).toHaveBeenCalledWith(1);
+    expect(api.revokeRemoteProfileSessionsAdmin).toHaveBeenCalledWith(1);
+    expect(api.listIncomingRemoteProfileSessionsAdmin).toHaveBeenCalledWith('connector-1');
   });
 });

@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/phases/isolation"
+	"test-genie/internal/orchestrator/workspace"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/playbooks/isolation"
 )
 
 var applyPlaybooksSeed = phases.ApplyPlaybooksSeed

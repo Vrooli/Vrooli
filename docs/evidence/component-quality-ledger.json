@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "react-component-library-component-quality-ledger",
+  "rubric": "scenarios/react-component-library/docs/guides/component-quality-rubric.md",
+  "reviewSet": "representative-core",
+  "entries": [
+    { "asset": "Card", "version": "1.1.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Token-backed panel geometry and named child recipes are present; visual long-content and mobile review evidence is still required." },
+    { "asset": "Text", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Use for governed typography where its semantic role matches; capture evidence is pending." },
+    { "asset": "Heading", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Use for hierarchy; verify level is supplied by the consumer through visual review." },
+    { "asset": "Icon", "version": "1.1.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Adapt sizing and semantic hiding per consumer; visual evidence is pending." },
+    { "asset": "Badge", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Adapt tones to the adopting scenario's status vocabulary; visual evidence is pending." },
+    { "asset": "Button", "version": "2.2.0", "disposition": "adopt", "evidence": ["docs/evidence/preview-composition/button-showcase.png"], "note": "Adopt after async-loading, long-label, disabled, and failure stories are reviewed." },
+    { "asset": "Table", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Use as the semantic geometry owner; constrained-container evidence is pending." },
+    { "asset": "DataTable", "version": "1.3.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Typed rows and container-aware mobile cards are implemented; current visual review evidence is not yet attached here." },
+    { "asset": "SidebarShell", "version": "1.2.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Adapt navigation labels and shell width to the product after focus and mobile overlay captures are inspected." },
+    { "asset": "Dialog", "version": "1.1.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Use only after explicit focus, escape, long-content, and recovery evidence is attached." },
+    { "asset": "Tabs", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Validate keyboard roving focus and narrow overflow in the consumer shell." },
+    { "asset": "List", "version": "1.0.0", "disposition": "defer", "evidence": ["scenarios/react-component-library/docs/evidence/preview-composition-inventory.json"], "note": "Revisit after typed fixture-backed empty, long-label, and error captures exist." }
+  ]
+}

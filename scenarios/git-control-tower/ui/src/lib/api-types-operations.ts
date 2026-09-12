@@ -3,6 +3,23 @@
 // ============================================================================
 
 import type { DiffHunk, DiffStats } from "./api-types-repo";
+import type {
+  AuthorityStatus as ProtoAuthorityStatus,
+  ConfirmMutationRequest,
+  MutationIntent,
+  MutationPreview,
+  PrepareMutationRequest,
+} from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import type { CreateCommitResponse as ProtoCreateCommitResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+
+// Human-control contracts are proto-owned. Keep these aliases only for the
+// existing API barrel names while consumers migrate to generated fields and
+// Connect-Web transport.
+export type AuthorityStatus = ProtoAuthorityStatus;
+export type MutationPreviewRequest = Pick<PrepareMutationRequest, "repositoryId" | "operation"> & { subjectContext?: string };
+export type MutationPreviewResponse = MutationPreview;
+export type MutationIntentRequest = Pick<ConfirmMutationRequest, "repositoryId" | "operation" | "expectedRevision" | "subjectDigest"> & { subjectContext?: string };
+export type MutationIntentResponse = MutationIntent;
 
 /** View mode for the diff viewer */
 export type ViewMode = "diff" | "full_diff" | "source" | "preview";
@@ -67,19 +84,69 @@ export interface UnstageResponse {
 
 export interface CommitRequest {
   message: string;
+  intent_id?: string;
   validate_conventional?: boolean;
   amend?: boolean;
   author_name?: string;
   author_email?: string;
+  skip_precommit_once?: boolean;
 }
 
-export interface CommitResponse {
-  success: boolean;
-  hash?: string;
-  amended?: boolean;
-  error?: string;
-  validation_errors?: string[];
+export interface PrecommitRunResult {
+  status: string;
+  command?: string;
+  exit_code: number;
+  summary: string;
+  stdout?: string;
+  stderr?: string;
+  duration_ms: number;
+  override_allowed: boolean;
   timestamp: string;
+}
+
+export type CommitResponse = ProtoCreateCommitResponse;
+
+export interface PrecommitConfig {
+  enabled: boolean;
+  command: string;
+  working_directory: string;
+  timeout_seconds: number;
+  run_before_commit: boolean;
+  allow_override: boolean;
+  last_result?: PrecommitRunResult;
+  hook?: PrecommitHookState;
+}
+
+export interface PrecommitHookState {
+  status: "installed" | "fallback" | "uninstalled" | string;
+  reason?: string;
+  existing_kind?: "user" | "framework" | "gct" | "none" | string;
+  existing_hook_preview?: string;
+  path?: string;
+  hooks_path?: string;
+  installed_at?: string;
+}
+
+export interface PrecommitRunRequest {
+  command?: string;
+  working_directory?: string;
+  timeout_seconds?: number;
+}
+
+export interface PrecommitRunResponse {
+  success: boolean;
+  result: PrecommitRunResult;
+}
+
+export type PrecommitStreamEventType = "started" | "progress" | "finished" | "error";
+
+export interface PrecommitStreamEvent {
+  type: PrecommitStreamEventType;
+  elapsed_ms: number;
+  command?: string;
+  tail?: string[];
+  result?: PrecommitRunResult;
+  error?: string;
 }
 
 export interface DiscardRequest {
@@ -123,6 +190,20 @@ export interface GroupingRuleAPI {
   mode: string; // "prefix" | "segment"
 }
 
+export interface ChangeGroupAPI {
+  key: string;
+  kind?: string;
+  id?: string;
+  label: string;
+  root?: string;
+  source: "manual" | "contract" | "builtin" | string;
+  files: string[];
+}
+
+export interface RepoGroupsResponse {
+  groups: ChangeGroupAPI[];
+}
+
 // Gitignore health types
 export interface GitignoreHealthResponse {
   root_entry_count: number;
@@ -144,6 +225,37 @@ export interface GitignoreMoveRequest {
   pattern: string;
   group_dir: string;
   target_pattern: string;
+}
+
+// Tracked-binary health types
+export interface TrackedBinariesResponse {
+  binaries: TrackedBinary[];
+  total_bytes: number;
+  /** Stated plainly so the UI never implies untracking reclaims repo size. */
+  history_warning?: string;
+}
+
+export interface TrackedBinary {
+  path: string;
+  bytes: number;
+  format: "elf" | "mach-o" | "pe";
+  /** Scenario/resource dir that should ignore this path; "" means repo root. */
+  owner_dir: string;
+  ignore_pattern: string;
+  already_ignored: boolean;
+}
+
+export interface UntrackBinaryRequest {
+  path: string;
+  owner_dir: string;
+  ignore_pattern: string;
+}
+
+export interface UntrackBinaryResponse {
+  success: boolean;
+  removed_from_index: boolean;
+  ignore_added_to?: string;
+  error?: string;
 }
 
 export interface GitignoreMoveResponse {
@@ -250,6 +362,7 @@ export interface ProvenanceFile {
   relativePath: string;
   changeType: string;
   appliedAt: string;
+  visibility?: string;
 }
 
 export interface ProvenanceRunGroup {
@@ -264,6 +377,73 @@ export interface ProvenanceResponse {
   available: boolean;
   runGroups: ProvenanceRunGroup[];
   warning?: string;
+}
+
+export type ProvenanceStanding = "exact_content" | "commit_file" | "run_file" | "work_reference" | "asserted" | "stale" | "private" | "unavailable" | "unknown" | string;
+
+export interface ProvenanceWorkReference {
+  kind: string;
+  id: string;
+  revision?: string;
+  relationship?: string;
+  verified?: boolean;
+  visibility?: string;
+  state?: string;
+  unavailableReason?: string;
+}
+
+export interface BlameLine {
+  line: number;
+  content: string;
+  commit?: string;
+  author?: string;
+  authorTime?: string;
+  subject?: string;
+}
+
+export interface BlameEvidence {
+  runId?: string;
+  sandboxId?: string;
+  contentDigest?: string;
+  commitId?: string;
+  visibility?: string;
+  commitState?: string;
+  runOutcome?: string;
+  conversationId?: string;
+  costUsd?: number;
+  committedAt?: string;
+  unavailable?: string[];
+  workReferences?: ProvenanceWorkReference[];
+}
+
+export interface BlameFile {
+  path: string;
+  status: string;
+  contentDigest?: string;
+  reason?: string;
+  standing?: ProvenanceStanding;
+  downgradeReasons?: string[];
+  lines: BlameLine[];
+  evidence: BlameEvidence[];
+}
+
+export interface ProvenanceChangeBundle {
+  runId?: string;
+  sandboxId?: string;
+  files: string[];
+  runOutcome?: string;
+  conversationId?: string;
+  costUsd?: number;
+  workReferences: ProvenanceWorkReference[];
+  gaps: string[];
+}
+
+export interface BlameResponse {
+  revision: string;
+  files: BlameFile[];
+  truncated: boolean;
+  warnings: string[];
+  changeBundles: ProvenanceChangeBundle[];
 }
 
 // File Search Types
@@ -374,6 +554,27 @@ export interface SaveFileContentConflictResponse {
   path: string;
   current_hash: string;
   timestamp: string;
+}
+
+/**
+ * Raised when the server accepted the request but git reported failure, e.g. a push
+ * that was rejected, timed out, or left the remote ref unmoved. The response is kept
+ * so callers can name the target ref without re-deriving it.
+ */
+export class RemoteOperationError extends Error {
+  readonly operation: "push" | "pull";
+  readonly result: PushResponse | PullResponse;
+
+  constructor(
+    operation: "push" | "pull",
+    message: string | undefined,
+    result: PushResponse | PullResponse
+  ) {
+    super(message?.trim() || `git ${operation} failed without reporting a reason`);
+    this.name = "RemoteOperationError";
+    this.operation = operation;
+    this.result = result;
+  }
 }
 
 export class FileContentConflictError extends Error {

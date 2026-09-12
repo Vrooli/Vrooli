@@ -1,6 +1,6 @@
-// DOC: docs/concepts/GLOSSARY.md#policy
+// DOC: docs/concepts/GLOSSARY.md#core-terms
 // DOC: docs/reference/configuration.md
-import type { PolicyMode } from "../lib/api";
+import type { PolicyMode } from "../api/sessions";
 
 // [REQ:P1-001b] Policy Configuration UI
 // Shared policy option definitions used by the unified settings surface.

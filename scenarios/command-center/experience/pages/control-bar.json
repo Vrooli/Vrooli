@@ -1,0 +1,276 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "control-bar",
+    "title": "Control bar",
+    "routes": [
+      "/",
+      "/:roomId"
+    ],
+    "purpose": "The hidden control layer. Absent until an input arrives, then reveals at remote-sized targets, acknowledges every command including the ones the browser refuses, and fades back out. It overlays every room rather than being a page of its own.",
+    "prd_refs": [
+      "OT-P1-003",
+      "OT-P1-004"
+    ]
+  },
+  "regions": [
+    {
+      "id": "controls",
+      "purpose": "Room navigation, cycle pause and resume, fullscreen, samples mode, and help. Every target at least 64px in kiosk mode.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "acknowledgement",
+      "purpose": "The stated result of the last command: pending, succeeded, failed, or unavailable with a reason.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "idle",
+          "pending",
+          "ready",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "shortcut-help",
+      "purpose": "The intent map for every input class, so a person holding a remote can find out what the remote does.",
+      "required": false,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "hidden",
+      "description": "Default. No input for four seconds; the control layer is not rendered and not focusable.",
+      "setup": {
+        "route": "/mission-control"
+      }
+    },
+    {
+      "id": "revealed",
+      "description": "An input of any class arrived. Controls render at remote-sized targets with visible focus, and the cycle is paused.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "reveal": "1"
+        }
+      }
+    },
+    {
+      "id": "command-unavailable",
+      "description": "A command the browser refuses — fullscreen or wake-lock on a TV browser. The acknowledgement region states that it is unavailable and why, in one line, without a dialog.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "reveal": "1",
+          "state": "command-unavailable"
+        }
+      }
+    },
+    {
+      "id": "gamepad",
+      "description": "Controlled by a gamepad. Focus is visible at all times, D-pad moves between targets, and shoulder buttons change room without entering the bar.",
+      "setup": {
+        "route": "/mission-control",
+        "query": {
+          "reveal": "1",
+          "input": "gamepad"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "controls",
+      "role": "region",
+      "name": "Controls",
+      "description": "Navigation, cycle, fullscreen, samples mode, help."
+    },
+    {
+      "id": "acknowledgement",
+      "role": "region",
+      "name": "Acknowledgement",
+      "description": "The stated result of the last command."
+    },
+    {
+      "id": "shortcut-help",
+      "role": "region",
+      "name": "Shortcut help",
+      "description": "The intent map per input class."
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "Hidden is the default, and hidden means absent.",
+      "notes": "Not transparent, not collapsed — not rendered and not focusable. A control layer that is merely invisible still traps focus and still reads to a screen reader on an unattended display."
+    },
+    {
+      "statement": "Every command acknowledges, especially the ones that fail.",
+      "notes": "Fullscreen and wake-lock fail silently on several TV browsers. Silence is indistinguishable from a broken remote, and someone will press the button repeatedly before concluding the board is broken."
+    },
+    {
+      "statement": "No blocking dialog, ever.",
+      "notes": "DESIGN.md forbids blocking modal errors on an unattended display. A modal left open on a wall panel is a board that has stopped working with no one present to dismiss it."
+    },
+    {
+      "statement": "Every input class reaches every control.",
+      "notes": "Nothing essential is behind hover. A gamepad, a keyboard, a touch screen and a mouse each reach every affordance here."
+    },
+    {
+      "statement": "The bar controls the view; it never controls the data.",
+      "notes": "Samples mode changes what is displayed, not what is true. Nothing here writes anything anywhere."
+    }
+  ],
+  "claims": [
+    {
+      "id": "hidden-is-not-focusable",
+      "type": "focus-order",
+      "tier": "aspirational",
+      "statement": "In hidden state the control layer is neither rendered nor reachable by keyboard or gamepad focus.",
+      "rationale": "An invisible but focusable control layer produces a board where the first keypress goes somewhere the viewer cannot see.",
+      "states": [
+        "hidden"
+      ],
+      "elements": [
+        "controls"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "While hidden, no control appears in the tab order."
+    },
+    {
+      "id": "reveal-on-any-input-class",
+      "type": "state-transition",
+      "tier": "aspirational",
+      "statement": "Pointer movement, any keypress, a touch, and any gamepad action each reveal the control layer.",
+      "rationale": "A board reached from a phone, a desk and a remote cannot privilege one input class.",
+      "states": [
+        "revealed",
+        "gamepad"
+      ],
+      "elements": [
+        "controls"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "A gamepad, keyboard, touch and pointer event each move the surface from hidden to revealed."
+    },
+    {
+      "id": "unavailable-command-is-stated",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "A command the browser refuses produces a visible one-line statement naming the command and the reason, and no dialog.",
+      "rationale": "Silent failure on a remote is indistinguishable from a broken remote.",
+      "states": [
+        "command-unavailable"
+      ],
+      "elements": [
+        "acknowledgement"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "An unavailable command renders a stated reason rather than being silently inert."
+    },
+    {
+      "id": "targets-are-remote-sized",
+      "type": "geometry",
+      "tier": "aspirational",
+      "statement": "Every interactive target is at least 64px in the kiosk presentation.",
+      "rationale": "DESIGN.md sets 64px for visible controls in TV and kiosk mode; a D-pad and a couch make smaller targets unusable.",
+      "states": [
+        "revealed",
+        "gamepad"
+      ],
+      "elements": [
+        "controls"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every interactive node in kiosk mode measures at least 64px on both axes."
+    },
+    {
+      "id": "focus-is-always-visible",
+      "type": "computed-style",
+      "tier": "aspirational",
+      "statement": "Under gamepad or keyboard control the focused target is unambiguously visible at viewing distance.",
+      "rationale": "Spatial navigation with invisible focus is unusable, and this is the input class most likely to be tested last.",
+      "states": [
+        "gamepad",
+        "revealed"
+      ],
+      "elements": [
+        "controls"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "The focused control has a visible focus indicator meeting the contrast floor in every state."
+    },
+    {
+      "id": "no-write-control",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "No control writes a setpoint, files work, or mutates an upstream. Samples mode changes presentation only.",
+      "rationale": "The control bar is where a write path would feel most natural to add and would be least visible in review.",
+      "states": [
+        "revealed"
+      ],
+      "elements": [
+        "controls"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "No interactive node declares a write intent and no mutating request is issued from this surface."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "controls": {
+        "testid": "control-bar-controls"
+      },
+      "acknowledgement": {
+        "testid": "control-bar-acknowledgement"
+      },
+      "shortcut-help": {
+        "testid": "control-bar-shortcut-help"
+      }
+    },
+    "regions": {
+      "controls": {
+        "testid": "control-bar-controls"
+      },
+      "acknowledgement": {
+        "testid": "control-bar-acknowledgement"
+      },
+      "shortcut-help": {
+        "testid": "control-bar-shortcut-help"
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ import type { DownloadStorageSettingsSnapshot } from '../../../../shared/api';
 import { Callout } from '../Callout';
 import { HelpModal } from './HelpModal';
 import { AwsCredentialsHelp, CloudflareR2SetupHelp, MinioSetupHelp } from './help-content';
+import { SetupTask, type SetupTaskStatus } from '@vrooli/react-component-library/SetupTask/0';
 
 interface StepCredentialsProps {
   provider: StorageProviderId;
@@ -62,6 +63,18 @@ export function StepCredentials({
 
   const help = getProviderHelp();
   const hasEnvCredentials = existingSettings?.credentials_from_env ?? false;
+  const hasStoredCredentials = Boolean(
+    existingSettings?.access_key_id_set && existingSettings?.secret_access_key_set,
+  );
+  const credentialsAvailable = hasEnvCredentials || hasStoredCredentials;
+  const taskStatus: SetupTaskStatus = credentialsAvailable ? 'unknown' : 'needs_attention';
+  const providerLabel = provider === 'aws-s3'
+    ? 'AWS S3'
+    : provider === 'cloudflare-r2'
+      ? 'Cloudflare R2'
+      : provider === 'minio'
+        ? 'MinIO'
+        : 'S3-compatible storage';
 
   const getCredentialsHelpContent = () => {
     switch (provider) {
@@ -105,19 +118,27 @@ export function StepCredentials({
   const credentialsCalloutMessage = getCredentialsCalloutMessage();
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-white">{help.title}</h3>
-        <p className="mt-1 text-sm text-slate-400">
-          Enter your credentials to authenticate with {provider === 'aws-s3' ? 'AWS S3' : provider === 'cloudflare-r2' ? 'Cloudflare R2' : provider === 'minio' ? 'MinIO' : 'your storage provider'}
-        </p>
-      </div>
+    <SetupTask
+      title={help.title}
+      purpose={`Authenticate the ${providerLabel} storage destination used by the download service.`}
+      target="local admin settings"
+      account={providerLabel}
+      status={taskStatus}
+      statusLabel={credentialsAvailable ? 'Stored · verify next' : 'Credentials needed'}
+      guidance={
+        credentialsAvailable
+          ? 'Values are available to the server, but storage access is not considered verified until the connection test succeeds on the Verify step.'
+          : 'Provide the access identity and secret, then save and test the connection on the Verify step.'
+      }
+      testId="storage-credentials-task"
+    >
+      <div className="space-y-6">
 
       {credentialsCalloutMessage && (
         <Callout
           type="info"
           message={credentialsCalloutMessage}
-          actions={[{ label: 'Credentials guide', onClick: () => setShowCredentialsHelp(true) }]}
+          actions={[{ label: 'Credentials guide', onClick: () => { setShowCredentialsHelp(true); } }]}
         />
       )}
 
@@ -146,10 +167,10 @@ export function StepCredentials({
           <input
             value={credentials.accessKeyId}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 accessKeyId: e.target.value,
                 clearAccessKeyId: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.access_key_id_set ? '••••••••••••' : 'AKIA...'}
@@ -162,10 +183,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearAccessKeyId}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearAccessKeyId: e.target.checked,
                     accessKeyId: e.target.checked ? '' : credentials.accessKeyId,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -187,10 +208,10 @@ export function StepCredentials({
             type="password"
             value={credentials.secretAccessKey}
             onChange={(e) =>
-              onCredentialsChange({
+              { onCredentialsChange({
                 secretAccessKey: e.target.value,
                 clearSecretAccessKey: false,
-              })
+              }); }
             }
             className={inputBaseClassName}
             placeholder={existingSettings?.secret_access_key_set ? '••••••••••••' : 'Enter secret key'}
@@ -203,10 +224,10 @@ export function StepCredentials({
                 type="checkbox"
                 checked={credentials.clearSecretAccessKey}
                 onChange={(e) =>
-                  onCredentialsChange({
+                  { onCredentialsChange({
                     clearSecretAccessKey: e.target.checked,
                     secretAccessKey: e.target.checked ? '' : credentials.secretAccessKey,
-                  })
+                  }); }
                 }
                 className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
               />
@@ -233,10 +254,10 @@ export function StepCredentials({
               type="password"
               value={credentials.sessionToken}
               onChange={(e) =>
-                onCredentialsChange({
+                { onCredentialsChange({
                   sessionToken: e.target.value,
                   clearSessionToken: false,
-                })
+                }); }
               }
               className={inputBaseClassName}
               placeholder="Optional session token"
@@ -249,10 +270,10 @@ export function StepCredentials({
                   type="checkbox"
                   checked={credentials.clearSessionToken}
                   onChange={(e) =>
-                    onCredentialsChange({
+                    { onCredentialsChange({
                       clearSessionToken: e.target.checked,
                       sessionToken: e.target.checked ? '' : credentials.sessionToken,
-                    })
+                    }); }
                   }
                   className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
                 />
@@ -290,12 +311,13 @@ export function StepCredentials({
       {provider !== 'custom' && (
         <HelpModal
           open={showCredentialsHelp}
-          onClose={() => setShowCredentialsHelp(false)}
+          onClose={() => { setShowCredentialsHelp(false); }}
           title={getCredentialsHelpTitle()}
         >
           {getCredentialsHelpContent()}
         </HelpModal>
       )}
-    </div>
+      </div>
+    </SetupTask>
   );
 }

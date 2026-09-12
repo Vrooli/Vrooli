@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "dashboard.metricList": {
+      "testId": "metric-list",
+      "selector": "[data-testid=\"metric-list\"]"
+    },
+    "dashboard.sceneCanvas": {
+      "testId": "scene-canvas",
+      "selector": "[data-testid=\"scene-canvas\"]"
+    },
+    "dashboard.sceneStill": {
+      "testId": "scene-still",
+      "selector": "[data-testid=\"scene-still\"]"
+    },
+    "dashboard.roomHero": {
+      "testId": "room-hero",
+      "selector": "[data-testid=\"room-hero\"]"
+    },
+    "dashboard.roomLegend": {
+      "testId": "room-legend",
+      "selector": "[data-testid=\"room-legend\"]"
+    },
+    "dashboard.roomSources": {
+      "testId": "room-sources",
+      "selector": "[data-testid=\"room-sources\"]"
+    },
+    "dashboard.freshnessHairline": {
+      "testId": "freshness-hairline",
+      "selector": "[data-testid=\"freshness-hairline\"]"
+    },
+    "dashboard.samplesModeStamp": {
+      "testId": "samples-mode-stamp",
+      "selector": "[data-testid=\"samples-mode-stamp\"]"
+    },
+    "dashboard.cycleRail": {
+      "testId": "cycle-rail",
+      "selector": "[data-testid=\"cycle-rail\"]"
+    },
+    "dashboard.controlBar": {
+      "testId": "control-bar-controls",
+      "selector": "[data-testid=\"control-bar-controls\"]"
+    },
+    "dashboard.shortcutHelp": {
+      "testId": "shortcut-help",
+      "selector": "[data-testid=\"shortcut-help\"]"
+    },
+    "dashboard.errorBanner": {
+      "testId": "error-banner",
+      "selector": "[data-testid=\"error-banner\"]"
+    },
+    "dashboard.loading": {
+      "testId": "loading",
+      "selector": "[data-testid=\"loading\"]"
+    },
+    "library.data-display.provenance-ink.root": {
+      "testId": "data-display.provenance-ink",
+      "selector": "[data-testid=\"data-display.provenance-ink\"]"
+    },
+    "library.data-display.rolling-number.root": {
+      "testId": "data-display.rolling-number",
+      "selector": "[data-testid=\"data-display.rolling-number\"]"
+    },
+    "library.data-display.freshness-arc.freshnessHairline": {
+      "testId": "freshness-hairline",
+      "selector": "[data-testid=\"freshness-hairline\"]"
+    },
+    "library.data-display.freshness-arc.root": {
+      "testId": "data-display.freshness-arc",
+      "selector": "[data-testid=\"data-display.freshness-arc\"]"
+    },
+    "library.visualization.sample-series.root": {
+      "testId": "visualization.sample-series",
+      "selector": "[data-testid=\"visualization.sample-series\"]"
+    }
+  },
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "ae9b05510fd7c419025407bb70a709d25ed2c86b6d41fc18a0cbe46fcf4a20c4",
+    "ui/src/consts/selectors.ts": "ee01982dbcb5447964d2c5ea3a7db372d322224ed000c59f6d5d933a00f16595"
+  }
+}

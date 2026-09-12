@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
+import { MarkdownRenderer } from '@/components/markdown'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import type { TeamTask } from '@/services/heartbeatService'
 
@@ -76,7 +77,7 @@ function InlineEditableTitle({
     <span
       onClick={e => { e.stopPropagation(); setEditing(true) }}
       onPointerDown={e => e.stopPropagation()}
-      className="cursor-text text-sm hover:underline hover:decoration-dotted line-clamp-2"
+      className="cursor-text break-words text-sm hover:underline hover:decoration-dotted line-clamp-2"
       title="Click to edit"
     >
       {value}
@@ -212,12 +213,15 @@ export function TaskKanbanCard({
 
       {/* Expanded notes */}
       {notesExpanded && task.notes && task.notes.length > 0 && (
-        <div className="mt-2 rounded-md bg-muted/20 px-2.5 py-2 border border-border/50 space-y-1">
+        <div className="mt-2 overflow-hidden rounded-md bg-muted/20 px-2.5 py-2 border border-border/50 space-y-1">
           {task.notes.map((note, i) => (
-            <div key={i} className="text-xs text-muted-foreground">
+            <div key={i} className="min-w-0 text-xs text-muted-foreground">
               <span className="font-mono">{note.at ? formatRelativePastTime(new Date(note.at)) : ''}</span>
               {note.by && <span className="ml-1 opacity-70">({note.by})</span>}
-              <span className="ml-1">&mdash; {note.text}</span>
+              <MarkdownRenderer
+                content={note.text}
+                className="ml-1 inline break-words text-xs text-muted-foreground [&_*]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
+              />
             </div>
           ))}
         </div>

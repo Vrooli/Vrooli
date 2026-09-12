@@ -16,12 +16,6 @@ func TestRunActionsFor_DefaultAllowlist(t *testing.T) {
 	if !actions.CanApplyInvestigation {
 		t.Fatalf("expected CanApplyInvestigation to be true for default allowlist")
 	}
-	if !actions.CanExtractRecommendations {
-		t.Fatalf("expected CanExtractRecommendations to be true for default allowlist")
-	}
-	if !actions.CanRegenerateRecommendations {
-		t.Fatalf("expected CanRegenerateRecommendations to be true for default allowlist")
-	}
 }
 
 func TestRunActionsFor_StatusGates(t *testing.T) {
@@ -123,5 +117,22 @@ func TestRunActionsFor_ContinueReason(t *testing.T) {
 	}
 	if actions.CanContinueReason != "" {
 		t.Fatalf("expected empty CanContinueReason for failed run with session ID, got %q", actions.CanContinueReason)
+	}
+
+	// Completed runner turn with failed sandbox finalization: continuation is
+	// allowed because finalization is not runner activity.
+	run.Status = RunStatusComplete
+	run.SessionID = "sess-finalization-failed"
+	run.FinalizationStatus = RunFinalizationStatusFailed
+	run.FinalizationError = "checkpoint unavailable"
+	actions = RunActionsFor(run, RunActionContext{})
+	if !actions.CanContinue {
+		t.Fatal("expected CanContinue to be true when only finalization failed")
+	}
+	if actions.FinalizationWarning == "" {
+		t.Fatal("expected finalization warning to be populated")
+	}
+	if !actions.CanRetryFinalization {
+		t.Fatal("expected CanRetryFinalization when finalization failed")
 	}
 }

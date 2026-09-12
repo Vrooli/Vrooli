@@ -3,12 +3,15 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
-func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
+func setupMetricsTestDB(t *testing.T) (*sql.DB, *domainmetrics.Service) {
 	t.Helper()
 	db := setupTestDB(t)
 
@@ -30,11 +33,12 @@ func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
 	return db, service
 }
 
+// [REQ:METRIC-TAG] Tracked events preserve the variant identity supplied by the client.
 // TestTrackEvent_Valid tests successful event tracking
 func TestTrackEvent_Valid(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-123",
@@ -51,19 +55,24 @@ func TestTrackEvent_Valid(t *testing.T) {
 
 	// Verify event was inserted
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count); err != nil {
-		t.Fatalf("failed to count metrics events: %v", err)
+	var storedVariant string
+	if err := db.QueryRow("SELECT COUNT(*), MIN(variant_slug) FROM metrics_events WHERE session_id = $1", event.SessionID).Scan(&count, &storedVariant); err != nil {
+		t.Fatalf("failed to load metrics event: %v", err)
 	}
 	if count != 1 {
 		t.Errorf("Expected 1 event, got %d", count)
 	}
+	if storedVariant != event.VariantSlug {
+		t.Errorf("Expected variant %q, got %q", event.VariantSlug, storedVariant)
+	}
 }
 
+// [REQ:METRIC-IDEMPOTENT] Duplicate event IDs do not create additional metric rows.
 // TestTrackEvent_Idempotency tests that duplicate events are ignored
 func TestTrackEvent_Idempotency(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-idem",
@@ -94,7 +103,7 @@ func TestTrackEvent_Idempotency(t *testing.T) {
 func TestTrackEvent_AppendsGeneratedEventID(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-generated",
@@ -127,7 +136,7 @@ func TestTrackEvent_IdempotencyCheckError(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 	db.Close()
 
-	err := service.TrackEvent(MetricEvent{
+	err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session-closed-db",
@@ -144,14 +153,14 @@ func TestTrackEvent_IdempotencyCheckError(t *testing.T) {
 func TestTrackEvent_InvalidEventType(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "invalid_type",
 		VariantSlug: "control",
 		SessionID:   "test-session",
 	}
 
 	err := service.TrackEvent(event)
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -163,13 +172,13 @@ func TestTrackEvent_InvalidEventType(t *testing.T) {
 func TestTrackEvent_MissingRequiredFields(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "",
 		SessionID:   "",
 	}
 
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if err := service.TrackEvent(event); !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -178,14 +187,14 @@ func TestTrackEvent_MissingRequiredFields(t *testing.T) {
 func TestTrackEvent_MissingVariantSlug(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType: "page_view",
 		SessionID: "test-session",
 		// VariantSlug is missing
 	}
 
 	err := service.TrackEvent(event)
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -196,10 +205,10 @@ func TestTrackEvent_MissingVariantSlug(t *testing.T) {
 
 // TestGetVariantStats tests variant statistics retrieval
 func TestGetVariantStats(t *testing.T) {
-	_, service := setupMetricsTestDB(t)
+	db, service := setupMetricsTestDB(t)
 
 	// Insert test events
-	events := []MetricEvent{
+	events := []domainmetrics.Event{
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session1", EventID: "evt1"},
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session2", EventID: "evt2"},
 		{EventType: "click", VariantSlug: "control", SessionID: "session1", EventID: "evt3", EventData: map[string]interface{}{"element_type": "cta"}},
@@ -212,6 +221,10 @@ func TestGetVariantStats(t *testing.T) {
 		if err := service.TrackEvent(evt); err != nil {
 			t.Fatalf("failed to track event: %v", err)
 		}
+	}
+	if _, err := db.Exec(`INSERT INTO experiment_exposures (visitor_id, variant_slug, weight_fingerprint) VALUES
+		('visitor-1', 'control', 'weights-v1'), ('visitor-2', 'control', 'weights-v1')`); err != nil {
+		t.Fatalf("failed to seed exposures: %v", err)
 	}
 
 	// Get stats for all variants
@@ -227,7 +240,7 @@ func TestGetVariantStats(t *testing.T) {
 	}
 
 	// Find control stats
-	var controlStats *VariantStats
+	var controlStats *domainmetrics.VariantStats
 	for i := range stats {
 		if stats[i].VariantSlug == "control" {
 			controlStats = &stats[i]
@@ -251,17 +264,21 @@ func TestGetVariantStats(t *testing.T) {
 	if controlStats.Downloads != 1 {
 		t.Errorf("Expected 1 download for control, got %d", controlStats.Downloads)
 	}
+	if controlStats.Exposures != 2 {
+		t.Errorf("Expected 2 exposures, got %d", controlStats.Exposures)
+	}
 	if controlStats.ConversionRate != 50.0 {
-		t.Errorf("Expected 50%% conversion rate, got %.2f", controlStats.ConversionRate)
+		t.Errorf("Expected 50%% exposure conversion rate, got %.2f", controlStats.ConversionRate)
 	}
 }
 
+// [REQ:METRIC-FILTER] Analytics can be narrowed to one landing variant.
 // TestGetVariantStats_FilterBySlug tests filtering stats by variant slug
 func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
 	// Insert test events for multiple variants
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
@@ -270,7 +287,7 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 		t.Fatalf("failed to track event: %v", err)
 	}
 
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "variant-a",
 		SessionID:   "session2",
@@ -296,12 +313,13 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	}
 }
 
+// [REQ:METRIC-SUMMARY] Analytics summary includes visitors, variant conversion data, and CTA CTR.
 // TestGetAnalyticsSummary tests the analytics summary aggregation
 func TestGetAnalyticsSummary(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
 	// Insert test events
-	events := []MetricEvent{
+	events := []domainmetrics.Event{
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session1", EventID: "sum1"},
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session2", EventID: "sum2"},
 		{EventType: "click", VariantSlug: "control", SessionID: "session1", EventID: "sum3", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
@@ -343,12 +361,15 @@ func TestGetAnalyticsSummary(t *testing.T) {
 	if summary.TotalDownloads != 1 {
 		t.Errorf("Expected 1 download, got %d", summary.TotalDownloads)
 	}
+	if summary.ObservedAt == nil || summary.ObservedAt.After(time.Now().UTC()) {
+		t.Errorf("Expected producer observation time at or before now, got %v", summary.ObservedAt)
+	}
 }
 
 func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "lonely-session",
@@ -373,14 +394,60 @@ func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
 	}
 }
 
+func TestGetAnalyticsSummaryCountsStableVisitorsAcrossSessions(t *testing.T) {
+	_, service := setupMetricsTestDB(t)
+	for _, event := range []domainmetrics.Event{
+		{EventType: "page_view", VariantSlug: "control", SessionID: "session-a", VisitorID: "visitor-stable", EventID: "visitor-session-a"},
+		{EventType: "page_view", VariantSlug: "control", SessionID: "session-b", VisitorID: "visitor-stable", EventID: "visitor-session-b"},
+	} {
+		if err := service.TrackEvent(event); err != nil {
+			t.Fatalf("failed to track event: %v", err)
+		}
+	}
+
+	summary, err := service.GetAnalyticsSummary(time.Now().AddDate(0, 0, -1), time.Now().AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatalf("GetAnalyticsSummary failed: %v", err)
+	}
+	if summary.TotalVisitors != 1 {
+		t.Fatalf("expected one stable visitor across two sessions, got %d", summary.TotalVisitors)
+	}
+}
+
+func TestGetTrafficBreakdownKeepsFullShareDenominatorWhenLimited(t *testing.T) {
+	_, service := setupMetricsTestDB(t)
+	for i, campaign := range []string{"alpha", "beta", "gamma"} {
+		if err := service.TrackEvent(domainmetrics.Event{
+			EventType: "page_view", VariantSlug: "control", SessionID: fmt.Sprintf("breakdown-session-%d", i),
+			VisitorID: fmt.Sprintf("breakdown-visitor-%d", i), EventID: fmt.Sprintf("breakdown-event-%d", i), UTMCampaign: campaign,
+		}); err != nil {
+			t.Fatalf("failed to track breakdown event: %v", err)
+		}
+	}
+
+	breakdown, err := service.GetTrafficBreakdown("utm_campaign", time.Now().AddDate(0, 0, -1), time.Now().AddDate(0, 0, 1), 2)
+	if err != nil {
+		t.Fatalf("GetTrafficBreakdown failed: %v", err)
+	}
+	if len(breakdown.Rows) != 2 || breakdown.Exhaustive {
+		t.Fatalf("expected two ranked rows and a truncated result, got rows=%d exhaustive=%v", len(breakdown.Rows), breakdown.Exhaustive)
+	}
+	if breakdown.TotalSessions != 3 {
+		t.Fatalf("expected full session denominator of 3, got %d", breakdown.TotalSessions)
+	}
+	if breakdown.Rows[0].Share != 1.0/3.0 {
+		t.Fatalf("expected top-row share to use full denominator, got %v", breakdown.Rows[0].Share)
+	}
+}
+
 // TestGenerateEventID tests the event ID generation for idempotency
 func TestGenerateEventID(t *testing.T) {
-	event1 := MetricEvent{
+	event1 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
 	}
-	event2 := MetricEvent{
+	event2 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
@@ -395,7 +462,7 @@ func TestGenerateEventID(t *testing.T) {
 	}
 
 	// Different session should generate different ID
-	event3 := MetricEvent{
+	event3 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session2",

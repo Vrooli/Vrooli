@@ -76,9 +76,10 @@ func PlanCompilerForEngine(engineName string) PlanCompiler {
 }
 
 func init() {
-	// Contract-native compiler is default; browserless runtime shaping was removed.
-	// Both "browserless" and "browserless-contract" map to the same compiler since
-	// there's only one compilation strategy now.
+	// "browserless" and "browserless-contract" are legacy engine labels retained
+	// for stored/exported-workflow compatibility — the browserless resource itself
+	// is gone, but persisted workflows still carry those engine strings. Both map to
+	// the contract-native default compiler since there's only one compilation strategy.
 	RegisterPlanCompiler("browserless", DefaultPlanCompiler)
 	RegisterPlanCompiler("browserless-contract", DefaultPlanCompiler)
 }

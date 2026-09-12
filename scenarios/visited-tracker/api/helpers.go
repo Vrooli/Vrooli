@@ -54,17 +54,6 @@ func parseThreshold(r *http.Request, defaultThreshold float64) float64 {
 	return defaultThreshold
 }
 
-// getNonDeletedFiles filters out deleted files from a campaign
-func getNonDeletedFiles(campaign *Campaign) []TrackedFile {
-	var files []TrackedFile
-	for _, file := range campaign.TrackedFiles {
-		if !file.Deleted {
-			files = append(files, file)
-		}
-	}
-	return files
-}
-
 // getActiveFiles filters out deleted AND excluded files from a campaign
 func getActiveFiles(campaign *Campaign) []TrackedFile {
 	var files []TrackedFile

@@ -1,0 +1,15 @@
+pswpin 100
+pswpout 200
+pgmajfault 300
+pgfault 400
+workingset_refault_file 500
+workingset_refault_anon 600
+allocstall_movable 700
+allocstall_normal 800
+oom_kill 9
+oom 11
+compact_stall 12
+compact_fail 2
+compact_success 8
+thp_fault_fallback 3
+thp_fault_alloc 4

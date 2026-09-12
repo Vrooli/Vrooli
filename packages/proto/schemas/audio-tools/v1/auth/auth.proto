@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.auth;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/auth;auth_v1";
+
+// =============================================================================
+// AUTH DOMAIN — typed credentials envelope.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain auth
+// @stability stable
+//
+// audio-tools per-request credentials travel in Connect metadata headers
+// on the wire (NOT in the request body) so the keys do not appear in
+// JSON request logs and so unaryinterceptor-based credential plumbing
+// works for both Connect and the REST exceptions. The header names are
+// the source of truth for transport:
+//
+//   X-Audio-BYOK-Provider, X-Audio-BYOK-Key,
+//   X-Audio-LPBS-Token,    X-Audio-User-Identity
+//
+// The Credentials message defined here is the shared typed shape used
+// by:
+//   - the server-side Connect interceptor in
+//     scenarios/audio-tools/api/internal/byok/envelope/ that hoists
+//     header values into request context;
+//   - the client-side Connect interceptor in
+//     scenarios/audio-tools/clients/go/audiotools/ that writes header
+//     values from per-call context;
+//   - tests that build deterministic credential payloads.
+//
+// The wire shape is unchanged from v0; only the in-process plumbing
+// gains a typed surface.
+// =============================================================================
+
+message Credentials {
+  // Inline BYOK provider id (e.g., "openai-whisper", "elevenlabs").
+  // Empty when the caller is not in BYOK mode.
+  string byok_provider = 1;
+
+  // Inline BYOK API key for `byok_provider`. NEVER logged. Wire
+  // travels in X-Audio-BYOK-Key.
+  string byok_key = 2;
+
+  // LPBS install token for the Vrooli tier. Empty when the caller
+  // is not using the Vrooli tier.
+  string lpbs_token = 3;
+
+  // Stable user identifier — typically a hashed login or anonymous
+  // device id — used for per-user accounting and provider sticky
+  // routing.
+  string user_identity = 4;
+}

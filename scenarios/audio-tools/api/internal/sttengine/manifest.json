@@ -1,0 +1,47 @@
+{
+  "engines": [
+    {
+      "id": "whisper-local",
+      "displayName": "Whisper (native, local)",
+      "kind": "local_resource",
+      "resource": "whisper",
+      "provides": {
+        "nativeStreaming": false,
+        "builtinVad": true,
+        "confidenceSignals": ["no_speech_prob", "avg_logprob"],
+        "wordTimestamps": true
+      },
+      "requires": { "pcm16kMono": true },
+      "strategies": ["vad_segment", "overlap_agree", "buffered_fallback"]
+    },
+    {
+      "id": "kyutai",
+      "displayName": "Kyutai STT (streaming, local)",
+      "kind": "local_resource",
+      "resource": "kyutai-stt",
+      "provides": {
+        "nativeStreaming": true,
+        "builtinVad": true,
+        "confidenceSignals": [],
+        "wordTimestamps": true
+      },
+      "requires": { "pcm16kMono": true },
+      "strategies": ["passthrough"]
+    }
+  ],
+  "selectionPolicy": {
+    "hardFilters": ["platform_supported", "resource_serviceable", "workload_capable"],
+    "rankedPreferences": ["native_streaming", "accelerated"],
+    "tiebreakRank": ["manifest_order"],
+    "probeTtlSeconds": 30
+  },
+  "speakerIsolation": {
+    "active": "verification",
+    "methods": {
+      "verification": {
+        "backendResource": "sherpa-onnx",
+        "defaultThreshold": 0.5
+      }
+    }
+  }
+}

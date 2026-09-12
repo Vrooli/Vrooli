@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "host_hardening",
+  "storage": {
+    "entries": {
+      "sysctl_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/sysctl.d/99-vrooli-host-hardening.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes Linux kernel hardening settings."
+      },
+      "journald_config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes the Linux journald rate-limit drop-in."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
+  "description": "Make kernel hangs and oopses produce diagnostics: enable sysrq, set hung-task/softlockup/NMI panic, and rate-limit journald so UFW BLOCK floods don't drown panic info",
+  "handler": "host_hardening",
+  "risk": "high",
+  "verificationCheck": {
+    "files": [
+      "/etc/sysctl.d/99-vrooli-host-hardening.conf",
+      "/etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "oops_policy": {
+        "type": "string",
+        "enum": [
+          "panic-and-dump",
+          "log-and-continue"
+        ],
+        "default": "panic-and-dump",
+        "description": "What a kernel oops should do. panic-and-dump turns an oops into a panic so kdump captures a vmcore; it requires an armed crash kernel and costs a full outage for any single-task kernel fault. log-and-continue records the oops and keeps the host up, which suits a workstation that is also an operator's daily driver."
+      },
+      "softlockup_policy": {
+        "type": "string",
+        "enum": [
+          "panic",
+          "warn"
+        ],
+        "default": "warn",
+        "description": "What a CPU soft lockup should do. warn records the stall and lets a host that recovers keep running. panic reboots on any stall of 20 seconds or more, which on a heavily loaded host is a self-inflicted outage rather than a diagnostic."
+      },
+      "hung_task_timeout_secs": {
+        "type": "integer",
+        "minimum": 0,
+        "default": 120,
+        "description": "Seconds a task may stay blocked in D state before the kernel logs it. 0 disables the detector."
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard host_hardening; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux host interface used by safeguard host_hardening; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "boot_critical"
+}

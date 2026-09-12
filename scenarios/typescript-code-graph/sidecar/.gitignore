@@ -1,0 +1,4 @@
+node_modules/
+*.log
+.vitest-cache/
+coverage/

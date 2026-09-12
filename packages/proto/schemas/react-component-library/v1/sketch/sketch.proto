@@ -1,0 +1,641 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.sketch;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/sketch;sketch_v1";
+
+import "google/protobuf/struct.proto";
+import "react-component-library/v1/preview/preview.proto";
+
+service SketchService {
+ rpc AcceptCandidate(AcceptCandidateRequest) returns (AcceptanceDecision);
+ rpc GetAcceptance(GetAcceptanceRequest) returns (AcceptanceDecision);
+ rpc CheckCandidateAcceptance(CheckCandidateAcceptanceRequest) returns (CandidateAcceptanceCheck);
+ rpc InferSketch(InferSketchRequest) returns (SketchInferenceOperation);
+ rpc GetSketchInference(GetSketchInferenceRequest) returns (SketchInferenceOperation);
+ rpc ListCritiques(ListCritiquesRequest) returns (ListCritiquesResponse);
+ rpc GetCritiqueRubric(GetCritiqueRubricRequest) returns (CritiqueRubric);
+ rpc RecordCritique(RecordCritiqueRequest) returns (CritiqueRecord);
+ rpc GetCritique(GetCritiqueRequest) returns (CritiqueRecord);
+ rpc GetCaptureScreenshot(GetCaptureScreenshotRequest) returns (CaptureScreenshot);
+ rpc RetryCapture(RetryCaptureRequest) returns (CaptureOperation);
+ rpc CancelCapture(GetCaptureRequest) returns (CaptureOperation);
+ rpc AttachCapture(GetCaptureRequest) returns (CaptureOperation);
+ rpc CaptureCandidate(CaptureCandidateRequest) returns (CaptureOperation);
+ rpc GetCapture(GetCaptureRequest) returns (CaptureOperation);
+ rpc ListCandidates(SketchTarget) returns (ListCandidatesResponse);
+ rpc PlaceCandidateAsset(PlaceCandidateAssetRequest) returns (CandidateResponse);
+ rpc MapCandidateRegions(MapCandidateRegionsRequest) returns (CandidateResponse);
+ rpc SaveCandidate(SaveCandidateRequest) returns (CandidateResponse);
+ rpc RefineCandidate(RefineCandidateRequest) returns (RefineCandidateResponse);
+ rpc GetCandidate(CandidateReference) returns (CandidateResponse);
+ rpc RenderCandidate(RenderCandidateRequest) returns (vrooli.react_component_library.v1.preview.RenderCompositionResponse);
+ rpc ProposeSketch(ProposeSketchRequest) returns (ProposeSketchResponse);
+ rpc RenderSketch(RenderSketchRequest) returns (vrooli.react_component_library.v1.preview.RenderCompositionResponse);
+  rpc ListDesignPages(ListDesignPagesRequest) returns (ListDesignPagesResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc RecoverSketch(RecoverSketchRequest) returns (PutSketchResponse);
+  rpc GetSketch(GetSketchRequest) returns (GetSketchResponse);
+  rpc PutSketch(PutSketchRequest) returns (PutSketchResponse);
+  rpc VerifySketch(VerifySketchRequest) returns (VerifySketchResponse);
+  rpc ImportPage(ImportPageRequest) returns (ImportPageResponse);
+  rpc Place(PlaceRequest) returns (PutSketchResponse);
+  rpc Placeholder(PlaceholderRequest) returns (PutSketchResponse);
+  rpc AddNote(AddNoteRequest) returns (PutSketchResponse);
+  rpc Unplace(UnplaceRequest) returns (PutSketchResponse);
+  rpc SetTemplate(SetTemplateRequest) returns (SetTemplateResponse);
+  rpc BuildBrief(BuildBriefRequest) returns (BuildBriefResponse);
+}
+
+message SketchTarget {
+  string scenario = 1;
+  string page = 2;
+}
+
+message AssetReference {
+  string asset = 1;
+  string version = 2;
+}
+
+message Fill {
+  string asset = 1;
+  string version = 2;
+  string placeholder = 3;
+  string intent = 4;
+}
+
+message Grid {
+  int32 x = 1;
+  int32 y = 2;
+  int32 w = 3;
+  int32 h = 4;
+}
+
+message SketchRegion {
+  bool locked = 6;
+  string origin = 5;
+  string id = 1;
+  string note = 2;
+  repeated string elements = 3;
+  Grid grid = 4;
+}
+
+message Placement {
+  string region = 1;
+  Fill fills = 2;
+  string state = 3;
+  string note = 4;
+  string intent = 5;
+}
+
+message UnplacedItem {
+  string was = 1;
+  string reason = 2;
+  string region = 3;
+  Placement placement = 4;
+}
+
+message SketchNote {
+  string scope = 1;
+  string text = 2;
+}
+
+message RenderRegion {
+ // Optional containing region. Slot is relative to that asset's props;
+ // absent means the page template. Parents must form an acyclic graph.
+ string parent = 7;
+ string story = 6;
+ string template_region = 5;
+ string id = 1;
+ string export = 2;
+ repeated string slot = 3;
+ bool optional = 4;
+}
+message RenderFixture {
+ string target = 1;
+ string asset = 2;
+ string version = 3;
+ string state = 4;
+ string field = 5;
+ repeated string prop = 6;
+}
+message RenderSettings {
+ string template_export = 1;
+ repeated RenderRegion regions = 2;
+ google.protobuf.Struct bindings = 3;
+ repeated RenderFixture fixtures = 4;
+}
+message Sketch {
+  string viewport = 1;
+  AssetReference template = 2;
+  repeated Placement placements = 3;
+  repeated UnplacedItem unplaced = 4;
+  repeated SketchNote notes = 5;
+  repeated SketchRegion regions = 6;
+  RenderSettings render = 7;
+ DesignIntent intent = 8;
+}
+
+message GetSketchRequest {
+  SketchTarget target = 1;
+}
+message GetSketchResponse {
+  Sketch sketch = 1;
+  string document_path = 2;
+  string content_hash = 3;
+  repeated SketchRegion declared_regions = 4;
+}
+message PutSketchRequest {
+  SketchTarget target = 1;
+  Sketch sketch = 2;
+  string expected_content_hash = 3;
+}
+message PutSketchResponse {
+  Sketch sketch = 1;
+  string document_path = 2;
+  bool changed = 3;
+  string content_hash = 4;
+}
+
+message Finding {
+  string catalog_id = 1;
+  string scope = 2;
+  bool blocking = 3;
+  string owner = 4;
+  string severity_class = 5;
+  string message = 6;
+}
+
+message RegionVerdict {
+  string region = 1;
+  string verdict = 2;
+  string join_rule = 3;
+  bool proven = 4;
+  string file_path = 5;
+  string observed_state = 6;
+  string reason = 7;
+  Finding finding = 8;
+  string selected_asset = 9;
+  string selected_version = 10;
+  string observed_asset = 11;
+  string observed_version = 12;
+  string reason_code = 13;
+  string evidence_quality = 14;
+  repeated string candidates = 15;
+  string availability_state = 16;
+  string availability_reason_code = 17;
+  string build_hash = 18;
+  string source_hash = 19;
+  // Authored implementation intent, separate from observed source and sketch selection.
+  string library_asset = 20;
+  string library_version = 21;
+  string local_component = 22;
+}
+
+message Coverage {
+  int32 built = 1;
+  int32 declared = 2;
+  int32 invented = 3;
+  double built_percent = 4;
+  int32 missing = 5;
+  int32 unresolved = 6;
+  int32 total = 7;
+  string status = 8;
+  // Declared implementation references; these counts do not imply a built asset.
+  int32 library_backed = 9;
+  int32 local = 10;
+  // Unique proven source bindings, independent of library build/adoption status.
+  int32 resolved = 11;
+  // Proven custom implementations without a conflicting sketch asset selection.
+  int32 resolved_local = 12;
+}
+
+message VerifySketchRequest {
+  SketchTarget target = 1;
+}
+message VerifySketchResponse {
+  repeated RegionVerdict regions = 1;
+  Coverage coverage = 2;
+  repeated Finding findings = 3;
+  bool passes = 4;
+}
+
+message TierCheck {
+  int32 tier = 1;
+  bool ran = 2;
+  repeated string matches = 3;
+}
+
+message DecompositionItem {
+  string component = 1;
+  int32 tier = 2;
+  string match = 3;
+  repeated TierCheck checks = 4;
+  string state = 5;
+}
+
+message TemplateCandidate {
+  string asset = 1;
+  double score = 2;
+  bool implemented = 3;
+  repeated string matching_regions = 4;
+}
+
+message ImportPageRequest {
+  SketchTarget target = 1;
+  bool write = 2;
+  string expected_content_hash = 3;
+}
+message ImportPageResponse {
+  Sketch sketch = 1;
+  repeated DecompositionItem items = 2;
+  repeated TemplateCandidate templates = 3;
+  bool written = 4;
+  string document_path = 5;
+  string content_hash = 6;
+}
+
+message PlaceRequest {
+  SketchTarget target = 1;
+  string region = 2;
+  string asset = 3;
+  string version = 4;
+  string note = 5;
+  string expected_content_hash = 6;
+}
+
+message PlaceholderRequest {
+  SketchTarget target = 1;
+  string region = 2;
+  string placeholder = 3;
+  string intent = 4;
+  string note = 5;
+  string expected_content_hash = 6;
+}
+
+message AddNoteRequest {
+  SketchTarget target = 1;
+  string scope = 2;
+  string text = 3;
+  string expected_content_hash = 4;
+}
+message UnplaceRequest {
+  SketchTarget target = 1;
+  string region = 2;
+  string reason = 3;
+  string expected_content_hash = 4;
+}
+message RegionRemap {
+  string from = 1;
+  string to = 2;
+}
+message SetTemplateRequest {
+  SketchTarget target = 1;
+  string asset = 2;
+  string version = 3;
+  repeated RegionRemap remap = 4;
+  bool confirm_unplaced = 5;
+  string expected_content_hash = 6;
+  bool preview = 7;
+}
+message SetTemplateResponse {
+  bool requires_confirmation = 6;
+  Sketch sketch = 1;
+  repeated UnplacedItem newly_unplaced = 2;
+  string document_path = 3;
+  bool changed = 4;
+  string content_hash = 5;
+}
+
+message BriefItem {
+  int32 order = 1;
+  int32 tier = 2;
+  string region = 3;
+  string action = 4;
+  string asset = 5;
+  string constraint = 6;
+}
+message BuildBriefRequest {
+  SketchTarget target = 1;
+}
+message BuildBriefResponse {
+  string markdown = 1;
+  repeated BriefItem items = 2;
+  string closing_gate = 3;
+}
+
+// Returned as a Connect error detail on an optimistic-concurrency conflict.
+message RevisionConflict {
+ string expected_content_hash = 1;
+ string current_content_hash = 2;
+}
+
+message GetHistoryRequest { SketchTarget target = 1; }
+message SketchRevision {
+ string content_hash = 1;
+ string created_from_hash = 2;
+ string created_at = 3;
+ Sketch sketch = 4;
+ bool current = 5;
+ repeated SketchRegion declared_regions = 6;
+}
+message GetHistoryResponse {
+ repeated SketchRevision revisions = 1;
+ string current_content_hash = 2;
+}
+message RecoverSketchRequest {
+ SketchTarget target = 1;
+ string expected_content_hash = 2;
+}
+
+// Empty scenario lists workspaces; a selected scenario includes its page inventory.
+message ListDesignPagesRequest { string scenario = 1; }
+message DesignScenario { string scenario = 1; int32 page_count = 2; string issue = 3; }
+message DesignPage {
+ string page = 1;
+ string title = 2;
+ string route = 3;
+ string status = 4;
+ string content_hash = 5;
+ int32 region_count = 6;
+ string issue = 7;
+ bool registered = 8;
+ repeated string routes = 9;
+}
+message ListDesignPagesResponse {
+ repeated DesignScenario scenarios = 1;
+ repeated DesignPage pages = 2;
+ repeated string issues = 3;
+}
+
+message RenderSketchRequest {
+ SketchTarget target = 1;
+ string expected_content_hash = 2;
+ string missing_label = 3;
+ string failed_label = 4;
+ string kit = 5;
+ string theme = 6;
+ string direction = 7;
+}
+
+message DesignConstraints {
+ string design_source = 1;
+ // Exact source bytes consulted when proposing; not a conformance receipt.
+ string design_source_hash = 4;
+ optional bool preserve_routes = 2;
+ optional bool preserve_business_behavior = 3;
+}
+message DesignIntent {
+ DesignConstraints constraints = 8;
+ string intent = 1;
+ repeated string users = 2;
+ repeated string primary_tasks = 3;
+ string target = 4;
+ string kit = 5;
+ repeated string required_capabilities = 6;
+ repeated string viewports = 7;
+}
+message ProposeSketchRequest {
+ SketchTarget target = 1;
+ string expected_content_hash = 2;
+ DesignIntent intent = 3;
+ int32 candidate_limit = 4;
+}
+message DesignProposal {
+ string title = 1;
+ Sketch sketch = 2;
+ repeated string obligations = 3;
+}
+message DesignSourceSnapshot {
+ string path = 1;
+ string content_hash = 2;
+ string content = 3;
+}
+message ProposeSketchResponse {
+ DesignSourceSnapshot design_source = 5;
+ string content_hash = 1;
+ repeated DesignProposal candidates = 2;
+ string retrieval_mode = 3;
+ repeated string diagnostics = 4;
+}
+
+message CandidateReference {
+ string scenario = 1;
+ string design_id = 2;
+ string hash = 3;
+}
+message SaveCandidateRequest {
+ SketchTarget target = 1;
+ string design_id = 2;
+ string expected_content_hash = 3;
+ Sketch sketch = 4;
+}
+message CandidateResponse {
+ CandidateRefinement refinement = 7;
+ string parent_hash = 6;
+ CandidateReference candidate = 1;
+ string page = 2;
+ string base_hash = 3;
+ Sketch sketch = 4;
+ repeated SketchRegion declared_regions = 5;
+}
+message RenderCandidateRequest {
+ CandidateReference candidate = 1;
+ string missing_label = 2;
+ string failed_label = 3;
+ string kit = 4;
+ string theme = 5;
+ string direction = 6;
+ // Optional declared $preview state; participates in the render identity.
+ string preview_state = 7;
+}
+
+message CandidateRegionMapping {
+ string region = 1;
+ string template_region = 2;
+}
+message MapCandidateRegionsRequest {
+ CandidateReference candidate = 1;
+ repeated CandidateRegionMapping mappings = 2;
+}
+
+message PlaceCandidateAssetRequest {
+ CandidateReference candidate = 1;
+ string region = 2;
+ AssetReference asset = 3;
+ string story = 4;
+}
+
+message CandidateSummary {
+ CandidateReference candidate = 1;
+ string parent_hash = 2;
+ string base_hash = 3;
+ string template_asset = 4;
+ string template_version = 5;
+}
+message ListCandidatesResponse { repeated CandidateSummary candidates = 1; }
+
+message CaptureCandidateRequest {
+ RenderCandidateRequest render = 1;
+ string expected_render_hash = 2;
+ string idempotency_key = 3;
+ int32 width = 4;
+ int32 height = 5;
+}
+message GetCaptureRequest { string id = 1; }
+message CapturedRegionGeometry { string region = 1; double x = 2; double y = 3; double width = 4; double height = 5; }
+message CapturedTargetEvidence { string render_hash = 1; double width = 2; double height = 3; repeated CapturedRegionGeometry regions = 4; }
+message CaptureArtifact { string kind = 1; string reference = 2; CapturedTargetEvidence evidence = 3; }
+message CaptureOperation {
+ string id = 1;
+ string state = 2;
+ string producer_id = 3;
+ CandidateReference candidate = 4;
+ vrooli.react_component_library.v1.preview.CompositionRenderTarget target = 5;
+ int32 width = 6;
+ int32 height = 7;
+ repeated CaptureArtifact artifacts = 8;
+ string detail = 9;
+ int64 version = 10;
+ string previous_id = 11;
+}
+
+message GetCaptureScreenshotRequest { string id = 1; string reference = 2; }
+message CaptureScreenshot { string reference = 1; string url = 2; int32 width = 3; int32 height = 4; string content_type = 5; }
+
+message RetryCaptureRequest { string id = 1; string idempotency_key = 2; }
+
+message GetCritiqueRubricRequest {}
+message CritiqueRubric { string rubric_version = 1; string policy_version = 2; repeated string dimensions = 3; repeated string anchors = 4; bool calibrated = 5; }
+message CritiqueTarget { string scenario = 1; string design_id = 2; string revision = 3; string render_hash = 4; }
+message CriticIdentity { string kind = 1; string id = 2; string version = 3; string model = 4; string profile = 5; }
+message CritiqueEvidence {
+ string capture_id = 1;
+ string artifact = 2;
+ string region = 3;
+ string state = 4;
+ int32 width = 5;
+ int32 height = 6;
+ // Exact render for this image. Empty inherits the review target render.
+ // Alternate renders must still belong to the same candidate revision.
+ string render_hash = 7;
+}
+message CritiqueRating { string dimension = 1; int32 score = 2; string rationale = 3; repeated CritiqueEvidence evidence = 4; }
+message CritiqueFinding { string dimension = 1; string severity = 2; string rationale = 3; string correction = 4; CritiqueEvidence evidence = 5; }
+message VisualCritique { CritiqueTarget target = 1; string rubric_version = 2; string policy_version = 3; CriticIdentity critic = 4; repeated CritiqueRating ratings = 5; repeated CritiqueFinding findings = 6; }
+message CritiqueAssessment { bool visual_floor_met = 1; int32 minimum_score = 2; repeated string blocking_dimensions = 3; repeated int32 blocking_findings = 4; bool acceptance_established = 5; }
+message RecordCritiqueRequest { string idempotency_key = 1; VisualCritique review = 2; }
+message GetCritiqueRequest { string id = 1; }
+message CritiqueRecord { string id = 1; string hash = 2; VisualCritique review = 3; CritiqueAssessment assessment = 4; string recorded_at = 5; }
+
+message ListCritiquesRequest { CritiqueTarget target = 1; string before_id = 2; }
+message CritiqueSummary { string id = 1; string hash = 2; CriticIdentity critic = 3; CritiqueAssessment assessment = 4; string recorded_at = 5; }
+message ListCritiquesResponse { repeated CritiqueSummary reviews = 1; string next_before_id = 2; }
+
+message CandidateRefinement {
+ int32 round = 1;
+ int32 budget = 2;
+ string reason = 3;
+ repeated string requested_regions = 4;
+ repeated string changed_regions = 5;
+ string broader_change_reason = 6;
+}
+message RefineCandidateRequest {
+ CandidateReference candidate = 1;
+ Sketch sketch = 2;
+ repeated string requested_regions = 3;
+ string reason = 4;
+ string broader_change_reason = 5;
+ int32 additional_rounds = 6;
+}
+message RefineCandidateResponse {
+ CandidateResponse result = 1;
+ // refined, unchanged, or budget_exhausted. Exhaustion never means acceptance.
+ string status = 2;
+ int32 round = 3;
+ int32 budget = 4;
+}
+
+message InferSketchRequest {
+ ProposeSketchRequest proposal = 1;
+ string idempotency_key = 2;
+}
+message GetSketchInferenceRequest {
+ // Supply exactly one identity.
+ string id = 1;
+ string idempotency_key = 2;
+}
+message SketchInferenceOperation {
+ string id = 1;
+ string state = 2;
+ string request_hash = 3;
+ string detail = 4;
+ ProposeSketchResponse proposal = 5;
+ string provider = 6;
+ string model = 7;
+ int64 input_tokens = 8;
+ int64 output_tokens = 9;
+ int64 cost_micros = 10;
+}
+
+// Read-only preflight. A passing check is not an acceptance receipt.
+message CheckCandidateAcceptanceRequest {
+ RenderCandidateRequest render = 1;
+ string expected_render_hash = 2;
+ repeated string critique_ids = 3;
+}
+message AcceptanceRequirement {
+ string code = 1;
+ string status = 2; // passed, blocked, or unavailable
+ string detail = 3;
+ repeated string evidence_ids = 4;
+}
+message CandidateAcceptanceCheck {
+ map<string, string> input_hashes = 7;
+ CandidateReference candidate = 1;
+ string render_hash = 2;
+ string policy_version = 3;
+ repeated AcceptanceRequirement requirements = 4;
+ bool ready = 5;
+ bool acceptance_established = 6;
+}
+
+message AcceptCandidateRequest {
+ CheckCandidateAcceptanceRequest check = 1;
+ // Caller-declared provenance; not proof of independent human review.
+ string actor = 2;
+ string idempotency_key = 3;
+}
+message GetAcceptanceRequest { string scenario = 1; string design_id = 2; string id = 3; }
+message AcceptanceDecisionIntent {
+ string design_id = 1;
+ string candidate_hash = 2;
+ string expected_render_hash = 3;
+ string actor = 4;
+ string kit = 5;
+ string theme = 6;
+ string direction = 7;
+ string preview_state = 8;
+ string missing_label = 9;
+ string failed_label = 10;
+ repeated string critique_ids = 11;
+}
+message AcceptanceFacts {
+ string policy_version = 1;
+ string candidate_hash = 2;
+ string render_hash = 3;
+ map<string, string> input_hashes = 4;
+ repeated AcceptanceRequirement requirements = 5;
+}
+message AcceptanceDecision {
+ int32 schema_version = 1;
+ string id = 2;
+ string hash = 3;
+ string state = 4;
+ AcceptanceDecisionIntent intent = 5;
+ string base_hash = 6;
+ AcceptanceFacts facts = 7;
+ string detail = 8;
+ string created_at = 9;
+ string completed_at = 10;
+}

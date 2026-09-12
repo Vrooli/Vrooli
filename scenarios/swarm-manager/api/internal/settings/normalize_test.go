@@ -2,12 +2,273 @@ package settings
 
 import (
 	"testing"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
 
 func TestNormalizeSettingsDefaultsTheme(t *testing.T) {
 	normalized := normalizeSettings(Settings{Theme: ""})
 	if normalized.Theme != "dark" {
 		t.Fatalf("expected default theme dark, got %q", normalized.Theme)
+	}
+}
+
+func TestNormalizeFixBeforeFeature(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"", FixBeforeFeatureSuggest},
+		{"off", FixBeforeFeatureOff},
+		{"suggest", FixBeforeFeatureSuggest},
+		{"block", FixBeforeFeatureBlock},
+		{"bogus", FixBeforeFeatureSuggest},
+	}
+	for _, tt := range tests {
+		got := normalizeSettings(Settings{FixBeforeFeature: tt.in}).FixBeforeFeature
+		if got != tt.want {
+			t.Errorf("normalize fix_before_feature %q = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestDefaultSettingsFixBeforeFeature(t *testing.T) {
+	d := DefaultSettings()
+	if d.FixBeforeFeature != FixBeforeFeatureSuggest {
+		t.Errorf("default fix_before_feature = %q, want suggest", d.FixBeforeFeature)
+	}
+}
+
+func TestApplyPatchFixBeforeFeature(t *testing.T) {
+	block := FixBeforeFeatureBlock
+	patched := applyPatch(DefaultSettings(), SettingsPatch{
+		FixBeforeFeature: &block,
+	})
+	if patched.FixBeforeFeature != FixBeforeFeatureBlock {
+		t.Errorf("patched fix_before_feature = %q, want block", patched.FixBeforeFeature)
+	}
+}
+
+func TestDefaultSettingsAutoFiler(t *testing.T) {
+	d := DefaultSettings().AutoFiler
+	if d.Enabled {
+		t.Errorf("default auto_filer.enabled = true, want false")
+	}
+	if d.Mode != AutoFilerModeSuggest {
+		t.Errorf("default auto_filer.mode = %q, want suggest", d.Mode)
+	}
+	if d.Strategy != AutoFilerStrategyFeaturePending {
+		t.Errorf("default auto_filer.strategy = %q, want feature_pending", d.Strategy)
+	}
+	if d.MaxOpenAutoFiled != 10 {
+		t.Errorf("default auto_filer.max_open_auto_filed = %d, want 10", d.MaxOpenAutoFiled)
+	}
+	if d.VelocityWindowDays != 7 {
+		t.Errorf("default auto_filer.velocity_window_days = %d, want 7", d.VelocityWindowDays)
+	}
+	if d.MinVelocityTransitions != 1 {
+		t.Errorf("default auto_filer.min_velocity_transitions = %d, want 1", d.MinVelocityTransitions)
+	}
+	if d.IntervalMinutes != 30 {
+		t.Errorf("default auto_filer.interval_minutes = %d, want 30", d.IntervalMinutes)
+	}
+	if d.GoalName != "automated-maintenance" {
+		t.Errorf("default auto_filer.goal_name = %q, want automated-maintenance", d.GoalName)
+	}
+}
+
+func TestNormalizeAutonomyGateModesDropsInvalidEntries(t *testing.T) {
+	got := normalizeSettings(Settings{AutonomyGateModes: map[string]string{
+		"review": "auto", "manual": "manual", "bad": "pause", "": "auto",
+	}}).AutonomyGateModes
+	if got["review"] != "auto" || got["manual"] != "manual" || len(got) != 2 {
+		t.Fatalf("normalized gate modes = %#v", got)
+	}
+}
+
+func TestApplyPatchAutonomyGateModesReplacesOverrides(t *testing.T) {
+	patched := applyPatch(DefaultSettings(), SettingsPatch{AutonomyGateModes: map[string]string{"review": "auto"}})
+	if patched.AutonomyGateModes["review"] != "auto" || len(patched.AutonomyGateModes) != 1 {
+		t.Fatalf("patched gate modes = %#v", patched.AutonomyGateModes)
+	}
+}
+
+func TestNormalizeAutoFilerSettings(t *testing.T) {
+	got := normalizeSettings(Settings{
+		AutoFiler: AutoFilerSettings{
+			Enabled:                true,
+			Mode:                   "bad",
+			Strategy:               "also-bad",
+			MaxOpenAutoFiled:       500,
+			VelocityWindowDays:     -1,
+			MinVelocityTransitions: 0,
+			IntervalMinutes:        0,
+			GoalName:               "  custom-goal  ",
+		},
+	}).AutoFiler
+	if !got.Enabled {
+		t.Errorf("enabled = false, want true")
+	}
+	if got.Mode != AutoFilerModeSuggest {
+		t.Errorf("mode = %q, want suggest", got.Mode)
+	}
+	if got.Strategy != AutoFilerStrategyFeaturePending {
+		t.Errorf("strategy = %q, want feature_pending", got.Strategy)
+	}
+	if got.MaxOpenAutoFiled != 100 {
+		t.Errorf("max_open_auto_filed = %d, want 100", got.MaxOpenAutoFiled)
+	}
+	if got.VelocityWindowDays != 7 {
+		t.Errorf("velocity_window_days = %d, want 7", got.VelocityWindowDays)
+	}
+	if got.MinVelocityTransitions != 1 {
+		t.Errorf("min_velocity_transitions = %d, want 1", got.MinVelocityTransitions)
+	}
+	if got.IntervalMinutes != 30 {
+		t.Errorf("interval_minutes = %d, want 30", got.IntervalMinutes)
+	}
+	if got.GoalName != "custom-goal" {
+		t.Errorf("goal_name = %q, want custom-goal", got.GoalName)
+	}
+}
+
+func TestApplyPatchAutoFiler(t *testing.T) {
+	enabled := true
+	mode := AutoFilerModeAutoAdd
+	strategy := AutoFilerStrategyImportance
+	cap := 3
+	window := 14
+	transitions := 2
+	interval := 5
+	goal := "  maintenance  "
+	patched := applyPatch(DefaultSettings(), SettingsPatch{
+		AutoFiler: &AutoFilerSettingsPatch{
+			Enabled:                &enabled,
+			Mode:                   &mode,
+			Strategy:               &strategy,
+			MaxOpenAutoFiled:       &cap,
+			VelocityWindowDays:     &window,
+			MinVelocityTransitions: &transitions,
+			IntervalMinutes:        &interval,
+			GoalName:               &goal,
+		},
+	})
+	got := normalizeSettings(patched).AutoFiler
+	if !got.Enabled || got.Mode != mode || got.Strategy != strategy || got.MaxOpenAutoFiled != cap ||
+		got.VelocityWindowDays != window || got.MinVelocityTransitions != transitions ||
+		got.IntervalMinutes != interval || got.GoalName != "maintenance" {
+		t.Fatalf("patched auto_filer = %+v", got)
+	}
+}
+
+func TestDeleteConfirmLevelProtoDefaulting(t *testing.T) {
+	tests := []struct {
+		name  string
+		proto domainpb.DeleteConfirmLevel
+		want  DeleteConfirmLevel
+	}{
+		{
+			name:  "unspecified defaults to simple",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_UNSPECIFIED,
+			want:  DeleteConfirmSimple,
+		},
+		{
+			name:  "simple round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE,
+			want:  DeleteConfirmSimple,
+		},
+		{
+			name:  "none round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_NONE,
+			want:  DeleteConfirmNone,
+		},
+		{
+			name:  "strong round-trips",
+			proto: domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_STRONG,
+			want:  DeleteConfirmStrong,
+		},
+		{
+			name:  "unknown defaults to simple",
+			proto: domainpb.DeleteConfirmLevel(99),
+			want:  DeleteConfirmSimple,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := deleteConfirmLevelFromProto(tc.proto); got != tc.want {
+				t.Fatalf("deleteConfirmLevelFromProto(%v) = %q, want %q", tc.proto, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestDeleteConfirmLevelToProtoUsesExplicitSimple(t *testing.T) {
+	if got := deleteConfirmLevelToProto(DeleteConfirmSimple); got != domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE {
+		t.Fatalf("deleteConfirmLevelToProto(simple) = %v, want SIMPLE", got)
+	}
+	if got := deleteConfirmLevelToProto(DeleteConfirmLevel("")); got != domainpb.DeleteConfirmLevel_DELETE_CONFIRM_LEVEL_SIMPLE {
+		t.Fatalf("deleteConfirmLevelToProto(empty) = %v, want SIMPLE", got)
+	}
+}
+
+func TestNormalizeDeleteConfirmationLevels_FillsAndPreserves(t *testing.T) {
+	// Provide one valid known override, one invalid known value, omit the
+	// rest, and include an unknown forward-compat key.
+	raw := map[string]DeleteConfirmLevel{
+		"session":     DeleteConfirmStrong, // valid override
+		"capture":     DeleteConfirmLevel("bogus"),
+		"futureThing": DeleteConfirmNone, // unknown key, valid value
+		"futureBad":   DeleteConfirmLevel("x"),
+	}
+	out := normalizeDeleteConfirmationLevels(raw)
+
+	// Every known registry key must be present.
+	for key, def := range deletableEntityDefaults {
+		got, ok := out[key]
+		if !ok {
+			t.Fatalf("missing known key %q", key)
+		}
+		switch key {
+		case "session":
+			if got != DeleteConfirmStrong {
+				t.Errorf("session = %q, want strong (override honored)", got)
+			}
+		case "capture":
+			if got != def {
+				t.Errorf("capture = %q, want default %q (invalid coerced)", got, def)
+			}
+		default:
+			if got != def {
+				t.Errorf("%s = %q, want default %q", key, got, def)
+			}
+		}
+	}
+	// Unknown key with a valid value is preserved.
+	if out["futureThing"] != DeleteConfirmNone {
+		t.Errorf("futureThing = %q, want none (preserved)", out["futureThing"])
+	}
+	// Unknown key with an invalid value is coerced to simple, not dropped.
+	if out["futureBad"] != DeleteConfirmSimple {
+		t.Errorf("futureBad = %q, want simple (coerced, preserved)", out["futureBad"])
+	}
+}
+
+func TestApplyPatchDeleteConfirmationLevels_Merges(t *testing.T) {
+	current := DefaultSettings()
+	current.DeleteConfirmationLevels["futureThing"] = DeleteConfirmStrong
+
+	level := DeleteConfirmNone
+	patched := applyPatch(current, SettingsPatch{
+		DeleteConfirmationLevels: map[string]DeleteConfirmLevel{"session": level},
+	})
+
+	if patched.DeleteConfirmationLevels["session"] != DeleteConfirmNone {
+		t.Errorf("session = %q, want none (patched)", patched.DeleteConfirmationLevels["session"])
+	}
+	// Unknown existing key not in the patch survives the merge.
+	if patched.DeleteConfirmationLevels["futureThing"] != DeleteConfirmStrong {
+		t.Errorf("futureThing = %q, want strong (preserved across patch)", patched.DeleteConfirmationLevels["futureThing"])
 	}
 }
 
@@ -24,19 +285,6 @@ func TestNormalizeIntFields(t *testing.T) {
 		build func(int) Settings
 		get   func(Settings) int
 	}{
-		{
-			field: "MaxConcurrentExecutions",
-			cases: []intCase{
-				{"zero clamped to 1", 0, 1},
-				{"negative clamped to 1", -5, 1},
-				{"min boundary", 1, 1},
-				{"mid range", 10, 10},
-				{"max boundary", 20, 20},
-				{"over max clamped to 20", 50, 20},
-			},
-			build: func(v int) Settings { return Settings{MaxConcurrentExecutions: v} },
-			get:   func(s Settings) int { return s.MaxConcurrentExecutions },
-		},
 		{
 			field: "MaxQueueDepth",
 			cases: []intCase{
@@ -87,6 +335,52 @@ func TestNormalizeIntFields(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestNormalizeLaneConcurrencyLimits_FillsMissingKeys(t *testing.T) {
+	// Empty / nil input should resolve to the canonical defaults so
+	// settings stored before P2 (no lane_concurrency_limits) load cleanly.
+	got := normalizeLaneConcurrencyLimits(nil)
+	want := defaultLaneConcurrencyLimits()
+	if len(got) != len(want) {
+		t.Fatalf("len(normalized) = %d, want %d", len(got), len(want))
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("default %q = %d, want %d", k, got[k], v)
+		}
+	}
+}
+
+func TestNormalizeLaneConcurrencyLimits_ClampsAndDropsUnknownKeys(t *testing.T) {
+	in := map[string]int{
+		"investigate": 0,    // <= 0 → default
+		"execute":     -3,   // negative → default
+		"review":      999,  // over max → clamped to 50
+		"reconcile":   1,    // valid pass-through
+		"unknown":     1234, // dropped (not a canonical lane)
+	}
+	got := normalizeLaneConcurrencyLimits(in)
+
+	defaults := defaultLaneConcurrencyLimits()
+	if got["investigate"] != defaults["investigate"] {
+		t.Errorf("investigate <= 0 should fall back to default %d, got %d", defaults["investigate"], got["investigate"])
+	}
+	if got["execute"] != defaults["execute"] {
+		t.Errorf("execute negative should fall back to default %d, got %d", defaults["execute"], got["execute"])
+	}
+	if got["review"] != 50 {
+		t.Errorf("review over max should clamp to 50, got %d", got["review"])
+	}
+	if got["reconcile"] != 1 {
+		t.Errorf("reconcile valid should pass through, got %d", got["reconcile"])
+	}
+	if _, present := got["unknown"]; present {
+		t.Errorf("unknown key should be dropped, found %d", got["unknown"])
+	}
+	if len(got) != 4 {
+		t.Errorf("expected exactly 4 canonical keys after normalize, got %d", len(got))
 	}
 }
 

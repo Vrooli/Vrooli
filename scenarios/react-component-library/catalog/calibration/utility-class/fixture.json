@@ -1,0 +1,10 @@
+{
+  "gate": "utility-class",
+  "assetId": "calibration.utility-class",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.utility-class",
+  "source": "broken.tsx",
+  "catalogAsset": "asset.json",
+  "description": "Emits a responsive layout utility from published component source."
+}

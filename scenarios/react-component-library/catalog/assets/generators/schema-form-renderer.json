@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.schema-form-renderer",
+    "name": "SchemaFormRenderer",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Compiles data, layout, validation, dependency, permission, and action schemas into the generated-form runtime and a cached field-dependency graph.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.generated-form",
+        "reason": "Output targets the shared form runtime; the compiler must not become a second form implementation."
+      }
+    ]
+  },
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "Compiles once and caches by schema identity and version. Re-normalizing a schema on every render is the difference between a generated form that feels native and one that feels generated."
+}

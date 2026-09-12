@@ -1,0 +1,310 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "workflow-health",
+  "description": "Workflow Health CLI surface for validating, fixing, and inspecting scenario-owned BAS workflow assets.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate workflow assets and manage durable execution runs through the shared scenario-validation provider contract",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Perform fast static validation of a scenario's BAS workflow catalog",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a durable workflow execution validation run",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable key for replay-safe start"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Optional Test Genie parent run identity"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "StartValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get persisted durable workflow validation state",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "GetValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Wait once for a durable workflow validation terminal result",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Optional Go duration caller wait limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "WaitValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Explicitly abort a durable workflow validation run",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Optional operator cancellation reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "AbortValidationRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Preview or apply deterministic workflow metadata fixes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview deterministic workflow fixes",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to fix"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "rule",
+              "description": "Comma-separated rule ids to fix",
+              "bind": {
+                "field": "rule_ids"
+              }
+            },
+            {
+      "name": "apply",
+      "bool": true,
+      "description": "Apply the previewed fixes instead of reporting only",
+      "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic workflow fixes",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to fix"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "rule",
+              "description": "Comma-separated rule ids to fix",
+              "bind": {
+                "field": "rule_ids"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "workflows",
+      "description": "Inspect and search scenario-owned BAS workflow assets",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search typed workflow leaves for agent and validation intents",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Natural-language workflow intent"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario id to search"
+            },
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "type",
+              "description": "Comma-separated leaf types: workflow.flow, workflow.test, workflow.fragment",
+              "bind": {
+                "field": "types"
+              }
+            },
+            {
+              "name": "include-fragments",
+              "bool": true,
+              "description": "Include workflow.fragment dependency leaves when no explicit type filter is supplied"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum number of results"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkflowSearchService",
+            "method": "SearchWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}

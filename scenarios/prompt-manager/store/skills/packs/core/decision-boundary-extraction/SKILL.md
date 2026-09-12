@@ -1,3 +1,23 @@
+---
+name: "decision-boundary-extraction"
+description: "Extract and clarify decision logic from implementation details"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","analysis"]
+  tags: ["skill","audit-technique"]
+  icon: "file-text"
+  status: "active"
+  revision: 43
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-02-04T13:13:54Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Decision Boundary Extraction
 
 Prioritize **making important decisions in the scenario explicit, intentional, and easy to locate**.
@@ -7,7 +27,8 @@ A “decision” is any place where the system **chooses between alternatives** 
 Do **not** break functionality, regress tests, or change business rules except to fix clearly incorrect behavior. All changes must maintain or improve completeness and reliability.
 
 Required reading:
-- `prompt-manager skills read knowledge-observatory-tools`
+- `docs/scenario-qa/methods/audit/decision-boundary-extraction.md` — strategic-canon home: when this lens applies, when it backfires, what the qa-contrarian challenges.
+- `prompt-manager skill read knowledge-observatory-tools`
 
 * * *
 
@@ -16,7 +37,7 @@ Required reading:
 \* Read the `seams` doc for `{{TARGET}}` using `knowledge-observatory-tools` to understand existing decision points documentation.
 
 \* Scan the scenario for **decision points**, such as:  
-\* conditionals (`if/else`, switches, guards)  
+\* conditionals (`literal:if/else`, switches, guards)  
 \* strategy or mode selection  
 \* routing between different flows or implementations  
 \* thresholds, scoring, or ranking logic  
@@ -97,7 +118,7 @@ Do not weaken existing tests to make refactors pass; instead, align tests with c
 
 * * *
 
-### **6\. Output Expectations**
+### **6. Output Expectations**
 
 You may update:
 

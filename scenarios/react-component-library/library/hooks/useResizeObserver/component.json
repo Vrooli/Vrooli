@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "hooks.use-resize-observer",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:useResizeObserver"
+}

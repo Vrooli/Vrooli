@@ -1,0 +1,44 @@
+{
+  "id": "ba510000-0000-4000-8000-000000000004",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "nested-snippet-picker-dismissal",
+  "folder_path": "/bas/cases/03-snippets/02-composer",
+  "description": "Dismiss the mobile snippet picker nested over the full-screen composer without selecting a snippet or closing the composer.",
+  "metadata": { "name": "nested-snippet-picker-dismissal", "description": "Dismiss the mobile snippet picker nested over the full-screen composer without selecting a snippet or closing the composer.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "requirements_json": "[\"REQ-P0-015c\",\"REQ-P0-015h\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"REQ-P0-015c\",\"REQ-P0-015h\"]"],
+  "version": 1,
+  "created_at": "2026-08-29T03:08:00.000000000Z",
+  "updated_at": "2026-08-29T03:08:00.000000000Z",
+  "flow_definition": {
+    "settings": { "viewport_width": 390, "viewport_height": 844 },
+    "nodes": [
+      { "id": "open", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "web-console", "scenario_path": "/#/workspace", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open workspace" } } },
+      { "id": "hydrate", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "duration_ms": 1500 }, "metadata": { "label": "Allow workspace to hydrate" } } },
+      { "id": "composer", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='toolbar-expand-composer']" }, "metadata": { "label": "Open full-screen composer" } } },
+      { "id": "type", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "[data-testid='composer-input']", "value": "Preserve this draft" }, "metadata": { "label": "Populate the composer draft" } } },
+      { "id": "picker", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='composer-open-snippets']" }, "metadata": { "label": "Open nested snippet picker" } } },
+      { "id": "grabber", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "[data-testid='snippet-picker.grabber']", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Mobile snippet picker did not use the automatic grabber affordance." }, "metadata": { "label": "Automatic mobile grabber is visible" } } },
+      { "id": "dismiss", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='snippet-picker.grabber']" }, "metadata": { "label": "Activate the grabber without choosing a snippet" } } },
+      { "id": "inspect", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const picker=document.querySelector('[data-testid=\"snippet-picker\"]'); const composer=document.querySelector('[data-testid=\"composer-input\"]'); const ok=!picker&&composer instanceof HTMLTextAreaElement&&composer.value==='Preserve this draft'; document.body.dataset.basNestedPickerDismissed=ok?'true':'false'; return {ok}; })()" }, "metadata": { "label": "Inspect nested dismissal and draft state" } } },
+      { "id": "assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-bas-nested-picker-dismissed='true']", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Dismissing the nested picker selected content, lost the draft, or closed the composer." }, "metadata": { "label": "Nested picker closes independently" } } },
+      { "id": "reopen", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='composer-open-snippets']" }, "metadata": { "label": "Reopen the nested picker" } } },
+      { "id": "escape", "action": { "type": "ACTION_TYPE_KEYBOARD", "keyboard": { "keys": ["Escape"] }, "metadata": { "label": "Dismiss only the top layer with Escape" } } },
+      { "id": "inspect-escape", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const ok=!document.querySelector('[data-testid=\"snippet-picker\"]')&&!!document.querySelector('[data-testid=\"composer-input\"]'); document.body.dataset.basNestedEscapeOk=ok?'true':'false'; return {ok}; })()" }, "metadata": { "label": "Inspect top-layer Escape dismissal" } } },
+      { "id": "assert-escape", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-bas-nested-escape-ok='true']", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Escape did not dismiss only the nested snippet picker." }, "metadata": { "label": "Escape preserves the composer layer" } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "open", "target": "hydrate", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "hydrate", "target": "composer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "composer", "target": "type", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "type", "target": "picker", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "picker", "target": "grabber", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e6", "source": "grabber", "target": "dismiss", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e7", "source": "dismiss", "target": "inspect", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e8", "source": "inspect", "target": "assert", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e9", "source": "assert", "target": "reopen", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e10", "source": "reopen", "target": "escape", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e11", "source": "escape", "target": "inspect-escape", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e12", "source": "inspect-escape", "target": "assert-escape", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

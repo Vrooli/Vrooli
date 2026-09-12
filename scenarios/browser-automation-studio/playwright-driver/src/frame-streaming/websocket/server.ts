@@ -32,7 +32,11 @@ interface WebSocketServerInstance {
 }
 
 type WebSocketModule = {
-  Server: new (options: { port: number; path?: string }) => WebSocketServerInstance;
+  Server: new (options: {
+    port: number;
+    host?: string;
+    path?: string;
+  }) => WebSocketServerInstance;
   OPEN: number;
 };
 
@@ -59,10 +63,12 @@ export class DirectFrameServer {
   private wss: WebSocketServerInstance | null = null;
   private clients: Set<DirectFrameClient> = new Set();
   private port: number;
+  private host: string;
   private isRunning = false;
 
-  constructor(port: number) {
+  constructor(port: number, host = '127.0.0.1') {
     this.port = port;
+    this.host = host;
   }
 
   /**
@@ -78,6 +84,7 @@ export class DirectFrameServer {
 
     this.wss = new WebSocketServer({
       port: this.port,
+      host: this.host,
       path: '/frames',
     });
 
@@ -278,6 +285,6 @@ export class DirectFrameServer {
 /**
  * Create a direct frame server instance.
  */
-export function createDirectFrameServer(port: number): DirectFrameServer {
-  return new DirectFrameServer(port);
+export function createDirectFrameServer(port: number, host = '127.0.0.1'): DirectFrameServer {
+  return new DirectFrameServer(port, host);
 }

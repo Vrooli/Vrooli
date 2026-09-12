@@ -4,7 +4,8 @@
  * STABILITY: STABLE CONTRACT
  *
  * This module defines the interface for vision model clients.
- * Implementations include OpenRouter, Claude Computer Use, and Mock (for testing).
+ * Implementations include the AI Gateway client, Claude Computer Use, and Mock
+ * (for testing).
  *
  * TESTING SEAM: Mock this interface for unit tests to avoid real LLM calls.
  */
@@ -21,9 +22,7 @@ export interface VisionModelClient {
    */
   analyze(request: VisionAnalysisRequest): Promise<VisionAnalysisResponse>;
 
-  /**
-   * Get model metadata for cost calculation.
-   */
+  /** Get provider-neutral route metadata for diagnostics and UI. */
   getModelSpec(): VisionModelSpec;
 }
 
@@ -83,32 +82,31 @@ export interface TokenUsage {
 }
 
 /**
- * Model specification for registry.
+ * Provider-neutral route specification.
  */
 export interface VisionModelSpec {
   /** Internal identifier */
   id: string;
-  /** API model string */
-  apiModelId: string;
   /** UI display name */
   displayName: string;
-  /** Provider */
-  provider: 'openrouter' | 'anthropic' | 'ollama';
-  /** USD per 1M input tokens */
-  inputCostPer1MTokens: number;
-  /** USD per 1M output tokens */
-  outputCostPer1MTokens: number;
-  /** Max context tokens */
-  maxContextTokens: number;
+  /** Owning execution boundary. */
+  provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
+  /** Optional provider metadata retained only for the Claude exception. */
+  apiModelId?: string;
+  /** Optional provider metadata retained only for the Claude exception. */
+  maxContextTokens?: number;
   /** Claude-specific feature */
   supportsComputerUse: boolean;
   /** Can use numbered labels */
   supportsElementLabels: boolean;
-  /** Show in recommended list */
+  /** Show in recommended list. */
   recommended: boolean;
-  /** For entitlement gating */
-  tier: 'budget' | 'standard' | 'premium';
+  /** Route tier is intentionally not a price tier. */
+  tier: 'local' | 'remote' | 'mock' | 'exception';
 }
+
+/** Provider-neutral routing profiles understood by AI Gateway. */
+export type GatewayProfile = 'local_first' | 'remote_only';
 
 /**
  * Element label for annotated screenshots.

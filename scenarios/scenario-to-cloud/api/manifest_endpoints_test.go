@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"scenario-to-cloud/manifest"
@@ -231,5 +233,38 @@ func TestManifestFixNormalizesDefaults(t *testing.T) {
 	}
 	if !hasAutoheal {
 		t.Fatalf("expected vrooli-autoheal to be present in fixed bundle.scenarios")
+	}
+}
+
+func TestGetDocsDirPrefersContractScenarioDocs(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
+	if err := os.MkdirAll(filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir scenario config dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "docs"), 0o755); err != nil {
+		t.Fatalf("mkdir docs: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", ".vrooli", "service.json"),
+		[]byte(`{"service":{"name":"scenario-to-cloud"}}`),
+		0o644,
+	); err != nil {
+		t.Fatalf("write service.json: %v", err)
+	}
+	if err := os.WriteFile(
+		filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "docs", "manifest.json"),
+		[]byte(`{"version":"1.0.0","title":"Docs","defaultDocument":"overview.md","sections":[]}`),
+		0o644,
+	); err != nil {
+		t.Fatalf("write docs manifest: %v", err)
+	}
+
+	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
+	t.Setenv("SCENARIO_TO_CLOUD_DOCS_DIR", "")
+
+	srv := newTestServer()
+	if got, want := srv.getDocsDir(), filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "docs"); got != want {
+		t.Fatalf("getDocsDir = %q, want %q", got, want)
 	}
 }

@@ -13,6 +13,7 @@ import (
 
 func newTestInput() shared.TaskInput {
 	return shared.TaskInput{
+		PipelineAPIURL: "http://127.0.0.1:19001",
 		Pipeline: &pipeline.Status{
 			PipelineID:   "pipe-1",
 			ScenarioName: "test-app",
@@ -27,7 +28,7 @@ func newTestInput() shared.TaskInput {
 					Error:     "npm ERR! missing peer",
 				},
 			},
-			Config: &pipeline.Config{
+			Config: &pipeline.PipelineConfig{
 				ScenarioName: "test-app",
 				Platforms:    []string{"linux"},
 			},

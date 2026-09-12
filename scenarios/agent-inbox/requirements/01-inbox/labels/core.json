@@ -1,100 +1,101 @@
 {
-  "module": "label-management",
-  "description": "Create and manage colored labels for organizing chats",
+  "_metadata": {
+    "last_validated_at": "2026-07-10T10:30:23-04:00"
+  },
   "requirements": [
     {
       "id": "LABEL-001",
       "title": "Create labels",
-      "description": "Create new labels with custom name and color",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Create new labels with custom name and color",
       "validation": [
         {
           "type": "test",
+          "ref": "api/labels_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/labels_test.go"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "LABEL-002",
       "title": "List labels",
-      "description": "Retrieve all labels via API",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Retrieve all labels via API",
       "validation": [
         {
           "type": "test",
+          "ref": "api/labels_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/labels_test.go"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "LABEL-003",
       "title": "Assign labels to chats",
-      "description": "Add one or more labels to a chat via UI or API",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Add one or more labels to a chat via UI or API",
       "validation": [
         {
           "type": "test",
+          "ref": "api/labels_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/labels_test.go"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "LABEL-004",
       "title": "Display labels on chat list",
-      "description": "Show colored label badges in the inbox list view",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Show colored label badges in the inbox list view",
       "validation": [
         {
-          "type": "implementation",
+          "type": "test",
+          "ref": "ui/src/components/chat/ChatList.tsx::ChatListItem",
           "phase": "ui",
-          "status": "implemented",
-          "ref": "ui/src/components/chat/ChatList.tsx::ChatListItem"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "LABEL-005",
       "title": "Edit labels",
-      "description": "Rename or change color of existing labels",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Rename or change color of existing labels",
       "validation": [
         {
           "type": "test",
+          "ref": "api/labels_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/labels_test.go"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "LABEL-006",
       "title": "Delete labels",
-      "description": "Remove labels (optionally from all associated chats)",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Remove labels (optionally from all associated chats)",
       "validation": [
         {
           "type": "test",
+          "ref": "api/labels_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/labels_test.go"
+          "status": "failing"
         }
       ]
     }

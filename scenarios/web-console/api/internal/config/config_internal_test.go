@@ -1,0 +1,291 @@
+package config
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// [REQ:P1-001a] Session Policy Controls - config defaults
+func TestDefault(t *testing.T) {
+	cfg := Default()
+
+	if cfg.TerminalScrollbackLines != DefaultTerminalScrollbackLines {
+		t.Errorf("TerminalScrollbackLines: want default, got %d", cfg.TerminalScrollbackLines)
+	}
+	if cfg.PTYReadBuffer != 4096 {
+		t.Errorf("PTYReadBuffer: want 4096, got %d", cfg.PTYReadBuffer)
+	}
+	if cfg.WSBufferSize != 4096 {
+		t.Errorf("WSBufferSize: want 4096, got %d", cfg.WSBufferSize)
+	}
+	if cfg.DefaultCols != 80 {
+		t.Errorf("DefaultCols: want 80, got %d", cfg.DefaultCols)
+	}
+	if cfg.DefaultRows != 24 {
+		t.Errorf("DefaultRows: want 24, got %d", cfg.DefaultRows)
+	}
+	if cfg.MaxSessions != 0 {
+		t.Errorf("MaxSessions: want 0, got %d", cfg.MaxSessions)
+	}
+	if cfg.ArchiveMessageLessAgeDays != 0 || cfg.ArchiveAgentHomeAgeDays != 0 || cfg.ArchiveMaxBytes != 0 {
+		t.Errorf("archive retention defaults must be unlimited: %+v", cfg)
+	}
+	if cfg.ConversationRetentionDays != 180 || cfg.ConversationMaxEventsPerSession != 5000 {
+		t.Errorf("conversation retention defaults are wrong: %+v", cfg)
+	}
+	if cfg.ClientChannelBuffer != 256 {
+		t.Errorf("ClientChannelBuffer: want 256, got %d", cfg.ClientChannelBuffer)
+	}
+	if cfg.DefaultShell == "" {
+		t.Error("DefaultShell should not be empty")
+	}
+}
+
+// [REQ:P1-001a] Session Policy Controls - env override
+func TestLoad_EnvOverride(t *testing.T) {
+	t.Setenv("WC_TERMINAL_SCROLLBACK_LINES", "5000")
+	t.Setenv("WC_DEFAULT_COLS", "120")
+	t.Setenv("WC_MAX_SESSIONS", "10")
+	t.Setenv("WC_ARCHIVE_MESSAGELESS_AGE_DAYS", "7")
+	t.Setenv("WC_ARCHIVE_AGENT_HOME_AGE_DAYS", "30")
+	t.Setenv("WC_ARCHIVE_MAX_BYTES", "1048576")
+	t.Setenv("WC_CONVERSATION_RETENTION_DAYS", "30")
+	t.Setenv("WC_CONVERSATION_MAX_EVENTS_PER_SESSION", "250")
+
+	cfg := Load()
+
+	if cfg.TerminalScrollbackLines != 5000 {
+		t.Errorf("TerminalScrollbackLines: want 5000, got %d", cfg.TerminalScrollbackLines)
+	}
+	if cfg.DefaultCols != 120 {
+		t.Errorf("DefaultCols: want 120, got %d", cfg.DefaultCols)
+	}
+	if cfg.MaxSessions != 10 {
+		t.Errorf("MaxSessions: want 10, got %d", cfg.MaxSessions)
+	}
+	if cfg.ArchiveMessageLessAgeDays != 7 || cfg.ArchiveAgentHomeAgeDays != 30 || cfg.ArchiveMaxBytes != 1_048_576 {
+		t.Errorf("archive retention env overrides not loaded: %+v", cfg)
+	}
+	if cfg.ConversationRetentionDays != 30 || cfg.ConversationMaxEventsPerSession != 250 {
+		t.Errorf("conversation retention env overrides not loaded: %+v", cfg)
+	}
+}
+
+// [REQ:P1-001a] Session Policy Controls - value clamping
+func TestLoad_Clamping(t *testing.T) {
+	t.Setenv("WC_PTY_READ_BUFFER", "100")
+	t.Setenv("WC_DEFAULT_ROWS", "999")
+	t.Setenv("WC_MAX_SESSIONS", "-5")
+
+	cfg := Load()
+
+	if cfg.PTYReadBuffer != 512 {
+		t.Errorf("PTYReadBuffer should clamp to 512, got %d", cfg.PTYReadBuffer)
+	}
+	if cfg.DefaultRows != 200 {
+		t.Errorf("DefaultRows should clamp to 200, got %d", cfg.DefaultRows)
+	}
+	if cfg.MaxSessions != 0 {
+		t.Errorf("MaxSessions should clamp to 0, got %d", cfg.MaxSessions)
+	}
+}
+
+// [REQ:P1-001a] Session Policy Controls - invalid values use defaults
+func TestLoad_InvalidFallback(t *testing.T) {
+	t.Setenv("WC_TERMINAL_SCROLLBACK_LINES", "not_a_number")
+
+	cfg := Load()
+
+	if cfg.TerminalScrollbackLines != DefaultTerminalScrollbackLines {
+		t.Errorf("TerminalScrollbackLines should fall back to default, got %d", cfg.TerminalScrollbackLines)
+	}
+}
+
+func TestLoad_ShellOverride(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "/bin/bash")
+
+	cfg := Load()
+
+	if cfg.DefaultShell != "/bin/bash" {
+		t.Errorf("DefaultShell: want /bin/bash, got %s", cfg.DefaultShell)
+	}
+}
+
+func TestEnvInt_Unset(t *testing.T) {
+	os.Unsetenv("WC_TEST_UNSET")
+	val := envInt("WC_TEST_UNSET", 42, 0, 100)
+	if val != 42 {
+		t.Errorf("unset env should return default 42, got %d", val)
+	}
+}
+
+// [REQ:P0-002a] resolveShell falls back to $SHELL when WC_DEFAULT_SHELL is unset
+func TestResolveShell_FallbackToSHELL(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "")
+	t.Setenv("SHELL", "/bin/bash")
+
+	shell, err := resolveShell()
+	if err != nil {
+		t.Fatalf("resolveShell error = %v", err)
+	}
+	if shell != "/bin/bash" {
+		t.Errorf("expected /bin/bash, got %s", shell)
+	}
+}
+
+func TestResolveShell_FailsLoudlyWhenUnresolvable(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "/definitely/missing/web-console-shell")
+	if _, err := resolveShell(); err == nil || !errors.Is(err, ErrShellUnavailable) {
+		t.Fatalf("resolveShell error = %v, want ErrShellUnavailable", err)
+	}
+}
+
+func TestLoadCheckedReturnsNamedStartupErrorForUnresolvableShell(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "/definitely/missing/web-console-shell")
+	_, err := LoadChecked()
+	if err == nil || !errors.Is(err, ErrShellUnavailable) {
+		t.Fatalf("LoadChecked error = %v, want ErrShellUnavailable", err)
+	}
+	if !strings.Contains(err.Error(), "web-console shell is unavailable") {
+		t.Fatalf("LoadChecked error = %q, want named startup error", err)
+	}
+}
+
+func TestResolveShell_WindowsIgnoresUnresolvablePOSIXShell(t *testing.T) {
+	t.Setenv("WC_DEFAULT_SHELL", "")
+	t.Setenv("SHELL", "/usr/bin/bash")
+	previous := shellLookPath
+	t.Cleanup(func() { shellLookPath = previous })
+	var requested string
+	shellLookPath = func(name string) (string, error) {
+		requested = name
+		return `C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`, nil
+	}
+
+	shell, err := resolveShellForOS("windows")
+	if err != nil {
+		t.Fatalf("resolveShellForOS error = %v", err)
+	}
+	if requested != "powershell.exe" {
+		t.Fatalf("Windows shell lookup = %q, want powershell.exe", requested)
+	}
+	if shell == "" {
+		t.Fatal("Windows shell resolution returned an empty path")
+	}
+}
+
+func TestResolveWorkingDir_PrefersProjectRoot(t *testing.T) {
+	projectRoot := t.TempDir()
+	scenarioDir := t.TempDir()
+	explicit := t.TempDir()
+
+	t.Setenv("WC_DEFAULT_CWD", explicit)
+	t.Setenv("PROJECT_ROOT", projectRoot)
+	t.Setenv("SCENARIO_DIR", scenarioDir)
+
+	got := resolveWorkingDir()
+	if got != explicit {
+		t.Fatalf("expected WC_DEFAULT_CWD %q, got %q", explicit, got)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	got = resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected PROJECT_ROOT %q, got %q", projectRoot, got)
+	}
+
+	t.Setenv("PROJECT_ROOT", "")
+	got = resolveWorkingDir()
+	if got != scenarioDir {
+		t.Fatalf("expected SCENARIO_DIR %q, got %q", scenarioDir, got)
+	}
+}
+
+func TestInferScenarioDirFromWD_ApiSubdir(t *testing.T) {
+	base := t.TempDir()
+	apiDir := filepath.Join(base, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+
+	got := inferScenarioDirFromWD(apiDir)
+	if got != base {
+		t.Fatalf("expected %q, got %q", base, got)
+	}
+}
+
+func TestResolveWorkingDir_FallsBackToCurrentWD(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	scenarioDir := t.TempDir()
+	apiDir := filepath.Join(scenarioDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("chdir api dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", "")
+
+	got := resolveWorkingDir()
+	if got != scenarioDir {
+		t.Fatalf("expected scenario dir %q, got %q", scenarioDir, got)
+	}
+}
+
+func TestResolveWorkingDir_InfersProjectRootFromScenarioDir(t *testing.T) {
+	projectRoot := t.TempDir()
+	scenarioDir := filepath.Join(projectRoot, "scenarios", "web-console")
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir scenario dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", scenarioDir)
+
+	got := resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected inferred project root %q, got %q", projectRoot, got)
+	}
+}
+
+func TestResolveWorkingDir_InfersProjectRootFromWD(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	projectRoot := t.TempDir()
+	apiDir := filepath.Join(projectRoot, "scenarios", "web-console", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api dir: %v", err)
+	}
+	if err := os.Chdir(apiDir); err != nil {
+		t.Fatalf("chdir api dir: %v", err)
+	}
+
+	t.Setenv("WC_DEFAULT_CWD", "")
+	t.Setenv("PROJECT_ROOT", "")
+	t.Setenv("SCENARIO_DIR", "")
+
+	got := resolveWorkingDir()
+	if got != projectRoot {
+		t.Fatalf("expected inferred project root %q, got %q", projectRoot, got)
+	}
+}

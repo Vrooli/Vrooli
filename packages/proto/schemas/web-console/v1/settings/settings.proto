@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.settings;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/settings;settings_v1";
+
+// =============================================================================
+// SETTINGS DOMAIN — user-preferences applied to new sessions
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain settings
+// @stability stable
+//
+// Wire contract for the SettingsService Connect-RPC service. Today this
+// covers session defaults only (backend selection + expiration policy);
+// future preference categories live alongside as additional RPCs on the
+// same service, or as sibling proto files in this package if the surface
+// grows large.
+//
+// Consumed by:
+//   - API: handlers/settings/connect_handler.go implements
+//          SettingsServiceHandler.
+//   - UI:  ui/src/lib/api.ts (Connect-Web client).
+//   - CLI: cli/domains/settings/register.go (Connect-Go client).
+// =============================================================================
+
+service SettingsService {
+  rpc GetSessionDefaults(GetSessionDefaultsRequest) returns (GetSessionDefaultsResponse);
+  rpc UpdateSessionDefaults(UpdateSessionDefaultsRequest) returns (UpdateSessionDefaultsResponse);
+}
+
+// ExpirationPolicy mirrors api.ExpirationPolicy in the web-console API.
+// Mode is one of "never", "preset", "custom"; Duration is a Go
+// time.Duration-parseable string (e.g. "1h", "8h", "30m") or empty when
+// mode is "never". The validation rules are enforced server-side.
+message ExpirationPolicy {
+  string mode = 1;
+  string duration = 2;
+}
+
+// SessionDefaults bundles every preference applied to a newly created
+// session when the client doesn't override it.
+message SessionDefaults {
+  // BackendID of the default session runtime (e.g. "pty").
+  string default_backend = 1;
+
+  // Expiration policy applied to new sessions when none is supplied at
+  // creation time.
+  ExpirationPolicy default_policy = 2;
+}
+
+message GetSessionDefaultsRequest {}
+
+message GetSessionDefaultsResponse {
+  SessionDefaults defaults = 1;
+}
+
+// UpdateSessionDefaultsRequest is a sparse update: only fields the client
+// explicitly sets are applied. Use the `optional` keyword on default_backend
+// so the wire distinguishes "not set" from "empty string"; default_policy
+// being unset is conveyed by leaving the message nil.
+message UpdateSessionDefaultsRequest {
+  optional string default_backend = 1;
+  ExpirationPolicy default_policy = 2;
+}
+
+message UpdateSessionDefaultsResponse {
+  SessionDefaults defaults = 1;
+}

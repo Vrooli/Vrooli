@@ -3,6 +3,7 @@
     "target": "ES2019",
     "module": "ES2020",
     "moduleResolution": "Node",
+    "jsx": "react-jsx",
     "declaration": true,
     "outDir": "dist",
     "rootDir": "src",
@@ -12,6 +13,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["dist", "src/__tests__"]
 }

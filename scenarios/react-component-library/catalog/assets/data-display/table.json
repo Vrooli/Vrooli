@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.table",
+    "name": "Table",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The semantic table foundation with responsive overflow, sticky regions, density modes, alignment, loading rows, and correctly associated headers.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Spacing, radius, and semantic colour resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.scroll-area",
+        "reason": "Horizontal overflow scrolls within the table rather than the document."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "density-adaptive-layout",
+    "text-scale-resilience"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty"
+  ]
+}

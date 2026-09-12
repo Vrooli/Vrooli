@@ -1,0 +1,99 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "offer-desk.setpoint-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read Offer Desk's ledger-account coverage, financial posture, meter coverage, obligation confidence and outcome-linked learning; retain unmeasured rows as declared gaps.",
+  "inputs": {},
+  "assumptions": [
+    "Targets are operator-authored elsewhere; this board never derives a target from a current reading.",
+    "money-ledger owns the actuals the board reports as available or unreachable."
+  ],
+  "invariants": [
+    "No writes.",
+    "Every row carries reading, target, in_band, unavailable and reason.",
+    "A permanent-reason row never lowers the board's status.",
+    "An unread sensor is null with a reason; it is never reported as zero."
+  ],
+  "bindings": [
+    {
+      "id": "offer-desk/offers/board-show",
+      "effect": "read"
+    },
+    {
+      "id": "offer-desk/offers/meters",
+      "effect": "read",
+      "optional": true,
+      "note": "Optional: an unread sensor becomes a row with a reason; the board still reports."
+    },
+    {
+      "id": "offer-desk/offers/space",
+      "effect": "read",
+      "optional": true,
+      "note": "Optional: an unread sensor becomes a row with a reason; the board still reports."
+    },
+    {
+      "id": "vrooli-memory/learning/measure",
+      "effect": "read",
+      "optional": true,
+      "note": "Optional: an unread sensor becomes a row with a reason; the board still reports."
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "rows": "ledger-account-coverage, default-alive-posture, meter-coverage, obligation-confidence, learning, external-friction, catalog-conformance, promotion-latency; each has reading, target, in_band, unavailable and reason."
+    },
+    "errors": {
+      "classes": [
+        "binding_error",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "The sensor binding ids that answered."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "note": "Partial only when a sensor read is transiently unreachable; the three permanent-reason rows do not lower status.",
+      "requires": [
+        "offer-desk",
+        "vrooli-memory"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "offer-desk-improve"
+}

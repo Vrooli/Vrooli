@@ -1,0 +1,100 @@
+{
+  "description": "Return a `graph_hash` field on every `Extract` response so consumers can detect \"graph unchanged since last call\" without redoing their own diff. No internal cache in this scenario.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Every Extract response must include a graph_hash field containing a stable content-addressable hash (SHA-256 or equivalent) of the serialized graph content. The hash must be computed after normalization and serialization so that byte-identical graphs produce byte-identical hashes. Consumers can use graph_hash to detect unchanged graphs without performing their own diff. The scenario does not implement an internal cache; it recomputes the hash on each response.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Content-Hash Graph Fingerprint on Extract Response",
+      "validation": [
+        {
+          "notes": "Test that two Extract calls on the same unchanged module return identical graph_hash values",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that an Extract call after adding a new file to the module returns a different graph_hash",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that graph_hash is computed from the serialized graph content (not from file mtimes or other metadata)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test graph_hash field is present and non-empty on all Extract responses including partial graph responses",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test hash algorithm is SHA-256 and output is hex-encoded string",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: extract same fixture twice, assert graph_hash values are identical",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: modify a fixture file, extract again, assert graph_hash changes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "graph_hash field is present in the Connect-RPC response and accessible via CLI output and UI display",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Hash computation adds \u003c50ms overhead to any extraction (verified by benchmark)",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Consumers can implement change-detection polling using graph_hash without additional infrastructure",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "graph_hash is documented in the proto field comment explaining its purpose and computation basis",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Content-Hash Cache Hint"
+}

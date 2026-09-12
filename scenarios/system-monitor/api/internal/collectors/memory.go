@@ -2,65 +2,73 @@ package collectors
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
 // MemoryCollector collects memory metrics
 type MemoryCollector struct {
 	BaseCollector
+	snapshots SnapshotProvider
 }
 
 // NewMemoryCollector creates a new memory collector
 func NewMemoryCollector() *MemoryCollector {
 	return &MemoryCollector{
 		BaseCollector: NewBaseCollector("memory", 10*time.Second),
+		snapshots:     defaultSnapshotProvider(),
+	}
+}
+
+// SetSnapshotProvider injects the shared host-inventory provider.
+func (c *MemoryCollector) SetSnapshotProvider(p SnapshotProvider) {
+	if p != nil {
+		c.snapshots = p
 	}
 }
 
 // Collect gathers memory metrics
 func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
-	memUsage := c.getMemoryUsage()
-	memDetails := c.getMemoryDetails()
-	swapInfo := c.getSwapUsage()
+	if collectorOS != runtime.GOOS {
+		return unsupportedMetricData(c.GetName(), "memory"), nil
+	}
+	snapshot, _ := c.snapshots.Snapshot(ctx)
+	reading := collectPlatformMemory(ctx, c, snapshot)
 	topProcesses, _ := GetTopProcessesByMemory(5)
+	values := map[string]interface{}{"top_processes": topProcesses}
+	if reading.status == "measured" {
+		values["usage_percent"] = reading.usage
+		for key, value := range reading.details {
+			values[key] = value
+		}
+		values["swap"] = reading.swap
+	}
+	if reading.status != "" {
+		values["status"] = reading.status
+	}
+	if reading.reason != "" {
+		values["reason"] = reading.reason
+	}
 
 	return &MetricData{
 		CollectorName: c.GetName(),
 		Timestamp:     time.Now(),
 		Type:          "memory",
-		Values: map[string]interface{}{
-			"usage_percent": memUsage,
-			"total":         memDetails["total"],
-			"used":          memDetails["used"],
-			"available":     memDetails["available"],
-			"cached":        memDetails["cached"],
-			"buffers":       memDetails["buffers"],
-			"swap":          swapInfo,
-			"top_processes": topProcesses,
+		Values:        values,
+		Tags: map[string]string{
+			"os":     collectorOS,
+			"source": reading.provenance,
 		},
 	}, nil
 }
 
 // getMemoryUsage returns memory usage percentage
-func (c *MemoryCollector) getMemoryUsage() float64 {
-	if runtime.GOOS != "linux" {
-		return float64(45 + (time.Now().Second() % 20))
-	}
-
-	// Use (total - available) / total for accurate memory usage
-	// This accounts for memory that can't be reclaimed easily
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return 30.0 // Default fallback
-	}
-
-	total := meminfo["MemTotal"]
-	available := meminfo["MemAvailable"]
+func (c *MemoryCollector) getMemoryUsage(snapshot hostinventory.Snapshot) float64 {
+	total := snapshot.Memory.TotalBytes
+	available := snapshot.Memory.AvailableBytes
 	if total <= 0 {
 		return 0.0
 	}
@@ -72,7 +80,7 @@ func (c *MemoryCollector) getMemoryUsage() float64 {
 }
 
 // getMemoryDetails returns detailed memory information
-func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
+func (c *MemoryCollector) getMemoryDetails(snapshot hostinventory.Snapshot) map[string]int64 {
 	details := map[string]int64{
 		"total":     0,
 		"used":      0,
@@ -81,19 +89,10 @@ func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
 		"buffers":   0,
 	}
 
-	if runtime.GOOS != "linux" {
-		return details
-	}
-
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return details
-	}
-
-	details["total"] = meminfo["MemTotal"]
-	details["available"] = meminfo["MemAvailable"]
-	details["buffers"] = meminfo["Buffers"]
-	details["cached"] = meminfo["Cached"]
+	details["total"] = bytesToInt64(snapshot.Memory.TotalBytes)
+	details["available"] = bytesToInt64(snapshot.Memory.AvailableBytes)
+	details["buffers"] = bytesToInt64(snapshot.Memory.BuffersBytes)
+	details["cached"] = bytesToInt64(snapshot.Memory.CachedBytes)
 	if details["total"] > 0 && details["available"] > 0 {
 		details["used"] = details["total"] - details["available"]
 	}
@@ -102,24 +101,15 @@ func (c *MemoryCollector) getMemoryDetails() map[string]int64 {
 }
 
 // getSwapUsage returns swap usage information
-func (c *MemoryCollector) getSwapUsage() map[string]interface{} {
+func (c *MemoryCollector) getSwapUsage(snapshot hostinventory.Snapshot) map[string]interface{} {
 	swapInfo := map[string]interface{}{
 		"used":    int64(0),
 		"total":   int64(0),
 		"percent": float64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		return swapInfo
-	}
-
-	meminfo, err := readMemInfo()
-	if err != nil {
-		return swapInfo
-	}
-
-	total := meminfo["SwapTotal"]
-	free := meminfo["SwapFree"]
+	total := bytesToInt64(snapshot.Swap.TotalBytes)
+	free := bytesToInt64(snapshot.Swap.FreeBytes)
 	used := total - free
 	if used < 0 {
 		used = 0
@@ -136,93 +126,63 @@ func (c *MemoryCollector) getSwapUsage() map[string]interface{} {
 
 // GetTopProcessesByMemory returns top processes by memory usage
 func GetTopProcessesByMemory(limit int) ([]map[string]interface{}, error) {
-	if runtime.GOOS != "linux" {
-		return []map[string]interface{}{}, nil
-	}
-
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c",
-		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,rss --sort=-%%mem --no-headers | head -%d", limit))
+	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
+		if a.RSSKB != b.RSSKB {
+			return a.RSSKB > b.RSSKB
+		}
+		return a.CPUPct > b.CPUPct
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var processes []map[string]interface{}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-
-		pid, _ := strconv.Atoi(fields[0])
-		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
-		memPercent, _ := strconv.ParseFloat(fields[3], 64)
-		rssKB, _ := strconv.ParseFloat(fields[4], 64)
-
+	totalKB := totalMemoryKB()
+	processes := make([]map[string]interface{}, 0, len(samples))
+	for _, sample := range samples {
 		processes = append(processes, map[string]interface{}{
-			"pid":         pid,
-			"name":        fields[1],
-			"cpu_percent": cpuPercent,
-			"mem_percent": memPercent,
-			"memory_mb":   rssKB / 1024,
+			"pid":                     sample.PID,
+			"name":                    sample.Comm,
+			"cpu_percent":             sample.CPUPct,
+			"mem_percent":             memoryPercent(sample.RSSKB, totalKB),
+			"memory_mb":               float64(sample.RSSKB) / 1024,
+			"swap_kb":                 sample.SwapKB,
+			"major_faults_per_second": sample.MajorFaultsPerSecond,
+			"metrics_status":          sample.MetricsStatus,
+			"metrics_reason":          sample.MetricsReason,
 		})
 	}
 
 	return processes, nil
 }
 
-func readMemInfo() (map[string]int64, error) {
-	data, err := os.ReadFile("/proc/meminfo")
+// GetTopProcessesByPaging ranks processes by observed paging cost rather than
+// by resident size, exposing swapped-out and faulting processes hidden by RSS.
+func GetTopProcessesByPaging(limit int) ([]map[string]interface{}, error) {
+	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
+		if a.MajorFaultsPerSecond != b.MajorFaultsPerSecond {
+			return a.MajorFaultsPerSecond > b.MajorFaultsPerSecond
+		}
+		return a.SwapKB > b.SwapKB
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	meminfo := map[string]int64{
-		"MemTotal":     0,
-		"MemAvailable": 0,
-		"Buffers":      0,
-		"Cached":       0,
-		"SwapTotal":    0,
-		"SwapFree":     0,
+	result := make([]map[string]interface{}, 0, len(samples))
+	for _, sample := range samples {
+		result = append(result, map[string]interface{}{
+			"pid": sample.PID, "name": sample.Comm,
+			"swap_kb":                 sample.SwapKB,
+			"major_faults_per_second": sample.MajorFaultsPerSecond,
+			"metrics_status":          sample.MetricsStatus,
+			"metrics_reason":          sample.MetricsReason,
+		})
 	}
-
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		key := strings.TrimSuffix(fields[0], ":")
-		value, err := strconv.ParseInt(fields[1], 10, 64)
-		if err != nil {
-			continue
-		}
-		if _, ok := meminfo[key]; ok {
-			meminfo[key] = value * 1024
-		}
-	}
-
-	return meminfo, nil
+	return result, nil
 }
 
-// GetMemoryGrowthPatterns analyzes memory growth patterns
-func GetMemoryGrowthPatterns() []map[string]interface{} {
-	// This would require historical data tracking
-	// For now, return mock data
-	return []map[string]interface{}{
-		{
-			"process":            "scenario-api-1",
-			"growth_mb_per_hour": 15.0,
-			"risk_level":         "medium",
-		},
-		{
-			"process":            "postgres",
-			"growth_mb_per_hour": 2.0,
-			"risk_level":         "low",
-		},
+func bytesToInt64(value uint64) int64 {
+	if value > uint64(^uint64(0)>>1) {
+		return int64(^uint64(0) >> 1)
 	}
+	return int64(value)
 }

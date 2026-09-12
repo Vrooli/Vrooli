@@ -1,0 +1,1 @@
+{"gate":"released-version-immutable","assetId":"calibration-released-immutable","kind":"component","runner":"static","requiredFailureCode":"catalog.released_version_immutable","catalogAsset":"asset.json","source":"broken.tsx","mutation":"released-hash","description":"Mutates a copied released-version hash in the isolated calibration database."}

@@ -182,4 +182,15 @@ describe('DesktopTemplateGenerator update configuration', () => {
             expect(effectiveProvider).toBe('github');
         });
     });
+
+    it('wires the Linux artifact signer only when Linux signing is enabled', () => {
+        const unsigned = new DesktopTemplateGenerator(createMinimalConfig());
+        expect((unsigned as any).buildTemplateVariables({}).LINUX_ARTIFACT_SIGNER_HOOK).toBe('null');
+
+        const signed = new DesktopTemplateGenerator(createMinimalConfig({
+            code_signing: { enabled: true, linux: { gpg_key_id: 'ABC123' } },
+        }));
+        expect((signed as any).buildTemplateVariables({}).LINUX_ARTIFACT_SIGNER_HOOK)
+            .toBe(JSON.stringify('scripts/sign-linux-artifacts.js'));
+    });
 });

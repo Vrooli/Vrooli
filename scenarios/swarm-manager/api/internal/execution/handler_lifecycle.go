@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/mux"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +31,15 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Mode:        mode,
 		StartedBy:   pbReq.GetStartedBy(),
 		Operation:   pbReq.GetOperation(),
+		Strategy:    pbReq.GetStrategy(),
+		MaxSlices:   int(pbReq.GetMaxSlices()),
+	}
+	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
+		req.ExecutionPreferences = &ExecutionPreferences{
+			PreferredRunner: preferences.GetPreferredRunner(),
+			Model:           preferences.GetModel(),
+			Effort:          preferences.GetEffort(),
+		}
 	}
 	record, err := h.service.QueueBacklog(r.Context(), req)
 	if err != nil {
@@ -38,6 +48,27 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		apierr.MapError(w, "[execution] create", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Strategies returns execution choices declared by the transition registry.
+// It has no side effects and is safe to read when opening a run sheet.
+func (h *Handler) Strategies(w http.ResponseWriter, r *http.Request) {
+	backlogKind := r.URL.Query().Get("backlog_kind")
+	if backlogKind == "" {
+		backlogKind = r.URL.Query().Get("kind")
+	}
+	backlogName := r.URL.Query().Get("backlog_name")
+	if backlogName == "" {
+		backlogName = r.URL.Query().Get("name")
+	}
+	items, err := h.service.ExecutionStrategiesForItem(backlogKind, backlogName)
+	if err != nil {
+		apierr.MapError(w, "[execution] strategies", err)
+		return
+	}
+	if err := httputil.JSON(w, map[string]any{"items": items}); err != nil {
+		apierr.MapError(w, "[execution] strategies", apierr.Internal("encode execution strategies"))
 	}
 }
 
@@ -60,6 +91,37 @@ func (h *Handler) ResetCircuitBreaker(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(`{"ok":true}`))
+}
+
+type continuationControlRequest struct {
+	Item   string `json:"item"`
+	Reason string `json:"reason,omitempty"`
+}
+
+func (h *Handler) HaltContinuation(w http.ResponseWriter, r *http.Request) {
+	var body continuationControlRequest
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[execution] continuation halt", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if err := h.service.HaltContinuation(body.Item, body.Reason); err != nil {
+		apierr.MapError(w, "[execution] continuation halt", err)
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"item": body.Item, "halted": true})
+}
+
+func (h *Handler) ResumeContinuation(w http.ResponseWriter, r *http.Request) {
+	var body continuationControlRequest
+	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		apierr.MapError(w, "[execution] continuation resume", apierr.BadRequest("invalid request body"))
+		return
+	}
+	if err := h.service.ResumeContinuation(body.Item); err != nil {
+		apierr.MapError(w, "[execution] continuation resume", err)
+		return
+	}
+	_ = httputil.JSON(w, map[string]any{"item": body.Item, "halted": false})
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
@@ -94,18 +156,120 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) ApplyWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-apply", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	record, err := h.service.Get(r.Context(), executionID)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
+	correlation, err := h.service.transitionCorrelation(record)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
+	var result PhasedPlanApplyResult
+	switch {
+	case h.service.isTransitionWorkflow(correlation.TransitionKey, "work.follow_up"), h.service.isTransitionWorkflow(correlation.TransitionKey, "work.correct"):
+		result, err = h.service.ApplyWorkWorkflow(r.Context(), executionID)
+	case h.service.isTransitionWorkflow(correlation.TransitionKey, "scenario.spec_sync"):
+		result, err = h.service.ApplySpecSyncWorkflow(r.Context(), executionID)
+	default:
+		result, err = h.service.ApplyPhasedPlanWorkflow(r.Context(), executionID)
+	}
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) ApprovePhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-approve", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	var body struct {
+		Actor string `json:"actor"`
+	}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] workflow-approve", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	record, err := h.service.ApprovePhasedPlanWorkflow(r.Context(), executionID, body.Actor)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-approve", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+		apierr.MapError(w, "[execution] workflow-approve", apierr.Internal("failed to encode response"))
+	}
+}
+
+// RebasePhasedPlanWorkflow records an operator-authorized migration from the
+// legacy backlog subject-version format. It is safe only when the live plan
+// frontier is unchanged; it never relaxes the workflow or frontier checks.
+func (h *Handler) RebasePhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-rebase", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	var body struct {
+		Actor  string `json:"actor"`
+		Reason string `json:"reason"`
+	}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] workflow-rebase", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	record, err := h.service.RebasePhasedPlanWorkflow(r.Context(), executionID, body.Actor, body.Reason)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-rebase", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+		apierr.MapError(w, "[execution] workflow-rebase", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Retry creates a new execution attempt parented to a terminal execution.
+// The body is optional; if present it carries an informational note.
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
 		apierr.MapError(w, "[execution] retry", apierr.BadRequest("execution_id is required"))
 		return
 	}
-	record, err := h.service.Retry(r.Context(), executionID)
+	var note string
+	if r.ContentLength > 0 {
+		var body struct {
+			Note string `json:"note,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] retry", apierr.BadRequest("invalid request body"))
+			return
+		}
+		note = body.Note
+	}
+	record, err := h.service.Retry(r.Context(), RetryRequest{ExecutionID: executionID, Note: note})
 	if err != nil {
 		apierr.MapError(w, "[execution] retry", err)
 		return
 	}
-	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		apierr.MapError(w, "[execution] retry", apierr.Internal("failed to encode response"))
 	}
 }

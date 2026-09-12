@@ -68,9 +68,10 @@ export function buildAntiDetectionArgs(settings: AntiDetectionSettings): string[
  */
 export function generateAntiDetectionScript(
   antiDetection: AntiDetectionSettings,
-  fingerprint: FingerprintSettings
+  fingerprint: FingerprintSettings,
+  options: { deterministicAudio?: boolean } = {},
 ): string {
-  return composePatches(antiDetection, fingerprint);
+  return composePatches(antiDetection, fingerprint, options);
 }
 
 /**
@@ -79,9 +80,10 @@ export function generateAntiDetectionScript(
 export async function applyAntiDetection(
   context: BrowserContext,
   antiDetection: AntiDetectionSettings,
-  fingerprint: FingerprintSettings
+  fingerprint: FingerprintSettings,
+  options: { deterministicAudio?: boolean } = {},
 ): Promise<void> {
-  const script = generateAntiDetectionScript(antiDetection, fingerprint);
+  const script = generateAntiDetectionScript(antiDetection, fingerprint, options);
 
   if (script) {
     await context.addInitScript({ content: script });

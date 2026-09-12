@@ -187,7 +187,7 @@ func copyFile(src, dst string) error {
 	}
 
 	// Ensure destination directory exists
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
 		return err
 	}
 

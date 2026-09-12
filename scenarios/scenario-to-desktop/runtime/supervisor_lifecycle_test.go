@@ -2,13 +2,14 @@ package bundleruntime
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/telemetry"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/telemetry"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // =============================================================================
@@ -35,6 +36,79 @@ func TestShutdown_NoopIfNotStarted(t *testing.T) {
 	err = s.Shutdown(ctx)
 	if err != nil {
 		t.Errorf("Shutdown() error = %v, want nil for unstarted supervisor", err)
+	}
+}
+
+func TestAuthenticationStartupFailsClosedWithoutSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC:           manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: testutil.NewMockFileSystem(), SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator()})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err == nil || !strings.Contains(err.Error(), "lease is unavailable") {
+		t.Fatalf("validateAuthenticationStartup = %v, want missing lease failure", err)
+	}
+}
+
+func TestAuthenticationStartupFailsClosedWithExpiredSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop",
+		App: manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC: manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	mockFS := testutil.NewMockFileSystem()
+	leasePath := filepath.Join(tmp, "credentials", "entitlement.json")
+	_ = mockFS.WriteFile(leasePath, []byte(`{"expires_at":"2020-01-01T00:00:00Z"}`), 0o600)
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: mockFS, SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator(), Clock: testutil.NewMockClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err == nil || !strings.Contains(err.Error(), "lease has expired") {
+		t.Fatalf("validateAuthenticationStartup = %v, want expired lease failure", err)
+	}
+}
+
+func TestAuthenticationStartupAcceptsCurrentSharedLease(t *testing.T) {
+	tmp := t.TempDir()
+	m := &manifest.Manifest{
+		SchemaVersion: "desktop.v0.1", Target: "desktop",
+		App: manifest.App{Name: "shared-app", Version: "1.0.0"},
+		IPC: manifest.IPC{Host: "127.0.0.1", Port: 48000, AuthTokenRel: "runtime/token"},
+		Authentication: &manifest.AuthenticationProfile{
+			Version: 1, Mode: "shared_provider", Provider: "landing-page-business-suite",
+			ProviderEndpoint: "https://provider.example", Resource: "shared-app", HumanSignIn: "required",
+			LeasePath: "credentials/entitlement.json",
+		},
+		Services: []manifest.Service{{ID: "api", Binaries: map[string]manifest.Binary{"linux-x64": {Path: "bin/api"}}, Health: manifest.HealthCheck{Type: "tcp"}, Readiness: manifest.ReadinessCheck{Type: "tcp"}}},
+	}
+	mockFS := testutil.NewMockFileSystem()
+	leasePath := filepath.Join(tmp, "credentials", "entitlement.json")
+	_ = mockFS.WriteFile(leasePath, []byte(`{"expires_at":"2027-01-01T00:00:00Z"}`), 0o600)
+	s, err := NewSupervisor(Options{Manifest: m, BundlePath: tmp, AppDataDir: tmp, FileSystem: mockFS, SecretStore: testutil.NewMockSecretStore(nil), PortAllocator: testutil.NewMockPortAllocator(), Clock: testutil.NewMockClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))})
+	if err != nil {
+		t.Fatalf("NewSupervisor: %v", err)
+	}
+	if err := s.validateAuthenticationStartup(); err != nil {
+		t.Fatalf("validateAuthenticationStartup = %v, want current lease accepted", err)
 	}
 }
 

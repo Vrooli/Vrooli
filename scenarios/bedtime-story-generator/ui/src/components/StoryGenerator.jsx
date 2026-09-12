@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 
-const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT || "16902";
+const DEFAULT_API_PORT = globalThis.__VROOLI_CONFIG__?.apiPort || "16902";
 const API_URL =
   process.env.NODE_ENV === "production"
     ? "/api"

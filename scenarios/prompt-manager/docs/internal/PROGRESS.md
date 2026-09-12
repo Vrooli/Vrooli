@@ -12,7 +12,7 @@ Agent-maintained document tracking development milestones.
 ### Phase 1: Core Implementation
 - [x] API server with skill CRUD operations
 - [x] File-based skill storage with metadata.json
-- [x] PostgreSQL integration for tags, metrics, test results
+- [x] SQLite integration for tags, metrics, test results
 - [x] React UI with folder-based navigation
 - [x] Basic CLI with skill operations
 
@@ -97,6 +97,33 @@ Agent-maintained document tracking development milestones.
 - [x] Comprehensive test coverage for queue behavior, scheduler integration, prompt builder, and handlers
 - [x] Documentation: TEAM-EXECUTION.md concept doc, heartbeat-api.md and heartbeat-cli.md reference updates
 
+### Phase 9: Proto/Connect Re-platform and Runtime Adoption (2026-08-19)
+- [x] Normalized the domain layout and removed empty scaffolding
+- [x] Re-platformed actions, skills, teams, tags, topics, agents, metrics, testing, AI search, graph, heartbeat, memberflow, and experiments onto generated Connect services
+- [x] Retired domain REST mirrors, leaving six non-domain registrations
+- [x] Declared 120 Connect commands, 10 intentionally local commands, 75 typed omissions, and 18 architecture exceptions
+- [x] Declared and probed nine measures over real stored data
+- [x] Program Runtime doctor resolves 117 of 117 Prompt Manager bindings as callable
+- [x] Program Runtime `guide` composes `prompt-manager/discover/discover` in a live kernel
+
+**Validation limitation:** CLI Health earns PASSED/L3 and its proto/runtime
+surface is clean, but the current provider classifies 138 architecture-primitive
+findings as required maturity debt. Measures Health passes behavioral and domain
+coverage while reporting four canonical-parameter hardening findings.
+
+### Phase 10: Reliability Closeout Evidence (2026-08-19)
+- [x] Durable workflow execution `668b8aac-55b5-476a-b6c3-1222ac3882f3` passed 6/6 at L5 with isolated fixtures and no primary-data leaks
+- [x] Business Health passed at L3 with zero findings
+- [x] Program Runtime enumerated 117 Prompt Manager bindings and reported zero uncallable bindings globally
+- [x] Live `guide` discovery and all Program Runtime examples and verbs succeeded against the Connect binding
+- [x] Immutable collection diff `phase19-final-comparison` classified Prompt Manager's remaining Test Genie failures as pre-existing, with no regression
+
+**Closeout limitation:** The final Prompt Manager suite
+`20260819-110355-3e69cd28` passed 12/21; the collection diff proves the remaining
+phases pre-existing rather than clean. Nine scenarios added to later plan
+validation scopes were absent from the immutable pre-change collection and are
+therefore non-comparable.
+
 ---
 
 ## Current Focus
@@ -104,6 +131,7 @@ Agent-maintained document tracking development milestones.
 - Documentation completeness and accuracy
 - Adding DOC: comments to critical code paths
 - Adding [CODE: ...] references in documentation
+- Added core steer skills `quality-health` and `tidiness` so standards and tidiness Test Genie findings can route to dedicated remediation doctrine with `programmaticHome` metadata.
 
 ---
 

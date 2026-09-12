@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "ggwave",
+  "display_name": "GGWave",
+  "category": "audio",
+  "summary": "Audio modem toolkit for short-range data transmission over sound in air-gapped or network-limited environments.",
+  "why_it_matters": "GGWave captures a distinct audio-transfer capability, but there is no current validated scenario that makes it worth maintaining as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs audio-based local data transfer or signaling.",
+    "Operators want air-gapped pairing or provisioning flows.",
+    "The workflow benefits from short text or token transfer over sound."
+  ],
+  "example_scenarios": [
+    "Device pairing flows",
+    "Air-gapped provisioning helpers",
+    "Experimental audio signaling tools"
+  ],
+  "integration_kind": "library",
+  "platform_support": {
+    "notes": "The underlying library is portable, but practical support depends on host audio device access and latency characteristics.",
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "prerequisites": [
+    "Audio input and output device strategy",
+    "Defined encode/decode workflow and message constraints",
+    "Validated signal quality expectations in target environments"
+  ],
+  "dependencies": [],
+  "suggested_template": "native-cli",
+  "implementation_notes": [
+    "Future promotion should support one or two real pairing or transfer workflows.",
+    "Treat device access and protocol design as first-class concerns.",
+    "Avoid claiming production-grade reliability without environment testing."
+  ],
+  "operational_notes": [
+    "Ambient noise and host audio routing materially affect behavior.",
+    "Validation should include a real encode/decode round trip.",
+    "Latency and payload-size expectations need to stay explicit."
+  ],
+  "risks": [
+    "Novel capabilities are easy to keep speculatively without real demand.",
+    "Audio-device behavior differs enough by host to make support uneven."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "ggwave"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/ggwave"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

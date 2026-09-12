@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.handoffs;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/handoffs;handoffs_v1";
+
+service HandoffsService {
+  rpc OpenHandoff(OpenHandoffRequest) returns (OpenHandoffResponse);
+  rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
+  rpc ListHandoffs(ListHandoffsRequest) returns (ListHandoffsResponse);
+  rpc CompleteHandoff(CompleteHandoffRequest) returns (CompleteHandoffResponse);
+  rpc CancelHandoff(CancelHandoffRequest) returns (CancelHandoffResponse);
+  rpc ResumeHandoff(ResumeHandoffRequest) returns (ResumeHandoffResponse);
+  rpc PrepareEnrolment(PrepareEnrolmentRequest) returns (PrepareEnrolmentResponse);
+}
+
+enum HandoffState {
+  HANDOFF_STATE_UNSPECIFIED = 0;
+  HANDOFF_STATE_OPEN = 1;
+  HANDOFF_STATE_DELIVERED = 2;
+  HANDOFF_STATE_AWAITING_HUMAN = 3;
+  HANDOFF_STATE_COMPLETED = 4;
+  HANDOFF_STATE_EXPIRED = 5;
+  HANDOFF_STATE_CANCELLED = 6;
+  HANDOFF_STATE_RESUMED = 7;
+}
+
+message CheckpointField { string name = 1; string value = 2; }
+message Checkpoint {
+  repeated CheckpointField completed_fields = 1;
+  repeated string required_document_ids = 2;
+  string resume_token = 3;
+}
+message Handoff {
+  string id = 1;
+  string persona_id = 2;
+  string kind = 3;
+  string title = 4;
+  string human_action = 5;
+  Checkpoint checkpoint = 6;
+  HandoffState state = 7;
+  string opened_by_run_id = 8;
+  string authorising_human = 9;
+  google.protobuf.Timestamp deadline = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  string relay_state = 13;
+}
+message OpenHandoffRequest {
+  string persona_id = 1;
+  string kind = 2;
+  string title = 3;
+  string human_action = 4;
+  Checkpoint checkpoint = 5;
+  google.protobuf.Timestamp deadline = 6;
+}
+message OpenHandoffResponse { Handoff handoff = 1; }
+message GetHandoffRequest { string handoff_id = 1; }
+message GetHandoffResponse { Handoff handoff = 1; }
+message ListHandoffsRequest { string persona_id = 1; int32 limit = 2; }
+message ListHandoffsResponse { repeated Handoff handoffs = 1; }
+message CompleteHandoffRequest { string handoff_id = 1; string completed_by = 2; }
+message CompleteHandoffResponse { Handoff handoff = 1; }
+message CancelHandoffRequest { string handoff_id = 1; string cancelled_by = 2; }
+message CancelHandoffResponse { Handoff handoff = 1; }
+message ResumeHandoffRequest { string handoff_id = 1; string run_id = 2; }
+message ResumeHandoffResponse { Handoff handoff = 1; }
+message EnrolmentField { string name = 1; string value = 2; bool human_only = 3; }
+message PrepareEnrolmentRequest { string persona_id = 1; string target = 2; repeated string required_fields = 3; }
+message PrepareEnrolmentResponse {
+  repeated EnrolmentField fields = 1;
+  string handoff_id = 2;
+}

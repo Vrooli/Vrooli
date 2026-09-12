@@ -1,0 +1,105 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-10T19:11:24-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P0-018",
+      "title": "Operation intent persisted before effects with monotonic fence",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "durable-operations",
+      "description": "Operations are admitted durably with request-key idempotency and a fence; stale workers cannot commit or mutate the target.",
+      "tags": [
+        "operations",
+        "fence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/persistence/operations_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "AcquireWorker bumps the deployment fence; every fenced write (heartbeat, commit, unknown effect, active step, state) is refused with fence_stale for a superseded worker; concurrent acquirers admit exactly one; competing operations on one deployment serialise. Race-detected. Tagged [REQ:STC-P0-018]."
+        },
+        {
+          "type": "test",
+          "ref": "api/operations/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Transition table (design D) refuses illegal moves; equal request replay returns one operation and one execution, different input conflicts (RUN-01/02); stale worker refused on commit and target mutation (RUN-04); failed recovery cannot report success (P07-A07); competing operations serialise through the owner (RUN-08)."
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/operation_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Request-key idempotency scope (P03), reused by admission."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-019",
+      "title": "Owner restart reconciliation and lost-reply handling",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "durable-operations",
+      "description": "Admitted and running operations are reconciled on startup using target receipts; unknown remote effects are recorded explicitly rather than inferred as failure or success.",
+      "tags": [
+        "operations",
+        "recovery"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/operations/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Owner restart after admission and during each mutating step (faultinject worker_before_commit crash, fresh Service over the same database) resumes from receipts and reads the target receipt instead of replaying (RUN-03); lost reply reads the receipt before replaying (RUN-05); target unable to answer records an unknown effect and enters reconciling with one next action (RUN-06); unknown plan schema is an explicit incompatibility (RUN-10). Tagged [REQ:STC-P0-019]."
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/operations_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Active-step marker and recorded unknown effects survive reacquisition and clear on commit."
+        }
+      ]
+    },
+    {
+      "id": "STC-P0-020",
+      "title": "Durable wait, cancellation and attach contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "durable-operations",
+      "description": "Clients attach by operation ID after disconnect; cancellation stops at declared safe points; observer timeout never changes operation state.",
+      "tags": [
+        "operations",
+        "wait"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/operations/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Client disconnect keeps server-owned work attachable by operation id (P07-A01/RUN-07); cancellation stops at the declared safe boundary (P07-A06); observer timeout returns still_pending and never mutates; waiting_input is distinct from a dead worker. Tagged [REQ:STC-P0-020]."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers_operations_test.go",
+          "phase": "api",
+          "status": "implemented",
+          "notes": "REST get/wait/cancel/list and SSE keyed by operation_id over the live router."
+        },
+        {
+          "type": "test",
+          "ref": "cli/operation/command_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI exit-code contract (0 ok, 1 failed, 2 refused, 3 pending, 124 observer timeout) and shared standing rendering."
+        }
+      ]
+    }
+  ]
+}

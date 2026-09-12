@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 func TestList_LoadError(t *testing.T) {

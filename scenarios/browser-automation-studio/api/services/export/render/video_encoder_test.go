@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 )
 
 // ---------------------------------------------------------------------------
@@ -939,18 +941,10 @@ func TestConvertToMP4_NoPadFilter(t *testing.T) {
 // only checked filter chain *strings*, not actual encoder *output*.
 // ---------------------------------------------------------------------------
 
-// ffmpegAvailable returns true if the real ffmpeg binary is on PATH.
-func ffmpegAvailable(t *testing.T) bool {
+func requireFFmpegTools(t *testing.T) {
 	t.Helper()
-	_, err := exec.LookPath("ffmpeg")
-	return err == nil
-}
 
-// ffprobeAvailable returns true if ffprobe is on PATH.
-func ffprobeAvailable(t *testing.T) bool {
-	t.Helper()
-	_, err := exec.LookPath("ffprobe")
-	return err == nil
+	integration.RequireCommands(t, []string{"ffmpeg", "ffprobe"}, "FFmpeg render integration")
 }
 
 // probeVideoDimensions uses ffprobe to get output video width and height.
@@ -1003,9 +997,7 @@ func probeVideoFrameCount(t *testing.T, videoPath string) int {
 }
 
 func TestFFmpegIntegration_UniformFrames(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1038,9 +1030,7 @@ func TestFFmpegIntegration_UniformFrames(t *testing.T) {
 // automation" info bar adding 50px to the height. The output video must have
 // consistent 1280x720 dimensions — the outlier frame is cropped, not scaled.
 func TestFFmpegIntegration_InfoBarOutlier(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1069,9 +1059,7 @@ func TestFFmpegIntegration_InfoBarOutlier(t *testing.T) {
 // TestFFmpegIntegration_ScrollbarWidthVariation verifies that frames with
 // scrollbar-reduced width (~17px narrower) produce correct output dimensions.
 func TestFFmpegIntegration_ScrollbarWidthVariation(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1100,9 +1088,7 @@ func TestFFmpegIntegration_ScrollbarWidthVariation(t *testing.T) {
 
 // TestFFmpegIntegration_MixedVariation combines info bar AND scrollbar variation.
 func TestFFmpegIntegration_MixedVariation(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1135,9 +1121,7 @@ func TestFFmpegIntegration_MixedVariation(t *testing.T) {
 // alternate between heights differing by 1px (e.g., 720 vs 721). This can
 // cause per-frame crop offset variation that shifts content by 1px.
 func TestFFmpegIntegration_SinglePixelJitter(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1171,9 +1155,7 @@ func TestFFmpegIntegration_SinglePixelJitter(t *testing.T) {
 // TestFFmpegIntegration_OddDimensionsRoundToEven verifies H.264 even-dimension
 // requirement is enforced on the actual output.
 func TestFFmpegIntegration_OddDimensionsRoundToEven(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1204,9 +1186,7 @@ func TestFFmpegIntegration_OddDimensionsRoundToEven(t *testing.T) {
 
 // TestFFmpegIntegration_WithWatermark verifies watermark assembly produces valid output.
 func TestFFmpegIntegration_WithWatermark(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1233,9 +1213,7 @@ func TestFFmpegIntegration_WithWatermark(t *testing.T) {
 // TestFFmpegIntegration_ConvertToMP4_EvenDimensions verifies ConvertToMP4
 // produces even-dimension output without using force_original_aspect_ratio.
 func TestFFmpegIntegration_ConvertToMP4_EvenDimensions(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1439,9 +1417,7 @@ func sampleBottomPixels(t *testing.T, imgPath string, bottomRows int) (avgR, avg
 // TestFFmpegIntegration_BottomPixelConsistency_UniformFrames verifies that
 // uniform frames produce identical bottom pixels — baseline for flickering tests.
 func TestFFmpegIntegration_BottomPixelConsistency_UniformFrames(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1488,9 +1464,7 @@ func TestFFmpegIntegration_BottomPixelConsistency_UniformFrames(t *testing.T) {
 // flickering regression test: if the crop is wrong, bottom pixels will differ
 // between info-bar and non-info-bar frames.
 func TestFFmpegIntegration_BottomPixelConsistency_InfoBarVariation(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")
@@ -1581,9 +1555,7 @@ func TestFFmpegIntegration_BottomPixelConsistency_InfoBarVariation(t *testing.T)
 // scale handles width without coupling to height, so bottom pixels should stay
 // consistent.
 func TestFFmpegIntegration_BottomPixelConsistency_ScrollbarWidth(t *testing.T) {
-	if !ffmpegAvailable(t) || !ffprobeAvailable(t) {
-		t.Skip("ffmpeg/ffprobe not available")
-	}
+	requireFFmpegTools(t)
 
 	dir := t.TempDir()
 	framesDir := filepath.Join(dir, "frames")

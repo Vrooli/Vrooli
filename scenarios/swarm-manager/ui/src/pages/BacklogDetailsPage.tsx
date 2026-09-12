@@ -5,79 +5,92 @@
  * [REQ:REQ-P0-004]
  */
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Activity, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
+import { Archive, ArchiveRestore, CheckSquare, CircleHelp, ClipboardList, Files, GitPullRequestArrow, Network, RefreshCw, RotateCcw, Sparkles } from "lucide-react";
+import { CompactTabBar, type CompactTabItem } from "../components/ui/compact-tab-bar";
+import { Button } from "../components/ui/button";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { PlanPanel } from "../components/backlog/plan-panel";
 import { useUrlState } from "../hooks/use-url-state";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
+import { EntityFileWorkspace } from "../components/files/entity-file-workspace";
 import { BacklogDetailsPanel } from "../components/backlog/backlog-details-panel";
 import { BacklogNotesPanel } from "../components/backlog/backlog-notes-panel";
-import { BacklogActionButtons } from "../components/backlog/backlog-action-buttons";
-import { OutputTab } from "../components/backlog/output-tab";
-import { ActivityTab } from "../components/backlog/activity-tab";
+import { buildBacklogActionMenuItems } from "../components/backlog/backlog-action-buttons";
+import type { ActionMenuItem } from "../components/ui/action-menu";
+import { WorkFeedList, type WorkFeedEntry } from "../components/backlog/activity-surface/work-feed-list";
+import { ActiveWorkCard } from "../components/backlog/activity-surface/active-work-card";
+import { ReviewDecisionCard } from "../components/backlog/activity-surface/review-decision-card";
+import { RelatedTab } from "../components/related/RelatedTab";
 import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
-import { BacklogDesktopHeader } from "../components/backlog/backlog-desktop-header";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
-import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { ProposalSessionsPanel } from "../components/session/ProposalSessionsPanel";
+import { proposalSessionService } from "../services/proposal-session-service";
+import { backlogOption } from "../components/session/context/session-context-refs";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
-import { useActivityTimeline } from "../hooks/useActivityTimeline";
 import { useBacklogDetailData } from "../hooks/useBacklogDetailData";
 import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
+import { isAgentActivityBlocking, isAgentActivityExecuting } from "../lib/agent-activity-utils";
 import { selectors } from "../consts/selectors";
-import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
+import { BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
+import { nextActionIcon } from "../types/constants";
 import type { BacklogFile, BacklogKind } from "../types";
 import {
   selectLatestActivityForBacklog,
   useAgentActivitiesStore,
   useBacklogDetailUIStore,
   useBacklogStore,
-  useDetailSelectionStore,
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
-import { reviewService } from "../services/review-service";
-import { useReviewStore } from "../stores/review-store";
+import { transitionService } from "../services/transition-service";
+import { autoFilerService } from "../services/auto-filer-service";
+import { defaultApiClient } from "../lib/api-client";
+import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
-import { ValidationReport } from "../components/backlog/validation-report";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
-import { selectionToNodeId } from "../stores/detail-selection-store";
+import { formatRelativeTime } from "../lib";
+import { routeTargetToNodeId } from "../app/routes/route-paths";
+import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
+import { nextActionDetailTab } from "../lib/backlog-next-action";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
-type DetailsTab = "info" | "prompt" | "files" | "output" | "activity";
+const LIFECYCLE_RESET_SCOPES: Array<[string, string]> = [
+  ["review", "Review rounds"],
+  ["handoff_executions", "Handoff data and executions"],
+  ["plan_unbind", "Plan binding"],
+];
+type DetailsTab = "info" | "prompt" | "decide" | "files" | "activity" | "related";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-
-
-  const nodeId = selectionToNodeId(selection);
-  const { closeDetail } = useDetailNavigation();
-  const kind = selection?.kind;
-  const name = selection?.name;
+  const goBack = useAppBack();
+  const params = useParams<{ kind: string; name: string }>();
+  const kind = params.kind;
+  const name = params.name;
+  const nodeId = routeTargetToNodeId({ entityType: "backlog", kind, name });
+  const closeDetail = goBack;
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
   const [searchParams, setSearchParams] = useSearchParams();
 
   // --- Global stores ---
   const upsertItem = useBacklogStore((s) => s.upsertItem);
   const refreshActivities = useAgentActivitiesStore((s) => s.refreshActivities);
-  const stopRun = useAgentActivitiesStore((s) => s.stopRun);
   const latestAgentActivity = useAgentActivitiesStore((s) => {
     if (!backlogKind || !name) return null;
     return selectLatestActivityForBacklog(s, backlogKind, name);
@@ -90,9 +103,8 @@ export function BacklogDetailsPage() {
     immediate: true,
   });
 
-  const agentRunIsActive = latestAgentActivity
-    ? ["pending", "starting", "running", "needs_review"].includes(latestAgentActivity.status)
-    : false;
+  const agentRunIsBusy = isAgentActivityExecuting(latestAgentActivity?.status);
+  const agentRunIsBlocking = isAgentActivityBlocking(latestAgentActivity?.status);
 
   // --- UI state store ---
   const uiStore = useBacklogDetailUIStore();
@@ -100,25 +112,118 @@ export function BacklogDetailsPage() {
   const queryClient = useQueryClient();
 
   // --- Data hook ---
-  const data = useBacklogDetailData({ backlogKind, name, agentRunIsActive });
+  const data = useBacklogDetailData({
+    backlogKind,
+    name,
+    agentRunIsExecuting: agentRunIsBusy,
+    agentRunIsBlocking,
+  });
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
-    executionHistory, reviewRounds, isGatheringEvidence,
-    workshopRounds, readinessData, archiveTargets,
+    executionHistory, reviewRounds, nextAction,
+    archiveTargets,
     depRelations, itemActions, targetScenarios,
-    deliverableLabel, workshopActionLabel,
-    isWorkshopFinalized, isLocked, isTerminal, workshopBlockedDeps,
-    deleteError, archiveError, isArchiving, isUpdating, isRunningAgent, isSavingWorkshop,
-    isBatchReviewing, isDeletingWorkshopRound, isFileActionPending,
+    isLocked, isTerminal,
+    deleteError, archiveError, isArchiving, isUpdating,
+    isBatchReviewing, isFileActionPending,
   } = data;
 
   // --- Local UI state (URL-synced or needs render) ---
   const [activeTab, setActiveTab] = useUrlState<DetailsTab>("tab", "info", {
-    validate: (v): v is DetailsTab => ["info", "prompt", "files", "output", "activity"].includes(v),
+    validate: (v): v is DetailsTab => ["info", "prompt", "decide", "files", "activity", "related"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
+  const [dismissSuggestionPending, setDismissSuggestionPending] = useState(false);
+  const [dismissSuggestionError, setDismissSuggestionError] = useState<string | null>(null);
+  const [recreateOpen, setRecreateOpen] = useState(false);
+  const [resetArtifactsOpen, setResetArtifactsOpen] = useState(false);
+  const [resetScope, setResetScope] = useState<string[]>(["review"]);
+  const [lifecyclePending, setLifecyclePending] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | undefined>();
+  const planAuthorMutation = useActionMutation({
+    mutationFn: () => {
+      if (!backlogKind || !name) throw new Error("Backlog item is required to author a plan.");
+      return transitionService.start("plan.author", `${backlogKind}/${name}`);
+    },
+    errorMessage: "Couldn't start plan authoring",
+    // A declared `workflow` transition: the call returns once the agent run is
+    // queued, so the confirmation says "started", not "done".
+    successMessage: "Plan authoring started",
+    successDescription: "An agent is drafting the plan. Its progress appears under Activity.",
+    successKind: "progress",
+    source: "BacklogDetailsPage.planAuthor",
+    onSuccess: () => {
+      setActiveTab("activity");
+      void refreshActivities(true);
+    },
+  });
+  const { data: proposalSessions = [] } = useQuery({
+    queryKey: ["proposal-sessions", "backlog_item", backlogKind && name ? `${backlogKind}/${name}` : ""],
+    queryFn: () => proposalSessionService.list({ type: "backlog_item", ref: `${backlogKind}/${name}` }),
+    enabled: Boolean(backlogKind && name),
+    refetchInterval: 15_000,
+  });
+  const { data: workFeed = [], isLoading: isLoadingWorkFeed, error: workFeedError } = useQuery({
+    queryKey: ["work-feed", backlogKind, name],
+    queryFn: async () => {
+      if (!backlogKind || !name) return [];
+      return (await defaultApiClient.get<{ items: WorkFeedEntry[] }>(API_ENDPOINTS.backlogWorkFeed(backlogKind, name))).items;
+    },
+    enabled: activeTab === "activity" && Boolean(backlogKind && name),
+    refetchInterval: agentRunIsBlocking ? 6_000 : 20_000,
+  });
+  const proposalCount = useMemo(
+    () => proposalSessions.reduce((count, session) => count + (session.proposals ?? []).filter((proposal) => proposal.kind === "mutation_list" || proposal.kind === "no_change_recommendation").length, 0),
+    [proposalSessions],
+  );
+  const activeExecution = useMemo(
+    () => executionHistory?.find((execution) => ["starting", "running", "needs_review"].includes(execution.status)) ?? null,
+    [executionHistory],
+  );
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
+  const handleDismissSuggestion = useCallback(async () => {
+    if (!item) return;
+    setDismissSuggestionPending(true);
+    setDismissSuggestionError(null);
+    try {
+      const archived = await autoFilerService.dismissSuggestion(item.kind, item.name);
+      upsertItem(archived);
+      refetchItem();
+    } catch (error) {
+      setDismissSuggestionError(error instanceof Error ? error.message : "Unable to dismiss suggestion");
+    } finally {
+      setDismissSuggestionPending(false);
+    }
+  }, [item, refetchItem, upsertItem]);
+  const recreateItem = useCallback(async () => {
+    if (!backlogKind || !name) return;
+    setLifecyclePending(true);
+    setLifecycleError(undefined);
+    try {
+      await defaultApiClient.post(API_ENDPOINTS.backlogRecreate(backlogKind, name), {});
+      setRecreateOpen(false);
+      data.invalidateItem();
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Unable to recreate item.");
+    } finally {
+      setLifecyclePending(false);
+    }
+  }, [backlogKind, data, name]);
+  const resetArtifacts = useCallback(async () => {
+    if (!backlogKind || !name || resetScope.length === 0) return;
+    setLifecyclePending(true);
+    setLifecycleError(undefined);
+    try {
+      await defaultApiClient.post(API_ENDPOINTS.backlogResetArtifacts(backlogKind, name), { scope: resetScope });
+      setResetArtifactsOpen(false);
+      data.invalidateItem();
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "Unable to reset artifacts.");
+    } finally {
+      setLifecyclePending(false);
+    }
+  }, [backlogKind, data, name, resetScope]);
 
   // --- Handlers hook ---
   const handlers = useBacklogHandlers({
@@ -130,33 +235,24 @@ export function BacklogDetailsPage() {
     setSearchParams,
     selectedFile,
     closeDetail,
-    refreshActivities,
   });
 
   // --- Computed labels ---
   const agentRunningLabel = useMemo(() => {
-    if (!agentRunIsActive || !latestAgentActivity) return "Agent running\u2026";
+    if (!agentRunIsBusy || !latestAgentActivity) return "Agent running\u2026";
     switch (latestAgentActivity.purpose) {
-      case "workshop": return "Running workshop\u2026";
-      case "finalize": return "Running finalize\u2026";
+      case "workshop": return "Running Plan Workshop review\u2026";
+      case "finalize": return "Finalizing historical workshop\u2026";
       case "research": return "Running research\u2026";
-      case "initialize": return "Initializing workshop\u2026";
+      case "initialize": return "Initializing historical workshop\u2026";
       case "process": return "Processing\u2026";
       default: return "Agent running\u2026";
     }
-  }, [agentRunIsActive, latestAgentActivity]);
+  }, [agentRunIsBusy, latestAgentActivity]);
 
-  const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
+  const attachToSession = useAttachToSessionAction(item ? backlogOption(item) : null);
 
   // --- Effects ---
-
-  // Activity timeline — fetches when the Output tab is active
-  const timeline = useActivityTimeline({
-    backlogKind: backlogKind ?? undefined,
-    backlogName: name,
-    enabled: activeTab === "output" || activeTab === "activity",
-    agentRunIsActive,
-  });
 
   // Auto-open follow-up dialog when navigated with ?action=followup
   const actionParam = searchParams.get("action");
@@ -170,17 +266,6 @@ export function BacklogDetailsPage() {
       }, { replace: true });
     }
   }, [actionParam, executionHistory, uiStore.followUpTarget, setSearchParams, uiStore]);
-
-  // Merged flagged items for the agent dialog
-  const { agentDialogTargetIds: getAgentDialogTargetIds, agentDialogRequirementIds: getAgentDialogRequirementIds } = data;
-  const agentDialogTargetIds = useMemo(
-    () => getAgentDialogTargetIds(uiStore.selectedTargetIds),
-    [getAgentDialogTargetIds, uiStore.selectedTargetIds],
-  );
-  const agentDialogRequirementIds = useMemo(
-    () => getAgentDialogRequirementIds(uiStore.selectedRequirementIds),
-    [getAgentDialogRequirementIds, uiStore.selectedRequirementIds],
-  );
 
   // Sync selected file from URL param / file tree
   const selectedFileParam = searchParams.get("file");
@@ -232,8 +317,32 @@ export function BacklogDetailsPage() {
     }
   }, [backlogKind, name, setActiveTab, uiStore]);
 
+  const reconciliationItemKeyRef = useRef<string>("");
+  const prevBlockingRef = useRef(false);
+  useEffect(() => {
+    if (!backlogKind || !name) return;
+
+    const itemKey = `${backlogKind}/${name}`;
+    if (reconciliationItemKeyRef.current !== itemKey) {
+      reconciliationItemKeyRef.current = itemKey;
+      prevBlockingRef.current = agentRunIsBlocking;
+      return;
+    }
+
+    const blockingEnded = prevBlockingRef.current && !agentRunIsBlocking;
+    prevBlockingRef.current = agentRunIsBlocking;
+    if (!blockingEnded) return;
+
+    void Promise.allSettled([
+      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name] }),
+      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name, "files"] }),
+      queryClient.refetchQueries({ queryKey: ["executions", backlogKind, name] }),
+      queryClient.refetchQueries({ queryKey: ["review-rounds", backlogKind, name] }),
+    ]);
+  }, [agentRunIsBlocking, backlogKind, name, queryClient]);
+
   const fileService = useMemo(
-    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind as BacklogKind, name) : null,
+    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind, name) : null,
     [backlogKind, name],
   );
 
@@ -251,21 +360,15 @@ export function BacklogDetailsPage() {
 
   // --- Context value ---
   const contextValue = {
-    backlogKind: backlogKind as BacklogKind,
+    backlogKind: backlogKind,
     name: name ?? "",
     item,
     itemActions,
     isLocked,
     isTerminal,
-    agentRunIsActive,
+    agentRunIsActive: agentRunIsBlocking,
     latestAgentActivity,
-    deliverableLabel,
-    workshopActionLabel,
     agentRunningLabel,
-    agentLabel,
-    isWorkshopFinalized,
-    workshopBlockedDeps,
-    isRunningAgent,
   };
 
   // --- Shared element variables ---
@@ -293,7 +396,6 @@ export function BacklogDetailsPage() {
         selectedCount={uiStore.selectedTargetIds.size + uiStore.selectedRequirementIds.size}
         onApproveSelected={handlers.handleBulkApprove}
         onFlagSelected={handlers.handleBulkFlag}
-        onSendToAgent={uiStore.openAgent}
         onClearSelection={uiStore.clearSelections}
       />
     </>
@@ -313,57 +415,100 @@ export function BacklogDetailsPage() {
         await backlogService.update(item.kind, item.name, { note });
         data.refetchItem();
       }}
+      onSaveDescription={data.updateDescription}
+      isSavingDescription={data.isUpdatingDescription}
+      descriptionSaveError={data.updateDescriptionError}
     />
   ) : null;
 
-  const notesPanel = (
-    <BacklogNotesPanel
-      readinessData={readinessData}
-      workshopRounds={workshopRounds}
-      isSavingWorkshop={isSavingWorkshop}
-      isDeletingRound={isDeletingWorkshopRound}
-      onStartRun={uiStore.openRunModal}
-      onSaveRound={handlers.handleSaveRound}
-      onRunWorkshop={handlers.handleRunWorkshop}
-      onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
-      onInitializeWorkshop={() => handlers.handleAgentSubmit({
-        mode: "initialize",
-        prompt: "Initialize the first workshop round for this backlog item.",
-      })}
-      onDeleteRound={uiStore.setRoundToDelete}
-    />
-  );
+  const notesPanel = <BacklogNotesPanel />;
 
-  const mobileActionButtons = item && itemActions ? (
-    <BacklogActionButtons
-      item={item}
-      isUpdating={isUpdating}
-      onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
-      onStartRun={uiStore.openRunModal}
-      onRunWorkshop={handlers.handleRunWorkshop}
-      onEdit={uiStore.openEdit}
-      onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
-      onOpenAgentDialog={uiStore.openAgent}
-      onArchive={() => handlers.handleArchiveItem()}
-      onStatusChange={(newStatus) => handlers.handleUpdateItem({
-        title: item.title, description: item.description,
-        status: newStatus, priority: item.priority, tags: item.tags,
-      })}
-      onResetWorkshop={uiStore.openWorkshopReset}
-      hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-      onDelete={() => {
-                if (getDeleteConfirmLevel("backlog") === "none") {
-                  handlers.handleDeleteConfirm();
-                } else {
-                  uiStore.openDelete();
-                }
-              }}
-    />
-  ) : undefined;
+  const menuActions: ActionMenuItem[] = item && itemActions ? [
+    attachToSession.actionItem,
+    ...buildBacklogActionMenuItems(
+      {
+        itemActions,
+        isLocked,
+        isTerminal,
+        agentRunningLabel,
+      },
+      {
+        isUpdating,
+        onStartRun: uiStore.openRunModal,
+        onEdit: uiStore.openEdit,
+        onFollowUp: () => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null),
+        onRetry: () => {
+          void backlogService.retry(item.kind, item.name).then(async () => {
+            data.refetchItem();
+            await queryClient.invalidateQueries({
+              queryKey: ["execution-history", item.kind, item.name],
+            });
+          });
+        },
+        onArchive: () => handlers.handleArchiveItem(),
+        onDelete: () => {
+          if (getDeleteConfirmLevel("backlog") === "none") {
+            handlers.handleDeleteConfirm();
+          } else {
+            uiStore.openDelete();
+          }
+        },
+      },
+    ),
+    {
+      label: "Recreate item",
+      description: "Archive this item and create a fresh successor with its lineage intact.",
+      icon: <RotateCcw />,
+      onSelect: () => setRecreateOpen(true),
+      disabled: lifecyclePending || agentRunIsBlocking,
+    },
+    {
+      label: "Reset derived artifacts",
+      description: "Remove selected generated work while preserving the canonical specification.",
+      icon: <RefreshCw />,
+      onSelect: () => setResetArtifactsOpen(true),
+      disabled: lifecyclePending || agentRunIsBlocking,
+    },
+  ] : [];
+
+  const suggestionActions = item?.status === "suggested" && item.archivedAt == null ? (
+    <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] px-3 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-cyan-200">Auto-filer suggestion</h3>
+          <p className="mt-1 text-xs text-slate-400">Accept to add it to the backlog, or dismiss to archive and remember the finding.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => data.updateStatus("backlog")}
+            disabled={data.isUpdatingStatus}
+          >
+            <CheckSquare className="mr-1 h-3.5 w-3.5" />
+            Accept
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => void handleDismissSuggestion()}
+            disabled={dismissSuggestionPending}
+          >
+            <Archive className="mr-1 h-3.5 w-3.5" />
+            {dismissSuggestionPending ? "Dismissing..." : "Dismiss"}
+          </Button>
+        </div>
+      </div>
+      {dismissSuggestionError ? (
+        <p className="mt-2 text-xs text-amber-300">{dismissSuggestionError}</p>
+      ) : null}
+    </div>
+  ) : null;
 
   const fileWorkspaceElement = fileService ? (
     <FileServiceProvider value={fileService}>
-      <BacklogFileWorkspace
+      <EntityFileWorkspace
         files={files}
         isLoadingFiles={isLoadingFiles}
         filesError={filesError}
@@ -378,62 +523,102 @@ export function BacklogDetailsPage() {
     </FileServiceProvider>
   ) : null;
 
+  const tabItems: CompactTabItem<DetailsTab>[] = [
+    { value: "info", label: "Info", icon: CircleHelp },
+    { value: "prompt", label: "Plan", icon: Sparkles },
+    {
+      value: "decide",
+      label: "Decide",
+      icon: GitPullRequestArrow,
+      count: proposalCount || undefined,
+    },
+    { value: "files", label: "Files", icon: Files },
+    {
+      value: "activity",
+      label: "Activity",
+      icon: ClipboardList,
+      badge: agentRunIsBusy ? (
+        <span className="relative ml-1 flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+        </span>
+      ) : undefined,
+    },
+    { value: "related", label: "Related", icon: Network },
+  ];
+
   const tabBar = item ? (
     <div className="border-t border-slate-800/50" data-testid={selectors.backlogDetails.tabRow}>
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DetailsTab)}>
-        <TabsList className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3">
-          <TabsTrigger value="info" className="gap-2" data-testid={selectors.backlogDetails.tabInfo}>
-            <CircleHelp className="h-4 w-4" />
-            Info
-          </TabsTrigger>
-          <TabsTrigger value="prompt" className="gap-2" data-testid={selectors.backlogDetails.tabPrompt}>
-            <Sparkles className="h-4 w-4" />
-            {backlogKind === "research" ? "Conclusion" : "Plan"}
-          </TabsTrigger>
-          <TabsTrigger value="files" className="gap-2" data-testid={selectors.backlogDetails.tabFiles}>
-            <Files className="h-4 w-4" />
-            Files
-          </TabsTrigger>
-          <TabsTrigger value="output" className="gap-2" data-testid={selectors.backlogDetails.tabOutput}>
-            <Activity className="h-4 w-4" />
-            Output
-          </TabsTrigger>
-          <TabsTrigger value="activity" className="gap-2" data-testid={selectors.backlogDetails.tabActivity}>
-            <ClipboardList className="h-4 w-4" />
-            Activity
-            {agentRunIsActive && (
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <CompactTabBar
+        items={tabItems}
+        activeValue={activeTab}
+        onValueChange={setActiveTab}
+        aria-label="Backlog item sections"
+        className="w-full flex-nowrap justify-start gap-1 overflow-x-auto no-scrollbar rounded-none bg-transparent p-0 px-3"
+        tabTestIdPrefix="backlog-details-tab"
+      />
     </div>
   ) : null;
+
+  const handleNextAction = () => {
+    if (nextAction) {
+      const targetTab = nextActionDetailTab(nextAction);
+      if (targetTab) {
+        setActiveTab(targetTab);
+        return;
+      }
+    }
+    switch (nextAction?.id) {
+      case "run":
+        uiStore.openRunModal();
+        break;
+      case "accept_suggestion":
+        data.updateStatus("backlog");
+        break;
+      case "archive":
+        handlers.handleArchiveItem();
+        break;
+      case "retry":
+        if (item) void backlogService.retry(item.kind, item.name).then(() => data.refetchItem());
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <BacklogDetailProvider value={contextValue}>
       <DetailPageLayout
         header={
           <DetailPageHeader
-            entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "backlog"}
-            entityIcon={backlogKind ? BACKLOG_KIND_ICONS[backlogKind] : undefined}
+            entityType={backlogKind ? BACKLOG_KIND_LABELS[backlogKind] : "Backlog"}
             title={item?.title ?? name ?? "Loading..."}
             status={item?.status}
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
-            actions={item ? <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} /> : undefined}
+            menuActions={menuActions}
+            primaryAction={nextAction && nextAction.id !== "none" ? (
+              <Button size="sm" onClick={handleNextAction} disabled={!nextAction.enabled} title={nextAction.reason}>
+                {(() => {
+                  const ActionIcon = nextActionIcon(nextAction.id);
+                  return <ActionIcon className="h-4 w-4" aria-hidden />;
+                })()}
+                {nextAction.compactLabel}
+              </Button>
+            ) : undefined}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
             tabBar={tabBar}
+            showLenses={activeTab === "info"}
           />
         }
-        mobileActions={mobileActionButtons}
-        mobileActionsTitle="Backlog Actions"
+        fullBleed={activeTab === "files"}
       >
-        <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
+        {attachToSession.sheet}
+        <div
+          className={activeTab === "files" ? "flex h-full min-h-0 flex-col" : "space-y-0 lg:space-y-6"}
+          data-testid={selectors.backlogDetails.page}
+        >
           {isPageLoading && (
             <PageLoadingState label="Loading backlog details..." variant="detail" testId="backlog-details-loading-state" />
           )}
@@ -442,157 +627,60 @@ export function BacklogDetailsPage() {
           )}
           {item && !pageError && (
             <>
-              {/* Mobile tab content */}
-              <div className="lg:hidden">
-                {item.archivedAt != null && (
-                  <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                    <span className="text-sm text-amber-300">Archived</span>
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-amber-300 hover:text-amber-200"
-                      onClick={handlers.handleUnarchiveItem}
-                      disabled={isArchiving}
-                    >
-                      {isArchiving ? "Restoring..." : "Unarchive"}
-                    </button>
+              {item.archivedAt != null && (
+                <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm text-amber-300">
+                    <Archive className="h-4 w-4" />
+                    <span>Archived {formatRelativeTime(item.archivedAt)}</span>
                   </div>
-                )}
-                {activeTab === "info" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    {(deleteError || archiveError) && (
-                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                        {deleteError || archiveError}
-                      </div>
-                    )}
-                    {detailsPanel}
-                    <ValidationReport validationJson={item.planValidationJson} />
-                    <BacklogScenariosPanel targetScenarios={targetScenarios} />
-                    {notesPanel}
-                    {operationalTargetsSection}
-                  </div>
-                )}
-                {activeTab === "prompt" && (
-                  <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
-                )}
-                {activeTab === "files" && fileWorkspaceElement}
-                {activeTab === "output" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    <OutputTab
-                      executionHistory={executionHistory}
-                      agentRunIsActive={agentRunIsActive}
-                      latestAgentActivity={latestAgentActivity}
-                      reviewRounds={reviewRounds}
-                      isGatheringEvidence={isGatheringEvidence}
-                      backlogKind={backlogKind ?? ""}
-                      backlogName={name ?? ""}
-                      onStopRun={(runId) => void stopRun(runId)}
-                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onArchive={item ? () => handlers.handleArchiveItem() : undefined}
-                      onVerifyEvidence={(round, evidenceId, verified) => {
-                        const execId = executionHistory?.[0]?.executionId;
-                        void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
-                          .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
-                      }}
-                      onRequestMoreEvidence={(round, evidenceId) => {
-                        useReviewStore.getState().openRequestPanel(round, evidenceId);
-                      }}
-                    />
-                  </div>
-                )}
-                {activeTab === "activity" && (
-                  <div className="flex-1 space-y-0 overflow-y-auto pb-4">
-                    <ActivityTab
-                      timeline={timeline}
-                      agentRunIsActive={agentRunIsActive}
-                      latestAgentActivity={latestAgentActivity}
-                      agentManagerUiUrl={agentManagerUiUrl}
-                      onStopRun={(runId) => void stopRun(runId)}
-                      onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onViewExecution={(exec) => selectExecution(exec.executionId)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Desktop content */}
-              <div className="hidden space-y-6 lg:block">
-                <BacklogDesktopHeader
-                  item={item}
-                  deleteError={deleteError}
-                  archiveError={archiveError}
-                  primaryAction={<HeaderPrimaryAction onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />}
-                  onEdit={uiStore.openEdit}
-                  onDelete={() => {
-                if (getDeleteConfirmLevel("backlog") === "none") {
-                  handlers.handleDeleteConfirm();
-                } else {
-                  uiStore.openDelete();
-                }
-              }}
-                  onArchive={handlers.handleArchiveItem}
-                  onUnarchive={handlers.handleUnarchiveItem}
-                  isArchiving={isArchiving}
-                  onResetWorkshop={uiStore.openWorkshopReset}
-                  hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-                  onOpenAgentDialog={uiStore.openAgent}
-                  onStatusChange={(newStatus) => handlers.handleUpdateItem({
-                    title: item.title, description: item.description,
-                    status: newStatus, priority: item.priority, tags: item.tags,
-                  })}
-                />
-                <div>
-                  {activeTab === "info" && (
-                    <div className="space-y-0 pt-3">
-                      {detailsPanel}
-                      <ValidationReport validationJson={item.planValidationJson} />
-                      <BacklogScenariosPanel targetScenarios={targetScenarios} />
-                      {notesPanel}
-                      {operationalTargetsSection}
-                    </div>
-                  )}
-                  {activeTab === "prompt" && (
-                    <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="mt-3 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
-                  )}
-                  {activeTab === "files" && fileWorkspaceElement}
-                  {activeTab === "output" && (
-                    <div className="space-y-0 pt-3">
-                      <OutputTab
-                        executionHistory={executionHistory}
-                        agentRunIsActive={agentRunIsActive}
-                        latestAgentActivity={latestAgentActivity}
-                        reviewRounds={reviewRounds}
-                        isGatheringEvidence={isGatheringEvidence}
-                        backlogKind={backlogKind ?? ""}
-                        backlogName={name ?? ""}
-                        onStopRun={(runId) => void stopRun(runId)}
-                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onArchive={item ? () => handlers.handleArchiveItem() : undefined}
-                        onVerifyEvidence={(round, evidenceId, verified) => {
-                          const execId = executionHistory?.[0]?.executionId;
-                          void reviewService.verifyEvidence(backlogKind ?? "", name ?? "", round, evidenceId, verified, execId)
-                            .then(() => queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }));
-                        }}
-                        onRequestMoreEvidence={(round, evidenceId) => {
-                          useReviewStore.getState().openRequestPanel(round, evidenceId);
-                        }}
-                      />
-                    </div>
-                  )}
-                  {activeTab === "activity" && (
-                    <div className="space-y-0 pt-3">
-                      <ActivityTab
-                        timeline={timeline}
-                        agentRunIsActive={agentRunIsActive}
-                        latestAgentActivity={latestAgentActivity}
-                        agentManagerUiUrl={agentManagerUiUrl}
-                        onStopRun={(runId) => void stopRun(runId)}
-                        onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onViewExecution={(exec) => selectExecution(exec.executionId)}
-                      />
-                    </div>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                    onClick={handlers.handleUnarchiveItem}
+                    disabled={isArchiving}
+                  >
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                    {isArchiving ? "Restoring..." : "Unarchive"}
+                  </Button>
                 </div>
-              </div>
+              )}
+              {(deleteError || archiveError) && (
+                <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {deleteError || archiveError}
+                </div>
+              )}
+              {activeTab === "info" && (
+                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
+                  {suggestionActions}
+                  {detailsPanel}
+                  <BacklogScenariosPanel targetScenarios={targetScenarios} />
+                  {notesPanel}
+                  {operationalTargetsSection}
+                </div>
+              )}
+              {activeTab === "prompt" && (
+                <PlanPanel
+                  backlogKind={backlogKind}
+                  backlogName={name}
+                  className="flex-1 overflow-y-auto lg:mt-3 lg:min-h-[500px]"
+                  onAuthorPlan={() => planAuthorMutation.mutate()}
+                  authorPlanPending={planAuthorMutation.isPending}
+                  authorPlanError={planAuthorMutation.error instanceof Error ? planAuthorMutation.error.message : null}
+                />
+              )}
+              {activeTab === "decide" && backlogKind && name && item && (
+                <ProposalSessionsPanel target={{ type: "backlog_item", ref: `${backlogKind}/${name}`, name: item.title || name }} />
+              )}
+              {activeTab === "files" && fileWorkspaceElement}
+              {activeTab === "related" && backlogKind && name && <RelatedTab target={{ kind: "backlog", backlogKind, name }} enabled />}
+              {activeTab === "activity" && (
+                <div className="flex-1 space-y-0 overflow-y-auto pb-4 lg:pt-3">
+                  {activeExecution ? <ActiveWorkCard executionId={activeExecution.executionId} agentManagerUrl={agentManagerUiUrl} onStopped={() => { void queryClient.invalidateQueries({ queryKey: ["executions", backlogKind, name] }); void queryClient.invalidateQueries({ queryKey: ["work-feed", backlogKind, name] }); }} /> : null}
+                  {!activeExecution && (item.status === "review_pending" || item.status === "in_review") ? <ReviewDecisionCard kind={backlogKind} name={name} round={reviewRounds.at(-1)} criteria={item.acceptanceCriteria} onDecided={() => { void data.invalidateItem(); void queryClient.invalidateQueries({ queryKey: ["review-rounds", backlogKind, name] }); void queryClient.invalidateQueries({ queryKey: ["work-feed", backlogKind, name] }); }} onSendBack={() => { const round = reviewRounds.at(-1); const context = ["Address the review feedback before continuing.", round?.agent_assessment ? `Review note: ${round.agent_assessment}` : "", round?.disposition ? `Disposition: ${round.disposition.kind} — ${round.disposition.rationale}` : ""].filter(Boolean).join("\n\n"); uiStore.setFollowUpContext(context); uiStore.setFollowUpTarget(executionHistory?.[0] ?? null); }} /> : null}
+                  <WorkFeedList entries={workFeed} loading={isLoadingWorkFeed} error={workFeedError instanceof Error ? workFeedError : null} />
+                </div>
+              )}
             </>
           )}
 
@@ -606,12 +694,29 @@ export function BacklogDetailsPage() {
           <BacklogDialogs
             data={data}
             handlers={handlers}
-            files={files}
-            readinessData={readinessData}
-            agentDialogTargetIds={agentDialogTargetIds}
-            agentDialogRequirementIds={agentDialogRequirementIds}
             upsertItem={upsertItem}
-            blockingInfo={itemActions ? { blocked: itemActions.blocked, blockingDepKeys: itemActions.blockingDepKeys, allForceable: false } : null}
+          />
+          <ConfirmDialog
+            isOpen={recreateOpen}
+            onClose={() => setRecreateOpen(false)}
+            onConfirm={() => void recreateItem()}
+            title="Recreate backlog item"
+            description={`Archives "${item?.title || name}" and creates a fresh backlog clone. Metadata, membership, dependencies, and lineage are retained; derived work starts fresh.`}
+            confirmationText={item?.name}
+            confirmLabel="Recreate item"
+            isLoading={lifecyclePending}
+            errorMessage={lifecycleError}
+          />
+          <ConfirmDialog
+            isOpen={resetArtifactsOpen}
+            onClose={() => setResetArtifactsOpen(false)}
+            onConfirm={() => void resetArtifacts()}
+            title="Reset derived artifacts"
+            description="Deletes only the selected derived artifacts. The canonical item specification is kept."
+            confirmLabel="Reset selected artifacts"
+            isLoading={lifecyclePending}
+            errorMessage={lifecycleError}
+            sidePanel={<div className="space-y-2 p-4"><p className="text-sm font-medium text-slate-100">Choose what to remove</p>{LIFECYCLE_RESET_SCOPES.map(([value, label]) => <label key={value} className="flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" checked={resetScope.includes(value)} onChange={() => setResetScope((current) => current.includes(value) ? current.filter((entry) => entry !== value) : [...current, value])} />{label}</label>)}</div>}
           />
         </div>
       </DetailPageLayout>

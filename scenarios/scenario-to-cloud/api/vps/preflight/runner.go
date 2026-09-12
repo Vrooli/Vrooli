@@ -11,7 +11,8 @@ import (
 
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
+	"scenario-to-cloud/identity"
+	"scenario-to-cloud/reach"
 	"scenario-to-cloud/tlsinfo"
 )
 
@@ -23,12 +24,16 @@ type RunOptions struct {
 	Requirements    ScenarioRequirementsFetcher
 }
 
-// Run executes all VPS preflight checks and returns the combined results.
+// Run executes every preflight check for a target and returns the combined
+// result. Host facts come from read-only observation programs through the
+// bound reach (the host may not carry a vrooli binary yet); nothing here can
+// change the target.
 func Run(
 	ctx context.Context,
 	manifest domain.CloudManifest,
 	dnsService dns.Service,
-	sshRunner ssh.Runner,
+	rr reach.Reach,
+	target identity.TargetRef,
 	opts RunOptions,
 ) domain.PreflightResponse {
 	if opts.PortProbe == nil {
@@ -40,8 +45,12 @@ func Run(
 	if opts.Requirements == nil {
 		opts.Requirements = fetchScenarioRequirementsFromAnalyzer
 	}
+	if target.Locator.Host == "" {
+		target = domain.TargetRefFromManifest(manifest)
+	}
+	host := target.Locator.Host
+	obs := observer{reach: rr, target: target}
 
-	cfg := ssh.ConfigFromManifest(manifest)
 	diskRequiredKB := MinDiskFreeKB
 	ramRequiredKB := MinRAMKB
 	ramRecommendedKB := RecommendedRAMKB
@@ -80,38 +89,18 @@ func Run(
 	requirementData["effective_required_disk_human"] = formatBytes(diskRequiredKB)
 	requirementData["effective_recommended_ram_human"] = formatBytes(ramRecommendedKB)
 
-	checks := make([]domain.PreflightCheck, 0, 8)
+	checks := make([]domain.PreflightCheck, 0, 16)
 	fail := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightFail,
-			Details: details,
-			Hint:    hint,
-			Data:    data,
-		})
+		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightFail, Details: details, Hint: hint, Data: data})
 	}
 	pass := func(id, title, details string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightPass,
-			Details: details,
-			Data:    data,
-		})
+		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightPass, Details: details, Data: data})
 	}
 	warn := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{
-			ID:      id,
-			Title:   title,
-			Status:  domain.PreflightWarn,
-			Details: details,
-			Hint:    hint,
-			Data:    data,
-		})
+		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightWarn, Details: details, Hint: hint, Data: data})
 	}
 
-	dnsEval := dns.Evaluate(ctx, dnsService, manifest.Edge.Domain, cfg.Host)
+	dnsEval := dns.Evaluate(ctx, dnsService, manifest.Edge.Domain, host)
 	checks = append(checks, dns.PreflightChecksFromEvaluation(dnsEval, manifest.Edge.DNSPolicy)...)
 
 	if manifest.Edge.Domain != "" {
@@ -126,25 +115,17 @@ func Run(
 	var unreachable []string
 	portTimeout := 3 * time.Second
 	for _, port := range publicPorts {
-		if err := opts.PortProbe(ctx, cfg.Host, port, portTimeout); err != nil {
+		if err := opts.PortProbe(ctx, host, port, portTimeout); err != nil {
 			unreachable = append(unreachable, strconv.Itoa(port))
 		}
 	}
 	if len(unreachable) > 0 {
-		fail(
-			domain.PreflightPublicPortsID,
-			"Public ports 80/443 reachability",
-			fmt.Sprintf("Unable to reach ports %s on %s from the deployment runner", strings.Join(unreachable, ","), cfg.Host),
+		fail(domain.PreflightPublicPortsID, "Public ports 80/443 reachability",
+			fmt.Sprintf("Unable to reach ports %s on %s from the deployment runner", strings.Join(unreachable, ","), host),
 			"Open inbound 80/443 at the VPS firewall and provider security group, or verify the host IP.",
-			map[string]string{"host": cfg.Host, "ports": strings.Join(unreachable, ",")},
-		)
+			map[string]string{"host": host, "ports": strings.Join(unreachable, ",")})
 	} else {
-		pass(
-			domain.PreflightPublicPortsID,
-			"Public ports 80/443 reachability",
-			"Ports 80/443 reachable from the deployment runner",
-			map[string]string{"host": cfg.Host, "ports": "80,443"},
-		)
+		pass(domain.PreflightPublicPortsID, "Public ports 80/443 reachability", "Ports 80/443 reachable from the deployment runner", map[string]string{"host": host, "ports": "80,443"})
 	}
 
 	if manifest.Edge.Caddy.Enabled && strings.TrimSpace(manifest.Edge.Domain) != "" {
@@ -165,68 +146,63 @@ func Run(
 		}
 	}
 
-	if _, err := sshRunner.Run(ctx, cfg, "echo ok", ssh.DefaultRunOptions()); err != nil {
-		fail(
-			domain.PreflightSSHConnectID,
-			"SSH connectivity",
-			"Unable to run a remote command over SSH",
-			"Confirm SSH key auth works (root login for P0) and that port 22 is reachable.",
-			map[string]string{"host": cfg.Host, "user": cfg.User, "port": strconv.Itoa(cfg.Port)},
-		)
-	} else {
-		pass(domain.PreflightSSHConnectID, "SSH connectivity", "SSH command executed successfully", map[string]string{"host": cfg.Host, "user": cfg.User})
+	connData := map[string]string{"host": host, "user": target.Locator.User, "port": strconv.Itoa(target.Locator.Port), "transport": target.Transport}
+	if res, err := obs.observe(ctx, "uname", "-s"); !ok(res, err) {
+		detail := "Unable to run a remote observation over the bound transport"
+		if err != nil {
+			detail += ": " + err.Error()
+		}
+		fail(domain.PreflightSSHConnectID, "Target reachability", detail,
+			"Confirm the target is enrolled (vrooli-bridge onboard) or that the bound SSH credential and port 22 work.", connData)
+		return finish(checks)
 	}
+	pass(domain.PreflightSSHConnectID, "Target reachability", "Remote observation executed successfully", connData)
 
-	osRes, osErr := sshRunner.Run(ctx, cfg, "cat /etc/os-release", ssh.DefaultRunOptions())
-	if osErr != nil || osRes.ExitCode != 0 {
-		fail(
-			domain.PreflightOSReleaseID,
-			"Ubuntu version",
-			"Unable to read /etc/os-release",
-			"Ensure the VPS is running Ubuntu and that /etc/os-release is readable.",
-			map[string]string{"stderr": osRes.Stderr},
-		)
+	if strings.EqualFold(strings.TrimSpace(target.Locator.User), "root") {
+		pass(domain.PreflightPrivilegeID, "Privilege strategy", "The bound SSH user is root; host preparation can use the target owner", map[string]string{"user": target.Locator.User, "strategy": "root"})
 	} else {
-		id, ver := parseOSRelease(osRes.Stdout)
-		if id != SupportedOSID {
-			fail(
-				domain.PreflightOSReleaseID,
-				"Ubuntu version",
-				fmt.Sprintf("Unsupported OS: %s", id),
-				"scenario-to-cloud requires Ubuntu. Non-Ubuntu systems are not supported.",
-				map[string]string{"id": id, "version_id": ver},
-			)
-		} else if ver == RecommendedUbuntuVersion {
-			pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
-		} else if ver == SupportedUbuntuAltVersion || ver == LegacyUbuntuAltVersion {
-			// Older LTS versions should work but aren't officially tested
-			warn(
-				domain.PreflightOSReleaseID,
-				"Ubuntu version",
-				fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
-				fmt.Sprintf("Ubuntu %s/%s should work but %s LTS is recommended for best compatibility.", SupportedUbuntuAltVersion, LegacyUbuntuAltVersion, RecommendedUbuntuVersion),
-				map[string]string{"id": id, "version_id": ver},
-			)
+		privilegeRes, privilegeErr := obs.observe(ctx, "sudo", "-n", "-l")
+		if !ok(privilegeRes, privilegeErr) {
+			detail := fmt.Sprintf("Bound SSH user %q does not have verified non-interactive elevation", target.Locator.User)
+			if privilegeErr != nil {
+				detail += ": " + privilegeErr.Error()
+			} else if strings.TrimSpace(privilegeRes.Stderr) != "" {
+				detail += ": " + strings.TrimSpace(privilegeRes.Stderr)
+			}
+			fail(domain.PreflightPrivilegeID, "Privilege strategy", detail,
+				"Grant the bound user the required non-interactive elevation through the target owner, or connect as an approved privileged user before host preparation.",
+				map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
 		} else {
-			warn(
-				domain.PreflightOSReleaseID,
-				"Ubuntu version",
-				fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
-				fmt.Sprintf("This Ubuntu version is untested. Consider using Ubuntu %s LTS.", RecommendedUbuntuVersion),
-				map[string]string{"id": id, "version_id": ver},
-			)
+			pass(domain.PreflightPrivilegeID, "Privilege strategy", fmt.Sprintf("Bound SSH user %q has non-interactive elevation", target.Locator.User), map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
 		}
 	}
 
-	portsRes, portsErr := sshRunner.Run(ctx, cfg, `ss -ltnpH '( sport = :80 or sport = :443 )' 2>/dev/null || ss -ltnH '( sport = :80 or sport = :443 )'`, ssh.DefaultRunOptions())
-	if portsErr != nil {
-		warn(
-			domain.PreflightPortsEdgeID,
-			"Ports 80/443 availability",
-			"Unable to check ports 80/443 via ss",
-			"Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.",
-			map[string]string{"stderr": portsRes.Stderr},
-		)
+	osRes, osErr := obs.observe(ctx, "cat", "/etc/os-release")
+	if !ok(osRes, osErr) {
+		fail(domain.PreflightOSReleaseID, "Ubuntu version", "Unable to read /etc/os-release",
+			"Ensure the VPS is running Ubuntu and that /etc/os-release is readable.", map[string]string{"stderr": osRes.Stderr})
+	} else {
+		id, ver := parseOSRelease(osRes.Stdout)
+		switch {
+		case id != SupportedOSID:
+			fail(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Unsupported OS: %s", id),
+				"scenario-to-cloud requires Ubuntu. Non-Ubuntu systems are not supported.", map[string]string{"id": id, "version_id": ver})
+		case ver == RecommendedUbuntuVersion:
+			pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
+		case ver == SupportedUbuntuAltVersion || ver == LegacyUbuntuAltVersion:
+			warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
+				fmt.Sprintf("Ubuntu %s/%s should work but %s LTS is recommended for best compatibility.", SupportedUbuntuAltVersion, LegacyUbuntuAltVersion, RecommendedUbuntuVersion),
+				map[string]string{"id": id, "version_id": ver})
+		default:
+			warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
+				fmt.Sprintf("This Ubuntu version is untested. Consider using Ubuntu %s LTS.", RecommendedUbuntuVersion), map[string]string{"id": id, "version_id": ver})
+		}
+	}
+
+	portsRes, portsErr := obs.listeningSockets(ctx, 80, 443)
+	if !ok(portsRes, portsErr) {
+		warn(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Unable to check ports 80/443 via ss",
+			"Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.", map[string]string{"stderr": portsRes.Stderr})
 	} else if strings.TrimSpace(portsRes.Stdout) != "" {
 		bindings := parsePortBindings(portsRes.Stdout)
 		details := "Port 80 and/or 443 appears to already be in use"
@@ -241,7 +217,6 @@ func Run(
 			data["ports_in_use"] = strings.Join(portBindingPorts(bindings), ",")
 			data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
 		}
-
 		// Caddy is the expected edge owner for deployed hosts; don't block convergence.
 		allCaddy := len(bindings) > 0
 		for _, binding := range bindings {
@@ -251,143 +226,56 @@ func Run(
 			}
 		}
 		if allCaddy {
-			pass(
-				domain.PreflightPortsEdgeID,
-				"Ports 80/443 availability",
-				fmt.Sprintf("%s (expected edge owner: caddy)", details),
-				data,
-			)
+			pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", fmt.Sprintf("%s (expected edge owner: caddy)", details), data)
 		} else {
 			hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
 			if len(bindings) > 0 {
-				hint = hint + " Use the Free Ports action or run: sudo systemctl stop <service> or sudo kill <pid>."
+				hint += " Stop the owning scenario through its lifecycle owner (Stop Processes) or the unit through the host's service manager."
 			}
-			fail(
-				domain.PreflightPortsEdgeID,
-				"Ports 80/443 availability",
-				details,
-				hint,
-				data,
-			)
+			fail(domain.PreflightPortsEdgeID, "Ports 80/443 availability", details, hint, data)
 		}
 	} else {
 		pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Ports 80/443 appear free", nil)
 	}
 
-	ufwRes, ufwErr := sshRunner.Run(ctx, cfg, "ufw status", ssh.DefaultRunOptions())
-	if ufwErr != nil {
-		warn(
-			domain.PreflightFirewallID,
-			"Inbound firewall rules",
-			"Unable to check UFW status",
-			"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
-			map[string]string{"stderr": ufwRes.Stderr},
-		)
-	} else {
-		statusLine := ""
-		lines := strings.Split(strings.TrimSpace(ufwRes.Stdout), "\n")
-		if len(lines) > 0 {
-			statusLine = strings.ToLower(strings.TrimSpace(lines[0]))
-		}
-		if strings.Contains(statusLine, "inactive") {
-			pass(domain.PreflightFirewallID, "Inbound firewall rules", "UFW is inactive", nil)
-		} else if strings.Contains(statusLine, "active") {
-			allow80 := false
-			allow443 := false
-			for _, line := range lines[1:] {
-				line = strings.ToLower(line)
-				if !strings.Contains(line, "allow") {
-					continue
-				}
-				if ufwAllowsPort(line, 80) {
-					allow80 = true
-				}
-				if ufwAllowsPort(line, 443) {
-					allow443 = true
-				}
-			}
-			if allow80 && allow443 {
-				pass(domain.PreflightFirewallID, "Inbound firewall rules", "UFW allows inbound 80/443", nil)
-			} else {
-				fail(
-					domain.PreflightFirewallID,
-					"Inbound firewall rules",
-					"UFW is active but does not allow inbound 80/443",
-					"Run: sudo ufw allow 80/tcp && sudo ufw allow 443/tcp (or update firewall/security group rules).",
-					map[string]string{"ufw_status": ufwRes.Stdout},
-				)
-			}
-		} else if strings.Contains(strings.ToLower(ufwRes.Stderr), "command not found") {
-			warn(
-				domain.PreflightFirewallID,
-				"Inbound firewall rules",
-				"UFW not installed",
-				"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
-				nil,
-			)
-		} else {
-			warn(
-				domain.PreflightFirewallID,
-				"Inbound firewall rules",
-				"Unable to determine firewall status",
-				"Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group).",
-				map[string]string{"ufw_status": ufwRes.Stdout},
-			)
-		}
-	}
+	firewallCheck(ctx, obs, fail, pass, warn)
 
-	netRes, netErr := sshRunner.Run(ctx, cfg, `curl -fsS --max-time 5 https://example.com >/dev/null`, ssh.DefaultRunOptions())
-	if netErr != nil || netRes.ExitCode != 0 {
-		warn(
-			domain.PreflightOutboundNetworkID,
-			"Outbound network",
-			"Unable to confirm outbound HTTPS access with curl",
-			"Ensure outbound network access is allowed (apt/pnpm downloads, Let's Encrypt).",
-			map[string]string{"stderr": netRes.Stderr},
-		)
-	} else {
-		pass(domain.PreflightOutboundNetworkID, "Outbound network", "Outbound HTTPS access looks OK", nil)
-	}
+	warn(domain.PreflightOutboundNetworkID, "Outbound network",
+		"Outbound reachability is not observed before enrollment",
+		"The read-only observation set cannot open connections; host.prepare reports a blocked egress at apply time (apt.packages.ensure). Ensure outbound HTTPS is allowed.",
+		nil)
 
-	diskRes, diskErr := sshRunner.Run(ctx, cfg, `df -Pk / | tail -n 1 | awk '{print $4}'`, ssh.DefaultRunOptions())
-	if diskErr != nil || diskRes.ExitCode != 0 {
+	// Remote VPS snapshot command. Local host inventory probing belongs in internal/hostinventory.
+	// hostinventory:remote-snapshot-parser
+	diskRes, diskErr := obs.observe(ctx, "df", "-Pk", "/")
+	if _, _, availKB, _, found := dfRoot(diskRes); !ok(diskRes, diskErr) || !found {
 		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
 	} else {
-		kb, _ := strconv.ParseInt(strings.TrimSpace(diskRes.Stdout), 10, 64)
 		detailsData := map[string]string{
-			"free_kb":            diskRes.Stdout,
-			"free_human":         formatBytes(kb),
+			"free_kb":            strconv.FormatInt(availKB, 10),
+			"free_human":         formatBytes(availKB),
 			"required_min_kb":    strconv.FormatInt(diskRequiredKB, 10),
 			"required_min_human": formatBytes(diskRequiredKB),
 		}
 		for k, v := range requirementData {
 			detailsData[k] = v
 		}
-			if kb > 0 && kb < diskRequiredKB {
-				fail(
-					domain.PreflightDiskFreeID,
-					"Disk free space",
-					fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
-					fmt.Sprintf(
-						"At least %s free space is required for this deployment. "+
-							"First try: sudo apt-get clean && sudo journalctl --vacuum-size=100M. "+
-							"If you have many redeploys, bundle cache may be the culprit; try: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
-						formatBytes(diskRequiredKB), cfg.Host, manifest.Scenario.ID,
-					),
-					detailsData,
-				)
-			} else {
-				pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
-			}
+		if availKB > 0 && availKB < diskRequiredKB {
+			fail(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Low free disk space: %s", formatBytes(availKB)),
+				fmt.Sprintf("At least %s free space is required for this deployment. Free space with the disk cleanup action (journal vacuum, docker prune) or release garbage collection: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
+					formatBytes(diskRequiredKB), host, manifest.Scenario.ID), detailsData)
+		} else {
+			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(availKB)), detailsData)
+		}
 	}
 
-	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`, ssh.DefaultRunOptions())
-	if ramErr != nil || ramRes.ExitCode != 0 {
+	// hostinventory:remote-snapshot-parser
+	ramRes, ramErr := obs.observe(ctx, "grep", "MemTotal", "/proc/meminfo")
+	if kb, found := memTotalKB(ramRes); !ok(ramRes, ramErr) || !found {
 		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
 	} else {
-		kb, _ := strconv.ParseInt(strings.TrimSpace(ramRes.Stdout), 10, 64)
 		detailsData := map[string]string{
-			"memtotal_kb":              ramRes.Stdout,
+			"memtotal_kb":              strconv.FormatInt(kb, 10),
 			"memtotal_human":           formatBytes(kb),
 			"required_min_kb":          strconv.FormatInt(ramRequiredKB, 10),
 			"required_min_human":       formatBytes(ramRequiredKB),
@@ -398,110 +286,71 @@ func Run(
 		for k, v := range requirementData {
 			detailsData[k] = v
 		}
-		if kb > 0 && kb < ramRequiredKB {
-			fail(
-				domain.PreflightRAMTotalID,
-				"RAM",
-				fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
-				fmt.Sprintf("At least %s RAM is required for this deployment. %s is recommended.", formatBytes(ramRequiredKB), formatBytes(ramRecommendedKB)),
-				detailsData,
-			)
-		} else if kb > 0 && kb < ramRecommendedKB {
-			warn(
-				"ram_total",
-				"RAM",
-				fmt.Sprintf("RAM: %s (%s recommended)", formatBytes(kb), formatBytes(ramRecommendedKB)),
-				"Your VPS has limited RAM for this deployment profile. Consider upgrading for better performance.",
-				detailsData,
-			)
-		} else {
+		switch {
+		case kb > 0 && kb < ramRequiredKB:
+			fail(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
+				fmt.Sprintf("At least %s RAM is required for this deployment. %s is recommended.", formatBytes(ramRequiredKB), formatBytes(ramRecommendedKB)), detailsData)
+		case kb > 0 && kb < ramRecommendedKB:
+			warn(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s (%s recommended)", formatBytes(kb), formatBytes(ramRecommendedKB)),
+				"Your VPS has limited RAM for this deployment profile. Consider upgrading for better performance.", detailsData)
+		default:
 			pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), detailsData)
 		}
 	}
 
-	// Check: required system commands (bootstrap will install if missing)
-	requiredCmds := []struct {
-		name string
-		id   string
-	}{
+	tools := obs.findTools(ctx, "curl", "git", "unzip", "tar", "jq", "apt-get", "docker", "systemctl")
+	for _, cmd := range []struct{ name, id string }{
 		{"curl", domain.PreflightCmdCurlID},
 		{"git", domain.PreflightCmdGitID},
 		{"unzip", domain.PreflightCmdUnzipID},
 		{"tar", domain.PreflightCmdTarID},
-	}
-	for _, cmd := range requiredCmds {
-		res, err := sshRunner.Run(ctx, cfg, "which "+cmd.name, ssh.DefaultRunOptions())
-		if err != nil || res.ExitCode != 0 {
-			warn(cmd.id, cmd.name+" available",
-				cmd.name+" not found on VPS",
-				"Bootstrap phase will install this automatically",
-				nil)
+		{"jq", domain.PreflightCmdJqID},
+	} {
+		if path, found := tools[cmd.name]; found {
+			pass(cmd.id, cmd.name+" available", "Found at "+path, nil)
 		} else {
-			pass(cmd.id, cmd.name+" available",
-				"Found at "+strings.TrimSpace(res.Stdout), nil)
+			warn(cmd.id, cmd.name+" available", cmd.name+" not found on VPS", "host.prepare installs it through apt.packages.ensure", nil)
 		}
 	}
 
-	// Check: jq (nice to have, warn only)
-	jqRes, jqErr := sshRunner.Run(ctx, cfg, "which jq", ssh.DefaultRunOptions())
-	if jqErr != nil || jqRes.ExitCode != 0 {
-		warn(domain.PreflightCmdJqID, "jq available",
-			"jq not found on VPS",
-			"Bootstrap phase will install this automatically",
-			nil)
+	if _, found := tools["apt-get"]; !found {
+		fail(domain.PreflightAptAccessID, "apt accessible", "apt-get not found on the target",
+			"Bootstrap installs packages through apt.packages.ensure; the target must be Ubuntu.", nil)
+	} else if target.Locator.User != "" && target.Locator.User != "root" {
+		warn(domain.PreflightAptAccessID, "apt accessible", "apt-get present; the bound user is not root",
+			"Package installs run through the privilege broker; the bound user needs its elevation grant.", map[string]string{"user": target.Locator.User})
 	} else {
-		pass(domain.PreflightCmdJqID, "jq available",
-			"Found at "+strings.TrimSpace(jqRes.Stdout), nil)
+		pass(domain.PreflightAptAccessID, "apt accessible", "apt-get is present", nil)
 	}
 
-	// Check: apt access (required for bootstrap to work)
-	aptRes, aptErr := sshRunner.Run(ctx, cfg, "apt-get update --print-uris &> /tmp/apt-check.log && head -1 /tmp/apt-check.log", ssh.DefaultRunOptions())
-	if aptErr != nil {
-		fail(domain.PreflightAptAccessID, "apt accessible",
-			"Unable to run apt-get",
-			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
-			map[string]string{"error": aptErr.Error()})
-	} else if strings.Contains(aptRes.Stderr, "Permission denied") || strings.Contains(aptRes.Stdout, "Permission denied") {
-		fail(domain.PreflightAptAccessID, "apt accessible",
-			"apt-get permission denied",
-			"Bootstrap requires apt access. Ensure the user has sudo/root privileges.",
-			nil)
-	} else {
-		pass(domain.PreflightAptAccessID, "apt accessible", "apt-get is accessible", nil)
+	// Remote VPS service check. This is not Docker GPU runtime inventory for the local host.
+	switch dockerPath, found := tools["docker"]; {
+	case found && obs.exists(ctx, "/var/run/docker.sock"):
+		pass(domain.PreflightDockerID, "Docker available", "Docker present at "+dockerPath+" (daemon socket present)", nil)
+	case found:
+		warn(domain.PreflightDockerID, "Docker available", "Docker is installed but its daemon socket is absent",
+			"Verify dockerd is running (systemctl status docker).", map[string]string{"path": dockerPath})
+	default:
+		warn(domain.PreflightDockerID, "Docker available", "Docker not found",
+			"Bootstrap will attempt to install Docker through apt.packages.ensure.", nil)
 	}
 
-	// Check: Docker available and running
-	dockerRes, dockerErr := sshRunner.Run(ctx, cfg, "command -v docker && docker info --format '{{.ServerVersion}}'", ssh.DefaultRunOptions())
-	if dockerErr != nil || dockerRes.ExitCode != 0 {
-		warn(domain.PreflightDockerID, "Docker available",
-			"Docker not found or not running",
-			"Bootstrap will attempt to install Docker. If already installed, verify dockerd is running.",
-			map[string]string{"stderr": dockerRes.Stderr})
+	if obs.exists(ctx, "/run/systemd/system") {
+		pass(domain.PreflightSystemdID, "systemd available", "systemd is the running init system", nil)
 	} else {
-		pass(domain.PreflightDockerID, "Docker available",
-			"Docker "+strings.TrimSpace(dockerRes.Stdout), nil)
+		warn(domain.PreflightSystemdID, "systemd available", "systemd is not the running init system",
+			"Deployment expects systemd for service management. Non-systemd systems (Alpine/OpenRC) are not supported.", nil)
 	}
 
-	// Check: systemd init system
-	systemdRes, systemdErr := sshRunner.Run(ctx, cfg, "command -v systemctl && systemctl --version | head -1", ssh.DefaultRunOptions())
-	if systemdErr != nil || systemdRes.ExitCode != 0 {
-		warn(domain.PreflightSystemdID, "systemd available",
-			"systemctl not found",
-			"Deployment expects systemd for service management. Non-systemd systems (Alpine/OpenRC) are not supported.",
-			nil)
-	} else {
-		pass(domain.PreflightSystemdID, "systemd available",
-			strings.TrimSpace(systemdRes.Stdout), nil)
-	}
+	checkStaleScenarioProcesses(ctx, obs, manifest, warn, pass)
 
-	// Check: stale scenario processes that might have outdated credentials
-	checkStaleScenarioProcesses(ctx, cfg, sshRunner, manifest, warn, pass)
+	checks = append(checks, RunCredentialValidation(ctx, obs, manifest)...)
 
-	// Check: credential validation for required resources (postgres, redis, etc.)
-	workdir := manifest.Target.VPS.Workdir
-	credentialChecks := RunCredentialValidation(ctx, cfg, sshRunner, manifest, workdir)
-	checks = append(checks, credentialChecks...)
+	return finish(checks)
+}
 
+// finish computes the overall verdict: any failing check fails preflight.
+func finish(checks []domain.PreflightCheck) domain.PreflightResponse {
 	ok := true
 	for _, c := range checks {
 		if c.Status == domain.PreflightFail {
@@ -509,10 +358,32 @@ func Run(
 			break
 		}
 	}
+	return domain.PreflightResponse{OK: ok, Checks: checks, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+}
 
-	return domain.PreflightResponse{
-		OK:        ok,
-		Checks:    checks,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+// firewallCheck reads UFW's own state files instead of running ufw: the
+// observation set carries no program that can change firewall state.
+func firewallCheck(ctx context.Context, obs observer, fail func(id, title, details, hint string, data map[string]string), pass func(id, title, details string, data map[string]string), warn func(id, title, details, hint string, data map[string]string)) {
+	const hint = "Confirm inbound firewall rules allow ports 80/443 (UFW, iptables, or cloud security group)."
+	confRes, confErr := obs.observe(ctx, "cat", "/etc/ufw/ufw.conf")
+	if !ok(confRes, confErr) {
+		warn(domain.PreflightFirewallID, "Inbound firewall rules", "UFW not installed or its configuration is unreadable", hint, map[string]string{"stderr": confRes.Stderr})
+		return
 	}
+	if !ufwEnabled(confRes.Stdout) {
+		pass(domain.PreflightFirewallID, "Inbound firewall rules", "UFW is inactive", nil)
+		return
+	}
+	rulesRes, rulesErr := obs.observe(ctx, "cat", "/etc/ufw/user.rules")
+	if !ok(rulesRes, rulesErr) {
+		warn(domain.PreflightFirewallID, "Inbound firewall rules", "UFW is active but its rule set is unreadable", hint, map[string]string{"stderr": rulesRes.Stderr})
+		return
+	}
+	allow80, allow443 := ufwRulesAllow(rulesRes.Stdout)
+	if allow80 && allow443 {
+		pass(domain.PreflightFirewallID, "Inbound firewall rules", "UFW allows inbound 80/443", nil)
+		return
+	}
+	fail(domain.PreflightFirewallID, "Inbound firewall rules", "UFW is active but does not allow inbound 80/443",
+		"Use the Open Firewall Ports action (edge.ufw.allow through the target owner) or update the security group rules.", map[string]string{"ufw_rules": rulesRes.Stdout})
 }

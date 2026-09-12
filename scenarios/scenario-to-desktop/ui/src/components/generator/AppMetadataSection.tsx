@@ -26,7 +26,7 @@ export interface AppMetadataSectionProps {
 function buildSummary(
   displayName: string,
   iconPath: string,
-  description: string
+  description: string,
 ): string {
   const parts: string[] = [];
 
@@ -70,7 +70,9 @@ export function AppMetadataSection({
     <div className="rounded-lg border border-slate-800 bg-slate-900/50">
       <button
         type="button"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => {
+          setIsExpanded(!isExpanded);
+        }}
         className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-800/30 transition-colors rounded-lg"
       >
         <div className="min-w-0 flex-1">
@@ -96,7 +98,9 @@ export function AppMetadataSection({
               <Input
                 id="appDisplayName"
                 value={appDisplayName}
-                onChange={(e) => onAppDisplayNameChange(e.target.value)}
+                onChange={(e) => {
+                  onAppDisplayNameChange(e.target.value);
+                }}
                 placeholder={`${scenarioName || "scenario"} Desktop`}
                 className="mt-1.5"
               />
@@ -109,7 +113,9 @@ export function AppMetadataSection({
               <Input
                 id="iconPath"
                 value={iconPath}
-                onChange={(e) => onIconPathChange(e.target.value)}
+                onChange={(e) => {
+                  onIconPathChange(e.target.value);
+                }}
                 placeholder="/home/you/Vrooli/scenarios/picker-wheel/icon.png"
                 className="mt-1.5"
               />
@@ -124,7 +130,9 @@ export function AppMetadataSection({
                       src={iconPreviewUrl}
                       alt="Icon preview"
                       className="h-10 w-10 rounded object-contain"
-                      onError={() => onIconPreviewError(true)}
+                      onError={() => {
+                        onIconPreviewError(true);
+                      }}
                     />
                   ) : (
                     <span className="text-xs text-slate-500">No icon</span>
@@ -143,7 +151,9 @@ export function AppMetadataSection({
             <textarea
               id="appDescription"
               value={appDescription}
-              onChange={(e) => onAppDescriptionChange(e.target.value)}
+              onChange={(e) => {
+                onAppDescriptionChange(e.target.value);
+              }}
               className="mt-1.5 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
               rows={3}
               placeholder={`Desktop application for ${scenarioName || "your scenario"} scenario`}

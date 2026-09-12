@@ -7,11 +7,11 @@ import type {
   VerbosePipelineStatus,
   BuildStageDetails,
   GenerateStageDetails,
-  BundleStageDetails,
-  BundlePreflightResponse,
+  PreflightStageDetails,
   SmokeTestStageDetails,
   DeployStageDetails,
 } from "../lib/api";
+import type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 
 // ============================================================================
 // Pipeline Status Transformation
@@ -23,7 +23,7 @@ import type {
  */
 export interface ExtractedStageResults {
   bundleResult: BundleStageDetails | null;
-  preflightResult: BundlePreflightResponse | null;
+  preflightResult: PreflightStageDetails | null;
   generateResult: GenerateStageDetails | null;
   buildResult: BuildStageDetails | null;
   smokeTestResult: SmokeTestStageDetails | null;
@@ -38,8 +38,10 @@ export interface ExtractedStageResults {
  * ASSUMPTION: Stage details types match the expected TypeScript interfaces.
  * Backend schema changes would require updating these casts.
  */
-export function extractStageResults(status: VerbosePipelineStatus): ExtractedStageResults {
-  const stages = status.stages ?? {};
+export function extractStageResults(
+  status: VerbosePipelineStatus,
+): ExtractedStageResults {
+  const stages = status.stages;
   const logs: Record<string, string[]> = {};
 
   const results: ExtractedStageResults = {
@@ -53,29 +55,30 @@ export function extractStageResults(status: VerbosePipelineStatus): ExtractedSta
   };
 
   // Extract stage details
-  if (stages.bundle?.details) {
-    results.bundleResult = stages.bundle.details as BundleStageDetails;
+  if (stages.bundle?.details?.kind.case === "bundle") {
+    results.bundleResult = stages.bundle.details.kind.value;
   }
-  if (stages.preflight?.details) {
-    results.preflightResult = stages.preflight.details as BundlePreflightResponse;
+  if (stages.preflight?.details?.kind.case === "preflight") {
+    results.preflightResult = stages.preflight.details.kind.value;
   }
-  if (stages.generate?.details) {
-    results.generateResult = stages.generate.details as GenerateStageDetails;
+  if (stages.generate?.details?.kind.case === "generate") {
+    results.generateResult = stages.generate.details.kind.value;
   }
-  if (stages.build?.details) {
-    results.buildResult = stages.build.details as BuildStageDetails;
+  if (stages.build?.details?.kind.case === "build") {
+    results.buildResult = stages.build.details.kind.value;
   }
-  if (stages.smoketest?.details) {
-    results.smokeTestResult = stages.smoketest.details as SmokeTestStageDetails;
+  if (stages.smoketest?.details?.kind.case === "smokeTest") {
+    results.smokeTestResult = stages.smoketest.details.kind.value;
   }
-  if (stages.deploy?.details) {
-    results.deployResult = stages.deploy.details as DeployStageDetails;
+  if (stages.deploy?.details?.kind.case === "deploy") {
+    results.deployResult = stages.deploy.details.kind.value;
   }
 
   // Extract logs from all stages
   for (const [stageName, stage] of Object.entries(stages)) {
-    if (stage?.logs?.length) {
-      logs[stageName] = stage.logs;
+    const stageLogs = (stage as { logs?: string[] }).logs;
+    if (stageLogs?.length) {
+      logs[stageName] = stageLogs;
     }
   }
   results.stageLogs = logs;

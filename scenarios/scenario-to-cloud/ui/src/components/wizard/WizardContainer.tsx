@@ -17,7 +17,12 @@ interface WizardContainerProps {
 
 export function WizardContainer({ onBackToDashboard, onViewDeployments }: WizardContainerProps) {
   const deployment = useDeployment();
-  const { currentStepIndex, currentStep, steps, goToStep, goNext, goBack, canProceed, reset } = deployment;
+  const { currentStepIndex, currentStep: selectedStep, steps, goToStep, goNext, goBack, canProceed, reset } = deployment;
+  const currentStep = selectedStep ?? steps[0];
+
+  if (!currentStep) {
+    return null;
+  }
 
   const renderStep = () => {
     switch (currentStep.id) {

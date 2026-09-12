@@ -1,61 +1,57 @@
 {
-  "description": "Configurable commit message templates and author attribution for applied patches",
-  "module_id": "MOD-P1-015",
-  "prd_ref": "OT-P1-006",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-07-13T22:51:14-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-006",
+      "title": "Configurable Commit Attribution",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-006",
       "category": "core",
       "description": "Allow customization of commit message format and author attribution for sandbox changes via templates and policy configuration.",
-      "id": "REQ-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "implemented",
-      "title": "Configurable Commit Attribution",
       "validation": [
         {
-          "notes": "Test GetCommitAuthor with different author modes (reviewer, coauthored, agent)",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitAuthor",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test GetCommitAuthor with different author modes (reviewer, coauthored, agent)"
         },
         {
-          "notes": "Test GetCommitMessage template rendering",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCommitMessage",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test GetCommitMessage template rendering"
         },
         {
-          "notes": "Test GetCoAuthors returns co-authors in coauthored mode",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestDefaultAttributionPolicy_GetCoAuthors",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test FormatCommitMessage combines message with co-authors",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test GetCoAuthors returns co-authors in coauthored mode"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/policy/policy_test.go::TestFormatCommitMessage",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test FormatCommitMessage combines message with co-authors"
         },
         {
-          "notes": "Template processing <100ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Template processing \u003c100ms"
         },
         {
-          "notes": "Commits follow organization standards",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Commits follow organization standards"
         }
       ]
     }
-  ],
-  "title": "Commit Attribution Policy"
+  ]
 }

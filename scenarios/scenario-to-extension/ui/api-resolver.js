@@ -1,3 +1,5 @@
+import { resolveApiBase } from '@vrooli/api-base'
+
 /**
  * API Resolution & Proxy Detection
  * Handles automatic detection of API endpoints via App Monitor proxy metadata
@@ -24,6 +26,15 @@ const API_RESOLUTION_EVENT = 'scenario-to-extension:api-resolution';
 
 function resolveApiConfig() {
     const win = typeof window !== 'undefined' ? window : undefined;
+    const governedBase = resolveApiBase({ appendSuffix: true });
+    if (typeof governedBase === 'string' && governedBase.trim()) {
+        return {
+            base: governedBase,
+            root: stripApiSuffix(governedBase),
+            source: 'api-base',
+            notes: 'Resolved through the governed @vrooli/api-base client'
+        };
+    }
     const loopbackRoot = buildLoopbackRoot(win);
     const loopbackBase = ensureApiPath(loopbackRoot);
 

@@ -1,0 +1,378 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "vrooli-onboarding",
+  "generator": "v1.0.0",
+  "manifest_hash": "73162d210e1f89c79878db93e8e9b748ad07758e16c7458e43eebdb9928be4c5",
+  "commands": [
+    {
+      "path": "apply cancel",
+      "group": "apply",
+      "command": "cancel",
+      "binding": "ApplyService.CancelApply",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "apply plan",
+      "group": "apply",
+      "command": "plan",
+      "binding": "ApplyService.GetApplyPlan",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "apply review",
+      "group": "apply",
+      "command": "review",
+      "binding": "ApplyService.ReviewApply",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "apply start",
+      "group": "apply",
+      "command": "start",
+      "binding": "ApplyService.StartApply",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "apply status",
+      "group": "apply",
+      "command": "status",
+      "binding": "ApplyService.GetApplyRun",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "capabilities apply",
+      "group": "capabilities",
+      "command": "apply",
+      "binding": "CapabilitiesService.ApplyCapability",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "capabilities list",
+      "group": "capabilities",
+      "command": "list",
+      "binding": "CapabilitiesService.ListCapabilities",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "capabilities preview",
+      "group": "capabilities",
+      "command": "preview",
+      "binding": "CapabilitiesService.PreviewCapability",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "capabilities verify",
+      "group": "capabilities",
+      "command": "verify",
+      "binding": "CapabilitiesService.VerifyCapability",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "control closure",
+      "group": "control",
+      "command": "closure",
+      "binding": "SelectionService.GetClosure",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "credentials doctor",
+      "group": "credentials",
+      "command": "doctor",
+      "binding": "CredentialsService.DiagnoseCredentials",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "credentials list",
+      "group": "credentials",
+      "command": "list",
+      "binding": "CredentialsService.ListCredentials",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "credentials provision",
+      "group": "credentials",
+      "command": "provision",
+      "binding": "CredentialsService.ProvisionCredential",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "credentials reveal",
+      "group": "credentials",
+      "command": "reveal",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "glossary configuration-search",
+      "group": "glossary",
+      "command": "configuration-search",
+      "binding": "GlossaryService.SearchConfiguration",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "glossary glossary",
+      "group": "glossary",
+      "command": "glossary",
+      "binding": "GlossaryService.SearchGlossary",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "handoff get",
+      "group": "handoff",
+      "command": "get",
+      "binding": "SelectionService.GetHandoff",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "host list",
+      "group": "host",
+      "command": "list",
+      "binding": "HostService.ListHostRequirements",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "host set-config",
+      "group": "host",
+      "command": "set-config",
+      "binding": "HostService.PatchHostSafeguardConfig",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "host set-recipient",
+      "group": "host",
+      "command": "set-recipient",
+      "binding": "HostService.SetNotificationRecipient",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "operator inputs",
+      "group": "operator",
+      "command": "inputs",
+      "binding": "OperatorInputsService.ListOperatorInputs",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "operator patch",
+      "group": "operator",
+      "command": "patch",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "operator resolve-inputs",
+      "group": "operator",
+      "command": "resolve-inputs",
+      "binding": "OperatorInputsService.ResolveOperatorInputs",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "operator show",
+      "group": "operator",
+      "command": "show",
+      "binding": "OperatorStateService.GetOperatorState",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "profiles evaluate",
+      "group": "profiles",
+      "command": "evaluate",
+      "binding": "ProfileService.EvaluateProfile",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "profiles list",
+      "group": "profiles",
+      "command": "list",
+      "binding": "ProfileService.ListProfiles",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "readiness acknowledge-degraded",
+      "group": "readiness",
+      "command": "acknowledge-degraded",
+      "binding": "ReadinessService.AcknowledgeDegradedReadiness",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "readiness readiness",
+      "group": "readiness",
+      "command": "readiness",
+      "binding": "ReadinessService.GetReadiness",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "readiness status",
+      "group": "readiness",
+      "command": "status",
+      "binding": ".",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "resources get",
+      "group": "resources",
+      "command": "get",
+      "binding": "ResourcesService.GetResource",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "resources health",
+      "group": "resources",
+      "command": "health",
+      "binding": "ResourcesService.GetResourceHealth",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "resources list",
+      "group": "resources",
+      "command": "list",
+      "binding": "ResourcesService.ListResources",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scenarios list",
+      "group": "scenarios",
+      "command": "list",
+      "binding": "SelectionService.ListScenarios",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "union export",
+      "group": "union",
+      "command": "export",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "wizard advance-step",
+      "group": "wizard",
+      "command": "advance-step",
+      "binding": "SessionService.AdvanceSessionStep",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard commit",
+      "group": "wizard",
+      "command": "commit",
+      "binding": "SelectionService.AcceptRecommendation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard core-set",
+      "group": "wizard",
+      "command": "core-set",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "wizard discard-draft",
+      "group": "wizard",
+      "command": "discard-draft",
+      "binding": "SessionService.DiscardDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard draft",
+      "group": "wizard",
+      "command": "draft",
+      "binding": "SessionService.GetDraft",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "wizard export",
+      "group": "wizard",
+      "command": "export",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "wizard profile-session",
+      "group": "wizard",
+      "command": "profile-session",
+      "binding": "SessionService.GetProfileSession",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "wizard run",
+      "group": "wizard",
+      "command": "run",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "wizard save-draft",
+      "group": "wizard",
+      "command": "save-draft",
+      "binding": "SessionService.SaveDraft",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard save-profile-session",
+      "group": "wizard",
+      "command": "save-profile-session",
+      "binding": "SessionService.SaveProfileSession",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "wizard status",
+      "group": "wizard",
+      "command": "status",
+      "binding": "SessionService.GetSession",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "wizard support-export",
+      "group": "wizard",
+      "command": "support-export",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    }
+  ]
+}

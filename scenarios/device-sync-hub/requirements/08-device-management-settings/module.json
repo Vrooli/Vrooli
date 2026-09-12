@@ -1,0 +1,164 @@
+{
+  "description": "Owner can list, rename, and revoke devices; perform remote sign-out; configure the global retention default and per-device storage quotas; destructive actions (e.g., clear-all) require explicit confirmation and are permissioned to the owner.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-006",
+        "REQ-P0-005"
+      ],
+      "description": "The owner can view a list of all trusted devices showing device name, pairing date, last-seen timestamp, and online/offline presence. The owner can rename any device. The owner can revoke any device, which triggers immediate session invalidation and trust group removal as defined in REQ-P0-006. All device management endpoints are permissioned exclusively to the authenticated owner; no other device user can enumerate, rename, or revoke devices.",
+      "id": "REQ-P0-013",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Device Management: List, Rename, and Revoke",
+      "validation": [
+        {
+          "notes": "Unit test: list-devices handler returns only devices belonging to the authenticated owner_id",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: rename-device handler updates device name and persists to relational store",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: revoke-device handler calls session invalidation seam before removing from trust table",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: device management endpoints return HTTP 403 when caller's device_id does not match owner_id",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner lists devices; assert paired Device B appears with correct metadata",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner renames Device B; assert new name is returned on subsequent list call",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner revokes Device B; assert Device B is absent from subsequent list call and cannot authenticate",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: open Device Management; rename a device; confirm new name persists after page reload",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: revoke a device; confirm it disappears from the list and a confirmation dialog was shown before action",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-007",
+        "REQ-P0-008",
+        "REQ-P0-013"
+      ],
+      "description": "The owner can perform remote sign-out of any trusted device from the Settings/Device Management UI, which invalidates that device's sessions without full revocation (the device remains trusted but must re-authenticate). The owner can configure the global retention default (Live, Held with TTL, Pinned) and per-device storage quotas in Settings. Destructive actions (clear-all items, revoke all devices) require an explicit typed confirmation dialog before execution and are permissioned exclusively to the owner.",
+      "id": "REQ-P0-014",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Remote Sign-Out, Global Retention Default, and Storage Quota Settings",
+      "validation": [
+        {
+          "notes": "Unit test: remote-sign-out handler calls scenario-authenticator session invalidation for the target device without removing it from the trust table",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: settings update handler persists global retention default and per-device quota values to the owner profile record",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: clear-all handler requires a confirmation token in the request body and returns HTTP 400 if absent",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: destructive action endpoints return HTTP 403 for any caller who is not the owner",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner triggers remote sign-out on Device B; Device B's next authenticated request returns HTTP 401; Device B can re-pair and regain access",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner sets Device B quota to 100 MB; upload exceeding 100 MB from Device B is rejected with HTTP 422",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: clear-all action without confirmation token returns HTTP 400; with token all items are deleted",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: navigate to Settings; change global retention default; confirm new items inherit the new default",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: trigger clear-all from UI; confirm confirmation dialog appears and cancel preserves all items",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Device Management \u0026 Settings"
+}

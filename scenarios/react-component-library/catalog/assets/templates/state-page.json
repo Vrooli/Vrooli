@@ -1,0 +1,113 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.state-page",
+    "name": "StatePage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The shared template family for not-found, permission-denied, offline, maintenance, expired, deleted, and fatal-error surfaces, each with context-specific recovery.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "feedback.not-found-state",
+        "reason": "Missing-resource presentation is shared."
+      },
+      {
+        "asset": "feedback.permission-state",
+        "reason": "Authorization presentation is shared."
+      },
+      {
+        "asset": "feedback.offline-state",
+        "reason": "Connectivity presentation is shared."
+      },
+      {
+        "asset": "feedback.error-state",
+        "reason": "Fatal-failure presentation is shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "explanation",
+      "purpose": "What happened, in plain language.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "recovery",
+      "purpose": "The most useful next action for this specific condition.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "context",
+      "purpose": "Where the user was and how to get back.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "rationale": "A single generic error page is the lazy answer and the useless one. Deleted, never-existed, no-access, and offline need four different next actions, and conflating them leaves users with no path forward."
+}

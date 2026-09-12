@@ -6,13 +6,40 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"knowledge-observatory/internal/services/search"
 )
 
-// SemanticSearcher exposes the semantic search service dependency.
+// SemanticSearcher exposes the semantic search service dependency. Phase 6 of
+// the search cutover decoupled this from the deleted internal/services/search
+// package: the unified endpoint's semantic leg is now backed by the hybrid
+// documentation engine (internal/aisearch) via an adapter in the api package,
+// so docsearch carries only the request/response shapes it needs.
 type SemanticSearcher interface {
-	Search(ctx context.Context, req search.Request) (search.Response, error)
+	Search(ctx context.Context, req SemanticRequest) (SemanticResponse, error)
+}
+
+// SemanticRequest is the documentation-scoped semantic query the unified search
+// hands to the hybrid engine. Scope/Scenario/BasePath mirror the filesystem
+// legs so the semantic leg honors the same global/scenario/path scoping.
+type SemanticRequest struct {
+	Query     string
+	Scope     string
+	Scenario  string
+	BasePath  string
+	Limit     int
+	Threshold float64
+}
+
+// SemanticResult is one hybrid-engine hit projected for unified merging.
+type SemanticResult struct {
+	ID       string
+	Score    float64
+	Content  string
+	Metadata map[string]interface{}
+}
+
+// SemanticResponse wraps the semantic leg's results.
+type SemanticResponse struct {
+	Results []SemanticResult
 }
 
 const (
@@ -96,14 +123,13 @@ func (s *Service) SearchUnified(ctx context.Context, req UnifiedSearchRequest) (
 		if threshold <= 0 {
 			threshold = 0.3
 		}
-		semanticResults, err := s.Semantic.Search(ctx, search.Request{
-			Query:      req.Query,
-			Collection: req.SemanticCollection,
-			Namespaces: req.SemanticNamespaces,
-			Visibility: req.SemanticVisibility,
-			Tags:       req.SemanticTags,
-			Limit:      limit,
-			Threshold:  threshold,
+		semanticResults, err := s.Semantic.Search(ctx, SemanticRequest{
+			Query:     req.Query,
+			Scope:     req.Scope,
+			Scenario:  req.Scenario,
+			BasePath:  req.BasePath,
+			Limit:     limit,
+			Threshold: threshold,
 		})
 		if err == nil {
 			for _, res := range semanticResults.Results {
