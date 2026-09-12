@@ -227,9 +227,10 @@ func applyFixtureRoot(t *testing.T, projectCredentials string) string {
 	// its own home rather than writing into the operator's.
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-25T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-25T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), `{
   "service": {"name": "vrooli", "description": "Project scope"},
   "credentials": {"descriptors": [`+projectCredentials+`]}

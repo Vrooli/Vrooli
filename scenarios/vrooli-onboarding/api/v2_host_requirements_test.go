@@ -29,7 +29,7 @@ func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "internal", "safeguards", "demo-safeguard", "safeguard.json"), []byte(`{"name":"demo_safeguard","description":"Demo safeguard","risk":"high","platforms":["linux"],"privilege":"elevated","bundling":"prohibited","config":{"type":"object","required":["target"],"properties":{"target":{"type":"string","description":"collector target"}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}},"host_safeguards":{"demo_safeguard":{"opted_in":true,"config":{"target":"collector.example:6666"}}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}},"host_safeguards":{"demo_safeguard":{"opted_in":true,"config":{"target":"collector.example:6666"}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

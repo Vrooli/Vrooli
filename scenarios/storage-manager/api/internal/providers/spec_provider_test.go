@@ -24,16 +24,6 @@ func TestValidateRootSpecRequiresRegenerableProof(t *testing.T) {
 	}
 }
 
-func TestResolveRootExpandsSupportedVariables(t *testing.T) {
-	home := filepath.Join("/tmp", "root-spec-home")
-	if got, want := ResolveRoot("$USER_HOME/cache", home), filepath.Join(home, "cache"); got != want {
-		t.Fatalf("ResolveRoot home = %q, want %q", got, want)
-	}
-	if got, want := ResolveRoot("$TMPDIR/go-build*", home), filepath.Join("/tmp", "go-build*"); got != want {
-		t.Fatalf("ResolveRoot tmp = %q, want %q", got, want)
-	}
-}
-
 func TestNewSpecProviderUsesDeclaredRootAndLimits(t *testing.T) {
 	spec := RootSpec{
 		ID: "spec-cache", Root: "/tmp/spec-cache", Class: "cache", Tier: cleanup.SafetyTierRegenerable,

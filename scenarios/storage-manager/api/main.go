@@ -17,6 +17,7 @@ import (
 	"storage-manager/internal/inventorycache"
 	"storage-manager/internal/modules"
 	"storage-manager/internal/orchestrator"
+	"storage-manager/internal/policybridge"
 	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
@@ -121,6 +122,9 @@ func main() {
 			}
 		})
 		storageScheduler.Start(schedulerContext)
+		// Coding agents decide deletions from the agent-policy bundle; publish
+		// where the contract declares deletion safe, owner-confirmed, or durable.
+		policybridge.Start(schedulerContext, logger, repoRoot)
 		// Fail closed: retention deletes, so a pass that cannot write receipts
 		// must not start at all. Skipping the scheduler is the right blast
 		// radius -- the API keeps serving, and the one subsystem that would

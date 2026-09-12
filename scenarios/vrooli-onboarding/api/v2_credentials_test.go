@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"net/http"
 	"strings"
 	"testing"
+
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 func TestCredentialProvisionUsesMetadataOnlyResponse(t *testing.T) {
@@ -43,12 +44,12 @@ func TestCredentialProvisionRejectsMissingValue(t *testing.T) {
 func TestCredentialDoctorRelaysMetadataOnly(t *testing.T) {
 	prior := credentialDoctorCommand
 	credentialDoctorCommand = func(context.Context) ([]byte, error) {
-		return []byte(`{"provider":{"backend":"libsecret","condition":"available"},"credentials":[{"logical_id":"vrooli/demo","field":"api-key","label":"Demo key","description":"Key for the demo provider.","obtain_url":"https://example.test/demo-key","provisioning":"operator"}]}`), nil
+		return []byte(`{"provider":{"backend":"libsecret","condition":"available"},"credentials":[{"logical_id":"vrooli/demo","field":"api-key","label":"Demo key","description":"Key for the demo provider.","placeholder":"demo-key-example","obtain_url":"https://example.test/demo-key","provisioning":"operator"}]}`), nil
 	}
 	t.Cleanup(func() { credentialDoctorCommand = prior })
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.credentials.CredentialsService/DiagnoseCredentials", `{"target":"local"}`)
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"backend":"libsecret"`) || !strings.Contains(w.Body.String(), `"obtainUrl":"https://example.test/demo-key"`) || !strings.Contains(w.Body.String(), `"provisioning":"operator"`) {
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"backend":"libsecret"`) || !strings.Contains(w.Body.String(), `"obtainUrl":"https://example.test/demo-key"`) || !strings.Contains(w.Body.String(), `"placeholder":"demo-key-example"`) || !strings.Contains(w.Body.String(), `"provisioning":"operator"`) {
 		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
 	}
 }

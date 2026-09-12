@@ -33,11 +33,12 @@ func writeProjectScopeFixture(t *testing.T) (string, string) {
 	writeFixtureFile(t, filepath.Join(root, "internal", "tools", "jq", "tool.json"), `{"name":"jq","description":"JSON parser","commands":["jq"]}`)
 	writeFixtureFile(t, filepath.Join(root, "internal", "tools", "tmux", "tool.json"), `{"name":"tmux","description":"terminal multiplexer","commands":["tmux"]}`)
 	writeFixtureFile(t, filepath.Join(root, "internal", "safeguards", "workspace_sandbox_userns", "safeguard.json"), `{"name":"workspace_sandbox_userns","description":"Workspace sandbox user namespaces","privilege":"elevated","verificationCheck":{"files":["/etc/apparmor.d/vrooli-workspace-sandbox"]}}`)
-	writeFixtureFile(t, filepath.Join(storageRoot, "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-25T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePathAt(t, storageRoot), `{"version":"1.0.0","updated_at":"2026-08-25T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	if err := os.MkdirAll(filepath.Join(root, "resources"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 	stubExternalReadinessProbes(t)

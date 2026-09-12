@@ -11,6 +11,7 @@ import (
 
 func TestCoreSetRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	router := gin.New()
 	RegisterHTTPRoutes(router.Group("/api/v1"), t.TempDir)
 

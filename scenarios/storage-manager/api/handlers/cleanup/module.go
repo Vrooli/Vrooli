@@ -366,20 +366,12 @@ func autohealLiveDatabasePath(home string) string {
 }
 
 func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
-	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	specs, err := providers.LoadRootSpecs(repoRoot)
 	if err != nil {
 		return nil, err
 	}
-	var doc struct {
-		Storage struct {
-			Roots []providers.RootSpec `json:"roots"`
-		} `json:"storage"`
-	}
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, err
-	}
-	out := make([]providers.RootSpec, 0, len(doc.Storage.Roots))
-	for _, spec := range doc.Storage.Roots {
+	out := make([]providers.RootSpec, 0, len(specs))
+	for _, spec := range specs {
 		if !spec.Applicable() || (spec.Tier != cleanupcore.SafetyTierSafe && spec.Tier != cleanupcore.SafetyTierRegenerable) {
 			continue
 		}
@@ -396,8 +388,12 @@ func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
 // file provider. Adding a root is therefore a contract change, not a new Go
 // registry branch. Owner-leased roots remain withheld until the owner-budget
 // authority is available.
-func governedRootProviderConfigs(repoRoot, home string) []providers.FileProviderConfig {
+func governedRootProviderConfigs(repoRoot string) []providers.FileProviderConfig {
 	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil
+	}
+	inputs, err := corestorage.HostGovernedRootInputs(repoRoot)
 	if err != nil {
 		return nil
 	}
@@ -425,10 +421,14 @@ func governedRootProviderConfigs(repoRoot, home string) []providers.FileProvider
 		if parseErr != nil {
 			continue
 		}
+		root, rootErr := corestorage.ResolveGovernedRootStrict(spec.Root, inputs)
+		if rootErr != nil {
+			continue
+		}
 		tier := cleanupcore.SafetyTier(spec.Tier)
 		configs = append(configs, providers.FileProviderConfig{
 			ID: "spec-" + spec.ID, Name: "Governed " + spec.ID,
-			Roots:       []string{expandGovernedRoot(spec.Root, repoRoot, home)},
+			Roots:       []string{root},
 			Description: "Declarative governed root", Tier: tier,
 			RetentionMaxAge: maxAge, RetentionMaxBytes: maxBytes,
 		})
@@ -454,17 +454,6 @@ func parseGovernedRootLimits(maxAge, maxBytes string) (time.Duration, int64, err
 		}
 	}
 	return age, bytes, nil
-}
-
-func expandGovernedRoot(raw, repoRoot, home string) string {
-	value := strings.TrimSpace(raw)
-	value = strings.ReplaceAll(value, "$USER_HOME", home)
-	value = strings.ReplaceAll(value, "$VROOLI_HOME", filepath.Join(home, ".vrooli"))
-	value = strings.ReplaceAll(value, "$REPO_ROOT", repoRoot)
-	if strings.HasPrefix(value, "~/") {
-		value = filepath.Join(home, strings.TrimPrefix(value, "~/"))
-	}
-	return filepath.Clean(value)
 }
 
 func ownerScenarioProviderConfigs(repoRoot string) []providers.OwnerProviderConfig {

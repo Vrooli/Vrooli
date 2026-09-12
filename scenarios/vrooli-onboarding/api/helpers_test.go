@@ -4,17 +4,78 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 )
+
+func TestMain(m *testing.M) {
+	home, err := os.MkdirTemp("", "vrooli-onboarding-test-home-")
+	if err != nil {
+		panic(err)
+	}
+	previous, hadPrevious := os.LookupEnv("HOME")
+	if err := os.Setenv("HOME", home); err != nil {
+		panic(err)
+	}
+	stateRoot, err := os.MkdirTemp("", "vrooli-onboarding-test-state-")
+	if err != nil {
+		panic(err)
+	}
+	previousStateRoot, hadPreviousStateRoot := os.LookupEnv("VROOLI_STATE_ROOT")
+	if err := os.Setenv("VROOLI_STATE_ROOT", stateRoot); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	if hadPrevious {
+		_ = os.Setenv("HOME", previous)
+	} else {
+		_ = os.Unsetenv("HOME")
+	}
+	if hadPreviousStateRoot {
+		_ = os.Setenv("VROOLI_STATE_ROOT", previousStateRoot)
+	} else {
+		_ = os.Unsetenv("VROOLI_STATE_ROOT")
+	}
+	_ = os.RemoveAll(home)
+	_ = os.RemoveAll(stateRoot)
+	os.Exit(code)
+}
+
+func operatorStateFixturePath(t *testing.T, root string) string {
+	t.Helper()
+	return operatorStateFixturePathAt(t, filepath.Join(root, "test-storage"))
+}
+
+func operatorStateFixturePathAt(t *testing.T, storageRoot string) string {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatalf("create test storage resolver: %v", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatalf("resolve test operator state: %v", err)
+	}
+	path := filepath.Join(paths.StateDir, operatorstate.StateFile)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("create test operator state directory: %v", err)
+	}
+	return path
+}
 
 func newV2Root(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	statePath := operatorStateFixturePath(t, root)
 	previous := operatorStatePath
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
+	operatorStatePath = func() (string, error) { return statePath, nil }
 	t.Cleanup(func() { operatorStatePath = previous })
 	return root
 }

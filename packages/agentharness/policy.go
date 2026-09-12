@@ -31,6 +31,7 @@ const (
 	RiskDependencyRemove  RiskClass = "dependency_removal"
 	RiskLifecycle         RiskClass = "lifecycle_execution"
 	RiskPublish           RiskClass = "publish"
+	RiskFilesystemRemoval RiskClass = "filesystem_removal"
 	RiskOpaque            RiskClass = "opaque"
 	RiskUnknown           RiskClass = "unknown"
 )
@@ -104,6 +105,24 @@ type ProviderScope struct {
 	Runners    []string `json:"runners,omitempty"`
 	Roots      []string `json:"roots,omitempty"`
 	Ecosystems []string `json:"ecosystems,omitempty"`
+	// Risks limits the snapshot to these risk classes, so a provider that
+	// vouches for one kind of action is not read as vouching for another.
+	Risks []RiskClass `json:"risks,omitempty"`
+}
+
+// PathRule is a provider's disposition for one filesystem location: whether
+// an agent may delete inside Root. The most specific containing rule wins; a
+// stricter rule nested inside a recursive target wins over it.
+type PathRule struct {
+	Root   string         `json:"root"`
+	Action DecisionAction `json:"action"`
+	Reason string         `json:"reason"`
+	// Source names the declaration, such as a repo-contract storage root.
+	Source string `json:"source,omitempty"`
+	Owner  string `json:"owner,omitempty"`
+	// Provider is the snapshot that published the rule. The runtime sets it
+	// on load; a provider cannot claim another's name.
+	Provider string `json:"provider,omitempty"`
 }
 
 type ProviderCapability struct {
@@ -171,6 +190,7 @@ type ProviderSnapshot struct {
 	CapturedAt   time.Time            `json:"captured_at"`
 	ExpiresAt    time.Time            `json:"expires_at"`
 	Rules        []PolicyRule         `json:"rules,omitempty"`
+	PathRules    []PathRule           `json:"path_rules,omitempty"`
 	Provenance   map[string]string    `json:"provenance,omitempty"`
 }
 
@@ -256,6 +276,20 @@ func ValidateSnapshot(snapshot ProviderSnapshot) error {
 			if err := ValidateRepairPlan(*rule.Repair); err != nil {
 				return err
 			}
+		}
+	}
+	for _, rule := range snapshot.PathRules {
+		if strings.TrimSpace(rule.Root) == "" || !filepath.IsAbs(rule.Root) {
+			return fmt.Errorf("path rule root %q must be absolute", rule.Root)
+		}
+		if filepath.Dir(filepath.Clean(rule.Root)) == filepath.Clean(rule.Root) {
+			return fmt.Errorf("path rule root %q is a filesystem root", rule.Root)
+		}
+		if rule.Action != ActionAllow && rule.Action != ActionAsk && rule.Action != ActionDeny {
+			return fmt.Errorf("path rule %q action must be allow, ask, or deny", rule.Root)
+		}
+		if strings.TrimSpace(rule.Reason) == "" {
+			return fmt.Errorf("path rule %q requires a reason", rule.Root)
 		}
 	}
 	return nil

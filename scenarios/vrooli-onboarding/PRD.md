@@ -37,7 +37,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks: Go for the API, CLI, and the shared control-plane state service; React + TypeScript + Vite for the UI, consuming the shared component library and design tokens.
-- Data + storage expectations: No scenario-owned database. `.vrooli/operator-state.json` is the sole durable record and is owned by a control-plane service, not by this scenario. Credential values live only in the credential authority.
+- Data + storage expectations: No scenario-owned database. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is the sole durable record and is owned by a control-plane service, not by this scenario. Credential values live only in the credential authority.
 - Integration strategy: Manifest-derived read models and a field-scoped write API. Every other surface — CLI, bridge, cloud, desktop — is a client of the same service and evaluator.
 - Non-goals: Authoring `service.json`; owning connector or OAuth lifecycles (integration-hub); implementing host remediation itself (the control plane owns detection and repair); replacing `secrets-manager` for credential lifecycle.
 

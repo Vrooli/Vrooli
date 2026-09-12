@@ -462,7 +462,7 @@ resumes from a terminal at the same step.
 ```mermaid
 flowchart TD
   R{"Which tier?"}
-  R -->|"repo root set"| A["Repository catalog<br/>state: .vrooli/operator-state.json"]
+  R -->|"repo root set"| A["Repository catalog<br/>state: ~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json"]
   R -->|"bundle root set"| B["Bundle catalog<br/>state: app-data storage root"]
   R -->|"neither"| C["Typed degraded state<br/>names the missing catalog"]
   A --> D["Same ten steps"]

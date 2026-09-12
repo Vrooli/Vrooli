@@ -148,7 +148,7 @@ func TestOperatorStateUsesDesktopStorageRatherThanBundleCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("operatorStatePath: %v", err)
 	}
-	want := filepath.Join(storage, "operator-state.json")
+	want := filepath.Join(storage, "state", "vrooli", "vrooli-onboarding", "operator-state.json")
 	if path != want {
 		t.Fatalf("operator state path = %q, want %q", path, want)
 	}
@@ -168,7 +168,7 @@ func TestOperatorStateUsesLeasedFileRootsInTestMode(t *testing.T) {
 	if err := saveOperatorStateFor(ctx, defaultOperatorState()); err != nil {
 		t.Fatalf("save operator state: %v", err)
 	}
-	testRoot, err := roots.Pick(ctx, storage.ClassConfig)
+	testRoot, err := roots.Pick(ctx, storage.ClassState)
 	if err != nil {
 		t.Fatalf("pick test root: %v", err)
 	}

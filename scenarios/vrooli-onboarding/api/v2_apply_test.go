@@ -159,6 +159,7 @@ func useInProcessApplyRunner(t *testing.T) {
 func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	// Own the home and the external probes. Without this the readiness pass
 	// inside apply shells out to the operator's real credential doctor, so the
@@ -168,7 +169,7 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	stubExternalReadinessProbes(t)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","hostTools":[],"hostSafeguards":[]}`)
 	writeBootstrapMarker(t, root)
@@ -214,11 +215,12 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 func TestV2ApplyReplaysConsumedConsentWithSameIdempotencyKey(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	stubExternalReadinessProbes(t)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true}}`)
 	fake := &recordingApplyExecutor{}
 	previous := onboardingApplyExecutor
@@ -254,6 +256,7 @@ func TestV2ApplyReplaysConsumedConsentWithSameIdempotencyKey(t *testing.T) {
 func TestV2ApplySkipsDependentAfterFailure(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	// Own the home and the external probes. Without this the readiness pass
 	// inside apply shells out to the operator's real credential doctor, so the
@@ -263,7 +266,7 @@ func TestV2ApplySkipsDependentAfterFailure(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	stubExternalReadinessProbes(t)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres"}`)
 	fake := &recordingApplyExecutor{failOn: "resource:postgres"}
@@ -305,6 +308,7 @@ func mustJSON(t *testing.T, value any) []byte {
 func TestApplyNeverRestartsItself(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	// Own the home and the external probes. Without this the readiness pass
 	// inside apply shells out to the operator's real credential doctor, so the
@@ -314,7 +318,7 @@ func TestApplyNeverRestartsItself(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	stubExternalReadinessProbes(t)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"),
+	writeFixtureFile(t, operatorStateFixturePath(t, root),
 		`{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"`+onboardingScenarioName+`":{"enabled":true},"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", onboardingScenarioName, ".vrooli", "service.json"),
 		`{"service":{"name":"`+onboardingScenarioName+`","system_required":true}}`)

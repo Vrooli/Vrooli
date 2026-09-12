@@ -46,7 +46,7 @@ describe("StepCredentials", () => {
       status: "degraded",
       scenarios: [],
       resources: [],
-      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", obtain_url: "https://provider.example/keys", required: true, status: "pending", evidence_status: "pending" }],
+      credentials: [{ logical_id: "mail", field: "api_key", label: "Mail API key", description: "Sends sign-in mail", placeholder: "mail-api-key-example", obtain_url: "https://provider.example/keys", required: true, status: "pending", evidence_status: "pending" }],
       hosts: [],
       integrations: [],
       checked_at: "now",
@@ -61,6 +61,7 @@ describe("StepCredentials", () => {
 
     expect(await screen.findByTestId("credential-card")).toHaveTextContent("Mail API key");
     expect(screen.getByTestId("credential-entry-group")).toBeInTheDocument();
+    expect(screen.getByTestId("credential-input")).toHaveAttribute("placeholder", "mail-api-key-example");
     expect(screen.getByRole("button", { name: "Save securely" })).toBeInTheDocument();
     expect(screen.queryByRole("status", { name: "Checking credential requirements…" })).not.toBeInTheDocument();
   });

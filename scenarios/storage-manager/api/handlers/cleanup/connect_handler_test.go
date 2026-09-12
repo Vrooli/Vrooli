@@ -66,7 +66,7 @@ func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testin
 }
 
 func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testing.T) {
-	configs := governedRootProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
+	configs := governedRootProviderConfigs("/home/matthalloran8/Vrooli")
 	if len(configs) == 0 {
 		t.Fatal("governed root provider configs are empty")
 	}

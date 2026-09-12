@@ -74,6 +74,7 @@ func swapCLIClient(t *testing.T, out []byte, err error) {
 	t.Cleanup(func() { cliClient = previous })
 	cliClient = vroolicli.New(vroolicli.WithRunner(stubRunner{out: out, err: err}))
 }
+
 func stubResourceStatusJSON(t *testing.T, fixtures []resourceStatusFixture, err error) {
 	t.Helper()
 	if err != nil {
@@ -99,6 +100,7 @@ func writeResourcesFile(t *testing.T, _ string, raw []map[string]string) {
 	}
 	stubResourceStatusJSON(t, fixtures, nil)
 }
+
 func doRequest(t *testing.T, srv *Server, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	var req *http.Request
@@ -129,24 +131,29 @@ func recordRequest(handler http.Handler, req *http.Request) *httptest.ResponseRe
 	handler.ServeHTTP(w, req)
 	return w
 }
+
 func doPost(t *testing.T, srv *Server, path, body string) *httptest.ResponseRecorder {
 	return doRequest(t, srv, http.MethodPost, path, body)
 }
+
 func doGet(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 	return doRequest(t, srv, http.MethodGet, path, "")
 }
+
 func requireStatus(t *testing.T, w *httptest.ResponseRecorder, want int) {
 	t.Helper()
 	if w.Code != want {
 		t.Fatalf("status = %d, want %d; body: %s", w.Code, want, w.Body.String())
 	}
 }
+
 func decodeJSON(t *testing.T, w *httptest.ResponseRecorder, dst any) {
 	t.Helper()
 	if err := json.Unmarshal(w.Body.Bytes(), dst); err != nil {
 		t.Fatal(err)
 	}
 }
+
 func newTestServer(t *testing.T, fixtures any) *Server {
 	t.Helper()
 	raw, ok := fixtures.([]map[string]string)

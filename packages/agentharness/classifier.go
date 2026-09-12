@@ -5,6 +5,11 @@ import "strings"
 // ClassifyToolEvent only classifies intent. It never claims a package manager
 // from a language name; adapters provide package-manager evidence separately.
 func ClassifyToolEvent(event ToolEvent) RiskClass {
+	// Deletion is recognised before the opaque check: a compound command that
+	// deletes is still a deletion, and the removal engine parses it.
+	if len(removalTargetsFor(event, removalEnv{})) > 0 {
+		return RiskFilesystemRemoval
+	}
 	joined := strings.ToLower(strings.Join(append([]string{event.Tool}, event.Arguments...), " "))
 	if strings.TrimSpace(joined) == "" {
 		return RiskUnknown

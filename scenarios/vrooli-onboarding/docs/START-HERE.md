@@ -17,7 +17,7 @@ terminal, an agent, and a remote coordinator reach the same result.
 
 ## The one-paragraph model
 
-Manifests declare what exists. `.vrooli/operator-state.json` records what this
+Manifests declare what exists. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` records what this
 install chose. Onboarding is the surface between them and the only thing that
 turns a choice into applied host state. It owns no database, stores no credential
 value, and writes operator state only through `internal/operatorstate`.

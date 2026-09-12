@@ -20,7 +20,7 @@ func TestV2ScenariosDerivesResourcesAndEffectiveStateFromManifests(t *testing.T)
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","updated_at":"2026-01-01T00:00:00Z","scenarios":{"alpha":{"enabled":false,"auto_restart":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","updated_at":"2026-01-01T00:00:00Z","scenarios":{"alpha":{"enabled":false,"auto_restart":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/ListScenarios", `{"target":"local"}`)

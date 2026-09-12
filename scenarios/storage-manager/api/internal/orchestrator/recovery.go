@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/eventbus"
+	corestorage "github.com/vrooli/api-core/storage"
 	"storage-manager/internal/cleanup"
 	"storage-manager/internal/recoverylock"
 )
@@ -515,15 +515,14 @@ func rateRecoveryChild(trigger, partition string) bool {
 	if !strings.Contains(strings.ToUpper(trigger), "RATE") {
 		return false
 	}
-	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
-	if base == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return false
-		}
-		base = filepath.Join(home, ".vrooli")
+	inputs, err := corestorage.HostGovernedRootInputs("")
+	if err != nil {
+		return false
 	}
-	base = filepath.Clean(filepath.Join(base, "tmp", "go-work"))
+	base, err := corestorage.ResolveGovernedRootStrict("$VROOLI_HOME/tmp/go-work", inputs)
+	if err != nil {
+		return false
+	}
 	partition = filepath.Clean(strings.TrimSpace(partition))
 	rel, err := filepath.Rel(base, partition)
 	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !strings.Contains(rel, string(filepath.Separator))

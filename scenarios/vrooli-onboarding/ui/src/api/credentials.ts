@@ -15,6 +15,7 @@ export interface CredentialListItem {
   field: string;
   label: string;
   description?: string;
+  placeholder?: string;
   tiers?: string[];
   obtain_url?: string;
   required: boolean;
@@ -39,6 +40,7 @@ export function fetchCredentials(target = "local"): Promise<CredentialListRespon
         field: item.field,
         label: item.label,
         description: item.description,
+        placeholder: item.placeholder,
         tiers: metadata.tiers,
         obtain_url: item.obtainUrl,
         required: item.required,

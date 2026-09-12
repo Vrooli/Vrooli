@@ -5,11 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
+
+	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 )
 
 // completionBlocker names one reason configuration is not complete. It carries

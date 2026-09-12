@@ -7,7 +7,42 @@ import (
 	"testing"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/api-core/storage"
 )
+
+func TestMain(m *testing.M) {
+	root, err := os.MkdirTemp("", "scenario-dependency-coreset-test-")
+	if err != nil {
+		panic(err)
+	}
+	previous, hadPrevious := os.LookupEnv("VROOLI_STORAGE_ROOT")
+	if err := os.Setenv("VROOLI_STORAGE_ROOT", root); err != nil {
+		panic(err)
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		panic(err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		panic(err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o755); err != nil {
+		panic(err)
+	}
+	state := `{"core":{"seed":["agent-manager","data-backup-manager","git-control-tower","notification-hub","prompt-manager","scenario-dependency-analyzer","storage-manager","swarm-manager","system-monitor","test-genie","vrooli-autoheal","vrooli-events","web-console","workspace-sandbox"],"trusted_base":["data-backup-manager","git-control-tower","test-genie","workspace-sandbox"]}}`
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "operator-state.json"), []byte(state), 0o600); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	if hadPrevious {
+		_ = os.Setenv("VROOLI_STORAGE_ROOT", previous)
+	} else {
+		_ = os.Unsetenv("VROOLI_STORAGE_ROOT")
+	}
+	_ = os.RemoveAll(root)
+	os.Exit(code)
+}
 
 // writeService writes a minimal .vrooli/service.json for the named scenario
 // under root, declaring the given scenario dependencies. deps maps a dependency
@@ -111,7 +146,7 @@ func TestRequiredClosureAddsTransitively(t *testing.T) {
 	writeService(t, root, "foo", map[string]bool{"bar": true})
 	writeService(t, root, "bar", nil)
 
-	res := Compute(root)
+	res := compute(root, apicoreset.Authority{Seed: []string{"test-genie"}, TrustedBase: []string{"test-genie"}})
 
 	if !has(res.CoreSet, "foo") {
 		t.Errorf("expected closure to add 'foo', core set = %v", res.CoreSet)
@@ -134,7 +169,7 @@ func TestNonRequiredEdgeNotAdded(t *testing.T) {
 	writeService(t, root, "test-genie", map[string]bool{"optional-dep": false})
 	writeService(t, root, "optional-dep", nil)
 
-	res := Compute(root)
+	res := compute(root, apicoreset.Authority{Seed: []string{"test-genie"}, TrustedBase: []string{"test-genie"}})
 
 	if has(res.CoreSet, "optional-dep") {
 		t.Errorf("required=false edge must not add 'optional-dep', core set = %v", res.CoreSet)
@@ -175,7 +210,7 @@ func TestEveryMemberHasAttributionChainEndingAtCoreSeed(t *testing.T) {
 			t.Fatalf("member %s:%s has no attribution chain", member.Kind, member.Name)
 		}
 		last := member.AttributionChain[len(member.AttributionChain)-1]
-		if last.Source != "core.seed" || last.Name != "seed" {
+		if last.Source != "core.seed" || !has(res.Seed, last.Name) {
 			t.Fatalf("member %s:%s chain does not end at core.seed: %+v", member.Kind, member.Name, member.AttributionChain)
 		}
 	}
@@ -208,7 +243,7 @@ func TestMisMarkedSeedNeverDropped(t *testing.T) {
 		"workspace-sandbox": false,
 	})
 
-	res := Compute(root)
+	res := compute(root, apicoreset.Authority{Seed: []string{"git-control-tower", "data-backup-manager", "scenario-dependency-analyzer"}, TrustedBase: []string{"git-control-tower", "data-backup-manager", "scenario-dependency-analyzer"}})
 
 	for _, want := range []string{"git-control-tower", "data-backup-manager", "scenario-dependency-analyzer"} {
 		if !has(res.CoreSet, want) {
@@ -220,7 +255,7 @@ func TestMisMarkedSeedNeverDropped(t *testing.T) {
 // TestTrustedBaseSubset proves the trusted-base subset is reported and is a
 // subset of the core set.
 func TestTrustedBaseSubset(t *testing.T) {
-	res := Compute(t.TempDir())
+	res := compute(t.TempDir(), apicoreset.Authority{Seed: []string{"git-control-tower", "test-genie", "data-backup-manager"}, TrustedBase: []string{"git-control-tower", "test-genie", "data-backup-manager"}})
 	if len(res.TrustedBase) == 0 {
 		t.Fatal("trusted base subset must not be empty")
 	}
@@ -241,12 +276,20 @@ func TestValidateTrustedBaseClosureRejectsInconsistentGrant(t *testing.T) {
 	scenariosRoot := filepath.Join(root, "scenarios")
 	writeService(t, scenariosRoot, "trusted", map[string]bool{"outside": true})
 
-	stateDir := filepath.Join(root, ".vrooli")
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	state := `{"version":"1.0.0","core":{"seed":["trusted"],"trusted_base":["trusted"]}}`
-	if err := os.WriteFile(filepath.Join(stateDir, "operator-state.json"), []byte(state), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "operator-state.json"), []byte(state), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

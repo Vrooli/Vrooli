@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/app/supervision"
 )
 
@@ -55,7 +56,15 @@ func ValidateTrustedBaseClosure(repoRoot string) error {
 // ValidateConfiguredTrustedBaseClosure applies the strict check only when the
 // repository has declared operator state.
 func ValidateConfiguredTrustedBaseClosure(repoRoot string) error {
-	statePath := filepath.Join(strings.TrimSpace(repoRoot), ".vrooli", "operator-state.json")
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return fmt.Errorf("create operator-state storage resolver: %w", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		return fmt.Errorf("resolve operator-state storage: %w", err)
+	}
+	statePath := filepath.Join(paths.StateDir, "operator-state.json")
 	if _, err := os.Stat(statePath); err != nil {
 		if os.IsNotExist(err) {
 			return nil

@@ -131,6 +131,7 @@ func TestGeneratedAPIAndBuiltCLIProduceFixtureOutcome(t *testing.T) {
 
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	srv := NewServer()
 	httpServer := httptest.NewServer(srv.Handler())
@@ -150,7 +151,7 @@ func TestGeneratedAPIAndBuiltCLIProduceFixtureOutcome(t *testing.T) {
 		t.Fatal("deliberately wrong expected state was accepted by the parity assertion")
 	}
 
-	statePath := filepath.Join(root, ".vrooli", "operator-state.json")
+	statePath := operatorStateFixturePath(t, root)
 	if err := os.Remove(statePath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		t.Fatal(err)
 	}
@@ -176,6 +177,7 @@ func TestGeneratedAPIAndBuiltCLIProduceFixtureOutcome(t *testing.T) {
 func TestMalformedCLIInputIsARealNegativeControl(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	srv := NewServer()
 	httpServer := httptest.NewServer(srv.Handler())
@@ -188,7 +190,7 @@ func TestMalformedCLIInputIsARealNegativeControl(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err == nil {
 		t.Fatalf("malformed CLI input unexpectedly succeeded: %s", output)
 	}
-	if _, err := os.Stat(filepath.Join(root, ".vrooli", "operator-state.json")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(operatorStateFixturePath(t, root)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("malformed input mutated operator state: %v", err)
 	}
 }

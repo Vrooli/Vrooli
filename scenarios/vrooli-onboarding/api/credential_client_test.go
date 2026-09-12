@@ -23,6 +23,7 @@ func TestCredentialClientOptionsCarryRootStateDirAndDescriptors(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 
@@ -69,6 +70,7 @@ func TestCredentialClientDescriptorsIncludeProjectScope(t *testing.T) {
   "credentials": {"descriptors": [{"logical_id": "vrooli/remote-desktop", "field": "username", "label": "Remote desktop username", "required": false}]}
 }`)
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 

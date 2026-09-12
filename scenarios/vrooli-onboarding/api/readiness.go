@@ -781,7 +781,7 @@ func credentialReadinessItem(ref credentialclient.CredentialRef, probeAuthority 
 		CompanionSettings: append([]string(nil), ref.CompanionSettings...), CompanionCredentials: append([]string(nil), ref.CompanionCredentials...), AcquisitionRef: ref.AcquisitionRef,
 		VerificationRef: ref.VerificationRef, RecoveryRef: ref.RecoveryRef, HelpRef: ref.HelpRef, EvidencePolicy: ref.EvidencePolicy, ProviderVersion: ref.ProviderVersion,
 		MigrationDiagnostics: append([]credentialspec.MigrationDiagnostic(nil), ref.MigrationDiagnostics...),
-		Provenance:           readinessCredentialProvenance(ref.Provenance), Label: ref.Label, Description: ref.Description,
+		Provenance:           readinessCredentialProvenance(ref.Provenance), Label: ref.Label, Description: ref.Description, Placeholder: ref.Placeholder,
 		ObtainURL: ref.ObtainURL, Required: ref.Required, Provisioning: ref.Provisioning, DerivedFrom: ref.DerivedFrom,
 		Status: credentialStatusPending, EvidenceStatus: credentialEvidenceUnavailable,
 	}
@@ -816,7 +816,7 @@ func readinessCredentialProvenance(values []credentialclient.CredentialProvenanc
 			Version: value.Version, Owner: value.Owner, SourceRef: value.SourceRef, Kind: value.Kind, Provider: value.Provider, AppliesWhen: value.AppliesWhen, Tiers: append([]string(nil), value.Tiers...), RequirementGroup: value.RequirementGroup, ConsumerRefs: append([]string(nil), value.ConsumerRefs...),
 			CompanionSettings: append([]string(nil), value.CompanionSettings...), CompanionCredentials: append([]string(nil), value.CompanionCredentials...), AcquisitionRef: value.AcquisitionRef, VerificationRef: value.VerificationRef, RecoveryRef: value.RecoveryRef, HelpRef: value.HelpRef, EvidencePolicy: value.EvidencePolicy, ProviderVersion: value.ProviderVersion,
 			Env: value.Env, Label: value.Label,
-			Description: value.Description, ObtainURL: value.ObtainURL, Provisioning: value.Provisioning,
+			Description: value.Description, Placeholder: value.Placeholder, ObtainURL: value.ObtainURL, Provisioning: value.Provisioning,
 			DerivedFrom: value.DerivedFrom, Required: value.Required, Consumers: consumers,
 		})
 	}

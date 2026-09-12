@@ -102,7 +102,7 @@ Tier is resolved once, at the edge. No step contains tier logic.
 
 | Tier | Manifest catalog | Operator state |
 |---|---|---|
-| Repository install | Repository root | `.vrooli/operator-state.json` |
+| Repository install | Repository root | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` |
 | Desktop bundle | Staged bundle catalog | App-data storage root |
 | Remote host / VPS | That host's own catalog, driven over vrooli-bridge | That host's state |
 

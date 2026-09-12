@@ -65,7 +65,7 @@ and cannot remove a member from supervision.
 - **Go API** (`api/`) — manifest read models, the readiness composer, the apply engine, and a thin relay to the credential authority. It holds no inventory of scenarios, resources, tools, or safeguards in code.
 - **React + TypeScript UI** (`ui/`) — the ten-step wizard plus a health dashboard and glossary. Renders through shared primitives and semantic design tokens in light and dark themes.
 - **Go CLI** (`cli/`) — interactive and non-interactive wizard, credentials, host requirements, readiness with a machine-readable exit code.
-- **Control-plane state service** (`internal/operatorstate/`) — the single writer for `.vrooli/operator-state.json` and the single evaluator for the configuration resolution order. Onboarding is a client of it, not the owner.
+- **Control-plane state service** (`internal/operatorstate/`) — the single writer for `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` and the single evaluator for the configuration resolution order. Onboarding is a client of it, not the owner.
 
 There is no scenario-owned database. Credential values live only in the credential authority.
 

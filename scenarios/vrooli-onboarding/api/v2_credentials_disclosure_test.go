@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	"net/http"
 	"strings"
 	"testing"
+
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 func TestCredentialProvisionDoesNotDiscloseValue(t *testing.T) {

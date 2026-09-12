@@ -12,8 +12,9 @@ import (
 func TestV2UnionEvidenceExportsOnlySelectedClosureAndManifestHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"root":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"root":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "root", ".vrooli", "service.json"), `{"service":{"name":"root"},"dependencies":{"scenarios":{"helper":{"required":true}},"resources":{"postgres":{"required":true}}},"hostTools":[{"name":"git","required":true}]}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "helper", ".vrooli", "service.json"), `{"service":{"name":"helper"},"hostSafeguards":[{"name":"firewall","required":false}]}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "unrelated", ".vrooli", "service.json"), `{"service":{"name":"unrelated"}}`)

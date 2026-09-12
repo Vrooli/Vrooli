@@ -19,3 +19,14 @@ resources remain outside this class.
 
 Use the storage-manager provider and recovery read surfaces to inspect the
 resolved declaration. Do not hardcode a physical path in a new provider.
+
+The same declarations tell coding agents where they may delete. At start-up
+and every 30 minutes, `internal/policybridge` publishes them as `path_rules`
+in the agent-policy bundle, through `vrooli-policy-runner publish`:
+- **Storage roots.** Safe and regenerable roots allow deletion, safe-with-owner and conditional roots ask, and forbidden roots deny.
+- **Runtime-home entries.** Regenerable entries that storage-manager reaps allow, and protected or `cleanup: never` entries deny.
+- **Owner storage declarations.** An entry's `agent_removal` (allow, ask, or deny) states the answer explicitly. Without it, regenerable data allows, durable data denies, and SQLite sidecars always deny.
+
+A new root therefore changes agent permissions as well as recovery. See
+[agent-policy runtime](../../../../docs/architecture/agent-policy-runtime.md)
+§"Filesystem removal".

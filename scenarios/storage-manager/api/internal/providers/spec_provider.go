@@ -1,14 +1,17 @@
 package providers
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
 	coreRetention "github.com/vrooli/api-core/retention"
+	corestorage "github.com/vrooli/api-core/storage"
 	"storage-manager/internal/cleanup"
 )
 
@@ -36,6 +39,26 @@ type RootSpecProof struct {
 	ToolRecreates bool `json:"tool_recreates"`
 	ExactRoot     bool `json:"exact_root"`
 	NoLease       bool `json:"no_lease"`
+}
+
+// LoadRootSpecs reads every storage.roots declaration from the repository
+// contract, whatever its tier or platform, sorted by id. Callers filter and
+// validate for their own purpose.
+func LoadRootSpecs(repoRoot string) ([]RootSpec, error) {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Storage struct {
+			Roots []RootSpec `json:"roots"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	sort.Slice(doc.Storage.Roots, func(i, j int) bool { return doc.Storage.Roots[i].ID < doc.Storage.Roots[j].ID })
+	return doc.Storage.Roots, nil
 }
 
 // ValidateRootSpec enforces the safety properties that cannot be expressed by
@@ -76,37 +99,6 @@ func (s RootSpec) Applicable() bool {
 	return false
 }
 
-// ResolveRoot expands only explicitly supported path variables. It does not
-// expand arbitrary shell syntax and never executes ToolPruneCommand.
-func ResolveRoot(raw, home string) string {
-	value := strings.TrimSpace(raw)
-	if home == "" {
-		home, _ = os.UserHomeDir()
-	}
-	vrooliHome := filepath.Join(home, ".vrooli")
-	value = strings.ReplaceAll(value, "$USER_HOME", home)
-	value = strings.ReplaceAll(value, "$HOME", home)
-	value = strings.ReplaceAll(value, "${HOME}", home)
-	value = strings.ReplaceAll(value, "$VROOLI_HOME", vrooliHome)
-	value = strings.ReplaceAll(value, "${VROOLI_HOME}", vrooliHome)
-	if cache, err := os.UserCacheDir(); err == nil {
-		value = strings.ReplaceAll(value, "$XDG_CACHE_HOME", cache)
-	}
-	if tmp := os.TempDir(); tmp != "" {
-		value = strings.ReplaceAll(value, "$TMPDIR", tmp)
-	}
-	if cache := strings.TrimSpace(os.Getenv("GOCACHE")); cache != "" && !strings.EqualFold(cache, "off") {
-		value = strings.ReplaceAll(value, "$GOCACHE", cache)
-	}
-	if mod := strings.TrimSpace(os.Getenv("GOMODCACHE")); mod != "" {
-		value = strings.ReplaceAll(value, "$GOMODCACHE", mod)
-	}
-	if strings.HasPrefix(value, "~/") {
-		value = filepath.Join(home, strings.TrimPrefix(value, "~/"))
-	}
-	return filepath.Clean(value)
-}
-
 // NewSpecProvider adapts a validated declarative root to the existing bounded
 // file provider. Keeping this adapter small makes the root contract the only
 // place that names a physical cache while preserving the provider's re-stat,
@@ -115,10 +107,15 @@ func NewSpecProvider(files cleanup.FileSystem, clock cleanup.Clock, spec RootSpe
 	if err := ValidateRootSpec(spec); err != nil {
 		return nil, err
 	}
-	if !spec.Applicable() {
-		cfg.Roots = nil
-	} else {
-		cfg.Roots = resolveSpecRoots(ResolveRoot(spec.Root, ""))
+	cfg.Roots = nil
+	if spec.Applicable() {
+		// One expansion for every governed-root consumer; a host that cannot
+		// resolve its inputs governs nothing rather than a guessed path.
+		if inputs, inputErr := corestorage.HostGovernedRootInputs(""); inputErr == nil {
+			if root, rootErr := corestorage.ResolveGovernedRootStrict(spec.Root, inputs); rootErr == nil {
+				cfg.Roots = resolveSpecRoots(root)
+			}
+		}
 	}
 	cfg.ID = spec.ID
 	cfg.Name = "Governed " + spec.ID

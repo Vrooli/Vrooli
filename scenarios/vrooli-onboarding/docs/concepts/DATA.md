@@ -8,7 +8,7 @@ it must never hold.
 ## Storage overview
 
 Onboarding has **no scenario-owned database and no scenario-owned file**. The
-one durable record it participates in is `.vrooli/operator-state.json`, and that
+one durable record it participates in is `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`, and that
 document is owned by `internal/operatorstate` in the control plane. Onboarding
 patches it through that service.
 
@@ -59,7 +59,7 @@ write path must be incapable of touching them.
 
 | File | Schema | Written by |
 |---|---|---|
-| `.vrooli/operator-state.json` | [`operator-state.schema.json`](../../../../.vrooli/schemas/operator-state.schema.json) | `internal/operatorstate` only |
+| `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | [`operator-state.schema.json`](../../../../.vrooli/schemas/operator-state.schema.json) | `internal/operatorstate` only |
 | `scenarios/*/.vrooli/service.json` | `service.schema.json` | Scenario authors |
 | `resources/*/resource.json` | `resource.schema.json` | Resource authors |
 | `internal/tools/*/tool.json` | `tool.schema.json` | Tool authors |

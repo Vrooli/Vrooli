@@ -48,7 +48,7 @@ func TestV2ReadinessReportsOnlyMetadata(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	prior := credentialStatusCommand
@@ -80,7 +80,7 @@ func TestV2ReadinessBlocksWhenCredentialDiagnosisIsUnavailable(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	previousDoctor := credentialDoctorCommand
@@ -118,7 +118,7 @@ func TestV2ReadinessBoundsSlowCredentialDiagnosis(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	previousDoctor := credentialDoctorCommand
@@ -375,7 +375,7 @@ func TestV2ReadinessReportsMissingRequiredHostTool(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "internal", "tools", "missing-tool", "tool.json"), []byte(`{"name":"missing_tool","commands":["vrooli-test-intentionally-missing-command"],"platforms":["linux","macos","windows"],"bundling":"host-required"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -404,7 +404,7 @@ func TestV2ReadinessReportsDeclaredIntegrationsWithoutFabricatingProviders(t *te
 	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"},"integrations":[{"connector":"github-oauth","scopes":["repo:read"],"purpose":"Read project issues","required":true}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	releasePrior := releaseAuthorityStatusCommand
@@ -443,7 +443,7 @@ func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"landing-page-business-suite":{"enabled":true},"demo-alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"landing-page-business-suite":{"enabled":true},"demo-alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	prior := credentialStatusCommand
@@ -577,7 +577,7 @@ func TestV2ReadinessElevatesRequiredAbsentRecoveryToMissing(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"},"credentials":{"descriptors":[{"logical_id":"vrooli/example","field":"api-key","required":true}]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	previousDoctor := credentialDoctorCommand
@@ -609,7 +609,7 @@ func TestV2ReadinessKeepsUnrelatedGlobalRecoveryVisibleWithoutDowngradingStatus(
 	if err := os.WriteFile(filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), []byte(`{"service":{"name":"alpha"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(operatorStateFixturePath(t, root), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	previousDoctor := credentialDoctorCommand

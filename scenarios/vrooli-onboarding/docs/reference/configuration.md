@@ -63,7 +63,7 @@ carries only declarative dependency data.
 ## One writer
 
 `internal/operatorstate` is the only component that writes
-`.vrooli/operator-state.json`. Every other component — the wizard, the CLI,
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`. Every other component — the wizard, the CLI,
 `vrooli resource enable`, setup, autoheal, vrooli-bridge — patches through it.
 
 Its write is: **load → merge the field-scoped patch → validate against the schema

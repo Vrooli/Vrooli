@@ -22,7 +22,7 @@ One computation produces that closure, and four consumers read it: the wizard's 
 
 ### One write authority, field-scoped
 
-`internal/operatorstate` is the only component that writes `.vrooli/operator-state.json`, and its write API takes a **field-scoped patch**, never a document.
+`internal/operatorstate` is the only component that writes `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`, and its write API takes a **field-scoped patch**, never a document.
 
 ```mermaid
 flowchart TB

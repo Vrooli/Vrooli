@@ -14,9 +14,10 @@ import (
 func TestV2HandoffProjectsEffectiveSelectionWithoutOperatorStateInternals(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"runtime":{"auto_restart_default":false},"dependencies":{"resources":{}}}`)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-12T00:00:00Z","scenarios":{"alpha":{"enabled":false,"auto_restart":true}},"completion":{"selection_digest":"private"}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-12T00:00:00Z","scenarios":{"alpha":{"enabled":false,"auto_restart":true}},"completion":{"selection_digest":"private"}}`)
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", `{"target":"local","machineId":"machine-1","nodeId":"node-1","nodeKind":"agent"}`)
 	if w.Code != http.StatusOK {
@@ -46,9 +47,10 @@ func TestV2HandoffProjectsEffectiveSelectionWithoutOperatorStateInternals(t *tes
 func TestRESTHandoffProjectsTheSameSelectionAsConnect(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"runtime":{"auto_restart_default":false},"dependencies":{"resources":{}}}`)
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-12T00:00:00Z","scenarios":{"alpha":{"enabled":true,"auto_restart":false}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-12T00:00:00Z","scenarios":{"alpha":{"enabled":true,"auto_restart":false}}}`)
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/handoff", `{"target":"local","machine_id":"machine-1","node_id":"node-1","node_kind":"agent"}`)
 	if w.Code != http.StatusOK {
@@ -69,6 +71,7 @@ func TestRESTHandoffProjectsTheSameSelectionAsConnect(t *testing.T) {
 func TestV2HandoffRejectsInvalidIdentityAndUnknownFields(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{}}}`)
 
@@ -83,6 +86,7 @@ func TestV2HandoffRejectsInvalidIdentityAndUnknownFields(t *testing.T) {
 func TestV2HandoffRejectsUnknownSelectionSchemaVersion(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{}}}`)
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", `{"target":"local","nodeId":"node-1","desiredSelection":{"schemaVersion":"v99","scenarios":["alpha"]}}`)
@@ -94,6 +98,7 @@ func TestV2HandoffRejectsUnknownSelectionSchemaVersion(t *testing.T) {
 func TestV2HandoffUsesMachineDesiredSelection(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", `{"target":"local","machineId":"machine-1","nodeId":"node-1","nodeKind":"agent","desiredSelection":{"scenarios":["machine-scenario"],"optionalResources":["machine-resource"],"hostTools":["machine-tool"],"apply":false}}`)
 	if w.Code != http.StatusOK {
@@ -112,6 +117,7 @@ func TestV2HandoffUsesMachineDesiredSelection(t *testing.T) {
 func TestV2HandoffRejectsTrailingJSON(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{}}}`)
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", `{"target":"local","nodeId":"node-1"}{"target":"local","nodeId":"node-2"}`)
@@ -123,6 +129,7 @@ func TestV2HandoffRejectsTrailingJSON(t *testing.T) {
 func TestV2HandoffIsOwnerIssuedDurableAndTargetBound(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	selection := `{"schemaVersion":"v1","scenarios":["alpha"],"operatingMode":{"alpha":"manual"},"apply":true}`
 	request := `{"target":"local","machineId":"machine-1","nodeId":"node-1","nodeKind":"agent","deploymentId":"deployment-1","enrollmentGeneration":"7","desiredRevision":"12","requestKey":"plan-digest-1","missing":["alpha:api-key"],"desiredSelection":` + selection + `}`

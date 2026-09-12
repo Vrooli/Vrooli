@@ -14,32 +14,32 @@ Value proposition: Vrooli needs a reliable way to understand its own live depend
 Operational targets are measurable outcomes; checkboxes may auto-update based on validation.
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Declared dependency extraction | Automatically parse existing scenarios and extract resource and scenario dependencies from `service.json` and supported metadata.
-- [ ] OT-P0-002 | Legacy inter-scenario signal coverage | Detect retained non-import scenario usage signals such as supported Vrooli command invocations and shared workflows until AST facts replace them.
-- [ ] OT-P0-003 | Dependency metadata storage | Store history-bearing dependency metadata and analysis runs in the standardized dependency schema.
+- [x] OT-P0-001 | Declared dependency extraction | Automatically parse existing scenarios and extract resource and scenario dependencies from `service.json` and supported metadata.
+- [x] OT-P0-002 | Legacy inter-scenario signal coverage | Detect retained non-import scenario usage signals such as supported Vrooli command invocations and shared workflows until AST facts replace them.
+- [x] OT-P0-003 | Dependency metadata storage | Store history-bearing dependency metadata and analysis runs in the standardized dependency schema.
 - [x] OT-P0-004 | Interactive dependency graph UI | Provide a visualization of dependency graphs with loading, empty, error, and drift states.
-- [ ] OT-P0-005 | Semantic scenario matching | Integrate with Qdrant and embedding resources for proposed-scenario similarity matching, with deterministic fallback heuristics.
-- [ ] OT-P0-006 | CLI graph access | Provide CLI commands for graph, drift, optimization, and export workflows.
-- [ ] OT-P0-007 | API graph access | Provide API endpoints other scenarios can query for dependency and graph information.
-- [ ] OT-P0-008 | Actual interface graph | Compute actual cross-scenario interface edges from `proto-health` proto surfaces and `code-facts` import facts.
-- [ ] OT-P0-009 | Dependency drift reporting | Report declared-vs-actual scenario dependency drift with asymmetric severity.
-- [ ] OT-P0-010 | Connect graph seam | Expose `DescribeInterfaceGraph` as a Connect RPC for downstream planning scenarios.
-- [ ] OT-P0-011 | SQLite storage cutover | Run on SQLite with domain-owned schemas instead of Postgres.
-- [ ] OT-P0-012 | Test Genie dependency producer | Provide the single read-only `scenario-dependency-analyzer health <scenario> --json` producer consumed by Test Genie's dependencies phase.
-- [ ] OT-P0-013 | Dependency surface readiness | Discover dependency surfaces through Code Facts evidence and validate runtimes, commands, modules, package managers, lockfiles, and local install state without mutating files.
-- [ ] OT-P0-014 | Runtime dependency health | Report required resources and scenario dependencies from `.vrooli/service.json` with degraded runtime status evidence.
-- [ ] OT-P0-015 | Approved dependency governance | Maintain reviewable approved-dependency governance memory for package choices, ranges, constraints, and non-allowlist guidance.
-- [ ] OT-P0-016 | Release-age policy validation | Validate pnpm `minimumReleaseAge` policy and governed release-age exceptions for dependency supply-chain safety.
-- [ ] OT-P0-017 | Security evidence boundary | Consume Security Health dependency-index and vulnerability evidence only at the correct boundary: index context in dependency health, vulnerability evidence in governance, and security gating in Security Health.
+- [x] OT-P0-005 | Semantic scenario matching | Integrate with Qdrant and embedding resources for proposed-scenario similarity matching, with deterministic fallback heuristics.
+- [x] OT-P0-006 | CLI graph access | Provide CLI commands for graph, drift, optimization, and export workflows.
+- [x] OT-P0-007 | API graph access | Provide API endpoints other scenarios can query for dependency and graph information.
+- [x] OT-P0-008 | Actual interface graph | Compute actual cross-scenario interface edges from `proto-health` proto surfaces and `code-facts` import facts.
+- [x] OT-P0-009 | Dependency drift reporting | Report declared-vs-actual scenario dependency drift with asymmetric severity.
+- [x] OT-P0-010 | Connect graph seam | Expose `DescribeInterfaceGraph` as a Connect RPC for downstream planning scenarios.
+- [x] OT-P0-011 | SQLite storage cutover | Run on SQLite with domain-owned schemas instead of Postgres.
+- [x] OT-P0-012 | Test Genie dependency producer | Provide the single read-only `scenario-dependency-analyzer health <scenario> --json` producer consumed by Test Genie's dependencies phase.
+- [x] OT-P0-013 | Dependency surface readiness | Discover dependency surfaces through Code Facts evidence and validate runtimes, commands, modules, package managers, lockfiles, and local install state without mutating files.
+- [x] OT-P0-014 | Runtime dependency health | Report required resources and scenario dependencies from `.vrooli/service.json` with degraded runtime status evidence.
+- [x] OT-P0-015 | Approved dependency governance | Maintain reviewable approved-dependency governance memory for package choices, ranges, constraints, and non-allowlist guidance.
+- [x] OT-P0-016 | Release-age policy validation | Validate pnpm `minimumReleaseAge` policy and governed release-age exceptions for dependency supply-chain safety.
+- [x] OT-P0-017 | Security evidence boundary | Consume Security Health dependency-index and vulnerability evidence only at the correct boundary: index context in dependency health, vulnerability evidence in governance, and security gating in Security Health.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Optimization recommendations | Recommend resource swaps and dependency reductions for lightweight deployment profiles.
+- [x] OT-P1-001 | Optimization recommendations | Recommend resource swaps and dependency reductions for lightweight deployment profiles.
 - [ ] OT-P1-002 | Dependency impact analysis | Explain what scenarios or resources would be affected if a dependency is removed.
 - [ ] OT-P1-003 | Dependency history | Track dependency changes over time for trend and regression analysis.
-- [ ] OT-P1-004 | Graph export formats | Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.
+- [x] OT-P1-004 | Graph export formats | Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.
 - [ ] OT-P1-005 | Cycle detection | Detect and report circular scenario or resource dependency chains.
 - [ ] OT-P1-006 | Resource cost estimation | Estimate resource cost and deployment weight from dependency depth and resource classes.
-- [ ] OT-P1-007 | Governance operator workflow | Provide CLI and UI workflows for dependency governance triage, fleet validation, dry-run mutation, security-gap review, and remediation preview.
+- [x] OT-P1-007 | Governance operator workflow | Provide CLI and UI workflows for dependency governance triage, fleet validation, dry-run mutation, security-gap review, and remediation preview.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Predictive dependency planning | Predict likely dependencies for new scenario proposals from similar historical scenarios.

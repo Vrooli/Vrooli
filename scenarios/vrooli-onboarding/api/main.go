@@ -225,7 +225,7 @@ func main() {
 	// operatorstate service performs the actual request-scoped selection; this
 	// startup probe makes the seam explicit to storage-manager's static checker.
 	ctx := context.Background()
-	if _, err := operatorStateRoots.Pick(ctx, storage.ClassConfig); err != nil {
+	if _, err := operatorStateRoots.Pick(ctx, storage.ClassState); err != nil {
 		panic("route operator state roots: " + err.Error())
 	}
 	if _, err := operatorStateService().PruneDrafts(ctx, operatorstate.DefaultDraftRetention); err != nil {

@@ -11,8 +11,9 @@ import (
 func TestAPIPatchPreservesSharedOperatorStateFields(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","trust_posture":"shared","core":{"seed":["git","postgres"],"trusted_base":["git"]}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","trust_posture":"shared","core":{"seed":["git","postgres"],"trusted_base":["git"]}}`)
 	w := doOperatorStatePatch(t, NewServer(), `{"scenarios":{"demo":{"enabled":true}}}`, "scenarios.demo.enabled")
 	if w.Code != http.StatusOK {
 		t.Fatalf("patch = %d: %s", w.Code, w.Body.String())
@@ -107,6 +108,7 @@ func applyParityPatch(t *testing.T, patch map[string]any) map[string]any {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	body, err := json.Marshal(patch)
 	if err != nil {

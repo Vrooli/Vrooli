@@ -62,7 +62,7 @@ so already-satisfied items are reported and not repeated.
 The rejection names the failing schema path. The stored document is untouched, so
 there is nothing to roll back. Correct the value and patch again.
 
-Never hand-edit `.vrooli/operator-state.json` to work around a rejection: the
+Never hand-edit `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` to work around a rejection: the
 schema sets `additionalProperties: false`, and an invalid hand edit is
 unrecoverable without another hand edit.
 

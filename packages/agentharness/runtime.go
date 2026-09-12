@@ -13,6 +13,9 @@ type Runtime struct {
 	Profile RolloutProfile
 	Store   *BundleStore
 	Now     func() time.Time
+	// Removal resolves the host context for filesystem-removal decisions;
+	// nil means HostRemovalContext.
+	Removal func(workingDirectory string) RemovalContext
 }
 
 func (r Runtime) now() time.Time {
@@ -35,6 +38,9 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 		return Decision{}, fmt.Errorf("unsupported rollout profile %q", profile)
 	}
 	risk := ClassifyToolEvent(event)
+	if risk == RiskFilesystemRemoval {
+		return r.evaluateRemoval(event, now), nil
+	}
 	if r.Store == nil {
 		return fallbackDecision(profile, event, risk, "snapshot bundle store is not configured"), nil
 	}
@@ -45,7 +51,7 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 	decisions := make([]Decision, 0, len(bundle.Snapshots))
 	for _, id := range snapshotIDs(bundle) {
 		snapshot := bundle.Snapshots[id]
-		if !scopeMatches(snapshot.Scope, event) {
+		if !scopeMatches(snapshot.Scope, event, risk) {
 			continue
 		}
 		decisions = append(decisions, evaluateSnapshot(profile, snapshot, event, risk, now))
@@ -54,6 +60,85 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 		return fallbackDecision(profile, event, risk, "no provider snapshot covers this event"), nil
 	}
 	return combineDecisions(decisions), nil
+}
+
+// evaluateRemoval decides a deletion from the floor plus the path rules of
+// every usable provider snapshot. It does not consult the rollout profile.
+func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
+	resolve := r.Removal
+	if resolve == nil {
+		resolve = HostRemovalContext
+	}
+	ctx := resolve(event.WorkingDirectory)
+	rules, degraded := r.pathRules(event, now)
+	ctx.Rules = rules
+	decision := ctx.EvaluateRemoval(removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup}))
+	decision.EventID = event.EventID
+	if len(degraded) > 0 {
+		decision.Degraded = true
+		decision.Evidence = append(decision.Evidence, degraded...)
+	}
+	return decision
+}
+
+// pathRules collects rules from fresh, ready, healthy, clean snapshots. The
+// returned evidence explains any missing or unusable declarations; the floor
+// then decides alone, which only ever makes decisions stricter.
+func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, []Evidence) {
+	unavailable := func(message string) []Evidence {
+		return []Evidence{{Code: "PATH_RULES_UNAVAILABLE", Message: message, Source: "policy-runtime", Severity: "warning"}}
+	}
+	if r.Store == nil {
+		return nil, unavailable("no snapshot store is configured; only the built-in floor applies")
+	}
+	bundle, err := r.Store.Load()
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, unavailable("no provider has published path rules; only the built-in floor applies")
+	}
+	if err != nil {
+		return nil, unavailable("snapshot bundle unavailable (" + err.Error() + "); only the built-in floor applies")
+	}
+	var rules []PathRule
+	var evidence []Evidence
+	declared := false
+	for _, id := range snapshotIDs(bundle) {
+		snapshot := bundle.Snapshots[id]
+		if len(snapshot.PathRules) == 0 || !scopeMatches(snapshot.Scope, event, RiskFilesystemRemoval) {
+			continue
+		}
+		declared = true
+		if problem := unusableSnapshot(snapshot, now); problem != "" {
+			evidence = append(evidence, Evidence{Code: "PATH_RULES_UNUSABLE", Message: problem + "; its path rules were ignored", Source: id, Severity: "warning"})
+			continue
+		}
+		for _, rule := range snapshot.PathRules {
+			rule.Provider = id
+			if strings.TrimSpace(rule.Source) == "" {
+				rule.Source = id
+			}
+			rules = append(rules, rule)
+		}
+	}
+	if !declared {
+		evidence = append(evidence, unavailable("no provider has published path rules; only the built-in floor applies")...)
+	}
+	return rules, evidence
+}
+
+func unusableSnapshot(snapshot ProviderSnapshot, now time.Time) string {
+	switch {
+	case snapshot.ExpiresAt.Before(now) || snapshot.Health.ExpiresAt.Before(now):
+		return "provider snapshot expired at " + snapshot.ExpiresAt.UTC().Format(time.RFC3339)
+	case snapshot.CapturedAt.After(now.Add(MaxClockSkew)):
+		return "provider snapshot is from the future beyond the allowed clock skew"
+	case strings.ToLower(strings.TrimSpace(snapshot.Readiness.State)) != "ready":
+		return "provider has not declared readiness"
+	case snapshot.Health.State != HealthHealthy:
+		return "provider health is " + string(snapshot.Health.State)
+	case snapshot.Evidence != EvidenceClean:
+		return "provider evidence is " + string(snapshot.Evidence)
+	}
+	return ""
 }
 
 func evaluateSnapshot(profile RolloutProfile, snapshot ProviderSnapshot, event ToolEvent, risk RiskClass, now time.Time) Decision {
@@ -210,9 +295,18 @@ func bestMaturity(capabilities []ProviderCapability) Maturity {
 	return best
 }
 
-func scopeMatches(scope ProviderScope, event ToolEvent) bool {
+func scopeMatches(scope ProviderScope, event ToolEvent, risk RiskClass) bool {
 	if len(scope.Runners) > 0 && !containsFold(scope.Runners, event.Runner) {
 		return false
+	}
+	if len(scope.Risks) > 0 {
+		covered := false
+		for _, candidate := range scope.Risks {
+			covered = covered || candidate == risk
+		}
+		if !covered {
+			return false
+		}
 	}
 	if len(scope.Ecosystems) > 0 {
 		ecosystem := ""

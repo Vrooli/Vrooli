@@ -12,8 +12,9 @@ import (
 func TestV2ClosureFollowsScenarioAndResourceDependenciesWithProvenance(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"},"dependencies":{"scenarios":{"beta":{"required":true}},"resources":{"redis":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "beta", ".vrooli", "service.json"), `{"service":{"name":"beta"},"dependencies":{"resources":{"qdrant":{"startup_policy":"try_start"}}}}`)
 
@@ -41,8 +42,9 @@ func TestV2ClosureFollowsScenarioAndResourceDependenciesWithProvenance(t *testin
 func TestV2ClosureRejectsDependencyCycles(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"},"dependencies":{"scenarios":{"beta":{"required":true}}}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "beta", ".vrooli", "service.json"), `{"service":{"name":"beta"},"dependencies":{"scenarios":{"alpha":{"required":true}}}}`)
 

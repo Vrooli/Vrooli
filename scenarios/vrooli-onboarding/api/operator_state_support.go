@@ -36,7 +36,7 @@ var (
 		if err != nil {
 			return "", fmt.Errorf("locate operator state: %w", err)
 		}
-		return filepath.Join(roots.StorageRoot, operatorstate.StateFile), nil
+		return filepath.Join(roots.StateRoot, operatorstate.StateFile), nil
 	}
 )
 
@@ -52,9 +52,9 @@ func configureOperatorStateRoots() error {
 
 func operatorStateService() *operatorstate.Service {
 	roots, _ := resolveRoots()
-	root, storageRoot := roots.RepoRoot, roots.StorageRoot
+	root := roots.RepoRoot
 	return operatorstate.New(operatorstate.Config{
-		RepoRoot: root, StorageRoot: storageRoot, Roots: operatorStateRoots,
+		RepoRoot: root, Roots: operatorStateRoots,
 		StatePath: func(context.Context) (string, error) { return operatorStatePath() },
 		Now:       operatorStateNow,
 	})

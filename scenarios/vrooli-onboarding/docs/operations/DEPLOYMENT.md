@@ -5,7 +5,7 @@ catalog and state resolution differ.
 
 | Tier | Catalog | Operator state | Entry |
 |---|---|---|---|
-| Repository install | Repository root | `.vrooli/operator-state.json` | `make start`, or the wizard opens after setup |
+| Repository install | Repository root | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `make start`, or the wizard opens after setup |
 | Desktop bundle | Staged bundle catalog | App-data storage root | The app's first-run flow |
 | Remote host / VPS | That host's catalog | That host's state | vrooli-bridge or scenario-to-cloud driving the non-interactive surface |
 

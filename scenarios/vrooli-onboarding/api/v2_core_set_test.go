@@ -12,21 +12,22 @@ import (
 func TestV2CoreSetPreviewsTypedClosureAndPatchRejectsInvalidTrustedBase(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","core":{"seed":["seed"],"trusted_base":["seed"]}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","core":{"seed":["seed"],"trusted_base":["seed"]}}`)
 	writeFixtureFile(t, filepath.Join(root, "scenarios", "seed", ".vrooli", "service.json"), `{"service":{"name":"seed"},"dependencies":{"resources":{"redis":{"enabled":true,"required":false,"startup_policy":"try_start"}}}}`)
 
 	oldPath := operatorStatePath
 	t.Cleanup(func() { operatorStatePath = oldPath })
-	operatorStatePath = func() (string, error) { return filepath.Join(root, ".vrooli", "operator-state.json"), nil }
+	operatorStatePath = func() (string, error) { return operatorStateFixturePath(t, root), nil }
 	srv := NewServer()
 	response := doRequest(t, srv, http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet", `{"target":"local"}`)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"available":true`) || !strings.Contains(response.Body.String(), `"name":"redis"`) || !strings.Contains(response.Body.String(), `"source":"core.seed"`) {
 		t.Fatalf("core-set response = %d: %s", response.Code, response.Body.String())
 	}
 
-	before, err := os.ReadFile(filepath.Join(root, ".vrooli", "operator-state.json"))
+	before, err := os.ReadFile(operatorStateFixturePath(t, root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ func TestV2CoreSetPreviewsTypedClosureAndPatchRejectsInvalidTrustedBase(t *testi
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "not a core seed") {
 		t.Fatalf("invalid core patch = %d: %s", response.Code, response.Body.String())
 	}
-	after, err := os.ReadFile(filepath.Join(root, ".vrooli", "operator-state.json"))
+	after, err := os.ReadFile(operatorStateFixturePath(t, root))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -131,17 +131,11 @@ func prepareApplyRunnerExecutable() error {
 	if err != nil {
 		return fmt.Errorf("resolve apply runner source: %w", err)
 	}
-	home, homeErr := os.UserHomeDir()
-	dir := ""
-	if homeErr == nil && strings.TrimSpace(home) != "" {
-		dir = filepath.Join(home, ".local", "state", "vrooli-onboarding", "apply-runs")
-	} else {
-		statePath, err := operatorStatePath()
-		if err != nil {
-			return err
-		}
-		dir = filepath.Join(filepath.Dir(statePath), "apply-runs")
+	statePath, err := operatorStatePath()
+	if err != nil {
+		return err
 	}
+	dir := filepath.Join(filepath.Dir(statePath), "apply-runs")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("create apply runner state directory: %w", err)
 	}

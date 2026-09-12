@@ -37,6 +37,7 @@ func TestApplyRunnerRequestParsesBothFlagForms(t *testing.T) {
 func TestPrepareApplyRunnerExecutableCreatesStateOwnedCopy(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
 	t.Setenv("BUNDLE_ROOT", "")
 	previous := applyRunnerExecutablePath
@@ -63,10 +64,11 @@ func TestPrepareApplyRunnerExecutableCreatesStateOwnedCopy(t *testing.T) {
 func TestApplyRunnerModeExecutesAPersistedRun(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_STORAGE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
 	stubExternalReadinessProbes(t)
 
 	fake := &recordingApplyExecutor{}
@@ -110,8 +112,9 @@ func TestApplyRunnerModeExecutesAPersistedRun(t *testing.T) {
 func TestApplyRunnerRefusesARunItDoesNotOwn(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z"}`)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z"}`)
 
 	fake := &recordingApplyExecutor{}
 	previous := onboardingApplyExecutor
