@@ -416,8 +416,9 @@
       {
         "logical_id": "vrooli/openrouter",
         "field": "api-key",
-        "label": "OpenRouter API key",
-        "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
+      "label": "OpenRouter API key",
+      "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
+      "placeholder": "sk-or-v1-a1b2c3d4e5f6...",
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://openrouter.ai/keys"
