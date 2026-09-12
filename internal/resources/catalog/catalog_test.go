@@ -4,12 +4,28 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/storage"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
+
+func writeOperatorStateFixture(t *testing.T, root, data string) {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatalf("resolve operator state: %v", err)
+	}
+	testkitgo.WriteFile(t, filepath.Join(paths.StateDir, operatorstate.StateFile), data)
+}
 
 func TestDiscoverReportContinuesAfterInvalidResourceManifest(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
@@ -59,7 +75,7 @@ func TestOperatorStateOverridesProjectResourceEnabledDefault(t *testing.T) {
 	fixture.WriteRepoContract(t)
 	testscenario.WriteProjectResourceConfig(t, fixture.Root, "redis", true)
 	testresource.WriteExternalCLIResourceFixture(t, fixture.Root, "redis", shelltest.BashShebang()+"exit 0\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, ".vrooli", "operator-state.json"), `{
+	writeOperatorStateFixture(t, fixture.Root, `{
   "$schema": ".vrooli/schemas/operator-state.schema.json",
   "version": "1.0.0",
   "updated_at": "2026-08-12T00:00:00Z",
@@ -85,7 +101,7 @@ func TestDiscoverReportsScenarioConsumerForOperatorDisabledResource(t *testing.T
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	testscenario.WriteProjectResourceConfig(t, fixture.Root, "sherpa-onnx", false)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","resources":{"sherpa-onnx":{"enabled":false}}}`)
+	writeOperatorStateFixture(t, fixture.Root, `{"version":"1.0.0","resources":{"sherpa-onnx":{"enabled":false}}}`)
 	testresource.WriteExternalCLIResourceFixture(t, fixture.Root, "sherpa-onnx", shelltest.BashShebang()+"exit 0\n")
 	testscenario.WriteScenarioService(t, fixture.Root, "audio-tools", testscenario.ScenarioServiceManifest(
 		"audio-tools",

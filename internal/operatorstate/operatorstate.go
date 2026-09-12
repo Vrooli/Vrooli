@@ -22,7 +22,6 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/buildinfo"
 	capacityengine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -328,11 +327,12 @@ func (d Document) EffectiveUpdateControl() string {
 type Config struct {
 	RepoRoot    string
 	StorageRoot string
+	StateRoot   string
 	SchemaPath  string
 	Roots       *filerouting.RoutedRoots
 	// StatePath is reserved for isolated tests and embedded callers that own
-	// their storage seam. Production callers should provide RepoRoot or
-	// StorageRoot and let this package resolve the path.
+	// their storage seam. Production callers should provide Roots or let this
+	// package resolve the contract-routed onboarding state namespace.
 	StatePath func(context.Context) (string, error)
 	Now       func() time.Time
 }
@@ -371,19 +371,27 @@ func (s *Service) Path(ctx context.Context) (string, error) {
 		return s.cfg.StatePath(ctx)
 	}
 	if s.cfg.Roots != nil {
-		root, err := s.cfg.Roots.Pick(ctx, storage.ClassConfig)
+		root, err := s.cfg.Roots.Pick(ctx, storage.ClassState)
 		if err != nil {
 			return "", err
 		}
 		return filepath.Join(root, StateFile), nil
 	}
-	if root := strings.TrimSpace(s.cfg.RepoRoot); root != "" {
-		return filepath.Join(root, filepath.Dir(filepath.Join(repocontractmeta.ProjectConfigDir, StateFile)), StateFile), nil
+	if root := strings.TrimSpace(s.cfg.StateRoot); root != "" {
+		return filepath.Join(root, StateFile), nil
 	}
 	if root := strings.TrimSpace(s.cfg.StorageRoot); root != "" {
 		return filepath.Join(root, StateFile), nil
 	}
-	return "", fmt.Errorf("%s or VROOLI_STORAGE_ROOT is required to locate operator state", buildinfo.SourceRootFallbackEnvVar)
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return "", fmt.Errorf("create operator-state storage resolver: %w", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		return "", fmt.Errorf("resolve operator-state storage: %w", err)
+	}
+	return filepath.Join(paths.StateDir, StateFile), nil
 }
 
 func SchemaDir() string { return filepath.Dir(SchemaPath) }

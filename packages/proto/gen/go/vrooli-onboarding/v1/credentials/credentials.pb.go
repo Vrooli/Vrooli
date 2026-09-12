@@ -636,8 +636,10 @@ type CredentialProvenance struct {
 	EvidencePolicy       string                          `protobuf:"bytes,23,opt,name=evidence_policy,json=evidencePolicy,proto3" json:"evidence_policy,omitempty"`
 	ProviderVersion      string                          `protobuf:"bytes,24,opt,name=provider_version,json=providerVersion,proto3" json:"provider_version,omitempty"`
 	Tiers                []string                        `protobuf:"bytes,25,rep,name=tiers,proto3" json:"tiers,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Safe, non-secret sample text for an operator input placeholder.
+	Placeholder   string `protobuf:"bytes,26,opt,name=placeholder,proto3" json:"placeholder,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CredentialProvenance) Reset() {
@@ -845,14 +847,23 @@ func (x *CredentialProvenance) GetTiers() []string {
 	return nil
 }
 
+func (x *CredentialProvenance) GetPlaceholder() string {
+	if x != nil {
+		return x.Placeholder
+	}
+	return ""
+}
+
 type Credential struct {
-	state                protoimpl.MessageState           `protogen:"open.v1"`
-	Resource             string                           `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
-	LogicalId            string                           `protobuf:"bytes,2,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
-	Field                string                           `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
-	Label                string                           `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
-	Description          string                           `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	ObtainUrl            string                           `protobuf:"bytes,6,opt,name=obtain_url,json=obtainUrl,proto3" json:"obtain_url,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Resource    string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	LogicalId   string                 `protobuf:"bytes,2,opt,name=logical_id,json=logicalId,proto3" json:"logical_id,omitempty"`
+	Field       string                 `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
+	Label       string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	Description string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	ObtainUrl   string                 `protobuf:"bytes,6,opt,name=obtain_url,json=obtainUrl,proto3" json:"obtain_url,omitempty"`
+	// Safe, non-secret sample text for an operator input placeholder.
+	Placeholder          string                           `protobuf:"bytes,32,opt,name=placeholder,proto3" json:"placeholder,omitempty"`
 	Provisioning         string                           `protobuf:"bytes,7,opt,name=provisioning,proto3" json:"provisioning,omitempty"`
 	DerivedFrom          string                           `protobuf:"bytes,8,opt,name=derived_from,json=derivedFrom,proto3" json:"derived_from,omitempty"`
 	Required             bool                             `protobuf:"varint,9,opt,name=required,proto3" json:"required,omitempty"`
@@ -949,6 +960,13 @@ func (x *Credential) GetDescription() string {
 func (x *Credential) GetObtainUrl() string {
 	if x != nil {
 		return x.ObtainUrl
+	}
+	return ""
+}
+
+func (x *Credential) GetPlaceholder() string {
+	if x != nil {
+		return x.Placeholder
 	}
 	return ""
 }
@@ -1642,7 +1660,7 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x03 \x01(\tR\bseverity\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\"\xdd\a\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xff\a\n" +
 	"\x14CredentialProvenance\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x1d\n" +
 	"\n" +
@@ -1671,7 +1689,8 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\bhelp_ref\x18\x16 \x01(\tR\ahelpRef\x12'\n" +
 	"\x0fevidence_policy\x18\x17 \x01(\tR\x0eevidencePolicy\x12)\n" +
 	"\x10provider_version\x18\x18 \x01(\tR\x0fproviderVersion\x12\x14\n" +
-	"\x05tiers\x18\x19 \x03(\tR\x05tiers\"\xb9\t\n" +
+	"\x05tiers\x18\x19 \x03(\tR\x05tiers\x12 \n" +
+	"\vplaceholder\x18\x1a \x01(\tR\vplaceholder\"\xdb\t\n" +
 	"\n" +
 	"Credential\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x1d\n" +
@@ -1681,7 +1700,8 @@ const file_vrooli_onboarding_v1_credentials_credentials_proto_rawDesc = "" +
 	"\x05label\x18\x04 \x01(\tR\x05label\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
-	"obtain_url\x18\x06 \x01(\tR\tobtainUrl\x12\"\n" +
+	"obtain_url\x18\x06 \x01(\tR\tobtainUrl\x12 \n" +
+	"\vplaceholder\x18  \x01(\tR\vplaceholder\x12\"\n" +
 	"\fprovisioning\x18\a \x01(\tR\fprovisioning\x12!\n" +
 	"\fderived_from\x18\b \x01(\tR\vderivedFrom\x12\x1a\n" +
 	"\brequired\x18\t \x01(\bR\brequired\x12\x16\n" +

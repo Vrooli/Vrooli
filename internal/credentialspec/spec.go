@@ -64,6 +64,10 @@ type Descriptor struct {
 	Required    bool   `json:"required,omitempty"`
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
+	// Placeholder is safe, non-secret sample text shown in operator input
+	// controls. It communicates the expected shape without ever representing a
+	// usable credential value.
+	Placeholder string `json:"placeholder,omitempty"`
 	ObtainURL   string `json:"obtain_url,omitempty"`
 	// Provisioning identifies who supplies the value. The default is operator.
 	//

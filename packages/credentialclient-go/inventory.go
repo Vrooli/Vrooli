@@ -74,7 +74,7 @@ func DescriptorsForScope(root string, scope Scope) ([]CredentialRef, error) {
 				RequirementGroup: descriptor.RequirementGroup, ConsumerRefs: append([]string(nil), consumerRefs...), CompanionSettings: append([]string(nil), descriptor.CompanionSettings...), CompanionCredentials: append([]string(nil), descriptor.CompanionCredentials...),
 				AcquisitionRef: descriptor.AcquisitionRef, VerificationRef: descriptor.VerificationRef, RecoveryRef: descriptor.RecoveryRef, HelpRef: descriptor.HelpRef, EvidencePolicy: descriptor.EvidencePolicy, ProviderVersion: descriptor.ProviderVersion,
 				Env:   descriptor.Env,
-				Label: descriptor.Label, Description: descriptor.Description, ObtainURL: descriptor.ObtainURL,
+				Label: descriptor.Label, Description: descriptor.Description, Placeholder: descriptor.Placeholder, ObtainURL: descriptor.ObtainURL,
 				Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Required: descriptor.Required,
 				Consumers: consumerProvenance,
 			}
@@ -89,7 +89,7 @@ func DescriptorsForScope(root string, scope Scope) ([]CredentialRef, error) {
 				continue
 			}
 			byAddress[key] = len(refs)
-			refs = append(refs, CredentialRef{Version: descriptor.Version, Resource: resource, Env: descriptor.Env, LogicalID: descriptor.LogicalID, Field: descriptor.ResolvedField(), Owner: owner, SourceRef: sourceRef, Kind: descriptorKind(descriptor), Provider: descriptor.Provider, AppliesWhen: descriptor.AppliesWhen, Tiers: append([]string(nil), descriptor.Tiers...), RequirementGroup: descriptor.RequirementGroup, ConsumerRefs: consumerRefs, MigrationDiagnostics: migrationDiagnostics, CompanionSettings: append([]string(nil), descriptor.CompanionSettings...), CompanionCredentials: append([]string(nil), descriptor.CompanionCredentials...), AcquisitionRef: descriptor.AcquisitionRef, VerificationRef: descriptor.VerificationRef, RecoveryRef: descriptor.RecoveryRef, HelpRef: descriptor.HelpRef, EvidencePolicy: descriptor.EvidencePolicy, ProviderVersion: descriptor.ProviderVersion, Provenance: []CredentialProvenance{provenance}, Label: firstNonEmpty(descriptor.Label, descriptor.Description), Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Required: descriptor.Required})
+			refs = append(refs, CredentialRef{Version: descriptor.Version, Resource: resource, Env: descriptor.Env, LogicalID: descriptor.LogicalID, Field: descriptor.ResolvedField(), Owner: owner, SourceRef: sourceRef, Kind: descriptorKind(descriptor), Provider: descriptor.Provider, AppliesWhen: descriptor.AppliesWhen, Tiers: append([]string(nil), descriptor.Tiers...), RequirementGroup: descriptor.RequirementGroup, ConsumerRefs: consumerRefs, MigrationDiagnostics: migrationDiagnostics, CompanionSettings: append([]string(nil), descriptor.CompanionSettings...), CompanionCredentials: append([]string(nil), descriptor.CompanionCredentials...), AcquisitionRef: descriptor.AcquisitionRef, VerificationRef: descriptor.VerificationRef, RecoveryRef: descriptor.RecoveryRef, HelpRef: descriptor.HelpRef, EvidencePolicy: descriptor.EvidencePolicy, ProviderVersion: descriptor.ProviderVersion, Provenance: []CredentialProvenance{provenance}, Label: firstNonEmpty(descriptor.Label, descriptor.Description), Description: descriptor.Description, Placeholder: descriptor.Placeholder, ObtainURL: descriptor.ObtainURL, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Required: descriptor.Required})
 		}
 		return nil
 	}

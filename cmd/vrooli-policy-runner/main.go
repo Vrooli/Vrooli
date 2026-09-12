@@ -140,11 +140,29 @@ func readEvent(reader io.Reader, runner string) (agentharness.ToolEvent, error) 
 	event.WorkingDirectory = firstString(raw, "working_directory", "cwd", "workdir")
 	event.Shell = firstString(raw, "shell", "command", "cmd")
 	event.Target = firstString(raw, "target", "path", "file")
-	if arguments, ok := raw["arguments"].([]any); ok {
-		for _, argument := range arguments {
-			if value, ok := argument.(string); ok {
-				event.Arguments = append(event.Arguments, value)
+	event.Arguments = stringList(raw["arguments"])
+	// Native PreToolUse payloads (Claude Code, Codex) nest the tool's own
+	// input; a command there is a shell string or an argument vector.
+	if input, ok := raw["tool_input"].(map[string]any); ok {
+		if event.Shell == "" {
+			event.Shell = firstString(input, "command", "cmd", "script")
+		}
+		if event.Shell == "" && len(event.Arguments) == 0 {
+			event.Arguments = stringList(input["command"])
+		}
+		if event.WorkingDirectory == "" {
+			event.WorkingDirectory = firstString(input, "workdir", "cwd", "working_directory")
+		}
+		if event.Target == "" {
+			event.Target = firstString(input, "file_path", "path")
+		}
+	}
+	for _, key := range []string{"permission_mode", "shell_dialect", "session_id"} {
+		if value := firstString(raw, key); value != "" {
+			if event.Context == nil {
+				event.Context = map[string]string{}
 			}
+			event.Context[key] = value
 		}
 	}
 	if event.Tool == "" && event.Shell != "" {
@@ -170,6 +188,20 @@ func firstString(raw map[string]any, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func stringList(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	values := make([]string, 0, len(items))
+	for _, item := range items {
+		if text, ok := item.(string); ok {
+			values = append(values, text)
+		}
+	}
+	return values
 }
 
 func writeJSON(writer io.Writer, value any) error {

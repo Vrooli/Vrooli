@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 type Authority struct {
@@ -105,10 +107,19 @@ type operatorState struct {
 	Core Authority `json:"core"`
 }
 
-// Load reads operator-state.json from repoRoot. It returns an error instead of
-// fabricating a fallback authority when the operator has not granted one.
-func Load(repoRoot string) (Authority, error) {
-	path := filepath.Join(strings.TrimSpace(repoRoot), ".vrooli", "operator-state.json")
+// Load reads operator-state.json from the contract-routed runtime state
+// namespace. The repoRoot parameter is retained for source compatibility; it
+// no longer determines the mutable state location.
+func Load(_ string) (Authority, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return Authority{}, fmt.Errorf("create operator-state storage resolver: %w", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		return Authority{}, fmt.Errorf("resolve operator-state storage: %w", err)
+	}
+	path := filepath.Join(paths.StateDir, "operator-state.json")
 	raw, err := os.ReadFile(path) // #nosec G304 -- repoRoot is a control-plane workspace path.
 	if err != nil {
 		return Authority{}, err
@@ -126,25 +137,10 @@ func Load(repoRoot string) (Authority, error) {
 }
 
 func currentAuthority() Authority {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		if authority, err := Load(root); err == nil {
-			return authority
-		}
+	if authority, err := Load(""); err == nil {
+		return authority
 	}
-	dir, err := os.Getwd()
-	if err != nil {
-		return Authority{}
-	}
-	for {
-		if authority, err := Load(dir); err == nil {
-			return authority
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return Authority{}
-		}
-		dir = parent
-	}
+	return Authority{}
 }
 
 func CoreSeedScenarios() []string { return append([]string(nil), currentAuthority().Seed...) }

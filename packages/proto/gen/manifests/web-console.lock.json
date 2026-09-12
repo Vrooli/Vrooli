@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:1b7d81ff29d340300bd9df4b6063962a84e3c4d6f8aae68339322619c7352a41",
+  "input_digest": "sha256:e7dc1d7014ad404d5bee3a88b7424b4e9d0f2525a8de3a4181a4b0d6e45dc8cd",
   "input_files": [
     "schemas/setup/v1/operator_input.proto",
     "schemas/setup/v1/selection.proto",

@@ -21,7 +21,8 @@ func testService(t *testing.T) (*Service, string) {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", ".."))
-	return New(Config{RepoRoot: root, SchemaPath: filepath.Join(repoRoot, SchemaPath), Now: func() time.Time {
+	stateRoot := filepath.Join(root, "state", "vrooli", "vrooli-onboarding")
+	return New(Config{RepoRoot: root, StateRoot: stateRoot, SchemaPath: filepath.Join(repoRoot, SchemaPath), Now: func() time.Time {
 		return time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
 	}}), root
 }
@@ -58,7 +59,7 @@ func TestApplyRejectsInvalidPatchWithoutChangingStoredDocument(t *testing.T) {
 	if _, err := service.Apply(ctx, []byte(`{"trust_posture":"personal"}`)); err != nil {
 		t.Fatalf("initial apply: %v", err)
 	}
-	path := filepath.Join(root, ".vrooli", StateFile)
+	path := filepath.Join(root, "state", "vrooli", "vrooli-onboarding", StateFile)
 	before, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read before: %v", err)
@@ -127,7 +128,10 @@ func TestCapacityChoicesSurviveLedgerWipe(t *testing.T) {
 	if _, err := service.Apply(ctx, []byte(`{"resources":{"ollama":{"capacity":{"rung":"qwen3.5:4b","priority":"interactive","tunables":{"num_parallel":2}}}}}`)); err != nil {
 		t.Fatal(err)
 	}
-	ledger := filepath.Join(root, ".vrooli", "capacity.db")
+	ledger := filepath.Join(root, "state", "vrooli", "vrooli-onboarding", "capacity.db")
+	if err := os.MkdirAll(filepath.Dir(ledger), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(ledger, []byte("replaceable observations"), 0o600); err != nil {
 		t.Fatal(err)
 	}

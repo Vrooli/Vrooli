@@ -118,7 +118,7 @@ class CredentialMigrationDiagnostic(_message.Message):
     def __init__(self, address: _Optional[str] = ..., code: _Optional[str] = ..., severity: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class CredentialProvenance(_message.Message):
-    __slots__ = ("owner", "source_ref", "kind", "env", "label", "description", "obtain_url", "provisioning", "derived_from", "required", "consumers", "version", "provider", "applies_when", "requirement_group", "consumer_refs", "companion_settings", "companion_credentials", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy", "provider_version", "tiers")
+    __slots__ = ("owner", "source_ref", "kind", "env", "label", "description", "obtain_url", "provisioning", "derived_from", "required", "consumers", "version", "provider", "applies_when", "requirement_group", "consumer_refs", "companion_settings", "companion_credentials", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy", "provider_version", "tiers", "placeholder")
     OWNER_FIELD_NUMBER: _ClassVar[int]
     SOURCE_REF_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -144,6 +144,7 @@ class CredentialProvenance(_message.Message):
     EVIDENCE_POLICY_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_VERSION_FIELD_NUMBER: _ClassVar[int]
     TIERS_FIELD_NUMBER: _ClassVar[int]
+    PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
     owner: str
     source_ref: str
     kind: str
@@ -169,16 +170,18 @@ class CredentialProvenance(_message.Message):
     evidence_policy: str
     provider_version: str
     tiers: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, owner: _Optional[str] = ..., source_ref: _Optional[str] = ..., kind: _Optional[str] = ..., env: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., obtain_url: _Optional[str] = ..., provisioning: _Optional[str] = ..., derived_from: _Optional[str] = ..., required: _Optional[bool] = ..., consumers: _Optional[_Iterable[_Union[CredentialConsumerProvenance, _Mapping]]] = ..., version: _Optional[str] = ..., provider: _Optional[str] = ..., applies_when: _Optional[_Union[CredentialApplicability, _Mapping]] = ..., requirement_group: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., companion_settings: _Optional[_Iterable[str]] = ..., companion_credentials: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ..., provider_version: _Optional[str] = ..., tiers: _Optional[_Iterable[str]] = ...) -> None: ...
+    placeholder: str
+    def __init__(self, owner: _Optional[str] = ..., source_ref: _Optional[str] = ..., kind: _Optional[str] = ..., env: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., obtain_url: _Optional[str] = ..., provisioning: _Optional[str] = ..., derived_from: _Optional[str] = ..., required: _Optional[bool] = ..., consumers: _Optional[_Iterable[_Union[CredentialConsumerProvenance, _Mapping]]] = ..., version: _Optional[str] = ..., provider: _Optional[str] = ..., applies_when: _Optional[_Union[CredentialApplicability, _Mapping]] = ..., requirement_group: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., companion_settings: _Optional[_Iterable[str]] = ..., companion_credentials: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ..., provider_version: _Optional[str] = ..., tiers: _Optional[_Iterable[str]] = ..., placeholder: _Optional[str] = ...) -> None: ...
 
 class Credential(_message.Message):
-    __slots__ = ("resource", "logical_id", "field", "label", "description", "obtain_url", "provisioning", "derived_from", "required", "status", "legacy_status", "detail", "provenance", "owner", "source_ref", "kind", "consumer_refs", "version", "provider", "applies_when", "requirement_group", "companion_settings", "companion_credentials", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy", "provider_version", "migration_diagnostics", "evidence_status", "evidence_detail", "evidence_next_action", "evidence_credential_version", "provider_state", "provider_detail", "tiers")
+    __slots__ = ("resource", "logical_id", "field", "label", "description", "obtain_url", "placeholder", "provisioning", "derived_from", "required", "status", "legacy_status", "detail", "provenance", "owner", "source_ref", "kind", "consumer_refs", "version", "provider", "applies_when", "requirement_group", "companion_settings", "companion_credentials", "acquisition_ref", "verification_ref", "recovery_ref", "help_ref", "evidence_policy", "provider_version", "migration_diagnostics", "evidence_status", "evidence_detail", "evidence_next_action", "evidence_credential_version", "provider_state", "provider_detail", "tiers")
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     LOGICAL_ID_FIELD_NUMBER: _ClassVar[int]
     FIELD_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     OBTAIN_URL_FIELD_NUMBER: _ClassVar[int]
+    PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
     PROVISIONING_FIELD_NUMBER: _ClassVar[int]
     DERIVED_FROM_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_FIELD_NUMBER: _ClassVar[int]
@@ -216,6 +219,7 @@ class Credential(_message.Message):
     label: str
     description: str
     obtain_url: str
+    placeholder: str
     provisioning: str
     derived_from: str
     required: bool
@@ -247,7 +251,7 @@ class Credential(_message.Message):
     provider_state: str
     provider_detail: str
     tiers: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, resource: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., obtain_url: _Optional[str] = ..., provisioning: _Optional[str] = ..., derived_from: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[_Union[ReadinessState, str]] = ..., legacy_status: _Optional[str] = ..., detail: _Optional[str] = ..., provenance: _Optional[_Iterable[_Union[CredentialProvenance, _Mapping]]] = ..., owner: _Optional[str] = ..., source_ref: _Optional[str] = ..., kind: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., provider: _Optional[str] = ..., applies_when: _Optional[_Union[CredentialApplicability, _Mapping]] = ..., requirement_group: _Optional[str] = ..., companion_settings: _Optional[_Iterable[str]] = ..., companion_credentials: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ..., provider_version: _Optional[str] = ..., migration_diagnostics: _Optional[_Iterable[_Union[CredentialMigrationDiagnostic, _Mapping]]] = ..., evidence_status: _Optional[str] = ..., evidence_detail: _Optional[str] = ..., evidence_next_action: _Optional[str] = ..., evidence_credential_version: _Optional[str] = ..., provider_state: _Optional[str] = ..., provider_detail: _Optional[str] = ..., tiers: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, resource: _Optional[str] = ..., logical_id: _Optional[str] = ..., field: _Optional[str] = ..., label: _Optional[str] = ..., description: _Optional[str] = ..., obtain_url: _Optional[str] = ..., placeholder: _Optional[str] = ..., provisioning: _Optional[str] = ..., derived_from: _Optional[str] = ..., required: _Optional[bool] = ..., status: _Optional[_Union[ReadinessState, str]] = ..., legacy_status: _Optional[str] = ..., detail: _Optional[str] = ..., provenance: _Optional[_Iterable[_Union[CredentialProvenance, _Mapping]]] = ..., owner: _Optional[str] = ..., source_ref: _Optional[str] = ..., kind: _Optional[str] = ..., consumer_refs: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., provider: _Optional[str] = ..., applies_when: _Optional[_Union[CredentialApplicability, _Mapping]] = ..., requirement_group: _Optional[str] = ..., companion_settings: _Optional[_Iterable[str]] = ..., companion_credentials: _Optional[_Iterable[str]] = ..., acquisition_ref: _Optional[str] = ..., verification_ref: _Optional[str] = ..., recovery_ref: _Optional[str] = ..., help_ref: _Optional[str] = ..., evidence_policy: _Optional[str] = ..., provider_version: _Optional[str] = ..., migration_diagnostics: _Optional[_Iterable[_Union[CredentialMigrationDiagnostic, _Mapping]]] = ..., evidence_status: _Optional[str] = ..., evidence_detail: _Optional[str] = ..., evidence_next_action: _Optional[str] = ..., evidence_credential_version: _Optional[str] = ..., provider_state: _Optional[str] = ..., provider_detail: _Optional[str] = ..., tiers: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReadinessItem(_message.Message):
     __slots__ = ("name", "category", "status", "legacy_status", "detail", "remediation", "required")

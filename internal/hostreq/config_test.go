@@ -116,11 +116,8 @@ func TestResolvedRequirementConfigAccessorsAreTyped(t *testing.T) {
 
 func TestResolveSafeguardCarriesOperatorConfigToRequirement(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	state := `{"version":"1.0.0","updated_at":"2026-08-05T17:24:03Z","host_safeguards":{"netconsole":{"config":{"target":"6666@10.0.0.5/dev,6666@10.0.0.6/00:11:22:33:44:55"}}}}`
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(state), 0o644); err != nil {
+	if err := os.WriteFile(operatorStatePathForTest(t, root), []byte(state), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	requirement, err := ResolveSafeguard(root, "netconsole", "linux")

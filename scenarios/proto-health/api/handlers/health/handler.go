@@ -3,6 +3,7 @@ package health
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -29,6 +30,7 @@ type Deps struct {
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
 	started := time.Now()
+	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		statusCode := http.StatusOK
@@ -38,6 +40,7 @@ func NewHandler(d Deps) http.HandlerFunc {
 			Timestamp:     now.UTC().Format(time.RFC3339),
 			Readiness:     true,
 			Version:       d.Version,
+			BuildIdentity: buildIdentity,
 			UptimeSeconds: now.Sub(started).Seconds(),
 			Dependencies: map[string]*healthv1.DependencyStatus{
 				"database": {Connected: true},

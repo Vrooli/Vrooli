@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 func TestDefaultsAreCompleteAndDefensive(t *testing.T) {
@@ -93,14 +95,23 @@ func TestParseDefaultsAndRejectsInvalid(t *testing.T) {
 
 func TestLoadMissingAndPresent(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
 	got, err := Load(root)
 	if err != nil || got.Posture != Personal || got.Source != "default" {
 		t.Fatalf("missing = %+v, %v", got, err)
 	}
-	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, stateRelativePath), []byte(`{"trust_posture":"hosted"}`), 0o644); err != nil {
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: operatorStateScenario})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.StateDir, operatorStateFile), []byte(`{"trust_posture":"hosted"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got, err = Load(root)

@@ -1,9 +1,55 @@
 package coreset
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/vrooli/api-core/storage"
 )
+
+func TestMain(m *testing.M) {
+	root, err := os.MkdirTemp("", "api-core-coreset-test-")
+	if err != nil {
+		panic(err)
+	}
+	previous, hadPrevious := os.LookupEnv("VROOLI_STORAGE_ROOT")
+	if err := os.Setenv("VROOLI_STORAGE_ROOT", root); err != nil {
+		panic(err)
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		panic(err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		panic(err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o755); err != nil {
+		panic(err)
+	}
+	state := map[string]any{"core": Authority{
+		Seed:        []string{"agent-manager", "data-backup-manager", "git-control-tower", "notification-hub", "prompt-manager", "scenario-dependency-analyzer", "storage-manager", "swarm-manager", "system-monitor", "test-genie", "vrooli-autoheal", "vrooli-events", "web-console", "workspace-sandbox"},
+		TrustedBase: []string{"data-backup-manager", "git-control-tower", "test-genie", "workspace-sandbox"},
+	}}
+	raw, err := json.Marshal(state)
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "operator-state.json"), raw, 0o600); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	if hadPrevious {
+		_ = os.Setenv("VROOLI_STORAGE_ROOT", previous)
+	} else {
+		_ = os.Unsetenv("VROOLI_STORAGE_ROOT")
+	}
+	_ = os.RemoveAll(root)
+	os.Exit(code)
+}
 
 func TestCoreSeedScenariosShape(t *testing.T) {
 	seed := CoreSeedScenarios()
@@ -18,7 +64,7 @@ func TestCoreSeedScenariosShape(t *testing.T) {
 		"notification-hub":             true,
 		"prompt-manager":               true,
 		"scenario-dependency-analyzer": true,
-		"storage-manager":             true,
+		"storage-manager":              true,
 		"swarm-manager":                true,
 		"system-monitor":               true,
 		"test-genie":                   true,

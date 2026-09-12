@@ -10,8 +10,6 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorstate"
 )
 
-const operatorStateFileName = ".vrooli/operator-state.json"
-
 type operatorStateEntry struct {
 	OptedIn *bool          `json:"opted_in"`
 	Config  map[string]any `json:"config"`

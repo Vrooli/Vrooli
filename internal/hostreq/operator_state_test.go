@@ -5,14 +5,31 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 )
+
+func operatorStatePathForTest(t *testing.T, root string) string {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatalf("resolve operator state: %v", err)
+	}
+	path := filepath.Join(paths.StateDir, operatorstate.StateFile)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("create operator state directory: %v", err)
+	}
+	return path
+}
 
 func TestLoadOperatorStateDistinguishesSafeguardChoices(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	data := []byte(`{
   "version": "1.0.0",
   "updated_at": "2026-08-05T17:24:03Z",
@@ -22,7 +39,7 @@ func TestLoadOperatorStateDistinguishesSafeguardChoices(t *testing.T) {
     "empty": {}
   }
 }`)
-	if err := os.WriteFile(filepath.Join(root, operatorStateFileName), data, 0o644); err != nil {
+	if err := os.WriteFile(operatorStatePathForTest(t, root), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -45,10 +62,7 @@ func TestLoadOperatorStateDistinguishesSafeguardChoices(t *testing.T) {
 
 func TestLoadOperatorStateRejectsMalformedState(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(root, operatorStateFileName), []byte(`{"version":"1.0.0","updated_at":"not-a-time"}`), 0o644); err != nil {
+	if err := os.WriteFile(operatorStatePathForTest(t, root), []byte(`{"version":"1.0.0","updated_at":"not-a-time"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadOperatorState(root); err == nil {
@@ -57,6 +71,7 @@ func TestLoadOperatorStateRejectsMalformedState(t *testing.T) {
 }
 
 func TestLoadOperatorStateMissingFileIsEmpty(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	state, err := LoadOperatorState(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -71,11 +86,8 @@ func TestLoadOperatorStateMissingFileIsEmpty(t *testing.T) {
 
 func TestLoadOperatorStateReadsTypedTrustPosture(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	data := []byte(`{"version":"1.0.0","updated_at":"2026-08-05T17:24:03Z","trust_posture":"shared"}`)
-	if err := os.WriteFile(filepath.Join(root, operatorStateFileName), data, 0o644); err != nil {
+	if err := os.WriteFile(operatorStatePathForTest(t, root), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	state, err := LoadOperatorState(root)

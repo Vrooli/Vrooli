@@ -6,8 +6,31 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 )
+
+func writeCapacityOperatorState(t *testing.T, root string, state []byte) string {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatalf("resolve operator state: %v", err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o700); err != nil {
+		t.Fatalf("create state directory: %v", err)
+	}
+	path := filepath.Join(paths.StateDir, operatorstate.StateFile)
+	if err := os.WriteFile(path, state, 0o600); err != nil {
+		t.Fatalf("write operator state: %v", err)
+	}
+	return path
+}
 
 func TestStatusReportsEffectiveCapacityTunableAndSource(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
@@ -15,14 +38,8 @@ func TestStatusReportsEffectiveCapacityTunableAndSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	stateRoot := t.TempDir()
-	stateDir := filepath.Join(stateRoot, ".vrooli")
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	state := []byte(`{"version":"1.0.0","resources":{"ollama":{"capacity":{"tunables":{"num_parallel":6}}}}}`)
-	if err := os.WriteFile(filepath.Join(stateDir, "operator-state.json"), state, 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeCapacityOperatorState(t, stateRoot, state)
 	controller := &Controller{Root: stateRoot}
 	status := Status{Resource: catalog.Resource{
 		Name: "ollama", ManifestPath: filepath.Join(repoRoot, "resources", "ollama", "resource.json"),
@@ -68,14 +85,8 @@ func TestStatusRejectsCapacityOverrideOutsideManifestBounds(t *testing.T) {
 		t.Fatal(err)
 	}
 	stateRoot := t.TempDir()
-	stateDir := filepath.Join(stateRoot, ".vrooli")
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	state := []byte(`{"version":"1.0.0","resources":{"ollama":{"capacity":{"tunables":{"num_parallel":9}}}}}`)
-	if err := os.WriteFile(filepath.Join(stateDir, "operator-state.json"), state, 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeCapacityOperatorState(t, stateRoot, state)
 	controller := &Controller{Root: stateRoot}
 	_, err = controller.withEffectiveCapacity(Status{Resource: catalog.Resource{
 		Name: "ollama", ManifestPath: filepath.Join(repoRoot, "resources", "ollama", "resource.json"),

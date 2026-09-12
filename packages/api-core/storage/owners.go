@@ -74,6 +74,12 @@ type StorageEntry struct {
 	Reclaim     *ReclaimDeclaration    `json:"reclaim,omitempty"`
 	Budget      *BudgetDeclaration     `json:"budget,omitempty"`
 	Rationale   string                 `json:"rationale,omitempty"`
+	// AgentRemoval is the owner's explicit answer to whether a coding agent
+	// may delete here: allow, ask, or deny. Empty leaves the agent-policy
+	// bridge to infer it from Regenerable and Sensitive, which answer a
+	// different question (backup and reclaim), so owners set it where the
+	// inference is wrong.
+	AgentRemoval string `json:"agent_removal,omitempty"`
 }
 
 // EffectivePlatforms returns the platforms where an entry has a declared
@@ -384,19 +390,20 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 		names := sortedRawKeys(raw.Storage.Entries)
 		for _, name := range names {
 			var entry struct {
-				Platforms   []string               `json:"platforms"`
-				Rung        Rung                   `json:"rung"`
-				Path        json.RawMessage        `json:"path"`
-				Subpath     string                 `json:"subpath"`
-				Kind        string                 `json:"kind"`
-				Class       Class                  `json:"class"`
-				Format      string                 `json:"format"`
-				Regenerable bool                   `json:"regenerable"`
-				Sensitive   bool                   `json:"sensitive"`
-				Relocation  *RelocationDeclaration `json:"relocation"`
-				Reclaim     *ReclaimDeclaration    `json:"reclaim"`
-				Budget      *BudgetDeclaration     `json:"budget"`
-				Rationale   string                 `json:"rationale"`
+				Platforms    []string               `json:"platforms"`
+				Rung         Rung                   `json:"rung"`
+				Path         json.RawMessage        `json:"path"`
+				Subpath      string                 `json:"subpath"`
+				Kind         string                 `json:"kind"`
+				Class        Class                  `json:"class"`
+				Format       string                 `json:"format"`
+				Regenerable  bool                   `json:"regenerable"`
+				Sensitive    bool                   `json:"sensitive"`
+				Relocation   *RelocationDeclaration `json:"relocation"`
+				Reclaim      *ReclaimDeclaration    `json:"reclaim"`
+				Budget       *BudgetDeclaration     `json:"budget"`
+				Rationale    string                 `json:"rationale"`
+				AgentRemoval string                 `json:"agent_removal"`
 			}
 			if err := json.Unmarshal(raw.Storage.Entries[name], &entry); err != nil {
 				findings = append(findings, ownerFinding(owner, "malformed_storage_entry", "storage entry "+name+": "+err.Error()))
@@ -435,7 +442,14 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 			if entry.Rung == RungRelocatable && entry.Relocation == nil {
 				findings = append(findings, ownerFinding(owner, "missing_relocation", "relocatable storage entry "+name+" has no relocation lever"))
 			}
-			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Subpath: entry.Subpath, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale}
+			switch entry.AgentRemoval {
+			case "", "allow", "ask", "deny":
+			default:
+				findings = append(findings, ownerFinding(owner, "invalid_agent_removal", fmt.Sprintf("storage entry %s declares agent_removal %q; want allow, ask, or deny", name, entry.AgentRemoval)))
+				// An unreadable answer must not open the location.
+				entry.AgentRemoval = "deny"
+			}
+			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Subpath: entry.Subpath, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale, AgentRemoval: entry.AgentRemoval}
 			if platform != "" && platformIncluded(EffectivePlatforms(owner, storageEntry), platform) {
 				if _, resolveErr := ResolveOwnerStoragePath(filepath.Dir(filepath.Dir(path)), owner, storageEntry, platform, seams); resolveErr != nil {
 					if _, notApplicable := resolveErr.(*NotApplicable); !notApplicable {

@@ -13,9 +13,13 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/operatorsession"
+	"github.com/vrooli/api-core/storage"
 )
 
-const stateRelativePath = ".vrooli/operator-state.json"
+const (
+	operatorStateScenario = "vrooli-onboarding"
+	operatorStateFile     = "operator-state.json"
+)
 
 // Posture is the operator-selected trust stance for one installation.
 type Posture string
@@ -154,11 +158,16 @@ func Parse(data []byte, source string) (State, error) {
 	return state, nil
 }
 
-// Load loads the state rooted at root. A missing file is the documented
-// personal default; malformed or invalid state is an error and never silently
-// changes the security stance.
-func Load(root string) (State, error) {
-	path := filepath.Join(root, stateRelativePath)
+// Load loads operator state through the contract-routed runtime storage seam.
+// The root parameter is retained for source compatibility with older callers;
+// runtime location is intentionally no longer derived from a repository root.
+// A missing file is the documented personal default; malformed or invalid
+// state is an error and never silently changes the security stance.
+func Load(_ string) (State, error) {
+	path, err := operatorStatePath()
+	if err != nil {
+		return State{}, err
+	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return State{Posture: Personal, Source: "default"}, nil
@@ -169,23 +178,21 @@ func Load(root string) (State, error) {
 	return Parse(data, path)
 }
 
-// LoadWorkingTree walks upward from the current directory to find the
-// repository's .vrooli directory. This keeps scenario processes independent
-// of the lifecycle-selected working directory.
-func LoadWorkingTree() (State, error) {
-	working, err := os.Getwd()
+func operatorStatePath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
-		return State{}, fmt.Errorf("get working directory: %w", err)
+		return "", fmt.Errorf("create operator-state storage resolver: %w", err)
 	}
-	for dir := working; ; dir = filepath.Dir(dir) {
-		if _, err := os.Stat(filepath.Join(dir, stateRelativePath)); err == nil {
-			return Load(dir)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return State{}, err
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return State{Posture: Personal, Source: "default"}, nil
-		}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: operatorStateScenario})
+	if err != nil {
+		return "", fmt.Errorf("resolve operator-state storage: %w", err)
 	}
+	return filepath.Join(paths.StateDir, operatorStateFile), nil
+}
+
+// LoadWorkingTree loads the contract-routed operator state. The lifecycle
+// environment selects the repository and storage roots, so this remains
+// independent of the process working directory.
+func LoadWorkingTree() (State, error) {
+	return Load("")
 }

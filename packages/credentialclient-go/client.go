@@ -48,6 +48,7 @@ type CredentialRef struct {
 	// carried separately from Label because a credential card must show both
 	// the name and the reason the value is being asked for.
 	Description  string `json:"description,omitempty"`
+	Placeholder  string `json:"placeholder,omitempty"`
 	ObtainURL    string `json:"obtain_url,omitempty"`
 	Provisioning string `json:"provisioning,omitempty"`
 	DerivedFrom  string `json:"derived_from,omitempty"`
@@ -75,6 +76,7 @@ type CredentialProvenance struct {
 	Env                  string                         `json:"env,omitempty"`
 	Label                string                         `json:"label,omitempty"`
 	Description          string                         `json:"description,omitempty"`
+	Placeholder          string                         `json:"placeholder,omitempty"`
 	ObtainURL            string                         `json:"obtain_url,omitempty"`
 	Provisioning         string                         `json:"provisioning,omitempty"`
 	DerivedFrom          string                         `json:"derived_from,omitempty"`
