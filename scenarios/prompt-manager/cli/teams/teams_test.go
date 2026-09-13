@@ -396,3 +396,74 @@ func TestUsageDescribesMemberContextAsTaskless(t *testing.T) {
 		t.Fatalf("usage contains stale member-context wording:\n%s", usage)
 	}
 }
+
+func TestTeamMetadataCLIChangesAndClearsAreExplicit(t *testing.T) {
+	ctx := &fakeContext{t: t, response: TeamDetails{Team: Team{ID: "aquila"}}}
+	_, err := captureTeamStdout(t, func() error {
+		return cmdCreate(ctx, []string{"Aquila", "--purpose=delivery", "--lifetime=finite", "--effort-refs=effort:aquila,effort:launch"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(ctx.gotPayload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["purpose"] != "delivery" || payload["lifetime"] != "finite" || len(payload["effortRefs"].([]any)) != 2 {
+		t.Fatalf("metadata create payload: %s", ctx.gotPayload)
+	}
+	_, err = captureTeamStdout(t, func() error { return cmdUpdate(ctx, []string{"aquila", "--purpose=", "--effort-refs="}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload = map[string]any{}
+	if err := json.Unmarshal(ctx.gotPayload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := payload["purpose"]; !ok || value != "" {
+		t.Fatalf("purpose clear missing: %s", ctx.gotPayload)
+	}
+	if value, ok := payload["effortRefs"]; !ok || len(value.([]any)) != 0 {
+		t.Fatalf("reference clear missing: %s", ctx.gotPayload)
+	}
+	if _, ok := payload["lifetime"]; ok {
+		t.Fatal("omitted lifetime must not be changed")
+	}
+	if _, ok := payload["enabled"]; ok {
+		t.Fatal("metadata must not change execution eligibility")
+	}
+	ctx.gotMethod = ""
+	if err := cmdUpdate(ctx, []string{"aquila", "--lifetime=permanent"}); err == nil || ctx.gotMethod != "" {
+		t.Fatal("invalid metadata should fail before mutation")
+	}
+}
+
+func TestTeamMetadataCLIListFiltersAndRetainsObjectiveRecords(t *testing.T) {
+	ctx := &fakeContext{t: t, response: []Team{
+		{ID: "marketing", Purpose: "domain-stewardship", Lifetime: "standing"},
+		{ID: "supervisor", Purpose: "supervision", Lifetime: "standing", ObjectivesServed: []teamconfig.ObjectiveDeclaration{{ID: "T1", AcknowledgedRevision: "r3"}}},
+		{ID: "aquila", Purpose: "delivery", Lifetime: "finite"},
+		{ID: "legacy"},
+	}}
+	output, err := captureTeamStdout(t, func() error { return cmdList(ctx, []string{"--purpose=supervision", "--lifetime=standing", "--json"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var teams []Team
+	if err := json.Unmarshal([]byte(output), &teams); err != nil {
+		t.Fatal(err)
+	}
+	if len(teams) != 1 || teams[0].ID != "supervisor" || teams[0].ObjectivesServed[0].AcknowledgedRevision != "r3" {
+		t.Fatalf("filter/read metadata lost: %s", output)
+	}
+	output, err = captureTeamStdout(t, func() error { return cmdList(ctx, []string{"--lifetime=unspecified", "--json"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(output), &teams); err != nil {
+		t.Fatal(err)
+	}
+	if len(teams) != 1 || teams[0].ID != "legacy" {
+		t.Fatalf("unspecified filter: %s", output)
+	}
+}

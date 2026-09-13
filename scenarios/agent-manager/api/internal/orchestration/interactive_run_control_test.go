@@ -35,6 +35,7 @@ type recordingSessions struct {
 	gone        map[string]bool
 	getNotFound bool
 	onCreate    func()
+	onPrompt    func()
 }
 
 func newRecordingSessions() *recordingSessions {
@@ -87,6 +88,9 @@ func (r *recordingSessions) SendText(context.Context, string, string, string) er
 }
 
 func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source string) error {
+	if r.onPrompt != nil {
+		r.onPrompt()
+	}
 	r.record("sendprompt")
 	r.mu.Lock()
 	r.promptSrc = append(r.promptSrc, source)
@@ -402,6 +406,8 @@ func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
 	sessions := newRecordingSessions()
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
 		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry))
+	reconciler := NewReconciler(repos.Runs, registry, WithReconcilerEvents(eventStore), WithReconcilerInteractive(sessions))
+	svc.SetReconciler(reconciler)
 	task := interactiveTestTask(t, svc)
 
 	// A completed interactive run whose transcript exists (non-terminal, so the
@@ -411,6 +417,23 @@ func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
 		t.Fatalf("write transcript: %v", err)
 	}
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-sess", "wc-4")
+	originalStart := time.Now().Add(-time.Hour).UTC()
+	run.StartedAt = &originalStart
+	sessions.onPrompt = func() {
+		recovery, err := reconciler.RecoverRun(ctx, run.ID)
+		if err != nil || recovery == nil || !recovery.Idempotent || !strings.Contains(recovery.Message, "owner is in flight") {
+			t.Fatalf("recovery crossed in-flight invocation admission: %+v %v", recovery, err)
+		}
+
+		admitted, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if admitted.InteractiveInvocationStartedAt == nil || !admitted.InteractiveInvocationStartedAt.After(originalStart) || admitted.StartedAt == nil || !admitted.StartedAt.Equal(originalStart) || admitted.Status != domain.RunStatusRunning {
+			t.Fatal("continuation delivered before its invocation identity was durably admitted")
+		}
+	}
+
 	run.TranscriptPath = transcript
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatalf("update run: %v", err)

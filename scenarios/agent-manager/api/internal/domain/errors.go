@@ -22,6 +22,27 @@ import (
 // Format: CATEGORY_SPECIFIC (e.g., "NOT_FOUND_TASK", "VALIDATION_FIELD")
 type ErrorCode string
 
+// preEffectRefusal is an owner admission receipt, not an error-code category.
+// The same provider error may occur before admission or after dispatch.
+type preEffectRefusal struct{ cause error }
+
+func (e *preEffectRefusal) Error() string { return e.cause.Error() }
+func (e *preEffectRefusal) Unwrap() error { return e.cause }
+
+// RefuseBeforeEffects marks only a failure for which the owner knows no
+// dispatch or other execution effect could have occurred.
+func RefuseBeforeEffects(err error) error {
+	if err == nil || IsPreEffectRefusal(err) {
+		return err
+	}
+	return &preEffectRefusal{cause: err}
+}
+
+func IsPreEffectRefusal(err error) bool {
+	var refusal *preEffectRefusal
+	return errors.As(err, &refusal)
+}
+
 const (
 	// --- Not Found Errors (404) ---
 	ErrCodeNotFoundTask     ErrorCode = "NOT_FOUND_TASK"

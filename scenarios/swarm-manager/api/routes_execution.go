@@ -63,6 +63,10 @@ func (s *Server) registerExecutionRoutes(dataRoot, scenarioRoot string) *executi
 		TransitionRegistry:       s.transitionRegistry,
 		Finalization:             finalizationCfg,
 	}
+	if s.agentSvc != nil {
+		cfg.GoalRunCreator = s.agentSvc
+		cfg.GoalRunReader = s.agentSvc
+	}
 	s.executionSvc = execution.NewService(cfg)
 	if s.agentActivitySvc != nil {
 		s.executionSvc.SetWorkflowActivityRecorder(s.agentActivitySvc)

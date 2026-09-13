@@ -32,7 +32,7 @@ func TestContinueExhaustedCreatesOneInheritedChild(t *testing.T) {
 	if child.ContinuationOf != parent.ExecutionID || child.ParentExecutionID != parent.ExecutionID {
 		t.Fatalf("child parent links=%q/%q, want %q", child.ContinuationOf, child.ParentExecutionID, parent.ExecutionID)
 	}
-	if child.ExecutionStrategy != parent.ExecutionStrategy || child.ExecutionPreferences == nil || child.ExecutionPreferences.PreferredRunner != "codex" {
+	if child.ExecutionMode != parent.ExecutionMode || child.ExecutionPreferences == nil || child.ExecutionPreferences.PreferredRunner != "codex" {
 		t.Fatalf("child did not inherit execution selection: %+v", child)
 	}
 	if len(records[0].ContinuationChildIDs) != 1 || records[0].ContinuationChildIDs[0] != child.ExecutionID {
@@ -139,7 +139,9 @@ func continuationTestService(t *testing.T, policy string) (*Service, backlogItem
 	if err := os.WriteFile(filepath.Join(itemDir, "spec.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "execution.json")}), item
+	return NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: root, StorePath: filepath.Join(root, "execution.json"),
+	}), item
 }
 
 func continuationParent() Record {
@@ -149,12 +151,154 @@ func continuationParent() Record {
 		BacklogName:          "fixture",
 		Status:               StatusBudgetExhausted,
 		Mode:                 ModeManual,
-		ExecutionStrategy:    "adaptive-improvement",
+		ExecutionMode:        "sliced",
 		MaxSlices:            1,
 		ExecutionLimits:      &identity.ExecutionLimits{MaxSlices: 4, MaxTokens: 1000, MaxTurns: 10, MaxWallSeconds: 100, MaxChargeMicroUSD: 1000, MaxChildren: 10, MaxNodeAttempts: 10, MaxRetries: 4},
 		ExecutionPreferences: &ExecutionPreferences{PreferredRunner: "codex", Model: "gpt-5", Effort: "high"},
 		ApprovalDigest:       "accepted",
 		WorkflowGrant:        &workflowcontract.Grant{MaxTurns: 1},
 		SettledUsage:         &workflowcontract.Usage{TokensKnown: true, ChargeMeasured: true, WallSeconds: 1, Tokens: 10, Turns: 1, ChargeMicroUSD: 10, Slices: 1},
+	}
+}
+
+func TestContinueExhaustedProgressResetsBrakeAtDepth(t *testing.T) {
+	service, _ := continuationTestService(t, "until-allowance")
+	chain := func(id, continuationOf string, progress, streak int) Record {
+		record := continuationParent()
+		record.ExecutionID = id
+		record.ContinuationOf = continuationOf
+		record.PlanManagerProgress = progress
+		record.NoProgressStreak = streak
+		record.PlanManagerExecutionID = "plan-exec-" + id
+		// Prior chain links are not reservations: the brake and allowance are
+		// exercised independently.
+		record.WorkflowGrant = nil
+		record.SettledUsage = nil
+		return record
+	}
+	root := chain("root", "", 0, 0)
+	first := chain("first", "root", 1, 0)
+	second := chain("second", "first", 2, 0)
+	parent := continuationParent()
+	parent.ExecutionID = "parent"
+	parent.ContinuationOf = "second"
+	parent.PlanManagerProgress = 3
+	parent.NoProgressStreak = 2
+	parent.PlanManagerExecutionID = "plan-exec-parent"
+	if err := service.store.Save([]Record{root, first, second, parent}); err != nil {
+		t.Fatal(err)
+	}
+	// The read observes progress beyond the parent, so the brake resets even at
+	// a chain depth the old chain-depth brake would have halted.
+	service.SetPlanProgressReader(func(context.Context, string) (int, error) { return 4, nil })
+	service.continueExhaustedLocked(context.Background())
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 5 {
+		t.Fatalf("progressing chain halted: %d records, want parent plus one child", len(records))
+	}
+	child := records[len(records)-1]
+	if child.NoProgressStreak != 0 || child.PlanManagerProgress != 4 {
+		t.Fatalf("child brake fields=%d/%d, want 0/4", child.NoProgressStreak, child.PlanManagerProgress)
+	}
+}
+
+func TestContinueExhaustedHaltsAfterThreeNoProgressResumes(t *testing.T) {
+	service, _ := continuationTestService(t, "until-allowance")
+	parent := continuationParent()
+	parent.PlanManagerProgress = 5
+	parent.NoProgressStreak = 2
+	parent.PlanManagerExecutionID = "plan-exec-parent"
+	if err := service.store.Save([]Record{parent}); err != nil {
+		t.Fatal(err)
+	}
+	service.SetPlanProgressReader(func(context.Context, string) (int, error) { return 5, nil })
+	service.continueExhaustedLocked(context.Background())
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("no-progress chain created a child: %d records", len(records))
+	}
+	item, err := service.loadBacklogItem("execute", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.ContinuationStoppedReason != "no_progress" || item.ContinuationHaltedAt == "" {
+		t.Fatalf("item continuation state=%+v", item)
+	}
+}
+
+func TestContinueResumesInterruptedGoalWithFreshRunChain(t *testing.T) {
+	service, _ := continuationTestService(t, "until-allowance")
+	parent := continuationParent()
+	parent.Status = StatusInterrupted
+	parent.ExecutionMode = "goal"
+	parent.StopReason = "timeout"
+	parent.LastHandoff = "earlier handoff text"
+	parent.PlanManagerExecutionID = "plan-exec-parent"
+	if err := service.store.Save([]Record{parent}); err != nil {
+		t.Fatal(err)
+	}
+	service.continueExhaustedLocked(context.Background())
+	records, err := service.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("interrupted goal resume created %d records, want one child", len(records))
+	}
+	child := records[1]
+	if child.ResumePath != "fresh_run" {
+		t.Fatalf("resume path=%q, want fresh_run", child.ResumePath)
+	}
+	if child.ResumeOrdinal != 1 || child.ResumeReason != "timeout" {
+		t.Fatalf("resume chain ordinal/reason=%d/%q, want 1/timeout", child.ResumeOrdinal, child.ResumeReason)
+	}
+	if child.LastHandoff != "earlier handoff text" {
+		t.Fatalf("child lost the parent handoff: %q", child.LastHandoff)
+	}
+}
+
+func TestContinueNeverResumesVerdicts(t *testing.T) {
+	for _, status := range []Status{StatusNeedsAttention, StatusNeedsReview, StatusValidating, StatusCompleted, StatusAbstained, StatusFailed, StatusCanceled} {
+		service, _ := continuationTestService(t, "until-allowance")
+		parent := continuationParent()
+		parent.Status = status
+		if err := service.store.Save([]Record{parent}); err != nil {
+			t.Fatal(err)
+		}
+		service.continueExhaustedLocked(context.Background())
+		records, err := service.store.Load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(records) != 1 {
+			t.Fatalf("verdict status %s was resumed into %d records", status, len(records)-1)
+		}
+	}
+}
+
+func TestContinueIdleSweeperWritesNothing(t *testing.T) {
+	service, _ := continuationTestService(t, "manual")
+	parent := continuationParent()
+	if err := service.store.Save([]Record{parent}); err != nil {
+		t.Fatal(err)
+	}
+	specPath := filepath.Join(service.itemDir("execute", "fixture"), "spec.json")
+	before, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.continueExhaustedLocked(context.Background())
+	after, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("idle sweeper rewrote the item spec")
 	}
 }

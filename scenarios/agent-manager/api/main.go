@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/maintenance"
 	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
@@ -45,6 +46,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
 	searchregister "github.com/vrooli/searchregister-go"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 type searchControlTokens struct {
@@ -76,6 +78,8 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	recovery               *maintenance.Recovery
+	maintenance            *maintenance.Handler
 	capabilityRegistry     *capabilities.Registry
 	db                     *database.DB
 	fileRoots              *filerouting.RoutedRoots
@@ -136,7 +140,7 @@ func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) cor
 	}
 }
 
-// NewServer builds the graph, then starts durable recovery in dependency order.
+// NewServer builds the graph and routes before launching observable recovery.
 func NewServer() (*Server, error) {
 	levers, leversErr := agentconfig.LoadLevers()
 	if levers == nil {
@@ -247,6 +251,7 @@ func NewServer() (*Server, error) {
 		return err
 	})
 	srv := &Server{
+		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher,
@@ -260,8 +265,36 @@ func NewServer() (*Server, error) {
 		conversationTokens:     conversationTokens,
 		workspaceSandbox:       deps.WorkspaceSandbox,
 	}
-	srv.startRecovery()
+	// One gate and routed store serve every admission path and the owner endpoint.
+	// Install before recovery workers or HTTP can admit work.
+	gate := maintenance.NewGate(maintenance.NewRepository(db))
+	orchestration.WithMaintenanceGate(gate)(deps.Orchestrator)
+	ownerHome, err := os.UserHomeDir()
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("resolve lifecycle owner home: %w", err)
+	}
+	interlock, err := maintenance.NewScenarioInterlock(ownerHome)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	inventory := wiring.NewMaintenanceInventory(db)
+	srv.maintenance, err = maintenance.NewHandler(gate, func(ctx context.Context) (maintenance.Inventory, error) {
+		state, err := inventory.Observe(ctx)
+		if recovery := srv.recovery.Snapshot(); !recovery.Readiness {
+			state.Remaining = nil
+			state.Unknown = append(state.Unknown, "startup recovery "+recovery.Status+": "+recovery.Phase)
+			return state, fmt.Errorf("startup recovery is not ready")
+		}
+		return state, err
+	}, deps.OwnerIdentity, interlock)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	srv.setupRoutes()
+	srv.startRecovery()
 	return srv, nil
 }
 
@@ -283,70 +316,114 @@ func (s *Server) startSearchRegistration(parent context.Context) {
 func envOrEmpty(key string) string { return os.Getenv(key) }
 
 func (s *Server) startRecovery() {
-	ctx := context.Background()
-	if s.supervisionScheduler != nil {
-		if _, err := s.supervisionService.RecoverActions(ctx); err != nil {
-			obs.Logger().Warn("cohort action recovery failed", obs.KeyError, err.Error())
-		}
-		s.supervisionScheduler.Start(ctx)
+	if s.recovery == nil {
+		s.recovery = maintenance.NewRecovery()
 	}
-	if s.conversationIndexer != nil {
-		s.conversationIndexer.Start(ctx)
+	s.recovery.Start(context.Background(), s.recoverySteps())
+}
+
+func (s *Server) recoverySteps() []maintenance.RecoveryStep {
+	var steps []maintenance.RecoveryStep
+	add := func(name string, run func(context.Context) error) {
+		// Historical projections and declarations of other scenarios have their
+		// own retry owners. Their findings must not globally disable legitimate
+		// work; active ownership recovery is required and remains readiness-gated.
+		nonCritical := name == "workflow_accounting" || name == "stats_rebuild" || name == "scenario_declarations"
+		steps = append(steps, maintenance.RecoveryStep{Name: name, NonCritical: nonCritical, Timeout: 30 * time.Second, Run: func(ctx context.Context) error {
+			err := run(ctx)
+			if err != nil {
+				obs.Logger().Warn("startup recovery failed", "phase", name, obs.KeyError, err.Error())
+			}
+			return err
+		}})
+	}
+	if s.supervisionService != nil {
+		add("cohort_actions", func(ctx context.Context) error { _, err := s.supervisionService.RecoverActions(ctx); return err })
 	}
 	if s.reconciler != nil {
-		if err := s.reconciler.RecoverInFlightRuns(ctx); err != nil {
-			obs.Logger().Warn("initial run recovery failed", obs.KeyError, err.Error())
-		}
-		if err := s.reconciler.Start(ctx); err != nil {
-			obs.Logger().Warn("reconciler start failed", obs.KeyError, err.Error())
-		}
+		add("in_flight_runs", s.reconciler.RecoverInFlightRuns)
 	}
-	if err := s.orchestrator.RecoverWorkflowExecutions(ctx); err != nil {
-		obs.Logger().Warn("initial workflow recovery failed", obs.KeyError, err.Error())
-	}
-	if s.workflowNudger != nil {
-		s.workflowNudger.Start()
-	}
-	if s.transcriptImporter != nil {
-		s.transcriptImporter.Start(ctx)
-	}
-	if s.frictionPublisher != nil {
-		s.frictionPublisher.Start(ctx)
+	if s.orchestrator != nil {
+		add("workflow_accounting", s.orchestrator.RecoverWorkflowExecutions)
 	}
 	repoRoot := os.Getenv("PROJECT_ROOT")
 	if repoRoot == "" {
 		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
 	}
-	summary := s.orchestrator.ReconcileDeclaringScenarios(ctx, repoRoot)
-	obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
-	if result, err := s.orchestrator.ReconcileSelfDeclarations(ctx, repoRoot); err != nil {
-		obs.Logger().Warn("agent-manager self-declaration registration failed", obs.KeyError, err.Error())
-	} else {
-		obs.Logger().Info("agent-manager self-declaration registration complete", "profiles_created", result.ProfilesCreated, "profiles_updated", result.ProfilesUpdated, "workflows_created", result.WorkflowsCreated, "workflows_activated", result.WorkflowsActivated, "failed", result.ProfilesFailed+result.WorkflowsFailed)
+	if s.orchestrator != nil {
+		add("scenario_declarations", func(ctx context.Context) error {
+			summary := s.orchestrator.ReconcileDeclaringScenarios(ctx, repoRoot)
+			obs.Logger().Info("scenario declaration sweep complete", "scanned", summary.Scanned, "declaring", summary.Declaring, "reconciled", summary.Reconciled, "failed", summary.Failed)
+			if summary.Failed > 0 {
+				return fmt.Errorf("%d scenario declarations failed", summary.Failed)
+			}
+			return nil
+		})
+		add("self_declarations", func(ctx context.Context) error {
+			result, err := s.orchestrator.ReconcileSelfDeclarations(ctx, repoRoot)
+			if err != nil {
+				return err
+			}
+			obs.Logger().Info("agent-manager self-declaration registration complete", "profiles_created", result.ProfilesCreated, "profiles_updated", result.ProfilesUpdated, "workflows_created", result.WorkflowsCreated, "workflows_activated", result.WorkflowsActivated, "failed", result.ProfilesFailed+result.WorkflowsFailed)
+			if result.ProfilesFailed+result.WorkflowsFailed > 0 {
+				return fmt.Errorf("self-declaration registration incomplete")
+			}
+			return nil
+		})
 	}
-	wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot)
 	if s.awaitRegistry != nil {
-		if n, err := s.awaitRegistry.RecoverParkedRuns(ctx); err != nil {
-			obs.Logger().Warn("parked-run waiter recovery failed", obs.KeyError, err.Error())
-		} else if n > 0 {
-			obs.Logger().Info("re-spawned waiters for parked runs", "count", n)
-		}
-	}
-	if s.modelHealthProbe != nil {
-		s.modelHealthProbe.Start(ctx)
-	}
-	if s.modelPolicyDrift != nil {
-		s.modelPolicyDrift.Start(ctx)
+		add("parked_runs", func(ctx context.Context) error {
+			n, err := s.awaitRegistry.RecoverParkedRuns(ctx)
+			if err == nil && n > 0 {
+				obs.Logger().Info("re-spawned waiters for parked runs", "count", n)
+			}
+			return err
+		})
 	}
 	if s.statsEngine != nil {
-		if err := s.statsEngine.Rebuild(ctx); err != nil {
-			obs.Logger().Warn("stats engine rebuild failed", obs.KeyError, err.Error())
-		}
+		add("stats_rebuild", s.statsEngine.Rebuild)
 	}
+	// Start schedulers after the initial recovery attempts so existing owners can
+	// retry incomplete work. Failures remain visible in health. Their context
+	// lives until Cleanup; it must not inherit a historical scan's deadline.
+	steps = append(steps, maintenance.RecoveryStep{Name: "background_workers", Run: func(ctx context.Context) error {
+		if s.supervisionScheduler != nil {
+			s.supervisionScheduler.Start(ctx)
+		}
+		if s.conversationIndexer != nil {
+			s.conversationIndexer.Start(ctx)
+		}
+		if s.reconciler != nil {
+			if err := s.reconciler.Start(ctx); err != nil {
+				return err
+			}
+		}
+		if s.workflowNudger != nil {
+			s.workflowNudger.Start()
+		}
+		if s.transcriptImporter != nil {
+			s.transcriptImporter.Start(ctx)
+		}
+		if s.frictionPublisher != nil {
+			s.frictionPublisher.Start(ctx)
+		}
+		if s.orchestrator != nil {
+			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot)
+		}
+		if s.modelHealthProbe != nil {
+			s.modelHealthProbe.Start(ctx)
+		}
+		if s.modelPolicyDrift != nil {
+			s.modelPolicyDrift.Start(ctx)
+		}
+		return nil
+	}})
+	return steps
 }
 
 func (s *Server) setupRoutes() {
 	wiring.SetupRoutes(s.router, wiring.RouteDependencies{
+		Recovery:           s.recovery,
 		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
@@ -364,11 +441,23 @@ func (s *Server) setupRoutes() {
 func (s *Server) Router() http.Handler {
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, s.db.Routed, s.fileRoots)
+	if s.maintenance != nil {
+		rootMux.Handle(maintenance.AdmissionPath, s.maintenance)
+		rootMux.Handle(maintenance.AdmissionPath+"/", s.maintenance)
+	}
+	if s.recovery != nil {
+		rootMux.Handle("/health", s.recovery.Health(s.router))
+		rootMux.Handle("/api/v1/health", s.recovery.Readiness(s.router))
+		rootMux.Handle(apiconnect.AgentManagerServiceHealthProcedure, s.recovery.ConnectHealth(s.router))
+	}
 	rootMux.Handle("/", gorillaHandlers.RecoveryHandler()(s.router))
 	return apihttp.TestModeMiddleware(rootMux)
 }
 
 func (s *Server) Cleanup() error {
+	if s.recovery != nil {
+		s.recovery.Stop()
+	}
 	if s.searchRegistrationStop != nil {
 		s.searchRegistrationStop()
 	}

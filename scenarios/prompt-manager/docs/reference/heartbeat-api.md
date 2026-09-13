@@ -111,6 +111,57 @@ Manual trigger endpoints return `423 Locked` when blocked by heartbeat control:
 
 ## Heartbeat Configuration
 
+### Standing supervision policy
+
+The existing generated HeartbeatService create/update operations accept an
+optional `supervision` object through their JSON body. No alternate scheduler or
+REST surface is added:
+
+```json
+{
+  "supervision": {
+    "discoveryLimit": 100,
+    "maxEffortsPerWake": 3,
+    "minWakeIntervalSeconds": 300,
+    "healthySampleIntervalSeconds": 3600,
+    "maxHealthySamplesPerWake": 1,
+    "diagnosticAllowance": {
+      "maxWakesPerWindow": 4,
+      "windowSeconds": 3600,
+      "accountingRef": "effort-supervision:standing-diagnostics"
+    }
+  }
+}
+```
+
+Discovery pages are limited to 100; wakes to 20 efforts within the page limit.
+Minimum wake interval is 60–86400 seconds. Healthy sampling is optional and its
+interval must be between the wake interval and 30 days. Its positive per-wake
+cap must fit within `maxEffortsPerWake`. Diagnostic allowance requires 1–100 wake
+attempts in a 60-second to 30-day window and a nonempty accounting reference.
+Invalid configuration returns 400. The configured member must be the active
+leader of an enabled, serialized team with one concurrent run and a member
+operating contract. Global/team controls and heartbeat enabled state still gate
+dispatch. Staging a disabled config does not activate anything.
+
+Get/list config responses include `supervision` and read-only `supervisionState`;
+an unreadable reservation is reported as `supervisionError`. Runtime state owns
+only admission evidence. AM's generated `GetEffortBoard` remains the authoritative
+effort projection. A manual trigger returns the admission disposition (`idle`,
+`queued`, `cooldown`, `allowance-wait`, an owner run state, or `uncertain`).
+AM enrollment CAS revision is not part of PM's wake trigger; only the target and
+subject-evidence identities matter. CreateRun carries bounded typed effort work
+references with public/active/verified standing and relationship `supervisor`.
+These establish observed membership, not steering permission. AM issues the run
+token; PM does not supply an owner credential or invented signed scopes.
+Per-effort state separates `lastAttempt` from `servedRevision`, `assessmentId`,
+`lastAssessedAt` and `lastSampleAt`. An exact AM receipt advances coverage; run
+success alone does not. `unassessed-reopen` and `sample-unassessed-reopen` retain
+`retryAfter`, while the last wake retains terminal status/error and receipt-read
+failure. All retries remain charged against the diagnostic allowance. The state
+also counts bounded `assessmentReads`. Deletion returns 409 while a standing
+wake is unresolved; disabling preserves that fence without admitting new work.
+
 ### List Heartbeats
 
 List all heartbeat configurations for a team.

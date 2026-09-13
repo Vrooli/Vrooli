@@ -47,6 +47,15 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	now := o.now()
 
 	run.Status = input.NewStatus
+	if input.NewStatus == domain.RunStatusRunning && previousStatus != domain.RunStatusRunning {
+		// These fields describe the current turn. Prior output, accounting,
+		// handoff, and the original start time remain available across turns.
+		run.EndedAt = nil
+		run.ErrorMsg = ""
+		run.ExitCode = nil
+		run.TerminalClass = ""
+		run.StopReason = ""
+	}
 	if input.Phase != "" {
 		run.Phase = input.Phase
 	}

@@ -7,6 +7,48 @@ import (
 	"agent-manager/internal/domain"
 )
 
+func TestClaudeControlArgsCarriesSkipPermissionsForInteractive(t *testing.T) {
+	c := NewClaudeForTest()
+	withSkip, err := c.ControlArgs(&domain.RunConfig{Model: "haiku", SkipPermissionPrompt: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsArg(withSkip, "--dangerously-skip-permissions") {
+		t.Fatalf("skip permissions not forwarded to the interactive launch: %q", withSkip)
+	}
+	withoutSkip, err := c.ControlArgs(&domain.RunConfig{Model: "haiku"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containsArg(withoutSkip, "--dangerously-skip-permissions") {
+		t.Fatalf("skip permissions must not be added when unset: %q", withoutSkip)
+	}
+}
+
+func TestCodexControlArgsFailsClosedOnUnsupportedEffort(t *testing.T) {
+	c := NewCodexForTest()
+	args, err := c.ControlArgs(&domain.RunConfig{Model: "gpt-5.6-luna", Effort: domain.EffortHigh})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsArg(args, "model_reasoning_effort=high") {
+		t.Fatalf("codex high effort not translated: %q", args)
+	}
+
+	if _, err := c.ControlArgs(&domain.RunConfig{Model: "gpt-5.6-luna", Effort: domain.EffortMax}); err == nil ||
+		!strings.Contains(err.Error(), "no native reasoning effort") {
+		t.Fatalf("codex max effort must fail closed, got %v", err)
+	}
+
+	args, err = c.ControlArgs(&domain.RunConfig{Model: "gpt-5.6-luna"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if containsArg(args, "-c") {
+		t.Fatalf("unset effort must not emit a reasoning-effort config: %q", args)
+	}
+}
+
 func TestOpenCodeControlArgsUsesOnlyDocumentedProviderVariants(t *testing.T) {
 	c := NewOpenCodeForTest()
 	tests := []struct {

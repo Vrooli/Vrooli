@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/runstate"
@@ -14,6 +15,12 @@ import (
 )
 
 const skillScopeDirName = "skill-scope"
+
+// openCodeRunDataHome is shared by read-only continuation admission and runtime
+// preparation so both select the same native store without creating it to probe.
+func openCodeRunDataHome(runDir string) string {
+	return filepath.Join(runDir, RuntimeDirName, "opencode-data")
+}
 
 // PrepareRunnerSkillScope creates the private runtime configuration root used
 // for native skill discovery. It never writes to the project directory or the
@@ -36,10 +43,11 @@ func PrepareRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.Run
 	if err != nil {
 		return nil, err
 	}
-	scope := filepath.Join(runDir, skillScopeDirName, string(runnerType))
+	scope := filepath.Join(runDir, RuntimeDirName, skillScopeDirName, string(runnerType))
 	if err := os.MkdirAll(scope, 0o700); err != nil {
 		return nil, fmt.Errorf("create private %s skill scope: %w", runnerType, err)
 	}
+	env := map[string]string{key: scope}
 	if runnerType == domain.RunnerTypeClaudeCode {
 		if err := linkCredentialIfPresent(filepath.Join(".claude", ".credentials.json"), filepath.Join(scope, ".credentials.json")); err != nil {
 			return nil, err
@@ -48,7 +56,40 @@ func PrepareRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.Run
 			return nil, err
 		}
 	}
-	return map[string]string{key: scope}, nil
+	if runnerType == domain.RunnerTypeOpenCode {
+		// OpenCode keeps provider data under XDG_DATA_HOME; isolate it in the
+		// same run runtime folder so a protected sandbox needs one mount.
+		dataHome := openCodeRunDataHome(runDir)
+		if err := os.MkdirAll(filepath.Join(dataHome, "opencode"), 0o700); err != nil {
+			return nil, fmt.Errorf("create private OpenCode data home: %w", err)
+		}
+		// Provider credentials stay in the operator's shared store; the run
+		// sees them through a link, the same way Claude's credentials reach
+		// its private config. Without it every provider resolves as missing.
+		sharedDataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+		if sharedDataHome == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return nil, fmt.Errorf("resolve OpenCode credential home: %w", err)
+			}
+			sharedDataHome = filepath.Join(home, ".local", "share")
+		}
+		authSource := filepath.Join(sharedDataHome, "opencode", "auth.json")
+		authDestination := filepath.Join(dataHome, "opencode", "auth.json")
+		// Refresh only the projection on continuation, including when the
+		// operator has removed the selected login. Never borrow another store.
+		if authSource == authDestination {
+			return nil, fmt.Errorf("shared OpenCode auth store is the run data home")
+		}
+		if err := os.Remove(authDestination); err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		if err := linkCredentialSourceIfPresent(authSource, authDestination); err != nil {
+			return nil, err
+		}
+		env["XDG_DATA_HOME"] = dataHome
+	}
+	return env, nil
 }
 
 // writeClaudeSkillActivationHook installs telemetry in the private run
@@ -102,7 +143,7 @@ func CleanupRunnerSkillScope(root string, runID uuid.UUID, runnerType domain.Run
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(filepath.Join(runDir, skillScopeDirName, string(runnerType)))
+	return os.RemoveAll(filepath.Join(runDir, RuntimeDirName, skillScopeDirName, string(runnerType)))
 }
 
 // SweepOrphanedSkillScopes removes scope directories for run IDs that no
@@ -125,7 +166,7 @@ func SweepOrphanedSkillScopes(root string, live map[uuid.UUID]bool) error {
 		if parseErr != nil || live[id] {
 			continue
 		}
-		if err := os.RemoveAll(filepath.Join(root, entry.Name(), skillScopeDirName)); err != nil {
+		if err := os.RemoveAll(filepath.Join(root, entry.Name(), RuntimeDirName, skillScopeDirName)); err != nil {
 			return err
 		}
 	}
@@ -138,6 +179,10 @@ func linkCredentialIfPresent(relative, destination string) error {
 		return fmt.Errorf("resolve credential home: %w", err)
 	}
 	source := filepath.Join(home, relative)
+	return linkCredentialSourceIfPresent(source, destination)
+}
+
+func linkCredentialSourceIfPresent(source, destination string) error {
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		return nil
 	} else if err != nil {

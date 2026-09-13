@@ -3,13 +3,72 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"prompt-manager/internal/teamconfig"
 )
+
+func TestHeartbeatConfigPublicationPreservesInFlightReaderSnapshot(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	before := &HeartbeatConfig{
+		Enabled:    true,
+		Schedule:   "@hourly",
+		ProfileKey: "before",
+		LastExecution: &HeartbeatExecResult{
+			Status: HeartbeatStatusFailed,
+			Error:  strings.Repeat("previous execution detail ", 1024),
+		},
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", before); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.runtimeMemberDir("team-1", "agent-1"), "heartbeat.json")
+	want, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+
+	// Pause an in-flight read before publication of a shorter replacement.
+	// The original snapshot must remain readable across that publication.
+	prefix := make([]byte, len(want)/2)
+	if _, err := io.ReadFull(reader, prefix); err != nil {
+		t.Fatal(err)
+	}
+	after := &HeartbeatConfig{Enabled: true, Schedule: "@hourly", ProfileKey: "after"}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", after); err != nil {
+		t.Fatal(err)
+	}
+	suffix, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := append(prefix, suffix...)
+	var snapshot HeartbeatConfig
+	if err := json.Unmarshal(got, &snapshot); err != nil {
+		t.Fatalf("in-flight reader received incomplete heartbeat JSON after update: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Fatal("in-flight reader did not retain the complete original snapshot")
+	}
+	current, err := s.GetHeartbeatConfig(ctx, "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ProfileKey != "after" || current.LastExecution != nil {
+		t.Fatalf("new reader did not receive replacement heartbeat: %+v", current)
+	}
+}
 
 func TestHeartbeatHealthLifecycleAndFailureStreak(t *testing.T) {
 	cfg := HeartbeatConfig{Enabled: true}
@@ -488,5 +547,82 @@ func TestUpdatePreservesFieldsOutsideTeamModel(t *testing.T) {
 		if len(document[key]) == 0 {
 			t.Fatalf("partial update dropped %s", key)
 		}
+	}
+}
+
+func TestTeamMetadataPersistsWithoutChangingAuthorityOrLosingOwnedRecords(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	original, err := s.Get(ctx, "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if original.Purpose != "" || original.Lifetime != "" {
+		t.Fatal("missing metadata must stay unspecified")
+	}
+	path := filepath.Join(s.configTeamsDir(), "team-1", "team.json")
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc["objectivesServed"] = json.RawMessage(`[{"id":"T1","role":"contributor","coverage":"partial","note":"retain","acknowledgedRevision":"r3","future":"retained"}]`)
+	doc["instrument"] = json.RawMessage(`{"feedback":{"provider":"custom"}}`)
+	doc["futureMetadata"] = json.RawMessage(`{"keep":true}`)
+	if err := SaveJSON(path, &doc); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(before, &expected); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(ctx, "team-1", &Team{Purpose: "delivery", PurposeSet: true, Lifetime: "standing", LifetimeSet: true, EffortRefs: []string{"effort:aquila"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Update(ctx, "team-1", &Team{DisplayName: "Renamed"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(ctx, "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Purpose != "delivery" || got.Lifetime != "standing" || !reflect.DeepEqual(got.EffortRefs, []string{"effort:aquila"}) {
+		t.Fatalf("metadata not preserved: %+v", got)
+	}
+	if len(got.ObjectivesServed) != 1 || got.ObjectivesServed[0].AcknowledgedRevision != "r3" {
+		t.Fatalf("objective records not exposed: %+v", got.ObjectivesServed)
+	}
+	if got.Enabled != original.Enabled || !reflect.DeepEqual(got.Runtime, original.Runtime) || !reflect.DeepEqual(got.Execution, original.Execution) || !reflect.DeepEqual(got.Coordination, original.Coordination) || !reflect.DeepEqual(got.OperatingContract, original.OperatingContract) {
+		t.Fatal("descriptive metadata changed runtime or authority")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var actual map[string]any
+	if err := json.Unmarshal(after, &actual); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"objectivesServed", "instrument", "futureMetadata"} {
+		if !reflect.DeepEqual(expected[key], actual[key]) {
+			t.Errorf("update changed %s: %v", key, actual[key])
+		}
+	}
+	if err := s.Update(ctx, "team-1", &Team{PurposeSet: true, LifetimeSet: true, EffortRefs: []string{}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.Get(ctx, "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Purpose != "" || got.Lifetime != "" || len(got.EffortRefs) != 0 {
+		t.Fatal("explicit clears did not persist")
 	}
 }

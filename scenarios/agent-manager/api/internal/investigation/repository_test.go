@@ -151,6 +151,41 @@ func TestCancelPreventsCompletion(t *testing.T) {
 	}
 }
 
+// TestCanceledWaiterDoesNotCancelInvestigation pins the reader-disconnect
+// contract for the investigation wait path: Wait observes durable state only,
+// so a caller whose reader disconnects (context cancelled) returns promptly
+// with no terminal result and leaves the investigation untouched. The
+// workflow-execution and cohort-watch waits already have equivalent coverage;
+// this closes the last blocking wait read path in agent-manager.
+func TestCanceledWaiterDoesNotCancelInvestigation(t *testing.T) {
+	repo := testRepository(t)
+	item, _, err := repo.Reserve(context.Background(), validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, terminal, err := repo.Wait(ctx, item.ID, time.Second)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("wait err = %v, want context.Canceled", err)
+	}
+	if terminal {
+		t.Fatal("cancelled waiter reported a terminal investigation")
+	}
+
+	loaded, err := repo.Get(context.Background(), item.ID)
+	if err != nil {
+		t.Fatalf("get after waiter cancel: %v", err)
+	}
+	if loaded.OperationStatus != item.OperationStatus {
+		t.Fatalf("investigation status mutated by cancelled waiter: got %s, want %s", loaded.OperationStatus, item.OperationStatus)
+	}
+	if loaded.OperationStatus == OperationCancelled {
+		t.Fatal("cancelled waiter cancelled the investigation")
+	}
+}
+
 func TestLearningStateUpdatesWithoutRewritingCompletedDiagnosis(t *testing.T) {
 	repo := testRepository(t)
 	ctx := context.Background()

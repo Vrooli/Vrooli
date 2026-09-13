@@ -33,6 +33,13 @@ var (
 // Runner Interface - The primary seam for agent execution
 // -----------------------------------------------------------------------------
 
+// ContinuationPreflighter checks native session readiness without launching a
+// process or changing session state. Admission calls it before any effects;
+// runners repeat it immediately before launch because readiness can change.
+type ContinuationPreflighter interface {
+	ValidateContinuation(context.Context, ContinueRequest) error
+}
+
 // Runner is the interface that all agent runner adapters must implement.
 // This is the core seam for agent execution, allowing different agent types
 // to be used interchangeably.
@@ -314,6 +321,8 @@ func (r *ExecuteRequest) GetConfig() *domain.RunConfig {
 
 // ContinueRequest contains parameters for continuing an existing session.
 type ContinueRequest struct {
+	// Tag retains the run's process identity across continuation and restart.
+	Tag string
 	// RunID identifies the run being continued (for tracking).
 	RunID uuid.UUID
 
@@ -468,6 +477,10 @@ type SequencedEventSink interface {
 type TranscriptParseResult struct {
 	Events    []*domain.RunEvent
 	SessionID string
+	// UserTurnStarted is native turn-boundary metadata, independent of user
+	// content retention. Consumers must discard cached terminal evidence from
+	// an earlier turn even when the parser emits no user-message event.
+	UserTurnStarted bool
 	// Label and LabelSource are optional transcript metadata. They are emitted
 	// by providers that carry a durable title (for example Claude's ai-title)
 	// and are consumed by import orchestration.
@@ -494,6 +507,13 @@ type TranscriptTerminal struct {
 	// TerminalReason is the explicit rule that ended an interactive transcript.
 	// Empty preserves the legacy codec-pipe terminal contract.
 	TerminalReason string
+	// TerminalClass and StopReason are the typed terminal pair the codec
+	// observed: a deliberate verdict (complete/blocked/abstained) or an
+	// involuntary interruption (usage_window/timeout/crash/session_lost). Empty
+	// means the terminal was synthesized outside a codec (for example a timeout
+	// or a process crash) and the caller classifies it.
+	TerminalClass domain.RunTerminalClass
+	StopReason    domain.RunStopReason
 }
 
 // TranscriptParser is an optional runner seam used by transcript recovery.
@@ -553,6 +573,16 @@ type AgentLaunchInfo interface {
 	TagEnvKey() string
 	BinaryPath() string
 	ControlArgs(cfg *domain.RunConfig) ([]string, error)
+}
+
+// RuntimeVersionReporter exposes the concrete CLI runtime version observed for
+// the resolved runner. It is the live-only runtime identity a run admission
+// persists as RuntimeVersion and a qualification receipt requires. Callers
+// type-assert it and treat an absent reporter or an error as "runtime version
+// not observable" rather than as zero, so an unobserved value never qualifies a
+// dependent route.
+type RuntimeVersionReporter interface {
+	RuntimeVersion(ctx context.Context) (string, error)
 }
 
 // -----------------------------------------------------------------------------

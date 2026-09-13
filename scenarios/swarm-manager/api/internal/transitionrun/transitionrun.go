@@ -141,21 +141,50 @@ func CanApply(c Correlation, completion Completion) error {
 	if c.ExecutionID != completion.ExecutionID || c.DefinitionDigest != completion.DefinitionDigest {
 		return &DigestMismatchError{Expected: c.DefinitionDigest, Actual: completion.DefinitionDigest}
 	}
-	if completion.Status != CompletionSucceeded {
-		return &StatusNotSucceededError{Status: completion.Status}
-	}
 	if c.EntityVersion != completion.EntityVersion {
 		return &EntityVersionChangedError{Expected: c.EntityVersion, Actual: completion.EntityVersion}
 	}
 	if c.FrontierDigest != completion.FrontierDigest {
 		return &FrontierChangedError{Expected: c.FrontierDigest, Actual: completion.FrontierDigest}
 	}
-	for _, allowed := range c.DeclaredOutcomes {
-		if allowed == completion.Outcome {
-			return nil
+	// A declared terminal outcome applies through the typed apply. The succeeded
+	// status carries the worker's structured outcome; blocked, abstained and
+	// budget_exhausted map to their declared outcome by status. failed and
+	// cancelled remain reconcile-owned and are rejected here.
+	switch completion.Status {
+	case CompletionSucceeded:
+		for _, allowed := range c.DeclaredOutcomes {
+			if allowed == completion.Outcome {
+				return nil
+			}
 		}
+		return &OutcomeNotDeclaredError{Outcome: completion.Outcome}
+	case "blocked", "abstained", "budget_exhausted":
+		mapped := declaredOutcomeForStatus(completion.Status)
+		for _, allowed := range c.DeclaredOutcomes {
+			if allowed == mapped {
+				return nil
+			}
+		}
+		return &OutcomeNotDeclaredError{Outcome: mapped}
+	default:
+		return &StatusNotSucceededError{Status: completion.Status}
 	}
-	return &OutcomeNotDeclaredError{Outcome: completion.Outcome}
+}
+
+// declaredOutcomeForStatus maps a non-succeeded workflow terminal status to the
+// transition outcome it declares.
+func declaredOutcomeForStatus(status string) string {
+	switch status {
+	case "blocked":
+		return "needs_attention"
+	case "abstained":
+		return "abstained"
+	case "budget_exhausted":
+		return "budget_exhausted"
+	default:
+		return ""
+	}
 }
 
 // Store persists correlations independently of their subject domain.

@@ -48,6 +48,10 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	} else if existing != nil {
 		return childStateFromRun(existing), nil
 	}
+	ctx, err := l.o.admittedWorkflowContext(ctx, req.ExecutionID, req.AttemptID)
+	if err != nil {
+		return workflowruntime.ChildState{}, err
+	}
 	if err := l.o.admitPlanFamilyChild(ctx, req); err != nil {
 		return workflowruntime.ChildState{}, err
 	}
@@ -123,6 +127,10 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 func (l workflowChildLauncher) Continue(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
 	if req.SourceRunID == nil {
 		return workflowruntime.ChildState{}, domain.NewValidationError("sourceRunId", "explicit source Run is required")
+	}
+	ctx, err := l.o.admittedWorkflowContext(ctx, req.ExecutionID, req.AttemptID)
+	if err != nil {
+		return workflowruntime.ChildState{}, err
 	}
 	source, err := l.o.GetRun(ctx, *req.SourceRunID)
 	if err != nil {
@@ -201,6 +209,10 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 }
 
 func (l workflowSubworkflowLauncher) Start(ctx context.Context, req workflowruntime.SubworkflowRequest) (workflowruntime.SubworkflowState, error) {
+	ctx, admissionErr := l.o.admittedWorkflowContext(ctx, req.ParentExecutionID, req.ParentAttemptID)
+	if admissionErr != nil {
+		return workflowruntime.SubworkflowState{}, admissionErr
+	}
 	var revision *domain.WorkflowRevision
 	var err error
 	if strings.TrimSpace(req.Version) == "" {
@@ -275,9 +287,19 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if err := o.validateExecutionPreferences(req.ExecutionPreferences); err != nil {
 		return nil, err
 	}
+	prior, err := o.workflowExecutions.GetByIdempotencyKey(ctx, strings.TrimSpace(req.IdempotencyKey))
+	if err != nil {
+		return nil, err
+	}
+	if prior == nil {
+		releaseAdmission, err := o.admitMaintenance(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer releaseAdmission()
+	}
 	owner, key := strings.TrimSpace(req.Owner), strings.TrimSpace(req.WorkflowKey)
 	var revision *domain.WorkflowRevision
-	var err error
 	if key == planFamilyWorkflowKey && owner == "plan-manager" && req.DefinitionDigest == "" {
 		if prior, err := o.workflowExecutions.GetByIdempotencyKey(ctx, strings.TrimSpace(req.IdempotencyKey)); err != nil {
 			return nil, err
@@ -665,7 +687,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 		o.onWorkflowExecutionSettled(execution)
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
 	}
-	execution, err = o.cleanupWorkflowChildren(ctx, req.ExecutionID, "parent workflow cancelled")
+	execution, err = o.cleanupWorkflowChildren(ctx, req.ExecutionID, "parent workflow cancelled", false)
 	if err != nil {
 		return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, err
 	}
@@ -674,7 +696,7 @@ func (o *Orchestrator) CancelWorkflowExecution(ctx context.Context, req Workflow
 	return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: idempotent}, nil
 }
 
-func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID uuid.UUID, reason string) (*domain.WorkflowExecution, error) {
+func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID uuid.UUID, reason string, recovery bool) (*domain.WorkflowExecution, error) {
 	execution, getErr := o.workflowExecutions.Get(ctx, executionID)
 	if getErr != nil || execution == nil {
 		return execution, getErr
@@ -727,6 +749,15 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 		}
 		state, inspectErr := o.workflowEngine.Children.Inspect(ctx, *attempt.RunID)
 		if inspectErr == nil && state.Terminal {
+			if recovery && (!state.TokensKnown || !state.ChargeMeasured) {
+				if owner, ok := o.workflowEngine.Children.(interface {
+					RecoverTerminalAccounting(context.Context, uuid.UUID) error
+				}); ok {
+					if err := owner.RecoverTerminalAccounting(ctx, *attempt.RunID); err != nil {
+						failures = append(failures, "Run "+attempt.RunID.String()+": "+err.Error())
+					}
+				}
+			}
 			continue
 		}
 		if stopErr := o.workflowEngine.Children.Stop(ctx, *attempt.RunID); stopErr != nil {
@@ -735,7 +766,13 @@ func (o *Orchestrator) cleanupWorkflowChildren(ctx context.Context, executionID 
 			stoppedRuns++
 		}
 	}
-	cleaned, err := o.workflowEngine.RecordCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
+	var cleaned *domain.WorkflowExecution
+	var err error
+	if recovery {
+		cleaned, err = o.workflowEngine.RecordRecoveryCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
+	} else {
+		cleaned, err = o.workflowEngine.RecordCleanupDisposition(ctx, executionID, stoppedRuns, stoppedWorkflows, failures)
+	}
 	if err != nil {
 		return cleaned, err
 	}
@@ -859,6 +896,28 @@ func (o *Orchestrator) recoverWorkflowCleanupAttempt(ctx context.Context, execut
 }
 
 func (o *Orchestrator) RetryWorkflowExecution(ctx context.Context, req WorkflowExecutionOperationRequest) (*WorkflowExecutionOperationResult, error) {
+	// A retry of a terminal execution is new work. Preserve completed operation
+	// replays without reopening the fence or changing the engine's receipt rules.
+	if key := strings.TrimSpace(req.IdempotencyKey); key != "" {
+		journal, err := o.workflowExecutions.ListJournal(ctx, req.ExecutionID, 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range journal {
+			var payload struct {
+				IdempotencyKey string `json:"idempotencyKey"`
+			}
+			if entry.Kind == domain.WorkflowJournalRetry && json.Unmarshal(entry.Payload, &payload) == nil && payload.IdempotencyKey == key {
+				execution, err := o.workflowExecutions.Get(ctx, req.ExecutionID)
+				return &WorkflowExecutionOperationResult{Execution: execution, Idempotent: true}, err
+			}
+		}
+	}
+	releaseAdmission, err := o.admitMaintenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseAdmission()
 	execution, idempotent, err := o.workflowEngine.Retry(ctx, req.ExecutionID, strings.TrimSpace(req.IdempotencyKey), req.ExpectedVersion)
 	if err != nil {
 		return nil, err
@@ -1134,7 +1193,7 @@ func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.U
 				return o.workflowEngine.ReconcileTerminalAccounting(ctx, id)
 			}
 			if before.Status == domain.WorkflowExecutionFailed || before.Status == domain.WorkflowExecutionBudgetExhausted || before.Status == domain.WorkflowExecutionCancelled {
-				return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
+				return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated", false)
 			}
 			return before, nil
 		}
@@ -1150,7 +1209,7 @@ func (o *Orchestrator) driveWorkflowExecutionLoop(ctx context.Context, id uuid.U
 		}
 		o.broadcastWorkflowLifecycle(ctx, latest)
 		if latest.Status == domain.WorkflowExecutionCancelling || latest.Status == domain.WorkflowExecutionFailed || latest.Status == domain.WorkflowExecutionBudgetExhausted || latest.Status == domain.WorkflowExecutionCancelled {
-			return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated")
+			return o.cleanupWorkflowChildren(ctx, id, "parent workflow terminated", false)
 		}
 		if latest.Status.Terminal() || latest.Version == before.Version {
 			return latest, nil
@@ -1207,7 +1266,7 @@ func (o *Orchestrator) RecoverWorkflowExecutions(ctx context.Context) error {
 		if execution.Status == domain.WorkflowExecutionSucceeded {
 			_, advanceErr = o.workflowEngine.ReconcileTerminalAccounting(ctx, execution.ID)
 		} else if execution.Status == domain.WorkflowExecutionCancelling || execution.Status == domain.WorkflowExecutionFailed || execution.Status == domain.WorkflowExecutionBudgetExhausted || execution.Status == domain.WorkflowExecutionCancelled {
-			_, advanceErr = o.cleanupWorkflowChildren(ctx, execution.ID, "workflow recovery cleanup")
+			_, advanceErr = o.cleanupWorkflowChildren(ctx, execution.ID, "workflow recovery cleanup", true)
 		} else {
 			_, advanceErr = o.driveWorkflowExecution(ctx, execution.ID)
 		}

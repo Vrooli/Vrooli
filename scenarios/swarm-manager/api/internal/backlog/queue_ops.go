@@ -102,7 +102,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		StartedBy:            startedBy,
 		Operation:            operation,
 		Force:                force,
-		Strategy:             params.strategy,
+		ExecutionMode:       params.strategy,
 		MaxSlices:            params.maxSlices,
 		ExecutionPreferences: params.preferences,
 	})
@@ -175,7 +175,7 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 		force:     pbReq.GetForce(),
 		mode:      execution.ModeYOLO,
 		startedBy: strings.TrimSpace(pbReq.GetStartedBy()),
-		strategy:  strings.TrimSpace(pbReq.GetStrategy()),
+		strategy:  strings.TrimSpace(pbReq.GetExecutionMode()),
 		maxSlices: int(pbReq.GetMaxSlices()),
 	}
 	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {

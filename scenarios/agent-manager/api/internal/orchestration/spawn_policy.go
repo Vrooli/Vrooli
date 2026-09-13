@@ -13,6 +13,10 @@ type SpawnResolution struct {
 	SandboxMode     string
 	NativeObjective bool
 	Skipped         []SpawnPreferenceSkip
+	// Fallback names the declared capability chosen when no preferred
+	// combination was feasible (empty on a normal preference match). It is
+	// recorded on the run as spawn_fallback so a silent fallback is visible.
+	Fallback string
 }
 
 type SpawnPreferenceSkip struct{ ExecutionMode, SandboxMode, Reason string }
@@ -89,11 +93,28 @@ func ResolveSpawnPolicy(policy *domain.SpawnPolicy, capabilities runner.Capabili
 		if len(fallback.SandboxModes) == 0 {
 			return SpawnResolution{}, fmt.Errorf("runner declared spawn capability without a sandbox mode: executionMode=%s", fallback.ExecutionMode)
 		}
-		return SpawnResolution{
+		// No preferred combination was feasible. This is allowed only because
+		// require is empty and the runner declared a capability; record it as a
+		// visible fallback rather than choosing silently.
+		resolution := SpawnResolution{
 			ExecutionMode:   fallback.ExecutionMode,
 			SandboxMode:     fallback.SandboxModes[0],
 			NativeObjective: fallback.NativeObjective,
-		}, nil
+			Fallback:        fallback.ExecutionMode + "/" + fallback.SandboxModes[0],
+		}
+		for _, capability := range capabilities.SpawnCapabilities {
+			for _, sandbox := range capability.SandboxModes {
+				if capability.ExecutionMode == resolution.ExecutionMode && sandbox == resolution.SandboxMode {
+					continue
+				}
+				resolution.Skipped = append(resolution.Skipped, SpawnPreferenceSkip{
+					ExecutionMode: capability.ExecutionMode,
+					SandboxMode:   sandbox,
+					Reason:        "no preferred spawn combination was feasible; declared capability used as fallback",
+				})
+			}
+		}
+		return resolution, nil
 	}
 	best := candidates[0]
 	for _, item := range candidates[1:] {

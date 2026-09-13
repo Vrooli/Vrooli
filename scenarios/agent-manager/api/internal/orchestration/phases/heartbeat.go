@@ -14,22 +14,29 @@ package phases
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"agent-manager/internal/config"
-	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
 )
+
+// HeartbeatState contains loop-owned success timestamps. Values are copied
+// before starting the goroutine; the heartbeat never borrows a Run/Checkpoint.
+type HeartbeatState struct {
+	LastRunHeartbeat        time.Time
+	LastCheckpointHeartbeat time.Time
+}
 
 // HeartbeatLoopInput is the explicit input to RunHeartbeatLoop.
 type HeartbeatLoopInput struct {
 	Deps        Deps
-	Run         *domain.Run
-	Checkpoint  *domain.RunCheckpoint
-	Mu          *sync.Mutex
+	RunID       uuid.UUID
+	Tag         string
+	State       HeartbeatState
 	Levers      config.Levers
 	Stop        <-chan struct{}
 	Done        chan<- struct{}
@@ -45,12 +52,12 @@ func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 	defer obs.RecoverToFailure("run heartbeat loop", nil)
 
 	hbLog := obs.Component("heartbeat").With(
-		obs.KeyRunID, in.Run.ID.String(),
-		"tag", in.Run.GetTag(),
+		obs.KeyRunID, in.RunID.String(),
+		"tag", in.Tag,
 	)
 	hbLog.Info("heartbeat loop starting", "interval", in.Levers.Heartbeat.RunHeartbeatInterval.String())
 
-	SendHeartbeat(ctx, in)
+	in.State = SendHeartbeat(ctx, in)
 
 	ticker := time.NewTicker(in.Levers.Heartbeat.RunHeartbeatInterval)
 	defer ticker.Stop()
@@ -66,37 +73,26 @@ func RunHeartbeatLoop(ctx context.Context, in HeartbeatLoopInput) {
 			return
 		case <-ticker.C:
 			heartbeatCount++
-			SendHeartbeat(ctx, in)
+			in.State = SendHeartbeat(ctx, in)
 		}
 	}
 }
 
-// SendHeartbeat performs one heartbeat update: writes Run.LastHeartbeat,
-// persists to the run repo, and pings the checkpoint store.
+// SendHeartbeat persists one heartbeat through the repository owners and
+// returns loop-local success timestamps. It never mutates executor-owned state.
 //
 // Heartbeat misses on either target emit a heartbeat.miss event so the
 // stats engine can track miss rates per target without parsing log
-// strings. The previous freeform "heartbeat update failed: ..." emissions
-// are deleted; lastSuccess (Run.LastHeartbeat at the moment of the miss)
-// is included in the typed payload for operator triage.
-func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
-	if in.Mu != nil {
-		in.Mu.Lock()
-	}
+// strings. Each target reports its own last successful write, not a failed or
+// lifecycle-fenced attempt, for operator triage.
+func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) HeartbeatState {
 	now := in.Deps.Now()
-	previousHeartbeat := in.Run.LastHeartbeat
-	if in.Checkpoint != nil {
-		in.Checkpoint.LastHeartbeat = now
-	}
-	runID := in.Run.ID
-	tag := in.Run.GetTag()
-	if in.Mu != nil {
-		in.Mu.Unlock()
-	}
+	state := in.State
+	runID := in.RunID
 
 	hbLog := obs.Component("heartbeat").With(
 		obs.KeyRunID, runID.String(),
-		"tag", tag,
+		"tag", in.Tag,
 	)
 
 	if in.Deps.Runs != nil {
@@ -112,12 +108,13 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 			EmitHeartbeatMiss(ctx, in.Deps, runID, eventlog.HeartbeatMissPayload{
 				Target:        eventlog.HeartbeatTargetRun,
 				AttemptNo:     1,
-				LastSuccessAt: previousHeartbeat,
+				LastSuccessAt: heartbeatTime(state.LastRunHeartbeat),
 				Message:       err.Error(),
 			})
 		case !updated:
 			hbLog.Debug("heartbeat skipped; run no longer running/starting")
 		default:
+			state.LastRunHeartbeat = now
 			hbLog.Debug("heartbeat updated", "at", now.Format(time.RFC3339))
 		}
 	}
@@ -127,9 +124,19 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 			EmitHeartbeatMiss(ctx, in.Deps, runID, eventlog.HeartbeatMissPayload{
 				Target:        eventlog.HeartbeatTargetCheckpoint,
 				AttemptNo:     1,
-				LastSuccessAt: previousHeartbeat,
+				LastSuccessAt: heartbeatTime(state.LastCheckpointHeartbeat),
 				Message:       err.Error(),
 			})
+		} else {
+			state.LastCheckpointHeartbeat = now
 		}
 	}
+	return state
+}
+
+func heartbeatTime(at time.Time) *time.Time {
+	if at.IsZero() {
+		return nil
+	}
+	return &at
 }

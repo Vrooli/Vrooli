@@ -6,10 +6,10 @@ import (
 	"swarm-manager/internal/transitions"
 )
 
-// StrategySummary is the API projection of a declared strategy. Cost is
+// ExecutionModeSummary is the API projection of a declared strategy. Cost is
 // calculated from the same governance inputs used by queue admission, so the
 // run sheet cannot promise a different number than the backend enforces.
-type StrategySummary struct {
+type ExecutionModeSummary struct {
 	ID              string  `json:"id"`
 	WorkflowKey     string  `json:"workflow_key"`
 	DisplayName     string  `json:"display_name"`
@@ -24,15 +24,15 @@ type StrategySummary struct {
 	UsageKnown      bool    `json:"usage_known"`
 }
 
-func (s *Service) ExecutionStrategies() ([]StrategySummary, error) {
-	return s.executionStrategiesForItem("", "")
+func (s *Service) ExecutionModes() ([]ExecutionModeSummary, error) {
+	return s.executionModesForItem("", "")
 }
 
-func (s *Service) ExecutionStrategiesForItem(backlogKind, backlogName string) ([]StrategySummary, error) {
-	return s.executionStrategiesForItem(backlogKind, backlogName)
+func (s *Service) ExecutionModesForItem(backlogKind, backlogName string) ([]ExecutionModeSummary, error) {
+	return s.executionModesForItem(backlogKind, backlogName)
 }
 
-func (s *Service) executionStrategiesForItem(backlogKind, backlogName string) ([]StrategySummary, error) {
+func (s *Service) executionModesForItem(backlogKind, backlogName string) ([]ExecutionModeSummary, error) {
 	governance, err := s.governanceProvider.LoadGovernance()
 	if err != nil {
 		return nil, err
@@ -88,26 +88,42 @@ func (s *Service) executionStrategiesForItem(backlogKind, backlogName string) ([
 			}
 		}
 	}
-	estimate := governance.CostPerTurnEstimate * float64(remainingTurns)
-	if strings.TrimSpace(backlogKind) != "" || strings.TrimSpace(backlogName) != "" {
-		if remainingCharge > 0 {
-			estimate = float64(remainingCharge) / 1_000_000
-		} else if remainingTokens > 0 || remainingWall > 0 {
-			estimate = 0
-		}
+	declared, err := s.declaredExecutionModes()
+	if err != nil {
+		return nil, err
 	}
-	declared := s.declaredExecutionStrategies()
-	items := make([]StrategySummary, 0, len(declared))
-	for _, strategy := range declared {
-		items = append(items, strategySummary(strategy, estimate, remainingTurns, remainingTokens, remainingWall, remainingCharge, usageKnown))
+	items := make([]ExecutionModeSummary, 0, len(declared))
+	for _, mode := range declared {
+		modeCost := executionModeEstimate(mode.ID, governance.CostPerTurnEstimate, remainingTurns, remainingCharge, remainingTokens, remainingWall)
+		items = append(items, executionModeSummary(mode, modeCost, remainingTurns, remainingTokens, remainingWall, remainingCharge, usageKnown))
 	}
 	return items, nil
 }
 
-func strategySummary(strategy transitions.ExecutionStrategy, estimate float64, remainingTurns int, remainingTokens, remainingWall, remainingCharge int64, usageKnown bool) StrategySummary {
-	return StrategySummary{
-		ID: strategy.ID, WorkflowKey: strategy.WorkflowKey, DisplayName: strategy.DisplayName,
-		Description: strategy.Description, WhenToUse: strategy.WhenToUse, CostBand: strategy.CostBand,
+// executionModeEstimate gives each mode an honest cost estimate: sliced is the
+// per-turn estimate over the remaining turn budget, bounded by the remaining
+// charge; goal is the item's remaining charge allowance.
+func executionModeEstimate(modeID string, costPerTurn float64, remainingTurns int, remainingCharge, remainingTokens, remainingWall int64) float64 {
+	if modeID == transitions.ExecutionModeGoal {
+		if remainingCharge > 0 {
+			return float64(remainingCharge) / 1_000_000
+		}
+		return 0
+	}
+	estimate := costPerTurn * float64(remainingTurns)
+	if remainingCharge > 0 && estimate > float64(remainingCharge)/1_000_000 {
+		estimate = float64(remainingCharge) / 1_000_000
+	}
+	if remainingTokens == 0 && remainingWall == 0 && remainingTurns == 0 {
+		return 0
+	}
+	return estimate
+}
+
+func executionModeSummary(mode transitions.ExecutionMode, estimate float64, remainingTurns int, remainingTokens, remainingWall, remainingCharge int64, usageKnown bool) ExecutionModeSummary {
+	return ExecutionModeSummary{
+		ID: mode.ID, WorkflowKey: mode.WorkflowKey, DisplayName: mode.DisplayName,
+		Description: mode.Description, WhenToUse: mode.WhenToUse, CostBand: mode.CostBand,
 		CostEstimate: estimate, RemainingTurns: remainingTurns, RemainingTokens: remainingTokens, RemainingWall: remainingWall, RemainingCharge: remainingCharge, UsageKnown: usageKnown,
 	}
 }

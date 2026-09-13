@@ -66,6 +66,9 @@ type Outcome struct {
 	EntityVersion  string
 	FrontierDigest string
 	Name           string
+	// Status is the workflow terminal status (succeeded, blocked, abstained,
+	// budget_exhausted, failed, cancelled) that produced this outcome.
+	Status         string
 	TerminalCode   string
 	BudgetName     string
 	WorkflowDigest string
@@ -627,6 +630,7 @@ func completionOutcome(completion agentmanager.InvocationCompletion, correlation
 		status = strings.ToLower(strings.TrimPrefix(completion.Status.String(), "WORKFLOW_EXECUTION_STATUS_"))
 	}
 	outcome := Outcome{ExecutionID: completion.ExecutionID, TransitionKey: correlation.TransitionKey, SubjectRef: correlation.SubjectRef, EntityVersion: correlation.EntityVersion, FrontierDigest: correlation.FrontierDigest, TerminalCode: completion.TerminalCode, BudgetName: completion.BudgetName, WorkflowDigest: completion.WorkflowDigest, ApprovalDigest: completion.ApprovalDigest, GrantDigest: completion.GrantDigest}
+	outcome.Status = status
 	outcome.Usage = workflowUsage(completion)
 	if completion.Output != nil {
 		raw, err := json.Marshal(completion.Output.AsInterface())

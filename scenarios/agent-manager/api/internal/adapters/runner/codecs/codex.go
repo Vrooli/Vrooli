@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -251,7 +252,11 @@ type codexState struct {
 	// Retain the latest rollout usage event so task_complete can promote it
 	// to an authoritative terminal receipt.
 	lastRolloutUsageEvent *domain.RunEvent
+	rolloutReceiptUsage   usageTokens
 	retainUser            bool
+	// Goal evidence survives Consume segments with this parser, but cannot be
+	// shared across runs or inferred from a request without its accepted result.
+	goal codexGoalContext
 }
 
 func (s *codexState) SessionID() string { return s.threadID }
@@ -495,18 +500,29 @@ type codexTranscriptParser struct {
 }
 
 func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
+	// Native updates or correlated accepted tool results are goal evidence.
+	// Requests, quoted examples and unmatched outputs never terminate a goal.
+	goal, hasGoal := p.state.goal.parse(runID, line)
+	attachGoal := func(res runner.TranscriptParseResult) runner.TranscriptParseResult {
+		if hasGoal {
+			marker := goal
+			res.Goal = &marker
+		}
+		return res
+	}
+
 	// On-disk interactive rollout dialect: every line wraps as
 	// {"type":"event_msg"|"response_item"|"session_meta"|"turn_context",
 	// "payload":{…}}, foreign to the flat `exec --json` decoder. Detect and
 	// handle it before the stdout path (design §3). A non-rollout line falls
 	// through to the exec-json decoder below, so pipe-mode replay is unchanged.
 	if res, ok := p.parseRolloutLine(runID, line); ok {
-		return res
+		return attachGoal(res)
 	}
 
 	streamEvent, ok := decodeCodexStreamEvent(line)
 	if !ok {
-		return runner.TranscriptParseResult{}
+		return attachGoal(runner.TranscriptParseResult{})
 	}
 
 	if streamEvent.ThreadID != "" {
@@ -532,7 +548,7 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 			}
 		}
 	}
-	return result
+	return attachGoal(result)
 }
 
 // =============================================================================
@@ -631,12 +647,18 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 
 	case "response_item":
+		if pl.Type == "message" {
+			role := strings.ToLower(strings.TrimSpace(pl.Role))
+			result.UserTurnStarted = role == "user" || role == "operator"
+		}
 		result.Events = parseCodexRolloutItem(runID, pl, p.state)
 		return result, true
 
 	case "event_msg":
 		switch pl.Type {
 		case "task_started":
+			p.state.rolloutReceiptUsage = usageTokens{}
+			p.state.lastRolloutUsageEvent = nil
 			if p.state.turn == 0 {
 				p.state.turn = 1
 			}
@@ -651,6 +673,10 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 					usage = pl.Info.TotalTokenUsage
 				}
 				delta := rolloutUsageDelta(p.state, usage, cumulative)
+				p.state.rolloutReceiptUsage.InputTokens += delta.InputTokens
+				p.state.rolloutReceiptUsage.OutputTokens += delta.OutputTokens
+				p.state.rolloutReceiptUsage.CacheReadTokens += delta.CacheReadTokens
+				p.state.rolloutReceiptUsage.CacheCreationTokens += delta.CacheCreationTokens
 				if delta.InputTokens > 0 || delta.OutputTokens > 0 || delta.CacheReadTokens > 0 {
 					result.Events = markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta, p.state.billing), p.state.turn)
 					for _, event := range result.Events {
@@ -670,26 +696,19 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				result.Events = []*domain.RunEvent{messageEvent}
 			}
 		case "user_message":
+			result.UserTurnStarted = true
 			if p.state.retainUser && strings.TrimSpace(pl.Message) != "" {
 				result.Events = []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(pl.Message), domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "event_msg.user_message", RawEvidenceRef: "codex:event_msg.user_message"})}
 			}
 		case "task_complete", "turn_completed":
-			if p.state.lastRolloutUsageEvent != nil {
-				// The rollout terminal marker closes the latest provider
-				// invocation. Without this promotion, workflow owners can see
-				// usage and a charge but cannot prove the final usage snapshot.
-				if usage, ok := p.state.lastRolloutUsageEvent.Data.(*domain.UsageEventData); ok {
-					terminalUsage := *usage
-					terminalUsage.ReconciliationAuthority = true
-					result.Events = append(result.Events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: result.Timestamp, Data: &terminalUsage})
-				}
-			}
+			result.Events = append(result.Events, p.rolloutTerminalReceipt(runID, result.Timestamp)...)
 			if p.state.lastMessageEvent != nil {
 				markProviderMessageTerminal(p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type)
 				result.Events = append(result.Events, newProviderTerminalEvidence(runID, p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type))
 			}
 			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
 		case "turn_aborted":
+			result.Events = append(result.Events, p.rolloutTerminalReceipt(runID, result.Timestamp)...)
 			msg := "turn aborted"
 			if pl.Reason != "" {
 				msg = "turn aborted: " + pl.Reason
@@ -704,6 +723,25 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 	}
 	return result, true
+}
+
+// Both explicit successful and aborted turn boundaries close provider usage.
+// The receipt covers every observed delta, not merely the final delta. Missing
+// token evidence remains unknown; a terminal marker alone cannot create zero.
+func (p *codexTranscriptParser) rolloutTerminalReceipt(runID uuid.UUID, at time.Time) []*domain.RunEvent {
+	if p.state.lastRolloutUsageEvent == nil {
+		return nil
+	}
+	events := buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, p.state.rolloutReceiptUsage, p.state.billing)
+	usage := events[0].Data.(*domain.UsageEventData)
+	usage.ReconciliationAuthority, usage.Turns, usage.TurnIndex = true, 1, p.state.turn
+	for _, event := range events[1:] {
+		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
+			usage.Charge = charge
+		}
+	}
+	events[0].Timestamp = at
+	return events[:1]
 }
 
 // rolloutUsageDelta converts Codex's cumulative usage snapshots to increments

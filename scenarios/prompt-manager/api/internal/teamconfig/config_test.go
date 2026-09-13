@@ -299,3 +299,23 @@ func TestHelpersReflectLeaderLedSingleProcessPolicy(t *testing.T) {
 		t.Fatal("did not expect inbox injection")
 	}
 }
+
+func TestMetadataPurposeAndLifetimeAreIndependent(t *testing.T) {
+	for _, purpose := range []string{"", PurposeDomainStewardship, PurposeDelivery, PurposeSupervision} {
+		for _, lifetime := range []string{"", LifetimeStanding, LifetimeFinite} {
+			if err := ValidateMetadata(purpose, lifetime, []string{"effort:aquila"}); err != nil {
+				t.Errorf("purpose=%q lifetime=%q: %v", purpose, lifetime, err)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		purpose, lifetime string
+		refs              []string
+	}{
+		{purpose: "department"}, {lifetime: "temporary"}, {refs: []string{""}}, {refs: []string{" effort:a"}}, {refs: []string{"effort:a", "effort:a"}},
+	} {
+		if err := ValidateMetadata(tc.purpose, tc.lifetime, tc.refs); err == nil {
+			t.Errorf("invalid metadata accepted: %+v", tc)
+		}
+	}
+}

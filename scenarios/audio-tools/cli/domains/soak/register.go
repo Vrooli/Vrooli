@@ -1,6 +1,7 @@
 package soak
 
 import (
+	"os"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -12,16 +13,20 @@ type handlers struct {
 	core   *cliapp.ScenarioApp
 	now    func() time.Time
 	getenv func(string) string
+	getwd  func() (string, error)
 }
 
-func Register(core *cliapp.ScenarioApp, now func() time.Time, getenv func(string) string) cliapp.SubcommandGroup {
+func Register(core *cliapp.ScenarioApp, now func() time.Time, getenv func(string) string, getwd func() (string, error)) cliapp.SubcommandGroup {
 	if now == nil {
 		now = time.Now
 	}
 	if getenv == nil {
 		getenv = func(string) string { return "" }
 	}
-	h := &handlers{core: core, now: now, getenv: getenv}
+	if getwd == nil {
+		getwd = os.Getwd
+	}
+	h := &handlers{core: core, now: now, getenv: getenv, getwd: getwd}
 	return cliapp.SubcommandGroup{
 		Name:        GroupName,
 		Description: "Real browser-to-composer long-form dictation qualification",

@@ -34,6 +34,17 @@ A workaround record names affected requirements, route, owner issue, retained ev
 
 Preferred routes are qualified Swarm execution, declared Agent Manager workflow/family, and the control-plane coding-agent launcher. Direct harness execution is a last route only when the effort explicitly authorizes its reduced guarantees and the invocation is known. Scenario servers must still use the scenario lifecycle.
 
+Fallback changes the execution route, not the selected work shape or the
+acceptance contract. A bounded task must not become a plan merely because its
+preferred launcher failed, and a mandate must not be silently reduced to a
+series of unrelated tasks. If Swarm's current human-approval path cannot
+represent an already-authorized autonomous assignment, a qualified direct
+Agent Manager or harness route may execute within the same assignment boundary;
+record the absent Swarm receipt and reduced guarantees. This is not valid for
+an effect that genuinely requires a Swarm-owned grant. Preserve the shape's
+owner, evidence requirements and completion semantics; if the fallback cannot
+represent them, pause the affected mutation and report the lost guarantee.
+
 Before changing route, retain original work identity and prove no conflicting live executor, or obtain owner-confirmed termination. Reconcile a timed-out start through the original owner; a network error is not proof of rejection. When reconciliation is unavailable, mark `dispatch-uncertain` and work elsewhere. Reuse supported idempotency keys. The control-plane launcher currently lacks one, so require stronger reconciliation before using it.
 
 Fallback preserves scope, acceptance, budget, path claims, selected agent/member identity, result contract and cancellation obligations. Record lost telemetry, sandboxing, native goal support or continuation guarantees. Do not strip credentials or attribution to convert a denied call into an allowed one. Direct session authority and typed Swarm grants are different evidence; label the one actually held.

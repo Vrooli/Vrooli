@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/planworkshop"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
 )
@@ -52,7 +53,7 @@ func (s *Server) getBacklogWorkFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entries := make([]workFeedEntry, 0)
-	strategies, err := s.executionSvc.ExecutionStrategies()
+	strategies, err := s.executionSvc.ExecutionModes()
 	if err != nil {
 		apierr.MapError(w, "[work-feed] strategies", err)
 		return
@@ -67,9 +68,9 @@ func (s *Server) getBacklogWorkFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, item := range executions {
-		strategyID := item.ExecutionStrategy
+		strategyID := item.ExecutionMode
 		if strategyID == "" {
-			strategyID = "phased-plan-drain"
+			strategyID = transitions.ExecutionModeSliced
 		}
 		workflowExecutionID := ""
 		if correlation, correlationErr := s.executionSvc.CorrelationForExecution(r.Context(), item.ExecutionID); correlationErr == nil {

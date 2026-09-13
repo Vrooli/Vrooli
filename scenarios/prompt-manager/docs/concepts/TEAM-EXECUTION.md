@@ -2,6 +2,12 @@
 
 Team-level execution contexts enforce each team's runtime and execution policy through a bounded FIFO queue.
 
+This document explains **how members run**, not why a team exists or what it
+may change. For standing departments, finite effort committees, and the standing
+supervisor, read [team purposes](SWARM-MODEL.md#teams-departments-committees-and-supervision).
+A queue becoming idle means no member is executing through this queue; it does
+not establish that the team's mission or an observed effort is complete.
+
 ## Overview
 
 Previously, heartbeat triggers fired all members simultaneously with no coordination. The team execution model now applies the configured execution policy for each team:

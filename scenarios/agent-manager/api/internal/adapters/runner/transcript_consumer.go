@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"agent-manager/internal/config"
@@ -21,9 +22,12 @@ import (
 var transcriptPollInterval = config.DefaultLevers().Recovery.TranscriptPollInterval
 
 type ConsumeArgs struct {
-	RunID        uuid.UUID
-	Transcript   string
-	StartAt      int64
+	RunID      uuid.UUID
+	Transcript string
+	StartAt    int64
+	// EndAt bounds a non-live inspection to an immutable observed file extent.
+	// Zero preserves ordinary live/replay behavior.
+	EndAt        int64
 	Live         bool
 	ParseFn      func(uuid.UUID, string) TranscriptParseResult
 	EventSink    EventSink
@@ -67,7 +71,14 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		poll = transcriptPollInterval
 	}
 
-	reader := bufio.NewReader(file)
+	var source io.Reader = file
+	if args.EndAt > 0 {
+		if args.Live || args.EndAt < args.StartAt {
+			return args.StartAt, nil, fmt.Errorf("bounded inspection requires a non-live valid extent")
+		}
+		source = io.LimitReader(file, args.EndAt-args.StartAt)
+	}
+	reader := bufio.NewReader(source)
 	cursor := args.StartAt
 	var terminal *TranscriptTerminal
 
@@ -107,6 +118,11 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		if result.Err != nil {
 			return cursor, terminal, result.Err
 		}
+		if result.UserTurnStarted {
+			// Boundary evidence does not require retaining or emitting private
+			// user content. Invalidate before callbacks can return an error.
+			terminal = nil
+		}
 		if result.SessionID != "" && args.OnSessionID != nil {
 			if err := args.OnSessionID(result.SessionID); err != nil {
 				return cursor, terminal, err
@@ -127,7 +143,19 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		if len(result.Events) > 0 && args.OnEvents != nil {
 			args.OnEvents(result.Events)
 		}
-		if result.Terminal != nil {
+		for _, event := range result.Events {
+			if event != nil {
+				if message, ok := event.Data.(*domain.MessageEventData); ok && message.Role == "user" {
+					terminal = nil // a later user turn supersedes the prior boundary
+				}
+			}
+		}
+		if result.Goal != nil && (result.Goal.Status == GoalStatusActive || result.Goal.Status == GoalStatusPaused) {
+			terminal = nil
+		}
+		// Provider turn completion follows a native goal terminal. It must not
+		// downgrade the accepted goal verdict to an ordinary idle boundary.
+		if result.Terminal != nil && !(result.Terminal.Success && terminal != nil && strings.HasPrefix(terminal.TerminalReason, "goal_")) {
 			terminal = result.Terminal
 			if args.OnTerminal != nil {
 				if err := args.OnTerminal(result.Terminal); err != nil {
@@ -143,10 +171,30 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 			}
 		}
 		if result.Goal != nil && result.Goal.Status != GoalStatusActive && result.Goal.Status != GoalStatusPaused {
-			// A non-active goal status is a deliberate harness terminal, not a
-			// process failure. Workflow policy maps blocked/limited states after
-			// it has received this evidence.
-			terminal = &TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "goal_" + string(result.Goal.Status)}
+			// A non-active goal status is a deliberate harness terminal. A
+			// complete/blocked goal is a verdict; a usage/budget limit is an
+			// involuntary interruption and must never be reported as success.
+			terminal = &TranscriptTerminal{
+				Success:        true,
+				ExitCode:       0,
+				TerminalReason: "goal_" + string(result.Goal.Status),
+			}
+			switch result.Goal.Status {
+			case GoalStatusComplete:
+				terminal.TerminalClass = domain.RunTerminalClassVerdict
+				terminal.StopReason = domain.RunStopReasonComplete
+			case GoalStatusBlocked:
+				terminal.TerminalClass = domain.RunTerminalClassVerdict
+				terminal.StopReason = domain.RunStopReasonBlocked
+			case GoalStatusUsageLimited, GoalStatusBudgetLimited:
+				terminal.Success = false
+				terminal.TerminalClass = domain.RunTerminalClassInterruption
+				terminal.StopReason = domain.RunStopReasonUsageWindow
+			default:
+				terminal.Success = false
+				terminal.TerminalClass = domain.RunTerminalClassInterruption
+				terminal.StopReason = domain.RunStopReasonCrash
+			}
 			if args.OnTerminal != nil {
 				if err := args.OnTerminal(terminal); err != nil {
 					return cursor, terminal, err

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"prompt-manager/internal/teamconfig"
 	"regexp"
 	"sort"
 	"strings"
@@ -290,27 +291,8 @@ func splitMarkdownRow(line string) []string {
 	return out
 }
 
-// TeamObjectiveDeclaration is the `objectivesServed` block on a team.json —
-// the upward half of the join.
-type TeamObjectiveDeclaration struct {
-	ID       string `json:"id"`
-	Role     string `json:"role,omitempty"`
-	Coverage string `json:"coverage,omitempty"`
-	// Note carries any qualifier the team wants recorded. It is never
-	// validated; it exists so a team can say *why* its coverage is partial
-	// without that reason having to live in prose the validator cannot see.
-	Note string `json:"note,omitempty"`
-	// AcknowledgedRevision is the objective revision this team last confirmed
-	// its obligation list follows from. When it differs from the objective's
-	// current revision — including when it is absent, which is the state every
-	// team starts in — the team carries `objective_restatement_pending` until
-	// its contrarian re-derives the obligations and records the new value.
-	//
-	// It is the actuator for the slowest loop in the target model: intent
-	// changed, so the setpoint derived from it has to be re-derived. Nothing
-	// else in the system fires on that event.
-	AcknowledgedRevision string `json:"acknowledgedRevision,omitempty"`
-}
+// TeamObjectiveDeclaration is the shared objectivesServed record shape.
+type TeamObjectiveDeclaration = teamconfig.ObjectiveDeclaration
 
 // teamObjectivesFile is the minimal slice of team.json this parser reads.
 type teamObjectivesFile struct {

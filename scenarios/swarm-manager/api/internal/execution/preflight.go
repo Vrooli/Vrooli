@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/transitions"
 )
 
 // PreflightSpec is the caller-supplied form of a backlog item's spec. It
@@ -27,7 +28,7 @@ type PreflightSpec struct {
 	Creates            []string
 	ArchivedAt         *string
 	PlanRef            *PlanRefSpec
-	ExecutionStrategy  string
+	ExecutionMode      string
 	ExecutionLimits    *identity.ExecutionLimits
 	Continuation       string
 	ScopePolicy        string
@@ -78,7 +79,7 @@ func (spec PreflightSpec) toBacklogItem() backlogItem {
 		Creates:            spec.Creates,
 		ArchivedAt:         spec.ArchivedAt,
 		Tags:               []string{},
-		ExecutionStrategy:  strings.ToLower(strings.TrimSpace(spec.ExecutionStrategy)),
+		ExecutionMode:      strings.ToLower(strings.TrimSpace(spec.ExecutionMode)),
 		ExecutionLimits:    spec.ExecutionLimits.Clone(),
 		Continuation:       strings.ToLower(strings.TrimSpace(spec.Continuation)),
 		ScopePolicy:        strings.ToLower(strings.TrimSpace(spec.ScopePolicy)),
@@ -121,17 +122,24 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 		SuggestedOperation:       "generator",
 		SuggestedSteerProfileID:  "rapid-mvp",
 	}
-	if strategy := strings.TrimSpace(item.ExecutionStrategy); strategy != "" {
-		if strategy != defaultExecutionStrategy && strategy != adaptiveImprovementStrategy && strategy != "goal-session" {
-			appendPreflightBlocker(&preflight, "execution_strategy_invalid", fmt.Sprintf("execution strategy is not declared: %s", strategy), false)
+	if mode := strings.TrimSpace(item.ExecutionMode); mode != "" {
+		if _, err := transitions.NormalizeExecutionMode(mode); err != nil {
+			appendPreflightBlocker(&preflight, "execution_mode_invalid", fmt.Sprintf("execution mode is not declared: %s", mode), false)
 		}
-		if strategy == "goal-session" {
+		if mode == transitions.ExecutionModeGoal {
 			if capability, ok := s.agentService.(NativeGoalAvailability); ok {
 				nativeAvailable, capabilityErr := capability.NativeGoalRunnersAvailable(ctx)
 				if capabilityErr != nil {
-					appendPreflightBlocker(&preflight, "goal_session_runner_catalog_unavailable", fmt.Sprintf("native goal runner catalog is unavailable: %s", capabilityErr), false)
+					appendPreflightBlocker(&preflight, "goal_runner_catalog_unavailable", fmt.Sprintf("native goal runner catalog is unavailable: %s", capabilityErr), false)
 				} else if !nativeAvailable {
-					appendPreflightBlocker(&preflight, "goal_session_runner_unavailable", "goal-session requires at least one available native-capable runner; force may bypass this capability preflight", true)
+					appendPreflightBlocker(&preflight, "goal_runner_unavailable", "goal mode requires at least one available native-capable runner; force may bypass this capability preflight", true)
+				}
+			}
+			// The composed message must fit Agent Manager's until cap. Compose
+			// here so an oversized item is blocked at queue time, not at launch.
+			if _, composeErr := ComposeGoalMessage(goalMessageInputForItem(item, "")); composeErr != nil {
+				if tooLong, ok := composeErr.(*GoalMessageTooLongError); ok {
+					appendPreflightBlocker(&preflight, "goal_message_too_long", tooLong.Error(), false)
 				}
 			}
 		}
@@ -232,7 +240,7 @@ func executionPlanAcceptanceSubjectVersion(item backlogItem) string {
 	contract := identity.PlanAcceptanceContract{
 		Kind: item.Kind, Name: item.Name, Title: item.Title, Description: item.Description,
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
-		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
+		Creates: item.Creates, ExecutionMode: item.ExecutionMode, ExecutionLimits: item.ExecutionLimits,
 	}
 	if item.Continuation != "manual" {
 		contract.Continuation = item.Continuation

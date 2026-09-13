@@ -175,7 +175,7 @@ func setupPhasedPlanExecution(t *testing.T, name string, strategies ...string) (
 		"acceptance_allow": []string{"scenarios/swarm-manager/**"},
 	}
 	if len(strategies) > 0 {
-		payload["execution_strategy"] = strategies[0]
+		payload["execution_mode"] = strategies[0]
 	}
 	mustWriteBacklogItem(t, root, "execute", name, payload)
 	workflow := &stubPhasedPlanWorkflow{}
@@ -195,16 +195,16 @@ func setupPhasedPlanExecution(t *testing.T, name string, strategies ...string) (
 }
 
 func TestQueueBacklogUsesPersistedAdaptiveImprovementStrategy(t *testing.T) {
-	_, workflow, started, _ := setupPhasedPlanExecution(t, "adaptive-plan", adaptiveImprovementStrategy)
-	if started.ExecutionStrategy != adaptiveImprovementStrategy {
-		t.Fatalf("execution strategy = %q, want %q", started.ExecutionStrategy, adaptiveImprovementStrategy)
+	_, workflow, started, _ := setupPhasedPlanExecution(t, "adaptive-plan", "sliced")
+	if started.ExecutionMode != "sliced" {
+		t.Fatalf("execution strategy = %q, want %q", started.ExecutionMode, "sliced")
 	}
 	payload, ok := workflow.invocation.Input.AsInterface().(map[string]any)
 	if !ok {
 		t.Fatalf("workflow input is not an object: %#v", workflow.invocation.Input)
 	}
 	constraints, ok := payload["constraints"].(map[string]any)
-	if !ok || constraints["executionStrategy"] != adaptiveImprovementStrategy {
+	if !ok || constraints["planShape"] != "phased" {
 		t.Fatalf("workflow input omitted adaptive strategy: %#v", payload)
 	}
 	roundTripped, err := json.Marshal(payload)
@@ -219,7 +219,7 @@ func TestQueueBacklogUsesPersistedAdaptiveImprovementStrategy(t *testing.T) {
 	if !ok {
 		t.Fatalf("round-tripped constraints type = %T", decoded["constraints"])
 	}
-	for _, key := range []string{"executionStrategy", "maxSlices", "writeScope", "sliceApprovalMode"} {
+	for _, key := range []string{"planShape", "maxSlices", "writeScope", "sliceApprovalMode"} {
 		if _, ok := decodedConstraints[key]; !ok {
 			t.Fatalf("round-tripped constraints omitted %q: %#v", key, decodedConstraints)
 		}
@@ -341,14 +341,16 @@ func TestQueueBacklogRejectsUnknownStrategy(t *testing.T) {
 		"status": "ready", "priority": 2, "tags": []string{}, "acceptance_allow": []string{"scenarios/swarm-manager/**"},
 	})
 	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"), PlanRenderer: testPlanRenderer(), TransitionRegistry: testTransitionRegistry(t)})
-	if _, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "unknown-strategy", Mode: ModeManual, Strategy: "single-pass"}); err == nil {
+	if _, err := service.QueueBacklog(context.Background(), CreateRequest{BacklogKind: "execute", BacklogName: "unknown-strategy", Mode: ModeManual, ExecutionMode: "single-pass"}); err == nil {
 		t.Fatal("expected unknown strategy rejection")
 	}
 }
 
 func TestReconcilePlanManagerCompletionCompletesBoundExecution(t *testing.T) {
 	renderer := &resumeCapableRenderer{fakeMarkdownRenderer: testPlanRenderer()}
-	service := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
+	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: t.TempDir(), PlanRenderer: renderer,
+	})
 	record := Record{PlanManagerExecutionID: "plan-exec-1"}
 	if err := service.reconcilePlanManagerCompletion(context.Background(), &record, "complete"); err != nil {
 		t.Fatalf("reconcile plan-manager completion: %v", err)
@@ -380,9 +382,9 @@ func TestApplyPhasedPlanWorkflow_BudgetExhaustedIsResumable(t *testing.T) {
 	correlation := workflowCorrelationFor(t, service, started)
 	workflow.completion = agentmanager.InvocationCompletion{
 		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
-		Status:       domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+		Status:       domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
 		TerminalCode: "budget_exhausted", BudgetName: "tokens", Input: workflow.invocation.Input,
-		Output: mustWorkflowOutput(t, map[string]any{"outcome": "budget_exhausted", "reason": "token ceiling reached"}),
+		Output: mustWorkflowOutput(t, map[string]any{"outcome": "continue", "reason": "token ceiling reached"}),
 	}
 	result, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID)
 	if err != nil {

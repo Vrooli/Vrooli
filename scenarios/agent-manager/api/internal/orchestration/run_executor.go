@@ -372,22 +372,28 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		})
 	}
 	if e.run.ResolvedConfig != nil {
+		runtimeEnv, err := PrepareRunnerRuntimeRoot(e.runStateRoot, e.run.ID)
+		if err != nil {
+			e.failWithError(execCtx, err)
+			return
+		}
 		sessionEnv, err := PrepareCodecSessionHome(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
 		if err != nil {
 			e.failWithError(execCtx, err)
 			return
 		}
-		e.sessionEnv = sessionEnv
 		skillEnv, err := PrepareRunnerSkillScope(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType)
 		if err != nil {
 			e.failWithError(execCtx, err)
 			return
 		}
-		if e.sessionEnv == nil && len(skillEnv) > 0 {
+		if e.sessionEnv == nil {
 			e.sessionEnv = make(map[string]string)
 		}
-		for key, value := range skillEnv {
-			e.sessionEnv[key] = value
+		for _, envSet := range []map[string]string{runtimeEnv, sessionEnv, skillEnv} {
+			for key, value := range envSet {
+				e.sessionEnv[key] = value
+			}
 		}
 		if e.profile != nil && len(e.profile.SkillPack) > 0 {
 			runtimeRoot := ""
@@ -636,13 +642,19 @@ func (e *RunExecutor) emitSystem(ctx context.Context, level, message string) {
 // HEARTBEAT
 // =============================================================================
 
-// heartbeatLoopInput builds the input struct phases.RunHeartbeatLoop consumes.
+// heartbeatLoopInput snapshots values before the goroutine starts. The loop
+// must not borrow e.run/e.checkpoint: repository serialization and lifecycle
+// callbacks use those objects independently of the heartbeat cadence.
 func (e *RunExecutor) heartbeatLoopInput() phases.HeartbeatLoopInput {
+	state := phases.HeartbeatState{LastRunHeartbeat: e.run.SafeLastHeartbeat()}
+	if e.checkpoint != nil {
+		state.LastCheckpointHeartbeat = e.checkpoint.LastHeartbeat
+	}
 	return phases.HeartbeatLoopInput{
 		Deps:        e.deps(),
-		Run:         e.run,
-		Checkpoint:  e.checkpoint,
-		Mu:          &e.mu,
+		RunID:       e.run.ID,
+		Tag:         e.run.GetTag(),
+		State:       state,
 		Levers:      e.levers,
 		Stop:        e.heartbeatStop,
 		Done:        e.heartbeatDone,
@@ -707,6 +719,12 @@ func (e *RunExecutor) detectParked(ctx context.Context) bool {
 func (e *RunExecutor) finalize() {
 	if e.finalized || e.parked {
 		return
+	}
+	if e.run != nil && e.runs != nil {
+		current, err := e.runs.Get(context.Background(), e.run.ID)
+		if err != nil || current == nil || current.LifecycleVersion != e.run.LifecycleVersion {
+			return // Do not remove credentials/skills belonging to a new turn.
+		}
 	}
 	e.finalized = true
 	if e.run != nil && e.run.ResolvedConfig != nil {

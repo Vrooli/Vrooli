@@ -102,6 +102,12 @@ Choose the shape with `docs/agent-system/SWARM_MANAGER_WORK.md` §"Work shapes".
 Templates follow. Replace every `<...>` field; delete a line only when its slot
 does not apply, and say so in the handoff if a reviewer would expect it.
 
+The shape of a worker assignment is independent of the parent effort or plan.
+A worker inside a phased plan or adaptive mandate normally receives a bounded
+task or investigation goal. It receives a plan-backed goal only when it owns a
+separate plan-shaped change boundary selected by the Work shapes rule. Do not
+author a child plan merely to make a worker's handoff look formal.
+
 **A. Plan-backed goal.** The route or phase order matters, or several sessions
 will touch the work. Receiving skill: `implementation-plan-execution`.
 

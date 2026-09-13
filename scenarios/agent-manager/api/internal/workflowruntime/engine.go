@@ -723,6 +723,19 @@ func (e *Engine) RecordCancellationDisposition(ctx context.Context, id uuid.UUID
 // and publishing an abnormal parent terminal state. Failed cleanup writes no
 // disposition, so recovery retries it instead of orphaning child agents.
 func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
+	return e.recordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures, false)
+}
+
+// RecordRecoveryCleanupDisposition is RecordCleanupDisposition for the recovery
+// sweep. A child run that retains a terminal but has no terminal accounting
+// settles as unknown so recovery proceeds instead of looping forever (the
+// wedged workflow 93213d93 loop). Ordinary cancellation keeps the strict
+// contract above and still waits for accounting.
+func (e *Engine) RecordRecoveryCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string) (*domain.WorkflowExecution, error) {
+	return e.recordCleanupDisposition(ctx, id, stoppedRuns, stoppedWorkflows, failures, true)
+}
+
+func (e *Engine) recordCleanupDisposition(ctx context.Context, id uuid.UUID, stoppedRuns, stoppedWorkflows int, failures []string, allowUnknown bool) (*domain.WorkflowExecution, error) {
 	x, err := e.Store.Get(ctx, id)
 	if err != nil || x == nil {
 		return x, err
@@ -752,7 +765,12 @@ func (e *Engine) RecordCleanupDisposition(ctx context.Context, id uuid.UUID, sto
 		}
 	}
 	priorUsage := x.BudgetUsage
-	settledAttempts, settlements, err := e.reconcileMeteredCleanup(ctx, x, journal)
+	// Operator cancellation always waits for accounting, even on the recovery
+	// sweep: a missing receipt must never be fabricated as zero. Only abnormal
+	// terminal recovery (failed/budget-exhausted) settles a retained terminal as
+	// unknown and proceeds.
+	allowUnknown = allowUnknown && x.Status != domain.WorkflowExecutionCancelling
+	settledAttempts, settlements, err := e.reconcileMeteredCleanup(ctx, x, journal, allowUnknown)
 	if err != nil {
 		x.BudgetUsage = priorUsage
 		return e.recordIncompleteCleanup(ctx, x, err)
@@ -828,7 +846,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		// repairs deliberately re-request this same receipt while their child-run
 		// idempotency remains attempt-specific below.
 		assignment := PromptAssignmentIdentity{ExecutionID: x.ID, NodeID: node.ID, AttemptKey: fmt.Sprintf("%d", ordinal), IdempotencyKey: fmt.Sprintf("workflow-assignment/%s/node/%s", x.ID, node.ID)}
-		bindings, prompt, resolution, spec, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, x.ID.String(), assignment)
+		bindings, prompt, resolution, _, strategy, source, diagnostics, err := e.resolveAgentInput(ctx, node, attempts, journal, x.Input, x.ID.String(), assignment)
 		if err != nil {
 			if errors.Is(err, errEmptyPromptTemplate) {
 				return e.fail(ctx, x, "empty_prompt_template", "workflow node has no rendered prompt template")
@@ -851,7 +869,6 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 		} else if !ok {
 			return nil, ErrConcurrentAdvance
 		}
-		_ = spec
 		return x, nil
 	}
 	if active.Status == domain.WorkflowAttemptDispatchPending {
@@ -934,7 +951,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	active.UpdatedAt = now
 	active.CompletedAt = &now
 	if r.Definition.Budgets.Enforcement != domain.WorkflowBudgetMeteredCancellation {
-		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false); err != nil {
+		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false, false); err != nil {
 			return x, err
 		}
 	} else {
@@ -1299,9 +1316,11 @@ func (e *Engine) resolveAgentInput(ctx context.Context, node *domain.WorkflowNod
 		return snapshot, prompt, resolution, spec, strategy, source, diagnostics, err
 	}
 	prompt += structuredResultInstruction(spec)
-	if node.Run != nil && strings.TrimSpace(node.Run.Until) != "" {
-		prompt += "\n\nUNTIL (engine-owned completion test; evaluate against authoritative plan state):\n" + strings.TrimSpace(node.Run.Until) + "\n"
-	}
+	// The completion test (Until) is deliberately not appended to the prompt
+	// here. It travels as ChildRequest.Until, rendered in childRequest, and the
+	// execution layer delivers it exactly once: as /goal when the harness
+	// declares native support, otherwise as a single prompt suffix. Appending it
+	// here used to send the same contract to the agent two or three times.
 	return snapshot, prompt, resolution, spec, strategy, source, diagnostics, nil
 }
 
@@ -1350,7 +1369,22 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 		request.Force = node.Run.Force
 		request.MaxTurns = node.Run.MaxTurns
 		request.Timeout = time.Duration(node.Run.TimeoutSeconds) * time.Second
-		request.Until = node.Run.Until
+		// Until is an authored template. Render it with the same binding values
+		// already persisted on the attempt so the child run receives real plan
+		// identifiers instead of the literal {{...}} placeholders. Fall back to
+		// the raw text only if it is not a template (RenderPrompt leaves plain
+		// text unchanged).
+		if strings.TrimSpace(node.Run.Until) != "" {
+			values := map[string]any{}
+			if err := json.Unmarshal(a.InputSnapshot, &values); err != nil {
+				return ChildRequest{}, fmt.Errorf("decode workflow input snapshot for until: %w", err)
+			}
+			renderedUntil, err := RenderPrompt(node.Run.Until, values)
+			if err != nil {
+				return ChildRequest{}, fmt.Errorf("render workflow until: %w", err)
+			}
+			request.Until = strings.TrimSpace(renderedUntil)
+		}
 	} else {
 		request.MaxTurns = node.Continue.MaxTurns
 		request.Timeout = time.Duration(node.Continue.TimeoutSeconds) * time.Second
@@ -1385,7 +1419,7 @@ func (e *Engine) childRequest(node *domain.WorkflowNode, x *domain.WorkflowExecu
 func (e *Engine) retainChildFinalization(ctx context.Context, x *domain.WorkflowExecution, active *domain.WorkflowNodeAttempt, state ChildState, journal []*domain.WorkflowJournalEntry, attempts []*domain.WorkflowNodeAttempt, accountOrdinary bool) (*domain.WorkflowExecution, error) {
 	previousUsage := x.BudgetUsage
 	if accountOrdinary {
-		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false); err != nil {
+		if _, _, err := e.rebuildOrdinaryUsage(ctx, x, journal, attempts, false, false); err != nil {
 			return x, err
 		}
 	}

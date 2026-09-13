@@ -2,8 +2,12 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/invocationreadmodel"
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -35,7 +39,71 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive recovery not configured"}, nil
 	}
 
+	// Join an old recovery observer before taking any transcript cut. The
+	// continuation owner holds the same mutex while it admits and delivers work.
+	if !r.interactiveRecoveryMu.TryLock() {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive continuation or recovery owner is in flight"}, nil
+	}
+	defer r.interactiveRecoveryMu.Unlock()
+	if r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID) {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "live interactive driver owns completion"}, nil
+	}
 	coord := r.interactiveCoordinator()
+	if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
+		joinCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		hadTailer, joinErr := r.cancelInteractiveTailAndWait(joinCtx, run.ID)
+		cancel()
+		if joinErr != nil {
+			return &RecoverResult{Run: run, Message: "interactive tailer join is pending: " + joinErr.Error()}, nil
+		}
+		// Tail callbacks may have persisted one final cursor or terminal. Never
+		// overwrite that newer state with the pre-cancellation caller snapshot.
+		current, err := r.runs.Get(ctx, run.ID)
+		if err != nil {
+			return nil, err
+		}
+		run = current
+		if run == nil {
+			return nil, domain.NewNotFoundErrorWithID("Run", "interactive recovery")
+		}
+		if !run.Status.LivenessPolicy().ExpectsProcess {
+			return &RecoverResult{Run: run, Idempotent: true, Message: "interactive owner already finalized"}, nil
+		}
+		// Legacy rows predate the atomic invocation boundary. Retained owner start
+		// events provide a conservative later cutoff without altering their history.
+		inspection := *run
+		if inspection.InteractiveInvocationStartedAt == nil && r.events != nil {
+			starts, err := r.events.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeStatus}, Limit: 1025})
+			if err != nil || len(starts) > 1024 {
+				if hadTailer {
+					r.startInteractiveTailer(run, coord)
+				}
+				return &RecoverResult{Run: run, Message: "interactive invocation evidence unavailable or exceeds replay bound"}, nil
+			}
+			for _, item := range starts {
+				if invocationreadmodel.BeginsRunInvocation(item) && !item.Timestamp.IsZero() && (inspection.InteractiveInvocationStartedAt == nil || item.Timestamp.After(*inspection.InteractiveInvocationStartedAt)) {
+					stamp := item.Timestamp
+					inspection.InteractiveInvocationStartedAt = &stamp
+				}
+			}
+		}
+		terminal, inspectErr := coord.InspectRetainedGoal(ctx, &inspection)
+		if inspectErr != nil {
+			if hadTailer {
+				r.startInteractiveTailer(run, coord)
+			}
+			return &RecoverResult{Run: run, Message: "retained native goal evidence unavailable: " + inspectErr.Error()}, nil
+		}
+		if terminal != nil {
+			if err := coord.Finalize(ctx, run, terminal, nil); err != nil {
+				return nil, err
+			}
+			return &RecoverResult{Run: run, Recovered: true, Message: "reconciled accepted native goal from exact retained session and invocation"}, nil
+		}
+		// A joined observer owned this run even for a read-triggered recovery call.
+		// Preserve that ownership when new work superseded historical completion.
+		allowTail = allowTail || hadTailer
+	}
 
 	// If a reattached tailer is already driving this run, do not re-drain or
 	// restart it every reconcile cycle — it owns completion.
@@ -111,10 +179,11 @@ func (r *Reconciler) interactiveCoordinator() *interactive.Coordinator {
 		NewSink: func(runID uuid.UUID) runner.EventSink {
 			return r.recoveryEventSink(runID)
 		},
-		Result:      r.recoveredResult,
-		Heartbeat:   -1,
-		Debounce:    r.interactiveDebounce,
-		SessionPoll: r.interactiveSessionPoll,
+		Result:                r.recoveredResult,
+		Heartbeat:             -1,
+		Debounce:              r.interactiveDebounce,
+		SessionPoll:           r.interactiveSessionPoll,
+		SessionReattachWindow: r.interactiveSessionReattachWindow,
 	})
 }
 
@@ -136,13 +205,29 @@ func (r *Reconciler) startInteractiveTailer(run *domain.Run, coord *interactive.
 		cancel()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	if r.interactiveTailDone == nil {
+		r.interactiveTailDone = make(map[uuid.UUID]chan struct{})
+	}
+	r.interactiveTailDone[run.ID] = done
 	r.tailers[run.ID] = cancel
+	if r.tailerOwners == nil {
+		r.tailerOwners = make(map[uuid.UUID]context.Context)
+	}
+	r.tailerOwners[run.ID] = ctx
 	r.recoveryMu.Unlock()
 
+	runCopy := *run
+	run = &runCopy
 	go func() {
+		defer close(done)
 		defer func() {
 			r.recoveryMu.Lock()
-			delete(r.tailers, run.ID)
+			if r.tailerOwners[run.ID] == ctx {
+				delete(r.tailers, run.ID)
+				delete(r.tailerOwners, run.ID)
+				delete(r.interactiveTailDone, run.ID)
+			}
 			r.recoveryMu.Unlock()
 		}()
 		// Log-only containment: the session may still be healthy, so the run
@@ -166,20 +251,40 @@ func (r *Reconciler) hasTailer(runID uuid.UUID) bool {
 }
 
 // CancelInteractiveTail cancels and deregisters a recovery-reattached tailer for
-// a run, if one is in flight. It lets StopRun tear down a run whose interactive
+// a run, joining its final callbacks before returning. It lets StopRun tear down a run whose interactive
 // tailer was reattached by restart recovery (rather than the live Execute path).
 // Returns whether a tailer was present. The cancelled tailer's coordinator
 // observes context cancellation and finalizes as a no-op, leaving StopRun to
 // write the terminal status.
 func (r *Reconciler) CancelInteractiveTail(runID uuid.UUID) bool {
+	present, _ := r.cancelInteractiveTailAndWait(context.Background(), runID)
+	return present
+}
+
+// Cancellation alone is not an ownership transfer: onAdvance can still be
+// writing under context.Background. Retain registration until the owner joins.
+func (r *Reconciler) cancelInteractiveTailAndWait(ctx context.Context, runID uuid.UUID) (bool, error) {
 	r.recoveryMu.Lock()
 	cancel, ok := r.tailers[runID]
-	if ok {
+	done, owner := r.interactiveTailDone[runID], r.tailerOwners[runID]
+	r.recoveryMu.Unlock()
+	if !ok {
+		return false, nil
+	}
+	cancel()
+	if done != nil {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return true, ctx.Err()
+		}
+	}
+	r.recoveryMu.Lock()
+	if r.tailerOwners[runID] == owner {
 		delete(r.tailers, runID)
+		delete(r.tailerOwners, runID)
+		delete(r.interactiveTailDone, runID)
 	}
 	r.recoveryMu.Unlock()
-	if ok {
-		cancel()
-	}
-	return ok
+	return true, nil
 }

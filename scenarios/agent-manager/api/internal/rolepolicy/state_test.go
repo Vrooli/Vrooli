@@ -3,6 +3,7 @@ package rolepolicy
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,11 +53,25 @@ func TestRepositoryCatalogIsStrictAndModelFree(t *testing.T) {
 		t.Fatalf("Load repository role catalog: %v", err)
 	}
 	catalog := revision.Catalog()
-	if catalog.DefaultRole != "code.default" || len(catalog.Roles) != 9 {
+	if catalog.DefaultRole != "code.default" {
 		t.Fatalf("catalog = %#v", catalog)
+	}
+	if len(catalog.Roles) == 0 {
+		t.Fatal("catalog has no roles")
+	}
+	// Agent Manager owns coding-orchestration roles only. Typed inference
+	// roles (e.g. extract.structured, write.default) belong to AI Gateway, and
+	// TestAgentManagerAndAIGatewayRoleCatalogsAreDisjoint enforces the split.
+	for name := range catalog.Roles {
+		if !strings.HasPrefix(name, "code.") {
+			t.Fatalf("catalog role %q is not a code.* orchestration role", name)
+		}
 	}
 	if _, exists := catalog.Roles["extract.structured"]; exists {
 		t.Fatal("agent-manager still owns the typed inference role extract.structured")
+	}
+	if _, exists := catalog.Roles["write.default"]; exists {
+		t.Fatal("agent-manager still owns the typed inference role write.default")
 	}
 }
 

@@ -4,6 +4,7 @@ import argparse
 import collections
 import json
 import re
+import uuid
 from pathlib import Path
 
 
@@ -28,6 +29,8 @@ def init(repo, slug):
     folder.mkdir(parents=True, exist_ok=True)
     files = {
         "effort.json": {"schema_version": 1, "slug": slug, "repository": str(repo.resolve()),
+                        "effort_ref": "effort:" + str(uuid.uuid4()),
+                        "destination_ref": "", "target_revision": "", "work_shape": "",
                         "stage": "intake", "owners": {},
                         "execution": {"status": "not-approved", "approval_ref": None,
                                       "schedule": {"enabled": False}},
@@ -52,10 +55,11 @@ def recovery(folder, policy):
             continue
         event = json.loads(line)
         kind = event.get("event")
-        require(kind in {"repair_started", "repair_finished", "probe", "transport_retry", "status_read", "workaround", "note"},
+        require(kind in {"repair_started", "repair_finished", "probe", "transport_retry", "status_read", "workaround", "note", "route-note"},
                 f"recovery line {line_number}: unknown event")
-        require(event.get("at") and event.get("evidence"), f"recovery line {line_number}: missing time/evidence")
-        if kind in {"note", "workaround"}:
+        require(event.get("at") and (event.get("evidence") or event.get("new_evidence")),
+                f"recovery line {line_number}: missing time/evidence")
+        if kind in {"note", "workaround", "route-note"}:
             continue
         for key in ("attempt_id", "component", "fingerprint"):
             require(event.get(key), f"recovery line {line_number}: missing {key}")
@@ -126,6 +130,10 @@ def inspect(folder):
     manifest = read_json(folder / "effort.json")
     require(manifest.get("schema_version") == 1, "unsupported effort schema")
     require(manifest.get("slug") == folder.name, "effort slug does not match folder")
+    if "effort_ref" in manifest:
+        require(isinstance(manifest["effort_ref"], str) and
+                0 < len(manifest["effort_ref"].strip()) <= 512,
+                "effort_ref must be a bounded stable owner reference")
     execution = manifest["execution"]
     require(execution["status"] in {"not-approved", "approved", "revoked", "complete"}, "invalid execution authority")
     if execution["status"] in {"approved", "complete"}:
@@ -149,8 +157,13 @@ def inspect(folder):
     assessments = collections.Counter()
     graph = {}
     for row in rows:
-        for key in ("source", "statement", "deliverable", "acceptance", "owner_plan", "assessment"):
+        for key in ("source", "statement", "deliverable", "acceptance", "assessment"):
             require(row.get(key), f"{row['id']}: missing {key}")
+        owner_ref = row.get("owner_ref") or row.get("owner_plan")
+        require(owner_ref, f"{row['id']}: missing owner_ref or owner_plan")
+        if row.get("owner_ref"):
+            require(row.get("owner_kind") in {"plan", "mandate", "task", "investigation", "action"},
+                    f"{row['id']}: invalid owner_kind")
         require(row["assessment"] in {"unverified", "met", "unmet", "waived"}, f"{row['id']}: invalid assessment")
         if row["assessment"] == "met":
             require(row.get("evidence"), f"{row['id']}: met without evidence")

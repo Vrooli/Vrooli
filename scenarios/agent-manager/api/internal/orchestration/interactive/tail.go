@@ -100,6 +100,14 @@ type TailParams struct {
 	SessionID      string
 	Until          string
 	Billing        domain.BillingSnapshot
+	// MaxTurns caps assistant turn boundaries in goal mode. Zero disables the
+	// ceiling.
+	MaxTurns int
+	// GoalMarkerObserved reports whether a runner-native goal marker has been
+	// seen for this run. After defaultNativeGoalFallbackTurns success turn
+	// boundaries with no marker, the harness is treated as non-native and a
+	// validated structured terminal is accepted. Nil means "never observed".
+	GoalMarkerObserved func() bool
 	// RunDir / WorkingDir / LaunchedAt mirror the substrate's DiscoverParams,
 	// used only to re-glob the newest codex rollout on rotation.
 	RunDir     string
@@ -151,6 +159,7 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 
 	path := p.TranscriptPath
 	cursor := p.StartCursor
+	turnBoundaries := 0
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -208,8 +217,23 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 			// Keep following the same live transcript until a native goal
 			// terminal or a fully validated structured result is observed.
 			if terminal.Success && strings.TrimSpace(p.Until) != "" && !strings.HasPrefix(terminal.TerminalReason, "goal_") {
+				// A validated deterministic structured result is terminal
+				// immediately: the worker returned its workflow result contract
+				// without a runner-specific goal marker.
 				if p.StructuredResultSatisfied != nil && p.StructuredResultSatisfied() {
-					terminal.TerminalReason = "structured_result"
+					terminal.TerminalReason = terminalReasonStructuredResult
+					return terminal, nil
+				}
+				turnBoundaries++
+				if p.MaxTurns > 0 && turnBoundaries >= p.MaxTurns {
+					terminal.TerminalReason = terminalReasonMaxTurns
+					return terminal, nil
+				}
+				// No goal marker was ever observed and the fallback window
+				// elapsed: treat the harness as non-native and accept the turn
+				// boundary as a run boundary.
+				if (p.GoalMarkerObserved == nil || !p.GoalMarkerObserved()) && turnBoundaries >= defaultNativeGoalFallbackTurns {
+					terminal.TerminalReason = "turn_boundary_idle"
 					return terminal, nil
 				}
 				terminal = nil

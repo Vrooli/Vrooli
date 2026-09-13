@@ -42,7 +42,6 @@ import (
 	"swarm-manager/internal/backlog"
 	capabilities "swarm-manager/internal/capabilities"
 	"swarm-manager/internal/captures"
-	"swarm-manager/internal/development"
 	durabilitysource "swarm-manager/internal/durability"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
@@ -131,7 +130,6 @@ type Server struct {
 	fileRoots           *filerouting.RoutedRoots
 	promptClient        promptmanager.Client
 	eventDB             *database.RoutedDB
-	developmentSvc      *development.Service
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
 	eventRepo           *eventlog.SQLiteRepository
@@ -473,7 +471,6 @@ func (s *Server) setupRoutes() {
 	}
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
-	s.registerDevelopmentRoutes(repoRootFromScenarioRoot(scenarioRoot))
 	s.configureTransitionRunner()
 	s.agentSessionSvc.SetTransitionRunner(s.transitionRegistry, s.transitionRunner)
 	planWorkshopService := s.registerPlanWorkshopRoutes(s.dataRoot)
@@ -1009,28 +1006,31 @@ func (s *Server) registerIntegrationStatusRoutes() {
 	integrationstatus.NewHandler(s.integrationStatus).RegisterRoutes(s.router)
 }
 
+// definitionForWorkflow resolves the registered workflow definition that owns a
+// workflow key, either directly or through one of its execution modes.
+func (s *Server) definitionForWorkflow(workflowKey string) (transitions.Definition, bool) {
+	for _, definition := range s.transitionRegistry.Definitions() {
+		if definition.Kind != transitions.KindWorkflow {
+			continue
+		}
+		if definition.Workflow != nil && definition.Workflow.Key == workflowKey {
+			return definition, true
+		}
+		for _, mode := range definition.ExecutionModes {
+			if mode.WorkflowKey == workflowKey {
+				return definition, true
+			}
+		}
+	}
+	return transitions.Definition{}, false
+}
+
 func (s *Server) wireWorkflowStartGuards(backlogHandler *backlog.Handler, executionService *execution.Service) {
 	registry := s.transitionRegistry
 	s.integrationStatus.SetTransitionRegistry(registry)
 	backlogHandler.SetTransitionRegistry(registry)
-	definitionForWorkflow := func(workflowKey string) (transitions.Definition, bool) {
-		for _, definition := range registry.Definitions() {
-			if definition.Kind != transitions.KindWorkflow {
-				continue
-			}
-			if definition.Workflow != nil && definition.Workflow.Key == workflowKey {
-				return definition, true
-			}
-			for _, strategy := range definition.Strategies {
-				if strategy.WorkflowKey == workflowKey {
-					return definition, true
-				}
-			}
-		}
-		return transitions.Definition{}, false
-	}
 	guard := func(ctx context.Context, workflowKey string) error {
-		if definition, ok := definitionForWorkflow(workflowKey); ok {
+		if definition, ok := s.definitionForWorkflow(workflowKey); ok {
 			return s.integrationStatus.Preflight(ctx, definition)
 		}
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
@@ -1056,18 +1056,8 @@ func (s *Server) configureTransitionRunner() {
 		s.executionSvc.SetWorkflowStateReader(workflow)
 	}
 	workflow.SetStartGuard(func(ctx context.Context, workflowKey string) error {
-		for _, definition := range s.transitionRegistry.Definitions() {
-			if definition.Kind != transitions.KindWorkflow {
-				continue
-			}
-			if definition.Workflow != nil && definition.Workflow.Key == workflowKey {
-				return s.integrationStatus.Preflight(ctx, definition)
-			}
-			for _, strategy := range definition.Strategies {
-				if strategy.WorkflowKey == workflowKey {
-					return s.integrationStatus.Preflight(ctx, definition)
-				}
-			}
+		if definition, ok := s.definitionForWorkflow(workflowKey); ok {
+			return s.integrationStatus.Preflight(ctx, definition)
 		}
 		return fmt.Errorf("workflow start %q is not registered by swarm-transition/v1", workflowKey)
 	})
@@ -1076,7 +1066,7 @@ func (s *Server) configureTransitionRunner() {
 		s.transitionRegistry,
 		workflow,
 		transitionrun.NewFileStore(filepath.Join(s.dataRoot, "transition-runs")),
-		s.guardDevelopmentWorkShape,
+		nil,
 	)
 	if s.capturesHandler != nil {
 		s.capturesHandler.RegisterTransitionAdapter(runner)
@@ -1094,43 +1084,14 @@ func (s *Server) configureTransitionRunner() {
 		s.reviewSvc.RegisterTransitionAdapter(runner)
 		s.reviewSvc.SetTransitionRunner(runner)
 	}
-	if s.developmentSvc != nil {
-		owner := transitionrunner.NewDevelopmentInvoker(workflow)
-		coordinator := development.NewCoordinator(s.developmentSvc, owner)
-		transitionrunner.NewDevelopmentAdapter(s.developmentSvc, coordinator).Register(runner)
-	}
 	if s.executionSvc != nil {
 		s.executionSvc.RegisterTransitionAdapter(runner)
 		s.executionSvc.SetTransitionRunner(runner)
 	}
 	s.transitionRunner = runner
-	if s.developmentSvc != nil {
-		s.developmentSvc.SetLaunchBlockerProjection(func(ctx context.Context) []string {
-			return s.developmentLaunchBlockers(ctx)
-		})
-	}
 	s.transitionSweeper = transitionrunner.NewSweeper(runner)
 	applyActions, inputBuilders := runner.Counts()
 	slog.Info("transition runner adapters registered", "apply_actions", applyActions, "input_builders", inputBuilders)
-}
-
-func (s *Server) developmentLaunchBlockers(ctx context.Context) []string {
-	blockers := append([]string(nil), development.RuntimeBlockers()...)
-	if s.transitionRunner == nil {
-		return append(blockers, "Swarm transition runner is not configured; owner admission is disabled.")
-	}
-	if !s.transitionRunner.HasInput(transitionrunner.ContractDevelopmentTransition) || !s.transitionRunner.HasStart(transitionrunner.ContractDevelopmentTransition) {
-		blockers = append(blockers, "Contract-development admission is not registered with the transition runner.")
-	}
-	definition, ok := s.transitionRegistry.Get(transitionrunner.ContractDevelopmentTransition)
-	if !ok {
-		blockers = append(blockers, "Contract-development transition declaration is unavailable.")
-	} else if s.integrationStatus != nil {
-		if err := s.integrationStatus.Preflight(ctx, definition); err != nil {
-			blockers = append(blockers, fmt.Sprintf("Contract-development owner preflight is blocked: %v", err))
-		}
-	}
-	return blockers
 }
 
 func loadTransitionRegistry(scenarioRoot string) transitions.Registry {

@@ -86,7 +86,15 @@ func (r *Reconciler) RecoverRun(ctx context.Context, runID uuid.UUID) (*RecoverR
 	return r.recoverRun(ctx, run, false)
 }
 
-func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail bool) (*RecoverResult, error) {
+func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail bool) (_ *RecoverResult, recoveryErr error) {
+	defer func() {
+		if recoveryErr != nil && run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive && r.isProcessAlive(ctx, run) {
+			recoveryErr = fmt.Errorf("recovery outcome unknown; agent-manager owner diagnosis required for run %s transcript %q; live executor retained: %w", run.ID, run.TranscriptPath, recoveryErr)
+		}
+	}()
+	if !run.Status.LivenessPolicy().ExpectsProcess {
+		return &RecoverResult{Run: run, Idempotent: true, Message: "run no longer expects an executor"}, nil
+	}
 	// Interactive runs use a parallel recovery path: liveness is the web-console
 	// session (GetSession), not a local process, and completion is driven by the
 	// reattached transcript tailer's turn-boundary debounce, not a bare drain.
@@ -99,6 +107,9 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 		return nil, err
 	}
 	if parser == nil {
+		if r.isProcessAlive(ctx, run) {
+			return nil, fmt.Errorf("no transcript parser available for live executor")
+		}
 		return &RecoverResult{Run: run, Idempotent: true, Message: "no transcript parser available"}, nil
 	}
 
@@ -113,7 +124,9 @@ func (r *Reconciler) recoverRun(ctx context.Context, run *domain.Run, allowTail 
 
 	if r.isProcessAlive(ctx, run) {
 		if allowTail {
-			r.startTailer(run, transcriptPath, state, parser)
+			if err := r.startTailer(ctx, run, transcriptPath, state, parser); err != nil {
+				return nil, err
+			}
 		}
 		return &RecoverResult{Run: run, Recovered: true, Message: fmt.Sprintf("resumed run %s from transcript at offset %d", run.ID, run.TranscriptCursor)}, nil
 	}
@@ -226,12 +239,29 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 			return transcriptParser.ParseTranscriptLine(runID, line)
 		},
 		EventSink: sink,
+		OnTerminal: func(_ *runner.TranscriptTerminal) error {
+			// A transcript may retain an earlier attempt's terminal/deadline.
+			// Until the positively identified process exits, do not consume
+			// that boundary or use it to settle the current lifecycle. Consume
+			// calls this before OnAdvance, preserving it for later diagnosis.
+			if r.isProcessAlive(ctx, run) {
+				return fmt.Errorf("terminal transcript evidence conflicts with a live executor")
+			}
+			return nil
+		},
 		OnAdvance: func(cursor, lastSeq int64) error {
 			if cursor > run.TranscriptCursor {
 				run.TranscriptCursor = cursor
 			}
 			if lastSeq > run.TranscriptLastSeq {
 				run.TranscriptLastSeq = lastSeq
+			}
+			updated, err := r.runs.UpdateRunnerStreamState(ctx, run)
+			if err != nil {
+				return err
+			}
+			if !updated {
+				return domain.NewStateError("Run", "superseded", "recover transcript", "lifecycle writer changed")
 			}
 			if state != nil {
 				s, err := runstate.Open(run.ID, runstate.OpenOptions{
@@ -250,14 +280,18 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 					_ = s.Close()
 				}
 			}
-			return r.runs.Update(context.WithoutCancel(ctx), run)
+			return nil
 		},
 		OnSessionID: func(sessionID string) error {
 			if sessionID == "" || run.SessionID == sessionID {
 				return nil
 			}
 			run.SessionID = sessionID
-			return r.runs.Update(context.WithoutCancel(ctx), run)
+			updated, err := r.runs.UpdateRunnerStreamState(ctx, run)
+			if err == nil && !updated {
+				return domain.NewStateError("Run", "superseded", "recover transcript", "lifecycle writer changed")
+			}
+			return err
 		},
 	})
 	return terminal, err
@@ -322,23 +356,57 @@ func (r *Reconciler) recoveryEventSink(runID uuid.UUID) runner.EventSink {
 	return &noOpEventSink{}
 }
 
-func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) {
+func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, transcriptPath string, state *runstate.Snapshot, parser runner.TranscriptParser) error {
 	if transcriptPath == "" {
-		return
+		return fmt.Errorf("cannot attach recovery without a transcript path")
+	}
+	attacher, ok := r.runs.(repository.RunRecoveryAttacher)
+	if !ok {
+		return fmt.Errorf("run repository does not support guarded recovery attachment")
 	}
 
 	r.recoveryMu.Lock()
-	if cancel, ok := r.tailers[run.ID]; ok {
-		cancel()
-	}
-	ctx, cancel := context.WithCancel(context.Background())
+	previousCancel, previousOwner := r.tailers[run.ID], r.tailerOwners[run.ID]
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ownerCtx))
 	r.tailers[run.ID] = cancel
+	if r.tailerOwners == nil {
+		r.tailerOwners = make(map[uuid.UUID]context.Context)
+	}
+	r.tailerOwners[run.ID] = ctx
+	attachedAt := r.now().UTC()
+	attached, err := attacher.AttachRecovery(ownerCtx, run.ID, run.LifecycleVersion, attachedAt)
+	if err != nil || !attached {
+		cancel()
+		delete(r.tailers, run.ID)
+		delete(r.tailerOwners, run.ID)
+		if previousCancel != nil {
+			r.tailers[run.ID], r.tailerOwners[run.ID] = previousCancel, previousOwner
+		}
+		r.recoveryMu.Unlock()
+		if err != nil {
+			return err
+		}
+		return domain.NewStateError("Run", "superseded", "attach recovery", "run lifecycle or cancellation changed before attachment")
+	}
+	if previousCancel != nil {
+		previousCancel()
+	}
+	// Update only the returned snapshot's attachment fields. The repository
+	// deliberately preserves all progress, accounting and transcript evidence.
+	run.EndedAt, run.ExitCode = nil, nil
+	run.ErrorMsg, run.TerminalClass, run.StopReason = "", "", ""
+	if run.LastHeartbeat == nil || run.LastHeartbeat.Before(attachedAt) {
+		run.LastHeartbeat = &attachedAt
+	}
 	r.recoveryMu.Unlock()
 
 	go func() {
 		defer func() {
 			r.recoveryMu.Lock()
-			delete(r.tailers, run.ID)
+			if r.tailerOwners[run.ID] == ctx {
+				delete(r.tailers, run.ID)
+				delete(r.tailerOwners, run.ID)
+			}
 			r.recoveryMu.Unlock()
 		}()
 		// Log-only containment: the process may still be healthy, so the run
@@ -348,7 +416,19 @@ func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *
 		ticker := time.NewTicker(r.levers.Recovery.TranscriptTailInterval)
 		defer ticker.Stop()
 		for {
-			if _, err := r.recoverRun(ctx, run, false); err == nil && !r.isProcessAlive(ctx, run) {
+			if ctx.Err() != nil {
+				return
+			}
+			// A tailer owns one lifecycle, never a mutable snapshot retained
+			// through a park or subsequent continuation.
+			current, err := r.runs.Get(ctx, run.ID)
+			if err != nil {
+				return
+			}
+			if current.LifecycleVersion != run.LifecycleVersion || !current.Status.LivenessPolicy().ExpectsProcess {
+				return
+			}
+			if _, err := r.recoverRun(ctx, current, false); err == nil && !r.isProcessAlive(ctx, current) {
 				return
 			}
 			select {
@@ -360,6 +440,7 @@ func (r *Reconciler) startTailer(run *domain.Run, transcriptPath string, state *
 			_, _ = parser, run
 		}
 	}()
+	return nil
 }
 
 func (r *Reconciler) buildRecoveredResult(ctx context.Context, runID uuid.UUID, success bool, exitCode int, terminalReason string) (*domain.RunResult, *domain.RunSummary, error) {

@@ -10,6 +10,7 @@ package phases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,6 +53,10 @@ func persistTerminalRun(deps Deps, run *domain.Run) error {
 			return nil
 		} else {
 			lastErr = err
+			var stateErr *domain.StateError
+			if errors.As(err, &stateErr) {
+				return err
+			} // A lost lifecycle fence is not transient.
 		}
 		if attempt+1 < terminalPersistAttempts {
 			select {
@@ -87,6 +92,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 		if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "error",
 				"failed to persist failure state: "+updateErr.Error())
+			return FailWithErrorOutput{Outcome: outcome}
 		}
 	}
 
@@ -152,6 +158,7 @@ func HandleContextError(ctx context.Context, in HandleContextErrorInput) HandleC
 			if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {
 				EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 					"failed to persist cancellation: "+updateErr.Error())
+				return out
 			}
 		}
 	}

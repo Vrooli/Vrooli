@@ -359,6 +359,33 @@ func (c *ConnectClient) Complete(ctx context.Context, req *executionv1.CompleteR
 	return resp.Msg, nil
 }
 
+// PlanProgress counts durable progress on a bound plan execution: one per
+// recorded phase assessment plus one per log entry. The until-allowance brake
+// compares consecutive counts.
+func (c *ConnectClient) PlanProgress(ctx context.Context, executionID string) (int, error) {
+	client, err := c.execution(ctx)
+	if err != nil {
+		return 0, err
+	}
+	status, err := client.GetStatus(ctx, connect.NewRequest(&executionv1.GetStatusRequest{ExecutionId: executionID}))
+	if err != nil {
+		return 0, opError("GetStatus", executionID, err)
+	}
+	count := len(status.Msg.GetExecution().GetPhaseAssessments())
+	if status.Msg.GetExecution().GetComplete() {
+		count++
+	}
+	logClient, err := c.log(ctx)
+	if err != nil {
+		return count, nil // phase progress is still usable
+	}
+	entries, err := logClient.ListEntries(ctx, connect.NewRequest(&logv1.ListEntriesRequest{PlanOrExecution: executionID}))
+	if err != nil {
+		return count, nil
+	}
+	return count + len(entries.Msg.GetEntries()), nil
+}
+
 func (c *ConnectClient) GetHandoff(ctx context.Context, req *executionv1.GetHandoffRequest) (*executionv1.GetHandoffResponse, error) {
 	client, err := c.execution(ctx)
 	if err != nil {

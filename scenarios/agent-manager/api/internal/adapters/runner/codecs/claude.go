@@ -51,6 +51,9 @@ const claudeTagEnvKey = "CLAUDE_CODE_AGENT_TAG"
 // Claude is the [Codec] implementation for the Claude Code CLI.
 type Claude struct {
 	baseCodec
+	// pricingService computes a charge for interactive runs whose on-disk
+	// transcript has no cost line. Optional; nil leaves the charge unknown.
+	pricingService PricingService
 }
 
 func (c *Claude) ToolCapabilityMap() map[string]string {
@@ -85,10 +88,22 @@ func claudeBase() baseCodec {
 // to be wrapped in [core.NewRunner]. Returns a codec with Available=false
 // (rather than an error) when the binary is missing, so the runner
 // registry can register a stub instead.
-func NewClaude() (*Claude, error) {
+func NewClaude(opts ...ClaudeOption) (*Claude, error) {
 	c := &Claude{baseCodec: resolveBinary(claudeBase(), ClaudeCLICommand)}
+	for _, opt := range opts {
+		opt(c)
+	}
 	c.newParser = c.NewTranscriptParser
 	return c, nil
+}
+
+// ClaudeOption configures a Claude codec.
+type ClaudeOption func(*Claude)
+
+// WithClaudePricingService injects the pricing lookup used to compute a charge
+// for interactive runs, whose on-disk transcript carries usage but no cost line.
+func WithClaudePricingService(svc PricingService) ClaudeOption {
+	return func(c *Claude) { c.pricingService = svc }
 }
 
 // NewClaudeForTest returns a Claude codec with a fake binary path and
@@ -107,8 +122,9 @@ func NewClaudeForTestWithBinary(path string) *Claude {
 	return c
 }
 
-// HasChargeSource reports that Claude's native result payload is the charge
-// source; it does not require the shared pricing lookup.
+// HasChargeSource reports whether a charge source is available. Claude's
+// codec-pipe result line carries a native dollar cost, but the interactive
+// on-disk transcript does not; the injected pricing lookup covers that case.
 func (c *Claude) HasChargeSource() bool { return true }
 
 // Capabilities satisfies [Codec].
@@ -588,7 +604,7 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Claude) NewTranscriptParser() runner.TranscriptParser {
-	return &claudeTranscriptParser{state: &claudeState{}}
+	return &claudeTranscriptParser{state: &claudeState{}, pricing: c.pricingService}
 }
 
 func (p *claudeTranscriptParser) SetTranscriptModel(model string) {
@@ -608,6 +624,9 @@ func (s *claudeState) SetStateBilling(billing domain.BillingSnapshot) { s.billin
 
 type claudeTranscriptParser struct {
 	state *claudeState
+	// pricing computes the interactive charge from the reconciliation-authority
+	// usage when the on-disk transcript has no cost line. Optional.
+	pricing PricingService
 	// onDisk latches once a camelCase `sessionId` field is seen, marking
 	// this replay as claude's on-disk interactive transcript rather than
 	// the --print stdout stream. In on-disk mode the parser synthesizes
@@ -632,6 +651,22 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 			result.SessionID = streamEvent.SessionIDAlt
 			p.onDisk = true
 		}
+		if streamEvent.Type == "cost-state" && p.onDisk {
+			// A retained cost snapshot is accounting, not an interactive turn
+			// completion signal. Only explicit, internally consistent no-API
+			// evidence establishes zero; absent fields and unknown models do not.
+			var snapshot struct {
+				Cost              *float64                   `json:"totalCostUSD"`
+				API               *int64                     `json:"totalAPIDuration"`
+				APIWithoutRetries *int64                     `json:"totalAPIDurationWithoutRetries"`
+				Models            map[string]json.RawMessage `json:"modelUsage"`
+				Unknown           *bool                      `json:"hasUnknownModelCost"`
+			}
+			if json.Unmarshal([]byte(line), &snapshot) == nil && snapshot.Cost != nil && *snapshot.Cost == 0 && snapshot.API != nil && *snapshot.API == 0 && snapshot.APIWithoutRetries != nil && *snapshot.APIWithoutRetries == 0 && snapshot.Models != nil && len(snapshot.Models) == 0 && snapshot.Unknown != nil && !*snapshot.Unknown && p.state.turn == 0 {
+				charge := nativeChargeEvent(runID, domain.RunnerTypeClaudeCode, p.state.model, p.state.billing, 0).Data.(*domain.ChargeEventData)
+				result.Events = append(result.Events, &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: result.Timestamp, Data: &domain.UsageEventData{PayloadKind: domain.PayloadKindUsage, RunnerType: string(domain.RunnerTypeClaudeCode), ReconciliationAuthority: true, Charge: charge}})
+			}
+		}
 		if streamEvent.Type == "ai-title" && strings.TrimSpace(streamEvent.AiTitle) != "" {
 			result.Label = strings.TrimSpace(streamEvent.AiTitle)
 			result.LabelSource = domain.RunLabelSourceHarness
@@ -643,14 +678,36 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 		// top of this marker (interactive sessions stay open awaiting input).
 		if p.onDisk && strings.EqualFold(streamEvent.Type, "assistant") &&
 			streamEvent.Message != nil && streamEvent.Message.StopReason == "end_turn" {
+			var computedCharges []*domain.RunEvent
 			for _, event := range result.Events {
-				if usage, ok := event.Data.(*domain.UsageEventData); ok {
-					// The final on-disk assistant usage is the best available
-					// terminal snapshot for interactive Claude. It remains a
-					// token receipt even when pricing is unavailable.
-					usage.ReconciliationAuthority = true
+				usage, ok := event.Data.(*domain.UsageEventData)
+				if !ok {
+					continue
+				}
+				// The final on-disk assistant usage is the best available
+				// terminal snapshot for interactive Claude. It remains a
+				// token receipt even when pricing is unavailable.
+				usage.ReconciliationAuthority = true
+				// The on-disk dialect has no cost line. When a pricing lookup
+				// is wired, compute the charge from this reconciliation
+				// authority usage; otherwise the charge stays unknown and the
+				// allowance must remain reserved. The first event returned by
+				// buildCostEvents is a duplicate usage event, so only its charge
+				// events are kept.
+				if p.pricing != nil {
+					tokens := usageTokens{
+						InputTokens:         usage.InputTokens,
+						OutputTokens:        usage.OutputTokens,
+						CacheReadTokens:     usage.CacheReadTokens,
+						CacheCreationTokens: usage.CacheCreationTokens,
+					}
+					charges := buildCostEvents(runID, domain.RunnerTypeClaudeCode, p.pricing, p.state.model, tokens, p.state.billing)
+					if len(charges) > 1 {
+						computedCharges = append(computedCharges, charges[1:]...)
+					}
 				}
 			}
+			result.Events = append(result.Events, computedCharges...)
 			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0, TerminalReason: "turn_boundary"}
 		}
 		if strings.EqualFold(streamEvent.Type, "result") {

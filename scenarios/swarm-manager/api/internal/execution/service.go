@@ -111,6 +111,8 @@ type ServiceConfig struct {
 	GovernanceProvider       GovernanceProvider
 	ReviewThresholdsProvider ReviewThresholdsProvider
 	AgentService             AgentManagerAvailability
+	GoalRunCreator           GoalRunCreator
+	GoalRunReader            GoalRunReader
 	ScenarioLifecycle        ScenarioLifecycle
 	ScenarioHealthChecker    ScenarioHealthChecker
 	PromptClient             promptmanager.Client
@@ -139,7 +141,8 @@ type Service struct {
 	governanceProvider       GovernanceProvider
 	reviewThresholdsProvider ReviewThresholdsProvider
 	agentService             AgentManagerAvailability
-	operationStarter         OperationStarter
+	goalRunCreator           GoalRunCreator
+	goalRunReader            GoalRunReader
 	promptClient             promptmanager.Client
 	experimentClient         promptmanager.ExperimentClient
 	archiver                 Archiver
@@ -147,6 +150,7 @@ type Service struct {
 	baselineClient           BaselineClient
 	baselineEngagementRunner BaselineEngagementRunner
 	planRenderer             planclient.MarkdownRenderer
+	planProgress             func(context.Context, string) (int, error)
 	phasedPlanWorkflow       agentmanager.WorkflowInvoker
 	workWorkflow             agentmanager.WorkflowInvoker
 	specSyncWorkflow         agentmanager.WorkflowInvoker
@@ -239,6 +243,8 @@ func NewService(cfg ServiceConfig) *Service {
 		governanceProvider:       gp,
 		reviewThresholdsProvider: rtp,
 		agentService:             cfg.AgentService,
+		goalRunCreator:           cfg.GoalRunCreator,
+		goalRunReader:            cfg.GoalRunReader,
 		promptClient:             pc,
 		experimentClient:         cfg.ExperimentClient,
 		archiver:                 cfg.Archiver,
@@ -246,6 +252,7 @@ func NewService(cfg ServiceConfig) *Service {
 		baselineClient:           cfg.BaselineClient,
 		baselineEngagementRunner: cfg.BaselineEngagementRunner,
 		planRenderer:             cfg.PlanRenderer,
+		planProgress:             planProgressFromRenderer(cfg.PlanRenderer),
 		phasedPlanWorkflow:       cfg.PhasedPlanWorkflow,
 		workWorkflow:             cfg.WorkWorkflow,
 		specSyncWorkflow:         cfg.SpecSyncWorkflow,
@@ -615,4 +622,23 @@ func wrapAgentError(err error) error {
 		)
 	}
 	return err
+}
+
+// planProgressFromRenderer adapts an optional Plan Manager progress reader.
+// A renderer that cannot report progress yields a nil reader and the sweeper
+// falls back to the chain-depth brake.
+func planProgressFromRenderer(renderer planclient.MarkdownRenderer) func(context.Context, string) (int, error) {
+	reader, ok := renderer.(interface {
+		PlanProgress(context.Context, string) (int, error)
+	})
+	if !ok {
+		return nil
+	}
+	return reader.PlanProgress
+}
+
+// SetPlanProgressReader installs the until-allowance brake's progress signal,
+// counting durable Plan Manager progress (phase assessments + log entries).
+func (s *Service) SetPlanProgressReader(reader func(context.Context, string) (int, error)) {
+	s.planProgress = reader
 }

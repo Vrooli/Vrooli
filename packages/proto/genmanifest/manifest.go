@@ -76,12 +76,27 @@ func ScenarioNames(protoRoot string) ([]string, error) {
 	}
 	var out []string
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() && hasProtoFiles(filepath.Join(protoRoot, "schemas", entry.Name())) {
 			out = append(out, entry.Name())
 		}
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+func hasProtoFiles(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || found {
+			return err
+		}
+		if !entry.IsDir() && filepath.Ext(path) == ".proto" {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return found
 }
 
 // ChangedScenarios derives generation scope from the committed per-scenario

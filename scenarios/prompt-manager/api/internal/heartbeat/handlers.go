@@ -337,6 +337,14 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "schedule is required", http.StatusBadRequest)
 		return
 	}
+	if err := req.FiniteLeader.Validate(req.ProfileKey, req.Supervision); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := req.Supervision.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	team, err := h.teamStore.Get(ctx, teamID)
 	if err != nil {
@@ -365,11 +373,13 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Create config
 	config := &store.HeartbeatConfig{
-		TeamID:     teamID,
-		AgentID:    agentID,
-		Schedule:   req.Schedule,
-		ProfileKey: req.ProfileKey,
-		Enabled:    false, // Off by default
+		FiniteLeader: req.FiniteLeader,
+		Supervision:  req.Supervision,
+		TeamID:       teamID,
+		AgentID:      agentID,
+		Schedule:     req.Schedule,
+		ProfileKey:   req.ProfileKey,
+		Enabled:      false, // Off by default
 	}
 
 	if req.Enabled != nil {
@@ -468,6 +478,16 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply updates
+	if req.FiniteLeader != nil {
+		config.FiniteLeader = req.FiniteLeader
+	}
+	if err := req.Supervision.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Supervision != nil {
+		config.Supervision = req.Supervision
+	}
 	if req.Schedule != nil {
 		config.Schedule = *req.Schedule
 	}
@@ -546,6 +566,25 @@ func (h *Handlers) DeleteHeartbeat(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if config != nil && config.Supervision != nil {
+		if h.executor == nil || h.executor.EffortSupervisor == nil {
+			http.Error(w, "Standing supervision recovery unavailable; disable instead of deleting", http.StatusServiceUnavailable)
+			return
+		}
+		h.executor.EffortSupervisor.mu.Lock()
+		defer h.executor.EffortSupervisor.mu.Unlock()
+		state, err := h.executor.EffortSupervisor.State.Load(teamID, agentID)
+		if err != nil || state.Pending != nil {
+			http.Error(w, "Standing supervision wake unresolved; disable or reconcile the original owner identity before deleting", http.StatusConflict)
+			return
+		}
 	}
 
 	// Unschedule first
@@ -627,6 +666,30 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 			return nil, http.StatusInternalServerError, fmt.Errorf("resolve heartbeat profile: %w", err)
 		}
 		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err == nil && config != nil && config.FiniteLeader != nil {
+			if h.executor.FiniteLeader == nil {
+				return nil, http.StatusServiceUnavailable, fmt.Errorf("finite leader runtime unavailable")
+			}
+			state, tickErr := h.executor.FiniteLeader.Tick(ctx, teamID, agentID)
+			if tickErr != nil {
+				return nil, http.StatusConflict, tickErr
+			}
+			return &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, RunID: state.RunID, Status: state.Status}, http.StatusAccepted, nil
+		}
+		if err == nil && config != nil && config.Supervision != nil {
+			if h.executor == nil || h.executor.EffortSupervisor == nil {
+				return nil, http.StatusServiceUnavailable, fmt.Errorf("standing supervision unavailable")
+			}
+			state, tickErr := h.executor.EffortSupervisor.Tick(ctx, teamID, agentID)
+			if tickErr != nil {
+				return nil, http.StatusServiceUnavailable, tickErr
+			}
+			response := &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, Status: state.Status}
+			if state.Pending != nil {
+				response.RunID = state.Pending.RunID
+			}
+			return response, http.StatusAccepted, nil
+		}
 		if err == nil && config != nil && config.ProfileKey != "" {
 			profileKey = config.ProfileKey
 		}
@@ -1830,6 +1893,10 @@ func (h *Handlers) GetRunEvents(w http.ResponseWriter, r *http.Request) {
 
 // ListRuns handles GET /runs - proxies run listing to agent-manager.
 func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("accounting") == "true" {
+		h.listTeamRunAccounting(w, r)
+		return
+	}
 	if h.agentClient == nil {
 		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
 		return
@@ -2271,6 +2338,22 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 		UpdatedAt:           config.UpdatedAt,
 	}
 
+	resp.Supervision = config.Supervision
+	resp.FiniteLeader = config.FiniteLeader
+	if config.FiniteLeader != nil && h.teamStore != nil {
+		state, err := h.teamStore.ReadFiniteLeader(context.Background(), config.TeamID, config.AgentID)
+		resp.FiniteLeaderState = state
+		if err != nil {
+			resp.FiniteLeaderError = err.Error()
+		}
+	}
+	if config.Supervision != nil && h.executor != nil && h.executor.EffortSupervisor != nil {
+		state, err := h.executor.EffortSupervisor.State.Load(config.TeamID, config.AgentID)
+		resp.SupervisionState = state
+		if err != nil {
+			resp.SupervisionError = err.Error()
+		}
+	}
 	if config.LastExecution != nil {
 		resp.LastExecution = &HeartbeatExecResultDTO{
 			StartedAt: config.LastExecution.StartedAt,

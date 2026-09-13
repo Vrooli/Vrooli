@@ -10,6 +10,38 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-09-12 · `d722a125-70e5-4df6-bb19-c17c3386c840` · `heartbeat-marketing-crew/marketing-contrarian` · errored
+
+**Lesson.** This run is runner-availability contamination, not evidence about marketing-contrarian behavior. Agent-manager reported `Runner codex is temporarily unavailable. Please try again.` after the configured 600s timeout. The trace still contains 185 Bash calls (155 successful, 15 failed, 15 unresolved), 184 repeated calls, a 153,336ms event gap, eight messages with substantive intermediate findings, one verified search-hub receipt, and no final candidate, turns, tokens, or diff. The runner became unavailable after the agent had made useful progress, so the current result surface loses the work product and provides no typed partial-completion state.
+
+**Implicated.** Primary: agent-manager runner-pool availability, timeout/recovery, and result-provenance handling; existing backlog `agent-manager-launch-prerequisite-integrity` is the closest owner handoff. Secondary: run-introspector tier-1 triage should classify an unavailable-runner terminal as environmental and exclude it from agent/skill scoring, even when intermediate tool activity exists. No deterministic manual CLI sequence or Action would repair runner availability; this is a capability-work-item signal, not an Action candidate.
+
+**Action decision.** `capability-work-item` via the existing agent-manager owner handoff; no duplicate filing. The owner should emit a typed runner-unavailable cause, preserve intermediate assistant/tool evidence as a partial result, and distinguish “runner unavailable after work” from “runner never started.”
+
+**Measurement plan.** Baseline: 1 run, 600,031ms duration, 0 turns/tokens, 185 Bash calls, 184 repeated calls, 15 failed and 15 unresolved calls, 153,336ms longest event gap, one receipt, and zero final candidates despite eight persisted messages. Over the next 7 heartbeats, count runner-unavailable signatures and classify them by whether any verified turn/tool work preceded the failure; target a typed environmental terminal cause, a retained partial-work indicator when evidence exists, zero ambiguous/no-candidate loss for post-work failures, and zero attribution to agent behavior.
+
+**Program-runtime ratchet.** Governed share was `4133/4139 = 0.998550374486591` over `604800s` (`2026-09-05T22:45:19.491828718Z`–`2026-09-12T22:45:19.491828718Z`); observed calls were 6. Repeated unresolved names were `inputs` (20), `test_geni` (6), `vrooli_memory` (3), and `bindings` (2); existing backlog items cover these, so no new item was filed. The governed share is below 1.0 and the exact numerator/denominator are preserved here.
+
+**Discovery gaps.** `prompt-manager discovery-gaps --since 7d --json` returned two clusters: `bindings` (4, last seen `2026-09-11T22:45:26Z`) and a singleton physical-object transport query. The repeated `bindings` gap is covered by the existing unresolved-bindings handoff; the singleton has no controlled CLI or recurrence, so no new item was justified.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
+### 2026-09-11 · `e85997af-e6f0-432e-93e4-7b6035fc949c` · orchestrator qualification probe · errored
+
+**Lesson.** The run was instructed to execute exactly one shell probe (`echo usi-opencode-probe-ok`) and stop. The runner denied the command by policy, then finalized with `no_viable_assistant_candidate`; report evidence shows 1 unresolved Bash call, 0 completed tool calls, no output, diff, or receipt. This is runner-policy/terminal-result friction, not evidence about the dispatched agent.
+
+**Implicated.** Primary: agent-manager runner policy and result-provenance handling for denied tool calls. Existing backlog `agent-manager-launch-prerequisite-integrity` is the owner handoff; this run is a distinct policy-denial corroboration but does not justify a duplicate or an Action. Exclude it from agent-behavior scoring.
+
+**Action decision.** `capability-work-item` via the existing agent-manager owner handoff; no deterministic manual CLI sequence could repair the denied execution.
+
+**Measurement plan.** Baseline: 1 run, 1 denied/unresolved Bash call, 0 completed tools, 0 output/diff/receipts, and 1 unavailable result. Over the next 7 heartbeats, count policy-denied tool-call terminals separately from host launch failures; target one typed denial reason, no ambiguous/no-viable result for a single denied call, and zero attribution to agent behavior.
+
+**Program-runtime ratchet.** Governed share was `5735/5741 = 0.9989548859083783` over `604800s` (`2026-09-04T22:45:17.68804129Z`–`2026-09-11T22:45:17.68804129Z`). Repeated unresolved names were `inputs` (20), `test_geni` (6), `vrooli_memory` (3), and `bindings` (2); existing backlog items `program-runtime-inputs-observed-capability`, `test-genie-unresolved-test-geni-20260907`, `vrooli-memory-unresolved-rules-lsit-20260907`, and `program-runtime-unresolved-bindings-20260907` cover them, so no new item was filed.
+
+**Discovery gaps.** The final `prompt-manager discovery-gaps --since 7d` check returned `bindings` (4) and the singleton physical-object transport query. The repeated `bindings` gap is covered by the existing unresolved-bindings handoff; the singleton has no corroboration or controlled CLI, so no new item was filed.
+
+**Status.** pending (existing agent-manager owner handoff; no implementation in this lane).
+
 ### 2026-09-10 · `098832f7-08af-4bbe-9d13-019cd1692582` · `workflow-e29e98cc-b141-4f65-9994-5270c3ef7f43-slice` · errored
 
 **Lesson.** This is a second corroboration in the current review cycle of the existing agent-manager launch/finalization integrity failure, not evidence about agent behavior. The bounded report recorded `status=failed`, `exit_code=-1`, `244083ms` duration, `0` turns, `0` tokens, `0` tools, no diff, and no viable assistant candidate. The terminal error was `database error during begin_immediate_transaction: database is locked (5) (SQLITE_BUSY)`. The run had one available receipt, but no trustworthy work product; the event trail contained one error, one heartbeat miss, five lifecycle events, and fifteen log events.

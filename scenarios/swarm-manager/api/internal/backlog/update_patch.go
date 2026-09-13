@@ -32,7 +32,7 @@ const (
 	updateFieldCreates            = "creates"
 	updateFieldSpawnedFrom        = "spawned_from"
 	updateFieldPlanRef            = "plan_ref"
-	updateFieldExecutionStrategy  = "execution_strategy"
+	updateFieldExecutionMode  = "execution_mode"
 	updateFieldExecutionLimits    = "execution_limits"
 	updateFieldContinuation       = "continuation"
 	updateFieldScopePolicy        = "scope_policy"
@@ -158,9 +158,9 @@ func normalizeUpdateBacklogPatch(req *apipb.UpdateBacklogItemRequest, fields bac
 		trimmed := strings.TrimSpace(*req.Note)
 		req.Note = &trimmed
 	}
-	if fields.Has(updateFieldExecutionStrategy) && req.ExecutionStrategy != nil {
-		normalized := strings.ToLower(strings.TrimSpace(*req.ExecutionStrategy))
-		req.ExecutionStrategy = &normalized
+	if fields.Has(updateFieldExecutionMode) && req.ExecutionMode != nil {
+		normalized := strings.ToLower(strings.TrimSpace(*req.ExecutionMode))
+		req.ExecutionMode = &normalized
 	}
 	if fields.Has(updateFieldContinuation) && req.Continuation != nil {
 		value := strings.ToLower(strings.TrimSpace(*req.Continuation))
@@ -226,8 +226,8 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return err.Error()
 		}
 	}
-	if fields.Has(updateFieldExecutionStrategy) {
-		if _, err := normalizeExecutionStrategy(req.GetExecutionStrategy()); err != nil {
+	if fields.Has(updateFieldExecutionMode) {
+		if _, err := normalizeExecutionMode(req.GetExecutionMode()); err != nil {
 			return err.Error()
 		}
 	}
@@ -362,9 +362,9 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 		patch.PlanRef = normalizePlanRef(planRefFromProto(req.PlanRef))
 		patch.PlanRefSet = true
 	}
-	if fields.Has(updateFieldExecutionStrategy) {
-		v := req.GetExecutionStrategy()
-		patch.ExecutionStrategy = &v
+	if fields.Has(updateFieldExecutionMode) {
+		v := req.GetExecutionMode()
+		patch.ExecutionMode = &v
 	}
 	if fields.Has(updateFieldExecutionLimits) {
 		patch.ExecutionLimits, patch.ExecutionLimitsSet = executionLimitsFromProto(req.ExecutionLimits), true

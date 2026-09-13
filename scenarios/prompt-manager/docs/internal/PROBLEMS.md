@@ -3,7 +3,351 @@
 Agent-maintained document tracking issues, debt, and cleanup history.
 
 ## Last Updated
-2026-09-08
+2026-09-12
+
+## Work ladder — team purpose, lifetime, and linked effort UX (2026-09-12)
+
+- Rung: W3, scoped enhancement under the existing team CRUD and membership
+  targets. The operator approved the team-model recommendations in this session.
+- Initial evidence: `TeamSchema` and team API responses omitted purpose and lifetime;
+  the team dashboard exposes scheduling and run history without linked effort
+  acceptance; the registered list omits transitional efforts with no team.
+- Target: `docs/concepts/SWARM-MODEL.md` section "Team purpose, lifetime, and
+  linked work". Metadata must not change authority or runtime controls.
+- Validation: focused API/storage/Connect and UI regressions, relevant Test Genie
+  phases, and served browser checks. Runtime maintenance and supervisor recovery
+  remain with their existing owners; this UI work does not release their fence.
+- Measured: optional independent purpose/lifetime and effort references now round
+  trip through storage, API/Connect and CLI; partial updates preserve existing
+  objectives and unknown fields. The UI provides metadata controls, presets,
+  filters, an in-app guide and a bounded effort board with exact owner links,
+  unavailable evidence, expiring authority and requested/effective model display.
+  Registered team identity remains separate from a temporary effort driver.
+  Focused UI checks: 58 passed across seven files; the later theme correction
+  passed its 15 affected checks. Typecheck, build, focused Go tests and scoped
+  lint passed (zero errors, four warnings). Served desktop and mobile checks
+  passed, including dark-mode contrast and no guide horizontal overflow.
+- Scenario evidence: PM API run `20260912-191010-12cbbb57` passed. Unit runs
+  `20260912-185025-f90f85f6` and `20260912-190407-0da44887` remain failed on
+  broader UI assertions and the API-unit no-output deadline. Existing world
+  observation: `knw-1789196870044782367`; timeout observation:
+  `knw-1789240789686855923`. No baseline comparison or whole-suite pass is claimed.
+  Current runtime recovery receipts and remaining acceptance are recorded in
+  `path:docs/agent-system/effort-supervision-validation.md` at repository root.
+
+## 2026-09-12 — Bounded Test Genie unit-gate consolidation
+
+- Rung: W3, PM test utilities and regression triage only. Existing Test Genie run
+  `20260912-151826-23573700` remains terminal **FAIL**. Read its artifact catalog,
+  `unit.log`, `unit.json` and `findings.json`, including the retained native
+  Unit Health response. No wait, poll, new suite or re-admission was performed.
+  The supplied process session was unavailable; persisted artifacts supplied
+  the evidence instead.
+- `COMPANION_REIMPLEMENTED` (`afid:1572dcfa2f15be56`) identified the local
+  `internal/testutil/httpx/handler.go::DecodeJSON`. Search found both shared
+  helpers: `servertest.DecodeJSON` consumes fixture requests, whereas
+  `apihttptest.MustDecodeJSON` consumes response bytes. PM's only remaining
+  caller was its helper test. Removed the duplicate and changed that caller
+  to `apihttptest.MustDecodeJSON[T](t, recorder.Body.Bytes())`; kept the status and
+  decoded-value assertions. No forwarding wrapper, artificial request adapter,
+  helper dependency or suppression was added. Updated `UNIT_TEST_ARCHITECTURE.md`
+  to direct new response assertions to the shared implementation.
+- Coverage hypotheses: (A) affected team/Events tests fail when instrumented;
+  (B) other UI assertions make the coverage command exit; (C) a coverage
+  threshold or runner failure is the primary cause. Native command evidence
+  identifies **test_failure**, exit 1, 79.642 seconds: **21 failed / 2345 passed
+  tests, six failed / 212 passed files**. API, CLI and UI typecheck commands
+  passed in that same recorded cut. Hypothesis B is supported; no percentage
+  threshold or runner failure is reported as this command's cause.
+- Retained output identifies `world/sim/__tests__/no-literals.test.ts` (one
+  failure), `world/sim/terrain/__tests__/stands.test.ts` (two), and
+  `world/data/__tests__/synthetic.test.ts` (three). The bounded excerpts do not
+  name every one of the 21 failures; do not claim complete attribution.
+  A focused current-source run of the first two files reproduces **three failed,
+  14 passed** tests: 222 literal findings, and clustered spacing variance below
+  the uniform comparison at seeds 42 (12.566562233486268 versus
+  14.229844695235323) and 1337 (14.985384535098552 versus 19.253472594569843).
+  This is a failing world-policy/terrain regression, not a team/Events decoder
+  failure. Owner: PM world UI/simulation maintenance, related existing Scenario
+  QA observation `knw-1789196870044782367`. No world tests, expectations,
+  allowlists or production behavior were changed by this sidecar.
+- Current focused validation passed:
+  - API: `go test -race ./internal/testutil/... -count=1 -timeout=60s` (four
+    tested packages; mocks has no tests).
+  - UI: the four team/Events regression files named in the read-only revalidation
+    entry below, using `pnpm exec vitest run` with `--coverage`, a fresh temporary
+    reports directory, and JSON/text reporters: **88 passed**. V8 emitted
+    `/tmp/pm-testgate-coverage.3V7C6y/coverage-final.json`. This rejects hypothesis
+    A for the current cut, not for every earlier mutable source version.
+  - UI: `pnpm exec tsc --noEmit` passed. Scoped `git diff --check` passed.
+- Separate coverage-report contract gap at the original cut: the recorded adapter
+  expects `coverage/coverage-summary.json` or `coverage/lcov.info`, while Vitest
+  declared text/JSON/HTML reporters. The first successful focused run proved
+  coverage execution, not production of the owner's expected aggregate format.
+- Authorized reporter follow-up: added `json-summary` and `lcov` to
+  `ui/vitest.config.ts`, preserving the existing reporters, test selection,
+  exclusions and failure behavior. Ran `pnpm run test:coverage` with the same
+  four team/Events regression files and only
+  `--coverage.reportsDirectory /tmp/pm-coverage-reporters.uAcNt8` as a coverage
+  override. **88 tests passed**; the configured reporters emitted
+  `coverage-summary.json` and `lcov.info` in that fresh directory. Validated the
+  supported summary/LCOV fields, bounded counts and exact per-file/aggregate
+  agreement across 531 source files (7047 covered / 85895 total lines).
+  These counts describe a focused test selection, not full-suite coverage or
+  acceptance. `pnpm exec tsc --noEmit` and scoped `git diff --check` passed.
+  This closes the producer-format gap; no Unit Health/Test Genie re-admission
+  was performed, and the unrelated broad test failures remain unresolved.
+- Main owns Test Genie re-admission after integration and the remaining world
+  repairs. The old receipt is not relabeled passing. No heartbeat owner,
+  finite-leader, protobuf/schema, live configuration or lifecycle changes.
+
+## 2026-09-12 — Read-only team and Events regression revalidation
+
+- Rung: W3, bounded docs/UI sidecar. Revalidate the existing fixes against the
+  currently served PM payloads; do not change owner code, protobufs, member
+  contracts, live configuration or effort execution.
+- At 15:53 UTC, PM `TeamsService.GetTeam` returned the one-member
+  `effort-supervision` team. `HeartbeatService.ListTeamLogs` returned HTTP 200
+  with `logs:null`, `total:0`, `hasMore:false`. The served team route rendered
+  `No local logs.` without an error boundary or a false success percentage.
+- PM `HeartbeatService.GetRunEvents` returned HTTP 200 and 68 events for
+  `bc4df2ce-f2aa-472c-acb6-af8a27410f14`. Three events (sequences 8, 60 and 65)
+  still omit both discriminator and payload. The served Events tab rendered
+  three `[unspecified]` rows without a page error. PM cannot reconstruct fields
+  the owner did not send; this remains upstream evidence loss, not PM success.
+- The accounting read at 15:53 UTC reported one known owner run, unavailable.
+  A separate browser read at 15:55 UTC reported one known and one observed run.
+  The browser assertion compared the rendered counts to its own exact response,
+  not the earlier cut. Partial coverage, unknown token usage/actual charge and
+  the distinction between runtime completion and acceptance remained visible.
+  These changing reads do not certify owner stability or complete team history.
+- Local Chrome inspected the existing served bundle, with non-read requests
+  blocked before dispatch. Both probes completed with zero page errors and zero
+  attempted blocked requests. Only navigation and the Events tab were exercised;
+  no activation, recovery, save, rebuild or lifecycle action occurred.
+- Current-source validation: `pnpm exec vitest run
+  src/services/heartbeatService.test.ts
+  src/components/editor/teamTabs/TeamDashboardTab.test.tsx
+  src/components/shared/EventsDisplay.test.tsx
+  src/components/editor/teamTabs/TeamActivityTab.test.tsx` passed 88 tests across
+  four files. `pnpm exec tsc --noEmit` passed. Both commands ran in `ui/`;
+  no broad suite was requested. Shared-worktree results are not immutable-input
+  certification or a finite-runtime adoption receipt.
+- Live responsibilities and heartbeat instructions matched their local member
+  files and contain no USI/Aquila/LPBS-specific selection. They support diagnosis,
+  qualified owner recovery and post-recovery progress checks. The current
+  operating contract allows only knowledge writes and forbids changing active
+  effort files: coordination of approved repair is supported, but direct repair
+  by this member requires an owner-authorized contract/grant decision. The
+  sidecar did not amend that runtime contract.
+- `docs/concepts/SWARM-MODEL.md` now explicitly distinguishes the current
+  single-admission finite-leader prototype from intended recurring lifecycle
+  and qualified legacy adoption. Main retains live qualification ownership;
+  missing LPBS human inputs remain a wait.
+
+## 2026-09-12 — Run Events default discriminator crashes rendering
+
+- W3 response-boundary defect: AM maps unsupported internal event types to the
+  protobuf UNSPECIFIED default, which JSON omits. PM asserted a required enum
+  string through `apiRequest<T>` and used `toLowerCase()` without wire validation.
+  Connect's `Value` validates its wrapper, not this embedded event contract.
+- Repair: `ui/src/lib/schemas/runEvent.schema.ts` validates unknown input and
+  normalizes at `getRunEvents`, with an open discriminator, explicit unspecified
+  rendering, camel/snake aliases and retained unknown fields. Malformed identities
+  fail explicitly. Unknown payloads do not become fake successful log events.
+- Desired-behavior fixtures: 22 red cases before repair, 53 focused tests pass
+  after repair; type check and production UI build pass. Live Events page for run
+  `bc4df2ce-f2aa-472c-acb6-af8a27410f14` renders all three unspecified events
+  without an error boundary or browser page errors.
+- Static typing cannot validate external JSON, and a type assertion suppresses
+  the compiler's uncertainty. Keep runtime decoding and wire-shaped regressions
+  at the boundary. This is not a justification for weakening lint or adding
+  optional chaining in every component.
+- AM's lossy internal-event mapping remains upstream coverage debt; PM can retain
+  only what it receives. Exact standing-team run totals also remain open under
+  QA `knw-1789218871720082611`; the UI now labels local logs and missing totals
+  honestly instead of reporting false zero-runs/100%-success statistics.
+
+## 2026-09-12 — Empty team log page crashes the team dashboard
+
+- Rung: W3 localized implementation defect. Opening a valid team with no log
+  files must render an empty activity state, including a team with no members.
+- Reproduced the Effort Supervision route's error boundary in the served UI:
+  `Cannot read properties of null (reading 'filter')`.
+- Cause: an empty Go slice is returned as `logs: null`, retained through the
+  Connect JSON `Value` envelope. `TeamDashboardTab` consumes the declared array
+  with `teamLogs.filter()`. Initial loading and heartbeat unavailability were
+  rejected as causes by the successful empty-log response and wire fixture.
+- Repair: `ui/src/services/heartbeatService.ts::listTeamLogs` normalizes null or
+  omitted logs once at the existing UI boundary. It preserves entries, total,
+  and pagination; no per-component guard or fake team configuration is needed.
+- Regression evidence: eight failures before repair, including the exact
+  filter exception with populated and empty rosters; afterward 32 focused tests
+  pass across four files and `pnpm exec tsc --noEmit` passes. Cases cover REST
+  and Connect, null/omitted/empty lists, populated lists and an offset beyond
+  the last page. Live rebuilt-asset validation and Test Genie receipt are
+  recorded in `docs/agent-system/effort-supervision-validation.md` at repo root.
+- Prior-art recall found `rec-b6af210dbf97d24e`, related request/protobuf
+  normalization work; it did not cover this response-side empty collection.
+
+## 2026-09-12 — Standing member skips team corpus provisioning
+
+- Rung: W3, selected-team adoption prerequisite; no Source Ledger engine change.
+- Prior-art lookup found `source-ledger scopes create` and the owner's
+  `reference/team-corpus-adoption.md` member-start contract. PM already owns
+  `sourceledger.Client.EnsureTeamScope` with the six semantic facets.
+- Live `policy show` and `recall wake` for `team:effort-supervision` both reported
+  that the scope was not registered. A general ledger outage was an alternative
+  hypothesis; successful scope listing with the other team registrations rejects
+  that explanation. The standing branch in `Executor.Execute` returned before
+  the existing per-member ensure, and boot registration lists only six old teams.
+- Required repair: selected standing dispatch must use the existing ensure
+  before prompt construction or AM work. Preserve typed owner unavailability
+  and do not charge or launch an inference wake when provisioning fails.
+- Owner setup is restricted to `team:effort-supervision` through the canonical
+  scopes API/CLI. A qualification topic must identify itself as a storage test,
+  not duplicate or manufacture an AM assessment receipt.
+
+Live adoption proof (2026-09-12):
+
+- Created only `team:effort-supervision` with `source-ledger scopes create`,
+  using PM's six `TeamScopeFacets`, frontier 16, wake 128 lines / 12000 chars,
+  and entry ceiling 2 lines / 200 chars. Scoped policy, facets and bounded wake
+  reads succeeded. No lifecycle operation or classification-rule change.
+- Wrote once through `prompt-manager team knowledge-add effort-supervision` to
+  `supervision-assessment/qualification-source-ledger-20260912`. The content
+  explicitly states storage qualification, not an AM assessment, sample receipt,
+  effort coverage claim or steering grant; its source is this scenario's
+  `docs/reference/heartbeat-cli.md`, not the existing live assessment.
+- `team knowledge-list effort-supervision --topic
+  supervision-assessment/qualification-source-ledger-20260912 --json` returned
+  `knw-1789200139339093840`. Source Ledger's scoped journal read independently
+  returned backing entry `7f0ca855-a4d4-47d1-9c77-7cc4f9d50ad1`, kind
+  `prompt-manager.team-knowledge`, with the same encoded ID/topic/body.
+- This roundtrip qualifies topic storage, not supervisor completion. Main owns
+  the next live wake. Rules remain empty per the existing new-scope contract;
+  fallback facet classification is separate from PM's typed topic persistence.
+
+The runtime repair only calls the existing `EnsureTeamScope` from standing
+dispatch; it adds no startup enumerator, private store or new provisioning
+mechanism. `TestExecutorStandingSupervisorEnsuresSelectedTeamCorpus` failed
+before the repair (1.552s): the prompt ran without registration and ledger
+unavailability did not block launch. The corrected generated-protobuf fixture
+passes with the existing standing tests under `-race` (heartbeat 7.655s,
+sourceledger 1.026s), including repeat reuse and failure without inference charge.
+Final `go test ./internal/heartbeat ./internal/sourceledger ./internal/teamconfig
+./internal/store -count=1` passed (55.320s / 0.006s / 0.002s / 10.506s), using
+private `GOCACHE=/tmp/pm-supervision-go-cache.4DYaZ9`. Scoped diff check passed.
+
+## 2026-09-12 — Heartbeat JSON publication races queued execution
+
+**Scope:** W3 storage-writer repair; no scheduler, live configuration or AM change.
+
+The manual-trigger handler enqueues execution before recording its trigger
+marker. The executor can read `heartbeat.json` while `SetHeartbeatConfig` calls
+`SaveJSON`, whose direct `os.WriteFile` truncates the already-published file.
+The isolated `TestTriggerHeartbeat_FullPathWithTeamExecStore` reproduced
+`unexpected end of JSON input` in a 15-repetition run (5.391s), before task or run
+creation. Related heartbeat work records did not establish a prior matching fix.
+
+Two hypotheses were tested: an asynchronous test wait that was too short would
+delay mock calls without a parse failure; concurrent publication would fail at
+the JSON read before either call. The observed parse error and enqueue/write
+ordering support the latter. Increasing waits or retrying malformed JSON would
+not repair the owning writer.
+
+Required behavior: a reader overlapping an update must receive a complete old
+or new JSON snapshot. An already-open reader must be able to finish its old
+snapshot. `SaveJSON` must publish through the existing
+`api-core/storage.WriteFileAtomic` seam (same-directory temporary file, sync and
+rename), not introduce a private atomic writer. This prevents torn publication;
+it does not make multi-call read/modify/write operations transactional.
+
+**Resolved and qualified:** `SaveJSON` now uses that shared atomic-write seam.
+`TestHeartbeatConfigPublicationPreservesInFlightReaderSnapshot` failed before the
+fix with the same parse error (0.007s), then passed (0.034s). It deterministically
+interleaves a partial read with replacement publication and checks both the old
+reader's complete snapshot and the new reader's replacement. The original
+handler and its timing-based test were not changed.
+
+Post-fix commands, run from `scenarios/prompt-manager/api` with private
+`GOCACHE=/tmp/pm-supervision-go-cache.4DYaZ9`:
+
+- `go test ./internal/heartbeat -run '^TestTriggerHeartbeat_FullPathWithTeamExecStore$' -count=30`
+  — PASS, 23.609s.
+- `go test ./internal/heartbeat ./internal/teamconfig ./internal/store -count=1`
+  — PASS, respectively 45.850s / 0.002s / 6.250s.
+- `go test -race ./internal/heartbeat ./internal/store -run '^(TestStandingSupervisor|TestHeartbeatConfigPublicationPreservesInFlightReaderSnapshot)' -count=1`
+  — PASS, respectively 5.261s / 1.068s. This supersedes the historical generated
+  AM WorkReferences failure below: main's AM wire repair now passes the PM
+  consumer contract fixture.
+
+No release hold remains for this defect. Qualification is local test evidence,
+not a live pilot receipt or a new scenario-wide Test Genie qualification. No
+lifecycle, live-team configuration, AM or `effort_supervision*.go` edits were
+made in this focused repair.
+
+## Work ladder — standing effort supervision (2026-09-12)
+
+- Rung: W3, scoped implementation under the supplied ES-09/10/13 contract.
+- Evidence: existing scheduler enqueues every enabled tick without evidence
+  admission; team recovery drops uncertain run reads. The standing supervisor
+  needs durable admission fencing independent of transient queue visibility.
+- Scope: PM heartbeat/team/context seam; AM discovery and directive authority
+  remain behind a consumer-owned port. No full W0–W2 readiness claim.
+- Target: `docs/concepts/HEARTBEATS.md`, Standing effort supervision.
+
+Qualification handoff (2026-09-12, PM implementation only):
+
+- Passed full `go test ./internal/heartbeat ./internal/teamconfig
+  ./internal/teamcontract ./internal/store -count=1` and main-package compile.
+- Passed race-enabled `TestStandingSupervisor*`, including AM adapter receipts,
+  self-assessment/no-wake versus concurrent subject-change preservation, failed
+  and cancelled unassessed recovery, quota charges, bounded healthy samples,
+  restart/uncertainty and delete/recreate fencing. Passed live-tree member
+  declaration/member-document gates and CLI `go test ./teams -count=1`.
+- Test Genie unit run `20260912-065400-fefe5bd5` failed. Its new-team headings and
+  role/member drift were repaired and their focused gates passed afterward.
+  Adding this peer team also requires main-owned generated operating-graph
+  updates in the meta-optimization and scenario-qa owner docs. The run's separate
+  UI world/synthetic-roster failures are retained in Scenario QA record
+  `knw-1789196870044782367`. Broader architecture/coverage findings remain; this
+  handoff does not claim a green scenario-wide unit receipt.
+- AM must provide a subject-evidence row identity that excludes the supervisor's
+  own assessment/accounting. PM tests explicitly require this contract and never
+  mark an unrelated latest subject cut served from an older wake's receipt.
+- No service restart, live supervisor launch, global policy change or pilot
+  activation was performed by this worker. See `reference/heartbeat-cli.md` for
+  staged configuration, activation, status and stop operations. Main owns live
+  role-token/assessment qualification, bounded pilot and steering-grant checks.
+
+Focused integration follow-up (2026-09-12):
+
+- Removed enrollment CAS revision from AM-client wake identity. Fixtures change
+  CAS on dispatch revalidation and repeated joins without waking, while target
+  or subject-evidence changes remain eligible.
+- Wake prompts name `agent-manager effort assess --request-file <request.json>
+  --json` and include a generated typed receipt skeleton. They require the actual
+  AM-signed caller and observed-supervisor membership, not a team knowledge-only
+  receipt. Owner credentials and optional steering grants do not gate observation.
+- PM CreateRun carries public/active/verified effort WorkReferences for exactly
+  the selected efforts, with relationship `supervisor`. No private token store,
+  local human exchange, signing key or auto-grant path was added.
+- The initial frozen AM generated CreateRun contract rejects `work_references`.
+  `TestStandingSupervisorCreateRunGeneratedWorkReferenceContract` catches this
+  explicitly; main owns exposing and persisting the field before live adoption.
+  The race-enabled supervisor run reported this sole failure (2.821s); other
+  cases passed. This receipt does not qualify end-to-end live observation.
+- Retained valid target/evidence identity now permits stale/unavailable uncertainty
+  assessment, explicitly observation-only. Invalid identity rows are excluded
+  without losing valid siblings. Healthy sampling excludes observation-only cuts;
+  stale-transition and unchanged-suppression fixtures cover this boundary.
+- Empty accepted target revision is valid for uncertainty assessment. PM requires
+  effort/evidence/board identity, keeps the exact empty value in the typed receipt
+  map and requires that map key to be present when checking coverage. Missing
+  accepted target forces observation-only standing, not exclusion or steering.
+  Final race-enabled supervisor test run (2.301s) still reports only the generated
+  AM CreateRun `work_references` wire failure; all PM behavior cases pass.
 
 ## 2026-09-04 — Workflow runner loses leading navigation context
 

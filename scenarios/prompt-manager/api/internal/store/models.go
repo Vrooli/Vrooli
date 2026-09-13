@@ -232,6 +232,13 @@ type AgentRuntime struct {
 
 // Team represents a team entity from team.json
 type Team struct {
+	Purpose          string                            `json:"purpose,omitempty"`
+	Lifetime         string                            `json:"lifetime,omitempty"`
+	EffortRefs       []string                          `json:"effortRefs,omitempty"`
+	ObjectivesServed []teamconfig.ObjectiveDeclaration `json:"objectivesServed,omitempty"`
+	PurposeSet       bool                              `json:"-"`
+	LifetimeSet      bool                              `json:"-"`
+
 	BaseEntity
 	ID                string                          `json:"id"`
 	DisplayName       string                          `json:"displayName"`
@@ -348,6 +355,7 @@ func (t *Team) Contract() teamconfig.Contract {
 		return teamconfig.Contract{}
 	}
 	return teamconfig.Contract{
+		Purpose: t.Purpose, Lifetime: t.Lifetime, EffortRefs: t.EffortRefs,
 		Runtime:      t.Runtime,
 		Coordination: t.Coordination,
 		Execution:    t.Execution,
@@ -652,14 +660,16 @@ type TeamsIndexEntry struct {
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
 	BaseEntity
-	TeamID              string `json:"teamId"`
-	AgentID             string `json:"agentId"`
-	Enabled             bool   `json:"enabled"`
-	Schedule            string `json:"schedule"`                 // Cron expression
-	ProfileKey          string `json:"profileKey,omitempty"`     // agent-manager profile key
-	TimeoutSeconds      int    `json:"timeoutSeconds,omitempty"` // 0 = use default
-	ConsecutiveFailures int    `json:"consecutiveFailures"`
-	LifecycleState      string `json:"lifecycleState"`
+	FiniteLeader        *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
+	Supervision         *teamconfig.Supervision  `json:"supervision,omitempty"`
+	TeamID              string                   `json:"teamId"`
+	AgentID             string                   `json:"agentId"`
+	Enabled             bool                     `json:"enabled"`
+	Schedule            string                   `json:"schedule"`                 // Cron expression
+	ProfileKey          string                   `json:"profileKey,omitempty"`     // agent-manager profile key
+	TimeoutSeconds      int                      `json:"timeoutSeconds,omitempty"` // 0 = use default
+	ConsecutiveFailures int                      `json:"consecutiveFailures"`
+	LifecycleState      string                   `json:"lifecycleState"`
 	// LastManualTriggerAt bounds repeated operator/API triggers to one run per
 	// schedule window. Scheduled executions do not update this marker.
 	LastManualTriggerAt     string               `json:"lastManualTriggerAt,omitempty"`

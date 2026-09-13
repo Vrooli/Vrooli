@@ -64,6 +64,13 @@ func workTransitionKey(workType string) string {
 	return "work.follow_up"
 }
 
+// startTransition starts a registry transition for a record, stamping the
+// backlog-owner activity shared by every execution transition.
+func (s *Service) startTransition(ctx context.Context, transitionKey string, record Record, purpose string, input transitionrunner.PreparedInput) (transitionrun.Correlation, error) {
+	input.Activity = &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: purpose}
+	return s.transitionRunner.StartWith(ctx, transitionKey, record.ExecutionID, input)
+}
+
 // startWorkWorkflow starts one correction or follow-up through the runner's
 // registered input builder. The record must already be persisted with its
 // OperatorNote: the builder reads the durable record, so an unsaved record
@@ -72,7 +79,7 @@ func (s *Service) startWorkWorkflow(ctx context.Context, record Record, workType
 	if s.transitionRunner == nil {
 		return agentmanager.WorkflowStart{}, workWorkflowSnapshot{}, agentmanager.ErrNotAvailable
 	}
-	started, err := s.transitionRunner.StartWith(ctx, workTransitionKey(workType), record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: map[bool]string{true: "correct", false: "follow_up"}[workType == "fixup"], Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: workType}})
+	started, err := s.startTransition(ctx, workTransitionKey(workType), record, workType, transitionrunner.PreparedInput{FirstRunNodeID: map[bool]string{true: "correct", false: "follow_up"}[workType == "fixup"]})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, workWorkflowSnapshot{}, err
 	}

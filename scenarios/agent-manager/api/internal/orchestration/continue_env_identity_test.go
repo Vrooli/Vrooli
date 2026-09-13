@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 
@@ -29,6 +31,18 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
+	// Observe identity while this continued turn is still live. Returning the
+	// runner immediately races verification against its legitimate final revocation.
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	finishTurn := func() { releaseOnce.Do(func() { close(release) }) }
+	previousContinue := mockRunner.ContinueFunc
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		result, err := previousContinue(ctx, req)
+		<-release
+		return result, err
+	}
+	t.Cleanup(finishTurn)
 	registry := runner.NewRegistry()
 	if err := registry.Register(mockRunner); err != nil {
 		t.Fatalf("register runner: %v", err)
@@ -67,19 +81,25 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	// CreateRunRequest.Environment set.
 	now := time.Now()
 	runID := uuid.New()
+	oldToken, err := identity.GenerateToken(&identity.Claims{RunID: runID, TaskID: task.ID, IssuedAt: now.Add(-time.Hour).Unix(), ExpiresAt: now.Add(time.Hour).Unix()}, identitySecret)
+	if err != nil {
+		t.Fatal(err)
+	}
 	directRun := &domain.Run{
-		ID:             runID,
-		TaskID:         task.ID,
-		AgentProfileID: &profile.ID,
-		Tag:            runID.String(),
-		RunMode:        domain.RunModeInPlace,
-		Status:         domain.RunStatusComplete,
-		Phase:          domain.RunPhaseCompleted,
-		SessionID:      "sess-" + uuid.New().String()[:8],
-		StartedAt:      &now,
-		EndedAt:        &now,
-		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
-		ApprovalState:  domain.ApprovalStateNone,
+		ID:                     runID,
+		TaskID:                 task.ID,
+		AgentProfileID:         &profile.ID,
+		Tag:                    runID.String(),
+		RunMode:                domain.RunModeInPlace,
+		Status:                 domain.RunStatusComplete,
+		Phase:                  domain.RunPhaseCompleted,
+		SessionID:              "sess-" + uuid.New().String()[:8],
+		StartedAt:              &now,
+		EndedAt:                &now,
+		ResolvedConfig:         &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:          domain.ApprovalStateNone,
+		IdentityTokenHash:      identity.HashToken(oldToken),
+		IdentityTokenRevokedAt: &now,
 		CustomEnv: map[string]string{
 			"VROOLI_SHADOW_SCENARIOS":         "agent-manager",
 			"VROOLI_SWARM_MANAGER_SESSION_ID": "sess-orig",
@@ -89,6 +109,10 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	}
 	if err := repos.Runs.Create(ctx, directRun); err != nil {
 		t.Fatalf("create run: %v", err)
+	}
+	before, err := svc.VerifyIdentityToken(ctx, oldToken)
+	if err != nil || before.Valid {
+		t.Fatal("terminal credential must be revoked before continuation")
 	}
 
 	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
@@ -114,10 +138,10 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 
 	// Custom env must survive the continuation.
 	if env["VROOLI_SHADOW_SCENARIOS"] != "agent-manager" {
-		t.Errorf("custom env VROOLI_SHADOW_SCENARIOS dropped: %v", env)
+		t.Error("custom env VROOLI_SHADOW_SCENARIOS dropped")
 	}
 	if env["VROOLI_SWARM_MANAGER_SESSION_ID"] != "sess-orig" {
-		t.Errorf("custom env VROOLI_SWARM_MANAGER_SESSION_ID dropped: %v", env)
+		t.Error("custom env VROOLI_SWARM_MANAGER_SESSION_ID dropped")
 	}
 
 	// A fresh identity token must be present and verifiable against this run.
@@ -134,6 +158,36 @@ func TestContinueRun_PreservesCustomEnvAndIdentity(t *testing.T) {
 	}
 	if res.Claims == nil || res.Claims.RunID != runID {
 		t.Errorf("identity claims do not bind to the run: %+v", res.Claims)
+	}
+	previous, err := svc.VerifyIdentityToken(ctx, oldToken)
+	if err != nil || previous.Valid {
+		t.Fatal("continuation revived the previous credential")
+	}
+	persisted, err := repos.Runs.Get(ctx, runID)
+	if err != nil || persisted.IdentityTokenRevokedAt != nil {
+		t.Fatal("new generation retained prior revocation")
+	}
+	finishTurn()
+	deadline := time.After(5 * time.Second)
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-deadline:
+			t.Fatal("continued test turn did not finish")
+		case <-tick.C:
+			finished, err := repos.Runs.Get(ctx, runID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if finished.Status.IsTerminal() {
+				verified, err := svc.VerifyIdentityToken(ctx, token)
+				if err != nil || verified.Valid || finished.IdentityTokenRevokedAt == nil {
+					t.Fatal("continued turn completion must revoke its credential")
+				}
+				return
+			}
+		}
 	}
 }
 

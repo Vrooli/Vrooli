@@ -24,7 +24,7 @@
   "review_require_screenshots": true,
   "review_require_tests": true,
   "lane_concurrency_limits": {
-    "execute": 3,
+    "execute": 10,
     "investigate": 6,
     "reconcile": 2,
     "review": 8

@@ -1,5 +1,18 @@
 # Swarm Manager Architecture
 
+## Work-shape routing
+
+Not every Swarm work item is plan-backed. The shared work-shape decision in
+`docs/agent-system/SWARM_MANAGER_WORK.md` may route a request to a discovered
+Action, bounded task, or read-only investigation/review. Those shapes use a
+harness goal and their owning operation; they do not acquire Plan Manager
+family overhead just because the parent effort is large.
+
+Plan-backed execution is selected when a reviewed plan-shaped change boundary
+is needed. A large effort may contain several shapes, but each worker receives
+the cheapest shape that preserves its actual authority, durability and review
+needs.
+
 ## Plan-backed execution
 
 Swarm owns the backlog item, the exact Plan Manager revision, acceptance, the

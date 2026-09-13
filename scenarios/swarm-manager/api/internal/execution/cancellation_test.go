@@ -39,7 +39,7 @@ func TestCancelPendingLostAcknowledgementUsesOnlyOriginalOwner(t *testing.T) {
 	for _, reviewed := range []bool{false, true} {
 		t.Run(fmt.Sprintf("reviewed=%v", reviewed), func(t *testing.T) {
 			root, name := t.TempDir(), "lost-start-cancel"
-			item := map[string]any{"name": name, "title": name, "status": "ready", "execution_strategy": adaptiveImprovementStrategy}
+			item := map[string]any{"name": name, "title": name, "status": "ready", "execution_mode": "sliced"}
 			if reviewed {
 				item["execution_limits"] = reviewedLimits()
 			}
@@ -138,7 +138,7 @@ func TestCancelAcknowledgementRetainsReservationAndRestartSettlesOnce(t *testing
 	name := "cancel-accounting"
 	mustWriteBacklogItem(t, root, "execute", name, map[string]any{
 		"name": name, "title": "Cancellation accounting", "status": "ready",
-		"execution_strategy": adaptiveImprovementStrategy, "execution_limits": reviewedLimits(),
+		"execution_mode": "sliced", "execution_limits": reviewedLimits(),
 	})
 	workflow := &stubPhasedPlanWorkflow{collectErr: agentmanager.ErrWorkflowNotReady}
 	newService := func() *Service {

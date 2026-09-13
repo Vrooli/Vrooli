@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,6 +18,51 @@ type testSequencedSink struct {
 	mu     sync.Mutex
 	events []*domain.RunEvent
 	seq    int64
+}
+
+func TestConsumeNativeGoalSurvivesTurnEndButNotNewWork(t *testing.T) {
+	for _, suffix := range []string{"turn\n", "user\n", "user_metadata\n", "active\n", "failure\n"} {
+		t.Run(strings.TrimSpace(suffix), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "transcript")
+			if err := os.WriteFile(path, []byte("goal\n"+suffix), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, terminal, err := Consume(t.Context(), ConsumeArgs{RunID: uuid.New(), Transcript: path, ParseFn: func(id uuid.UUID, line string) TranscriptParseResult {
+				switch strings.TrimSpace(line) {
+				case "goal":
+					return TranscriptParseResult{Goal: &GoalMarker{Objective: "finish", Status: GoalStatusComplete}}
+				case "turn":
+					return TranscriptParseResult{Terminal: &TranscriptTerminal{Success: true}}
+				case "user":
+					return TranscriptParseResult{Events: []*domain.RunEvent{domain.NewMessageEvent(id, "user", "next work")}}
+				case "user_metadata":
+					return TranscriptParseResult{UserTurnStarted: true}
+				case "active":
+					return TranscriptParseResult{Goal: &GoalMarker{Objective: "next", Status: GoalStatusActive}}
+				case "failure":
+					return TranscriptParseResult{Terminal: &TranscriptTerminal{Success: false}}
+				}
+				return TranscriptParseResult{}
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch suffix {
+			case "turn\n":
+				if terminal == nil || terminal.TerminalReason != "goal_complete" {
+					t.Fatal("accepted goal overwritten by turn boundary", terminal)
+				}
+			case "failure\n":
+				if terminal == nil || terminal.Success {
+					t.Fatal("later failure hidden", terminal)
+				}
+			default:
+				if terminal != nil {
+					t.Fatal("earlier goal closed new work", terminal)
+				}
+			}
+		})
+	}
 }
 
 func (s *testSequencedSink) Emit(event *domain.RunEvent) error {
@@ -109,6 +155,55 @@ func TestConsumeTreatsCompletedNativeGoalAsTerminalSuccess(t *testing.T) {
 	}
 	if got == nil || !got.Success || terminal == nil || !terminal.Success {
 		t.Fatalf("completed native goal did not produce terminal success: got=%+v callback=%+v", got, terminal)
+	}
+}
+
+// TestConsumeMapsGoalStatusToStopClass proves each harness goal status produces
+// the typed terminal class Swarm reads: a complete/blocked goal is a verdict, a
+// usage/budget limit is an interruption, and no non-complete state is reported
+// as success.
+func TestConsumeMapsGoalStatusToStopClass(t *testing.T) {
+	cases := []struct {
+		status     GoalStatus
+		wantOK     bool
+		wantClass  domain.RunTerminalClass
+		wantReason domain.RunStopReason
+	}{
+		{GoalStatusComplete, true, domain.RunTerminalClassVerdict, domain.RunStopReasonComplete},
+		{GoalStatusBlocked, true, domain.RunTerminalClassVerdict, domain.RunStopReasonBlocked},
+		{GoalStatusUsageLimited, false, domain.RunTerminalClassInterruption, domain.RunStopReasonUsageWindow},
+		{GoalStatusBudgetLimited, false, domain.RunTerminalClassInterruption, domain.RunStopReasonUsageWindow},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.status), func(t *testing.T) {
+			dir := t.TempDir()
+			transcript := filepath.Join(dir, "transcript.ndjson")
+			if err := os.WriteFile(transcript, []byte("goal\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, got, err := Consume(context.Background(), ConsumeArgs{
+				RunID:      uuid.New(),
+				Transcript: transcript,
+				ParseFn: func(uuid.UUID, string) TranscriptParseResult {
+					return TranscriptParseResult{Goal: &GoalMarker{Objective: "finish", Status: tc.status}}
+				},
+			})
+			if err != nil {
+				t.Fatalf("Consume: %v", err)
+			}
+			if got == nil {
+				t.Fatal("no terminal produced")
+			}
+			if got.Success != tc.wantOK {
+				t.Fatalf("success = %v, want %v", got.Success, tc.wantOK)
+			}
+			if got.TerminalClass != tc.wantClass {
+				t.Fatalf("terminal class = %q, want %q", got.TerminalClass, tc.wantClass)
+			}
+			if got.StopReason != tc.wantReason {
+				t.Fatalf("stop reason = %q, want %q", got.StopReason, tc.wantReason)
+			}
+		})
 	}
 }
 

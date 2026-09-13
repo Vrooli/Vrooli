@@ -30,9 +30,9 @@ describe("member-item-strategy mapping module", () => {
         kind: "mode",
         mode: "holistic-loop",
       });
-      expect(resolveModePresentation("phased-plan-drain")).toEqual({
+      expect(resolveModePresentation("sliced")).toEqual({
         kind: "mode",
-        mode: "phased-plan-drain",
+        mode: "sliced",
       });
     });
   });
@@ -74,7 +74,7 @@ describe("member-item-strategy mapping module", () => {
     });
 
     it("humanizes genuine mode ids without a server label", () => {
-      expect(presentModeLabel("phased-plan-drain")).toBe("Phased Plan Drain");
+      expect(presentModeLabel("sliced")).toBe("Phased Plan Drain");
       expect(presentModeLabel("holistic_loop")).toBe("Holistic Loop");
     });
   });

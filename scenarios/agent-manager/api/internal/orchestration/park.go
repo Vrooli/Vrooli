@@ -191,6 +191,8 @@ type WakeRunInput struct {
 // is cleared as part of the wake; resumeConversation transitions parked→running,
 // resets the heartbeat, and re-injects the full env + a fresh identity token.
 func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Run, error) {
+	// Wake progresses an already-admitted parked run, which remains counted by
+	// maintenance inventory. It must not attempt a new maintenance admission.
 	// Claim the parked state under one process-wide lifecycle lock before
 	// clearing the handle or launching continuation. A second notification then
 	// re-reads the now-running row and becomes the documented idempotent no-op.
@@ -210,6 +212,9 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 	// resolve) — return the current run so callers treat it as already-woken.
 	if run.Status != domain.RunStatusParked {
 		return o.attachRunActions(ctx, run), nil
+	}
+	if err := o.validateContinuationSession(ctx, run); err != nil {
+		return nil, err
 	}
 
 	// Cancel the background watcher before resuming. When wake is driven by the

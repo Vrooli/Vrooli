@@ -51,6 +51,26 @@ func TestClaudeGoalStatusParsesInteractiveAttachment(t *testing.T) {
 	}
 }
 
+// TestGoalMarkerParityAcrossCodecs proves Claude and Codex produce the same
+// GoalMarker shape for the same objective/status, so the consumer and workflow
+// terminal mapping is harness-independent.
+func TestGoalMarkerParityAcrossCodecs(t *testing.T) {
+	codexMarker, ok := codexGoalStatus(`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"finish the plan","status":"complete"}}}`)
+	if !ok {
+		t.Fatal("codex marker not recognized")
+	}
+	claudeMarker, ok := claudeGoalStatus(`{"type":"attachment","attachment":{"type":"goal_status","condition":"finish the plan","met":true}}`)
+	if !ok {
+		t.Fatal("claude marker not recognized")
+	}
+	if codexMarker.Objective != claudeMarker.Objective || codexMarker.Status != claudeMarker.Status {
+		t.Fatalf("marker shapes differ: codex=%+v claude=%+v", codexMarker, claudeMarker)
+	}
+	if claudeMarker.Status != runner.GoalStatusComplete {
+		t.Fatalf("expected complete vocabulary, got %q", claudeMarker.Status)
+	}
+}
+
 func TestClaudeGoalStatusDoesNotTreatProseAsMarker(t *testing.T) {
 	if _, ok := claudeGoalStatus(`{"type":"assistant","message":{"content":[{"type":"text","text":"goal_status met true"}]}}`); ok {
 		t.Fatal("assistant prose must not become a goal marker")

@@ -20,6 +20,7 @@ import (
 	"agent-manager/internal/httpmw"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/maintenance"
 	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelpolicydrift"
@@ -51,6 +52,7 @@ import (
 // registration. Keeping this composition data in wiring prevents the entry
 // point from acquiring presentation or business logic.
 type RouteDependencies struct {
+	Recovery                 *maintenance.Recovery
 	CapabilityRegistry       *capabilities.Registry
 	DB                       *database.DB
 	Orchestrator             *orchestration.Orchestrator
@@ -88,7 +90,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Use(httpmw.SecurityHeaders)
 	router.Use(httpmw.CORS)
 
-	healthHandler := health.New().
+	healthHandler := withLifecycleRefusalObservation(health.New().
 		Version("1.0.0").
 		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
 		Check(health.Func("database", func(ctx context.Context) error {
@@ -99,10 +101,12 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}), health.Critical).
 		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
 		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
-		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional).
-		Functional(func(context.Context) health.FunctionalStatus {
-			healthy, reason := handlers.LifecycleRefusalFunctionalStatus()
-			return health.FunctionalStatus{Healthy: healthy, Reason: reason}
+		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional), handlers.LifecycleRefusalFunctionalStatus).
+		Metric("startup_recovery", func(time.Time) any {
+			if deps.Recovery == nil {
+				return nil
+			}
+			return deps.Recovery.Snapshot()
 		}).
 		Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")

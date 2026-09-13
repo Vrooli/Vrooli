@@ -818,10 +818,29 @@ const (
 )
 
 // Run represents a single execution attempt of a task using a specific agent profile.
+type DispatchBinding struct {
+	EffortRef       string `json:"effortRef"`
+	AuthorizationID string `json:"authorizationId"`
+}
+
+// RunCreationReceipt records persistence of the original creation, not runner
+// completion. It survives run/task deletion and ordinary replay-cache expiry.
+// It is read-only evidence and never authorizes another executor.
+type RunCreationReceipt struct {
+	IdempotencyKey string
+	RunID          uuid.UUID
+	TaskID         uuid.UUID
+	OwnerSubject   string
+	CreatedAt      time.Time
+}
+
 type Run struct {
-	ID             uuid.UUID  `json:"id" db:"id"`
-	TaskID         uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
-	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
+	// LifecycleVersion fences snapshots from an earlier status/continuation.
+	// Repository-owned; heartbeat and stream updates do not advance it.
+	LifecycleVersion int64      `json:"-" db:"lifecycle_version"`
+	ID               uuid.UUID  `json:"id" db:"id"`
+	TaskID           uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
+	AgentProfileID   *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
@@ -830,8 +849,10 @@ type Run struct {
 	LabelSource     RunLabelSource               `json:"labelSource,omitempty" db:"label_source"`
 	Subject         []string                     `json:"subject,omitempty" db:"subject"`
 	OwnerSubject    string                       `json:"ownerSubject,omitempty" db:"owner_subject"`
-	OwnerScopes     []string                     `json:"ownerScopes,omitempty" db:"owner_scopes"`
-	RequestedScopes []string                     `json:"requestedScopes,omitempty" db:"requested_scopes"`
+	OwnerScopes     []string                     `json:"ownerScopes" db:"owner_scopes"`
+	RequestedScopes []string                     `json:"requestedScopes" db:"requested_scopes"`
+	OwnerExpiresAt  *time.Time                   `json:"ownerExpiresAt,omitempty" db:"owner_expires_at"`
+	DispatchBinding *DispatchBinding             `json:"dispatchBinding,omitempty" db:"dispatch_binding"`
 	WorkReferences  []*eventdomain.WorkReference `json:"workReferences,omitempty" db:"work_references"`
 	Workload        WorkloadRef                  `json:"workload,omitempty" db:"workload"`
 	Billing         BillingSnapshot              `json:"billing,omitempty" db:"billing"`
@@ -843,6 +864,18 @@ type Run struct {
 	ExecutionMode    ExecutionMode `json:"executionMode,omitempty" db:"execution_mode"`
 	HarnessKind      string        `json:"harnessKind,omitempty" db:"harness_kind"`
 	HarnessSessionID string        `json:"harnessSessionId,omitempty" db:"harness_session_id"`
+
+	// GoalDelivery records how the completion objective reached the harness:
+	// native_verified, native_unverified, prompt_carried, or empty.
+	GoalDelivery string `json:"goalDelivery,omitempty" db:"goal_delivery"`
+
+	// TerminalClass and StopReason are the typed terminal pair every terminal
+	// run carries so Swarm can decide finalization versus resume without
+	// parsing error strings. LastHandoff carries the last structured handoff or
+	// assistant message for a resume prompt.
+	TerminalClass RunTerminalClass `json:"terminalClass,omitempty" db:"terminal_class"`
+	StopReason    RunStopReason    `json:"stopReason,omitempty" db:"stop_reason"`
+	LastHandoff   string           `json:"lastHandoff,omitempty" db:"last_handoff"`
 
 	// WebConsoleSessionID is the id of the web-console session hosting the
 	// interactive agent CLI, set only for ExecutionModeInteractive runs. It
@@ -859,7 +892,18 @@ type Run struct {
 	// Execution state
 	Status    RunStatus  `json:"status" db:"status"`
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
-	EndedAt   *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+	// InteractiveInvocationStartedAt identifies the current admitted interactive
+	// turn. Persist it with continuation admission; original StartedAt is history.
+	InteractiveInvocationStartedAt *time.Time `json:"interactiveInvocationStartedAt,omitempty" db:"interactive_invocation_started_at"`
+	EndedAt                        *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+
+	// CancelRequestedAt is the durable cancellation intent for a run. An owner
+	// stop request stamps it before the runner process is terminated, so a
+	// process that exits after the request reconciles to cancelled instead of
+	// resurrecting the run to a different terminal state. It is monotonic:
+	// once stamped it is never cleared, and a repeat stop request is a no-op.
+	// Nil for runs with no stop request.
+	CancelRequestedAt *time.Time `json:"cancelRequestedAt,omitempty" db:"cancel_requested_at"`
 
 	// GoalID is retained as a stable historical cohort key. The degenerate
 	// self-reported goal status field is intentionally not part of Run.
@@ -1147,6 +1191,44 @@ const (
 	RunStatusUnknown RunStatus = "unknown"
 )
 
+// RunTerminalClass separates a deliberate agent verdict from an involuntary
+// interruption. Swarm trusts a verdict and resumes an interruption.
+type RunTerminalClass string
+
+const (
+	RunTerminalClassVerdict      RunTerminalClass = "verdict"
+	RunTerminalClassInterruption RunTerminalClass = "interruption"
+)
+
+// RunStopReason is the typed reason a run reached terminal. Verdict reasons are
+// complete, blocked and abstained; interruption reasons are usage_window,
+// timeout, crash and session_lost.
+type RunStopReason string
+
+const (
+	RunStopReasonComplete    RunStopReason = "complete"
+	RunStopReasonBlocked     RunStopReason = "blocked"
+	RunStopReasonAbstained   RunStopReason = "abstained"
+	RunStopReasonUsageWindow RunStopReason = "usage_window"
+	RunStopReasonTimeout     RunStopReason = "timeout"
+	RunStopReasonCrash       RunStopReason = "crash"
+	RunStopReasonSessionLost RunStopReason = "session_lost"
+)
+
+// TerminalClassForStopReason returns the class a stop reason belongs to. It is
+// the single mapping Swarm relies on; a reason outside the known set returns
+// the empty class so callers fail closed.
+func TerminalClassForStopReason(reason RunStopReason) RunTerminalClass {
+	switch reason {
+	case RunStopReasonComplete, RunStopReasonBlocked, RunStopReasonAbstained:
+		return RunTerminalClassVerdict
+	case RunStopReasonUsageWindow, RunStopReasonTimeout, RunStopReasonCrash, RunStopReasonSessionLost:
+		return RunTerminalClassInterruption
+	default:
+		return ""
+	}
+}
+
 // AwaitHandle identifies the externally-owned async work a parked run is
 // blocked on. agent-manager (which owns the agent process) performs the
 // blocking wait on the agent's behalf via a per-producer Waiter seam and wakes
@@ -1340,6 +1422,71 @@ type StructuredResult struct {
 	Diagnostics       []StructuredDiagnostic          `json:"diagnostics,omitempty"`
 }
 
+// RunAdmission is the immutable creation-time record that binds the caller's
+// requested settings to the owner-resolved effective settings and the policy
+// source they were resolved from. It is embedded in RunConfig so it persists in
+// the same resolved_config snapshot and is exposed on every run read without a
+// separate lookup. The requested side is taken verbatim from the create request
+// (empty means the caller did not request the field); the effective side mirrors
+// the enclosing RunConfig.
+type RunAdmission struct {
+	RequestedRunner   string        `json:"requestedRunner,omitempty"`
+	RequestedModel    string        `json:"requestedModel,omitempty"`
+	RequestedRoleRef  string        `json:"requestedRoleRef,omitempty"`
+	RequestedEffort   string        `json:"requestedEffort,omitempty"`
+	RequestedTimeout  time.Duration `json:"requestedTimeout,omitempty"`
+	RequestedMaxTurns int           `json:"requestedMaxTurns,omitempty"`
+
+	// RequestedGoalMode is "until" when the caller supplied a completion test,
+	// otherwise empty.
+	RequestedGoalMode string `json:"requestedGoalMode,omitempty"`
+
+	EffectiveRunner   string        `json:"effectiveRunner,omitempty"`
+	EffectiveModel    string        `json:"effectiveModel,omitempty"`
+	EffectiveEffort   string        `json:"effectiveEffort,omitempty"`
+	EffectiveTimeout  time.Duration `json:"effectiveTimeout,omitempty"`
+	EffectiveMaxTurns int           `json:"effectiveMaxTurns,omitempty"`
+	EffectiveUntil    string        `json:"effectiveUntil,omitempty"`
+
+	CatalogDigest   string `json:"catalogDigest,omitempty"`
+	PolicyDigest    string `json:"policyDigest,omitempty"`
+	PolicyPath      string `json:"policyPath,omitempty"`
+	SelectionReason string `json:"selectionReason,omitempty"`
+
+	// PassedControlArgs is the "passed" layer between owner-resolved effective
+	// values and provider acknowledgment: the runner-native control arguments
+	// the selected codec emits for the resolved configuration (model, reasoning
+	// effort, tool and permission controls). Empty when the runner registry or
+	// codec was unavailable or refused the configuration at admission.
+	PassedControlArgs []string `json:"passedControlArgs,omitempty"`
+
+	// TranslationDiagnostics explains how the canonical controls became native
+	// arguments, or why translation was refused. It is the reader's evidence
+	// that a requested setting was honored rather than silently dropped. An
+	// entry never substitutes for a launch; the empty passed layer plus the
+	// diagnostic is the truthful record.
+	TranslationDiagnostics []string `json:"translationDiagnostics,omitempty"`
+
+	// RuntimeVersion is the concrete runner/runtime version observed for this
+	// run. It is only observable at a live launch, so it stays empty for runs
+	// admitted before that evidence exists; the bounded live qualification
+	// probe supplies it. Never inferred from the requested or passed layers.
+	RuntimeVersion string `json:"runtimeVersion,omitempty"`
+
+	// ProviderAcknowledgment is the provider's own confirmation of the
+	// effective runner, model and reasoning effort, captured from provider
+	// evidence during a bounded live launch. Empty until that evidence exists;
+	// it never substitutes for the requested, effective or passed layers.
+	ProviderAcknowledgment []string `json:"providerAcknowledgment,omitempty"`
+
+	// Receipt is the reusable route-keyed qualification receipt derived from a
+	// bounded live run. It persists in the same resolved_config snapshot so a
+	// fresh coordinator can read it without a separate lookup and the
+	// configuration-sensitive delegation gate can compare it against a
+	// requested identity. Nil until live qualification evidence exists.
+	Receipt *QualificationReceipt `json:"receipt,omitempty"`
+}
+
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
@@ -1409,6 +1556,10 @@ type RunConfig struct {
 	RequireEffectContainment bool     `json:"requireEffectContainment,omitempty"`
 	SkillPack                []string `json:"skillPack,omitempty"`
 	SkillExperimentID        string   `json:"skillExperimentId,omitempty"`
+
+	// Admission records the requested-versus-effective configuration proven
+	// for this admitted run. Nil on historical rows created before adoption.
+	Admission *RunAdmission `json:"admission,omitempty"`
 }
 
 // ApplyProfile applies values from an AgentProfile as the base configuration.

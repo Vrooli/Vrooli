@@ -135,18 +135,6 @@ func (s *stubPhasedPlanWorkflow) CancelWorkflow(_ context.Context, _ string, key
 
 func (s *stubAgentService) IsEnabled() bool { return true }
 
-// stubOperationStarter fakes the historical operation reaper seam.
-type stubOperationStarter struct {
-	cancelCalls int
-	cancelReq   OperationCancelRequest
-}
-
-func (s *stubOperationStarter) CancelOperation(_ context.Context, req OperationCancelRequest) error {
-	s.cancelCalls++
-	s.cancelReq = req
-	return nil
-}
-
 type snapshotAgentService struct {
 	stubAgentService
 	runStateCalls int
@@ -172,7 +160,9 @@ func TestPlanAcceptanceAllowsQualityPassNeverStartedPlan(t *testing.T) {
 		Markdown: "# First start", QualityStatus: "pass",
 		Plan: &sharedv1.Plan{Id: "plan-1", ContentHash: "sha256:first-start", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
 	}}
-	svc := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
+	svc := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: t.TempDir(), PlanRenderer: renderer,
+	})
 	if blocker := svc.planAcceptanceBlockingReason(context.Background(), item); blocker.Code != "" {
 		t.Fatalf("never-started quality-pass plan blocked: %+v", blocker)
 	}
@@ -189,10 +179,11 @@ func TestListSnapshotDoesNotProcessActiveExecutions(t *testing.T) {
 	root := t.TempDir()
 	agent := &snapshotAgentService{}
 	svc := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
 	})
 	if err := svc.store.Save([]Record{{
 		ExecutionID: "exec-1",
@@ -312,11 +303,12 @@ func TestQueueAndStartManualExecution_ResearchRequiresCanonicalPlan(t *testing.T
 		"tags":        []string{},
 	})
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &stubAgentService{},
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &stubAgentService{},
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 	_, err := service.QueueBacklog(context.Background(), CreateRequest{
 		BacklogKind: "research",
@@ -341,9 +333,10 @@ func TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "policy-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
 		PolicyProvider: &stubPolicyProvider{policy: Policy{
 			DefaultMode: ModeManual,
 		}},
@@ -379,9 +372,10 @@ func TestQueueBacklog_AllowsArchivedIdeas(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -412,6 +406,7 @@ func TestQueueBacklog_YOLORollsBackWhenSpawnFails(t *testing.T) {
 
 	workflow := &stubPhasedPlanWorkflow{startErr: errors.New("workflow start failed")}
 	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t),
 		DataRoot:           root,
 		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PlanRenderer:       testPlanRenderer(),
@@ -454,9 +449,10 @@ func TestCancel_RestoresArchivedIdeaStatus(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -500,9 +496,10 @@ func TestCancel_RestoresArchivedStatusAfterForcedQueue(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "archived-cancel-forced")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{
@@ -542,9 +539,10 @@ func TestCancel_ReturnsErrorWhenRestoreFails(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "cancel-restore-error")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
 	})
 
 	record, err := service.QueueBacklog(context.Background(), CreateRequest{

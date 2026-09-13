@@ -3,15 +3,18 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
@@ -23,21 +26,50 @@ import (
 
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/scopecatalog"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/proto"
 )
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
-	if strings.TrimSpace(req.OwnerToken) != "" {
-		if o.ownerIdentity == nil {
-			return nil, domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
+	return o.createRun(ctx, req, nil)
+}
+
+// createRun accepts invocation-local recovery context while retaining the
+// original task and the normal admission, identity, policy and dispatch gates.
+type runRecoveryContext struct {
+	attachments []domain.ContextAttachment
+	config      *domain.RunConfig
+}
+
+func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, recovery *runRecoveryContext) (*domain.Run, error) {
+	if len(req.WorkReferences) > 100 {
+		return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed", "supply a bounded selected workload")
+	}
+	req.WorkReferences = append([]*eventpb.WorkReference(nil), req.WorkReferences...)
+	for i, ref := range req.WorkReferences {
+		if ref == nil || ref.GetKind() == "" || ref.GetId() == "" || proto.Size(ref) > 4096 {
+			return nil, domain.NewValidationErrorWithHint("work_references", "references need bounded kind and identity", "supply canonical workload references")
 		}
-		owner, err := o.ownerIdentity.Verify(ctx, req.OwnerToken)
-		if err != nil || !owner.Verified || owner.Kind != coreidentity.ActorHuman || strings.TrimSpace(owner.Subject) == "" {
-			// A presented owner credential is never treated as optional. In
-			// particular, authenticator outages do not turn into an unscoped run.
-			return nil, domain.NewValidationErrorWithHint("authorization", "owner token could not be verified", "obtain a fresh owner token and retry")
+		req.WorkReferences[i] = proto.Clone(ref).(*eventpb.WorkReference)
+	}
+	if err := o.resolveCreateRunIdentity(ctx, &req); err != nil {
+		return nil, err
+	}
+	// Accepted identity outlives the one-hour cache and the deletable run row.
+	// Only a proven absence of durable acceptance may enter new admission.
+	if req.IdempotencyKey != "" && o.runs != nil {
+		original, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+		if err != nil {
+			return nil, err
 		}
-		req.OwnerSubject = strings.TrimSpace(owner.Subject)
-		req.OwnerScopes = append([]string(nil), owner.Scopes...)
+		if original != nil {
+			if err := validateRunIdentityReplay(original, req); err != nil {
+				return nil, err
+			}
+			o.markIdempotencyComplete(ctx, req.IdempotencyKey, original.ID, "Run")
+			return o.GetRun(ctx, original.ID)
+		}
 	}
 
 	// IDEMPOTENCY: Check if this request has already been processed
@@ -49,17 +81,42 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		if existing != nil {
 			// Request already processed - return cached result
 			if existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
-				return o.GetRun(ctx, *existing.EntityID)
+				return o.getIdentityBoundRunReplay(ctx, *existing.EntityID, req)
 			}
 			if existing.Status == domain.IdempotencyStatusPending {
-				// Another request is in progress with this key
+				// A prior accepted dispatch may have persisted its run before
+				// the caller lost the response. Reconcile from durable owner
+				// state by the run's idempotency key before refusing the
+				// replay, so a lost response is not mistaken for an in-flight
+				// duplicate. Only when no durable run exists yet is another
+				// creation genuinely in progress with this key.
+				if o.runs != nil {
+					reconciled, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+					if err != nil {
+						return nil, err
+					}
+					if reconciled != nil {
+						if err := validateRunIdentityReplay(reconciled, req); err != nil {
+							return nil, err
+						}
+						o.markIdempotencyComplete(ctx, req.IdempotencyKey, reconciled.ID, "Run")
+						return o.GetRun(ctx, reconciled.ID)
+					}
+				}
 				return nil, domain.NewStateError("Run", "creating", "create",
 					"a run creation with this idempotency key is already in progress")
 			}
 			// Failed status - allow retry by falling through
 		}
 
-		// Reserve the idempotency key for this operation
+	}
+	releaseAdmission, err := o.admitMaintenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseAdmission()
+	if req.IdempotencyKey != "" && o.idempotency != nil {
+		// Reserve only after owner admission; accepted replays above remain reads.
 		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, 1*time.Hour); err != nil {
 			// If reservation fails, another request beat us to it
 			return nil, domain.NewStateError("Run", "creating", "create",
@@ -127,6 +184,11 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Resolve configuration: profile (if provided) + inline overrides
+	if recovery != nil {
+		copy := *task
+		copy.ContextAttachments = recovery.attachments
+		task = &copy
+	}
 	runID := uuid.New()
 	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
 	if err != nil {
@@ -137,27 +199,43 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, domain.NewInternalError("run configuration resolver returned nil configuration", nil)
 	}
-	if strings.TrimSpace(resolvedConfig.Until) != "" {
-		if o.runners == nil {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: runner registry is not configured")
+	if recovery != nil && recovery.config != nil {
+		// Recovery is not a new profile selection. Copy the complete immutable
+		// execution contract, including empty deny/allow lists, features, skill
+		// experiment, extra flags, sandbox policy and candidate order. Current
+		// admission/policy gates below may refuse it, never silently broaden it.
+		data, err := json.Marshal(recovery.config)
+		if err != nil {
+			return nil, err
 		}
-		selectedRunner, runnerErr := o.runners.Get(resolvedConfig.RunnerType)
-		if runnerErr != nil {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: selected runner is unavailable: "+runnerErr.Error())
+		pinned := new(domain.RunConfig)
+		if err := json.Unmarshal(data, pinned); err != nil {
+			return nil, err
 		}
-		if !selectedRunner.Capabilities().SupportsWarmIteration {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-			return nil, domain.NewValidationError("until", "warm iteration capability unavailable: runner does not support engine-owned completion tests across continuations")
+		if pinned.PolicySnapshot == nil {
+			pinned.PolicySnapshot = resolvedConfig.PolicySnapshot
+		}
+		pinned.Admission = nil // The replacement earns its own admission receipt.
+		resolvedConfig = pinned
+		if err := o.validateToolRestriction(resolvedConfig); err != nil {
+			return nil, err
 		}
 	}
-	applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
+	// `until` acceptance is unconditional: native delivery is gated by the
+	// resolved spawn capability (NativeObjective) at execution time, not by a
+	// coarse runner capability flag. A runner without native support still
+	// receives the completion contract as a prompt suffix.
+	if recovery == nil {
+		applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
+	}
 
 	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
 	if err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
+	}
+	if recovery != nil && resolvedConfig.SandboxConfig != nil {
+		sandboxConfig = resolvedConfig.SandboxConfig
 	}
 
 	// Evaluate policies
@@ -207,7 +285,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Resolve declaration-only spawn preferences against the selected runner's
 	// published capabilities before the run becomes immutable.
 	var spawnSkips []SpawnPreferenceSkip
-	if profile != nil && profile.SpawnPolicy != nil {
+	if recovery == nil && profile != nil && profile.SpawnPolicy != nil {
 		selected, err := o.runners.Get(resolvedConfig.RunnerType)
 		if err != nil {
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
@@ -222,6 +300,19 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		sandboxConfig.Mode = domain.SandboxMode(resolution.SandboxMode)
 		runMode = domain.DeriveRunMode(sandboxConfig)
 		spawnSkips = resolution.Skipped
+		if resolution.Fallback != "" {
+			// A declared capability was used because no preferred combination was
+			// feasible. Surface it on the run's policy snapshot so run get and the
+			// execution record show why a non-preferred substrate was used.
+			if resolvedConfig.PolicySnapshot != nil {
+				reason := "spawn_fallback:" + resolution.Fallback
+				if resolvedConfig.PolicySnapshot.SelectionReason == "" {
+					resolvedConfig.PolicySnapshot.SelectionReason = reason
+				} else {
+					resolvedConfig.PolicySnapshot.SelectionReason += ";" + reason
+				}
+			}
+		}
 	}
 
 	// Validate the resolved execution/sandbox pair at the creation boundary.
@@ -355,6 +446,23 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
 		resolvedConfig.PreambleTokenBasis = estimate.Basis
 	}
+	// Bind the caller's requested settings to the owner-resolved effective
+	// settings before persistence so a fresh reader can tell requested from
+	// effective without consulting mutable policy or a transcript.
+	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
+	// Record the runner-native control arguments the selected codec emits for
+	// the resolved configuration, so the "passed" layer is durable alongside
+	// the requested and effective layers.
+	o.recordPassedInvocation(ctx, resolvedConfig.Admission, resolvedConfig)
+	// Dependent-delegation prerequisite gate: a run created as a child of an
+	// admitted parent is delegated work. It may proceed only when the parent
+	// carries a live qualification receipt whose effective identity matches this
+	// run's resolved identity exactly. The qualification probe itself has no
+	// parent and is never blocked by this gate.
+	if err := o.admitDependentDelegation(ctx, req, resolvedConfig); err != nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, err
+	}
 	run := &domain.Run{
 		ID:                       runID,
 		TaskID:                   task.ID,
@@ -363,11 +471,14 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		Label:                    strings.TrimSpace(task.Title),
 		LabelSource:              domain.RunLabelSourceDerived,
 		OwnerSubject:             req.OwnerSubject,
-		OwnerScopes:              append([]string(nil), req.OwnerScopes...),
-		RequestedScopes:          append([]string(nil), req.RequestedScopes...),
+		OwnerScopes:              slices.Clone(req.OwnerScopes),
+		RequestedScopes:          slices.Clone(req.RequestedScopes),
+		OwnerExpiresAt:           req.OwnerExpiresAt,
+		DispatchBinding:          req.DispatchBinding,
 		Workload:                 workload,
 		Billing:                  billing,
 		SourceRunIDs:             req.SourceRunIDs,
+		WorkReferences:           req.WorkReferences,
 		SourceInvestigationRunID: req.SourceInvestigationRunID,
 		RunMode:                  runMode,
 		ExecutionMode:            req.ExecutionMode,
@@ -539,6 +650,238 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// buildRunAdmission captures the immutable requested-versus-effective
+// configuration record for a newly admitted run. Requested values come from the
+// caller request before resolution; effective values mirror the resolved config
+// and its pinned policy snapshot. Unrequested fields stay empty rather than
+// being backfilled with defaults, so a reader can distinguish "not requested"
+// from "requested and resolved".
+// resolveCreateRunIdentity authenticates before any reservation or dispatch.
+// Narrowing is never accepted as a substitute for verified authority.
+func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *CreateRunRequest) error {
+	if req.DispatchBinding != nil {
+		if req.OwnerExpiresAt == nil || req.AgentProfileID == nil || o.supervisorDispatch == nil {
+			return domain.NewValidationError("authorization", "supervisor binding unavailable")
+		}
+		profile, err := o.profiles.Get(ctx, *req.AgentProfileID)
+		if err != nil || profile == nil {
+			return domain.NewValidationError("authorization", "supervisor profile unavailable")
+		}
+		if err := o.supervisorDispatch.CheckDispatchIdentity(ctx, &identity.Claims{DispatchEffortRef: req.DispatchBinding.EffortRef, DispatchAuthorizationID: req.DispatchBinding.AuthorizationID, Subject: req.OwnerSubject, Scopes: req.RequestedScopes, ProfileKey: profile.ProfileKey, ExpiresAt: req.OwnerExpiresAt.Unix()}); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(req.OwnerToken) != "" {
+		if o.ownerIdentity == nil {
+			return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
+		}
+		owner, err := o.ownerIdentity.Verify(ctx, req.OwnerToken)
+		if err != nil || !owner.Verified || owner.Kind != coreidentity.ActorHuman || strings.TrimSpace(owner.Subject) == "" || owner.ExpiresAt.IsZero() || !owner.ExpiresAt.After(o.now()) {
+			return domain.NewValidationErrorWithCode("authorization", "owner credential is invalid, expired or unavailable", domain.ErrCodePolicyScope)
+		}
+		req.OwnerSubject = strings.TrimSpace(owner.Subject)
+		req.OwnerScopes = append([]string{}, owner.Scopes...)
+		expires := owner.ExpiresAt
+		req.OwnerExpiresAt = &expires
+	}
+	if req.ExpectedOwnerSubject != "" && req.ExpectedOwnerSubject != req.OwnerSubject {
+		return domain.NewValidationErrorWithCode("authorization", "verified owner does not match the requested owner", domain.ErrCodePolicyScope)
+	}
+	if req.RequestedScopes == nil {
+		return nil
+	}
+	if req.OwnerSubject == "" || req.OwnerScopes == nil {
+		return domain.NewValidationErrorWithCode("authorization", "scope narrowing requires verified owner authority", domain.ErrCodePolicyScope)
+	}
+	if len(req.RequestedScopes) > 100 {
+		return domain.NewValidationError("requested_scopes", "at most 100 scopes are allowed")
+	}
+	for _, scope := range req.RequestedScopes {
+		if scope != strings.TrimSpace(scope) || scope == "" || len(scope) > 256 || scopecatalog.IsWildcard(scope) || !scopecatalog.MatchCapability(req.OwnerScopes, scope) {
+			return domain.NewValidationErrorWithCode("requested_scopes", "requested scope is not an exact capability held by the owner", domain.ErrCodePolicyScope)
+		}
+	}
+	req.RequestedScopes = identity.IntersectScopes(req.OwnerScopes, nil, req.RequestedScopes)
+	return nil
+}
+
+func (o *Orchestrator) getIdentityBoundRunReplay(ctx context.Context, id uuid.UUID, req CreateRunRequest) (*domain.Run, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRunIdentityReplay(run, req); err != nil {
+		return nil, err
+	}
+	return run, nil
+}
+
+func validateRunIdentityReplay(run *domain.Run, req CreateRunRequest) error {
+	if run == nil {
+		return domain.NewValidationError("idempotency_key", "original run unavailable")
+	}
+	if (run.DispatchBinding == nil) != (req.DispatchBinding == nil) || (run.DispatchBinding != nil && *run.DispatchBinding != *req.DispatchBinding) {
+		return domain.NewValidationError("idempotency_key", "supervisor dispatch binding differs from original admission")
+	}
+	// Historical unauthenticated requests persisted absent narrowing as [].
+	// They carry no owner grant; keep their ordinary recovery compatible.
+	if run.OwnerSubject == "" && req.OwnerSubject == "" && req.RequestedScopes == nil {
+		return nil
+	}
+	if run.OwnerSubject != req.OwnerSubject || (run.RequestedScopes == nil) != (req.RequestedScopes == nil) || !slices.Equal(run.RequestedScopes, req.RequestedScopes) {
+		return domain.NewValidationErrorWithCode("idempotency_key", "run identity differs from the original dispatch", domain.ErrCodePolicyScope)
+	}
+	return nil
+}
+
+func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunAdmission {
+	if cfg == nil {
+		return nil
+	}
+	admission := &domain.RunAdmission{
+		RequestedRunner:   strings.TrimSpace(req.PreferredRunner),
+		EffectiveRunner:   string(cfg.RunnerType),
+		EffectiveModel:    cfg.Model,
+		EffectiveEffort:   string(cfg.Effort),
+		EffectiveTimeout:  cfg.Timeout,
+		EffectiveMaxTurns: cfg.MaxTurns,
+		EffectiveUntil:    cfg.Until,
+	}
+	if req.RoleRef != nil {
+		admission.RequestedRoleRef = strings.TrimSpace(*req.RoleRef)
+	}
+	if req.Model != nil {
+		admission.RequestedModel = strings.TrimSpace(*req.Model)
+	}
+	if req.Effort != nil {
+		admission.RequestedEffort = string(*req.Effort)
+	}
+	if req.Timeout != nil {
+		admission.RequestedTimeout = *req.Timeout
+	}
+	if req.MaxTurns != nil {
+		admission.RequestedMaxTurns = *req.MaxTurns
+	}
+	if strings.TrimSpace(req.Until) != "" {
+		admission.RequestedGoalMode = "until"
+	}
+	if cfg.PolicySnapshot != nil {
+		admission.CatalogDigest = cfg.PolicySnapshot.CatalogDigest
+		admission.PolicyDigest = cfg.PolicySnapshot.SelectedCandidate.PolicyDigest
+		admission.PolicyPath = cfg.PolicySnapshot.SelectedCandidate.PolicyPath
+		admission.SelectionReason = cfg.PolicySnapshot.SelectionReason
+	}
+	return admission
+}
+
+// admitDependentDelegation enforces the Agent Manager-owned qualification gate
+// at the dependent-delegation admission point. A run without a parent is not
+// dependent delegation and is admitted unchanged. A child run is admitted only
+// when its parent persisted a live qualification receipt and the child's
+// resolved runner/model/effort match that receipt exactly; any missing receipt
+// or identity mismatch leaves dependent delegation closed.
+func (o *Orchestrator) admitDependentDelegation(ctx context.Context, req CreateRunRequest, cfg *domain.RunConfig) error {
+	if req.ParentRunID == nil {
+		return nil
+	}
+	if o.runs == nil {
+		return domain.NewConfigMissingError("runs", "run repository not configured", nil)
+	}
+	parent, err := o.runs.Get(ctx, *req.ParentRunID)
+	if err != nil {
+		return domain.NewValidationErrorWithHint("parentRunId",
+			"parent run could not be read for dependent-delegation admission: "+err.Error(),
+			"retry after the parent run is durable")
+	}
+	return dependentDelegationAdmissionError(parent, cfg)
+}
+
+// dependentDelegationAdmissionError is the pure gate decision: it reads the
+// parent's persisted qualification receipt and compares it against the child's
+// resolved identity. Keeping it pure lets the admission wiring and focused
+// tests share one decision without a repository.
+func dependentDelegationAdmissionError(parent *domain.Run, cfg *domain.RunConfig) error {
+	if parent == nil || parent.ResolvedConfig == nil || parent.ResolvedConfig.Admission == nil {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: parent run has no admission record")
+	}
+	if cfg == nil {
+		return domain.NewValidationError("qualification", "dependent delegation is closed: resolved configuration is missing")
+	}
+	return domain.AdmitDependentDelegation(parent.ResolvedConfig.Admission.Receipt, domain.DependentDelegationRequest{
+		Runner: string(cfg.RunnerType),
+		Model:  cfg.Model,
+		Effort: string(cfg.Effort),
+	})
+}
+
+// recordPassedInvocation records the runner-native control arguments the
+// selected codec emits for a resolved configuration, plus the runner-observed
+// runtime version. The control arguments are the "passed" layer between
+// owner-resolved effective values and provider acknowledgment; the runtime
+// version is live-only runtime identity. Both are evidence, never a launch: a
+// missing registry or codec, or a codec that refuses the configuration, records
+// a translation diagnostic instead of changing the creation outcome.
+// Unsupported settings still fail at the runner boundary before a process
+// starts; this method makes that refusal visible in the admission record instead
+// of leaving the passed layer silently empty.
+func (o *Orchestrator) recordPassedInvocation(ctx context.Context, admission *domain.RunAdmission, cfg *domain.RunConfig) {
+	if admission == nil {
+		return
+	}
+	if o == nil || o.runners == nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"runner registry unavailable; passed control arguments not captured")
+		return
+	}
+	selected, err := o.runners.Get(cfg.RunnerType)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q unavailable; passed control arguments not captured: %v", cfg.RunnerType, err))
+		return
+	}
+	// The runtime version is live-only identity the qualification receipt
+	// requires; capture it whenever the runner resolves, independently of
+	// whether control translation succeeds.
+	o.recordRuntimeVersion(ctx, admission, selected)
+	info, ok := selected.(runner.AgentLaunchInfo)
+	if !ok {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q does not expose control translation; passed control arguments not captured", cfg.RunnerType))
+		return
+	}
+	args, err := info.ControlArgs(cfg)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"control translation refused: "+err.Error())
+		return
+	}
+	admission.PassedControlArgs = append(admission.PassedControlArgs, args...)
+	if len(args) == 0 {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"no runner-native control arguments emitted")
+	}
+}
+
+// recordRuntimeVersion captures the concrete CLI runtime version observed for
+// the selected runner into the admission record. It is the live-only identity
+// the qualification receipt requires, so an unobserved value stays empty and
+// is explained by a translation diagnostic rather than backfilled.
+func (o *Orchestrator) recordRuntimeVersion(ctx context.Context, admission *domain.RunAdmission, selected runner.Runner) {
+	reporter, ok := selected.(runner.RuntimeVersionReporter)
+	if !ok {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			fmt.Sprintf("runner %q does not report a runtime version", selected.Type()))
+		return
+	}
+	version, err := reporter.RuntimeVersion(ctx)
+	if err != nil {
+		admission.TranslationDiagnostics = append(admission.TranslationDiagnostics,
+			"runtime version not observed: "+err.Error())
+		return
+	}
+	admission.RuntimeVersion = strings.TrimSpace(version)
 }
 
 // recoverPanickedRun contains a panic at an execution-goroutine boundary. The
@@ -1492,6 +1835,15 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return importedRunLifecycleError("stop")
 	}
 
+	// An already-cancelled run is an idempotent replay, not a state error. A
+	// caller that issued a stop and lost the response may replay it after an
+	// owner reopen; the stop already succeeded, so return the same terminal
+	// result without a second terminal write. Stop is the only path to
+	// cancelled, so observing cancelled means this operation completed.
+	if run.Status == domain.RunStatusCancelled {
+		return nil
+	}
+
 	if allowed, reason := domain.CanStopRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
 	}
@@ -1525,6 +1877,17 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
+	// Persist the cancellation intent before any process is terminated. A runner
+	// process that exits after this stamp (even before the terminator confirms
+	// death) reconciles to cancelled instead of resurrecting the run to complete.
+	// The stamp is monotonic and status-guarded, so a repeat stop request is a
+	// no-op rather than a second terminal write.
+	if o.runs != nil {
+		if _, err := o.runs.RequestCancellation(ctx, id, o.now()); err != nil {
+			return err
+		}
+	}
+
 	if o.terminator != nil {
 		result, err := o.terminator.Terminate(ctx, id)
 		if err != nil {
@@ -1534,14 +1897,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 			return result.Error
 		}
 
-		endedAt := o.now()
-		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-			Run:       run,
-			NewStatus: domain.RunStatusCancelled,
-			Phase:     domain.RunPhaseCompleted,
-			Reason:    "Run stopped by request",
-			EndedAt:   &endedAt,
-		})
+		_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
 		return err
 	}
 
@@ -1560,15 +1916,32 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		}
 	}
 
+	_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
+	return err
+}
+
+// finalizeRunCancellation moves a run to cancelled after its stop request has
+// been reconciled. It re-reads durable state first: if a delayed process exit
+// already reconciled the run to a terminal status (for example the executor's
+// HandleResult adopted the persisted cancellation intent), this is a no-op
+// instead of a second terminal write. That makes stop a replay-safe operation
+// whether the terminator or the executor wins the terminal race.
+func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID, reason string) (*domain.Run, error) {
+	current, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current.Status.IsTerminal() {
+		return current, nil
+	}
 	endedAt := o.now()
-	_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-		Run:       run,
+	return o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+		Run:       current,
 		NewStatus: domain.RunStatusCancelled,
 		Phase:     domain.RunPhaseCompleted,
-		Reason:    "Run stopped by request",
+		Reason:    reason,
 		EndedAt:   &endedAt,
 	})
-	return err
 }
 
 func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {

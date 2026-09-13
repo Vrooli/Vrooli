@@ -11,6 +11,7 @@ import (
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/maintenance"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 
@@ -68,8 +69,10 @@ func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orches
 // identity token (Phase 0 assembler), and resets the heartbeat.
 func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	ctx := context.Background()
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	gate := maintenance.NewGate(maintenance.NewRepository(db))
 
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
 	registry := runner.NewRegistry()
@@ -90,6 +93,7 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithIdentitySecret(identitySecret),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithMaintenanceGate(gate),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
@@ -126,6 +130,11 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	}
 
 	// Wake with the resolved result.
+	// A parked lifetime is already admitted. Planned maintenance must preserve
+	// its durable waiter/identity and allow completion, not fence its wake.
+	if _, err := gate.Enter(ctx, "owner", "rollout while parked"); err != nil {
+		t.Fatal(err)
+	}
 	woken, err := svc.WakeRun(ctx, orchestration.WakeRunInput{
 		RunID:  run.ID,
 		Result: "suite PASSED: 42/42 green",

@@ -9,6 +9,66 @@ import (
 	"github.com/google/uuid"
 )
 
+func TestWorkflowTerminalReceiptReconcilesEarlierUnknownCharge(t *testing.T) {
+	zero := int64(0)
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}}
+	events := []*domain.RunEvent{
+		{Data: &domain.UsageEventData{InputTokens: 4331, OutputTokens: 205, CacheReadTokens: 10880}},
+		{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}},
+		{Data: &domain.UsageEventData{InputTokens: 8906, OutputTokens: 415, CacheReadTokens: 21760}},
+		{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}},
+		{Data: &domain.UsageEventData{InputTokens: 8906, OutputTokens: 415, CacheReadTokens: 21760, Turns: 1, ReconciliationAuthority: true, Charge: &domain.ChargeEventData{Basis: domain.ChargeBasisSubscription, AmountMicroUSD: &zero}}},
+	}
+	got, err := meteredWorkflowChildState(run, events, time.Now())
+	if err != nil || !got.TokensKnown || !got.ChargeMeasured || got.Tokens != 31081 || got.Turns != 1 || got.ChargeMicroUSD != 0 {
+		t.Fatalf("original terminal receipt failed to reconcile: %+v %v", got, err)
+	}
+	// Reconciliation is a read projection; old unpriced observations survive.
+	if len(events) != 5 || events[1].Data.(*domain.ChargeEventData).Basis != domain.ChargeBasisUnpriced {
+		t.Fatal("accounting history rewritten")
+	}
+}
+
+func TestWorkflowTerminalReceiptPreservesLaterEvidence(t *testing.T) {
+	zero, positive, negative := int64(0), int64(7), int64(-1)
+	for _, tc := range []struct {
+		name        string
+		later       *domain.RunEvent
+		tokensKnown bool
+		chargeKnown bool
+		charge      int64
+		invalid     bool
+	}{
+		{name: "later-usage", later: &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 5}}, chargeKnown: true},
+		{name: "later-unpriced-charge", later: &domain.RunEvent{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}}, tokensKnown: true},
+		{name: "later-metered-charge", later: &domain.RunEvent{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &positive}}, tokensKnown: true, chargeKnown: true, charge: 7},
+		{name: "later-invalid-usage", later: &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: -1}}, invalid: true},
+		{name: "later-invalid-charge", later: &domain.RunEvent{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &negative}}, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusCancelled, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}}
+			receipt := &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 10, ReconciliationAuthority: true, Charge: &domain.ChargeEventData{Basis: domain.ChargeBasisSubscription, AmountMicroUSD: &zero}}}
+			earlier := &domain.RunEvent{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}}
+			events := []*domain.RunEvent{earlier, receipt, tc.later}
+			projected := terminalWorkflowReceiptProjection(events)
+			if len(projected) != 2 || projected[0] != receipt || projected[1] != tc.later {
+				t.Errorf("receipt must suppress only earlier evidence, retaining its later tail: %+v", projected)
+			}
+			got, err := meteredWorkflowChildState(run, events, time.Now())
+			if tc.invalid {
+				if err == nil {
+					t.Fatal("receipt hid invalid later accounting")
+				}
+			} else if err != nil || got.TokensKnown != tc.tokensKnown || got.MeterCadence.TerminalAuthority != tc.tokensKnown || got.ChargeMeasured != tc.chargeKnown || got.ChargeMicroUSD != tc.charge {
+				t.Errorf("receipt concealed later accounting: %+v %v", got, err)
+			}
+			if events[0] != earlier || events[1] != receipt || events[2] != tc.later || !receipt.Data.(*domain.UsageEventData).ReconciliationAuthority {
+				t.Fatal("projection mutated durable accounting evidence")
+			}
+		})
+	}
+}
+
 func TestWorkflowMeterReadsDurableUsageAndReconcilesTerminalAuthority(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning}
 	base := time.Date(2026, 9, 9, 6, 0, 0, 0, time.UTC)

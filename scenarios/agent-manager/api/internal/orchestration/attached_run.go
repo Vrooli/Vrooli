@@ -40,6 +40,11 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 	if o.runs == nil {
 		return nil, domain.NewConfigMissingError("runs", "run repository is not configured", nil)
 	}
+	releaseAdmission, err := o.admitMaintenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseAdmission()
 
 	taskID := uuid.Nil
 	if req.TaskID != nil {

@@ -3,11 +3,146 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 
 	"prompt-manager/internal/paths"
+	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
+
+	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
+	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
+	"google.golang.org/protobuf/proto"
 )
+
+func TestExecutorStandingSupervisorEnsuresSelectedTeamCorpus(t *testing.T) {
+	for _, unavailable := range []bool{false, true} {
+		name := "provisions-and-reuses"
+		if unavailable {
+			name = "owner-unavailable-blocks-launch"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			f := newSupervisionFixture(t)
+			f.owner.rows = []EffortObservation{effort("new-effort")}
+			f.tick(t)
+			fileStore := newFileStore(t, paths.RootsForTest(t))
+			teamStore := fileStore.Teams().(*store.FileTeamStore)
+			if err := teamStore.Create(ctx, newIndependentTestTeam("supervisors", "New team")); err != nil {
+				t.Fatal(err)
+			}
+			if err := teamStore.SetHeartbeatConfig(ctx, "supervisors", "leader", f.cfg); err != nil {
+				t.Fatal(err)
+			}
+
+			var registered *scopesv1.Scope
+			var ledgerMu sync.Mutex
+			creates, checks := 0, 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ledgerMu.Lock()
+				defer ledgerMu.Unlock()
+				w.Header().Set("Content-Type", "application/proto")
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/ListScopes"):
+					checks++
+					if unavailable {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusServiceUnavailable)
+						_, _ = w.Write([]byte(`{"code":"unavailable","message":"qualification owner unavailable"}`))
+						return
+					}
+					response := &scopesv1.ListScopesResponse{}
+					if registered != nil {
+						response.Scopes = []*scopesv1.Scope{registered}
+					}
+					data, _ := proto.Marshal(response)
+					_, _ = w.Write(data)
+				case strings.HasSuffix(r.URL.Path, "/CreateScope"):
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						t.Error(err)
+					}
+					var request scopesv1.CreateScopeRequest
+					if err := proto.Unmarshal(body, &request); err != nil {
+						t.Error(err)
+					}
+					registered = request.GetScope()
+					creates++
+					data, _ := proto.Marshal(&scopesv1.CreateScopeResponse{Scope: registered})
+					_, _ = w.Write(data)
+				case strings.HasSuffix(r.URL.Path, "/ListFacets"):
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						t.Error(err)
+					}
+					var request facetsv1.ListFacetsRequest
+					if err := proto.Unmarshal(body, &request); err != nil || request.Scope != "team:supervisors" {
+						t.Errorf("facet scope = %q, error = %v", request.Scope, err)
+					}
+					response := &facetsv1.ListFacetsResponse{}
+					for _, facet := range sourceledger.TeamScopeFacets("supervisors") {
+						response.Facets = append(response.Facets, &facetsv1.Facet{Id: facet.GetId(), Label: facet.GetLabel(), Guidance: facet.GetGuidance(), RetentionPolicy: facet.GetRetentionPolicy(), CompactionEligible: facet.GetCompactionEligible(), ResidentBudget: facet.GetResidentBudget()})
+					}
+					data, _ := proto.Marshal(response)
+					_, _ = w.Write(data)
+				default:
+					t.Errorf("unexpected ledger operation: %s", r.URL.Path)
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}))
+			defer server.Close()
+			teamStore.SetSourceLedger(sourceledger.NewAt(server.URL))
+			executor := newTestExecutor(t, teamStore, fileStore.Agents().(*store.FileAgentStore), f.agent, "", nil, nil)
+			executor.EffortSupervisor = f.s
+			f.s.Prompt = func(context.Context, string, string) (string, error) {
+				ledgerMu.Lock()
+				defer ledgerMu.Unlock()
+				f.prompts++
+				if registered == nil {
+					t.Error("standing prompt built before team corpus registration")
+				}
+				return "qualified team context", nil
+			}
+
+			_, err := executor.Execute(ctx, "supervisors", "leader", "")
+			if unavailable {
+				ledgerMu.Lock()
+				defer ledgerMu.Unlock()
+				var ownerErr *sourceledger.UnavailableError
+				if !errors.As(err, &ownerErr) {
+					t.Fatalf("expected typed source-ledger unavailability, got %v", err)
+				}
+				if checks != 1 || creates != 0 || f.prompts != 0 || len(f.agent.createTaskCalls) != 0 || len(f.agent.createRunCalls) != 0 {
+					t.Fatalf("failed provisioning performed work: checks=%d creates=%d prompts=%d tasks=%d runs=%d", checks, creates, f.prompts, len(f.agent.createTaskCalls), len(f.agent.createRunCalls))
+				}
+				state, err := f.s.State.Load("supervisors", "leader")
+				if err != nil || state.WakesInWindow != 0 || state.Pending == nil || state.Pending.DispatchStarted {
+					t.Fatalf("failed provisioning charged or lost retryable wake: state=%+v err=%v", state, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := executor.Execute(ctx, "supervisors", "leader", ""); err != nil {
+				t.Fatal(err)
+			}
+			ledgerMu.Lock()
+			defer ledgerMu.Unlock()
+			if registered == nil || registered.GetId() != "team:supervisors" || registered.GetFrontierTarget() != 16 || registered.GetWakeBudget() != 128 || len(registered.GetFacets()) != 6 {
+				t.Fatalf("selected team scope not provisioned with owner defaults: %+v", registered)
+			}
+			if checks != 2 || creates != 1 || f.prompts != 1 || len(f.agent.createRunCalls) != 1 {
+				t.Fatalf("repeated dispatch did not reuse scope/run: checks=%d creates=%d prompts=%d runs=%d", checks, creates, f.prompts, len(f.agent.createRunCalls))
+			}
+		})
+	}
+}
 
 func TestExecutorExecuteFailsWhenConfigMissing(t *testing.T) {
 	ctx := context.Background()

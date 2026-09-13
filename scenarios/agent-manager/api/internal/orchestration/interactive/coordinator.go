@@ -29,10 +29,26 @@ const (
 	// defaultSessionPoll is how often the mid-tail watcher confirms the
 	// web-console session still exists.
 	defaultSessionPoll = 5 * time.Second
+	// defaultSessionReattachWindow is how long a missing session is tolerated
+	// (with re-resolution) before the run is declared session_lost. A
+	// web-console restart can briefly hide a session that the persistent backend
+	// then recovers.
+	defaultSessionReattachWindow = 3 * time.Minute
 	// defaultCoordinatorHeartbeat is how often the live path refreshes
 	// Run.LastHeartbeat so the reconciler does not treat a live interactive run
 	// as stale.
 	defaultCoordinatorHeartbeat = 30 * time.Second
+	// terminalReasonStructuredResult marks a goal-mode run that ended through its
+	// validated structured result rather than a runner-native goal marker.
+	terminalReasonStructuredResult = "structured_result"
+	// terminalReasonMaxTurns marks a run that reached its configured assistant
+	// turn ceiling. Phase 3 types this as an interruption, not a failure.
+	terminalReasonMaxTurns = "max_turns"
+	// defaultNativeGoalFallbackTurns is how many success turn boundaries a run
+	// may produce with no goal marker ever observed before the coordinator stops
+	// waiting for runner-native goal support and accepts a validated structured
+	// terminal. It only applies when the harness was not verified native.
+	defaultNativeGoalFallbackTurns = 3
 )
 
 func transcriptModel(run *domain.Run) string {
@@ -106,6 +122,9 @@ type CoordinatorDeps struct {
 	ActivityPoll time.Duration
 	// SessionPoll overrides the mid-tail session-liveness cadence (0 default).
 	SessionPoll time.Duration
+	// SessionReattachWindow overrides how long a missing session is tolerated
+	// before failing the run (0 uses the default 3 minutes).
+	SessionReattachWindow time.Duration
 	// Heartbeat overrides the live-path heartbeat cadence (0 uses the default;
 	// negative disables the heartbeat goroutine — used by the recovery path,
 	// which does not own the live run).
@@ -126,17 +145,20 @@ type Coordinator struct {
 	activityPoll time.Duration
 	sessionPoll  time.Duration
 	heartbeat    time.Duration
+
+	sessionReattachWindow time.Duration
 }
 
 // NewCoordinator builds a Coordinator, applying defaults for any unset cadence.
 func NewCoordinator(deps CoordinatorDeps) *Coordinator {
 	c := &Coordinator{
-		deps:         deps,
-		clock:        deps.Clock,
-		debounce:     deps.Debounce,
-		activityPoll: deps.ActivityPoll,
-		sessionPoll:  deps.SessionPoll,
-		heartbeat:    deps.Heartbeat,
+		deps:                  deps,
+		clock:                 deps.Clock,
+		debounce:              deps.Debounce,
+		activityPoll:          deps.ActivityPoll,
+		sessionPoll:           deps.SessionPoll,
+		heartbeat:             deps.Heartbeat,
+		sessionReattachWindow: deps.SessionReattachWindow,
 	}
 	if c.clock == nil {
 		c.clock = time.Now
@@ -152,6 +174,9 @@ func NewCoordinator(deps CoordinatorDeps) *Coordinator {
 	}
 	if c.heartbeat == 0 {
 		c.heartbeat = defaultCoordinatorHeartbeat
+	}
+	if c.sessionReattachWindow <= 0 {
+		c.sessionReattachWindow = defaultSessionReattachWindow
 	}
 	return c
 }
@@ -204,6 +229,7 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 	if run.StartedAt == nil {
 		run.StartedAt = &now
 	}
+	run.InteractiveInvocationStartedAt = run.StartedAt
 	run.LastHeartbeat = &now
 	run.UpdatedAt = now
 	mu.Unlock()
@@ -275,6 +301,14 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 		}
 		copy := marker
 		lastGoal = &copy
+		mu.Lock()
+		if run.GoalDelivery != GoalDeliveryNativeVerified {
+			run.GoalDelivery = GoalDeliveryNativeVerified
+			if c.deps.Runs != nil {
+				_ = c.deps.Runs.Update(context.Background(), run)
+			}
+		}
+		mu.Unlock()
 		if sink == nil {
 			return nil
 		}
@@ -301,6 +335,7 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			TranscriptPath: run.TranscriptPath,
 			SessionID:      run.SessionID,
 			Until:          run.ResolvedConfig.Until,
+			MaxTurns:       run.ResolvedConfig.MaxTurns,
 			Billing:        run.Billing,
 			RunDir:         tc.RunDir,
 			WorkingDir:     tc.WorkingDir,
@@ -310,6 +345,9 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			OnAdvance:      onAdvance,
 			OnSessionID:    onSessionID,
 			OnGoalStatus:   onGoalStatus,
+			GoalMarkerObserved: func() bool {
+				return lastGoal != nil
+			},
 			StructuredResultSatisfied: func() bool {
 				return c.structuredResultSatisfied(ctx, run)
 			},
@@ -331,6 +369,13 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 			return term, nil
 		}
 		if term.TerminalReason != "" && strings.HasPrefix(term.TerminalReason, "goal_") {
+			return term, nil
+		}
+		// A validated structured terminal is a real terminal in goal mode even
+		// when the harness never emitted a runner-native goal marker. This is
+		// the completion rule for a non-native harness and the fallback for a
+		// native one that swallowed /goal.
+		if term.TerminalReason == terminalReasonStructuredResult {
 			return term, nil
 		}
 
@@ -421,6 +466,10 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 	}
 	var mu sync.Mutex
 	gone := false
+	// A missing session is tolerated for sessionReattachWindow while the
+	// persistent web-console backend re-resolves it. Only after the window
+	// elapses is the run declared session_lost.
+	var notFoundSince time.Time
 	go func() {
 		ticker := time.NewTicker(c.sessionPoll)
 		defer ticker.Stop()
@@ -430,13 +479,21 @@ func (c *Coordinator) watchSession(ctx context.Context, cancel context.CancelFun
 				return
 			case <-ticker.C:
 				_, err := c.deps.Sessions.GetSession(ctx, run.WebConsoleSessionID)
-				if errors.Is(err, webconsole.ErrSessionNotFound) {
-					mu.Lock()
-					gone = true
-					mu.Unlock()
-					cancel()
-					return
+				if !errors.Is(err, webconsole.ErrSessionNotFound) {
+					notFoundSince = time.Time{}
+					continue
 				}
+				if notFoundSince.IsZero() {
+					notFoundSince = c.clock()
+				}
+				if c.clock().Sub(notFoundSince) < c.sessionReattachWindow {
+					continue
+				}
+				mu.Lock()
+				gone = true
+				mu.Unlock()
+				cancel()
+				return
 			}
 		}
 	}()
@@ -487,10 +544,25 @@ func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *r
 		if msg == "" {
 			msg = "interactive run reported a failure terminal"
 		}
+		// Carry the codec's typed class/reason (for example a usage-limit
+		// interruption) onto the run before finalizing.
+		if terminal.TerminalClass != "" {
+			run.TerminalClass = terminal.TerminalClass
+		}
+		if terminal.StopReason != "" {
+			run.StopReason = terminal.StopReason
+		}
 		return c.finalizeFailed(ctx, run, msg)
 	case errors.Is(tailErr, ErrSessionGone):
+		run.TerminalClass = domain.RunTerminalClassInterruption
+		run.StopReason = domain.RunStopReasonSessionLost
 		return c.finalizeFailed(ctx, run, fmt.Sprintf(
 			"web-console session %s no longer exists; interactive run cannot be recovered", run.WebConsoleSessionID))
+	case errors.Is(tailErr, context.DeadlineExceeded):
+		// The run hit its configured timeout ceiling. Phase 3 types this as the
+		// timeout interruption (terminal_class=interruption, stop_reason=timeout)
+		// with the last handoff attached; the terminal reason is recorded now.
+		return c.finalizeTimeout(ctx, run)
 	default:
 		return c.finalizeFailed(ctx, run, "interactive run ended without a terminal marker")
 	}
@@ -505,6 +577,14 @@ func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, ter
 	run.ErrorMsg = ""
 	run.EndedAt = &now
 	run.UpdatedAt = now
+	run.TerminalClass = domain.RunTerminalClassVerdict
+	run.StopReason = domain.RunStopReasonComplete
+	if terminal.TerminalClass != "" {
+		run.TerminalClass = terminal.TerminalClass
+	}
+	if terminal.StopReason != "" {
+		run.StopReason = terminal.StopReason
+	}
 	exit := terminal.ExitCode
 	run.ExitCode = &exit
 	reason := terminal.TerminalReason
@@ -516,6 +596,7 @@ func (c *Coordinator) finalizeComplete(ctx context.Context, run *domain.Run, ter
 	} else if summary := c.buildSummary(ctx, run, terminal); summary != nil {
 		run.Summary = summary
 	}
+	run.LastHandoff = handoffFromTerminal(terminal, run.Result, run.Summary)
 	mu.Unlock()
 	if err := c.update(ctx, &mu, run); err != nil {
 		return err
@@ -531,13 +612,69 @@ func (c *Coordinator) finalizeFailed(ctx context.Context, run *domain.Run, reaso
 	run.Status = domain.RunStatusFailed
 	run.Phase = domain.RunPhaseCompleted
 	run.ErrorMsg = reason
+	if run.TerminalClass == "" {
+		run.TerminalClass = domain.RunTerminalClassInterruption
+	}
+	if run.StopReason == "" {
+		run.StopReason = domain.RunStopReasonCrash
+	}
 	if c.deps.Result != nil {
 		run.Result, run.Summary = c.deps.Result(ctx, run.ID, false, 1, "failed")
 	}
+	run.LastHandoff = handoffFromTerminal(nil, run.Result, run.Summary)
 	run.EndedAt = &now
 	run.UpdatedAt = now
 	mu.Unlock()
 	if err := c.update(ctx, &mu, run); err != nil {
+		return err
+	}
+	c.broadcast(run)
+	return nil
+}
+
+// handoffFromTerminal prefers the terminal's own summary, then the persisted
+// result's final output, then the run summary. It is the text a resume prompt
+// carries forward.
+func handoffFromTerminal(terminal *runner.TranscriptTerminal, result *domain.RunResult, summary *domain.RunSummary) string {
+	if terminal != nil && terminal.Summary != nil && strings.TrimSpace(terminal.Summary.Description) != "" {
+		return terminal.Summary.Description
+	}
+	if result != nil && strings.TrimSpace(result.FinalOutput) != "" {
+		return result.FinalOutput
+	}
+	if summary != nil {
+		return summary.Description
+	}
+	return ""
+}
+
+// finalizeTimeout ends a run that reached its configured timeout ceiling. The
+// terminal reason is "timeout" so Swarm can classify the interruption; Phase 3
+// adds the typed terminal_class/stop_reason pair and the retained handoff.
+//
+// The tail context is already expired when this is called, so the terminal
+// state is persisted on a fresh bounded context — using the expired one would
+// fail the write and leave the run stuck in RUNNING (observed live).
+func (c *Coordinator) finalizeTimeout(ctx context.Context, run *domain.Run) error {
+	persistCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	now := c.clock()
+	var mu sync.Mutex
+	mu.Lock()
+	run.Status = domain.RunStatusFailed
+	run.Phase = domain.RunPhaseCompleted
+	run.ErrorMsg = "interactive run exceeded its configured timeout"
+	run.TerminalClass = domain.RunTerminalClassInterruption
+	run.StopReason = domain.RunStopReasonTimeout
+	if c.deps.Result != nil {
+		run.Result, run.Summary = c.deps.Result(persistCtx, run.ID, false, 1, "timeout")
+	}
+	run.LastHandoff = handoffFromTerminal(nil, run.Result, run.Summary)
+	run.EndedAt = &now
+	run.UpdatedAt = now
+	mu.Unlock()
+	if err := c.update(persistCtx, &mu, run); err != nil {
 		return err
 	}
 	c.broadcast(run)

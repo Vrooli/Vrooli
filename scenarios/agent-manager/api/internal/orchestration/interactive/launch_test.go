@@ -70,6 +70,37 @@ func TestSeedRelocatedHome_CopiesSeedsAndPreTrustsWorkingDir(t *testing.T) {
 	}
 }
 
+func TestSeedRelocatedHome_DoesNotDuplicateExistingTrust(t *testing.T) {
+	userHome := t.TempDir()
+	sharedCodex := filepath.Join(userHome, ".codex")
+	if err := os.MkdirAll(sharedCodex, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The shared config already trusts the working directory using Codex's
+	// single-quoted table form. Appending a second (double-quoted) table for the
+	// same key is invalid TOML and made Codex exit before writing a transcript.
+	shared := "model = 'x'\n\n[projects.'/work/proj']\ntrust_level = 'trusted'\n"
+	if err := os.WriteFile(filepath.Join(sharedCodex, "config.toml"), []byte(shared), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	relocated := t.TempDir()
+	spec, _ := specFor(domain.RunnerTypeCodex)
+	if err := seedRelocatedHome(spec, relocated, "/work/proj", userHome); err != nil {
+		t.Fatalf("seedRelocatedHome: %v", err)
+	}
+	cfg, err := os.ReadFile(filepath.Join(relocated, "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(string(cfg), "/work/proj"); got != 1 {
+		t.Fatalf("duplicate trust table for the working dir (count=%d):\n%s", got, cfg)
+	}
+	if strings.Contains(string(cfg), `[projects."/work/proj"]`) {
+		t.Fatalf("duplicate trust table appended for an already-trusted dir:\n%s", cfg)
+	}
+}
+
 func TestSeedRelocatedHome_TrustEntryWhenConfigAbsent(t *testing.T) {
 	userHome := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(userHome, ".codex"), 0o755); err != nil {

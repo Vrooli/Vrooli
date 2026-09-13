@@ -26,7 +26,7 @@ type meteredSettlement struct {
 // Cancellation uses the same accounting barrier as budget stops. A stop RPC
 // acknowledgement is insufficient, and an unbound dispatch cannot be presumed
 // absent: it may be a lost response from an owner that already started work.
-func (e *Engine) reconcileMeteredCleanup(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
+func (e *Engine) reconcileMeteredCleanup(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry, allowUnknown bool) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
 	if e.Catalog == nil {
 		return nil, nil, fmt.Errorf("pinned workflow catalog unavailable during cleanup")
 	}
@@ -38,7 +38,7 @@ func (e *Engine) reconcileMeteredCleanup(ctx context.Context, x *domain.Workflow
 		return nil, nil, fmt.Errorf("pinned workflow revision unavailable during cleanup")
 	}
 	if r.Definition.Budgets.Enforcement != domain.WorkflowBudgetMeteredCancellation {
-		return e.reconcileOrdinaryCleanup(ctx, x, journal)
+		return e.reconcileOrdinaryCleanup(ctx, x, journal, allowUnknown)
 	}
 	meter, ok := e.Children.(MeteredChildLauncher)
 	if !ok {

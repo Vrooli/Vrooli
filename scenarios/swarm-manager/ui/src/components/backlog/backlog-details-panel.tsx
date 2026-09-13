@@ -31,7 +31,6 @@ import { BottomSheet } from "../ui/bottom-sheet";
 import { GoalPicker } from "../goals/GoalPicker";
 import { useGoals, useGoalMutations } from "../../surfaces/plan/hooks/useGoals";
 import { DependencyChipList } from "./dependency-chip-list";
-import { DevelopmentContractPanel } from "./development-contract-panel";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { BACKLOG_KIND_ICONS } from "../../types";
@@ -117,9 +116,6 @@ export function BacklogDetailsPanel({
 
   return (
     <>
-      {item.executionStrategy === "adaptive-improvement" && (
-        <DevelopmentContractPanel key={targetRef} workItem={targetRef} planRef={item.planRef} readOnly={isLocked} />
-      )}
       <DetailSection
         title="Overview"
         icon={BACKLOG_KIND_ICONS[item.kind]}

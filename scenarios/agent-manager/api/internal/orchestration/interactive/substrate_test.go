@@ -31,6 +31,7 @@ type fakeSessions struct {
 	sendPromptErr error
 	onSendPrompt  func(callN int)
 	sendPrompts   int
+	goalSendTexts int
 
 	calls   []string
 	screens []string
@@ -64,8 +65,11 @@ func (f *fakeSessions) DeleteSession(_ context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeSessions) SendText(_ context.Context, _, _, _ string) error {
+func (f *fakeSessions) SendText(_ context.Context, _, text, _ string) error {
 	f.calls = append(f.calls, "sendtext")
+	if strings.HasPrefix(text, "/goal ") {
+		f.goalSendTexts++
+	}
 	return nil
 }
 
@@ -109,6 +113,14 @@ func TestShellPromptReady(t *testing.T) {
 				t.Fatalf("shellPromptReady(%q) = %v, want %v", tc.screen, got, tc.ready)
 			}
 		})
+	}
+}
+
+func TestSingleLineCollapsesNewlines(t *testing.T) {
+	got := singleLine("  first line\nsecond line\r\nthird  ")
+	want := "first line second line third"
+	if got != want {
+		t.Fatalf("singleLine = %q, want %q", got, want)
 	}
 }
 
@@ -206,6 +218,72 @@ func TestSubstrateLaunch_Codex_HappyPath(t *testing.T) {
 	ApplyToRun(run, res)
 	if run.ExecutionMode != domain.ExecutionModeInteractive || run.WebConsoleSessionID != "sess-1" || run.TranscriptPath != rollout {
 		t.Errorf("ApplyToRun did not set fields: %+v", run)
+	}
+}
+
+func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
+	cases := []struct {
+		name           string
+		native         string
+		config         *domain.RunConfig
+		wantDelivery   string
+		wantGoalSendTx int
+	}{
+		{
+			name:           "native objective sent but unverified",
+			native:         "stop when the plan is complete",
+			config:         &domain.RunConfig{Until: "stop when the plan is complete"},
+			wantDelivery:   GoalDeliveryNativeUnverified,
+			wantGoalSendTx: 1,
+		},
+		{
+			name:           "no native support carries the finish line in the prompt",
+			config:         &domain.RunConfig{Until: "stop when the plan is complete"},
+			wantDelivery:   GoalDeliveryPromptCarried,
+			wantGoalSendTx: 0,
+		},
+		{
+			name:           "no completion objective records nothing",
+			config:         &domain.RunConfig{},
+			wantDelivery:   "",
+			wantGoalSendTx: 0,
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			runDir := t.TempDir()
+			rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13", "rollout-goal.jsonl")
+			writeFile(t, rollout)
+			fs := newFakeSessions("sess-goal")
+			sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{
+				rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
+			}), WithDiscoveryTimeout(2*time.Second), WithPollInterval(10*time.Millisecond), WithPromptBootDelay(0))
+			res, err := sub.Launch(context.Background(), LaunchParams{
+				RunID:           uuid.New(),
+				RunnerType:      domain.RunnerTypeCodex,
+				Tag:             "run-goal",
+				WorkingDir:      "/work/dir",
+				RunDir:          runDir,
+				Prompt:          "do the work",
+				NativeObjective: tc.native,
+				Config:          tc.config,
+			})
+			if err != nil {
+				t.Fatalf("Launch: %v", err)
+			}
+			if res.GoalDelivery != tc.wantDelivery {
+				t.Fatalf("goal delivery = %q, want %q", res.GoalDelivery, tc.wantDelivery)
+			}
+			if got := fs.goalSendTexts; got != tc.wantGoalSendTx {
+				t.Fatalf("goal sendtext calls = %d, want %d", got, tc.wantGoalSendTx)
+			}
+			run := &domain.Run{}
+			ApplyToRun(run, res)
+			if run.GoalDelivery != tc.wantDelivery {
+				t.Fatalf("ApplyToRun goal delivery = %q, want %q", run.GoalDelivery, tc.wantDelivery)
+			}
+		})
 	}
 }
 

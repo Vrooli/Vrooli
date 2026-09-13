@@ -70,7 +70,7 @@ func VerifyToken(token string, secret []byte) (*Claims, error) {
 	}
 
 	// Check expiry.
-	if time.Now().Unix() > claims.ExpiresAt {
+	if time.Now().Unix() >= claims.ExpiresAt {
 		return nil, ErrTokenExpired
 	}
 

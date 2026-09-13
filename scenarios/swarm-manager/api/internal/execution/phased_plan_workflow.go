@@ -43,7 +43,10 @@ type phasedPlanSnapshot struct {
 	EntityName        string
 	EntityVersion     string
 	MaxSlices         int
-	ExecutionStrategy string
+	ExecutionMode     string
+	PlanShape         string
+	Unattended        bool
+	OperatorNote      string
 	WriteScope        []string
 	ScopePolicy       string
 	SliceApprovalMode string
@@ -149,7 +152,7 @@ func buildPhasedPlanSnapshotWithScope(item backlogItem, record Record, planHandl
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		ProjectRoot: filepath.Clean(projectRoot),
 		EntityKind:  item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
-		MaxSlices: firstPositive(record.MaxSlices, 6), ExecutionStrategy: firstNonEmpty(record.ExecutionStrategy, defaultExecutionStrategy), WriteScope: effectiveWriteScope(item, extensions), ScopePolicy: strings.TrimSpace(item.ScopePolicy), PlanExecutionID: record.PlanManagerExecutionID,
+		MaxSlices: firstPositive(record.MaxSlices, 6), ExecutionMode: firstNonEmpty(record.ExecutionMode, defaultExecutionMode), PlanShape: "phased", Unattended: strings.TrimSpace(item.Continuation) != "" && item.Continuation != "manual", OperatorNote: firstNonEmpty(record.OperatorNote, item.OperatorNote), WriteScope: effectiveWriteScope(item, extensions), ScopePolicy: strings.TrimSpace(item.ScopePolicy), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
 }
 
@@ -247,7 +250,7 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
 			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
 		},
-		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "executionStrategy": firstNonEmpty(snapshot.ExecutionStrategy, defaultExecutionStrategy), "writeScope": writeScope, "scopePolicy": firstNonEmpty(snapshot.ScopePolicy, "fixed"), "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
+		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "planShape": firstNonEmpty(snapshot.PlanShape, "phased"), "unattended": snapshot.Unattended, "operatorNote": snapshot.OperatorNote, "writeScope": writeScope, "scopePolicy": firstNonEmpty(snapshot.ScopePolicy, "fixed"), "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
 	})
 }
 
@@ -425,7 +428,20 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 	if outcome.TransitionKey != "plan.execute" {
 		return fmt.Errorf("execution %q is not a plan execution transition", executionID)
 	}
-	result, err := parsePhasedPlanOutcome(domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, outcome.Result)
+	workflowStatus := domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED
+	switch outcome.Status {
+	case "blocked":
+		workflowStatus = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED
+	case "abstained":
+		workflowStatus = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED
+	case "budget_exhausted":
+		workflowStatus = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED
+	case "failed":
+		workflowStatus = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED
+	case "cancelled":
+		workflowStatus = domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED
+	}
+	result, err := parsePhasedPlanOutcome(workflowStatus, outcome.Result)
 	if err != nil {
 		return err
 	}
@@ -526,32 +542,50 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 	}
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
-	switch result.Outcome {
-	case "complete":
-		record.Status = StatusCompleted
-		candidates := []string{}
-		s.applyCompletedTransition(record, item, &candidates)
-	case "cancelled":
+	switch {
+	case outcome.Status == "budget_exhausted":
+		// A bounded drain is an expected, resumable terminal. Preserve the
+		// reason and keep it in review so the operator can continue it; it is
+		// not evidence that the agent or transition failed.
+		record.Status = StatusBudgetExhausted
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Reason, result.Summary, "workflow budget exhausted")
+		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+			return err
+		}
+	case outcome.Status == "blocked":
+		record.Status = StatusNeedsAttention
+		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow blocked")
+		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+			return err
+		}
+	case outcome.Status == "abstained":
+		record.Status = StatusAbstained
+		record.FailureReason = stringsx.FirstNonEmpty(result.Reason, result.Summary, "workflow abstained")
+		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+			return err
+		}
+	case outcome.Status == "cancelled":
 		record.Status = StatusCanceled
 		if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
 			return err
 		}
-	case "blocked", "needs_review", "needs_attention", "abstained":
+	case outcome.Status == "failed":
+		record.Status = StatusFailed
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Outcome)
+		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+			return err
+		}
+	case result.Outcome == "complete":
+		record.Status = StatusCompleted
+		candidates := []string{}
+		s.applyCompletedTransition(record, item, &candidates)
+	case result.Outcome == "blocked" || result.Outcome == "needs_review" || result.Outcome == "needs_attention" || result.Outcome == "abstained":
 		if result.Outcome == "abstained" {
 			record.Status = StatusAbstained
 		} else {
 			record.Status = StatusNeedsReview
 		}
 		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+result.Outcome)
-		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
-			return err
-		}
-	case "budget_exhausted":
-		// A bounded drain is an expected, resumable terminal. Preserve the
-		// reason and keep it in review so the operator can continue it; it is
-		// not evidence that the agent or transition failed.
-		record.Status = StatusBudgetExhausted
-		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Reason, result.Summary, "workflow budget exhausted")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}

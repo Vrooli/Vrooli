@@ -40,6 +40,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // -----------------------------------------------------------------------------
@@ -105,6 +106,8 @@ type PurgeResult struct {
 // CreateRunRequest contains parameters for creating a new run.
 type CreateRunRequest struct {
 	TaskID uuid.UUID `json:"taskId"`
+	// Attributable workload declarations only; never authorization claims.
+	WorkReferences []*eventpb.WorkReference `json:"workReferences,omitempty"`
 
 	// OwnerToken is supplied only by the HTTP boundary and is never persisted.
 	// The verified projection is stored on the run so later token minting does
@@ -114,7 +117,10 @@ type CreateRunRequest struct {
 	OwnerScopes  []string `json:"-"`
 	// RequestedScopes is an optional caller narrowing. It is never a source of
 	// authority: minting intersects it with the verified owner ceiling.
-	RequestedScopes []string `json:"scopes,omitempty"`
+	RequestedScopes      []string                `json:"scopes,omitempty"`
+	ExpectedOwnerSubject string                  `json:"-"`
+	OwnerExpiresAt       *time.Time              `json:"-"`
+	DispatchBinding      *domain.DispatchBinding `json:"-"`
 
 	// Profile-based config (optional - can be nil if inline config provided)
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty"`
@@ -489,6 +495,9 @@ type ContinueRunRequest struct {
 	MaxTurns       *int               `json:"maxTurns,omitempty"`
 	Timeout        *time.Duration     `json:"timeout,omitempty"`
 	ResultSpec     *domain.ResultSpec `json:"resultSpec,omitempty"`
+	// ReinstallGoal re-sends the harness-native goal before the follow-up
+	// message. Set by a resume that re-adopts an interrupted interactive run.
+	ReinstallGoal bool `json:"reinstallGoal,omitempty"`
 }
 
 // ResumeFromFailedRunRequest contains parameters for creating a new run that
@@ -649,6 +658,9 @@ type ProbeResult struct {
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
+	maintenanceGate interface {
+		Admit(context.Context) (func(), error)
+	}
 	familySupervision *supervision.Service
 	familyOwners      *familyOwnerClients
 	// wakeMu serializes the parked→running claim. The durable run repository is
@@ -742,7 +754,8 @@ type Orchestrator struct {
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
 	// falls back to an unverified identity.
-	ownerIdentity authn.TokenVerifier
+	ownerIdentity      authn.TokenVerifier
+	supervisorDispatch SupervisorDispatchAuthority
 
 	// dispatcher serializes runner startups and exposes queue depth.
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
@@ -1244,6 +1257,8 @@ func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
 		r.structuredResults = o.structuredResults
+		r.interactiveRecoveryMu = &o.wakeMu
+		r.interactiveLiveDrivers = o.interactiveDrivers
 	}
 }
 

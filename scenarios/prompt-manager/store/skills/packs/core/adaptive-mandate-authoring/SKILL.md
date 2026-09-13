@@ -55,6 +55,22 @@ TESTING.md outcome inventory), a `<scenario>-improve` skill, and a
 bounded task or a phased plan that creates it. Do not author a mandate over an
 undocumented target.
 
+### 1.1 Shape and runtime capability check
+
+An adaptive mandate is one work shape, not the default for every optimization
+or investigation. Use a bounded task for a small experiment or instrumentation
+change whose route is already clear, and use a phased plan when the route,
+handoffs or order are themselves acceptance requirements.
+
+Before authoring a mandate, qualify the actual Plan Manager and Swarm
+capabilities available in this environment: whether plan shape `mandate` is
+stored, whether goal mode is supported, how the setpoint board is read, and how
+completion/finalization is recorded. Record the observed capability state in
+the effort evidence. Do not infer semantic support from a CLI help page or a
+declared registry entry. If the native shape is not implemented, use the
+interim representation below and label it transitional; do not pretend that
+four temporary phases provide native mandate semantics.
+
 ### 2. Required sections
 
 Write every section. Each one has one rule.
@@ -115,26 +131,40 @@ understand → instrument → improve → validate. Reorderable. Re-enter any st
 ~/.vrooli/plan-artifacts/<session-slug>/journal.md — readings, hypotheses, rejected hypotheses, remaining rows.
 ```
 
-### 4. Until the shape field exists
+### 4. Transitional representation when the shape field is absent
 
-Plan Manager has no `shape` field yet. Author the same content through
-`plan-manager author` as follows.
+When the qualified Plan Manager implementation has no `shape` field, author the
+same content through `plan-manager author` as a compatibility representation.
+This is a migration aid, not a reason to make every mandate look like a fixed
+route.
 
 1. Start the session with `plan-manager author start` and write the target
    pointer, sensors and scope into the plan's context and boundary sections.
-2. Add one phase per arc stop (understand, instrument, improve, validate). Set
-   each phase's acceptance to the band predicates it must make true. Keep steps
-   to three or fewer per phase; each step names an evidence action, not a
-   repair.
+2. Add at most one compatibility phase per arc stop (understand, instrument,
+   improve, validate). Set each phase's acceptance to the band predicates it
+   must make true. Keep steps to three or fewer per phase; each step names an
+   evidence action, not a prescribed repair. The agent may re-enter or reorder
+   these stops when the evidence requires it.
 3. Keep the derived work posture the wizard reports; do not override it to fit
    the mandate.
 4. Put the journal location in the plan's constraints section.
 5. Finalize. Bind the plan to a Swarm item with `swarm-manager-work-authoring`.
 
-Swarm runs such a plan in sliced mode today with
-`execution_strategy: adaptive-improvement`, and in goal mode once that mode
-exists. Both modes read the same plan; the mandate content does not change with
-the mode.
+The current owner implementation may run this compatibility plan through a
+sliced workflow using `execution_strategy: adaptive-improvement`, or through
+goal mode if that capability is qualified. Both modes must read the same target
+docs and bands. The execution strategy is not proof that native mandate shape
+or goal finalization exists; cite the observed owner receipt.
+
+### 4.1 Examples
+
+- A performance campaign with documented latency/resource bands and a working
+  setpoint sensor is a mandate: the intervention route should adapt to the
+  readings.
+- A single query-index change with a known migration and validation command is
+  a bounded task, even if it contributes to a larger performance campaign.
+- A cross-service rollout with a required order, compatibility handoff and
+  rollback checkpoint is a phased plan.
 
 ### 5. Anti-patterns
 

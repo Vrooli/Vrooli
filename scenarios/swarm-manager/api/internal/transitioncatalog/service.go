@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"swarm-manager/internal/development"
 	"swarm-manager/internal/stats"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
@@ -21,6 +20,13 @@ import (
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
+
+// subjectOwnedTransitions are transitions whose start path carries rules owned
+// by a domain service (capacity, preflight, grant, scope). The generic
+// StartTransition RPC must refuse them so those rules cannot be bypassed.
+var subjectOwnedTransitions = map[string]bool{
+	"plan.execute": true,
+}
 
 type Runner interface {
 	Start(context.Context, string, string) (transitionrun.Correlation, error)
@@ -37,11 +43,10 @@ type DeterministicDispatcher interface {
 type GateProjection func() (map[string]string, map[string]stats.KindRate)
 
 type Service struct {
-	registry            transitions.Registry
-	runner              Runner
-	deterministic       DeterministicDispatcher
-	gateProjection      GateProjection
-	developmentReviewer *development.Reviewer
+	registry       transitions.Registry
+	runner         Runner
+	deterministic  DeterministicDispatcher
+	gateProjection GateProjection
 }
 
 func NewService(registry transitions.Registry, runner Runner, deterministic ...DeterministicDispatcher) *Service {
@@ -59,7 +64,6 @@ func RegisterRoutes(router *mux.Router, registry transitions.Registry, runner Ru
 
 func RegisterRoutesWithGateProjection(router *mux.Router, registry transitions.Registry, runner Runner, projection GateProjection, repoRoot string, deterministic ...DeterministicDispatcher) {
 	svc := NewServiceWithGateProjection(registry, runner, projection, deterministic...)
-	svc.developmentReviewer = &development.Reviewer{RepoRoot: repoRoot}
 	path, handler := apiconnect.NewTransitionServiceHandler(svc)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 }
@@ -77,6 +81,12 @@ func (s *Service) StartTransition(ctx context.Context, req *connect.Request[api.
 	definition, ok := s.registry.Get(req.Msg.GetTransitionKey())
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("transition is not declared"))
+	}
+	// A subject-owned transition (for example plan.execute) carries capacity,
+	// preflight, grant, and scope rules owned by its execution service. The
+	// generic RPC must not start it directly.
+	if subjectOwnedTransitions[definition.Key] {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("transition %q is subject-owned; start it through its owner service (the execution service), not the generic StartTransition RPC", definition.Key))
 	}
 	subjectRef, err := declaredSubjectReference(definition, req.Msg.GetSubjectRef())
 	if err != nil {
@@ -165,8 +175,8 @@ func definitionProtoWithEvidence(definition transitions.Definition, modes map[st
 	if definition.Workflow != nil {
 		transition.Workflow = &domain.WorkflowLocator{Owner: definition.Workflow.Owner, Key: definition.Workflow.Key}
 	}
-	for _, strategy := range definition.Strategies {
-		transition.Strategies = append(transition.Strategies, &domain.ExecutionStrategy{Id: strategy.ID, WorkflowKey: strategy.WorkflowKey, DisplayName: strategy.DisplayName, Description: strategy.Description, WhenToUse: strategy.WhenToUse, CostBand: strategy.CostBand})
+	for _, strategy := range definition.ExecutionModes {
+		transition.ExecutionModes = append(transition.ExecutionModes, &domain.ExecutionMode{Id: strategy.ID, WorkflowKey: strategy.WorkflowKey, DisplayName: strategy.DisplayName, Description: strategy.Description, WhenToUse: strategy.WhenToUse, CostBand: strategy.CostBand})
 	}
 	for _, gate := range definition.HumanGates {
 		mode := string(gate.DefaultMode)

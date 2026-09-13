@@ -47,7 +47,7 @@ describe("plan service Create-Work-From-Plan methods", () => {
       plan_id: "plan-1",
       container: "milestone",
       items: [{ kind: "execute", name: "alpha-phase-1", title: "Build", action: "created" }],
-      milestone: { name: "alpha", title: "Alpha", mode: "phased-plan-drain", action: "created" },
+      milestone: { name: "alpha", title: "Alpha", mode: "sliced", action: "created" },
       count: 1,
       created: 1,
       linked: 0,
@@ -56,7 +56,7 @@ describe("plan service Create-Work-From-Plan methods", () => {
 
     const result = await createPlanService(api).importPlan({
       planId: "plan-1",
-      container: { type: "milestone", name: "alpha", mode: "phased-plan-drain" },
+      container: { type: "milestone", name: "alpha", mode: "sliced" },
     });
 
     expect(api.post).toHaveBeenCalledWith("/plan-import", {
@@ -65,7 +65,7 @@ describe("plan service Create-Work-From-Plan methods", () => {
       markdown: undefined,
       title: undefined,
       slug: undefined,
-      container: { type: "milestone", name: "alpha", mode: "phased-plan-drain" },
+      container: { type: "milestone", name: "alpha", mode: "sliced" },
     }, { signal: undefined });
     expect(result.milestone?.name).toBe("alpha");
     expect(result.items[0]?.name).toBe("alpha-phase-1");

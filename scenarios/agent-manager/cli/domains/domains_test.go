@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"io"
+	"slices"
 	"testing"
 
 	"agent-manager/cli/internal/support"
@@ -20,5 +22,22 @@ func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatalf("missing registered groups: %v", want)
+	}
+}
+
+func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
+	for _, operation := range []string{"issue-dispatch", "revoke-dispatch"} {
+		t.Run(operation, func(t *testing.T) {
+			var received []string
+			group := effortGroup(support.Dependencies{Effort: func(args []string) error { received = args; return nil }})
+			app := cliapp.NewApp(cliapp.AppOptions{Name: "agent-manager", SubcommandGroups: []cliapp.SubcommandGroup{group}})
+			args := []string{operation, "--request-file", "request.json", "--local-owner", "--json"}
+			if err := app.RunWithWriters(append([]string{"effort"}, args...), io.Discard, io.Discard); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(received, args) {
+				t.Fatalf("registered route lost dispatcher operation: %v", received)
+			}
+		})
 	}
 }

@@ -23,6 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
+    lifecycle_version INTEGER NOT NULL DEFAULT 0,
+    fresh_recovery_request_hash TEXT NOT NULL DEFAULT '',
     -- Attached operator sessions may intentionally have no task.
     task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,
     agent_profile_id TEXT,
@@ -31,6 +33,8 @@ CREATE TABLE IF NOT EXISTS runs (
     label_source TEXT NOT NULL DEFAULT '',
     subject TEXT NOT NULL DEFAULT '[]',
     owner_subject TEXT NOT NULL DEFAULT '',
+    owner_expires_at TEXT,
+    dispatch_binding TEXT,
     owner_scopes TEXT NOT NULL DEFAULT '[]',
     requested_scopes TEXT NOT NULL DEFAULT '[]',
     work_references TEXT NOT NULL DEFAULT '[]',
@@ -43,10 +47,16 @@ CREATE TABLE IF NOT EXISTS runs (
     execution_mode TEXT DEFAULT 'codec_pipe',
     harness_kind TEXT DEFAULT '',
     harness_session_id TEXT DEFAULT '',
+    goal_delivery TEXT DEFAULT '',
+    terminal_class TEXT DEFAULT '',
+    stop_reason TEXT DEFAULT '',
+    last_handoff TEXT DEFAULT '',
     web_console_session_id TEXT DEFAULT '',
     status TEXT DEFAULT 'pending',
     started_at TEXT,
+    interactive_invocation_started_at TEXT,
     ended_at TEXT,
+    cancel_requested_at TEXT,
     goal_id TEXT NOT NULL DEFAULT '',
     goal_status TEXT NOT NULL DEFAULT '',
     phase TEXT DEFAULT 'queued',
@@ -101,6 +111,22 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_runs_task_id ON runs(task_id);
+
+-- Accepted creation identity is not a TTL cache or a child of the run row.
+-- Deleting/purging a run or task must never make its creation key reusable.
+CREATE TABLE IF NOT EXISTS run_creation_receipts (
+    idempotency_key TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    task_id TEXT,
+    owner_subject TEXT,
+    created_at TEXT NOT NULL
+);
+
+-- Additive, idempotent adoption of already-persisted runs on schema application.
+INSERT INTO run_creation_receipts (idempotency_key, run_id, task_id, owner_subject, created_at)
+SELECT idempotency_key, id, task_id, owner_subject, COALESCE(created_at, datetime('now'))
+FROM runs WHERE idempotency_key IS NOT NULL AND idempotency_key <> ''
+ON CONFLICT(idempotency_key) DO NOTHING;
 CREATE INDEX IF NOT EXISTS idx_runs_session_id ON runs(session_id) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_runs_agent_profile_id ON runs(agent_profile_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);

@@ -3669,6 +3669,14 @@
         {
           "name": "continue",
           "description": "Continue a run",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Existing run ID" }
+          ],
+          "flags": [
+            { "name": "message", "required": true, "description": "Follow-up message" },
+            { "name": "idempotency-key", "description": "Replay-safe continuation key; retain for retries of the same request" },
+            { "name": "reinstall-goal", "description": "Reinstall the retained harness-native goal before the follow-up message" }
+          ],
           "binding": {
             "kind": "local"
           },

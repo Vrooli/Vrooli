@@ -1,5 +1,67 @@
 # Agent Manager Architecture
 
+## Effort supervision contract
+
+[Effort supervision](../../../../docs/agent-system/EFFORT_SUPERVISION.md) defines
+the accepted extension of existing supervision to portable effort enrollment,
+bounded boards, attributable cost and durable steering. Agent Manager owns those
+monitoring records and run effects; product acceptance and external grants remain
+with their existing owners. Reuse cohort decisions, delivery and policy assessment.
+General effort subjects must not require a fabricated plan family or weaken an
+actual family's validation. CLI, UI and programs consume the same typed projection.
+The linked qualification record distinguishes target behavior from exercised code.
+
+Implementation design (2026-09-12): extend `internal/supervision` with an
+engine-neutral effort repository implemented by its existing SQL repository.
+Additive domain-owned tables retain enrollment revisions, discovery coverage and
+directive transitions; family watches and their topology checks remain intact.
+There is no copied plan or grant ledger. A workspace declaration grants only
+observation. Operator-authenticated enrollment may bind a supervisor and bounded
+steering permission to an exact target revision and orchestrator run. Delivery
+rechecks that binding, expiry, withdrawal and the existing policy emergency switch.
+It uses the existing run controller's idempotent continuation at a resting turn.
+Unknown or refused authority never falls back to another transport.
+
+The existing scheduler owns bounded discovery/recovery ticks. `effort.json`
+schema 1 normalizes its stable explicit reference (or repository plus slug),
+source digest, acceptance reference and declared owner subjects. Version 2 is a
+typed portable manifest. Only immediate effort directories and bounded declared
+checkpoint/requirements files are read. Path components and files reject symlinks;
+file opens are rooted to prevent escapes. A complete scan can mark missing sources
+unavailable; partial scans cannot infer removal. Identical scans preserve change
+identity. Persisted withdrawal survives rediscovery and restart.
+
+The typed `AgentManagerService` effort RPCs expose a read-only board, explicit
+enrollment/reconciliation and durable directives. Board projections read current
+owner runs and attributed workspace evidence; runtime completion cannot accept an
+outcome. Optional usage values retain unknown cost and censored coverage. Source
+snapshots captured with directive requests remain immutable through assessment.
+Acknowledgment (accept/defer/challenge), delivery, action and assessment are separate.
+Only the assigning orchestrator receives steering; shared repairs require its
+existing ownership reconciliation. No directive directly starts a repair worker.
+
+Dynamic supervisor integration: canonical public, verified AM work references
+with `kind=effort` and `relationship=supervisor` join newly created judgment runs
+through the bounded run registry scan. Quiet and sampled judgments use
+`RecordEffortAssessment`, not a fabricated intervention. A shared assessment is
+stored once with benefiting effort references, an owner allowance reference,
+allocation rule and explicit unallocated/unknown usage. Board rows link that same
+assessment and Source Ledger evidence. Assessment recording does not grant
+steering, create an allowance or qualify causal benefit.
+
+Stable wake authority is an operator-enrolled exact pair of verified token owner
+subject and attenuated scope. Fresh wake run IDs can use that delegation without
+re-enrollment; neither profile/team text, parent conversation lineage nor observed
+work references confer steering authority. The original pinned run route remains
+available. Discovery strips stable delegation claims from files. Runtime-added
+supervisor/worker observations do not enlarge the authorized orchestrator target.
+
+Row `change_identity` is the subject/evidence trigger, excluding supervisor
+assignments, assessments and aggregate accounting; `visibility_change_identity`
+also tracks those board-visible changes. Directive delivery/acknowledgment/action
+facts remain subject-relevant. Board read time and workspace evidence capture time
+are distinct; fresh run reads have their own assignment timestamps.
+
 This document describes the architectural patterns, invariants, and design decisions that make agent-manager robust, maintainable, and extensible.
 
 ## Domain compression — the eight concepts

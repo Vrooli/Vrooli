@@ -424,20 +424,20 @@ func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 	_ = proc.Wait()
 }
 
-func TestCodecSessionHomeMounts_DeclaresOnlyRunnerSessionHomes(t *testing.T) {
-	mounts := codecSessionHomeMounts(map[string]string{
-		"CODEX_HOME": "/state/run/codex",
-		"GROK_HOME":  "/state/run/grok",
-		"UNRELATED":  "/state/unrelated",
+func TestRunRuntimeMounts_DeclaresSingleRunRuntimeFolder(t *testing.T) {
+	mounts := runRuntimeMounts(map[string]string{
+		"VROOLI_AGENT_RUNTIME_ROOT": "/state/run/runtime",
+		"CODEX_HOME":                "/state/run/runtime/codex",
+		"UNRELATED":                 "/state/unrelated",
 	})
-	if len(mounts) != 2 {
-		t.Fatalf("mount count = %d, want 2", len(mounts))
+	if len(mounts) != 1 {
+		t.Fatalf("mount count = %d, want 1 (the run runtime folder)", len(mounts))
 	}
-	if mounts[0].Path != "/state/run/codex" || mounts[0].Purpose != "codec-session-home" {
-		t.Errorf("first mount = %+v", mounts[0])
+	if mounts[0].Path != "/state/run/runtime" || mounts[0].Purpose != "run-runtime" {
+		t.Errorf("mount = %+v, want the single run runtime folder", mounts[0])
 	}
-	if mounts[1].Path != "/state/run/grok" || mounts[1].Purpose != "codec-session-home" {
-		t.Errorf("second mount = %+v", mounts[1])
+	if len(runRuntimeMounts(map[string]string{"CODEX_HOME": "/state/run/runtime/codex"})) != 0 {
+		t.Errorf("without the run runtime root no mount may be declared")
 	}
 }
 

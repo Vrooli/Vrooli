@@ -54,7 +54,7 @@
         {
           "path": "concepts/SWARM-MODEL.md",
           "title": "Swarm Coordination Model",
-          "description": "How skills, agents, teams, and Actions work together",
+          "description": "Skills and team purposes: standing departments, finite effort committees, and delivery supervision",
           "audience": [
             "developers",
             "users"
@@ -114,7 +114,7 @@
         {
           "path": "concepts/HEARTBEATS.md",
           "title": "Heartbeats & Cron Execution",
-          "description": "Autonomous scheduled task execution for team members",
+          "description": "Scheduled execution, standing effort supervision, status interpretation, and recovery limits",
           "audience": [
             "developers",
             "users"

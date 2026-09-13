@@ -26,6 +26,7 @@ package phases
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
@@ -58,6 +59,38 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 	outcome := classifyOutcome(in.ExecErr, in.Result)
 	out := HandleResultOutput{Outcome: outcome}
 
+	// Phase 3 durable lifecycle: reconcile a delayed process exit against
+	// durable owner state exactly once. A stop request can persist a terminal
+	// status (for example cancelled) while the runner process is still alive;
+	// its later exit carries a stale in-memory snapshot and must not resurrect
+	// the run to a different terminal state.
+	if in.Run != nil && in.Deps.Runs != nil {
+		if durable, readErr := in.Deps.Runs.Get(ctx, in.Run.ID); readErr == nil && durable != nil {
+			if durable.LifecycleVersion != in.Run.LifecycleVersion {
+				return out
+			}
+			if durable.Status.IsTerminal() {
+				*in.Run = *durable
+				if durable.Status == domain.RunStatusCancelled {
+					out.Outcome = domain.RunOutcomeCancelled
+				}
+				if in.Deps.Broadcaster != nil {
+					in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
+				}
+				return out
+			}
+			// Durable cancellation intent recorded before termination outranks
+			// the runner's own exit. Carry the intent onto the in-memory
+			// snapshot and reconcile the delayed exit to cancelled, so the
+			// cancellation handler owns terminal finalization exactly once.
+			if durable.CancelRequestedAt != nil {
+				in.Run.CancelRequestedAt = durable.CancelRequestedAt
+				outcome = domain.RunOutcomeCancelled
+				out.Outcome = domain.RunOutcomeCancelled
+			}
+		}
+	}
+
 	now := in.Deps.Now()
 	in.Run.EndedAt = &now
 	in.Run.UpdatedAt = now
@@ -73,16 +106,96 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 		HandleFailure(ctx, in)
 	}
 
+	// Qualification receipt: a bounded run's terminal seam is where its live
+	// evidence exists. Derive and persist the reusable route-keyed receipt from
+	// the run's admission record and this run's observed outcome, so a later
+	// dependent delegation is admitted against real evidence instead of a
+	// requested field. Provider acknowledgment stays empty unless the runner
+	// exposed provider-native evidence; a limitation records that gap rather
+	// than inventing a value.
+	captureQualificationReceipt(in, outcome)
+
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 				"failed to persist run result: "+err.Error())
+			return out
 		}
 	}
 	if in.Deps.Broadcaster != nil {
 		in.Deps.Broadcaster.BroadcastRunStatus(in.Run)
 	}
 	return out
+}
+
+// captureQualificationReceipt derives and persists the route-keyed
+// qualification receipt for a bounded run at its terminal seam. It binds the
+// run's immutable admission layers to the live evidence this run produced: the
+// runtime version observed at admission, the accepted-output verdict, and the
+// provider-reported usage. A run without an admission record captures nothing.
+// An unobserved provider acknowledgment is recorded as a limitation instead of
+// being inferred from the requested or effective layers.
+func captureQualificationReceipt(in HandleResultInput, outcome domain.RunOutcome) {
+	if in.Run == nil || in.Run.ResolvedConfig == nil {
+		return
+	}
+	admission := in.Run.ResolvedConfig.Admission
+	if admission == nil {
+		return
+	}
+	ack := append([]string(nil), admission.ProviderAcknowledgment...)
+	var limitations []string
+	if len(ack) == 0 {
+		limitations = append(limitations,
+			"provider acknowledgment not exposed by the selected runner; omitted rather than inferred")
+	}
+	// The route identity is the role reference that actually resolved the run.
+	// An explicit caller-supplied request wins; profile-based runs carry no
+	// requested role, so fall back to the resolved role persisted on the run
+	// config rather than emitting a receipt with an empty route, which would
+	// keep the dependent-delegation gate permanently closed.
+	route := strings.TrimSpace(admission.RequestedRoleRef)
+	if route == "" {
+		route = strings.TrimSpace(in.Run.ResolvedConfig.RoleRef)
+	}
+	receipt := domain.CaptureQualificationReceipt(admission, domain.QualificationEvidence{
+		Route:                  route,
+		RuntimeVersion:         admission.RuntimeVersion,
+		ProviderAcknowledgment: ack,
+		AcceptedOutput:         outcome.RequiresReview(),
+		Usage:                  qualificationUsage(in.Result),
+		Limitations:            limitations,
+		RunID:                  in.Run.ID.String(),
+		OperationID:            in.Run.IdempotencyKey,
+		CapturedAt:             in.Deps.Now(),
+	})
+	if receipt == nil {
+		return
+	}
+	admission.Receipt = receipt
+}
+
+// qualificationUsage converts a bounded run's execution metrics into the
+// receipt's usage record. Provider-reported tokens or cost are recorded as
+// measured; an all-zero result is retained as unknown and reserved, never as a
+// measured zero.
+func qualificationUsage(result *runner.ExecuteResult) domain.QualificationUsage {
+	usage := domain.QualificationUsage{}
+	if result == nil {
+		usage.State = domain.QualificationUsageUnknownReserved
+		usage.ReservedUnknown = true
+		return usage
+	}
+	usage.InputTokens = int64(result.Metrics.TokensInput)
+	usage.OutputTokens = int64(result.Metrics.TokensOutput)
+	usage.CostUSD = result.Metrics.CostEstimateUSD
+	if usage.InputTokens == 0 && usage.OutputTokens == 0 && usage.CostUSD == 0 {
+		usage.State = domain.QualificationUsageUnknownReserved
+		usage.ReservedUnknown = true
+		return usage
+	}
+	usage.State = domain.QualificationUsageMeasured
+	return usage
 }
 
 // HandleSuccessfulCompletion mutates the run record for the success path:

@@ -25,14 +25,13 @@ vi.mock("../src/hooks/useApi.js", () => ({
 }));
 vi.mock("../src/hooks/useWebSocket.js", () => ({ useWebSocket: (options: unknown) => { state.websocket(options); return { status: "connected", subscribe: vi.fn(), unsubscribe: vi.fn() }; } }));
 vi.mock("../src/hooks/useRunEventStore.js", () => ({ useRunEventStore: () => { state.events(); return { state: { runsById: state.api.snapshots }, actions: emptyActions, reconciliationIntents: [] }; } }));
-vi.mock("../src/hooks/useViewportSize.js", () => ({ useIsMobile: () => state.api.mobile }));
-vi.mock("../src/components/layout/AppHeader.js", () => ({ AppHeader: ({ activeSection, onSectionChange, onStatusClick, onSettingsClick, onQuickRunClick, onNavigationClick }: any) => createElement("div", null, createElement("span", { "data-testid": "active" }, activeSection), ...["dashboard", "profiles", "tasks", "runs", "workflows", "stats", "health"].map((section) => createElement("button", { key: section, onClick: () => onSectionChange(section) }, `${section} nav`)), createElement("button", { onClick: onStatusClick }, "Status"), createElement("button", { onClick: onSettingsClick }, "Settings"), createElement("button", { onClick: onQuickRunClick }, "Quick run"), createElement("button", { onClick: onNavigationClick }, "Open navigation menu")) }));
-vi.mock("../src/components/layout/MobileNav.js", () => ({ MobileNav: ({ activeSection, onSectionChange }: any) => createElement("button", { onClick: () => onSectionChange("runs") }, `mobile ${activeSection}`) }));
 vi.mock("../src/pages/DashboardPage.js", () => ({ DashboardPage: ({ onRefresh, onNavigateToRun, runs }: any) => createElement("div", null, "Dashboard page", createElement("span", { "data-testid": "dashboard-runs" }, String(runs.length)), createElement("button", { onClick: onRefresh }, "Dashboard refresh"), createElement("button", { onClick: () => onNavigateToRun("run-9", "diff") }, "Dashboard run")) }));
 vi.mock("../src/pages/ProfilesPage.js", () => ({ ProfilesPage: () => createElement("div", null, "Profiles page") }));
 vi.mock("../src/pages/TasksPage.js", () => ({ TasksPage: () => createElement("div", null, "Tasks page") }));
 vi.mock("../src/pages/RunsPage.js", () => ({ RunsPage: () => createElement("div", null, "Runs page") }));
 vi.mock("../src/pages/WorkflowsPage.js", () => ({ WorkflowsPage: () => createElement("div", null, "Workflows page") }));
+vi.mock("../src/pages/WatchesPage.js", () => ({ WatchesPage: () => createElement("div", null, "Watches page") }));
+vi.mock("../src/pages/EffortsPage.js", () => ({ EffortsPage: () => createElement("div", null, "Efforts page") }));
 vi.mock("../src/pages/FindingsPage.js", () => ({ FindingsPage: () => createElement("div", null, "Findings page") }));
 vi.mock("../src/features/stats/index.js", () => ({ StatsPage: () => createElement("div", null, "Stats page") }));
 vi.mock("../src/features/health/index.js", () => ({ HealthPage: () => createElement("div", null, "Health page") }));
@@ -54,19 +53,19 @@ test("App routes each primary page and maps the health section to observability"
   const user = userEvent.setup();
   renderWithProviders(createElement(App), { initialEntries: ["/"] });
   assert.ok(await screen.findByText("Dashboard page"));
-  assert.equal(screen.getByTestId("active").textContent, "dashboard");
-  await user.click(screen.getByRole("button", { name: "health nav" }));
+  assert.equal(screen.getByTestId("agent-manager-nav-dashboard").getAttribute("aria-current"), "page");
+  await user.click(screen.getByTestId("agent-manager-nav-health"));
   assert.ok(await screen.findByText("Health page"));
-  assert.equal(screen.getByTestId("active").textContent, "health");
+  assert.equal(screen.getByTestId("agent-manager-nav-health").getAttribute("aria-current"), "page");
 });
 
-test("App maps every header section to its lazy page", async () => {
+test("App maps shell navigation sections, including efforts, to their lazy pages", async () => {
   const user = userEvent.setup();
   renderWithProviders(createElement(App), { initialEntries: ["/"] });
-  for (const [section, page] of [["profiles", "Profiles page"], ["tasks", "Tasks page"], ["runs", "Runs page"], ["workflows", "Workflows page"], ["stats", "Stats page"], ["dashboard", "Dashboard page"]] as const) {
-    await user.click(screen.getByRole("button", { name: `${section} nav` }));
+  for (const [section, page] of [["profiles", "Profiles page"], ["tasks", "Tasks page"], ["runs", "Runs page"], ["workflows", "Workflows page"], ["watches", "Watches page"], ["efforts", "Efforts page"], ["stats", "Stats page"], ["dashboard", "Dashboard page"]] as const) {
+    await user.click(screen.getByTestId(`agent-manager-nav-${section}`));
     assert.ok(await screen.findByText(page));
-    assert.equal(screen.getByTestId("active").textContent, section);
+    assert.equal(screen.getByTestId(`agent-manager-nav-${section}`).getAttribute("aria-current"), "page");
   }
 });
 
@@ -74,7 +73,7 @@ test("App opens the status surface from the header without requiring route data"
   const user = userEvent.setup();
   renderWithProviders(createElement(App), { initialEntries: ["/runs"] });
   assert.ok(await screen.findByText("Runs page"));
-  await user.click(screen.getByRole("button", { name: "Status" }));
+  await user.click(screen.getByRole("button", { name: "Open status details" }));
   assert.ok(await screen.findByText("Status dialog"));
 });
 
@@ -86,11 +85,11 @@ test("App controls settings and quick-run lifecycle callbacks and navigates to t
   await user.click(screen.getByRole("button", { name: "Purge complete" }));
   assert.ok(state.api.refetch.mock.calls.length >= 3);
   await user.click(screen.getByRole("button", { name: "Close settings" }));
-  await user.click(screen.getByRole("button", { name: "Quick run" }));
+  await user.click(screen.getByRole("button", { name: "Quick Run" }));
   assert.ok(await screen.findByText("Quick run dialog"));
   await user.click(screen.getByRole("button", { name: "Created run" }));
   assert.ok(await screen.findByText("Runs page"));
-  assert.equal(screen.getByTestId("active").textContent, "runs");
+  assert.equal(screen.getByTestId("agent-manager-nav-runs").getAttribute("aria-current"), "page");
 });
 
 test("App folds WebSocket status, run, event, task, and workflow lifecycle messages into durable UI state", async () => {
@@ -138,20 +137,19 @@ test("App refreshes dashboard state, merges run snapshots, and handles dashboard
   assert.ok(await screen.findByText("Runs page"));
 });
 
-test("App supplies quick-run route data, task refreshes, mobile navigation, and unknown-route recovery", async () => {
+test("App supplies quick-run route data and preserves shell navigation after creation", async () => {
   const user = userEvent.setup();
   state.api.mobile = true;
   state.api.profiles = [{ id: "profile-1" }];
   state.api.health = { metrics: { default_project_root: { kind: { case: "stringValue", value: "/workspace/project" } } } };
   renderWithProviders(createElement(App), { initialEntries: ["/tasks"] });
   assert.ok(await screen.findByText("Tasks page"));
-  await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
-  assert.ok(screen.getByRole("button", { name: "mobile tasks" }));
-  await user.click(screen.getByRole("button", { name: "Quick run" }));
+  assert.equal(screen.getByTestId("agent-manager-nav-tasks").getAttribute("aria-current"), "page");
+  await user.click(screen.getByRole("button", { name: "Quick Run" }));
   assert.equal((await screen.findByTestId("quick-root")).textContent, "/workspace/project:1");
   await user.click(screen.getByRole("button", { name: "Created run" }));
   assert.ok(await screen.findByText("Runs page"));
-  await user.click(screen.getByRole("button", { name: "mobile runs" }));
+  await user.click(screen.getByTestId("agent-manager-nav-runs"));
   assert.ok(await screen.findByText("Runs page"));
 });
 

@@ -111,7 +111,7 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	if err := validatePlanRef(planRef, PlanRefRoleExecutionSpec); err != nil {
 		return BacklogItem{}, badCreate(err.Error())
 	}
-	executionStrategy, err := normalizeExecutionStrategy(req.GetExecutionStrategy())
+	executionStrategy, err := normalizeExecutionMode(req.GetExecutionMode())
 	if err != nil {
 		return BacklogItem{}, badCreate(err.Error())
 	}
@@ -151,7 +151,7 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 		Creates:            req.Creates,
 		SpawnedFrom:        spawnedFrom,
 		PlanRef:            planRef,
-		ExecutionStrategy:  executionStrategy,
+		ExecutionMode:  executionStrategy,
 		ExecutionLimits:    executionLimits,
 		Continuation:       continuation,
 		ScopePolicy:        scopePolicy,

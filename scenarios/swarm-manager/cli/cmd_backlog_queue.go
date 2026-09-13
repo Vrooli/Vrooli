@@ -14,7 +14,9 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
 	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
-	strategyFlag := fs.String("strategy", "", "Plan execution strategy declared by the server; omitted inherits the reviewed item")
+	executionModeFlag := fs.String("execution-mode", "", "Execution mode declared by the server: sliced or goal; omitted inherits the reviewed item")
+	legacyStrategyFlag := fs.String("strategy", "", "Deprecated; use --execution-mode")
+	operatorNoteFlag := fs.String("operator-note", "", "Operator note rendered verbatim into the worker prompt or goal message")
 	maxSlicesFlag := fs.Int("max-slices", 0, "Optional slice limit within the reviewed item allowance")
 	preferredRunnerFlag := fs.String("preferred-runner", "", "Optional preferred agent runner")
 	modelFlag := fs.String("model", "", "Optional preferred model")
@@ -25,10 +27,14 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy STRATEGY] [--max-slices N] [--preferred-runner NAME] [--model MODEL] [--effort EFFORT] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+	if strings.TrimSpace(*legacyStrategyFlag) != "" {
+		return fmt.Errorf("--strategy has been replaced by --execution-mode (sliced or goal)")
 	}
-	strategy := strings.TrimSpace(*strategyFlag)
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--execution-mode sliced|goal] [--operator-note NOTE] [--max-slices N] [--preferred-runner NAME] [--model MODEL] [--effort EFFORT] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+	}
+	executionMode := strings.TrimSpace(*executionModeFlag)
+	operatorNote := strings.TrimSpace(*operatorNoteFlag)
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
 	if err != nil {
@@ -47,8 +53,11 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	if opts.mode != "" {
 		payloadMap["mode"] = opts.mode
 	}
-	if strategy != "" {
-		payloadMap["strategy"] = strategy
+	if executionMode != "" {
+		payloadMap["execution_mode"] = executionMode
+	}
+	if operatorNote != "" {
+		payloadMap["operator_note"] = operatorNote
 	}
 	if *preferredRunnerFlag != "" || *modelFlag != "" || *effortFlag != "" {
 		payloadMap["execution_preferences"] = map[string]string{"preferred_runner": strings.TrimSpace(*preferredRunnerFlag), "model": strings.TrimSpace(*modelFlag), "effort": strings.TrimSpace(*effortFlag)}

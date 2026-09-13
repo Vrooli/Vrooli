@@ -1,0 +1,112 @@
+{
+  "purpose": "supervision",
+  "lifetime": "standing",
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "effort-supervisor",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": false,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": false
+    }
+  },
+  "createdAt": "2026-09-12T00:00:00Z",
+  "displayName": "Effort Supervision",
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "effort-supervision",
+  "kind": "team",
+  "mission": "Supervise discovered efforts against accepted outcomes, diagnose consequential stops, coordinate owner repairs and qualified recovery, and improve supervision within its allowance and actual effort grants.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "effort-supervision-contract",
+          "hub": {
+            "base": "repo-root",
+            "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+          },
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "docs/agent-system/EFFORT_SUPERVISION.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/store/skills/packs/core/large-effort-supervision/SKILL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "scenarios/prompt-manager/docs/concepts/HEARTBEATS.md"
+            }
+          ],
+          "writePolicy": "owner-authorized amendments only",
+          "consumers": [
+            "effort-supervision"
+          ],
+          "useFor": "supervision method, authority, scheduling and qualification"
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "team-charter",
+          "path": {
+            "base": "team-shared",
+            "path": "TEAM.md"
+          },
+          "kind": "charter",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {
+      "supervision-assessment/*": {
+        "ownerMemberId": "effort-supervisor",
+        "supersedesPrevious": false,
+        "retention": "append-only; owner wake identity links each assessment"
+      }
+    },
+    "members": {
+      "effort-supervisor": {
+        "lane": "Observe, diagnose premature stops, verify resolution evidence and coordinate existing owner repairs for runtime-selected efforts; steering and recovery only through qualified owner controls under the effort's actual grant.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          }
+        ],
+        "forbiddenWrites": [],
+        "safetyCriticalRules": [
+          "Discovery permits observation only; it never supplies a steering or repair grant.",
+          "Retain the wake ID, exact effort references and shared accounting reference in the assessment.",
+          "Do not change workers, active effort files, grants, accepted outcomes, global heartbeat policy or paid fallback routes.",
+          "Use large-effort-supervision. A healthy sample is diagnosis, not repair authority.",
+          "Finish each bounded wake with owner waits retained; the standing scheduler owns recurrence."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": false
+        }
+      }
+    }
+  },
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readWrite"
+  },
+  "updatedAt": "2026-09-12T07:48:53Z"
+}

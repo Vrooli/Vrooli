@@ -1226,6 +1226,8 @@ func (a *App) runContinue(args []string) error {
 	fs := flag.NewFlagSet("run continue", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	message := fs.String("message", "", "Follow-up message (required)")
+	idempotencyKey := fs.String("idempotency-key", "", "Replay-safe continuation key; retain for retries of the same request")
+	reinstallGoal := fs.Bool("reinstall-goal", false, "Reinstall the harness-native goal before the follow-up message")
 
 	// Parse with positional ID first
 	var id string
@@ -1239,7 +1241,7 @@ func (a *App) runContinue(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run continue <id> --message <message>")
+		return fmt.Errorf("usage: agent-manager run continue <id> --message <message> [--idempotency-key <key>] [--reinstall-goal]")
 	}
 
 	if *message == "" {
@@ -1247,8 +1249,10 @@ func (a *App) runContinue(args []string) error {
 	}
 
 	req := &domainpb.ContinueRunRequest{
-		RunId:   id,
-		Message: *message,
+		RunId:          id,
+		Message:        *message,
+		IdempotencyKey: *idempotencyKey,
+		ReinstallGoal:  *reinstallGoal,
 	}
 
 	body, run, err := a.services.Runs.Continue(id, req)

@@ -39,6 +39,26 @@ func TestResolveSpawnPolicyFallsBackToClaudeInteractiveTracking(t *testing.T) {
 	}
 }
 
+func TestResolveSpawnPolicyRecordsDeclaredFallbackWhenNoPreferenceFeasible(t *testing.T) {
+	policy := &domain.SpawnPolicy{
+		AxisOrder:     []string{"executionMode", "sandboxMode"},
+		ExecutionMode: domain.PreferenceAxis{Prefer: []string{"interactive"}},
+		SandboxMode:   domain.PreferenceAxis{Prefer: []string{"tracking"}},
+	}
+	// The runner declares only codec_pipe/protected, so no preferred
+	// combination is feasible; the declared capability is used and recorded.
+	resolution, err := ResolveSpawnPolicy(policy, runner.Capabilities{SpawnCapabilities: []runner.SpawnCapability{{ExecutionMode: "codec_pipe", SandboxModes: []string{"protected"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolution.ExecutionMode != "codec_pipe" || resolution.SandboxMode != "protected" {
+		t.Fatalf("resolution=%+v", resolution)
+	}
+	if resolution.Fallback != "codec_pipe/protected" {
+		t.Fatalf("fallback not recorded: %q", resolution.Fallback)
+	}
+}
+
 func TestResolveSpawnPolicyZeroCapabilitiesUsesCodecPipeDefault(t *testing.T) {
 	policy := &domain.SpawnPolicy{
 		AxisOrder:     []string{"sandboxMode", "executionMode"},

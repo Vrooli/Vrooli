@@ -33,7 +33,7 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note" | "executionStrategy" | "executionLimits" | "continuation" | "scopePolicy"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note" | "executionMode" | "executionLimits" | "continuation" | "scopePolicy"
 >>;
 
 export interface ImportBacklogResponse {

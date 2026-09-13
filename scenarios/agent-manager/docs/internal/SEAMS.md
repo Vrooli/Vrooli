@@ -1867,11 +1867,19 @@ analytical contract; canonical consumption comes from the run usage projection.
 
 The target is one parser seam that reads harness goal markers for every path
 that consumes a transcript: the live interactive tail, restart recovery, and transcript import.
-The seam is `Codec.GoalStatusFromTranscriptLine(line) (GoalMarker, bool)`; each
-codec supplies its own line shape and the consumer never inspects the shape.
+Stateful consumers use `Codec.NewTranscriptParser().ParseTranscriptLine` and
+read `result.Goal`. `Codec.GoalStatusFromTranscriptLine(line)` is the narrower
+single-line seam for self-contained native markers; it cannot correlate tool
+calls and results. The consumer never inspects provider-specific line shapes.
 
 - Codex markers use an `event_msg` envelope with
   `payload.type=thread_goal_updated` and `payload.goal={objective,status}`.
+- Codex can also report an accepted update through a typed `response_item`
+  tool result. The stateful parser requires a matching `call_id`, the expected
+  output type, and a structured successful result containing
+  `goal={threadId,objective,status}`. Request arguments are intent, not evidence
+  that the goal update succeeded. Rejection, missing results, mismatched IDs,
+  conflicting receipts, and quoted strings do not produce goal markers.
 - Claude markers are `goal_status` objects inside on-disk `attachment` records,
   found by walking JSON objects only, so assistant prose cannot pose as a marker.
 
@@ -1895,13 +1903,45 @@ design. Goal mode replaces it: one run per goal execution with Swarm finalizatio
 as the completion authority. Its name may still appear in history notes and
 migration text.
 
-**Implementation status.** The seam is not yet shared. The live and recovery
-paths act on the `result.Goal` a codec's `ParseTranscriptLine` sets
-(`transcript_consumer.go:138`); only Claude sets it (`codecs/claude.go:680-682`).
-Codex's `codexGoalStatus` (`codecs/goal_markers.go:11`, wired at
-`codecs/codex.go:92`) is reached only through
-`baseCodec.GoalStatusFromTranscriptLine` (`codecs/base.go:58-62`), which serves
-transcript import, so a live Codex run cannot produce a goal marker today.
+**Codex evidence qualification (2026-09-12).** A retained disposable native run,
+`2dd52c00-95d3-46fe-850b-91a66c7244c4` (web session `e299`), recorded an active
+`thread_goal_updated`, an `exec` call to `tools.update_goal`, and its accepted
+output under the same call ID. The successful output contains an `input_text`
+block whose JSON has `goal`, `remainingTokens`, and `completionBudgetReport`.
+The fixture `api/internal/adapters/runner/codecs/testdata/codex_goal_accepted.jsonl`
+retains that envelope and the request/result timestamps. Session/call IDs,
+objective, and report text are sanitized; credentials and private prompts are
+not included. Token/time fields are retained only as native receipt shape, not
+as an additional accounting source.
+
+The investigation tested two explanations: request/prose was being mistaken
+for accepted completion, or native Codex did not provide accepted-result
+evidence. Request-only and quoted-text regressions reproduced the first. The
+retained structured output disproved the second. A separate segmented replay
+test verifies that the request segment stays nonterminal and the matching
+accepted-result segment becomes `goal_complete`.
+
+The parser retains at most 128 pending calls per logical run. It recognizes
+typed `update_goal` function calls and two bounded `exec` forms:
+`text(await tools.update_goal({status:"complete"}));` and
+`const r = await tools.update_goal({status:"complete"}); text(r);`.
+Other terminal statuses use the same accepted-result check. These forms return
+the actual tool value; arbitrary JavaScript, conditionals, comments, aliases,
+and fabricated output are unsupported. There is no substring or JavaScript
+evaluation fallback. A native provider that supplies neither an authoritative
+goal update nor a matched accepted result has unknown goal completion.
+
+Reuse one parser across transcript segments. After parser reconstruction,
+replay the relevant prefix before evaluating its output segment; the codec
+does not retain global call state or reconstruct it from quoted strings. An
+output-only suffix remains unknown. A changed run/thread or a new native goal
+invalidates pending requests. Rejected or consumed results cannot satisfy a
+later duplicate output. Recovery cursor handling and goal-mode fallback remain
+the orchestration owner's responsibility, not authority granted by this codec.
+
+**Implementation status.** Live and recovery paths consume `result.Goal` from
+the stateful parser. Codex supplies native updates and correlated accepted
+results there. Its single-line marker seam still supports native updates only.
 Claude's parser maps the on-disk `goal_status` record to `active` or
 `complete` only, so `blocked`, `usage_limited`, and `budget_limited` have no
 live source yet. The

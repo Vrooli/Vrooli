@@ -1,5 +1,16 @@
 # Architecture Overview
 
+## Effort supervisor runtime
+
+[Effort supervision](../../../../docs/agent-system/EFFORT_SUPERVISION.md) specifies
+the reusable operational supervisor role. Prompt Manager owns its context and
+schedule through existing heartbeat/team admission. It does not own a second
+effort, approval or directive store. Coalesce unchanged evidence, skip occupied
+or uncertain leaders, retain owner waits and verify retirement. The supervisor's
+own observation and inference cost belongs in the evidence. Existing Director
+Swarm and Meta Optimization authority is unchanged. Read the linked qualification
+record before activating an unqualified recurring route.
+
 This document describes prompt-manager's governing target architecture. The
 domain inventory, dependency graph, proto package map, binding policy, and
 migration order live in [DOMAINS.md](DOMAINS.md). During the staged migration,
@@ -52,6 +63,24 @@ API address, paths use Go's platform-aware APIs, and no contract depends on a
 shell, fixed home directory, executable suffix, or path separator.
 
 ## Migration invariants
+
+### UI response trust boundary
+
+External JSON enters as `unknown` until a generated decoder or an owner-local
+runtime schema validates it. `apiRequest<T>` and `as SomeEnum` are compile-time
+claims, not response validation. A Connect `google.protobuf.Value` envelope does
+not validate the business object it contains. Decode once at the service boundary
+with the existing `parseOrThrow`/Zod facilities; components consume the normalized
+domain model. Do not compensate with scattered null guards or fake success values.
+
+Keep protobuf omission semantics and forward-compatible event types explicit.
+Boundary fixtures cover omitted defaults, null/empty collections, unknown kinds,
+both supported wire spellings and malformed required identities. Preserve unknown
+event data for generic rendering/export. A missing outcome is not success, and an
+unavailable accounting denominator is not zero. `runEvent.schema.ts` is the
+current transitional event example, not a replacement for future typed RPCs.
+
+### Transport migration
 
 - A migrated operation has one supported transport. Its REST registration is
   removed only after repository consumer search and live CLI parity.

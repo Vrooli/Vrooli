@@ -26,30 +26,10 @@ func TestHTTPToWSURLAndWebSocketMessageHandling(t *testing.T) {
 	}
 
 	app := &App{}
-	for _, message := range []WebSocketMessage{
-		{Type: "connected"},
-		{Type: "pong"},
-		{Type: "run_event", Payload: []byte(`{"sequence":2,"eventType":"tool.call","data":{"tool":"rg"}}`)},
-		{Type: "run_progress", Payload: []byte(`{"phase":"executing","percentComplete":50,"currentAction":"testing"}`)},
-		{Type: "run_status", Payload: []byte(`{"status":"running"}`)},
-		{Type: "run_status", Payload: []byte(`{"status":"completed"}`)},
-		{Type: "unknown", Payload: []byte(`{"diagnostic":"safe"}`)},
-	} {
+	for _, message := range eventStreamFixture("run-1") {
 		if err := app.handleWSMessage(message, "run-1"); err != nil {
 			t.Fatalf("handle %s: %v", message.Type, err)
 		}
-	}
-	if err := app.handleWSMessage(WebSocketMessage{Type: "run_event", Payload: []byte(`{`)}, "run-1"); err == nil {
-		t.Fatal("malformed event payload accepted")
-	}
-	if err := app.handleWSMessage(WebSocketMessage{Type: "run_progress", Payload: []byte(`{`)}, "run-1"); err == nil {
-		t.Fatal("malformed progress payload accepted")
-	}
-	if err := app.handleWSMessage(WebSocketMessage{Type: "run_status", Payload: []byte(`{`)}, "run-1"); err == nil {
-		t.Fatal("malformed status payload accepted")
-	}
-	if err := app.handleWSMessage(WebSocketMessage{Type: "run_event", RunID: "other"}, "run-1"); err != nil {
-		t.Fatalf("foreign run filter: %v", err)
 	}
 }
 

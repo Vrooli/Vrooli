@@ -26,13 +26,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		mode = ModeYOLO
 	}
 	req := CreateRequest{
-		BacklogKind: pbReq.BacklogKind,
-		BacklogName: pbReq.BacklogName,
-		Mode:        mode,
-		StartedBy:   pbReq.GetStartedBy(),
-		Operation:   pbReq.GetOperation(),
-		Strategy:    pbReq.GetStrategy(),
-		MaxSlices:   int(pbReq.GetMaxSlices()),
+		BacklogKind:   pbReq.BacklogKind,
+		BacklogName:   pbReq.BacklogName,
+		Mode:          mode,
+		StartedBy:     pbReq.GetStartedBy(),
+		Operation:     pbReq.GetOperation(),
+		ExecutionMode: pbReq.GetExecutionMode(),
+		MaxSlices:     int(pbReq.GetMaxSlices()),
 	}
 	if preferences := pbReq.GetExecutionPreferences(); preferences != nil {
 		req.ExecutionPreferences = &ExecutionPreferences{
@@ -62,7 +62,7 @@ func (h *Handler) Strategies(w http.ResponseWriter, r *http.Request) {
 	if backlogName == "" {
 		backlogName = r.URL.Query().Get("name")
 	}
-	items, err := h.service.ExecutionStrategiesForItem(backlogKind, backlogName)
+	items, err := h.service.ExecutionModesForItem(backlogKind, backlogName)
 	if err != nil {
 		apierr.MapError(w, "[execution] strategies", err)
 		return

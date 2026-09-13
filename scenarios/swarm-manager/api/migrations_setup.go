@@ -15,6 +15,10 @@ import (
 // re-running the migration.
 const migrationNameBackfillExecCompletedV1 = "backfill_execution_completed_v1"
 
+// migrationNameExecutionModeBackfillV1 renames legacy execution-strategy ids on
+// stored execution records to the two execution modes.
+const migrationNameExecutionModeBackfillV1 = "backfill_execution_modes_v1"
+
 // runMigrationsOnce runs any pending one-time migrations against the event
 // log and the execution store. Each migration is gated on a sentinel event of
 // type system.migration_applied so a restart never re-applies them.
@@ -85,6 +89,20 @@ func (s *Server) runMigrationsOnce() {
 		)
 		slog.Info("migrations: backfill_eta_duration_samples_v1 applied", "produced", produced)
 
+	}
+
+	if !migrationApplied(events, migrationNameExecutionModeBackfillV1) {
+		migrated, err := s.executionSvc.BackfillExecutionModes(ctx, slog.Default())
+		if err != nil {
+			slog.Error("migrations: backfill_execution_modes_v1 failed", "err", err)
+		} else {
+			s.emitter.EmitMigrationApplied(
+				migrationNameExecutionModeBackfillV1,
+				"Map legacy execution_strategy ids (phased-plan-drain/adaptive-improvement -> sliced, goal-session -> goal) on stored execution records.",
+				migrated,
+			)
+			slog.Info("migrations: backfill_execution_modes_v1 applied", "migrated", migrated)
+		}
 	}
 
 	if s.goalService != nil && !migrationApplied(events, migrationNameSeedGoalsFromTagsV1) {

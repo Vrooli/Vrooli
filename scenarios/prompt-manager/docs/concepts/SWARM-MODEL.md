@@ -43,6 +43,143 @@ Raw learning starts in typed knowledge topics.
 
 `*` Actions are typed command contracts with API/CLI/UI validation, opt-in discovery, graph nodes, and governed execution through the Action runtime. See [Actions](ACTIONS.md).
 
+## Teams: departments, committees, and supervision
+
+A Prompt Manager **team is a durable coordination container**, not a promise
+that an agent is continuously running. It supplies member identity, roles,
+shared context, an operating contract, and configured execution. The same
+container can serve different purposes:
+
+| Purpose | Useful organizational analogy | Responsibility and lifetime |
+|---|---|---|
+| Standing objective-oriented team | A department | Maintain a domain's obligations and measured outcomes over time. There is normally no final "done"; it responds to new evidence and prepares or performs work within its authority. |
+| Finite effort team | A delivery task force or temporary committee | Converge on one accepted destination across workers and sessions. Retire its recurring execution after evidenced completion or withdrawal; retain its handoff and receipts. |
+| Standing effort-supervision team | Delivery assurance across task forces | Observe discovered efforts, question progress and methodology, and make only authorized interventions. Individual watches retire; the service remains available for other and newly discovered efforts. |
+
+These are explanations of purpose, not one combined `team.json` type enum. A team may
+have one member. A committee does not require a permanent roster of every worker:
+its leader can delegate bounded assignments through the execution owner. Team
+membership, worker lineage, and an Agent Manager run are different identities.
+
+The finite-team row describes intended lifecycle, not a qualified recurring
+runtime. The current optional PM `finiteLeader` binding retains one admission
+and AM run identity; subsequent heartbeat ticks observe that run. It does not
+schedule continuation from an explicit owner wait/next-action decision or prove
+accepted effort completion. Binding persistence and retirement fences do not
+qualify recurrence or legacy-driver adoption. See the
+[finite leader implementation checkpoint](HEARTBEATS.md#finite-effort-leader-binding).
+
+**Director Swarm and Effort Supervision have different decisions to make.**
+Director Swarm handles portfolio strategy, priorities, operator-readable work
+preparation, and disposition through its existing contract. Effort Supervision
+asks whether accepted work is progressing, whether waits and repairs are
+justified, and whether delivery and supervision are worth their total cost. It
+normally addresses the orchestrator, not the orchestrator's workers. It does not
+replace Director Swarm, change the accepted destination, or obtain authority
+from being called a supervisor. See the
+[supervision ownership contract](../../../../docs/agent-system/EFFORT_SUPERVISION.md#responsibilities-and-ownership).
+
+The department analogy does not mean "one team per objective." Objectives and
+teams are many-to-many; a distinct regulated domain, cadence, and failure mode
+justify a team. See [the target model](../../../../docs/agent-system/TARGET_MODEL.md#6-objectives-teams-and-members).
+
+### Keep purpose, lifetime, authority, and execution separate
+
+| Question | Source of the answer |
+|---|---|
+| What must this work achieve? | Accepted objectives/obligations or the effort's destination and acceptance evidence. |
+| When does this team or watch retire? | Its operating contract and owner lifecycle; a completed agent turn is not completed work. |
+| What may act without another human decision? | The actual grant, allowed effects, budget and exclusions—not team type or heartbeat frequency. |
+| How is the work organized? | The selected work shape: phased plan, adaptive mandate, bounded task, or investigation. A committee does not imply a plan family. |
+| How and when does a member run? | Prompt Manager heartbeat admission and execution policy, followed by the execution owner's run state. |
+
+Permanent teams often send proposals for human disposition through Swarm
+Manager. An already-authorized finite effort can execute autonomously within
+its grant. Neither behavior is inherent in the team's lifetime. A standing
+supervisor can run autonomous **observations** while remaining unable to resume
+or repair the work it observes. Separately approved bounded repair can proceed
+through the existing execution owner within its exact grant, scope, budget and
+stop conditions; that approval neither grants business steering nor follows
+from diagnostic admission. Reconcile any existing repair assignment before
+dispatch and verify useful progress after recovery. Permission to coordinate
+owner recovery does not authorize the supervisor to edit source or effort files;
+its declared member write boundaries still apply. Follow
+[work routing and fallback](../../../../docs/agent-system/SWARM_MANAGER_WORK.md)
+for already-authorized work when a transitional execution route requires a
+human interaction; never fabricate an approval or bypass an actual denial.
+
+### Where to look in the product
+
+#### Team purpose, lifetime, and linked work
+
+The operator-authorized team UX change (2026-09-12) makes these distinctions
+visible in the team list and dashboard. Store `purpose` and `lifetime` as
+independent optional team properties. Purpose is `domain-stewardship`, `delivery`,
+or `supervision`; lifetime is `standing` or `finite`. Missing values mean
+unspecified. Neither property changes execution, grants permission, or retires
+a heartbeat. Creation presets provide initial values; both properties remain
+independently editable. Existing registered domain teams declare standing
+stewardship; the effort supervisor declares standing supervision.
+
+Keep existing `objectivesServed` records intact and expose them in team reads.
+Optional `effortRefs` identify the team's delivery or contribution relationships
+with canonical efforts. These references do not enroll work or assert current
+execution. A supervisor's observed-effort relationships come from its heartbeat
+observation and Agent Manager's board, not a second manually maintained list.
+Finite leader relationships come from the heartbeat's non-retired `finiteLeader`
+binding. Show them separately from authored references and supervisor observations;
+a leader binding alone does not establish supervision coverage.
+
+Show the member's declared lane, permitted write surfaces, prohibitions, and
+governing contract alongside the current effort's actual steering authority.
+Do not infer implementation permission from purpose, lifetime, or coordination
+pattern. Unknown or expired authority remains visible. The operator can inspect
+the source contract and open the relevant owner view.
+
+Use Agent Manager's existing read-only effort board for work observations.
+The Teams view also exposes discovered efforts that have no registered team
+binding, including transitional drivers. A complete team registry establishes
+authored relationships only; absent `effortRefs` do not establish that no runtime
+leader binding exists. Show runtime binding coverage as unknown until observed.
+Label an effort unbound only when the relevant owner observation establishes it;
+do not create an agent identity, register a team, or migrate a scheduler to make
+it appear. Bound each board request, retain pagination and partial coverage,
+and distinguish unavailable observations from an empty successful result.
+
+Present scheduling eligibility, current owner execution, and accepted outcome
+as separate states. A successful completed run is not an accepted effort. A
+team with no execution evidence has unknown execution health. Show observation
+time, next action or wait, the supervisor assessment, and requested/effective
+model where the owner reports them. Link temporary worker assignments separately
+from the registered member roster. Team and effort links preserve exact identity
+when opened in the owning UI.
+
+For example, Marketing remains a standing domain team while contributing to an
+Aquila launch effort. Aquila's finite delivery team retires after evidenced
+completion. Effort Supervision retires its Aquila watch and continues observing
+other efforts. The three lifetimes do not alter their respective grants.
+
+Validation must cover metadata create/read/update preservation; unspecified and
+independent purpose/lifetime combinations; filtering and presets; finite and
+standing examples; unbound efforts; stale/unavailable observations; expired
+authority; and independent schedule, run, and outcome states. A served browser
+check verifies that team-to-effort navigation preserves the selected reference.
+
+Prompt Manager's team page describes the people/roles, instructions, knowledge,
+and heartbeat configuration. Agent Manager's **Efforts** page and
+`agent-manager effort board` describe the observed work, evidence, limits, and
+supervisor assessments. Plan Manager owns any selected plans and families;
+Swarm Manager owns its grants and disposition. These are linked views, not
+competing work ledgers.
+
+Do not infer that an effort is a Prompt Manager committee merely because its
+workspace or tmux session exists. Transitional efforts can still use temporary
+drivers outside team execution. Discovery makes them visible; it does not
+migrate their scheduler, register a controllable leader, or delegate authority.
+The standing `effort-supervision` team is distinct from a finite implementation
+workspace with the same short name. For current operation and recovery limits,
+read [standing supervision](HEARTBEATS.md#standing-effort-supervision).
+
 ## The Three Current Domains
 
 ### Skills

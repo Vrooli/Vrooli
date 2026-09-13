@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -973,6 +974,272 @@ func TestRunAwaitHandleRoundTrip(t *testing.T) {
 // it bumps last_heartbeat for running/starting runs, but is a no-op (no clobber)
 // for a parked or terminal run — so a heartbeat racing a park/stop transition
 // can never resurrect the run.
+func TestFreshRecoveryClaimFencesLifecycleWriters(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	db.DB.SetMaxOpenConns(1)
+	repos := NewRepositories(db, logrus.New())
+	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
+	ctx := t.Context()
+	newSource := func() *domain.Run {
+		run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, RunMode: domain.RunModeInPlace}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		return run
+	}
+	t.Run("claim wins against stale and newly read continuation", func(t *testing.T) {
+		source := newSource()
+		hash := strings.Repeat("a", 64)
+		if won, err := claims.ClaimFreshRecovery(ctx, source.ID, source.LifecycleVersion+1, hash, false); err != nil || won {
+			t.Fatalf("stale version won: %v %v", won, err)
+		}
+		if won, err := claims.ClaimFreshRecovery(ctx, source.ID, source.LifecycleVersion, hash, false); err != nil || !won {
+			t.Fatalf("claim failed: %v %v", won, err)
+		}
+		source.Status = domain.RunStatusRunning
+		if err := repos.Runs.Update(ctx, source); err == nil {
+			t.Fatal("stale continuation reactivated claimed source")
+		}
+		current, err := repos.Runs.Get(ctx, source.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if current.LifecycleVersion != 1 || current.Status != domain.RunStatusFailed {
+			t.Fatalf("claim lost source lifecycle: %+v", current)
+		}
+		current.Status = domain.RunStatusRunning
+		if err := repos.Runs.Update(ctx, current); err == nil {
+			t.Fatal("newly read continuation reactivated claimed source")
+		}
+		if got, err := claims.GetFreshRecoveryClaim(ctx, source.ID); err != nil || got != hash {
+			t.Fatalf("claim was not durable: %q %v", got, err)
+		}
+	})
+	t.Run("continuation wins", func(t *testing.T) {
+		source := newSource()
+		version := source.LifecycleVersion
+		source.Status = domain.RunStatusRunning
+		if err := repos.Runs.Update(ctx, source); err != nil {
+			t.Fatal(err)
+		}
+		if won, err := claims.ClaimFreshRecovery(ctx, source.ID, version, strings.Repeat("b", 64), false); err != nil || won {
+			t.Fatalf("recovery overtook continuation: %v %v", won, err)
+		}
+	})
+	t.Run("independent claim writers have one winner", func(t *testing.T) {
+		source := newSource()
+		var wg sync.WaitGroup
+		wins := make(chan bool, 8)
+		for range 8 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				other := NewRepositories(db, logrus.New()).Runs.(repository.RunFreshRecoveryClaimer)
+				won, err := other.ClaimFreshRecovery(ctx, source.ID, source.LifecycleVersion, strings.Repeat("c", 64), false)
+				if err != nil {
+					t.Errorf("claim: %v", err)
+				}
+				wins <- won
+			}()
+		}
+		wg.Wait()
+		close(wins)
+		count := 0
+		for won := range wins {
+			if won {
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatalf("claim winners=%d, want 1", count)
+		}
+	})
+}
+
+func TestFreshRecoveryClaimRejectsAutomaticCancellation(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
+	for _, status := range []domain.RunStatus{domain.RunStatusFailed, domain.RunStatusCancelled} {
+		run := &domain.Run{ID: uuid.New(), Status: status, RunMode: domain.RunModeInPlace}
+		now := time.Now()
+		run.CancelRequestedAt = &now
+		if err := repos.Runs.Create(t.Context(), run); err != nil {
+			t.Fatal(err)
+		}
+		if won, err := claims.ClaimFreshRecovery(t.Context(), run.ID, run.LifecycleVersion, strings.Repeat("d", 64), false); err != nil || won {
+			t.Fatalf("automatic cancellation recovery accepted: %v %v", won, err)
+		}
+		if won, err := claims.ClaimFreshRecovery(t.Context(), run.ID, run.LifecycleVersion, strings.Repeat("d", 64), true); err != nil || !won {
+			t.Fatalf("explicit recovery refused: %v %v", won, err)
+		}
+	}
+}
+
+func TestFreshRecoveryClaimReleaseCannotForgetAcceptance(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
+	for _, accepted := range []bool{false, true} {
+		source := &domain.Run{ID: uuid.New(), Status: domain.RunStatusFailed, RunMode: domain.RunModeInPlace}
+		if err := repos.Runs.Create(t.Context(), source); err != nil {
+			t.Fatal(err)
+		}
+		hash := strings.Repeat("e", 64)
+		if won, err := claims.ClaimFreshRecovery(t.Context(), source.ID, 0, hash, false); err != nil || !won {
+			t.Fatalf("claim: %v %v", won, err)
+		}
+		if released, err := claims.ReleaseFreshRecoveryClaim(t.Context(), source.ID, 0, hash); err != nil || released {
+			t.Fatalf("stale release accepted: %v %v", released, err)
+		}
+		if released, err := claims.ReleaseFreshRecoveryClaim(t.Context(), source.ID, 1, strings.Repeat("f", 64)); err != nil || released {
+			t.Fatalf("different request released claim: %v %v", released, err)
+		}
+		if accepted {
+			replacement := &domain.Run{ID: uuid.New(), Status: domain.RunStatusPending, RunMode: domain.RunModeInPlace, IdempotencyKey: "resume-from-failed:" + source.ID.String(), SourceRunIDs: []uuid.UUID{source.ID}}
+			if err := repos.Runs.Create(t.Context(), replacement); err != nil {
+				t.Fatal(err)
+			}
+			if err := repos.Runs.Delete(t.Context(), replacement.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		released, err := claims.ReleaseFreshRecoveryClaim(t.Context(), source.ID, 1, hash)
+		if err != nil || released == accepted {
+			t.Fatalf("release=%v accepted=%v err=%v", released, accepted, err)
+		}
+		current, err := repos.Runs.Get(t.Context(), source.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !accepted && current.LifecycleVersion != 2 {
+			t.Fatal("release did not fence the old claimant")
+		}
+	}
+}
+
+func TestRecoveryAttachmentRepairsOnlyCurrentTurnMetadata(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := t.Context()
+	task := &domain.Task{ID: uuid.New(), Title: "recovery attachment", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	old, now := time.Now().Add(-time.Hour).UTC(), time.Now().UTC()
+	exit := 0
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, StartedAt: &old, EndedAt: &old, LastHeartbeat: &old, ExitCode: &exit, ErrorMsg: "old", TerminalClass: domain.RunTerminalClassInterruption, StopReason: domain.RunStopReasonTimeout,
+		ProgressPercent: 42, TranscriptCursor: 87, RunnerPID: 12345, SessionID: "retained", Result: &domain.RunResult{FinalOutput: "prior evidence"}, Summary: &domain.RunSummary{TokensUsed: 123}}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	attacher := repos.Runs.(repository.RunRecoveryAttacher)
+	if changed, err := attacher.AttachRecovery(ctx, run.ID, run.LifecycleVersion+1, now); err != nil || changed {
+		t.Fatalf("wrong lifecycle attached: %v %v", changed, err)
+	}
+	if changed, err := attacher.AttachRecovery(ctx, run.ID, run.LifecycleVersion, now); err != nil || !changed {
+		t.Fatalf("current lifecycle attachment failed: %v %v", changed, err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.EndedAt != nil || got.ExitCode != nil || got.ErrorMsg != "" || got.TerminalClass != "" || got.StopReason != "" || got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(now) {
+		t.Fatalf("legacy fields not repaired: %+v", got)
+	}
+	if got.LifecycleVersion != run.LifecycleVersion || got.ProgressPercent != 42 || got.TranscriptCursor != 87 || got.RunnerPID != 12345 || got.SessionID != "retained" || !got.StartedAt.Equal(old) || got.Result.FinalOutput != "prior evidence" || got.Summary.TokensUsed != 123 {
+		t.Fatal("attachment altered identity/progress/evidence")
+	}
+	newer := now.Add(time.Minute)
+	if _, err := repos.Runs.TouchHeartbeat(ctx, run.ID, newer); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := attacher.AttachRecovery(ctx, run.ID, run.LifecycleVersion, now); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = repos.Runs.Get(ctx, run.ID)
+	if !got.LastHeartbeat.Equal(newer) {
+		t.Fatal("attachment regressed newer heartbeat")
+	}
+	if _, err := repos.Runs.RequestCancellation(ctx, run.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := attacher.AttachRecovery(ctx, run.ID, run.LifecycleVersion, now); err != nil || changed {
+		t.Fatalf("cancelled ownership was reattached: %v %v", changed, err)
+	}
+	got.Status = domain.RunStatusFailed
+	if err := repos.Runs.Update(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := attacher.AttachRecovery(ctx, run.ID, got.LifecycleVersion, now); err != nil || changed {
+		t.Fatalf("terminal run reattached: %v %v", changed, err)
+	}
+}
+
+func TestRunLifecycleFencesOldAttemptWriters(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := t.Context()
+	task := &domain.Task{ID: uuid.New(), Title: "attempt fence", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, RunMode: domain.RunModeInPlace, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	old, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Status = domain.RunStatusFailed
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	run.Status = domain.RunStatusRunning
+	run.RunnerPID = 12345
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	old.RunnerPID = 54321
+	if changed, err := repos.Runs.UpdateRunnerStreamState(ctx, old); err != nil || changed {
+		t.Errorf("old stream writer accepted: %v %v", changed, err)
+	}
+	old.Status = domain.RunStatusFailed
+	old.ErrorMsg = "old executor finished"
+	if err := repos.Runs.Update(ctx, old); err == nil {
+		t.Error("old terminal writer accepted after continuation")
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.RunnerPID != 12345 || got.ErrorMsg != "" {
+		t.Fatalf("new attempt clobbered: %+v", got)
+	}
+	// An unrelated metadata write must not erase a newer heartbeat or cancel intent.
+	stamp := time.Now().UTC()
+	if _, err := repos.Runs.TouchHeartbeat(ctx, run.ID, stamp); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repos.Runs.RequestCancellation(ctx, run.ID, stamp); err != nil {
+		t.Fatal(err)
+	}
+	run.Label = "metadata"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = repos.Runs.Get(ctx, run.ID)
+	if got.LastHeartbeat == nil || got.CancelRequestedAt == nil {
+		t.Fatal("full snapshot erased monotonic heartbeat/cancellation")
+	}
+}
+
 func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -1056,6 +1323,92 @@ func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
 	complete := mk(domain.RunStatusComplete)
 	if updated, err := repos.Runs.TouchHeartbeat(ctx, complete.ID, time.Now()); err != nil || updated {
 		t.Fatalf("TouchHeartbeat(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
+// TestRequestCancellation_StatusGuardedAndIdempotent pins the Phase 3 durable
+// cancellation intent: a stop request stamps cancel_requested_at only while the
+// run is still actively executing, a repeat request is a no-op (monotonic
+// intent), and a terminal run is never stamped. The status guard is applied in
+// SQL so a stale caller cannot resurrect or re-stamp a run.
+func TestRequestCancellation_StatusGuardedAndIdempotent(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Cancel Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeInPlace,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → intent recorded, status unchanged.
+	running := mk(domain.RunStatusRunning)
+	updated, err := repos.Runs.RequestCancellation(ctx, running.ID, time.Now())
+	if err != nil {
+		t.Fatalf("RequestCancellation(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run cancellation intent should have been recorded")
+	}
+	got, err := repos.Runs.Get(ctx, running.ID)
+	if err != nil {
+		t.Fatalf("Get(running): %v", err)
+	}
+	if got.CancelRequestedAt == nil {
+		t.Fatal("running cancel intent was not persisted")
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("cancellation intent changed status: %s", got.Status)
+	}
+
+	// duplicate → no-op, still stamped, status unchanged.
+	if updated, err := repos.Runs.RequestCancellation(ctx, running.ID, time.Now()); err != nil || updated {
+		t.Fatalf("duplicate RequestCancellation: updated=%v err=%v (want false,nil)", updated, err)
+	}
+	got, _ = repos.Runs.Get(ctx, running.ID)
+	if got.CancelRequestedAt == nil {
+		t.Fatal("duplicate request cleared the cancellation intent")
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("duplicate request changed status: %s", got.Status)
+	}
+
+	// starting → intent recorded.
+	starting := mk(domain.RunStatusStarting)
+	if updated, err := repos.Runs.RequestCancellation(ctx, starting.ID, time.Now()); err != nil || !updated {
+		t.Fatalf("RequestCancellation(starting): updated=%v err=%v (want true,nil)", updated, err)
+	}
+
+	// terminal (complete) → NO-OP: a terminal run is never stamped.
+	complete := mk(domain.RunStatusComplete)
+	if updated, err := repos.Runs.RequestCancellation(ctx, complete.ID, time.Now()); err != nil || updated {
+		t.Fatalf("RequestCancellation(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+	got, _ = repos.Runs.Get(ctx, complete.ID)
+	if got.CancelRequestedAt != nil {
+		t.Errorf("terminal run was stamped with cancellation intent: %v", got.CancelRequestedAt)
 	}
 }
 

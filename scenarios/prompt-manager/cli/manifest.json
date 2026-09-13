@@ -3132,6 +3132,16 @@
       "reason": "Disable is a convenience mutation over UpdateHeartbeat and remains outside the one-binding-per-operation registry."
     },
     {
+      "command": "team heartbeat-bind-effort",
+      "class": "passthrough",
+      "reason": "Finite leader provisioning validates a bounded binding file, creates or explicitly updates a disabled heartbeat, and verifies the owner response."
+    },
+    {
+      "command": "team heartbeat-retire-effort",
+      "class": "passthrough",
+      "reason": "Finite leader retirement reads the exact binding before updating it with retained identity and disabled scheduling."
+    },
+    {
       "command": "team responsibilities",
       "class": "passthrough",
       "reason": "Responsibilities combines read, inline write, and file-backed write modes; those control modes cannot be represented as one safe binding."

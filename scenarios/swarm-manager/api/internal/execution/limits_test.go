@@ -19,7 +19,7 @@ func reviewedLimits() *identity.ExecutionLimits {
 func TestQueueBindsReviewedExecutionLimitsToOwnerGrant(t *testing.T) {
 	root := t.TempDir()
 	limits := reviewedLimits()
-	mustWriteBacklogItem(t, root, "execute", "reviewed-limits", map[string]any{"name": "reviewed-limits", "title": "Reviewed campaign", "status": "ready", "execution_strategy": adaptiveImprovementStrategy, "execution_limits": limits})
+	mustWriteBacklogItem(t, root, "execute", "reviewed-limits", map[string]any{"name": "reviewed-limits", "title": "Reviewed campaign", "status": "ready", "execution_mode": "sliced", "execution_limits": limits})
 	workflow := &stubPhasedPlanWorkflow{}
 	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow, TransitionRegistry: testTransitionRegistry(t)})
 	if _, err := service.QueueBacklog(t.Context(), CreateRequest{BacklogKind: "execute", BacklogName: "reviewed-limits", Mode: ModeManual, MaxSlices: 65, Force: true}); err == nil {
@@ -153,7 +153,7 @@ func TestFreshQueueStartCannotBypassReviewedRetryLimit(t *testing.T) {
 	root := t.TempDir()
 	limits := reviewedLimits()
 	limits.MaxRetries = 1
-	item := map[string]any{"name": "requeued", "title": "Same accepted work", "status": "ready", "execution_strategy": adaptiveImprovementStrategy, "execution_limits": limits}
+	item := map[string]any{"name": "requeued", "title": "Same accepted work", "status": "ready", "execution_mode": "sliced", "execution_limits": limits}
 	workflow := &uniqueGrantWorkflow{}
 	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow, TransitionRegistry: testTransitionRegistry(t)})
 	for attempt := 0; attempt < 3; attempt++ {

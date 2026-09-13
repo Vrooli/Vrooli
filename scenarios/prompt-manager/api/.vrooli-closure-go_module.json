@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "89bdbc8a0ca7600df5dd3abe1ae363c3973fc865838fc2e4c0994ccb238e5eb0",
+  "key": "04cc3b131a7c338f92d8d66a2de9b5339505bc135c2ff291f14e2eb3156dffa8",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -84,6 +84,9 @@
     "packages/platform-go/go.sum",
     "packages/proto/architecture/findingid",
     "packages/proto/descriptorimage",
+    "packages/proto/gen/go/agent-manager/v1/api",
+    "packages/proto/gen/go/agent-manager/v1/api/apiconnect",
+    "packages/proto/gen/go/agent-manager/v1/domain",
     "packages/proto/gen/go/architecture/v1",
     "packages/proto/gen/go/common/v1",
     "packages/proto/gen/go/dev-routing/v1/routing",
@@ -125,6 +128,8 @@
     "packages/proto/gen/go/prompt-manager/v1/topics/topics_v1connect",
     "packages/proto/gen/go/prompt-manager/v1/world",
     "packages/proto/gen/go/prompt-manager/v1/world/world_v1connect",
+    "packages/proto/gen/go/scenario-authenticator/v1/accounts",
+    "packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect",
     "packages/proto/gen/go/scenario-validation/v1",
     "packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect",
     "packages/proto/gen/go/search-hub/v1/eval",

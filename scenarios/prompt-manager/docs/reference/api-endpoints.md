@@ -1231,7 +1231,21 @@ Return structured prompt sections for every active member of a team. Use this fo
 
 [CODE: api/teams/handlers.go]
 
-Teams represent organizational units that group agents together with roles and shared policies.
+Teams group agents with roles and shared policies. Team reads, creation and partial
+updates support optional `purpose` (`domain-stewardship`, `delivery`, `supervision`),
+`lifetime` (`standing`, `finite`), and `effortRefs` (canonical reference strings).
+Purpose and lifetime are independent. Empty classifications and an empty effort
+reference array explicitly clear those fields; omission preserves existing values
+on update. Metadata updates preserve existing operating contracts and objective
+declarations and do not change scheduling or authority. Reads expose existing
+`objectivesServed` declarations; this does not add an objective-authoring API.
+
+The generated `TeamsService` messages carry the same fields. A Connect update
+must include fields to clear in its field mask, including default-valued fields.
+Protobuf JSON can omit zero member counts and false booleans; clients use those
+wire defaults without treating an invalid response as an empty team registry.
+See the [team model](../concepts/SWARM-MODEL.md#team-purpose-lifetime-and-linked-work)
+for authored relationships, finite leader bindings, and supervisor observations.
 
 ### GET /api/v1/teams
 

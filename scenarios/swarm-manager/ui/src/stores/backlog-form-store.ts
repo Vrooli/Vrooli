@@ -37,7 +37,7 @@ const buildFormValues = (
     effort: initialValues?.effort ?? "",
     acceptanceAllow: initialValues?.acceptanceAllow ?? [],
     acceptanceDeny: initialValues?.acceptanceDeny ?? [],
-    executionStrategy: initialValues?.executionStrategy ?? "phased-plan-drain",
+    executionMode: initialValues?.executionMode ?? "sliced",
     executionLimits: initialValues?.executionLimits,
     continuation: initialValues?.continuation ?? "manual",
     scopePolicy: initialValues?.scopePolicy ?? "fixed",

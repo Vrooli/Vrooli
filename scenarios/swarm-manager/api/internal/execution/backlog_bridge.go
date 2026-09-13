@@ -30,9 +30,10 @@ type backlogItem struct {
 	ArchivedAt                *string                   `json:"archived_at,omitempty"`
 	SuggestedSkills           []string                  `json:"suggested_skills,omitempty"`
 	PlanRef                   *planRef                  `json:"plan_ref,omitempty"`
-	ExecutionStrategy         string                    `json:"execution_strategy,omitempty"`
+	ExecutionMode             string                    `json:"execution_mode,omitempty"`
 	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
 	Continuation              string                    `json:"continuation,omitempty"`
+	OperatorNote              string                    `json:"operator_note,omitempty"`
 	ScopePolicy               string                    `json:"scope_policy,omitempty"`
 	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
 	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`

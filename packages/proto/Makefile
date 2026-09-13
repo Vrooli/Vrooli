@@ -1,4 +1,4 @@
-.PHONY: generate gen-code descriptor gen-manifests lint format breaking verify-committed-gen clean refresh-vendor
+.PHONY: generate gen-code descriptor gen-manifests lint format breaking verify-committed-gen clean cleanup refresh-vendor
 
 SCENARIO_ARGS := $(foreach scenario,$(SCENARIO),--scenario $(scenario))
 
@@ -28,6 +28,9 @@ verify-committed-gen:
 
 clean:
 	GOFLAGS=-mod=mod go run ./cmd/protogen clean
+
+cleanup:
+	GOFLAGS=-mod=mod go run ./cmd/protogen cleanup --dry-run
 
 refresh-vendor:
 	GOFLAGS=-mod=mod go run ./cmd/protogen refresh-vendor

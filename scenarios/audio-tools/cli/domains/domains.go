@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"time"
+
 	"audio-tools/cli/domains/audio"
 	"audio-tools/cli/domains/corpus"
 	"audio-tools/cli/domains/diagnostics"
@@ -14,7 +16,6 @@ import (
 	"audio-tools/cli/domains/tts"
 	"audio-tools/cli/domains/usage"
 	"audio-tools/cli/domains/validation"
-	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -48,7 +49,7 @@ func SubcommandGroupsWithClock(core *cliapp.ScenarioApp, manifest []byte, now fu
 
 func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, newTicker func(time.Duration) *time.Ticker, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
 	validationGroup := validation.Register(core, now, newTicker, getenv, getwd)
-	soakGroup := soak.Register(core, now, getenv)
+	soakGroup := soak.Register(core, now, getenv, getwd)
 	sttGroup, err := stt.Register(core, manifest)
 	if err != nil {
 		return nil, err

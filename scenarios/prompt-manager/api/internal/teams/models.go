@@ -18,6 +18,11 @@ type (
 
 // Response is the API response for a team.
 type Response struct {
+	Purpose          string                            `json:"purpose,omitempty"`
+	Lifetime         string                            `json:"lifetime,omitempty"`
+	EffortRefs       []string                          `json:"effortRefs,omitempty"`
+	ObjectivesServed []teamconfig.ObjectiveDeclaration `json:"objectivesServed,omitempty"`
+
 	ID                 string                          `json:"id"`
 	DisplayName        string                          `json:"displayName"`
 	Mission            string                          `json:"mission,omitempty"`
@@ -79,6 +84,10 @@ type SendTeamMessageRequest struct {
 
 // CreateRequest is the request body for creating a team.
 type CreateRequest struct {
+	Purpose    string   `json:"purpose,omitempty"`
+	Lifetime   string   `json:"lifetime,omitempty"`
+	EffortRefs []string `json:"effortRefs,omitempty"`
+
 	ID                string                          `json:"id,omitempty"`
 	DisplayName       string                          `json:"displayName"`
 	Mission           string                          `json:"mission,omitempty"`
@@ -90,6 +99,10 @@ type CreateRequest struct {
 
 // UpdateRequest is the request body for updating a team.
 type UpdateRequest struct {
+	Purpose    *string   `json:"purpose,omitempty"`
+	Lifetime   *string   `json:"lifetime,omitempty"`
+	EffortRefs *[]string `json:"effortRefs,omitempty"`
+
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`
 	Enabled           *bool                           `json:"enabled,omitempty"`

@@ -64,6 +64,10 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		}
 	case StatusBudgetExhausted:
 		return Record{}, apierr.BadRequest("cannot retry a budget-exhausted execution at the same budget; increase the budget or resume it")
+	case StatusNeedsAttention:
+		return Record{}, apierr.BadRequest("cannot retry a blocked verdict; resolve the blocker or start a new item")
+	case StatusInterrupted:
+		return Record{}, apierr.BadRequest("cannot retry an interrupted execution; it resumes under until-allowance or is halted")
 	default:
 		return Record{}, apierr.BadRequest("cannot retry execution in %q state", parent.Status)
 	}
@@ -100,15 +104,19 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		PreviousStatus:    string(parent.Status),
 		Status:            StatusPending,
 		Mode:              parent.Mode,
-		ExecutionStrategy: firstNonEmpty(parent.ExecutionStrategy, item.ExecutionStrategy, defaultExecutionStrategy),
+		ExecutionMode:     firstNonEmpty(parent.ExecutionMode, item.ExecutionMode, defaultExecutionMode),
 		MaxSlices:         firstPositive(parent.MaxSlices, 6),
 		ExecutionLimits:   parent.ExecutionLimits.Clone(),
 		ApprovalDigest:    parent.ApprovalDigest,
 		StartedBy:         "swarm-manager:retry",
 		Operation:         "retry",
 		ParentExecutionID: parent.ExecutionID,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		// Retry preserves the operator's steering: preferences and the operator
+		// note carry onto the retry record.
+		ExecutionPreferences: cloneExecutionPreferences(parent.ExecutionPreferences),
+		OperatorNote:         firstNonEmpty(parent.OperatorNote, item.OperatorNote),
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}
 
 	// Retry always restarts the canonical plan-backed workflow.

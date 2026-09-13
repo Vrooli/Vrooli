@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -45,9 +47,38 @@ func (o *Orchestrator) ListExecutionOptions(ctx context.Context, roleRef string)
 	if o.runners == nil {
 		return nil, nil
 	}
+	// Resolve the role's candidate order and models when a role is supplied and
+	// role policy is configured. The resolved policy is the catalog's model
+	// truth; the local runner probe is merged only as additional entries.
+	var resolved []rolepolicy.ResolvedCandidate
+	if strings.TrimSpace(roleRef) != "" && o.rolePolicy != nil && o.roleResolver != nil {
+		if res, err := o.rolePolicy.Resolve(ctx, o.roleResolver, roleRef); err == nil && res != nil {
+			resolved = res.Candidates
+		}
+	}
+	byRunner := map[domain.RunnerType]rolepolicy.ResolvedCandidate{}
+	order := make([]domain.RunnerType, 0, len(resolved))
+	for _, candidate := range resolved {
+		if _, ok := byRunner[candidate.Runner]; ok {
+			continue
+		}
+		byRunner[candidate.Runner] = candidate
+		order = append(order, candidate.Runner)
+	}
 	options := make([]ExecutionOption, 0)
-	for _, r := range o.runners.List() {
-		options = append(options, executionOptionForRunner(ctx, r))
+	if len(order) == 0 {
+		for _, r := range o.runners.List() {
+			options = append(options, executionOptionForRunner(ctx, r, nil))
+		}
+		return options, nil
+	}
+	for _, rt := range order {
+		r, err := o.runners.Get(rt)
+		if err != nil {
+			continue
+		}
+		candidate := byRunner[rt]
+		options = append(options, executionOptionForRunner(ctx, r, &candidate))
 	}
 	return options, nil
 }
@@ -55,8 +86,11 @@ func (o *Orchestrator) ListExecutionOptions(ctx context.Context, roleRef string)
 // executionOptionForRunner keeps a malformed optional adapter from taking
 // down the read-only catalog. A runner that cannot publish capabilities is
 // represented as unavailable with its diagnostic, which is safer than
-// claiming support based on its type alone.
-func executionOptionForRunner(ctx context.Context, r runner.Runner) (option ExecutionOption) {
+// claiming support based on its type alone. When resolved is non-nil, its
+// role-policy model is the default and its models are listed with
+// source=role_policy; the runner's own locally-probed models are merged as
+// source=local_probe.
+func executionOptionForRunner(ctx context.Context, r runner.Runner, resolved *rolepolicy.ResolvedCandidate) (option ExecutionOption) {
 	option.Message = "runner adapter did not publish execution capabilities"
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -81,21 +115,78 @@ func executionOptionForRunner(ctx context.Context, r runner.Runner) (option Exec
 			option.SandboxModesWithNativeObjective = append(option.SandboxModesWithNativeObjective, capability.SandboxModes...)
 		}
 	}
-	for _, model := range capabilities.SupportedModels {
-		option.Models = append(option.Models, ExecutionModelOption{ID: model, CanonicalModel: model})
+	if !available {
+		return option
 	}
-	if len(option.Models) > 0 {
+	seenModel := map[string]bool{}
+	addModel := func(id, canonical, source string, isDefault bool) {
+		id = strings.TrimSpace(id)
+		if id == "" || seenModel[id] {
+			return
+		}
+		seenModel[id] = true
+		option.Models = append(option.Models, ExecutionModelOption{ID: id, CanonicalModel: canonical, Source: source, IsDefault: isDefault})
+	}
+	if resolved != nil {
+		option.DefaultModel = strings.TrimSpace(resolved.Model)
+		if option.DefaultModel == "" {
+			option.DefaultModel = strings.TrimSpace(resolved.CanonicalModel)
+		}
+		if option.DefaultModel != "" {
+			option.DefaultModelSource = executionModelSourceRolePolicy
+		}
+		addModel(option.DefaultModel, resolved.CanonicalModel, executionModelSourceRolePolicy, option.DefaultModel != "")
+		for _, fallback := range resolved.Fallbacks {
+			addModel(fallback, "", executionModelSourceRolePolicy, false)
+		}
+	} else if len(capabilities.SupportedModels) > 0 {
+		// No role resolved: the first probed model is the runner's default.
+		option.DefaultModel = capabilities.SupportedModels[0]
+		option.DefaultModelSource = executionModelSourceLocalProbe
+		addModel(option.DefaultModel, option.DefaultModel, executionModelSourceLocalProbe, true)
+	}
+	for _, model := range capabilities.SupportedModels {
+		addModel(model, model, executionModelSourceLocalProbe, option.DefaultModel == "" && len(option.Models) == 0)
+	}
+	if option.DefaultModel == "" && len(option.Models) > 0 {
 		option.DefaultModel = option.Models[0].ID
 		option.Models[0].IsDefault = true
 	}
-	for effort := range capabilities.EffortMappings {
-		option.EffortLevels = append(option.EffortLevels, effort)
-	}
-	if !available {
-		option.Models = nil
-		option.DefaultModel = ""
-	}
+	option.EffortLevels = orderedEffortLevels(capabilities.EffortMappings)
 	return option
+}
+
+const (
+	executionModelSourceRolePolicy = "role_policy"
+	executionModelSourceLocalProbe = "local_probe"
+)
+
+// effortLevelOrder is the deterministic display order for reasoning effort.
+var effortLevelOrder = []domain.Effort{
+	domain.EffortLow, domain.EffortMedium, domain.EffortHigh, domain.EffortXHigh, domain.EffortMax,
+}
+
+// orderedEffortLevels returns the declared effort levels in fixed low→max order
+// instead of Go map order, with any unknown level appended sorted.
+func orderedEffortLevels(mappings map[string]string) []string {
+	declared := map[string]bool{}
+	for level := range mappings {
+		declared[level] = true
+	}
+	ordered := make([]string, 0, len(declared))
+	for _, effort := range effortLevelOrder {
+		level := string(effort)
+		if declared[level] {
+			ordered = append(ordered, level)
+			delete(declared, level)
+		}
+	}
+	extra := make([]string, 0, len(declared))
+	for level := range declared {
+		extra = append(extra, level)
+	}
+	sort.Strings(extra)
+	return append(ordered, extra...)
 }
 
 // ProbeRunner sends a real, bounded request through the registered runner

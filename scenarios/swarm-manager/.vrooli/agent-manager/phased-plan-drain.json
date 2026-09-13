@@ -77,13 +77,19 @@
             "minimum": 1,
             "maximum": 512
           },
-          "executionStrategy": {
+          "planShape": {
             "type": "string",
             "enum": [
-              "phased-plan-drain",
-              "adaptive-improvement",
-              "goal-session"
+              "phased",
+              "mandate"
             ]
+          },
+          "unattended": {
+            "type": "boolean"
+          },
+          "operatorNote": {
+            "type": "string",
+            "maxLength": 4000
           },
           "writeScope": {
             "type": "array",
@@ -551,7 +557,7 @@
     {
       "from": "decision",
       "to": "approval",
-      "condition": "latest(journal).value.outcome == 'continue' && ((has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'operator-decision') || (latest(journal).value.approvalRequired && input.constraints.sliceApprovalMode != 'auto' && !(has(input.constraints.executionStrategy) && input.constraints.executionStrategy == 'adaptive-improvement' && has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'phase-boundary'))) && count(journal, 'slice') < input.constraints.maxSlices",
+      "condition": "latest(journal).value.outcome == 'continue' && ((has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'operator-decision') || (latest(journal).value.approvalRequired && input.constraints.sliceApprovalMode != 'auto' && !((has(input.constraints.unattended) && input.constraints.unattended) && has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'phase-boundary'))) && count(journal, 'slice') < input.constraints.maxSlices",
       "maxTraversals": 512
     },
     {
@@ -563,7 +569,7 @@
     {
       "from": "decision",
       "to": "slice",
-      "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && !(has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'operator-decision') && (input.constraints.sliceApprovalMode == 'auto' || (has(input.constraints.executionStrategy) && input.constraints.executionStrategy == 'adaptive-improvement' && has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'phase-boundary')) && count(journal, 'slice') < input.constraints.maxSlices",
+      "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && !(has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'operator-decision') && (input.constraints.sliceApprovalMode == 'auto' || ((has(input.constraints.unattended) && input.constraints.unattended) && has(latest(journal).value.approvalReason) && latest(journal).value.approvalReason == 'phase-boundary')) && count(journal, 'slice') < input.constraints.maxSlices",
       "maxTraversals": 512
     },
     {
@@ -578,8 +584,8 @@
     }
   ],
   "budgets": {
-    "wallTimeSeconds": 21600,
-    "maxTurns": 144,
+    "wallTimeSeconds": 604800,
+    "maxTurns": 30720,
     "maxTokens": 7200000,
     "maxChargeMicroUsd": 30000000,
     "maxNodeAttempts": 48,

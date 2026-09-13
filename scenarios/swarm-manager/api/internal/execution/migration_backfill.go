@@ -3,6 +3,9 @@ package execution
 import (
 	"context"
 	"log/slog"
+	"strings"
+
+	"swarm-manager/internal/transitions"
 )
 
 // MigrationBackfillReport captures the result of a one-time backfill run so
@@ -12,6 +15,52 @@ type MigrationBackfillReport struct {
 	StuckValidating  int
 	MissingTerminal  int
 	AlreadyCompleted int
+}
+
+// MigrateExecutionMode maps a legacy execution-strategy id to the current
+// execution-mode id. Unknown values pass through unchanged.
+func MigrateExecutionMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case "phased-plan-drain", "adaptive-improvement":
+		return transitions.ExecutionModeSliced
+	case "goal-session":
+		return transitions.ExecutionModeGoal
+	default:
+		return value
+	}
+}
+
+// BackfillExecutionModes rewrites legacy execution-strategy ids on stored
+// execution records to the two execution modes. It is idempotent and logs each
+// migrated record. plan_acceptance is preserved.
+func (s *Service) BackfillExecutionModes(ctx context.Context, logger *slog.Logger) (int, error) {
+	_ = ctx
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		return 0, err
+	}
+	migrated := 0
+	for i := range records {
+		next := MigrateExecutionMode(records[i].ExecutionMode)
+		if next == records[i].ExecutionMode {
+			continue
+		}
+		previous := records[i].ExecutionMode
+		records[i].ExecutionMode = next
+		migrated++
+		if logger != nil {
+			logger.Info("execution mode migrated", "executionId", records[i].ExecutionID, "from", previous, "to", next)
+		}
+	}
+	if migrated == 0 {
+		return 0, nil
+	}
+	if err := s.store.Save(records); err != nil {
+		return 0, err
+	}
+	return migrated, nil
 }
 
 // BackfillStuckTerminalEvents scans the execution store for records whose

@@ -48,6 +48,7 @@ func (l workflowChildLauncher) InspectMetered(ctx context.Context, id uuid.UUID)
 
 func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now time.Time) (workflowruntime.ChildState, error) {
 	state := childStateFromRun(run)
+	events = terminalWorkflowReceiptProjection(events)
 	if run != nil && run.EndedAt != nil {
 		state.TerminalObservedAt = *run.EndedAt
 	}
@@ -107,7 +108,9 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 			}
 			state.TokensKnown = true
 			latestUsage = true
-			terminalAuthority = terminalAuthority || usage.ReconciliationAuthority
+			// An earlier receipt cannot close usage observed after its cut.
+			// A later authoritative receipt may establish completion again.
+			terminalAuthority = usage.ReconciliationAuthority
 			if !evt.Timestamp.IsZero() {
 				observations = append(observations, evt.Timestamp)
 			}
@@ -136,4 +139,51 @@ func meteredWorkflowChildState(run *domain.Run, events []*domain.RunEvent, now t
 		state.TokensKnown = false
 	}
 	return state, nil
+}
+
+// An embedded terminal charge covers the same complete invocation as its
+// authoritative usage. Earlier unpriced/interim samples remain durable but
+// must not permanently poison that original receipt or be charged again.
+// No receipt means no substitution; each continuation keeps its own boundary.
+// Later observations are outside the receipt's coverage and must survive.
+func terminalWorkflowReceiptProjection(events []*domain.RunEvent) []*domain.RunEvent {
+	invocation := 0
+	selected := map[int]int{}
+	for i, item := range events {
+		if invocationreadmodel.BeginsRunInvocation(item) {
+			invocation++
+		}
+		if item == nil {
+			continue
+		}
+		if usage, ok := item.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority && usage.Charge != nil && usage.Charge.AmountMicroUSD != nil {
+			selected[invocation] = i
+		}
+	}
+	if len(selected) == 0 {
+		return events
+	}
+	var out []*domain.RunEvent
+	invocation = 0
+	for i, item := range events {
+		if invocationreadmodel.BeginsRunInvocation(item) {
+			invocation++
+		}
+		if selectedIndex, ok := selected[invocation]; ok && i < selectedIndex && item != nil {
+			switch data := item.Data.(type) {
+			case *domain.UsageEventData:
+				// Invalid observations still fail validation; reconciliation
+				// cannot hide malformed retained accounting.
+				if data.InputTokens >= 0 && data.OutputTokens >= 0 && data.CacheReadTokens >= 0 && data.CacheCreationTokens >= 0 && data.Turns >= 0 {
+					continue
+				}
+			case *domain.ChargeEventData:
+				if data.AmountMicroUSD == nil || *data.AmountMicroUSD >= 0 {
+					continue
+				}
+			}
+		}
+		out = append(out, item)
+	}
+	return out
 }

@@ -19,7 +19,8 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      // Unit Health consumes coverage-summary.json or lcov.info.
+      reporter: ['text', 'json', 'html', 'json-summary', 'lcov'],
       exclude: [
         'node_modules/',
         'src/test/',

@@ -4,15 +4,147 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil/mocks"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/workflowruntime"
 	"github.com/google/uuid"
 )
+
+type terminalReceiptRecoveryLauncher struct {
+	workflowChildLauncher
+	exclude func(context.Context, *domain.Run) error
+}
+
+func (l terminalReceiptRecoveryLauncher) RecoverTerminalAccounting(ctx context.Context, id uuid.UUID) error {
+	return l.recoverTerminalAccounting(ctx, id, l.exclude)
+}
+
+func TestWorkflowRecoveryReconcilesOriginalNativeTerminalReceipt(t *testing.T) {
+	const claudeZero = `{"type":"cost-state","sessionId":"original-session","totalCostUSD":0,"totalAPIDuration":0,"totalAPIDurationWithoutRetries":0,"modelUsage":{},"hasUnknownModelCost":false}` + "\n"
+	const codexAborted = `{"type":"session_meta","payload":{"id":"original-session"}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":15211,"cached_input_tokens":10880,"output_tokens":205}}}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":30666,"cached_input_tokens":21760,"output_tokens":415}}}}
+{"type":"event_msg","payload":{"type":"turn_aborted","reason":"interrupted"}}
+`
+	for _, tc := range []struct {
+		name, transcript string
+		kind             domain.RunnerType
+		tokens, turns    int
+		unknown          bool
+	}{
+		{"claude-explicit-zero", claudeZero, domain.RunnerTypeClaudeCode, 0, 0, false},
+		{"codex-original-abort", codexAborted, domain.RunnerTypeCodex, 31081, 1, false},
+		{"wrong-session", strings.ReplaceAll(codexAborted, "original-session", "foreign-session"), domain.RunnerTypeCodex, 0, 0, true},
+		{"no-terminal-receipt", strings.ReplaceAll(codexAborted, "turn_aborted", "thread_settings_applied"), domain.RunnerTypeCodex, 0, 0, true},
+		{"unknown-claude-cost", strings.ReplaceAll(claudeZero, `"hasUnknownModelCost":false`, `"hasUnknownModelCost":true`), domain.RunnerTypeClaudeCode, 0, 0, true},
+		{"partial-tail", strings.TrimSuffix(codexAborted, "\n"), domain.RunnerTypeCodex, 0, 0, true},
+		{"physical-unknown", codexAborted, domain.RunnerTypeCodex, 0, 0, true},
+		{"missing-transcript", "", domain.RunnerTypeCodex, 0, 0, true},
+		{"multiple-invocations", codexAborted, domain.RunnerTypeCodex, 0, 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := newFakeRunLauncher()
+			o, repos := newRelayOrchestrator(t, fake)
+			if err := repos.Workflows.ActivateBatch(t.Context(), []*domain.WorkflowRevision{relayDefinition()}); err != nil {
+				t.Fatal(err)
+			}
+			x, err := o.StartWorkflowExecution(t.Context(), StartWorkflowExecutionRequest{Owner: "owner", WorkflowKey: "owner/relay", Input: json.RawMessage(`{}`), IdempotencyKey: tc.name})
+			if err != nil {
+				t.Fatal(err)
+			}
+			runID := runIDForNode(t, repos.WorkflowExecutions, x.ID, "a")
+			if _, err := o.CancelWorkflowExecution(t.Context(), WorkflowExecutionOperationRequest{ExecutionID: x.ID, IdempotencyKey: "cancel-original", Reason: "operator"}); err == nil {
+				t.Fatal("missing receipt settled cancellation")
+			}
+			task := &domain.Task{ID: uuid.New(), Title: "retained native receipt", ScopePath: ".", Status: domain.TaskStatusQueued}
+			if err := repos.Tasks.Create(t.Context(), task); err != nil {
+				t.Fatal(err)
+			}
+			ended := time.Now().UTC().Add(-time.Minute)
+			run := &domain.Run{ID: runID, TaskID: task.ID, Status: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted, RunMode: domain.RunModeSandboxed, ExecutionMode: domain.ExecutionModeCodecPipe, SessionID: "original-session", EndedAt: &ended, FinalizationStatus: domain.RunFinalizationStatusNone, ResolvedConfig: &domain.RunConfig{RunnerType: tc.kind, Model: "retained-model"}, Billing: domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription}, TranscriptPath: filepath.Join(t.TempDir(), "original.jsonl")}
+			if tc.transcript != "" {
+				if err := os.WriteFile(run.TranscriptPath, []byte(tc.transcript), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := repos.Runs.Create(t.Context(), run); err != nil {
+				t.Fatal(err)
+			}
+			events := mocks.NewFakeEventStore()
+			old := []*domain.RunEvent{domain.NewStatusEvent(runID, "starting", "running", "original invocation"), {ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}}}
+			if tc.name == "multiple-invocations" {
+				old = append(old, domain.NewStatusEvent(runID, "complete", "running", "continuation"))
+			}
+			if err := events.Append(t.Context(), runID, old...); err != nil {
+				t.Fatal(err)
+			}
+			restarted, _ := reopenRelayOrchestrator(t, repos, fake)
+			WithEvents(events)(restarted)
+			registry := runner.NewRegistry()
+			var native runner.Runner
+			if tc.kind == domain.RunnerTypeClaudeCode {
+				native = core.NewRunner(codecs.NewClaudeForTest(), nil, nil)
+			} else {
+				native = core.NewRunner(codecs.NewCodexForTest(), nil, nil)
+			}
+			if err := registry.Register(native); err != nil {
+				t.Fatal(err)
+			}
+			restarted.runners = registry
+			proofs := 0
+			restarted.workflowEngine.Children = terminalReceiptRecoveryLauncher{workflowChildLauncher: workflowChildLauncher{o: restarted}, exclude: func(_ context.Context, actual *domain.Run) error {
+				proofs++
+				if actual.ID != run.ID || actual.SessionID != run.SessionID {
+					t.Fatal("physical proof used a replacement")
+				}
+				if tc.name == "physical-unknown" {
+					return errors.New("executor scope remains unknown")
+				}
+				return nil
+			}}
+			if err := restarted.RecoverWorkflowExecutions(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			got, err := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			count, _ := events.Count(t.Context(), runID)
+			if tc.unknown {
+				if got.Status != domain.WorkflowExecutionCancelling || got.BudgetUsage.AccountingComplete || count != int64(len(old)) {
+					t.Fatalf("unknown evidence settled or mutated accounting: %+v count=%d", got, count)
+				}
+			} else {
+				if got.Status != domain.WorkflowExecutionCancelled || !got.BudgetUsage.AccountingComplete || !got.BudgetUsage.ChargeMeasured || got.BudgetUsage.Tokens != tc.tokens || got.BudgetUsage.Turns != tc.turns || got.BudgetUsage.Children != 1 || count != int64(len(old)+2) || proofs != 1 {
+					t.Fatalf("original receipt not reconciled: %+v count=%d proofs=%d", got, count, proofs)
+				}
+				if err := restarted.RecoverWorkflowExecutions(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				again, _ := repos.WorkflowExecutions.Get(t.Context(), x.ID)
+				replayCount, _ := events.Count(t.Context(), runID)
+				if again.Version != got.Version || again.BudgetUsage != got.BudgetUsage || replayCount != count || proofs != 1 {
+					t.Fatal("recovery replay duplicated accounting or host inspection")
+				}
+			}
+			preserved, _ := repos.Runs.Get(t.Context(), runID)
+			if preserved.Status != run.Status || preserved.FinalizationStatus != run.FinalizationStatus || !preserved.EndedAt.Equal(ended) || len(fake.byKey) != 1 {
+				t.Fatal("receipt recovery changed run execution/finalization or redispatched")
+			}
+		})
+	}
+}
 
 type sameRunContinuationLauncher struct{ *fakeRunLauncher }
 

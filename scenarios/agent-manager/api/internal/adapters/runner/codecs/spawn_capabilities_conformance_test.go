@@ -16,9 +16,9 @@ type spawnCapabilityReceipt struct {
 
 func TestSpawnCapabilitiesConformance(t *testing.T) {
 	receipts := []spawnCapabilityReceipt{
-		{runnerType: "claude-code", executionMode: "interactive", sandboxModes: []string{"tracking", "off"}, nativeGoal: true, receiptPath: "evidence/04-native-objective/claude-smoke", harness: "claude 2.1.268"},
+		{runnerType: "claude-code", executionMode: "interactive", sandboxModes: []string{"tracking", "off"}, nativeGoal: true, receiptPath: "evidence/04-conformance/claude", harness: "claude-code haiku 2026-09-12"},
 		{runnerType: "codex", executionMode: "codec_pipe", sandboxModes: []string{"protected", "tracking", "off"}, receiptPath: "evidence/00-baseline/codex-codec-pipe", harness: "codex-cli 0.153.4"},
-		{runnerType: "codex", executionMode: "interactive", sandboxModes: []string{"tracking", "off"}, nativeGoal: true, receiptPath: "evidence/04-native-objective/codex-smoke", harness: "codex-cli 0.153.4"},
+		{runnerType: "codex", executionMode: "interactive", sandboxModes: []string{"tracking", "off"}, nativeGoal: true, receiptPath: "evidence/04-conformance/codex", harness: "codex-cli 0.153.4 2026-09-12"},
 	}
 	codecs := []Codec{NewClaudeForTest(), NewCodexForTest(), NewGrokForTest(), NewOpenCodeForTest(), NewAntigravityForTest()}
 	for _, codec := range codecs {

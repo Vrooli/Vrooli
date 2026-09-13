@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/transitions"
 )
 
 // isInspectableStatus reports whether a record is in a state the fail-closed
@@ -188,7 +188,7 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 	changedRecords := make(map[string]Record)
 
 	finalizationCandidates = s.collectValidatingCandidatesLocked(records)
-	s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords, &finalizationCandidates)
+	s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords)
 	holdCandidates = s.collectHoldCandidatesLocked(records)
 
 	if changed {
@@ -203,12 +203,15 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 }
 
 // collectValidatingCandidatesLocked returns IDs of records in StatusValidating
-// that have finalization state and are not already being processed.
+// that are not already being processed. A record carries no finalization until
+// processFinalization initializes it (or the goal reconcile eagerly seeds it),
+// so validating is the gate — not Finalization != nil, which stranded a goal
+// verdict's validating record forever.
 func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
 	candidates := make([]string, 0)
 	for i := range records {
 		record := &records[i]
-		if record.Status == StatusValidating && record.Finalization != nil {
+		if record.Status == StatusValidating {
 			if _, exists := s.processingFinalizations[record.ExecutionID]; !exists {
 				candidates = append(candidates, record.ExecutionID)
 			}
@@ -227,10 +230,16 @@ func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
 // every pre-cutover record, so an active record WITHOUT an operation
 // correlation can no longer legitimately exist — fail it closed instead of
 // silently stranding it.
-func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Record, changed *bool, changedRecords map[string]Record, _ *[]string) {
+func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Record, changed *bool, changedRecords map[string]Record) {
 	for i := range records {
 		record := &records[i]
 		if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+			continue
+		}
+		// Goal-mode records have no workflow correlation by design: their
+		// terminal state arrives through the goal-run reader, not a transition
+		// owner. They must not be failed by the workflow-correlation guard.
+		if record.ExecutionMode == transitions.ExecutionModeGoal {
 			continue
 		}
 		if strings.TrimSpace(record.OpExecutionID) != "" {
@@ -287,51 +296,6 @@ func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogW
 		// timeout and the user decides whether to mark failed, retry, or followup.
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			slog.Warn(backlogWarnMsg,
-				"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
-		}
-	}
-}
-
-// applyTerminalTransition finalizes a record that has reached a terminal status:
-// it stamps FinishedAt and routes the backlog item per outcome (finalization
-// handoff, spec-sync archive, in_review, or restore).
-func (s *Service) applyTerminalTransition(ctx context.Context, record *Record, runState agentmanager.RunState, nextStatus Status, finalizationCandidates *[]string) {
-	if strings.TrimSpace(runState.FinishedAt) != "" {
-		record.FinishedAt = runState.FinishedAt
-	} else {
-		record.FinishedAt = nowRFC3339()
-	}
-
-	// Post-completion hook: archive scenario after successful spec-sync.
-	if record.ArchiveContext != nil {
-		if nextStatus == StatusCompleted {
-			s.handleSpecSyncComplete(ctx, record)
-		}
-		// For spec-sync failures, leave status as failed for UI recovery.
-		return
-	}
-
-	item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
-	if loadErr != nil {
-		return
-	}
-	switch nextStatus {
-	case StatusCompleted:
-		s.applyCompletedTransition(record, item, finalizationCandidates)
-	case StatusFailed:
-		// Land in in_review so review agent documents the failure and user decides
-		// terminal via review-decide. Circuit-breaker accounting still fires.
-		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
-			slog.Warn("failed to set backlog status to in_review after run failure",
-				"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
-		}
-		cbKey := record.BacklogKind + "/" + record.BacklogName
-		if cbGov, cbGovErr := s.governanceProvider.LoadGovernance(); cbGovErr == nil {
-			_ = s.circuitBreaker.RecordFailure(cbKey, cbGov.CircuitBreakerThreshold)
-		}
-	case StatusCanceled:
-		if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
-			slog.Warn("failed to restore backlog status after run cancellation",
 				"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
 		}
 	}

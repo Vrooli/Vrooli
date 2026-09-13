@@ -64,6 +64,138 @@ Pause is separate from member heartbeat `enabled`. A paused team can still have 
 
 ## Heartbeat Configuration
 
+### Finite effort leader provisioning
+
+Create an unused heartbeat binding in disabled state through the canonical CLI:
+
+```bash
+prompt-manager team heartbeat-bind-effort <team-id> <leader-id> --request-file binding.json
+prompt-manager team heartbeat <team-id> <leader-id> --json
+```
+
+`binding.json` contains the exact configuration, without an RPC envelope:
+
+```json
+{
+  "schedule": "*/5 * * * *",
+  "profileKey": "<qualified-profile>",
+  "finiteLeader": {
+    "effortRef": "<exact-effort-ref>",
+    "acceptedRevision": "<exact-accepted-revision>",
+    "coordinatorPromptRef": "<coordinator-prompt-ref>",
+    "sourceRefs": ["<accepted-source-ref>"]
+  }
+}
+```
+
+Add `--update` only to bind an existing unused disabled heartbeat. Provisioning
+always sends `enabled:false`. It validates a single JSON object of at most 16 KiB
+and refuses unknown fields, including an activation flag. The command verifies
+the returned exact binding and disabled state; an older server ignoring the new
+fields cannot be reported as successful provisioning. Neither command starts an
+agent or supplies an effort grant.
+
+Retire future finite dispatch while retaining the current run and reservation:
+
+```bash
+prompt-manager team heartbeat-retire-effort <team-id> <leader-id>
+```
+
+Retirement reads the current owner binding, preserves its references, disables
+scheduling and sets irreversible retirement. It does not cancel the run or claim
+effort completion. Ordinary `heartbeat-disable` remains a reversible scheduling
+pause. The heartbeat read retains `finiteLeaderState` and any owner-read error.
+Live adoption still requires qualified finite recurrence and purpose-bound
+coordinator authority; the initial single-run binding is not that qualification.
+
+Focused CLI verification (2026-09-12): `go test -race ./teams -run
+'^TestFiniteLeaderCLI|^TestHeartbeatEnableStanding' -count=1 -timeout=60s`
+passes. The five finite CLI tests cover disabled create/update, malformed and
+activation-bearing input rejection, mismatched owner responses, retirement with
+retained identity, and the real human/JSON read commands. Two standing-supervision
+CLI regressions also pass. No live configuration was provisioned by these tests.
+
+### Standing effort supervisor
+
+The bundled identity is team `effort-supervision`, member `effort-supervisor`.
+Its authored contract, charter, responsibilities, heartbeat and topics are under
+`store/teams/effort-supervision/`; global identity is under
+`store/agents/effort-supervisor/`. The team is disabled and has no installed
+heartbeat config. Other teams are not changed.
+
+After the implementation owner qualifies the AM board and PM runtime, configure
+the bounded observation pilot while the team remains disabled:
+
+```bash
+prompt-manager team heartbeat-enable effort-supervision effort-supervisor \
+  --supervision --schedule='*/5 * * * *' \
+  --discovery-limit=100 --max-efforts-per-wake=3 \
+  --min-wake-interval-seconds=300 \
+  --diagnostic-wakes-per-window=4 --diagnostic-window-seconds=3600 \
+  --accounting-ref=effort-supervision:standing-diagnostics \
+  --healthy-sample-interval-seconds=3600 --max-healthy-samples-per-wake=1
+prompt-manager team heartbeat effort-supervision effort-supervisor --json
+```
+
+The allowance counts attempted inference wakes, including sampling and uncertain
+dispatch. Idle discovery and owner reads use the shared accounting reference.
+Token and dollar usage remain AM observations; this count is not a spend limit.
+Omitting `--profile` retains PM's qualified declared profile. An explicit profile
+override must name an existing qualified route; no provider or paid fallback is
+introduced by supervision.
+
+Observation needs no PM owner-token file or manual steering delegation. Each
+wake supplies its selected public effort references to AM CreateRun as observed
+supervisor membership, then uses AM's ordinary signed run token for
+`agent-manager effort assess --request-file <request.json> --json`. This requires
+the adopted AM CreateRun wire to accept and persist `work_references`; RunReport
+fields alone are insufficient. Qualify the signed assessment response before
+treating recurring observation as operational. Stable scoped credentials for
+steering remain an owner-provisioned, separately qualified route; PM does not
+auto-grant actions or obtain broad local human credentials.
+
+Standing dispatch must register or verify the selected team's Source Ledger
+scope through PM's existing `EnsureTeamScope` before building its prompt or
+launching a run. This uses `TeamScopeFacets` and the existing team budgets for
+any team ID; startup's historical team list is not the admission contract.
+Registration failure must remain a typed dependency error. It must not produce
+a local corpus or launch a supervisor with an unregistered scope.
+
+An implementation owner can provision a missing scope with the canonical
+`source-ledger scopes create team:<team-id> --facets-json '<TeamScopeFacets JSON>'`
+operation, using the same frontier (16), wake lines (128), and per-entry lines
+(2) as PM. Verify with `source-ledger policy show --scope team:<team-id>` and
+`source-ledger recall wake --scope team:<team-id>` before the bounded pilot.
+Assessment links use the typed `team knowledge-add` operation required by the
+supervisor prompt; a plain journal note does not establish a PM topic receipt.
+
+The following command activates this team's service. The pilot owner runs it
+after qualification; staging alone does not prove operational success:
+
+```bash
+prompt-manager team update effort-supervision --enabled=true
+```
+
+`team heartbeat-trigger effort-supervision effort-supervisor` invokes the same
+admission policy, including empty/unchanged/occupied suppression. It can buy a
+bounded live wake when eligible. Read-only `team heartbeat ... --json` reports
+`supervisionState` with coverage, pending wake/task/run identities, owner waits,
+served revisions, sample selections, allowance counters and recovery time.
+Reads never perform discovery or inference.
+Assessment receipts are distinct from terminal run status: `lastWake` retains
+terminal errors and any `unassessed-reopen` disposition; per-effort `retryAfter`
+names the earliest bounded retry. Only an exact `sample` receipt advances
+`lastSampleAt`. Charges remain spent even when a run fails before assessment.
+
+To stop future wakes, use `team heartbeat-disable effort-supervision
+effort-supervisor`. This preserves uncertain/active owner evidence. Per-effort
+withdrawal belongs to AM and leaves other efforts and discovery eligible. Global
+engagement policy still applies; these operations never resume global policy.
+
+`--supervision` requires an explicit `--accounting-ref`. Sampling is disabled
+unless both its interval and positive per-wake cap are supplied. Configuration
+is independent of effort name, work shape, workspace location and provider.
+
 ### prompt-manager team heartbeat-list
 
 List all heartbeat configurations for a team.
@@ -134,7 +266,7 @@ prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--p
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--schedule` | Yes | Cron expression for execution schedule |
-| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat` for multi-process teams and `prompt-manager/heartbeat-single-process` for single-process teams. |
+| `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat-judgment` (declared in `.vrooli/agent-manager/heartbeat.json`; role `code.economy.judgment`, Codex gpt-5.6-luna at effort xhigh) for multi-process teams and `prompt-manager/heartbeat-inspection` (declared in `.vrooli/agent-manager/heartbeat-single-process.json`; role `code.flatrate`, OpenCode Go DeepSeek V4.1 Flash) for single-process teams. The runner and model come from the role, not the profile; change the role in the declaration to move heartbeats to another model. |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**

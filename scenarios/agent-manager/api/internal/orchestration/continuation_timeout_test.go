@@ -2,6 +2,7 @@ package orchestration_test
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -377,5 +378,138 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 	canContinue, reason := domain.CanContinueRun(updatedRun)
 	if !canContinue {
 		t.Errorf("expected failed run with session ID to be continuable, got reason: %s", reason)
+	}
+}
+
+// TestContinuation_SessionLostIsTypedInterruption proves that a continuation
+// whose runner-side session no longer exists is recorded as the typed
+// interruption (terminal_class=interruption, stop_reason=session_lost) — not a
+// generic failure — so Swarm's until-allowance sweeper starts a fresh run. It
+// covers both failure shapes: the codec-pipe path (typed error) and the
+// durable-transcript path (typed TerminalError on the result).
+func TestContinuation_SessionLostIsTypedInterruption(t *testing.T) {
+	ctx := context.Background()
+
+	cases := []struct {
+		name string
+		fn   func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error)
+	}{
+		{
+			name: "typed error (codec-pipe path)",
+			fn: func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+				return nil, domain.NewRunnerSessionExpiredError(
+					domain.RunnerTypeOpenCode, errors.New("Error: Session not found"))
+			},
+		},
+		{
+			name: "typed terminal error (durable path)",
+			fn: func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+				return &runner.ExecuteResult{
+					Success:       false,
+					ExitCode:      1,
+					SessionID:     "sess-original",
+					ErrorMessage:  "Error: Session not found",
+					TerminalError: domain.NewRunnerSessionExpiredError(domain.RunnerTypeOpenCode, errors.New("Error: Session not found")),
+				}, nil
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+
+			mockRunner := runner.NewMockRunner(domain.RunnerTypeOpenCode)
+			mockRunner.SetAvailable(true, "available")
+			mockRunner.SetCapabilities(runner.Capabilities{
+				SupportsMessages:     true,
+				SupportsStreaming:    true,
+				SupportsCancellation: true,
+				SupportsContinuation: true,
+				MaxTurns:             100,
+				SupportedModels:      []string{"mock-model"},
+			})
+			mockRunner.ContinueFunc = tc.fn
+
+			registry := runner.NewRegistry()
+			if err := registry.Register(mockRunner); err != nil {
+				t.Fatalf("register runner: %v", err)
+			}
+
+			svc := orchestration.New(
+				repos.Profiles,
+				repos.Tasks,
+				repos.Runs,
+				orchestration.WithConfig(orchestration.OrchestratorConfig{
+					DefaultTimeout:          5 * time.Minute,
+					MaxConcurrentRuns:       10,
+					RequireSandboxByDefault: false,
+				}),
+				orchestration.WithEvents(eventStore),
+				orchestration.WithCheckpoints(repos.Checkpoints),
+				orchestration.WithIdempotency(repos.Idempotency),
+				orchestration.WithRunners(registry),
+				orchestration.WithRunStateRoot(t.TempDir()),
+			)
+
+			profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+				Name:          "session-lost-profile",
+				ProfileKey:    "session-lost-" + uuid.New().String()[:8],
+				SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+				RoleRef:       "code.default",
+			})
+			task := mustCreateTask(t, svc, ctx, &domain.Task{
+				Title:       "session-lost-task",
+				Description: "task for session-lost continuation classification",
+				ScopePath:   "src/",
+			})
+
+			now := time.Now()
+			runID := uuid.New()
+			directRun := &domain.Run{
+				ID:             runID,
+				TaskID:         task.ID,
+				AgentProfileID: &profile.ID,
+				Tag:            runID.String(),
+				RunMode:        domain.RunModeInPlace,
+				Status:         domain.RunStatusComplete,
+				Phase:          domain.RunPhaseCompleted,
+				SessionID:      "sess-original",
+				StartedAt:      &now,
+				EndedAt:        &now,
+				ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeOpenCode},
+				ApprovalState:  domain.ApprovalStateNone,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}
+			if err := repos.Runs.Create(ctx, directRun); err != nil {
+				t.Fatalf("create run: %v", err)
+			}
+
+			if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+				RunID:   runID,
+				Message: "please continue",
+			}); err != nil {
+				t.Fatalf("ContinueRun: %v", err)
+			}
+
+			waitForStatusEvents(t, ctx, eventStore, runID, 2)
+			time.Sleep(200 * time.Millisecond)
+
+			updatedRun, err := repos.Runs.Get(ctx, runID)
+			if err != nil {
+				t.Fatalf("get run: %v", err)
+			}
+			if updatedRun.Status != domain.RunStatusFailed {
+				t.Errorf("status = %q, want failed", updatedRun.Status)
+			}
+			if updatedRun.TerminalClass != domain.RunTerminalClassInterruption {
+				t.Errorf("terminal_class = %q, want %q", updatedRun.TerminalClass, domain.RunTerminalClassInterruption)
+			}
+			if updatedRun.StopReason != domain.RunStopReasonSessionLost {
+				t.Errorf("stop_reason = %q, want %q", updatedRun.StopReason, domain.RunStopReasonSessionLost)
+			}
+		})
 	}
 }

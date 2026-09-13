@@ -172,6 +172,16 @@ type RunRepository interface {
 	// single-column update closes that race at the SQL layer (no TOCTOU).
 	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
 
+	// RequestCancellation atomically stamps the durable cancellation intent on
+	// a run that is still actively executing (running or starting). It returns
+	// true when the intent was newly recorded and false when it was already
+	// stamped or the run is no longer active. Like TouchHeartbeat, the guard is
+	// applied in SQL so a stale caller cannot stamp a terminal run, and the
+	// intent is monotonic (a repeat stop request is a no-op). The persisted
+	// stamp lets a delayed process exit reconcile to cancelled exactly once
+	// instead of resurrecting the run to a different terminal state.
+	RequestCancellation(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
 	// UpdateRunnerStreamState atomically persists ONLY the runner streaming
 	// columns (session id, runner pid/pgid, transcript path/cursor/seq) from the
 	// supplied run, and ONLY while it is still actively executing (running or
@@ -200,6 +210,35 @@ type RunRepository interface {
 	// GetByImportProvenance returns the run that adopted an external source
 	// session, or nil when that session has not been imported.
 	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
+
+	// GetByIdempotencyKey resolves the run durably created under a creation
+	// idempotency key, or nil when no creation was accepted. A retained receipt
+	// with a missing run returns an error, never permission to create again.
+	// It exists so a
+	// caller that lost the accepted start response can reconcile the original
+	// dispatch from durable owner state instead of starting a duplicate.
+	GetByIdempotencyKey(ctx context.Context, key string) (*domain.Run, error)
+
+	// GetCreationReceipt returns immutable accepted-creation identity, including
+	// when the original run was deleted. Nil means no retained acceptance.
+	GetCreationReceipt(ctx context.Context, key string) (*domain.RunCreationReceipt, error)
+}
+
+// RunRecoveryAttacher records ownership of an existing live executor. The
+// lifecycle/status/cancellation fence and field-limited write are atomic:
+// attaching cannot replace a run or overwrite concurrent progress/stream data.
+type RunRecoveryAttacher interface {
+	AttachRecovery(ctx context.Context, id uuid.UUID, lifecycleVersion int64, at time.Time) (bool, error)
+}
+
+// RunFreshRecoveryClaimer consumes a source lifecycle exactly once before a
+// replacement may have effects. The request hash never expires or resets when
+// the replacement or the idempotency cache is deleted. Only a definitive
+// pre-effect refusal permits guarded release; missing acceptance alone does not.
+type RunFreshRecoveryClaimer interface {
+	ClaimFreshRecovery(ctx context.Context, sourceID uuid.UUID, lifecycleVersion int64, requestHash string, allowCancelled bool) (bool, error)
+	GetFreshRecoveryClaim(ctx context.Context, sourceID uuid.UUID) (string, error)
+	ReleaseFreshRecoveryClaim(ctx context.Context, sourceID uuid.UUID, claimedLifecycleVersion int64, requestHash string) (bool, error)
 }
 
 // RunLabelUpdater is an intentionally narrow maintenance seam. Label

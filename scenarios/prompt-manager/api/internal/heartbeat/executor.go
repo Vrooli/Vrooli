@@ -45,6 +45,8 @@ type Executor struct {
 	runRegistry       *RunRegistry
 	handoffExtractor  HandoffExtractor
 	teamExecStore     TeamExecStoreRegistrar
+	EffortSupervisor  *StandingSupervisor
+	FiniteLeader      *FiniteLeaderRuntime
 	OnComplete        func(teamID, agentID string)
 	RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
 
@@ -182,6 +184,29 @@ func NewExecutor(
 
 // Execute runs a heartbeat for a team member
 func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey string) (*ExecutionResult, error) {
+	if e.teamStore != nil {
+		cfg, err := e.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err != nil {
+			return nil, err
+		}
+		if cfg != nil && cfg.FiniteLeader != nil {
+			if e.FiniteLeader == nil {
+				return nil, fmt.Errorf("finite leader runtime unavailable")
+			}
+			return e.FiniteLeader.Dispatch(ctx, teamID, agentID)
+		}
+		if cfg != nil && cfg.Supervision != nil {
+			if e.EffortSupervisor == nil {
+				return nil, fmt.Errorf("standing supervision unavailable")
+			}
+			// Standing dispatch also needs the ordinary member's corpus
+			// prerequisite; newly authored teams are not boot-seeded scopes.
+			if err := e.teamStore.EnsureTeamScope(ctx, teamID); err != nil {
+				return nil, fmt.Errorf("ensuring team source-ledger scope: %w", err)
+			}
+			return e.EffortSupervisor.Dispatch(ctx, teamID, agentID)
+		}
+	}
 	startedAt := time.Now().UTC()
 	result := &ExecutionResult{
 		TeamID:    teamID,

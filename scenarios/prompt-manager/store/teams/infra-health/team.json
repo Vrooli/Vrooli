@@ -1,4 +1,6 @@
 {
+  "purpose": "domain-stewardship",
+  "lifetime": "standing",
   "kind": "team",
   "schemaVersion": 1,
   "id": "infra-health",

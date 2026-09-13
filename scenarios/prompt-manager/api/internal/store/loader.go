@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // LoadJSON loads and unmarshals a JSON file into the target type
@@ -22,19 +24,14 @@ func LoadJSON[T any](path string) (*T, error) {
 	return &result, nil
 }
 
-// SaveJSON marshals and writes a value to a JSON file
+// SaveJSON publishes a complete JSON snapshot without truncating concurrent reads.
 func SaveJSON[T any](path string, value *T) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling: %w", err)
 	}
 
-	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("creating directory: %w", err)
-	}
-
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := storage.WriteFileAtomic(path, data, 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 

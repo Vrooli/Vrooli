@@ -52,6 +52,9 @@ type Execution struct {
 }
 
 type Contract struct {
+	Purpose      string
+	Lifetime     string
+	EffortRefs   []string
 	Runtime      Runtime
 	Coordination Coordination
 	Execution    Execution
@@ -192,7 +195,7 @@ func Validate(contract Contract) error {
 // one pass. It deliberately does not short-circuit: an operator repairing a
 // malformed team.json needs the whole actionable set, not a retry loop.
 func ValidateFindings(contract Contract) []ValidationFinding {
-	var findings []ValidationFinding
+	findings := MetadataFindings(contract.Purpose, contract.Lifetime, contract.EffortRefs)
 	add := func(field, message string) {
 		findings = append(findings, ValidationFinding{Field: field, Message: message})
 	}

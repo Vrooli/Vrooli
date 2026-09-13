@@ -73,6 +73,14 @@
   "credentials": {
     "descriptors": [
       {
+        "logical_id": "vrooli/prompt-manager/effort-supervision",
+        "field": "dispatcher",
+        "label": "Effort supervisor dispatcher",
+        "description": "Explicit AM owner issuance provisions a purpose-bound dispatcher credential. Only the selected standing heartbeat resolves it through the canonical authority.",
+        "required": false,
+        "provisioning": "generated"
+      },
+      {
         "logical_id": "vrooli/prompt-manager/experiment-receipts",
         "field": "key-ring",
         "label": "Prompt Manager experiment receipt signing key ring",

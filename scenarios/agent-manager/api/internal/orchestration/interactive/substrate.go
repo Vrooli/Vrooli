@@ -52,6 +52,13 @@ const (
 	// one lands the prompt. Kept comfortably above turn-start latency so a
 	// delivered prompt is detected before the next re-delivery.
 	defaultPromptResendAfter = 5 * time.Second
+	// defaultGoalInstallTimeout bounds the wait for the harness to process a
+	// /goal command before the task prompt is pasted. A prompt pasted while the
+	// slash command is still composing is swallowed into the goal argument; the
+	// goal command's own transcript record (claude's goal_status attachment)
+	// appearing is the readiness signal. Best-effort: on timeout the prompt is
+	// delivered anyway and transcript discovery continues normally.
+	defaultGoalInstallTimeout = 15 * time.Second
 )
 
 // LaunchInfoResolver resolves the per-agent launch facts (tag env key, binary
@@ -90,12 +97,13 @@ type Substrate struct {
 	// homeDir overrides the user home for claude transcript discovery (tests).
 	homeDir string
 
-	discoveryTimeout  time.Duration
-	pollInterval      time.Duration
-	stopGrace         time.Duration
-	promptBootDelay   time.Duration
-	promptResendAfter time.Duration
-	now               func() time.Time
+	discoveryTimeout   time.Duration
+	pollInterval       time.Duration
+	stopGrace          time.Duration
+	promptBootDelay    time.Duration
+	promptResendAfter  time.Duration
+	goalInstallTimeout time.Duration
+	now                func() time.Time
 }
 
 // Option configures a Substrate.
@@ -166,14 +174,15 @@ func WithClock(now func() time.Time) Option {
 // launch-info resolver.
 func NewSubstrate(sessions webconsole.SessionController, launchInfo LaunchInfoResolver, opts ...Option) *Substrate {
 	s := &Substrate{
-		sessions:          sessions,
-		launchInfo:        launchInfo,
-		discoveryTimeout:  defaultDiscoveryTimeout,
-		pollInterval:      defaultPollInterval,
-		stopGrace:         defaultStopGrace,
-		promptBootDelay:   defaultPromptBootDelay,
-		promptResendAfter: defaultPromptResendAfter,
-		now:               time.Now,
+		sessions:           sessions,
+		launchInfo:         launchInfo,
+		discoveryTimeout:   defaultDiscoveryTimeout,
+		pollInterval:       defaultPollInterval,
+		stopGrace:          defaultStopGrace,
+		promptBootDelay:    defaultPromptBootDelay,
+		promptResendAfter:  defaultPromptResendAfter,
+		goalInstallTimeout: defaultGoalInstallTimeout,
+		now:                time.Now,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -213,7 +222,19 @@ type LaunchResult struct {
 	TranscriptPath string
 	LaunchCommand  string
 	ExecutionMode  domain.ExecutionMode
+	// GoalDelivery records how the completion objective reached the harness.
+	// Empty when the run has no completion objective.
+	GoalDelivery string
 }
+
+// Goal delivery mechanisms recorded on a run. native_verified is upgraded by
+// the coordinator when a goal marker is observed; a native objective that is
+// sent but never acknowledged stays native_unverified.
+const (
+	GoalDeliveryNativeVerified   = "native_verified"
+	GoalDeliveryNativeUnverified = "native_unverified"
+	GoalDeliveryPromptCarried    = "prompt_carried"
+)
 
 // Launch creates a web-console session running the real interactive agent CLI,
 // submits the launch command after the shell boot window, delivers the run's initial task prompt into it, and resolves the agent-owned
@@ -338,9 +359,21 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	var resend func() error
 	if p.Prompt != "" || p.NativeObjective != "" {
 		if p.NativeObjective != "" {
-			if err := s.sessions.SendText(ctx, sessionID, "/goal "+p.NativeObjective+"\n", interactivePromptSource(p.RunID)); err != nil {
+			// The goal is typed as a single slash command; a raw multi-line
+			// objective would submit on its first newline and truncate.
+			if err := s.sessions.SendText(ctx, sessionID, "/goal "+singleLine(p.NativeObjective)+"\n", interactivePromptSource(p.RunID)); err != nil {
 				return result, fmt.Errorf("deliver native objective to %s: %w", p.RunnerType, err)
 			}
+			// Wait for the harness to consume the slash command before pasting
+			// the task prompt; otherwise the paste becomes part of the goal
+			// argument (observed in the Phase 2 smoke). Best-effort.
+			s.awaitGoalInstalled(ctx, DiscoverParams{
+				RunnerType: p.RunnerType,
+				WorkingDir: p.WorkingDir,
+				RunDir:     p.RunDir,
+				LaunchedAt: launchedAt,
+				HomeDir:    s.homeDir,
+			})
 		}
 		var deliver func() error
 		if p.Prompt != "" {
@@ -355,6 +388,16 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 			// discovery cadence so the task eventually lands on its input surface.
 			resend = deliver
 		}
+	}
+	// Record how the completion objective was delivered. A native objective
+	// starts unverified; the coordinator upgrades it to native_verified when it
+	// observes a goal marker. No native support means the finish line rode in
+	// the task prompt.
+	switch {
+	case p.NativeObjective != "":
+		result.GoalDelivery = GoalDeliveryNativeUnverified
+	case p.Config != nil && strings.TrimSpace(p.Config.Until) != "":
+		result.GoalDelivery = GoalDeliveryPromptCarried
 	}
 
 	transcriptPath, err := s.discoverTranscript(ctx, DiscoverParams{
@@ -412,6 +455,16 @@ func interactivePromptSource(runID uuid.UUID) string {
 	return "agent-manager:run-" + runID.String()
 }
 
+// singleLine collapses an objective to one line so it can be submitted as a
+// single slash command. Interactive TUIs treat the first newline as the Enter
+// keypress, so a multi-line objective would be truncated at its first line.
+func singleLine(objective string) string {
+	objective = strings.ReplaceAll(objective, "\r\n", " ")
+	objective = strings.ReplaceAll(objective, "\n", " ")
+	objective = strings.ReplaceAll(objective, "\r", " ")
+	return strings.TrimSpace(objective)
+}
+
 // awaitBoot waits promptBootDelay (or returns immediately when disabled),
 // honouring context cancellation so a stopped launch does not block.
 func (s *Substrate) awaitBoot(ctx context.Context) error {
@@ -433,6 +486,23 @@ func (s *Substrate) awaitBoot(ctx context.Context) error {
 // that swallows a delivery (claude's first-run trust dialog). Re-delivery is
 // bounded by the discovery deadline; a resend error is non-fatal because the
 // deadline is the authoritative failure.
+// awaitGoalInstalled waits briefly for the harness to process a typed /goal
+// command before the task prompt is pasted. The goal command writes its own
+// transcript record (claude's goal_status attachment), so the transcript
+// appearing is the readiness signal. It is best-effort: on timeout the caller
+// delivers the prompt anyway and normal transcript discovery continues.
+func (s *Substrate) awaitGoalInstalled(ctx context.Context, p DiscoverParams) {
+	deadline := s.now().Add(s.goalInstallTimeout)
+	for s.now().Before(deadline) {
+		if path, err := findTranscript(p); err == nil && path != "" {
+			return
+		}
+		if !sleepCtx(ctx, s.pollInterval) {
+			return
+		}
+	}
+}
+
 func (s *Substrate) discoverTranscript(ctx context.Context, p DiscoverParams, resend func() error) (string, error) {
 	start := s.now()
 	deadline := start.Add(s.discoveryTimeout)
@@ -631,5 +701,8 @@ func ApplyToRun(run *domain.Run, res LaunchResult) {
 	}
 	if res.TranscriptPath != "" {
 		run.TranscriptPath = res.TranscriptPath
+	}
+	if res.GoalDelivery != "" {
+		run.GoalDelivery = res.GoalDelivery
 	}
 }

@@ -27,7 +27,7 @@
       "program-runtime"
     ]
   },
-  "revision": 4,
+  "revision": 6,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -38,5 +38,5 @@
     "recovery",
     "planning"
   ],
-  "updatedAt": "2026-09-11T06:40:00Z"
+  "updatedAt": "2026-09-12T00:00:00Z"
 }

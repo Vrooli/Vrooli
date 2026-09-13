@@ -22,13 +22,11 @@ type AvailableCCTeam struct {
 // ListAvailableCCTeams handles GET /teams/import/claude-code/available - lists CC teams on disk.
 func (h *Handlers) ListAvailableCCTeams(w http.ResponseWriter, r *http.Request) {
 	teams, err := h.listCCTeamDirs()
+	// An absent optional import directory is a successful empty discovery.
+	if os.IsNotExist(err) {
+		teams, err = []AvailableCCTeam{}, nil
+	}
 	if err != nil {
-		// If the directory doesn't exist, return empty list (not an error)
-		if os.IsNotExist(err) {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]AvailableCCTeam{})
-			return
-		}
 		http.Error(w, fmt.Sprintf("failed to list CC teams: %v", err), http.StatusInternalServerError)
 		return
 	}

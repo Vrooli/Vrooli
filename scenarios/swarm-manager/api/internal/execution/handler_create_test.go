@@ -56,10 +56,11 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	root := t.TempDir()
 	agent := &snapshotAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
 	})
 	if err := service.store.Save([]Record{{
 		ExecutionID: "exec-1",
@@ -92,26 +93,30 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 
 // [REQ:SWM-P0-005] declared strategy registry exposed for operator selection
 func TestStrategies_ReturnsDeclaredExecutionChoiceWithCost(t *testing.T) {
-	service := NewService(ServiceConfig{DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "executions.json"), PlanRenderer: testPlanRenderer()})
+	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: t.TempDir(), StorePath: filepath.Join(t.TempDir(), "executions.json"), PlanRenderer: testPlanRenderer(),
+	})
 	recorder := httptest.NewRecorder()
 	NewHandlerFromService(service).Strategies(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/execution/strategies", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 	var response struct {
-		Items []StrategySummary `json:"items"`
+		Items []ExecutionModeSummary `json:"items"`
 	}
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Items) != 3 || response.Items[0].ID != defaultExecutionStrategy || response.Items[0].CostEstimate <= 0 {
+	if len(response.Items) != 2 || response.Items[0].ID != defaultExecutionMode || response.Items[0].CostEstimate <= 0 {
 		t.Fatalf("strategies=%+v", response.Items)
 	}
 }
 
 func TestStrategies_UsesSettledItemAllowanceWhenRequested(t *testing.T) {
 	root := t.TempDir()
-	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer()})
+	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer(),
+	})
 	mustWriteBacklogItem(t, root, "execute", "allowance-item", map[string]any{
 		"name": "allowance-item", "title": "Allowance", "description": "desc", "kind": "execute", "status": "ready",
 		"execution_limits": map[string]any{"max_slices": 4, "max_tokens": 1000, "max_wall_seconds": 100, "max_turns": 10, "max_charge_micro_usd": 100, "max_children": 2, "max_node_attempts": 4, "max_retries": 2},
@@ -131,12 +136,12 @@ func TestStrategies_UsesSettledItemAllowanceWhenRequested(t *testing.T) {
 		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 	var response struct {
-		Items []StrategySummary `json:"items"`
+		Items []ExecutionModeSummary `json:"items"`
 	}
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatal(err)
 	}
-	if len(response.Items) != 3 || response.Items[0].RemainingTurns != 7 || response.Items[0].RemainingTokens != 750 || response.Items[0].RemainingWall != 80 || response.Items[0].RemainingCharge != 75 || response.Items[0].CostEstimate != 0.000075 {
+	if len(response.Items) != 2 || response.Items[0].RemainingTurns != 7 || response.Items[0].RemainingTokens != 750 || response.Items[0].RemainingWall != 80 || response.Items[0].RemainingCharge != 75 || response.Items[0].CostEstimate != 0.000075 {
 		t.Fatalf("strategies=%+v", response.Items)
 	}
 }

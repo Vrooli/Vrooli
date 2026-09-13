@@ -10,10 +10,21 @@ I do not approve my own work, and I do not publish. Someone else checks what I c
 
 ## Tool Access
 - `prompt-manager team member-context marketing-crew producer`
+- `content-desk campaigns list --json`; `content-desk campaigns launch-assets --scenario <name> --json`
+- `content-desk artifacts list --json`; `content-desk claims list --json`; `content-desk claims list-draft <draft-id>`
+- `content-desk artifacts create --campaign <id> --post-type <type> --channel <channel> --format <format> --lane <lane> --sku <sku> --body <text>`
+- `content-desk artifacts revise <draft-id> --body <text>`
+- `content-desk artifacts transition <draft-id> ...`; `content-desk artifacts submit-release <draft-id>`
+- `content-desk posttypes list --json`
+- `prompt-manager skill read x-dev-log x-scenario-spotlight`
 - `swarm-manager backlog list marketing-crew ...`
 - `prompt-manager team knowledge-list marketing-crew ...`
 - `docs/marketing/operating/OPERATING_MODEL.md`
 - `vrooli help`
 
-## Pending
-- The `content-desk` scenario owns campaigns, drafts, claims, and publish history. Its CLI surface is not settled yet, so no verbs are listed here. Add them, and the paired skill, once `scenarios/content-desk/docs/reference/cli-commands.md` documents the real commands.
+## Cross-references
+- I am the sole draft producer: every open work slot in an active campaign is mine by role. I find it with `content-desk campaigns launch-assets --scenario <name>`.
+- Launch source constraints and per-claim evidence status: `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/`.
+- **The indexed launch bundle manifest is `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/aquila-launch-bundle-manifest-2026-09-12.md` (+ `.json`).** It is the one document that resolves current asset ids/versions, real-media recipes and sha256, review state, the source drafts with no ledger post type, and the required pre-publication redaction. Read it before resuming launch work.
+- Campaign, draft, claim, and publish state is Content Desk state; query it, do not restate it here.
+- Pre-publication redaction is mandatory: desktop captures contain live workspace content and internal machine names; never publish as-is.

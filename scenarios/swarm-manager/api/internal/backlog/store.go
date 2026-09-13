@@ -266,10 +266,10 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "plan_ref")
 	}
-	if strings.TrimSpace(item.ExecutionStrategy) != "" {
-		merged["execution_strategy"] = strings.TrimSpace(item.ExecutionStrategy)
+	if strings.TrimSpace(item.ExecutionMode) != "" {
+		merged["execution_mode"] = strings.TrimSpace(item.ExecutionMode)
 	} else {
-		delete(merged, "execution_strategy")
+		delete(merged, "execution_mode")
 	}
 	if item.ExecutionLimits != nil {
 		merged["execution_limits"] = item.ExecutionLimits

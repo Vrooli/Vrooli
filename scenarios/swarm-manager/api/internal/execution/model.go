@@ -2,9 +2,10 @@ package execution
 
 import (
 	"encoding/json"
+	"time"
+
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/workflowcontract"
-	"time"
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#domain-concepts
@@ -50,8 +51,15 @@ const (
 	StatusCompleted       Status = "completed"
 	StatusAbstained       Status = "abstained"
 	StatusBudgetExhausted Status = "budget_exhausted"
-	StatusFailed          Status = "failed"
-	StatusCanceled        Status = "canceled"
+	// StatusInterrupted is an involuntary stop (usage window, timeout, crash,
+	// session lost) with no verdict. It is the only status the until-allowance
+	// sweeper resumes.
+	StatusInterrupted Status = "interrupted"
+	// StatusNeedsAttention is a deliberate `blocked` verdict awaiting the
+	// operator; nothing resumes it.
+	StatusNeedsAttention Status = "needs_attention"
+	StatusFailed         Status = "failed"
+	StatusCanceled       Status = "canceled"
 )
 
 // Mode controls when an execution starts.
@@ -138,21 +146,39 @@ type Record struct {
 	// execution history from the workflow. Empty for records whose run was not
 	// launched as an operation (e.g. spec-sync-archive, which stays a direct
 	// spawn through slice B).
-	OpWorkflowID            string                    `json:"op_workflow_id,omitempty"`
-	OpExecutionID           string                    `json:"op_execution_id,omitempty"`
-	PlanManagerExecutionID  string                    `json:"plan_manager_execution_id,omitempty"`
-	PlanManagerReconciledAt string                    `json:"plan_manager_reconciled_at,omitempty"`
-	ExecutionStrategy       string                    `json:"execution_strategy,omitempty"`
-	MaxSlices               int                       `json:"max_slices,omitempty"`
-	ExecutionLimits         *identity.ExecutionLimits `json:"execution_limits,omitempty"`
-	ExecutionPreferences    *ExecutionPreferences     `json:"execution_preferences,omitempty"`
-	ActualRunner            string                    `json:"actual_runner,omitempty"`
-	ActualModel             string                    `json:"actual_model,omitempty"`
-	SelectionReason         string                    `json:"selection_reason,omitempty"`
-	ApprovalDigest          string                    `json:"approval_digest,omitempty"`
-	WorkflowGrant           *workflowcontract.Grant   `json:"workflow_grant,omitempty"`
-	SettledUsage            *workflowcontract.Usage   `json:"settled_usage,omitempty"`
-	Cancellation            *CancellationStanding     `json:"cancellation,omitempty"`
+	OpWorkflowID            string `json:"op_workflow_id,omitempty"`
+	OpExecutionID           string `json:"op_execution_id,omitempty"`
+	PlanManagerExecutionID  string `json:"plan_manager_execution_id,omitempty"`
+	PlanManagerReconciledAt string `json:"plan_manager_reconciled_at,omitempty"`
+	ExecutionMode           string `json:"execution_mode,omitempty"`
+	// GoalMessageDigest is the composed goal message digest for a goal-mode
+	// execution, retained for auditability.
+	GoalMessageDigest string `json:"goal_message_digest,omitempty"`
+	// StopReason is the typed Agent Manager stop reason for an interrupted goal
+	// run (usage_window, timeout, crash, session_lost).
+	StopReason string `json:"stop_reason,omitempty"`
+	// Resume chain fields for an until-allowance continuation child.
+	ResumeOrdinal int    `json:"resume_ordinal,omitempty"`
+	ResumeReason  string `json:"resume_reason,omitempty"`
+	ResumePath    string `json:"resume_path,omitempty"`
+	// LastHandoff is the run's retained last handoff for a resume prompt.
+	LastHandoff string `json:"last_handoff,omitempty"`
+	// PlanManagerProgress is the Plan Manager progress count (phase
+	// assessments + log entries) captured when this record was created, and
+	// NoProgressStreak counts the consecutive resumes that produced no
+	// measurable progress. The brake halts a chain at maxChainWithoutProgress.
+	PlanManagerProgress  int                       `json:"plan_manager_progress,omitempty"`
+	NoProgressStreak     int                       `json:"no_progress_streak,omitempty"`
+	MaxSlices            int                       `json:"max_slices,omitempty"`
+	ExecutionLimits      *identity.ExecutionLimits `json:"execution_limits,omitempty"`
+	ExecutionPreferences *ExecutionPreferences     `json:"execution_preferences,omitempty"`
+	ActualRunner         string                    `json:"actual_runner,omitempty"`
+	ActualModel          string                    `json:"actual_model,omitempty"`
+	SelectionReason      string                    `json:"selection_reason,omitempty"`
+	ApprovalDigest       string                    `json:"approval_digest,omitempty"`
+	WorkflowGrant        *workflowcontract.Grant   `json:"workflow_grant,omitempty"`
+	SettledUsage         *workflowcontract.Usage   `json:"settled_usage,omitempty"`
+	Cancellation         *CancellationStanding     `json:"cancellation,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions
@@ -309,7 +335,8 @@ type CreateRequest struct {
 	StartedBy            string                `json:"started_by,omitempty"`
 	Operation            string                `json:"operation,omitempty"`
 	Force                bool                  `json:"force,omitempty"`
-	Strategy             string                `json:"strategy,omitempty"`
+	ExecutionMode        string                `json:"execution_mode,omitempty"`
+	OperatorNote         string                `json:"operator_note,omitempty"`
 	MaxSlices            int                   `json:"max_slices,omitempty"`
 	ExecutionPreferences *ExecutionPreferences `json:"execution_preferences,omitempty"`
 }

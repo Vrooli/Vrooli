@@ -15,38 +15,39 @@ import (
 )
 
 const (
-	defaultExecutionStrategy    = "phased-plan-drain"
-	adaptiveImprovementStrategy = "adaptive-improvement"
+	defaultExecutionMode = transitions.ExecutionModeSliced
 )
 
-func (s *Service) declaredExecutionStrategies() []transitions.ExecutionStrategy {
-	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok && len(definition.Strategies) > 0 {
-		return append([]transitions.ExecutionStrategy(nil), definition.Strategies...)
+// declaredExecutionModes returns the execution modes declared by the
+// plan.execute transition. A missing registry entry or an empty mode list fails
+// closed: production always reads the catalog from the declaration, never from
+// a hard-coded fallback.
+func (s *Service) declaredExecutionModes() ([]transitions.ExecutionMode, error) {
+	definition, ok := s.transitionRegistry.Get("plan.execute")
+	if !ok || len(definition.ExecutionModes) == 0 {
+		return nil, apierr.Internal("plan.execute execution modes are not declared in the transition registry")
 	}
-	// Consumers without a registry can validate the strategy identifier, but
-	// cannot select a workflow. Production always reads that locator from the
-	// declaration above.
-	return []transitions.ExecutionStrategy{
-		{ID: defaultExecutionStrategy, DisplayName: "Phased plan drain", Description: "Executes an accepted plan one verified phase at a time.", WhenToUse: "Use for accepted plans that need durable phase progress.", CostBand: "Governed execution cost."},
-		{ID: adaptiveImprovementStrategy, DisplayName: "Adaptive improvement campaign", Description: "Executes successive in-scope improvements under one accepted plan.", WhenToUse: "Use for a plan that authorizes adaptive improvement.", CostBand: "Governed aggregate allowance."},
-		{ID: "goal-session", DisplayName: "Native goal session", Description: "Runs the accepted plan in a warm native-goal session.", WhenToUse: "Use when a native-capable runner is available.", CostBand: "Governed aggregate allowance."},
-	}
+	return append([]transitions.ExecutionMode(nil), definition.ExecutionModes...), nil
 }
 
 func (s *Service) normalizeExecutionSelection(req *CreateRequest) error {
-	req.Strategy = strings.TrimSpace(req.Strategy)
-	if req.Strategy == "" {
-		req.Strategy = defaultExecutionStrategy
+	req.ExecutionMode = strings.TrimSpace(req.ExecutionMode)
+	if req.ExecutionMode == "" {
+		req.ExecutionMode = defaultExecutionMode
+	}
+	declared, err := s.declaredExecutionModes()
+	if err != nil {
+		return err
 	}
 	matched := false
-	for _, strategy := range s.declaredExecutionStrategies() {
-		if strategy.ID == req.Strategy {
+	for _, mode := range declared {
+		if mode.ID == req.ExecutionMode {
 			matched = true
 			break
 		}
 	}
 	if !matched {
-		return apierr.BadRequest("unknown execution strategy %q", req.Strategy)
+		return apierr.BadRequest("unknown execution mode %q", req.ExecutionMode)
 	}
 	if req.MaxSlices == 0 {
 		req.MaxSlices = 6
@@ -68,8 +69,8 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	// remains an override for callers that explicitly choose one; otherwise the
 	// item's persisted strategy is the durable operator decision.
 	if item, loadErr := s.loadBacklogItem(req.BacklogKind, req.BacklogName); loadErr == nil {
-		if strings.TrimSpace(req.Strategy) == "" {
-			req.Strategy = item.ExecutionStrategy
+		if strings.TrimSpace(req.ExecutionMode) == "" {
+			req.ExecutionMode = item.ExecutionMode
 		}
 		if req.MaxSlices == 0 && item.ExecutionLimits != nil {
 			req.MaxSlices = item.ExecutionLimits.MaxSlices
@@ -83,7 +84,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
-	if item.PlanAcceptance != nil && req.Strategy != firstNonEmpty(item.ExecutionStrategy, defaultExecutionStrategy) {
+	if item.PlanAcceptance != nil && req.ExecutionMode != firstNonEmpty(item.ExecutionMode, defaultExecutionMode) {
 		return Record{}, apierr.Conflict("execution strategy differs from the accepted item; save and review the changed strategy before starting")
 	}
 	maximumSlices := 6
@@ -200,7 +201,7 @@ func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogIte
 		StartedBy:            strings.TrimSpace(req.StartedBy),
 		Operation:            normalizeOperation(req.Operation),
 		Force:                req.Force,
-		ExecutionStrategy:    req.Strategy,
+		ExecutionMode:        req.ExecutionMode,
 		MaxSlices:            req.MaxSlices,
 		ExecutionLimits:      item.ExecutionLimits.Clone(),
 		ExecutionPreferences: cloneExecutionPreferences(req.ExecutionPreferences),

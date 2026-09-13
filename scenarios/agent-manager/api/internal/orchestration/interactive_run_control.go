@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"agent-manager/internal/adapters/webconsole"
@@ -171,7 +172,7 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 // The web-console session is kept alive after completion (Phase 4), so the
 // follow-up lands in the same CLI; if the session is gone, the run cannot be
 // continued in place and an actionable error is returned.
-func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string) (*domain.Run, error) {
+func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string, reinstallGoal bool) (*domain.Run, error) {
 	if o.interactiveSessions == nil {
 		return nil, domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
 	}
@@ -199,6 +200,7 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	// Reactivate the run (reset the heartbeat in the same transition) and record
 	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
 	now := o.now()
+	run.InteractiveInvocationStartedAt = &now
 	run, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
@@ -212,6 +214,26 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	if o.events != nil {
 		if aerr := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewMessageEvent(run.ID, "user", message)); aerr != nil {
 			_ = aerr
+		}
+	}
+
+	// Reinstall the harness-native goal in the same session before the follow-up
+	// when asked, so a resumed run still has its finish line installed.
+	if reinstallGoal {
+		if err := o.reinstallNativeGoal(ctx, run); err != nil {
+			endedAt := o.now()
+			if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+				Run:       run,
+				NewStatus: domain.RunStatusFailed,
+				Phase:     domain.RunPhaseCompleted,
+				Reason:    "Interactive continuation goal reinstall failed",
+				EndedAt:   &endedAt,
+				ErrorMsg:  err.Error(),
+			}); terr != nil {
+				obs.Component("interactive").Warn("interactive continue: failed to finalize after goal reinstall error",
+					obs.KeyRunID, run.ID.String(), obs.KeyError, terr.Error())
+			}
+			return nil, domain.NewInternalError("failed to reinstall interactive goal", err)
 		}
 	}
 
@@ -239,6 +261,30 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	o.driveInteractiveContinuation(run)
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// reinstallNativeGoal re-sends the harness-native /goal objective into a live
+// interactive session. It is a no-op when the run has no completion objective,
+// the runner declares no native objective for the run's sandbox, or the session
+// controller is not configured. The objective is single-lined because the slash
+// command submits on its first newline.
+func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run) error {
+	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
+		return nil
+	}
+	if o.interactiveSessions == nil {
+		return domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
+	}
+	selected, _ := o.runners.Get(run.ResolvedConfig.RunnerType)
+	if selected == nil {
+		return nil
+	}
+	objective := nativeObjectiveFor(run, selected.Capabilities())
+	if strings.TrimSpace(objective) == "" {
+		return nil
+	}
+	objective = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(objective, "\r\n", " "), "\n", " "))
+	return o.interactiveSessions.SendText(ctx, run.WebConsoleSessionID, "/goal "+objective+"\n", interactiveRunSource(run.ID))
 }
 
 // driveInteractiveContinuation reattaches a live interactive coordinator to a run

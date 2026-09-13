@@ -2,6 +2,251 @@
 
 ## Open Issues
 
+### Planned maintenance and startup readiness — 2026-09-12
+
+The composition root now registers the maintenance schema, installs one durable
+admission gate in orchestration, and mounts `/api/v1/maintenance/admission` using
+the existing routed SQL middleware and canonical verified-human owner authority.
+New runs, continuations, resting-review resumes, failed-run replacements,
+workflow starts/retries and new attachments are fenced. Accepted replays,
+pending recovery, parked wakes and durable active-workflow descendants retain
+their existing execution owner. Force flags cannot bypass maintenance.
+
+GET returns a stable closed revision and nested durable/physical inventory.
+Terminal status does not exclude a live executor (including the false-FAILED
+USI PID315576 evidence); resting review without an executor or finalization is
+not active work. History/accounting is retained. Missing-root evidence remains
+unknown until a control-plane reader proves complete descendant/group exclusion.
+The production adapter now calls `vrooli runtime executor-scope --json` with
+JSON stdin containing durable run IDs, current/legacy tags, PID/PGID and optional
+start/end timestamps. It requires exit 0, `schemaVersion=executor-scope-v1`,
+complete coverage and an explicit `absent` verdict for exclusion. Present scoped
+PIDs remain visible; missing, contradictory, partial or unknown evidence blocks
+drain. Indirect dependency restart exclusion and host remediation remain in the
+control plane, not AM.
+
+The revised owner source contract permits 16,384 references / 8 MiB input and
+output with one bounded 4-second indexed host scan. AM mirrors these bounds and
+makes at most one scan per inventory attachment, with one
+identity-only SQL hydration; it does not scan once per historic PID or SQL page.
+The history-scale regression also exposed repeated SQL-page sorting consuming
+the five-second attachment deadline. Candidate classification now streams one
+SQL result into bounded references and samples, closing it before hydration and
+the host read. The attachment deadline is unchanged.
+Read-only SQL on 2026-09-12 found 10,811 retained physical references (10,095
+attached, 715 codec-pipe, 1 interactive). Imported history has no retained physical
+references at this observation cut. Managed codec-pipe/interactive history alone
+has 716 references, so excluding imported rows could not resolve the old 128-ref
+capacity gap. All 10,811 references fit the revised bound. The USI durable run
+now records running PID1957076 at this later cut; no inventory operation changes
+its accounting or executor. Positive false-FAILED PID315576 residue remains a
+regression fixture. Main must coordinate adoption of both owner and AM binaries;
+an old 128-ref owner command still cannot qualify this history. AM reports any
+capacity violation and never discards rows or loops over host scans.
+Root command installation and lifecycle bootstrap are separate
+main/control-plane owner operations.
+
+Fresh recovery uses the same client through
+`maintenance.ExcludeExecutor(ctx context.Context, run *domain.Run) error`.
+It returns nil only for complete exact-scope absence. Positive, unknown, partial,
+unavailable or cancelled evidence returns an error. The continuation owner holds
+its admission claim across this observation and dispatch; this read grants no
+lifecycle authority and contains no private host walker.
+
+Resume nonblockingly takes
+`<owner-home>/.vrooli/state/locks/scenario-agent-manager.lock` before the gate
+mutex and holds it through revision-CAS persistence. GET never takes that lock.
+The mounted handler advertises `lifecycleInterlock: "scenario-lock-v1"` only with
+this interlock installed. The root lifecycle bridge requires a positive stable
+revision, `closed=true`, `drained=true`, zero `admitting` and `remaining`, and
+empty `inventory.work`, `inventory.executors`, and `inventory.unknown` with
+`inventory.remaining=0`. No absent or partial projection is an empty proof.
+
+Human owner commands after endpoint bootstrap (not executed by this worker):
+
+```bash
+agent-manager maintenance status --json
+agent-manager maintenance begin --reason "planned AM rollout" --local-owner --json
+agent-manager maintenance drain --timeout 120s --local-owner --json
+```
+
+Only after the complete root proof succeeds may the owner perform its separately
+authorized normal lifecycle adoption, for example `make -C scenarios/agent-manager
+restart`. After startup readiness is true, reopen explicitly with the retained
+closed revision:
+
+```bash
+agent-manager maintenance status --json
+agent-manager maintenance resume --revision <closed-revision> --local-owner --json
+```
+
+Timeout, unknown physical scope or an unavailable API is not restart authority.
+An unavailable old API cannot bootstrap its own new endpoint; that recovery is
+the main/control-plane owner's separate decision. Do not restart AM or one of
+its dependency parents from an admitted agent. No force, accounting purge,
+credential elevation or process termination is part of this protocol.
+
+Startup recovery runs asynchronously with per-step 30-second contexts. `/health`
+is HTTP200 with `readiness=false` while initializing; `/api/v1/health` and the
+Connect Health RPC remain unavailable until ready. Rebuildable historical
+accounting/statistics and other-scenario declaration failures remain health
+findings, not permanent global readiness failures. Required ownership and AM
+self-declaration recovery remain readiness-gated. Expected security lifecycle
+refusals are operating findings, not liveness failures; the refusal guard stays
+unchanged. These distinctions do not claim useful recovered-work progress or
+complete unknown accounting under the effort recovery completion gate.
+
+Deterministic maintenance tests cover concurrent admission, preserving work on
+timeout, abrupt-process restart, resting review/history, false-FAILED executors,
+unknown physical scopes, root-lock ordering/persistence, and initializing versus
+ready. Live lifecycle adoption and complete host-scope exclusion are separate
+owner integration obligations, not implied by these local tests.
+
+Focused validation checkpoint (2026-09-12 15:51 UTC): the following checks pass
+after main restored generated AM/PM contracts. The historical-readiness regression
+was red before the classification repair. No shared owner was restarted.
+
+```bash
+cd scenarios/agent-manager/api
+go test ./internal/maintenance -race -count=1 -timeout=60s
+go test . -run '^TestRouter(MountsDurableMaintenance|ReportsInitializing)' -race -count=1 -timeout=60s
+go test ./internal/orchestration -run '^(TestMaintenance|TestContinuationAccepted|TestParkRun_AndWake|TestWakeRun_Concurrent)' -race -count=1 -timeout=60s
+go test ./internal/wiring -run '^TestLifecycleRefusals' -race -count=1 -timeout=60s
+go build ./...
+cd ../cli
+go test . -run '^TestMaintenanceCLI' -race -count=1 -timeout=60s
+go build ./...
+```
+
+An additional adjacent workflow-launcher race check failed in `SendHeartbeat`
+versus `runFromDomain` during starting-state persistence. It is retained through
+the report-bug skill as `knw-1789228281794385886`, not hidden by the focused green
+selection. That owner repair is separate from maintenance admission.
+
+Follow-up regressions reproduced a CLI evidence loss: the shared client returns
+503 bodies through `APIError.RawResponse`, while maintenance read only the nil
+response bytes. The CLI now displays the bounded error-envelope state (closed
+revision, inventory and unknown evidence) in JSON and human output, retaining a
+nonzero exit. Missing state never becomes a fabricated open revision zero.
+Decode/output is capped at 256 KiB.
+
+The imported-history regression also reproduced a false logical blocker.
+Explicit `execution_mode=imported` is a read-only projection even if historical
+status is `unknown` or `running`; it must not count as admitted work or contribute
+retained historical PIDs to AM's physical inventory. An imported row claiming
+active finalization is an ownership contradiction and must remain explicit
+unknown, not empty proof. Managed and legacy unknowns, positive managed terminal
+executor evidence, and managed active finalization remain in scope. Tests retain
+every historical row. A private workflow continuation
+now has a focused test through successful mock-runner completion while admission
+stays closed; a new explicit continuation of the same run remains refused.
+
+Final owner-client checkpoint: the complete maintenance package passes with
+`-race`, including 16,384 exact executor identities and a 10,811-reference SQL
+inventory under the unchanged observation deadline. Router, scoped admission /
+continuation, wiring, and CLI maintenance race regressions pass; API and CLI
+`go build ./...` pass. Red-to-green evidence covers imported retained PIDs, the
+old 128-reference client limit, repeated SQL-page deadline exhaustion, and
+canonical CLI help. Help now shows required begin reason (1-512 bytes), resume
+revision, drain timeout bounds, and optional explicit local-owner authentication.
+
+At main's 16:36 live cut, three `swarm-manager/goal-session-drain` executions
+remain cancelling: `391b1e6d-3b4b-40ef-9256-356cfb3183c9`,
+`e0353446-ad61-40ab-8551-362281c0d8cc`, and
+`f5bb29d2-6f27-427c-bb44-57685a24eb2a`. Read-only joins show one dispatched
+fresh-run attempt each, `child_finalization_pending`, terminal children with
+PID0, and incomplete parent accounting / unmeasured charge. The owning path is
+`orchestration/workflow_execution.go::RecoverWorkflowExecutions` through
+`cleanupWorkflowChildren`, then
+`workflowruntime/engine.go::recordCleanupDisposition` and
+`engine_cleanup_accounting.go::rebuildOrdinaryUsage`. Operator cancellation
+explicitly requires original accounting even during recovery. This is an owner
+accounting reconciliation boundary, not authority to hide cancelling workflows
+in maintenance or fabricate zero usage. No workflow or run rows were changed.
+
+#### Terminal receipt filtering correction — 2026-09-12
+
+Scoped W3 repair, following the owner's instruction to supersede only samples
+before an authoritative receipt. Two hypotheses were confirmed independently:
+the projection's `i != selectedIndex` predicate removed later usage/charges, and
+the meter's latched terminal-authority flag accepted later unfinished usage as
+settled even after that filtering predicate was corrected. The regression was
+red for later usage, unpriced charge and positive metered charge; correcting
+only the predicate left the later-usage assertion red.
+
+The projection now suppresses only earlier samples in the same invocation.
+Later usage withdraws terminal authority until another authoritative receipt;
+later unpriced charges remain unknown, positive charges remain measured, and
+invalid later accounting remains an error. Original event objects and history
+are unchanged. No codec, maintenance-safety policy or live state was changed
+for this correction. Strict cancellation accounting remains required.
+
+Focused regression and adjacent original-receipt recovery validation:
+
+```bash
+cd scenarios/agent-manager/api
+go test ./internal/orchestration -run '^(TestWorkflowTerminalReceipt|TestWorkflowReceipt|TestContinuationReceipt|TestWorkflowMeter|TestWorkflowRecoveryReconcilesOriginalNativeTerminalReceipt)' -race -count=1 -timeout=90s
+go build ./...
+```
+
+### OpenCode provider/session isolation and supervision recovery — 2026-09-12
+
+The managed USI failure was not evidence of exhausted OpenRouter credit.
+Interactive OpenCode explicitly selected OpenRouter through global `model` and
+`small_model`; managed USI explicitly selected the Go subscription. Private
+`XDG_DATA_HOME` isolated sessions but originally omitted the provider-auth link.
+The earlier link repair is retained. This follow-up honors a selected inherited
+data root without borrowing a different store's login, refreshes only the link,
+and reads failure logs from the affected run's data directory. Credential bytes
+remain in their owner store, and terminal skill cleanup preserves sessions.
+Focused credential-root, replay and log-classification regressions pass.
+
+Normal lifecycle adoption completed under
+`startop-dfc66e8e0833bf53dbe40f3be080d12b` at 13:44:39 UTC. USI subsequently
+launched fresh attempt 41, run `45871a66-b5a7-4af0-b9a6-4897e94771f4`, with the
+pinned Go model and nine successful tool calls at the observation cut. Its live
+report had not populated actual-model or final usage; do not treat those fields
+as zero or a completed qualification. Old unusable sessions were not continued.
+
+Supervision now observes bounded declared resolution-source hashes and legacy
+operator answers, separates observation roles from business runtime and permits
+explicitly granted failed-run CONTINUE with a session and recovery hypothesis.
+It does not synthesize a new session, start a shell driver, or derive grants from
+files. Missing-session pre-admission qualification and recurring legacy-driver
+control/grant integration remain owner work. See the cross-owner contract and
+`docs/agent-system/effort-supervision-validation.md` for exact limits.
+
+Restart also reconfirmed slow synchronous historical recovery before HTTP
+readiness (`main.go::startRecovery`); terminal-accounting warnings were retained,
+not erased to make startup green. Prior investigation already recorded this
+startup ordering in imported run `2b1afd7c-d98f-42ce-af96-8a9c949ef5b9`, event
+`71b80d01-2d20-4c96-b17b-abb9630c2ac3`. Reuse that evidence for owner repair;
+do not infer this turn introduced the historical recovery debt.
+
+### Continuation credential generation — 2026-09-12
+
+Effort-supervision's disposable directive was delivered but its target's signed
+acknowledgment was refused as unauthenticated. A realistic continuation regression
+reproduced `identity token has been revoked`: minting replaced the credential hash
+but retained the previous turn's revocation timestamp. Fresh-run assessment worked,
+which falsified a broad Codex shell-environment failure.
+
+The identity phase now gives each mint a distinct generation, persists its hash
+with cleared prior-generation revocation, and preserves owner/scopes. Terminal
+continuations revoke that fresh credential; parked handling remains separate.
+Tests prove old credentials remain invalid, the fresh credential works during the
+turn, terminal use is rejected, and same-second issuance cannot revive an old token.
+Focused continuation/park/verification, identity/phase suites and race regressions
+pass. See `continue_env_identity_test.go` and `phases/identity_test.go`.
+
+Status: repaired and live-qualified for the bounded continuation case. After
+normal lifecycle adoption, run `3795a4d0-0ef7-45d4-a093-58c1361d7e5d` accepted
+the original directive `25755827-b98e-4a95-9e76-e5deda8aa23d` using its own
+signed identity (revision 4, `ACCEPTED`). No operator token or second directive
+was substituted. Failure, repair and qualification limits remain in
+`docs/agent-system/effort-supervision-validation.md`; this is not general crash
+recovery or autonomous business-steering certification.
+
 ### Swarm engagement budget qualification — 2026-09-08
 
 Prior evidence: Swarm's contract-development readiness review identified

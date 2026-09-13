@@ -20,6 +20,7 @@ const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage"
 const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
 const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/WorkflowsPage")).WorkflowsPage }));
 const WatchesPage = lazy(async () => ({ default: (await import("./pages/WatchesPage")).WatchesPage }));
+const EffortsPage = lazy(async () => ({ default: (await import("./pages/EffortsPage")).EffortsPage }));
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
@@ -35,6 +36,7 @@ const shellNavigation: Array<{ id: NavSection; label: string; href: string; icon
   { id: "runs", label: "Runs", href: "/runs", icon: <Play aria-hidden="true" /> },
   { id: "workflows", label: "Flows", href: "/workflows", icon: <GitBranch aria-hidden="true" /> },
   { id: "watches", label: "Watches", href: "/watches", icon: <Binoculars aria-hidden="true" /> },
+  { id: "efforts", label: "Efforts", href: "/efforts", icon: <Binoculars aria-hidden="true" /> },
   { id: "investigations", label: "Investigations", href: "/investigations", icon: <Search aria-hidden="true" /> },
   { id: "findings", label: "Findings", href: "/findings", icon: <ClipboardList aria-hidden="true" /> },
   { id: "stats", label: "Stats", href: "/stats", icon: <BarChart3 aria-hidden="true" /> },
@@ -95,6 +97,7 @@ export function App() {
     if (path.startsWith("/runs")) return "runs";
     if (path.startsWith("/workflows")) return "workflows";
     if (path.startsWith("/watches")) return "watches";
+    if (path.startsWith("/efforts")) return "efforts";
     if (path.startsWith("/stats")) return "stats";
     if (path.startsWith("/observability")) return "health";
     if (path.startsWith("/investigations")) return "investigations";
@@ -447,6 +450,16 @@ export function App() {
                 <Suspense fallback={pageFallback}>
                   <ErrorBoundary section="Workflows">
                     <ProfiledPage id="WorkflowsPage"><WorkflowsPage /></ProfiledPage>
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/efforts"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Efforts">
+                    <ProfiledPage id="EffortsPage"><EffortsPage /></ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>
               }

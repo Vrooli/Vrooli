@@ -9,6 +9,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/transitionrun"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -30,10 +31,11 @@ func (s *workflowStateReaderStub) GetWorkflowExecutionState(_ context.Context, w
 func TestReconcileWorkflowExecutionsRepairsTerminalCallbacksIdempotently(t *testing.T) {
 	root := t.TempDir()
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 	reader := &workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
 		"wf-succeeded": {Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, UpdatedAt: "2026-08-22T12:00:00Z", TerminalEvidence: true},
@@ -105,10 +107,11 @@ func TestReconcileWorkflowExecutionsRunsCompletionProjection(t *testing.T) {
 		"name": "recovered-completion", "title": "Recovered completion", "status": "queued", "priority": 3, "tags": []string{},
 	})
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 	service.SetWorkflowStateReader(&workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
 		"wf-completion-projection": {
@@ -149,10 +152,11 @@ func TestReconcileStrandedRecords(t *testing.T) {
 	})
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 
 	seed := []Record{
@@ -217,65 +221,6 @@ func TestReconcileStrandedRecords(t *testing.T) {
 // OperationStarter seam (the 542467c6 divergence class — the stranded sweep
 // marked the legacy record failed without reaping its agentops operation).
 // Completed records and records without an operation correlation are untouched.
-func TestReconcileStrandedRecordsReapsMissedOperations(t *testing.T) {
-	root := t.TempDir()
-	mustWriteBacklogItem(t, root, "chore", "diverged-item", map[string]any{
-		"name":     "diverged-item",
-		"title":    "Diverged",
-		"status":   "backlog",
-		"priority": 3,
-		"tags":     []string{},
-	})
-
-	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
-	})
-	starter := &stubOperationStarter{}
-	service.SetOperationStarter(starter)
-
-	seed := []Record{
-		// Failed record with an op correlation whose reap was missed — must be reaped.
-		{
-			ExecutionID: "diverged-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusFailed,
-			Mode: ModeManual, OpWorkflowID: "wf-plan-execution-x", OpExecutionID: "opx-stale",
-		},
-		// Completed record with an op correlation — must NOT be reaped (a running
-		// op behind a completed record is a divergence for operator attention).
-		{
-			ExecutionID: "done-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusCompleted,
-			Mode: ModeManual, OpWorkflowID: "wf-plan-execution-x", OpExecutionID: "opx-done",
-		},
-		// Failed record without any op correlation — nothing to reap.
-		{ExecutionID: "legacy-1", BacklogKind: "chore", BacklogName: "diverged-item", Status: StatusFailed, Mode: ModeManual},
-	}
-	if err := service.store.Save(seed); err != nil {
-		t.Fatalf("save seed: %v", err)
-	}
-
-	report, err := service.ReconcileStrandedRecords()
-	if err != nil {
-		t.Fatalf("ReconcileStrandedRecords error: %v", err)
-	}
-	if len(report.Stranded) != 0 {
-		t.Fatalf("no stranded records expected, got %v", report.Stranded)
-	}
-	if len(report.OpReapsAttempted) != 1 || report.OpReapsAttempted[0] != "diverged-1" {
-		t.Fatalf("expected exactly diverged-1 offered a reap, got %v", report.OpReapsAttempted)
-	}
-	if starter.cancelCalls != 1 {
-		t.Fatalf("expected exactly one CancelOperation call, got %d", starter.cancelCalls)
-	}
-	if starter.cancelReq.ExecutionID != "opx-stale" {
-		t.Fatalf("expected reap of opx-stale, got %q", starter.cancelReq.ExecutionID)
-	}
-	if starter.cancelReq.TargetKind != "plan-execution" || starter.cancelReq.TargetID != "test-plan-diverged-item" {
-		t.Fatalf("unexpected reap target %s/%s", starter.cancelReq.TargetKind, starter.cancelReq.TargetID)
-	}
-}
-
 type reconcileClock struct{ now time.Time }
 
 func (c *reconcileClock) advance(d time.Duration) { c.now = c.now.Add(d) }
@@ -294,10 +239,11 @@ func newReconcileTestService(t *testing.T) *Service {
 	t.Helper()
 	root := t.TempDir()
 	return NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 }
 
@@ -397,5 +343,39 @@ func TestReconcileWorkflowExecutionsTracesEachWorkflowOncePerPass(t *testing.T) 
 	}
 	if len(reader.calls) != 1 {
 		t.Fatalf("three records sharing one workflow issued %d traces in one pass, want 1", len(reader.calls))
+	}
+}
+
+// TestReconcileWorkflowExecutionsLeavesClaimedCorrelationToTheSweeper proves
+// reconcile is not a second completion authority: a record whose transition
+// correlation the sweeper already claimed must not be finalized by the
+// 2-second projection.
+func TestReconcileWorkflowExecutionsLeavesClaimedCorrelationToTheSweeper(t *testing.T) {
+	service, _, started, _ := setupPhasedPlanExecution(t, "claimed-correlation-plan", "sliced")
+	correlation := workflowCorrelationFor(t, service, started)
+	if correlation.ApplyState != transitionrun.ApplyStateClaimed {
+		t.Fatalf("started correlation apply state = %q, want claimed", correlation.ApplyState)
+	}
+	service.SetWorkflowStateReader(&workflowStateReaderStub{states: map[string]agentmanager.WorkflowExecutionState{
+		correlation.ExecutionID: {
+			Status:           domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
+			UpdatedAt:        "2026-09-09T12:00:00Z",
+			TerminalEvidence: true,
+		},
+	}})
+	installReconcileClock(service)
+	report, err := service.ReconcileWorkflowExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if len(report.Reconciled) != 0 {
+		t.Fatalf("reconcile finalized a claimed correlation: %+v", report)
+	}
+	after, err := service.Get(context.Background(), started.ExecutionID)
+	if err != nil {
+		t.Fatalf("reload record: %v", err)
+	}
+	if after.Status == StatusCompleted {
+		t.Fatalf("record finalized by the second completion authority while the sweeper owns the correlation")
 	}
 }

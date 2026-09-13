@@ -17,7 +17,10 @@ type Scheduler struct {
 	once      sync.Once
 	policies  *PolicyStore
 	lastPrune time.Time
+	efforts   *EffortService
 }
+
+func (s *Scheduler) SetEffortService(e *EffortService) { s.efforts = e }
 
 func NewScheduler(repo *Repository, processor *Processor, onError func(error)) *Scheduler {
 	return &Scheduler{repo: repo, processor: processor, kick: make(chan struct{}, 1), now: time.Now, onError: onError}
@@ -39,6 +42,11 @@ func (s *Scheduler) Start(ctx context.Context) {
 // RecoverOnce is the synchronous restart boundary used by startup tests and
 // by the timer loop. The bounded due query prevents a restart storm.
 func (s *Scheduler) RecoverOnce(ctx context.Context) (int, error) {
+	if s.efforts != nil {
+		if err := s.efforts.Tick(ctx); err != nil && s.onError != nil {
+			s.onError(err)
+		}
+	}
 	if s.policies != nil && (s.lastPrune.IsZero() || s.now().Sub(s.lastPrune) >= time.Hour) {
 		if _, err := s.policies.PruneExpired(ctx); err != nil {
 			return 0, err
@@ -74,6 +82,12 @@ func (s *Scheduler) loop(ctx context.Context) {
 		}
 		var timer <-chan time.Time
 		var owned *time.Timer
+		if s.efforts != nil {
+			wake := s.now().Add(s.efforts.config.Interval)
+			if next == nil || wake.Before(*next) {
+				next = &wake
+			}
+		}
 		if s.policies != nil {
 			wake := s.lastPrune.Add(time.Hour)
 			if next == nil || wake.Before(*next) {

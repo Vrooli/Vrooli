@@ -46,7 +46,7 @@ func (e *Engine) ReconcileTerminalAccounting(ctx context.Context, id uuid.UUID) 
 	if err != nil {
 		return x, err
 	}
-	attempts, _, err := e.reconcileOrdinaryCleanup(ctx, x, journal)
+	attempts, _, err := e.reconcileOrdinaryCleanup(ctx, x, journal, false)
 	if err != nil {
 		return x, err
 	}
@@ -67,18 +67,18 @@ func (e *Engine) ReconcileTerminalAccounting(ctx context.Context, id uuid.UUID) 
 // may have recorded a terminal status before the accounting tail arrived.
 // Nothing commits until every dispatched child is accounted for, and replay
 // replaces the aggregate rather than adding the same receipt a second time.
-func (e *Engine) reconcileOrdinaryCleanup(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
+func (e *Engine) reconcileOrdinaryCleanup(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry, allowUnknown bool) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
 	attempts, err := e.Store.ListAttempts(ctx, x.ID)
 	if err != nil {
 		return nil, nil, err
 	}
-	return e.rebuildOrdinaryUsage(ctx, x, journal, attempts, true)
+	return e.rebuildOrdinaryUsage(ctx, x, journal, attempts, true, allowUnknown)
 }
 
 // Continue may reuse an existing Run. Its owner receipt is cumulative, so
 // aggregate each original identity once while still counting every dispatch
 // attempt. Normal advancement and recovery share this same reconstruction.
-func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry, attempts []*domain.WorkflowNodeAttempt, requireComplete bool) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
+func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExecution, journal []*domain.WorkflowJournalEntry, attempts []*domain.WorkflowNodeAttempt, requireComplete bool, allowUnknown bool) ([]*domain.WorkflowNodeAttempt, []meteredSettlement, error) {
 	usage := domain.WorkflowBudgetUsage{AccountingComplete: true, ChargeMeasured: true, NodeAttempts: len(attempts), CostUSD: x.BudgetUsage.CostUSD}
 	seenRuns := map[uuid.UUID]bool{}
 	seenWorkflows := map[uuid.UUID]bool{}
@@ -111,8 +111,13 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 				return nil, nil, inspectErr
 			}
 			known := state.Terminal && state.BudgetUsage.AccountingComplete && state.BudgetUsage.ChargeMeasured
-			if state.ExecutionID != *attempt.ChildExecutionID || (requireComplete && !known) {
+			if state.ExecutionID != *attempt.ChildExecutionID || (requireComplete && !known && !(allowUnknown && state.Terminal)) {
 				return nil, nil, fmt.Errorf("child workflow %s requires original terminal accounting before cleanup", *attempt.ChildExecutionID)
+			}
+			// Recovery settles a retained terminal with unknown accounting as
+			// unknown and proceeds; the aggregate budget usage carries the gap.
+			if allowUnknown && state.Terminal && !known {
+				attempt.ErrorCode = "accounting_unknown"
 			}
 			child = state.BudgetUsage
 			usage.AccountingComplete = usage.AccountingComplete && known
@@ -130,8 +135,14 @@ func (e *Engine) rebuildOrdinaryUsage(ctx context.Context, x *domain.WorkflowExe
 				return nil, nil, inspectErr
 			}
 			known := state.Terminal && state.TokensKnown && state.ChargeMeasured
-			if state.RunID != *attempt.RunID || (requireComplete && !known) {
+			if state.RunID != *attempt.RunID || (requireComplete && !known && !(allowUnknown && state.Terminal)) {
 				return nil, nil, fmt.Errorf("child run %s requires original terminal accounting before cleanup", *attempt.RunID)
+			}
+			// Recovery settles a retained terminal with unknown accounting as
+			// unknown and proceeds (the wedged workflow 93213d93 loop); the
+			// aggregate budget usage carries the gap.
+			if allowUnknown && state.Terminal && !known {
+				attempt.ErrorCode = "accounting_unknown"
 			}
 			child = domain.WorkflowBudgetUsage{Tokens: state.Tokens, Turns: state.Turns, ChargeMicroUSD: state.ChargeMicroUSD}
 			usage.AccountingComplete = usage.AccountingComplete && known

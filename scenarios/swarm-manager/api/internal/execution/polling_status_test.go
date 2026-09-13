@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"swarm-manager/internal/transitions"
 )
 
 // These tests pin the fire-and-forget status writes the review lifecycle
@@ -61,6 +63,37 @@ func runRefresh(t *testing.T, svc *Service) {
 	defer svc.mu.Unlock()
 	if _, _, err := svc.refreshRunningLocked(context.Background()); err != nil {
 		t.Fatalf("refreshRunningLocked: %v", err)
+	}
+}
+
+// TestRefreshRunningLocked_KeepsGoalRecordWithoutCorrelation proves the
+// fail-closed workflow-correlation guard does not fail a goal-mode record.
+// Goal records deliberately have no workflow correlation; their terminal state
+// arrives through the goal-run reader, so the guard must skip them.
+func TestRefreshRunningLocked_KeepsGoalRecordWithoutCorrelation(t *testing.T) {
+	svc := newTestPollingService(t)
+	rec := Record{
+		ExecutionID:   "exec-goal",
+		BacklogKind:   "execute",
+		BacklogName:   "goal-item",
+		RunID:         "run-goal",
+		ExecutionMode: transitions.ExecutionModeGoal,
+		Status:        StatusRunning,
+		CreatedAt:     nowRFC3339(),
+		UpdatedAt:     nowRFC3339(),
+	}
+	if err := svc.store.Save([]Record{rec}); err != nil {
+		t.Fatal(err)
+	}
+
+	runRefresh(t, svc)
+
+	loaded, err := svc.store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded[0].Status != StatusRunning {
+		t.Fatalf("goal record status = %s, want %s (the correlation guard must not fail goal records)", loaded[0].Status, StatusRunning)
 	}
 }
 

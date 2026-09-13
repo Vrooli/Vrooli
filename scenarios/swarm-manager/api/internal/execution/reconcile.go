@@ -8,6 +8,8 @@ import (
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/transitionrun"
+	"swarm-manager/internal/transitions"
 )
 
 // ReconcileReport summarizes a stranded-record reconciliation sweep: the
@@ -62,6 +64,23 @@ func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReco
 			continue
 		}
 		live[candidate.ExecutionID] = struct{}{}
+		// Goal-mode records have no workflow: read the run's typed terminal
+		// fields directly.
+		if candidate.ExecutionMode == transitions.ExecutionModeGoal {
+			if s.goalRunReader == nil || strings.TrimSpace(candidate.RunID) == "" {
+				report.Skipped = append(report.Skipped, candidate.ExecutionID)
+				continue
+			}
+			changed, goalErr := s.applyReconciledGoalRun(ctx, candidate.ExecutionID)
+			if goalErr != nil {
+				report.Errors = append(report.Errors, candidate.ExecutionID+": "+goalErr.Error())
+				continue
+			}
+			if changed {
+				report.Reconciled = append(report.Reconciled, candidate.ExecutionID)
+			}
+			continue
+		}
 		workflowID := strings.TrimSpace(candidate.OpWorkflowID)
 		if workflowID == "" {
 			if correlation, correlationErr := s.transitionCorrelation(candidate); correlationErr == nil {
@@ -105,6 +124,84 @@ func (s *Service) ReconcileWorkflowExecutions(ctx context.Context) (WorkflowReco
 	return report, nil
 }
 
+// applyReconciledGoalRun reads a goal run's typed terminal fields and projects
+// the terminal status onto the record. It is idempotent on an already-terminal
+// record and makes the network read before taking the store lock.
+func (s *Service) applyReconciledGoalRun(ctx context.Context, executionID string) (bool, error) {
+	s.mu.Lock()
+	records, err := s.store.Load()
+	s.mu.Unlock()
+	if err != nil {
+		return false, err
+	}
+	var target *Record
+	for i := range records {
+		if records[i].ExecutionID == executionID {
+			if !isInspectableStatus(records[i].Status) {
+				return false, nil
+			}
+			target = &records[i]
+			break
+		}
+	}
+	if target == nil {
+		return false, nil
+	}
+	state, err := s.goalRunReader.GetGoalRunState(ctx, target.RunID)
+	if err != nil {
+		return false, err
+	}
+	status, reason, terminal := goalRunStatus(state)
+	if !terminal {
+		return false, nil
+	}
+	target.Status = status
+	target.FailureReason = reason
+	target.StopReason = strings.TrimSpace(state.StopReason)
+	target.LastHandoff = state.LastHandoff
+	target.FinishedAt = nowRFC3339()
+	target.UpdatedAt = nowRFC3339()
+	if status == StatusValidating {
+		// A goal verdict enters finalization exactly like a workflow success:
+		// the validating poller only picks records that already carry a
+		// finalization record, so initialize it here or the execution sits in
+		// validating forever.
+		ensureFinalization(target)
+	}
+	s.mu.Lock()
+	if err := s.store.Save(records); err != nil {
+		s.mu.Unlock()
+		return false, err
+	}
+	s.mu.Unlock()
+	s.dispatchStatusUpdate(*target)
+	return true, nil
+}
+
+// goalRunStatus maps an Agent Manager goal run's typed terminal pair onto a
+// Swarm execution status. An empty terminal_class is not terminal.
+func goalRunStatus(state agentmanager.GoalRunState) (Status, string, bool) {
+	switch strings.TrimSpace(state.TerminalClass) {
+	case "verdict":
+		switch strings.TrimSpace(state.StopReason) {
+		case "complete":
+			return StatusValidating, "goal verdict complete", true
+		case "blocked":
+			return StatusNeedsAttention, "goal verdict blocked", true
+		case "abstained":
+			return StatusNeedsReview, "goal verdict abstained", true
+		default:
+			return StatusNeedsReview, "goal verdict " + state.StopReason, true
+		}
+	case "interruption":
+		// An involuntary stop is resumable under until-allowance; nothing
+		// finalizes it until the sweeper resumes or the chain halts.
+		return StatusInterrupted, "goal interruption: " + state.StopReason, true
+	default:
+		return "", "", false
+	}
+}
+
 func terminalWorkflowStatus(status domainpb.WorkflowExecutionStatus) bool {
 	switch status {
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
@@ -128,10 +225,12 @@ func reconciledStatus(state agentmanager.WorkflowExecutionState) (Status, string
 		return StatusCompleted, "workflow terminal state reconciled: succeeded"
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
 		return StatusCanceled, "workflow terminal state reconciled: cancelled"
-	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
-		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
-		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED:
-		return StatusNeedsReview, "workflow terminal state reconciled: " + strings.ToLower(state.Status.String())
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED:
+		return StatusNeedsAttention, "workflow terminal state reconciled: blocked"
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED:
+		return StatusAbstained, "workflow terminal state reconciled: abstained"
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED:
+		return StatusBudgetExhausted, "workflow terminal state reconciled: budget_exhausted"
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
 		return StatusFailed, "workflow terminal state reconciled: failed"
 	default:
@@ -152,12 +251,23 @@ func (s *Service) applyReconciledWorkflowState(executionID, workflowID string, s
 			continue
 		}
 		currentWorkflowID := strings.TrimSpace(current.OpWorkflowID)
+		var correlation transitionrun.Correlation
+		correlationResolved := false
 		if currentWorkflowID == "" {
-			if correlation, correlationErr := s.transitionCorrelation(*current); correlationErr == nil {
-				currentWorkflowID = strings.TrimSpace(correlation.ExecutionID)
+			if resolved, resolvedErr := s.transitionCorrelation(*current); resolvedErr == nil {
+				correlation = resolved
+				correlationResolved = true
+				currentWorkflowID = strings.TrimSpace(resolved.ExecutionID)
 			}
 		}
 		if currentWorkflowID != workflowID {
+			s.mu.Unlock()
+			return false, nil
+		}
+		if correlationResolved && correlation.ApplyState == transitionrun.ApplyStateClaimed {
+			// The transition sweeper has claimed this correlation and owns the
+			// idempotent terminal apply. Reconciling the same terminal here
+			// would be a second completion authority racing it.
 			s.mu.Unlock()
 			return false, nil
 		}
@@ -302,30 +412,5 @@ func (s *Service) ReconcileStrandedRecords() (ReconcileReport, error) {
 		}
 	}
 
-	// Second pass: deliver missed operation reaps. A failed/canceled record that
-	// still carries an operation-execution correlation may have left its durable
-	// workflow operation "running" — e.g. the stranded sweep above marked the
-	// record failed without reaping, or a cancel-time reap was lost before it
-	// committed. Cancel's reap (reapOperationForRecord) is the honest terminal
-	// for such an operation: no result was ever delivered, so the operation is
-	// administratively reaped rather than given a fabricated outcome. The reap is
-	// best-effort and idempotent (an already-terminal or untracked operation
-	// execution is a no-op), so re-offering it on every sweep is safe. Completed
-	// records are excluded: their operation should have been driven terminal by
-	// the completion bridge, and reaping one as canceled would be dishonest —
-	// such a divergence must surface for operator attention instead.
-	if s.operationStarter != nil {
-		for i := range records {
-			r := records[i]
-			if strings.TrimSpace(r.OpExecutionID) == "" {
-				continue
-			}
-			if r.Status != StatusFailed && r.Status != StatusCanceled {
-				continue
-			}
-			s.reapOperationForRecord(context.Background(), r)
-			report.OpReapsAttempted = append(report.OpReapsAttempted, r.ExecutionID)
-		}
-	}
 	return report, nil
 }

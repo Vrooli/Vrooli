@@ -21,13 +21,17 @@ metadata:
 
 Execute exactly one coherent slice of the accepted plan. This is a fresh conversation: your only context is the plan itself and the compact handoffs below. Never infer an earlier transcript.
 
-When `constraints.executionStrategy` is `adaptive-improvement`, the accepted plan is
-the campaign mandate. Read `scenario-improvement-campaign` and the target scenario's
+When `constraints.planShape` is `mandate`, the accepted plan is the campaign
+mandate. Read `scenario-improvement-campaign` and the target scenario's
 `<scenario>-improve` skill, then choose the next falsifiable, in-scope improvement
 from the plan and retained evidence. Do not create a second backlog item or approval
 for an individual repair. The same plan frontier, write scope, aggregate budget,
-checkpoint, and terminal evidence rules still apply. `phased-plan-drain` follows the
-ordinary phase-by-phase procedure below.
+checkpoint, and terminal evidence rules still apply. `phased` follows the ordinary
+phase-by-phase procedure below.
+
+When `constraints.operatorNote` is present, reproduce it verbatim under an
+"Operator note" heading in your working brief before choosing the slice. Never
+paraphrase or extend it, and never let it override the plan, acceptance, or scope.
 
 ## Procedure
 
@@ -81,7 +85,7 @@ Classify each approval request so the workflow can preserve the accepted strateg
 | Review finds a changed path covered by the authored scope or a recorded extension. | Accept the covered path. |
 | Review finds a changed path outside both the authored scope and recorded extensions. | Reject it and preserve the operator-decision request. |
 
-The accepted `adaptive-improvement` strategy continues past routine phase boundaries after independent review. Ordinary phased execution retains its configured phase approval policy. An `operator-decision` always waits; neither strategy nor a global automatic phase policy supplies missing authority. If both reasons apply, use `operator-decision`. State the required decision in the handoff before the affected action.
+An unattended item (`constraints.unattended` true) continues past routine phase boundaries after independent review. A manual item retains its configured phase approval policy. An `operator-decision` always waits; neither unattended status nor a global automatic phase policy supplies missing authority. If both reasons apply, use `operator-decision`. State the required decision in the handoff before the affected action.
 
 When the plan's item kind is `research`, execute the slice as investigation work. A valid slice may
 produce a proposal, a goal, an answer, or evidence that the item should be resolved as `dropped`;

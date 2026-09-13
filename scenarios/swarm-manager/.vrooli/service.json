@@ -182,7 +182,6 @@
               ".vrooli/agent-manager/phased-plan-slice-review.json",
               ".vrooli/agent-manager/phased-plan-drain.json",
               ".vrooli/agent-manager/goal-work.json",
-              ".vrooli/agent-manager/goal-session-drain.json",
               ".vrooli/agent-manager/plan-repair.json",
               ".vrooli/agent-manager/capture-classify.json",
               ".vrooli/agent-manager/independent-review.json",
@@ -193,8 +192,7 @@
               ".vrooli/agent-manager/goal-discover.json",
               ".vrooli/agent-manager/goal-plan.json",
               ".vrooli/agent-manager/milestone-review.json",
-              ".vrooli/agent-manager/readiness-review.json",
-              ".vrooli/agent-manager/contract-development.json"
+              ".vrooli/agent-manager/readiness-review.json"
             ]
           }
         }

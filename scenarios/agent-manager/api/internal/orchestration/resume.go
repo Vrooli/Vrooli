@@ -8,10 +8,13 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/maintenance"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
@@ -23,15 +26,69 @@ func (o *Orchestrator) ResumeFromFailedRun(
 	ctx context.Context,
 	req ResumeFromFailedRunRequest,
 ) (*domain.Run, error) {
+	o.wakeMu.Lock()
+	defer o.wakeMu.Unlock()
+	return o.resumeFromFailedRun(ctx, req, false)
+}
+
+func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFailedRunRequest, automatic bool) (_ *domain.Run, returnErr error) {
+	// Until the source and its durable claim can be read, this may be a replay
+	// of already accepted work. Read failures must not become REFUSED.
+	effectsPossible := true
+	defer func() {
+		if !effectsPossible {
+			returnErr = domain.RefuseBeforeEffects(returnErr)
+		}
+	}()
 	failedRun, err := o.GetRun(ctx, req.RunID)
 	if err != nil {
 		return nil, err
 	}
+	effectsPossible = false
 	if failedRun.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("resume-from-failed")
 	}
 	if allowed, reason := domain.CanResumeFromFailureRun(failedRun); !allowed {
 		return nil, domain.NewValidationError("runId", reason)
+	}
+	if automatic && (failedRun.Status != domain.RunStatusFailed || failedRun.CancelRequestedAt != nil || failedRun.ExecutionMode.Normalized() == domain.ExecutionModeInteractive || strings.TrimSpace(failedRun.SessionID) == "" || failedRun.ResolvedConfig == nil || failedRun.ResolvedConfig.RunnerType != domain.RunnerTypeOpenCode) {
+		return nil, domain.NewValidationError("runId", "automatic fresh recovery requires a failed managed OpenCode run with a retained session and no cancellation")
+	}
+	// Look up acceptance before preflight, policy changes, maintenance or any
+	// effects. A source claim survives cache expiry and replacement deletion.
+	effectsPossible = true
+	replayed, claimed, err := o.freshRecoveryAccepted(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if replayed != nil {
+		return replayed, nil
+	}
+	if claimed {
+		return nil, domain.NewStateError("Run", "recovery_unresolved", "fresh recovery", "source was already claimed; replacement acceptance is missing or was deleted; owner reconciliation required, no redispatch")
+	}
+	effectsPossible = false
+	// Fresh identity cannot shed the source's revocable dispatcher grant.
+	// Until this owner route can enroll the replacement under that grant,
+	// refuse new work rather than turning retained scopes into authority.
+	if failedRun.DispatchBinding != nil {
+		return nil, domain.NewValidationErrorWithCode("authorization", "fresh recovery of a dispatcher-bound source is unsupported; qualified dispatch enrollment is required", domain.ErrCodePolicyScope)
+	}
+	if failedRun.OwnerSubject != "" && (failedRun.OwnerExpiresAt == nil || !failedRun.OwnerExpiresAt.After(o.now())) {
+		return nil, domain.NewValidationErrorWithCode("authorization", "fresh recovery requires current owner authority; retained authority is missing or expired", domain.ErrCodePolicyScope)
+	}
+	if automatic {
+		if err := excludeLiveExecutor(ctx, failedRun); err != nil {
+			return nil, err
+		}
+		err = o.validateContinuationSession(ctx, failedRun)
+		var runnerErr *domain.RunnerError
+		if !errors.As(err, &runnerErr) || runnerErr.Code() != domain.ErrCodeRunnerSessionExpired {
+			if err != nil {
+				return nil, err
+			}
+			return nil, domain.NewValidationError("sessionId", "native session has not been proven missing")
+		}
 	}
 
 	originalTask, err := o.GetTask(ctx, failedRun.TaskID)
@@ -59,24 +116,100 @@ func (o *Orchestrator) ResumeFromFailedRun(
 
 	prompt := buildResumePrompt(originalTask.Description, failedRun.ID, req.CustomContext)
 
-	newTask, err := o.createInvestigationTask(ctx, "Resume "+originalTask.Title, prompt, attachments, originalTask.ProjectRoot)
-	if err != nil {
-		return nil, err
-	}
-
 	createReq := CreateRunRequest{
-		TaskID:         newTask.ID,
-		AgentProfileID: failedRun.AgentProfileID,
-		Tag:            resumeTag(failedRun.Tag),
-		Force:          true,
-		SourceRunIDs:   []uuid.UUID{failedRun.ID},
+		TaskID:            originalTask.ID,
+		AgentProfileID:    failedRun.AgentProfileID,
+		Tag:               resumeTag(failedRun.Tag),
+		SourceRunIDs:      []uuid.UUID{failedRun.ID},
+		ConversationID:    failedRun.ConversationID,
+		Prompt:            prompt,
+		RunMode:           &failedRun.RunMode,
+		ExecutionMode:     failedRun.ExecutionMode,
+		SandboxConfig:     failedRun.SandboxConfig,
+		ExistingSandboxID: failedRun.SandboxID,
+		Environment:       failedRun.CustomEnv,
+		WorkReferences:    failedRun.WorkReferences,
+		WorkloadKind:      failedRun.Workload.Kind,
+		WorkloadKey:       failedRun.Workload.Key,
+		WorkloadInstance:  failedRun.Workload.Instance,
+		OwnerSubject:      failedRun.OwnerSubject,
+		OwnerScopes:       failedRun.OwnerScopes,
+		OwnerExpiresAt:    failedRun.OwnerExpiresAt,
+		RequestedScopes:   failedRun.RequestedScopes,
+		IdempotencyKey:    freshRecoveryKey(failedRun.ID),
+	}
+	if cfg := failedRun.ResolvedConfig; cfg != nil {
+		createReq.PreferredRunner = string(cfg.RunnerType)
+		if cfg.RoleRef != "" {
+			createReq.RoleRef = &cfg.RoleRef
+		}
+		if cfg.Model != "" {
+			createReq.Model = &cfg.Model
+		}
+		createReq.MaxTurns, createReq.Timeout, createReq.Effort = &cfg.MaxTurns, &cfg.Timeout, &cfg.Effort
+		createReq.AllowedTools, createReq.DeniedTools = append([]string{}, cfg.AllowedTools...), append([]string{}, cfg.DeniedTools...)
+		createReq.AllowedPaths, createReq.DeniedPaths = append([]string{}, cfg.AllowedPaths...), append([]string{}, cfg.DeniedPaths...)
+		createReq.AllowedEffects, createReq.RequireEffectContainment = cfg.AllowedEffects, cfg.RequireEffectContainment
+		createReq.SkipPermissionPrompt, createReq.EnableBrowser = &cfg.SkipPermissionPrompt, &cfg.Features.EnableBrowser
+		createReq.NetworkAccess, createReq.ExtraFlags = &cfg.NetworkAccess, cfg.ExtraFlags
+		createReq.ResultSpec, createReq.Until = cfg.ResultSpec, cfg.Until
+		if cfg.SandboxConfig != nil {
+			createReq.SandboxConfig = cfg.SandboxConfig
+		}
 	}
 
-	newRun, err := o.CreateRun(ctx, createReq)
+	ctx, releaseAdmission, err := o.admitMaintenanceContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return o.attachRunActions(ctx, newRun), nil
+	defer releaseAdmission()
+	claims, ok := o.runs.(repository.RunFreshRecoveryClaimer)
+	if !ok {
+		return nil, domain.NewStateError("Run", "unknown", "claim fresh recovery", "durable source claim owner is unavailable")
+	}
+	// A failed claim can have lost to another owner. Preserve uncertainty until
+	// its exact durable replacement receipt is readable; never fall through.
+	effectsPossible = true
+	won, err := claims.ClaimFreshRecovery(ctx, failedRun.ID, failedRun.LifecycleVersion, freshRecoveryRequestHash(req), !automatic)
+	if err != nil {
+		return nil, err
+	}
+	if !won {
+		if replayed, _, err := o.freshRecoveryAccepted(ctx, req); err != nil || replayed != nil {
+			return replayed, err
+		}
+		return nil, domain.NewStateError("Run", "recovery_unresolved", "claim fresh recovery", "source lifecycle changed or another owner claimed recovery; no redispatch")
+	}
+	// Missing acceptance is never release authority. Only the owner's explicit
+	// pre-effect error class permits a hash/version-fenced release below.
+	newRun, err := o.createRun(ctx, createReq, &runRecoveryContext{attachments: attachments, config: failedRun.ResolvedConfig})
+	if err != nil {
+		if domain.IsPreEffectRefusal(err) {
+			released, releaseErr := claims.ReleaseFreshRecoveryClaim(context.WithoutCancel(ctx), failedRun.ID, failedRun.LifecycleVersion+1, freshRecoveryRequestHash(req))
+			if releaseErr != nil || !released {
+				// Do not wrap the refusal marker: an unresolved release may now
+				// belong to accepted work and must remain UNKNOWN to callers.
+				return nil, domain.NewStateError("Run", "recovery_unresolved", "release fresh recovery claim", fmt.Sprintf("creation refused before effects but claim release is unresolved: refusal=%v release=%v", err, releaseErr))
+			}
+		}
+		return nil, err
+	}
+	accepted, _, err := o.freshRecoveryAccepted(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if accepted == nil || accepted.ID != newRun.ID {
+		return nil, domain.NewStateError("Run", "recovery_unresolved", "fresh recovery", "creation response has no matching durable source/replacement receipt")
+	}
+	return o.attachRunActions(ctx, accepted), nil
+}
+
+// RecoverMissingSessionRun is the conservative owner-local automatic route.
+// Cancellation remains available only through the explicit recovery API.
+func (o *Orchestrator) RecoverMissingSessionRun(ctx context.Context, req ResumeFromFailedRunRequest) (_ *domain.Run, returnErr error) {
+	o.wakeMu.Lock()
+	defer o.wakeMu.Unlock()
+	return o.resumeFromFailedRun(ctx, req, true)
 }
 
 // resumeTag derives a tag for the resumed run that preserves traceability
@@ -91,6 +224,16 @@ func resumeTag(prevTag string) string {
 		return prevTag
 	}
 	return prevTag + "-resume"
+}
+
+// excludeLiveExecutor delegates physical scope to the canonical control-plane
+// owner. Only complete, exact-run absence permits fresh recovery; unavailable
+// or ambiguous evidence never becomes permission to replace an executor.
+func excludeLiveExecutor(ctx context.Context, run *domain.Run) error {
+	if err := maintenance.ExcludeExecutor(ctx, run); err != nil {
+		return domain.NewStateError("Run", "executor_not_excluded", "fresh recovery", err.Error())
+	}
+	return nil
 }
 
 // buildResumeFromFailureAttachments composes the context the resumed agent

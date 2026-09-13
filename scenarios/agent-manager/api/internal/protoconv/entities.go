@@ -241,6 +241,10 @@ func RunToProto(r *domain.Run) *pb.Run {
 		ExecutionMode:         ExecutionModeToProto(r.ExecutionMode),
 		HarnessKind:           validUTF8(r.HarnessKind),
 		HarnessSessionId:      validUTF8(r.HarnessSessionID),
+		GoalDelivery:          validUTF8(r.GoalDelivery),
+		TerminalClass:         validUTF8(string(r.TerminalClass)),
+		StopReason:            validUTF8(string(r.StopReason)),
+		LastHandoff:           validUTF8(r.LastHandoff),
 		WebConsoleSessionId:   validUTF8(r.WebConsoleSessionID),
 		WebConsoleSessionUrl:  validUTF8(r.WebConsoleSessionURL),
 		Status:                RunStatusToProto(r.Status),
@@ -401,6 +405,10 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		ExecutionMode:         ExecutionModeFromProto(r.ExecutionMode),
 		HarnessKind:           r.HarnessKind,
 		HarnessSessionID:      r.HarnessSessionId,
+		GoalDelivery:          r.GoalDelivery,
+		TerminalClass:         domain.RunTerminalClass(r.TerminalClass),
+		StopReason:            domain.RunStopReason(r.StopReason),
+		LastHandoff:           r.LastHandoff,
 		WebConsoleSessionID:   r.WebConsoleSessionId,
 		WebConsoleSessionURL:  r.WebConsoleSessionUrl,
 		Status:                RunStatusFromProto(r.Status),
@@ -547,6 +555,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,
 		Until:                 c.Until,
+		Admission:             RunAdmissionToProto(c.Admission),
 	}
 }
 
@@ -578,6 +587,159 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		TranscriptCodec:       c.TranscriptCodec,
 		TranscriptCodecScore:  c.TranscriptCodecScore,
 		Until:                 c.Until,
+		Admission:             RunAdmissionFromProto(c.Admission),
+	}
+}
+
+// RunAdmissionToProto converts the creation-time admission record to its proto mirror.
+func RunAdmissionToProto(a *domain.RunAdmission) *pb.RunAdmission {
+	if a == nil {
+		return nil
+	}
+	return &pb.RunAdmission{
+		RequestedRunner:        a.RequestedRunner,
+		RequestedModel:         a.RequestedModel,
+		RequestedRoleRef:       a.RequestedRoleRef,
+		RequestedEffort:        a.RequestedEffort,
+		RequestedTimeout:       DurationToProto(a.RequestedTimeout),
+		RequestedMaxTurns:      int32(a.RequestedMaxTurns),
+		RequestedGoalMode:      a.RequestedGoalMode,
+		EffectiveRunner:        a.EffectiveRunner,
+		EffectiveModel:         a.EffectiveModel,
+		EffectiveEffort:        a.EffectiveEffort,
+		EffectiveTimeout:       DurationToProto(a.EffectiveTimeout),
+		EffectiveMaxTurns:      int32(a.EffectiveMaxTurns),
+		EffectiveUntil:         a.EffectiveUntil,
+		CatalogDigest:          a.CatalogDigest,
+		PolicyDigest:           a.PolicyDigest,
+		PolicyPath:             a.PolicyPath,
+		SelectionReason:        a.SelectionReason,
+		PassedControlArgs:      append([]string(nil), a.PassedControlArgs...),
+		TranslationDiagnostics: append([]string(nil), a.TranslationDiagnostics...),
+		RuntimeVersion:         a.RuntimeVersion,
+		ProviderAcknowledgment: append([]string(nil), a.ProviderAcknowledgment...),
+		Receipt:                QualificationReceiptToProto(a.Receipt),
+	}
+}
+
+// RunAdmissionFromProto converts a proto admission record to the domain type.
+func RunAdmissionFromProto(a *pb.RunAdmission) *domain.RunAdmission {
+	if a == nil {
+		return nil
+	}
+	return &domain.RunAdmission{
+		RequestedRunner:        a.RequestedRunner,
+		RequestedModel:         a.RequestedModel,
+		RequestedRoleRef:       a.RequestedRoleRef,
+		RequestedEffort:        a.RequestedEffort,
+		RequestedTimeout:       DurationFromProto(a.RequestedTimeout),
+		RequestedMaxTurns:      int(a.RequestedMaxTurns),
+		RequestedGoalMode:      a.RequestedGoalMode,
+		EffectiveRunner:        a.EffectiveRunner,
+		EffectiveModel:         a.EffectiveModel,
+		EffectiveEffort:        a.EffectiveEffort,
+		EffectiveTimeout:       DurationFromProto(a.EffectiveTimeout),
+		EffectiveMaxTurns:      int(a.EffectiveMaxTurns),
+		EffectiveUntil:         a.EffectiveUntil,
+		CatalogDigest:          a.CatalogDigest,
+		PolicyDigest:           a.PolicyDigest,
+		PolicyPath:             a.PolicyPath,
+		SelectionReason:        a.SelectionReason,
+		PassedControlArgs:      append([]string(nil), a.PassedControlArgs...),
+		TranslationDiagnostics: append([]string(nil), a.TranslationDiagnostics...),
+		RuntimeVersion:         a.RuntimeVersion,
+		ProviderAcknowledgment: append([]string(nil), a.ProviderAcknowledgment...),
+		Receipt:                QualificationReceiptFromProto(a.Receipt),
+	}
+}
+
+// QualificationReceiptToProto converts the route-keyed qualification receipt to
+// its proto mirror. A nil receipt stays nil so a run with no live
+// qualification evidence is never reported as qualified.
+func QualificationReceiptToProto(r *domain.QualificationReceipt) *pb.QualificationReceipt {
+	if r == nil {
+		return nil
+	}
+	return &pb.QualificationReceipt{
+		Route:                  r.Route,
+		RequestedRunner:        r.RequestedRunner,
+		RequestedModel:         r.RequestedModel,
+		RequestedRoleRef:       r.RequestedRoleRef,
+		RequestedEffort:        r.RequestedEffort,
+		EffectiveRunner:        r.EffectiveRunner,
+		EffectiveModel:         r.EffectiveModel,
+		EffectiveEffort:        r.EffectiveEffort,
+		PassedControlArgs:      append([]string(nil), r.PassedControlArgs...),
+		TranslationDiagnostics: append([]string(nil), r.TranslationDiagnostics...),
+		ProviderAcknowledgment: append([]string(nil), r.ProviderAcknowledgment...),
+		CatalogDigest:          r.CatalogDigest,
+		PolicyDigest:           r.PolicyDigest,
+		PolicyPath:             r.PolicyPath,
+		RuntimeVersion:         r.RuntimeVersion,
+		RunId:                  r.RunID,
+		OperationId:            r.OperationID,
+		AcceptedOutput:         r.AcceptedOutput,
+		Usage:                  QualificationUsageToProto(r.Usage),
+		Limitations:            append([]string(nil), r.Limitations...),
+		CapturedAt:             TimestampToProto(r.CapturedAt),
+	}
+}
+
+// QualificationReceiptFromProto converts a proto qualification receipt to the
+// domain type, preserving unobserved fields as empty rather than backfilling
+// them from the requested or effective layers.
+func QualificationReceiptFromProto(r *pb.QualificationReceipt) *domain.QualificationReceipt {
+	if r == nil {
+		return nil
+	}
+	return &domain.QualificationReceipt{
+		Route:                  r.Route,
+		RequestedRunner:        r.RequestedRunner,
+		RequestedModel:         r.RequestedModel,
+		RequestedRoleRef:       r.RequestedRoleRef,
+		RequestedEffort:        r.RequestedEffort,
+		EffectiveRunner:        r.EffectiveRunner,
+		EffectiveModel:         r.EffectiveModel,
+		EffectiveEffort:        r.EffectiveEffort,
+		PassedControlArgs:      append([]string(nil), r.PassedControlArgs...),
+		TranslationDiagnostics: append([]string(nil), r.TranslationDiagnostics...),
+		ProviderAcknowledgment: append([]string(nil), r.ProviderAcknowledgment...),
+		CatalogDigest:          r.CatalogDigest,
+		PolicyDigest:           r.PolicyDigest,
+		PolicyPath:             r.PolicyPath,
+		RuntimeVersion:         r.RuntimeVersion,
+		RunID:                  r.RunId,
+		OperationID:            r.OperationId,
+		AcceptedOutput:         r.AcceptedOutput,
+		Usage:                  QualificationUsageFromProto(r.Usage),
+		Limitations:            append([]string(nil), r.Limitations...),
+		CapturedAt:             TimestampFromProto(r.CapturedAt),
+	}
+}
+
+// QualificationUsageToProto converts usage state to its proto mirror. A zero
+// usage stays a zero message so a reader can still tell measured from reserved.
+func QualificationUsageToProto(u domain.QualificationUsage) *pb.QualificationUsage {
+	return &pb.QualificationUsage{
+		State:           string(u.State),
+		InputTokens:     u.InputTokens,
+		OutputTokens:    u.OutputTokens,
+		CostUsd:         u.CostUSD,
+		ReservedUnknown: u.ReservedUnknown,
+	}
+}
+
+// QualificationUsageFromProto converts proto usage state to the domain type.
+func QualificationUsageFromProto(u *pb.QualificationUsage) domain.QualificationUsage {
+	if u == nil {
+		return domain.QualificationUsage{}
+	}
+	return domain.QualificationUsage{
+		State:           domain.QualificationUsageState(u.State),
+		InputTokens:     u.InputTokens,
+		OutputTokens:    u.OutputTokens,
+		CostUSD:         u.CostUsd,
+		ReservedUnknown: u.ReservedUnknown,
 	}
 }
 

@@ -39,6 +39,22 @@ message Shared {}
 	}
 }
 
+func TestScenarioNamesIgnoresEmptyRetiredOwnerDirectories(t *testing.T) {
+	repoRoot, protoRoot := makeRepo(t)
+	writeFile(t, filepath.Join(protoRoot, "schemas", "active", "v1", "active.proto"), "syntax = \"proto3\";\npackage active.v1;\nmessage Active {}\n")
+	if err := os.MkdirAll(filepath.Join(protoRoot, "schemas", "retired", "v1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	owners, err := ScenarioNames(protoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equalStrings(owners, []string{"active"}) {
+		t.Fatalf("owners = %#v, want only active owner; repo=%s", owners, repoRoot)
+	}
+}
+
 func TestWriteManifestDeterministic(t *testing.T) {
 	repoRoot, protoRoot := makeRepo(t)
 	writeFile(t, filepath.Join(protoRoot, "schemas", "demo", "v1", "core", "core.proto"), "syntax = \"proto3\";\npackage demo.v1.core;\n")

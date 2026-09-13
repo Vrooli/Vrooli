@@ -34,14 +34,13 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDir declared registry: %v", err)
 	}
-	if got, want := len(registry.Definitions()), 21; got != want {
+	if got, want := len(registry.Definitions()), 20; got != want {
 		t.Fatalf("registered transition count = %d, want %d", got, want)
 	}
 	for _, key := range []string{
 		"capture.classify", "plan.workshop.review", "plan.workshop.reconcile", "plan.author", "plan.repair", "plan.execute",
 		"work.review", "review.evidence_request", "goal.discover", "goal.plan", "milestone.review", "scenario.spec_sync",
 		"follow_up.dispatch", "goal.close_out",
-		"contract-development",
 		"session.meta_orchestration", "session.swarm_operations", "session.workflow_authoring",
 	} {
 		if _, ok := registry.Get(key); !ok {
@@ -50,31 +49,35 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	}
 }
 
-func TestPlanExecuteDeclaresGoalSessionStrategy(t *testing.T) {
+func TestPlanExecuteDeclaresTwoExecutionModes(t *testing.T) {
 	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	definition, ok := registry.Get("plan.execute")
-	if !ok || len(definition.Strategies) != 3 {
-		t.Fatalf("plan.execute strategies=%+v", definition.Strategies)
+	if !ok || len(definition.ExecutionModes) != 2 {
+		t.Fatalf("plan.execute execution_modes=%+v", definition.ExecutionModes)
 	}
-	for _, strategy := range definition.Strategies {
-		if strategy.ID == "goal-session" {
-			if strategy.WorkflowKey != "swarm-manager/goal-session-drain" {
-				t.Fatalf("goal-session workflow=%q", strategy.WorkflowKey)
-			}
-			return
-		}
+	byID := map[string]string{}
+	for _, mode := range definition.ExecutionModes {
+		byID[mode.ID] = mode.WorkflowKey
 	}
-	t.Fatal("goal-session strategy is not declared")
+	if _, ok := byID[ExecutionModeSliced]; !ok {
+		t.Fatalf("sliced mode is not declared: %+v", definition.ExecutionModes)
+	}
+	if _, ok := byID[ExecutionModeGoal]; !ok {
+		t.Fatalf("goal mode is not declared: %+v", definition.ExecutionModes)
+	}
+	if key := byID[ExecutionModeGoal]; key != "" {
+		t.Fatalf("goal mode must not declare a workflow, got %q", key)
+	}
 }
 
-func TestGoalSessionLimitMapsToBudgetExhausted(t *testing.T) {
-	path := filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "goal-session-drain.json")
+func TestSlicedLimitMapsToBudgetExhausted(t *testing.T) {
+	path := filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "phased-plan-drain.json")
 	contents, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read goal-session workflow: %v", err)
+		t.Fatalf("read sliced workflow: %v", err)
 	}
 	var workflow struct {
 		Nodes []struct {
@@ -86,17 +89,17 @@ func TestGoalSessionLimitMapsToBudgetExhausted(t *testing.T) {
 		} `json:"nodes"`
 	}
 	if err := json.Unmarshal(contents, &workflow); err != nil {
-		t.Fatalf("decode goal-session workflow: %v", err)
+		t.Fatalf("decode sliced workflow: %v", err)
 	}
 	for _, node := range workflow.Nodes {
-		if node.ID == "session_limit" {
+		if node.ID == "slice_limit" {
 			if node.Kind != "end" || node.End == nil || node.End.Status != "budget_exhausted" {
-				t.Fatalf("session_limit end=%+v kind=%q, want budget_exhausted end", node.End, node.Kind)
+				t.Fatalf("slice_limit end=%+v kind=%q, want budget_exhausted end", node.End, node.Kind)
 			}
 			return
 		}
 	}
-	t.Fatal("goal-session workflow is missing session_limit node")
+	t.Fatal("slice_limit end node is not declared")
 }
 
 func TestPhasedPlanSliceVerifiesTheCanonicalAuthoredProjection(t *testing.T) {

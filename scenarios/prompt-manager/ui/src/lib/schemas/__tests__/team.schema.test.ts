@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   TeamDetailsSchema,
+  UpdateTeamRequestSchema,
   buildBoundedParallelExecution,
   buildDefaultCreateTeamRequest,
   buildIndependentCoordination,
@@ -85,6 +86,28 @@ describe('buildDefaultCreateTeamRequest', () => {
 })
 
 describe('TeamDetailsSchema', () => {
+  it('preserves legacy teams without inventing classification or objective grants', () => {
+    const result = TeamDetailsSchema.parse({
+      ...buildDefaultCreateTeamRequest('Legacy'), id: 'legacy', enabled: false,
+      memberCount: 0, roles: [], members: [],
+      objectivesServed: [{ id: 'objective:quality', customEvidence: 'receipt:7' }],
+      createdAt: '2026-04-09T00:00:00Z', updatedAt: '2026-04-09T00:00:00Z',
+    })
+    expect(result.purpose).toBeUndefined()
+    expect(result.lifetime).toBeUndefined()
+    expect(result.effortRefs).toBeUndefined()
+    expect(result.objectivesServed?.[0]).toEqual({ id: 'objective:quality', customEvidence: 'receipt:7' })
+    expect(result.enabled).toBe(false)
+  })
+
+  it('accepts independent classification and explicit clearing while rejecting invalid metadata', () => {
+    expect(UpdateTeamRequestSchema.parse({ purpose: 'delivery', lifetime: 'standing' })).toEqual({ purpose: 'delivery', lifetime: 'standing' })
+    expect(UpdateTeamRequestSchema.parse({ purpose: '', lifetime: '', effortRefs: [] })).toEqual({ purpose: '', lifetime: '', effortRefs: [] })
+    expect(UpdateTeamRequestSchema.safeParse({ purpose: 'temporary' }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ lifetime: 'delivery' }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ effortRefs: ['   '] }).success).toBe(false)
+  })
+
   it('normalizes nullable role and member arrays to empty arrays', () => {
     const result = TeamDetailsSchema.parse({
       id: 'scenario-qa',

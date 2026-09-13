@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	agentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/agents"
+	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -60,5 +61,32 @@ func TestInvokePreservesHeadersVarsAndMapsErrors(t *testing.T) {
 	_, err := Invoke(context.Background(), headers, handler, http.MethodGet, "/items/missing", nil, map[string]string{"id": "missing"})
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("code = %v, want %v (err=%v)", connect.CodeOf(err), connect.CodeNotFound, err)
+	}
+}
+
+func TestMaskedBodyDefaultsRequireExplicitPresence(t *testing.T) {
+	message := &teamsv1.TeamInput{}
+	body, err := MaskedBody(message, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) != 0 {
+		t.Fatalf("unmasked absent defaults must not become mutations: %#v", body)
+	}
+	body, err = MaskedBody(message, []string{"purpose", "effort_refs", "enabled"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, ok := body["purpose"]; !ok || value != "" {
+		t.Fatalf("explicit string clear missing: %#v", body)
+	}
+	if value, ok := body["enabled"]; !ok || value != false {
+		t.Fatalf("explicit false missing: %#v", body)
+	}
+	if value, ok := body["effortRefs"]; !ok || len(value.([]any)) != 0 {
+		t.Fatalf("explicit list clear missing: %#v", body)
+	}
+	if _, ok := body["lifetime"]; ok {
+		t.Fatal("unselected default became a mutation")
 	}
 }

@@ -33,19 +33,19 @@ const (
 // Definition is one domain transition. Workflow mechanics belong exclusively
 // to the Agent Manager declaration identified by Workflow.
 type Definition struct {
-	SchemaVersion    string              `json:"schemaVersion"`
-	Key              string              `json:"key"`
-	Subject          string              `json:"subject"`
-	Kind             Kind                `json:"kind"`
-	Workflow         *Locator            `json:"workflow,omitempty"`
-	Requires         []string            `json:"requires,omitempty"`
-	InputContract    string              `json:"inputContract"`
-	TerminalOutcomes []string            `json:"terminalOutcomes"`
-	ApplyAction      string              `json:"applyAction"`
-	HumanGates       []HumanGate         `json:"humanGates,omitempty"`
-	HumanWait        bool                `json:"humanWait,omitempty"`
-	Strategies       []ExecutionStrategy `json:"strategies,omitempty"`
-	Session          *SessionConfig      `json:"session,omitempty"`
+	SchemaVersion    string          `json:"schemaVersion"`
+	Key              string          `json:"key"`
+	Subject          string          `json:"subject"`
+	Kind             Kind            `json:"kind"`
+	Workflow         *Locator        `json:"workflow,omitempty"`
+	Requires         []string        `json:"requires,omitempty"`
+	InputContract    string          `json:"inputContract"`
+	TerminalOutcomes []string        `json:"terminalOutcomes"`
+	ApplyAction      string          `json:"applyAction"`
+	HumanGates       []HumanGate     `json:"humanGates,omitempty"`
+	HumanWait        bool            `json:"humanWait,omitempty"`
+	ExecutionModes   []ExecutionMode `json:"execution_modes,omitempty"`
+	Session          *SessionConfig  `json:"session,omitempty"`
 }
 
 type GateMode string
@@ -85,10 +85,10 @@ func EffectiveGateMode(definition Definition, overrides map[string]string, gateI
 	return "", false
 }
 
-// ExecutionStrategy is operator-facing metadata for an execution-capable
+// ExecutionMode is operator-facing metadata for an execution-capable
 // transition. The registry remains the declaration authority; consumers only
 // select an id from this bounded list.
-type ExecutionStrategy struct {
+type ExecutionMode struct {
 	ID          string `json:"id"`
 	WorkflowKey string `json:"workflowKey"`
 	DisplayName string `json:"displayName"`
@@ -192,7 +192,7 @@ func ValidateWorkflowReachability(registry Registry, fsys fs.FS, dir string, unb
 			continue
 		}
 		queue = append(queue, strings.TrimSpace(definition.Workflow.Key))
-		for _, strategy := range definition.Strategies {
+		for _, strategy := range definition.ExecutionModes {
 			queue = append(queue, strings.TrimSpace(strategy.WorkflowKey))
 		}
 	}
@@ -379,18 +379,17 @@ func Validate(definition Definition) error {
 		}
 		seenRequirement[requirement] = struct{}{}
 	}
-	seenStrategy := make(map[string]struct{}, len(definition.Strategies))
-	for _, strategy := range definition.Strategies {
+	seenStrategy := make(map[string]struct{}, len(definition.ExecutionModes))
+	for _, strategy := range definition.ExecutionModes {
 		strategy.ID = strings.TrimSpace(strategy.ID)
-		workflowKey := strings.TrimSpace(strategy.WorkflowKey)
-		if workflowKey == "" && definition.Workflow != nil {
-			workflowKey = strings.TrimSpace(definition.Workflow.Key)
-		}
-		if strategy.ID == "" || workflowKey == "" || strings.TrimSpace(strategy.DisplayName) == "" || strings.TrimSpace(strategy.Description) == "" || strings.TrimSpace(strategy.WhenToUse) == "" || strings.TrimSpace(strategy.CostBand) == "" {
-			return fmt.Errorf("strategies require id, workflowKey, displayName, description, whenToUse, and costBand")
+		// The goal mode creates one Agent Manager run and has no workflow key;
+		// a sliced mode must resolve to a workflow. The execution service
+		// enforces that a mode without a workflow key is goal mode.
+		if strategy.ID == "" || strings.TrimSpace(strategy.DisplayName) == "" || strings.TrimSpace(strategy.Description) == "" || strings.TrimSpace(strategy.WhenToUse) == "" || strings.TrimSpace(strategy.CostBand) == "" {
+			return fmt.Errorf("execution_modes require id, displayName, description, whenToUse, and costBand")
 		}
 		if _, duplicate := seenStrategy[strategy.ID]; duplicate {
-			return fmt.Errorf("strategies contains duplicate %q", strategy.ID)
+			return fmt.Errorf("execution_modes contains duplicate %q", strategy.ID)
 		}
 		seenStrategy[strategy.ID] = struct{}{}
 	}
@@ -475,11 +474,8 @@ func addDefinitions(target map[string]Definition, definitions []Definition) erro
 		return fmt.Errorf("file contains no transition definitions")
 	}
 	for _, definition := range definitions {
-		for i := range definition.Strategies {
-			if strings.TrimSpace(definition.Strategies[i].WorkflowKey) == "" && definition.Workflow != nil {
-				definition.Strategies[i].WorkflowKey = definition.Workflow.Key
-			}
-		}
+		// Execution modes declare their own workflow key; a mode without one is
+		// goal mode and must not inherit the transition's default workflow.
 		if err := Validate(definition); err != nil {
 			return err
 		}

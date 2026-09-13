@@ -54,6 +54,39 @@ func TestWorkflowWaitOutlivesOrdinaryHTTPTimeoutWithoutChangingOtherCalls(t *tes
 	}
 }
 
+func TestQuiesceOutlivesOrdinaryHTTPTimeoutWithoutChangingOtherCalls(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/runs/quiesce" || r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(cliutil.HeaderInvocationCommand) != "run quiesce" {
+			t.Error("quiesce lost its transport or attribution contract")
+		}
+		var req apipb.QuiesceScenarioRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.GetTimeout() != "5m" || req.Force {
+			t.Error("quiesce changed the owner wait or cancellation authority")
+		}
+		select {
+		case <-time.After(60 * time.Millisecond):
+		case <-r.Context().Done():
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":{"scenario":"fixture","drained":true}}`))
+	}))
+	defer server.Close()
+	base := cliutil.NewHTTPClient(cliutil.HTTPClientOptions{Timeout: 10 * time.Millisecond})
+	base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{cliutil.HeaderInvocationCommand: "run quiesce"} })
+	api := cliutil.NewAPIClient(base, func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, func() string { return "saved-token" })
+	timeout := "5m"
+	_, result, err := NewServices(api).Runs.Quiesce(&apipb.QuiesceScenarioRequest{Scenario: "fixture", Timeout: &timeout})
+	if err != nil || result == nil || !result.Drained {
+		t.Fatalf("server-owned drain inherited ordinary deadline: %v", err)
+	}
+	if calls.Load() != 1 || base.Timeout() != 10*time.Millisecond {
+		t.Fatal("quiesce retried or mutated ordinary request deadlines")
+	}
+}
+
 func newContractServices(t *testing.T) (*Services, *clitest.RecordingServer) {
 	t.Helper()
 	server := clitest.NewRecordingServer(t, `{}`)

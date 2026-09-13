@@ -21,7 +21,7 @@ Preserve this class during manual cleanup and disk-pressure automation. A broad 
 | `README.md` | Human entrypoint: outcome, current stage, review order, authoritative links and next action. Leader-owned. |
 | `effort.json` | Identity, repository, authority status, policy and owner references. Leader-owned; approved authority changes require the actual authority. |
 | `sources/` | Preserved user intent, accepted decisions and immutable evidence snapshots. Retain a content digest at approval. |
-| `requirements.json` | Stable source requirements, deliverables, acceptance, owner plan references, and evidence assessments. An assessment is not a remote plan status. |
+| `requirements.json` | Stable source requirements, deliverables, acceptance, owner references, and evidence assessments. An assessment is not a remote plan status. |
 | `findings/` | Bounded investigations; label fact, hypothesis and recommendation. Link source and capture time. |
 | `capabilities.json` | Needed operations and last qualification evidence. This is an effort observation, not a replacement global capability registry. |
 | `recovery.jsonl` | Append-only repair intent/outcome events, keyed by attempt, component and fingerprint. Keep owner incident/issue references. |
@@ -32,7 +32,58 @@ Preserve this class during manual cleanup and disk-pressure automation. A broad 
 
 Create optional directories only when they have content. Do not put credentials or private identity tokens into this workspace. Source preservation does not require copying transcripts with unrelated private content.
 
-`requirements.json` rows have `id`, `source`, `statement`, `deliverable`, `acceptance`, `owner_plan`, `assessment`, `evidence`, and optionally `depends_on`. Assessment is `unverified`, `met`, `unmet`, or `waived`; `met` requires evidence, and `waived` requires an actual user decision reference. Keep recommendations separate from user requirements.
+`requirements.json` rows have `id`, `source`, `statement`, `deliverable`,
+`acceptance`, an owner reference, `assessment`, `evidence`, and optionally
+`depends_on`. For plan-shaped work, the legacy `owner_plan` field may hold the
+Plan Manager plan ID. For mixed-shape efforts, prefer `owner_ref` plus
+`owner_kind` (`plan`, `mandate`, `task`, `investigation` or `action`) so a
+bounded task or review is not forced into a fake plan. Assessment is
+`unverified`, `met`, `unmet`, or `waived`; `met` requires evidence, and `waived`
+requires an actual user decision reference. Keep recommendations separate from
+user requirements.
+
+The workspace is an index of owner references, not a second owner database.
+The canonical owner API remains authoritative for plan, task, investigation or
+Action state. Until every consumer understands `owner_ref`, the validator
+accepts the legacy `owner_plan` spelling for backward compatibility.
+
+## Automatic supervision discovery
+
+The configured Agent Manager effort root is observed automatically by the standing
+supervisor. Use `path:docs/agent-system/EFFORT_SUPERVISION.md`
+for actual coverage and qualification. Creating a workspace does not grant steering
+authority or start an agent. Missing owner/run references remain visibly unknown.
+
+New workspaces receive an opaque `effort_ref` independent of their repository path,
+host and display slug. Preserve it when moving or resuming the effort. Initialization
+never replaces an existing identity. For older workspaces, retain the discovered
+reference until an explicit owner amendment; do not silently mint a second effort.
+
+Before starting orchestration, the coordinator records `destination_ref`,
+`target_revision` and `work_shape` in `effort.json`. Declare exact current subjects
+in `supervision.subjects` using the Agent Manager `EffortSubject` contract (owner,
+kind, reference, role, assignment and run ID where applicable). Keep these references
+current at normal coordinator checkpoints; the supervisor must not write them.
+An optional `checkpoint` names one bounded, non-secret relative JSON observation
+file. It is attributed self-report, not runtime or product acceptance. Do not point
+it at credentials, transcripts or another effort. Owner registrations through
+`agent-manager effort` take precedence for authenticated steering permissions;
+file declarations cannot supply those permissions.
+
+Declare non-secret repair receipts and operator resolutions in the optional
+`observation_sources` array in `effort.json` (at most eight relative files under
+`handoffs/`, `evidence/` or `findings/`). Agent Manager observes their bounded
+digests so changed answers can reopen supervision even while the driver remains
+stopped. The legacy `handoffs/OPERATOR-ANSWERS.md` convention is also observed.
+Keep authoritative receipts with their owner and retain references here; these
+sources neither grant execution authority nor prove a repair works. Do not put
+credentials in an answer or observation source. The supervisor reads sources;
+the coordinator or actual operator remains their writer.
+
+This projection is portable metadata for the existing owner, not a parallel run
+ledger or an effort-specific adapter. Use runtime WorkReferences and typed owner
+operations when available, and retire temporary checkpoint reading once equivalent
+owner telemetry is qualified.
 
 Use one coordinator writer for aggregate artifacts. Workers write their own result paths and owner records. A fallback coordinator must prove exclusive ownership before editing shared control state. A local JSON file is not a distributed lock. Record migration to an owner state API explicitly; after migration, retain only its reference/projection here.
 

@@ -2,6 +2,8 @@ package codecs
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -64,5 +66,42 @@ func TestBaseCodecIdentityAndBuildEnvironmentContracts(t *testing.T) {
 	}
 	if strings.Contains(joined, " =ignored") {
 		t.Fatalf("blank environment key leaked: %v", env)
+	}
+}
+
+func TestContinuationRetainsCanonicalProcessTag(t *testing.T) {
+	base := opencodeBase()
+	if got := base.ContinueTag(runner.ContinueRequest{RunID: uuid.New(), Tag: "effort/platform"}); got != "effort/platform" {
+		t.Fatalf("reconciler cannot find continuation tag %q; want canonical effort/platform", got)
+	}
+}
+
+func TestBaseCodecRuntimeVersionReadsFirstLine(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fake-cli")
+	script := "#!/bin/sh\necho '1.18.30'\necho 'second line ignored'\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake binary: %v", err)
+	}
+	base := baseCodec{binaryPath: path, available: true, binaryDesc: "fake CLI", runnerType: domain.RunnerTypeOpenCode}
+
+	got, err := base.RuntimeVersion(context.Background())
+	if err != nil {
+		t.Fatalf("RuntimeVersion error = %v", err)
+	}
+	if got != "1.18.30" {
+		t.Fatalf("RuntimeVersion = %q, want 1.18.30", got)
+	}
+}
+
+func TestBaseCodecRuntimeVersionFailsClosed(t *testing.T) {
+	unavailable := baseCodec{binaryDesc: "fake CLI", runnerType: domain.RunnerTypeOpenCode}
+	if _, err := unavailable.RuntimeVersion(context.Background()); err == nil {
+		t.Fatal("unavailable codec reported a runtime version")
+	}
+
+	failing := baseCodec{binaryPath: filepath.Join(t.TempDir(), "missing"), available: true, binaryDesc: "fake CLI", runnerType: domain.RunnerTypeOpenCode}
+	if _, err := failing.RuntimeVersion(context.Background()); err == nil {
+		t.Fatal("missing binary reported a runtime version")
 	}
 }

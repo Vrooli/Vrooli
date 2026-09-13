@@ -18,6 +18,7 @@ import (
 )
 
 type Service struct {
+	Efforts        *EffortService
 	watches        *Repository
 	events         eventlog.CohortRepository
 	mu             sync.Mutex

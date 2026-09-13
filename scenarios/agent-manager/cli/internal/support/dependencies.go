@@ -9,6 +9,7 @@ type Dependencies struct {
 	Declarations     CommandFunc
 	Workflow         CommandFunc
 	Watch            CommandFunc
+	Effort           CommandFunc
 	Investigation    CommandFunc
 	Task             CommandFunc
 	Run              CommandFunc

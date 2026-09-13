@@ -63,3 +63,12 @@ func TestAttenuateRefusesPersonaActAsWidening(t *testing.T) {
 		t.Fatalf("wildcard request widened persona scope: %#v", child.Scopes)
 	}
 }
+
+func TestAttenuatePreservesRecurringRevocationBinding(t *testing.T) {
+	now := time.Now()
+	parent := &Claims{Subject: "owner", Scopes: []string{"agent-manager:supervise"}, DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant", ExpiresAt: now.Add(time.Hour).Unix()}
+	child, err := Attenuate(parent, uuid.New(), uuid.New(), nil, time.Time{}, now)
+	if err != nil || child.DispatchEffortRef != parent.DispatchEffortRef || child.DispatchAuthorizationID != parent.DispatchAuthorizationID {
+		t.Fatal("attenuation stripped live revocation binding")
+	}
+}

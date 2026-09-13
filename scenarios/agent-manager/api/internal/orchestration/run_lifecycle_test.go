@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -123,6 +124,223 @@ func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
 	}
 	if broadcasts[0].Actions == nil || broadcasts[0].Actions.CanStop {
 		t.Fatalf("expected broadcast with updated actions and CanStop=false")
+	}
+}
+
+// cancelIntentRecordingRepo wraps a RunRepository and records that the durable
+// cancellation intent was stamped. It pins the StopRun ordering rule: stamp
+// intent first, terminate second, so a process that exits during termination
+// reconciles to cancelled instead of complete.
+type cancelIntentRecordingRepo struct {
+	repository.RunRepository
+	stamped bool
+}
+
+func (r *cancelIntentRecordingRepo) RequestCancellation(ctx context.Context, id uuid.UUID, at time.Time) (bool, error) {
+	r.stamped = true
+	return r.RunRepository.RequestCancellation(ctx, id, at)
+}
+
+func TestStopRun_PersistsCancellationIntentBeforeTerminating(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	recorder := &cancelIntentRecordingRepo{RunRepository: repos.Runs}
+
+	var observeStampAtStop bool
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		observeStampAtStop = recorder.stamped
+		return nil
+	}
+	mustRegisterRunner(t, registry, mockRunner)
+
+	terminator := orchestration.NewTerminator(recorder, registry, orchestration.TerminatorConfig{
+		GracePeriod:      time.Millisecond,
+		MaxRetries:       1,
+		BaseBackoff:      time.Millisecond,
+		MaxBackoff:       time.Millisecond,
+		VerifyTimeout:    time.Millisecond,
+		KillProcessGroup: false,
+	})
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		recorder,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithTerminator(terminator),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "cancel-order-profile",
+		ProfileKey: "cancel-order-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "cancel order task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusRunning,
+		Phase:          domain.RunPhaseExecuting,
+		SessionID:      "sess-cancel-order",
+		StartedAt:      &now,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:  domain.ApprovalStateNone,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := recorder.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if err := svc.StopRun(ctx, runID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	if !recorder.stamped {
+		t.Fatal("StopRun did not persist cancellation intent")
+	}
+	if !observeStampAtStop {
+		t.Fatal("runner was asked to stop before cancellation intent was persisted")
+	}
+
+	updated, err := recorder.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusCancelled {
+		t.Fatalf("run status = %s, want cancelled", updated.Status)
+	}
+	if updated.CancelRequestedAt == nil {
+		t.Fatal("cancellation intent not retained on the terminal run")
+	}
+}
+
+// TestStopRun_DuplicateReplayAfterOwnerReopenIsIdempotent covers Phase 3's
+// duplicate-cancellation replay contract across owner reopen. A caller that
+// issued a stop but lost the response replays the stop against a fresh owner
+// instance over the same durable state. The replay must observe the same
+// terminal result (cancelled) instead of a state error, and must not append a
+// second terminal transition.
+func TestStopRun_DuplicateReplayAfterOwnerReopenIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mustRegisterRunner(t, registry, mockRunner)
+
+	terminator := orchestration.NewTerminator(repos.Runs, registry, orchestration.TerminatorConfig{
+		GracePeriod:      time.Millisecond,
+		MaxRetries:       1,
+		BaseBackoff:      time.Millisecond,
+		MaxBackoff:       time.Millisecond,
+		VerifyTimeout:    time.Millisecond,
+		KillProcessGroup: false,
+	})
+
+	// openOwner models an owner process (re)start: a fresh orchestrator holding
+	// no in-memory lifecycle state, reading only the durable repositories.
+	openOwner := func() *orchestration.Orchestrator {
+		return orchestration.New(
+			repos.Profiles,
+			repos.Tasks,
+			repos.Runs,
+			orchestration.WithEvents(eventStore),
+			orchestration.WithRunners(registry),
+			orchestration.WithRunStateRoot(t.TempDir()),
+			orchestration.WithTerminator(terminator),
+		)
+	}
+
+	ownerA := openOwner()
+	profile := mustCreateProfile(t, ownerA, ctx, &domain.AgentProfile{
+		Name:       "replay-profile",
+		ProfileKey: "replay-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, ownerA, ctx, &domain.Task{
+		Title:     "replay task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusRunning,
+		Phase:          domain.RunPhaseExecuting,
+		SessionID:      "sess-replay",
+		StartedAt:      &now,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:  domain.ApprovalStateNone,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	// The stop ran to completion on owner A, but the caller lost the response.
+	if err := ownerA.StopRun(ctx, runID); err != nil {
+		t.Fatalf("first StopRun: %v", err)
+	}
+
+	// Owner reopen: replay the same stop against a fresh instance.
+	ownerB := openOwner()
+	if err := ownerB.StopRun(ctx, runID); err != nil {
+		t.Fatalf("replayed StopRun after owner reopen should be idempotent, got: %v", err)
+	}
+	// A further replay is still a no-op.
+	if err := ownerB.StopRun(ctx, runID); err != nil {
+		t.Fatalf("second replayed StopRun should be idempotent, got: %v", err)
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusCancelled {
+		t.Fatalf("run status = %s, want cancelled", updated.Status)
+	}
+	if updated.CancelRequestedAt == nil {
+		t.Fatal("cancellation intent not retained across owner reopen")
+	}
+
+	events, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+	})
+	if err != nil {
+		t.Fatalf("get status events: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("duplicate stop replay appended another status event: got %d, want 1", len(events))
+	}
+	status := events[0].Data.(*domain.StatusEventData)
+	if status.OldStatus != string(domain.RunStatusRunning) || status.NewStatus != string(domain.RunStatusCancelled) {
+		t.Fatalf("unexpected status transition %s -> %s", status.OldStatus, status.NewStatus)
 	}
 }
 

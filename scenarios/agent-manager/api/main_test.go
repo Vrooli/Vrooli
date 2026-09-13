@@ -1,19 +1,126 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/database"
 	agentconfig "agent-manager/internal/config"
+	"agent-manager/internal/maintenance"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/testutil"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/identity"
 	searchregister "github.com/vrooli/searchregister-go"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
+
+type maintenanceOwnerFixture struct{}
+
+func (maintenanceOwnerFixture) Verify(context.Context, string) (identity.Principal, error) {
+	return identity.Principal{Verified: true, Kind: identity.ActorHuman, Subject: "fixture-owner", Scopes: []string{"agent-manager:write"}}, nil
+}
+
+func TestRouterMountsDurableMaintenanceWithSharedOrchestrationGate(t *testing.T) {
+	// The real registry ensures the maintenance schema alongside all other
+	// domains. No startup scheduler, credential exchange or host process runs.
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	gate := maintenance.NewGate(maintenance.NewRepository(db))
+	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithMaintenanceGate(gate))
+	interlock, err := maintenance.NewScenarioInterlock(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := maintenance.NewInventory(db, func(ctx context.Context, ref maintenance.ExecutorRef) (maintenance.ExecutorEvidence, error) {
+		t.Error("empty fixture unexpectedly has an executor")
+		return maintenance.ExecutorEvidence{}, errors.New("unknown executor")
+	})
+	h, err := maintenance.NewHandler(gate, reader.Observe, maintenanceOwnerFixture{}, interlock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{db: db, router: mux.NewRouter(), orchestrator: orch, maintenance: h}
+	router := s.Router()
+	request := httptest.NewRequest(http.MethodPost, maintenance.AdmissionPath+"/enter", strings.NewReader(`{"reason":"fixture rollout"}`))
+	request.Header.Set("Authorization", "Bearer fixture")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("mounted begin=%d %s", response.Code, response.Body.String())
+	}
+	if _, err := orch.CreateRun(t.Context(), orchestration.CreateRunRequest{TaskID: uuid.New(), Force: true}); !errors.Is(err, maintenance.ErrClosed) {
+		t.Fatalf("HTTP closed a different gate from orchestration: %v", err)
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, maintenance.AdmissionPath, nil))
+	var standing maintenance.Standing
+	if err := json.Unmarshal(response.Body.Bytes(), &standing); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || !standing.Drained || !standing.Closed || standing.Revision <= 0 || standing.LifecycleInterlock != maintenance.ScenarioLockV1 || standing.Inventory == nil || standing.Inventory.Remaining == nil || *standing.Inventory.Remaining != 0 {
+		t.Fatalf("mounted owner proof=%d %s", response.Code, response.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodPost, maintenance.AdmissionPath+"/resume", strings.NewReader(`{"revision":1}`))
+	request.Header.Set("Authorization", "Bearer fixture")
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("mounted resume=%d %s", response.Code, response.Body.String())
+	}
+	release, err := gate.Admit(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+}
+
+func TestRouterReportsInitializingBeforeRecoveryAndUsesExistingHealthWhenReady(t *testing.T) {
+	recovery := maintenance.NewRecovery()
+	srv := &Server{router: mux.NewRouter(), db: &database.DB{}, recovery: recovery}
+	for _, path := range []string{"/health", "/api/v1/health"} {
+		srv.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	}
+	srv.router.HandleFunc(apiconnect.AgentManagerServiceHealthProcedure, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	handler := srv.Router()
+	for _, path := range []string{"/health", "/api/v1/health"} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		wantCode := http.StatusServiceUnavailable
+		if path == "/health" {
+			wantCode = http.StatusOK
+		}
+		if response.Code != wantCode || !strings.Contains(response.Body.String(), `"status":"initializing"`) || !strings.Contains(response.Body.String(), `"readiness":false`) {
+			t.Errorf("before recovery %s=%d %s", path, response.Code, response.Body.String())
+		}
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceHealthProcedure, nil))
+	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), `"code":"unavailable"`) {
+		t.Errorf("before recovery RPC=%d %s", response.Code, response.Body.String())
+	}
+	recovery.Start(t.Context(), nil)
+	<-recovery.Done()
+	defer recovery.Stop()
+	for _, path := range []string{"/health", "/api/v1/health", apiconnect.AgentManagerServiceHealthProcedure} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusNoContent {
+			t.Errorf("ready %s=%d %s", path, response.Code, response.Body.String())
+		}
+	}
+}
 
 func TestDatabaseConfigUsesGovernedPoolLevers(t *testing.T) {
 	config := databaseConfigFromLevers("file:test.db", agentconfig.StorageLevers{
@@ -29,7 +136,12 @@ func TestDatabaseConfigUsesGovernedPoolLevers(t *testing.T) {
 // empty project root, but otherwise exercises the same graph construction,
 // recovery ordering, middleware, and cleanup path as production startup.
 func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
-	t.Setenv("AM_SQLITE_PATH", filepath.Join(t.TempDir(), "agent-manager.db"))
+	// Use the current storage identity seam. AM_SQLITE_PATH is no longer read.
+	t.Setenv("SCENARIO_NAME", "agent-manager")
+	t.Setenv("VROOLI_SCENARIO", "agent-manager")
+	t.Setenv("SCENARIO_DATA_DIR", t.TempDir())
+	t.Setenv("VROOLI_STORAGE_NAMESPACE", "agent-manager")
+	t.Setenv("VROOLI_VARIANT", "live")
 	t.Setenv("UPLOAD_DIR", t.TempDir())
 	t.Setenv("PROJECT_ROOT", t.TempDir())
 	server, err := NewServer()
@@ -44,6 +156,7 @@ func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
 			t.Errorf("cleanup server: %v", err)
 		}
 	})
+	<-server.recovery.Done()
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	response := httptest.NewRecorder()
 	server.Router().ServeHTTP(response, req)

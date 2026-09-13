@@ -789,7 +789,7 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 func TestStoreExecutionLimitsPersistUpdatesAndClears(t *testing.T) {
 	store, root := setupTestStore(t)
 	testutil.MakeDir(t, filepath.Join(root, "execute", "limits"))
-	item := BacklogItem{Kind: KindExecute, Name: "limits", Title: "Limits", Status: StatusBacklog, ExecutionStrategy: ExecutionStrategyAdaptiveImprovement, ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 64, MaxTokens: 2000000, MaxWallSeconds: 604800, MaxTurns: 1000, MaxChargeMicroUSD: 30000000, MaxChildren: 256, MaxNodeAttempts: 512, MaxRetries: 64}}
+	item := BacklogItem{Kind: KindExecute, Name: "limits", Title: "Limits", Status: StatusBacklog, ExecutionMode: ExecutionModeSliced, ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 64, MaxTokens: 2000000, MaxWallSeconds: 604800, MaxTurns: 1000, MaxChargeMicroUSD: 30000000, MaxChildren: 256, MaxNodeAttempts: 512, MaxRetries: 64}}
 	for _, tokens := range []int64{2000000, 1000000, 0} {
 		if tokens == 0 {
 			item.ExecutionLimits = nil

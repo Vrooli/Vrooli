@@ -42,7 +42,7 @@ export interface BacklogFormDetailsSectionProps {
   effort: string | undefined;
   acceptanceAllow: string[] | undefined;
   acceptanceDeny: string[] | undefined;
-  executionStrategy: string | undefined;
+  executionMode: string | undefined;
   executionLimits: ExecutionLimits | undefined;
   continuation: string | undefined;
   scopePolicy: string | undefined;
@@ -63,7 +63,7 @@ export function BacklogFormDetailsSection({
   effort,
   acceptanceAllow,
   acceptanceDeny,
-  executionStrategy,
+  executionMode,
   executionLimits,
   continuation,
   scopePolicy,
@@ -289,8 +289,8 @@ export function BacklogFormDetailsSection({
         </div>
         <div>
           <label htmlFor="backlog-form-execution-strategy" className="text-sm font-medium text-slate-300">Execution strategy</label>
-          <Select id="backlog-form-execution-strategy" value={executionStrategy ?? "phased-plan-drain"} onChange={(e) => { onFieldChange("executionStrategy", e.target.value); onClearError(); }} disabled={isSubmitting}>
-            {strategies.length === 0 && <option value={executionStrategy ?? "phased-plan-drain"}>{executionStrategy ?? "phased-plan-drain"}</option>}
+          <Select id="backlog-form-execution-strategy" value={executionMode ?? "sliced"} onChange={(e) => { onFieldChange("executionMode", e.target.value); onClearError(); }} disabled={isSubmitting}>
+            {strategies.length === 0 && <option value={executionMode ?? "sliced"}>{executionMode ?? "sliced"}</option>}
             {strategies.map((option) => <option key={option.id} value={option.id}>{option.display_name || option.id}</option>)}
           </Select>
         </div>

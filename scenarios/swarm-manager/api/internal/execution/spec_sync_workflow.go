@@ -55,7 +55,7 @@ func (s *Service) startSpecSyncWorkflow(ctx context.Context, record Record) (age
 	if s.transitionRunner == nil {
 		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, agentmanager.ErrNotAvailable
 	}
-	started, err := s.transitionRunner.StartWith(ctx, "scenario.spec_sync", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "sync", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "spec_sync"}})
+	started, err := s.startTransition(ctx, "scenario.spec_sync", record, "spec_sync", transitionrunner.PreparedInput{FirstRunNodeID: "sync"})
 	if err != nil {
 		return agentmanager.WorkflowStart{}, specSyncWorkflowSnapshot{}, err
 	}

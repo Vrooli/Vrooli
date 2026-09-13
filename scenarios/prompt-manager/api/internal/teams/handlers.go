@@ -179,6 +179,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	team := &store.Team{
+		Purpose: req.Purpose, Lifetime: req.Lifetime, EffortRefs: req.EffortRefs,
 		ID:                id,
 		DisplayName:       req.DisplayName,
 		Mission:           req.Mission,
@@ -231,6 +232,18 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Build updates
 	updates := &store.Team{}
+	if req.Purpose != nil {
+		updates.Purpose = *req.Purpose
+		updates.PurposeSet = true
+	}
+	if req.Lifetime != nil {
+		updates.Lifetime = *req.Lifetime
+		updates.LifetimeSet = true
+	}
+	if req.EffortRefs != nil {
+		updates.EffortRefs = append([]string{}, (*req.EffortRefs)...)
+	}
+
 	if req.DisplayName != nil {
 		updates.DisplayName = *req.DisplayName
 	}
@@ -264,6 +277,16 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	merged := *current
+	if updates.PurposeSet {
+		merged.Purpose = updates.Purpose
+	}
+	if updates.LifetimeSet {
+		merged.Lifetime = updates.Lifetime
+	}
+	if updates.EffortRefs != nil {
+		merged.EffortRefs = updates.EffortRefs
+	}
+
 	if updates.DisplayName != "" {
 		merged.DisplayName = updates.DisplayName
 	}
@@ -1025,6 +1048,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 	}
 
 	return Response{
+		Purpose: t.Purpose, Lifetime: t.Lifetime, EffortRefs: t.EffortRefs, ObjectivesServed: t.ObjectivesServed,
 		ID:                 t.ID,
 		DisplayName:        t.DisplayName,
 		Mission:            t.Mission,

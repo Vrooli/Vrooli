@@ -39,6 +39,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	if h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
 		return
 	}
+	if r.Header.Get("Authorization") != "" && bearerToken(r.Header.Get("Authorization")) == "" {
+		writeSimpleError(w, r, "authorization", "a valid Bearer authorization header is required")
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")
@@ -65,9 +69,25 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := orchestration.CreateRunRequest{
-		TaskID:     taskID,
-		Force:      protoReq.Force,
-		OwnerToken: bearerToken(r.Header.Get("Authorization")),
+		TaskID:         taskID,
+		Force:          protoReq.Force,
+		OwnerToken:     bearerToken(r.Header.Get("Authorization")),
+		WorkReferences: protoReq.GetWorkReferences(),
+	}
+	if narrowing := protoReq.GetRequestedScopes(); narrowing != nil {
+		req.RequestedScopes = append([]string{}, narrowing.GetScopes()...)
+		req.ExpectedOwnerSubject = narrowing.GetExpectedOwnerSubject()
+	}
+	if prefs := protoReq.GetExecutionPreferences(); prefs != nil {
+		// Inline config below wins over these when both are set.
+		req.PreferredRunner = strings.TrimSpace(prefs.GetPreferredRunner())
+		if model := strings.TrimSpace(prefs.GetModel()); model != "" {
+			req.Model = &model
+		}
+		if effort := strings.TrimSpace(prefs.GetEffort()); effort != "" {
+			e := domain.Effort(effort)
+			req.Effort = &e
+		}
 	}
 	if protoReq.AgentProfileId != nil {
 		agentProfileID, err := uuid.Parse(protoReq.GetAgentProfileId())
@@ -230,7 +250,6 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 	}
 	writeSimpleError(w, r, "typed", "legacy investigation creation is retired; use POST /api/v1/investigations")
 	return
-
 }
 
 // optionalTrimmedString returns nil for an omitted override.
@@ -641,6 +660,7 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 		Message:        req.Message,
 		AttachmentIDs:  req.AttachmentIds,
 		IdempotencyKey: req.IdempotencyKey,
+		ReinstallGoal:  req.ReinstallGoal,
 	})
 	if err != nil {
 		writeError(w, r, err)

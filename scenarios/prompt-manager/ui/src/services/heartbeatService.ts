@@ -9,8 +9,11 @@
  */
 
 import { buildApiUrl } from '@vrooli/api-base'
+import { z } from 'zod'
 import { API_BASE, connectSlice4Request } from '@/lib/api'
 import { operatorDirectAttributionHeaders } from './attribution'
+import { decodeRunEvents, type RunEvent } from '@/lib/schemas/runEvent.schema'
+export type { RunEvent } from '@/lib/schemas/runEvent.schema'
 
 // ============================================================================
 // Types
@@ -22,6 +25,17 @@ export interface HeartbeatConfig {
   enabled: boolean
   schedule: string
   profileKey?: string
+  lifecycleState?: string
+  supervision?: Record<string, unknown>
+  supervisionError?: string
+  supervisionState?: {
+    status?: string
+    coverage?: string
+    lastScanAt?: string
+    lastSuccessAt?: string
+    efforts?: Record<string, { retired?: boolean; observationOnly?: boolean; lastAssessedAt?: string }>
+  }
+  finiteLeader?: { effortRef?: string; acceptedRevision?: string; retired?: boolean }
   lastExecution?: HeartbeatExecResult
   nextExecution?: string
   nextExecutions?: string[]
@@ -603,9 +617,11 @@ export async function listTeamLogs(teamId: string, opts?: {
   if (opts?.offset !== undefined) params.set('offset', String(opts.offset))
   if (opts?.agentId) params.set('agentId', opts.agentId)
   const qs = params.toString()
-  return apiRequest<TeamLogListResponse>(
+  const response = await apiRequest<Omit<TeamLogListResponse, 'logs'> & { logs?: TeamLogEntry[] | null }>(
     `/teams/${encodeURIComponent(teamId)}/heartbeats/logs${qs ? `?${qs}` : ''}`
   )
+  // The JSON Value transport preserves Go nil slices on empty log pages.
+  return { ...response, logs: response.logs ?? [] }
 }
 
 // ============================================================================
@@ -773,12 +789,98 @@ export interface RunDetails {
   recovery?: string
   errorCategory?: string
   actions?: RunActions
+  requestedModel?: string | null
+  actualModel?: string | null
+  harnessKind?: string | null
+  importSourceHarness?: string | null
+  importSourceSessionId?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  terminalClass?: string | null
+  stopReason?: string | null
+  reportedSummary?: { tokensUsed: number | null; costEstimate: number | null } | null
+  workReferences?: Record<string, unknown>[]
+}
+
+const accountingEvidenceSchema = z.object({
+  requestedModel: z.string().nullish(), actualModel: z.string().nullish(),
+  harnessKind: z.string().nullish(), importSourceHarness: z.string().nullish(),
+  importSourceSessionId: z.string().nullish(), createdAt: z.string().nullish(), updatedAt: z.string().nullish(),
+  terminalClass: z.string().nullish(), stopReason: z.string().nullish(),
+  reportedSummary: z.object({
+    tokensUsed: z.number().int().nonnegative().nullable(),
+    costEstimate: z.number().finite().nonnegative().nullable(),
+  }).nullable(),
+  workReferences: z.array(z.record(z.string(), z.unknown())),
+})
+
+// The Connect Value envelope does not validate embedded AM JSON. Decode once
+// here, retaining absent metrics and both protobuf JSON name spellings.
+function runAccountingEvidence(value: unknown): z.infer<typeof accountingEvidenceSchema> {
+  const raw = z.record(z.string(), z.unknown()).parse(value)
+  const summary = raw.summary == null ? null : z.record(z.string(), z.unknown()).parse(raw.summary)
+  return accountingEvidenceSchema.parse({
+    requestedModel: raw.requested_model ?? raw.requestedModel ?? null,
+    actualModel: raw.actual_model ?? raw.actualModel ?? null,
+    harnessKind: raw.harness_kind ?? raw.harnessKind ?? null,
+    importSourceHarness: raw.import_source_harness ?? raw.importSourceHarness ?? null,
+    importSourceSessionId: raw.import_source_session_id ?? raw.importSourceSessionId ?? null,
+    createdAt: raw.created_at ?? raw.createdAt ?? null,
+    updatedAt: raw.updated_at ?? raw.updatedAt ?? null,
+    terminalClass: raw.terminal_class ?? raw.terminalClass ?? null,
+    stopReason: raw.stop_reason ?? raw.stopReason ?? null,
+    reportedSummary: summary ? {
+      tokensUsed: summary.tokens_used ?? summary.tokensUsed ?? null,
+      costEstimate: summary.cost_estimate ?? summary.costEstimate ?? null,
+    } : null,
+    workReferences: raw.work_references ?? raw.workReferences ?? [],
+  })
 }
 
 export interface ListRunsResponse {
   runs: RunDetails[]
   total: number
   hasMore: boolean
+}
+
+const accountingCount = z.number().int().nonnegative()
+const teamRunAccountingSchema = z.object({
+  teamId: z.string().min(1), agentId: z.string().optional(),
+  windowStart: z.string(), windowEnd: z.string(), observedAt: z.string(),
+  knownRuns: accountingCount, observedRuns: accountingCount,
+  unavailableRuns: accountingCount, unqueriedRuns: accountingCount,
+  observedExecutions: accountingCount, duplicateExecutions: accountingCount,
+  actualModels: z.record(z.string(), accountingCount), unknownModelExecutions: accountingCount,
+  runtimeStates: z.record(z.string(), accountingCount), terminalReasons: z.record(z.string(), accountingCount),
+  usage: z.object({
+    tokens: accountingCount.nullable(), costUSD: z.number().finite().nonnegative().nullable(),
+    qualifiedRuns: accountingCount, reportedTokenRuns: accountingCount, reportedCostRuns: accountingCount, partial: z.boolean(),
+  }),
+  coverage: z.object({
+    partial: z.boolean(), declarationsRead: accountingCount, declarationLimit: accountingCount,
+    ownerReadLimit: accountingCount, invalidTimestamps: accountingCount, limitations: z.array(z.string()),
+  }),
+  runs: z.array(z.object({
+    runId: z.string().min(1), agentIds: z.array(z.string()), declaredAt: z.string(),
+    availability: z.enum(['available', 'unavailable', 'not_queried']),
+    executionIdentity: z.string().optional(), runtimeState: z.string().optional(),
+    actualModel: z.string().optional(), terminalClass: z.string().optional(), stopReason: z.string().optional(),
+  })),
+}).refine((value) => value.knownRuns === value.observedRuns + value.unavailableRuns + value.unqueriedRuns
+  && value.observedRuns === value.observedExecutions + value.duplicateExecutions,
+{ message: 'Owner run coverage counts do not reconcile' })
+
+export type TeamRunAccounting = z.infer<typeof teamRunAccountingSchema>
+
+/** Join PM's recorded assignments to their exact AM owner runs. */
+export async function getTeamRunAccounting(teamId: string, agentId?: string): Promise<TeamRunAccounting> {
+  const params = new URLSearchParams({ accounting: 'true', team_id: teamId })
+  if (agentId) params.set('agent_id', agentId)
+  const result = teamRunAccountingSchema.parse(await apiRequest<unknown>(`/runs?${params}`))
+  if (result.teamId !== teamId || (result.agentId ?? '') !== (agentId ?? '')) {
+    throw new Error('Owner run accounting attribution mismatch')
+  }
+  return result
 }
 
 export interface TypedInvestigation {
@@ -878,6 +980,7 @@ export async function getRunDetails(runId: string): Promise<RunDetails> {
   )
   const r = raw.run
   return {
+    ...runAccountingEvidence(r),
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
@@ -927,6 +1030,7 @@ export async function listRuns(opts?: {
 
   const raw = await apiRequest<{ runs?: Array<{ id: string; task_id: string; agent_profile_id?: string; status: string; started_at?: string; ended_at?: string; error_msg?: string; tag?: string; session_id?: string }>; total?: number; has_more?: boolean }>(endpoint)
   const runs = (raw.runs ?? []).map((r) => ({
+    ...runAccountingEvidence(r),
     id: r.id,
     taskId: r.task_id,
     profileId: r.agent_profile_id,
@@ -1067,68 +1171,6 @@ export async function createInvestigationApplyRun(
 // Run Events
 // ============================================================================
 
-export interface RunEvent {
-  id: string
-  runId: string
-  sequence: number
-  eventType: 'log' | 'message' | 'tool_call' | 'tool_result' | 'status' | 'metric' | 'error'
-  timestamp: string
-  data: Record<string, unknown>
-}
-
-/**
- * Map proto event type enums to short names used by the UI.
- * Agent-manager uses protojson names like "RUN_EVENT_TYPE_MESSAGE".
- */
-const EVENT_TYPE_MAP: Record<string, RunEvent['eventType']> = {
-  RUN_EVENT_TYPE_MESSAGE: 'message',
-  RUN_EVENT_TYPE_TOOL_CALL: 'tool_call',
-  RUN_EVENT_TYPE_TOOL_RESULT: 'tool_result',
-  RUN_EVENT_TYPE_STATUS: 'status',
-  RUN_EVENT_TYPE_METRIC: 'metric',
-  RUN_EVENT_TYPE_LOG: 'log',
-  RUN_EVENT_TYPE_ERROR: 'error',
-}
-
-/** Agent-manager event shape (snake_case protojson with typed payload fields). */
-interface RawRunEvent {
-  id: string
-  run_id: string
-  sequence?: string | number
-  event_type: string
-  timestamp: string
-  // Payload is one of these, keyed by short type name:
-  message?: Record<string, unknown>
-  tool_call?: Record<string, unknown>
-  tool_result?: Record<string, unknown>
-  status?: Record<string, unknown>
-  metric?: Record<string, unknown>
-  log?: Record<string, unknown>
-  error?: Record<string, unknown>
-  // Fallback for unknown types
-  data?: Record<string, unknown>
-}
-
-/** Normalize a single raw event into the UI-friendly RunEvent shape. */
-function normalizeEvent(raw: RawRunEvent): RunEvent {
-  const shortType = EVENT_TYPE_MAP[raw.event_type] ?? (raw.event_type.toLowerCase().replace('run_event_type_', '') as RunEvent['eventType'])
-
-  // Extract the typed payload — agent-manager nests it under the short type key
-  const payload: Record<string, unknown> =
-    raw.message ?? raw.tool_call ?? raw.tool_result ??
-    raw.status ?? raw.metric ?? raw.log ?? raw.error ??
-    raw.data ?? {}
-
-  return {
-    id: raw.id,
-    runId: raw.run_id,
-    sequence: typeof raw.sequence === 'string' ? parseInt(raw.sequence, 10) || 0 : (raw.sequence ?? 0),
-    eventType: shortType,
-    timestamp: raw.timestamp,
-    data: payload,
-  }
-}
-
 /**
  * Fetch events for a run, optionally starting after a given sequence number.
  */
@@ -1147,9 +1189,7 @@ export async function getRunEvents(runId: string, opts?: {
   const endpoint = `/runs/${encodeURIComponent(runId)}/events${qs ? `?${qs}` : ''}`
 
   // Agent-manager wraps events in {"events": [...]}
-  const raw = await apiRequest<{ events?: RawRunEvent[] } | RawRunEvent[]>(endpoint)
-  const rawEvents = Array.isArray(raw) ? raw : (raw.events ?? [])
-  return rawEvents.map(normalizeEvent)
+  return decodeRunEvents(await apiRequest<unknown>(endpoint))
 }
 
 // ============================================================================

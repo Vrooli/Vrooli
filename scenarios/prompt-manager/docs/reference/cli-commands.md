@@ -473,14 +473,17 @@ prompt-manager agent delete <id> [--force]
 
 [CODE: cli/teams/teams.go]
 
-Teams coordinate multiple agents with shared context. Teams define missions, roles, and organizational structure for agent swarms.
+Teams coordinate multiple agents with shared context. Purpose (`domain-stewardship`,
+`delivery`, `supervision`) and lifetime (`standing`, `finite`) describe independent
+properties. These labels do not grant authority or change execution. See the
+[team model](../concepts/SWARM-MODEL.md#team-purpose-lifetime-and-linked-work).
 
 ### prompt-manager team list
 
 List all teams.
 
 ```bash
-prompt-manager team list [--json]
+prompt-manager team list [--purpose=domain-stewardship|delivery|supervision|unspecified] [--lifetime=standing|finite|unspecified] [--json]
 ```
 
 ### prompt-manager team show
@@ -514,6 +517,9 @@ prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|
 | Flag | Description |
 |------|-------------|
 | `--mission` | Team mission statement |
+| `--purpose` | Optional responsibility: `domain-stewardship`, `delivery`, or `supervision` |
+| `--lifetime` | Optional lifetime: `standing` or `finite` |
+| `--effort-refs` | Comma-separated canonical effort references; authored relationships, not enrollment or steering grants |
 | `--runtime-mode` | Runtime mode: `multi-process` (default) or `single-process` |
 | `--coordination-pattern` | Coordination pattern: `independent` (default), `peer`, or `leader-led` |
 | `--lead-agent-id` | Required when using `leader-led` coordination |
@@ -549,6 +555,8 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | `--name` | New display name |
 | `--mission` | New mission statement |
 | `--enabled` | Enable or disable the team |
+| `--purpose`, `--lifetime` | Set either classification independently; an explicit empty value clears it |
+| `--effort-refs` | Replace authored effort references; `--effort-refs=` clears them |
 | `--runtime-mode` | Change runtime mode |
 | `--coordination-pattern` | Change coordination pattern |
 | `--lead-agent-id` | Set or replace the explicit lead agent for leader-led teams |

@@ -4,8 +4,12 @@ import "github.com/google/uuid"
 
 // Claims represents the identity claims embedded in an agent token.
 type Claims struct {
-	RunID  uuid.UUID `json:"run_id"`
-	TaskID uuid.UUID `json:"task_id"`
+	// Purpose separates dispatcher credentials from ordinary active run tokens.
+	Purpose                 string    `json:"purpose,omitempty"`
+	DispatchEffortRef       string    `json:"dispatch_effort_ref,omitempty"`
+	DispatchAuthorizationID string    `json:"dispatch_authorization_id,omitempty"`
+	RunID                   uuid.UUID `json:"run_id"`
+	TaskID                  uuid.UUID `json:"task_id"`
 	// Subject is the verified owner account that requested the run. It is
 	// distinct from ProfileKey, which names the agent configuration.
 	Subject string `json:"subject,omitempty"`

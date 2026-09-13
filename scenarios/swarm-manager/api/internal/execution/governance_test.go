@@ -100,11 +100,12 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          storePath,
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits: map[string]int{
 				"investigate": 6,
@@ -165,11 +166,12 @@ func TestQueueDepthEnforcement(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &stubAgentService{},
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          storePath,
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &stubAgentService{},
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 2,
@@ -205,11 +207,12 @@ func TestCostCapEnforcement(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "expensive")
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &stubAgentService{},
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &stubAgentService{},
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,
@@ -273,11 +276,12 @@ func TestYoloAtCapacity_LeavesPending(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &stubAgentService{},
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          storePath,
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &stubAgentService{},
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(1),
 			MaxQueueDepth:                 50,
@@ -321,11 +325,12 @@ func TestCircuitBreakerBlocksQueue(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: &stubAgentService{},
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       &stubAgentService{},
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,
@@ -362,9 +367,10 @@ func TestGovernanceStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    storePath,
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          storePath,
+		PlanRenderer:       testPlanRenderer(),
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),
 			MaxQueueDepth:                 50,

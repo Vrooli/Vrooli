@@ -2,6 +2,7 @@ package wiring
 
 import (
 	"context"
+	"time"
 
 	"agent-manager/internal/fallback"
 	healthstore "agent-manager/internal/health"
@@ -10,6 +11,17 @@ import (
 
 	"github.com/vrooli/api-core/health"
 )
+
+func withLifecycleRefusalObservation(builder *health.Builder, status func() (bool, string)) *health.Builder {
+	// A successful security refusal is an operating finding, not a failure of
+	// process liveness or service readiness. Keep the process-local observation
+	// visible without making expected denials poison health until restart. The
+	// guard and its durable structured log retain ownership of enforcement.
+	return builder.Metric("lifecycle_refusals", func(time.Time) any {
+		healthy, reason := status()
+		return map[string]any{"finding": !healthy, "reason": reason, "scope": "process_local", "classification": "security_refusal"}
+	})
+}
 
 // NewModelHealthProbe adapts runner failure classification at the composition
 // root, leaving the health substrate dependent only on its local contract.

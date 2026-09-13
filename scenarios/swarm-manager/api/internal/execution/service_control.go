@@ -3,15 +3,16 @@ package execution
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
@@ -105,7 +106,7 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err.Error())
 	}
-	if record.ExecutionStrategy != firstNonEmpty(item.ExecutionStrategy, defaultExecutionStrategy) {
+	if record.ExecutionMode != firstNonEmpty(item.ExecutionMode, defaultExecutionMode) {
 		return Record{}, apierr.Conflict("execution strategy differs from the currently accepted item")
 	}
 	if record.ApprovalDigest != "" && (item.PlanAcceptance == nil || record.ApprovalDigest != digestStrings(item.PlanAcceptance.SubjectVersion, item.PlanAcceptance.PlanContentHash)) {
@@ -134,13 +135,18 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	} else {
 		record.ScopeExtensions = extensions
 	}
+	// Goal mode is one Agent Manager run: no workflow, no slice cap, no
+	// per-session reviewer.
+	if record.ExecutionMode == transitions.ExecutionModeGoal {
+		return s.launchGoalRun(ctx, records, idx, record, item, planHandle)
+	}
 	_, err = s.resolveWorkflow("plan.execute")
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	_, ok := s.workflowForStrategy(record.ExecutionStrategy)
+	_, ok := s.workflowForStrategy(record.ExecutionMode)
 	if !ok {
-		return Record{}, apierr.BadRequest("execution strategy %q is not declared", record.ExecutionStrategy)
+		return Record{}, apierr.BadRequest("execution strategy %q is not declared", record.ExecutionMode)
 	}
 	// Persist the resolved Plan Manager execution before starting: the runner's
 	// input builder reprojects the frontier from the durable record, so
@@ -149,16 +155,16 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
 	}
-	workflowKey, _ := s.workflowForStrategy(record.ExecutionStrategy)
+	workflowKey, _ := s.workflowForStrategy(record.ExecutionMode)
 	firstRunNodeID := "slice"
-	if record.ExecutionStrategy == "goal-session" {
+	if record.ExecutionMode == transitions.ExecutionModeGoal {
 		firstRunNodeID = "goal"
 	}
 	var executionPreferences *domainpb.ExecutionPreferences
 	if preferences := record.ExecutionPreferences; preferences != nil {
 		executionPreferences = &domainpb.ExecutionPreferences{PreferredRunner: preferences.PreferredRunner, Model: preferences.Model, Effort: preferences.Effort}
 	}
-	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: firstRunNodeID, WorkflowKeyOverride: workflowKey, ExecutionPreferences: executionPreferences, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
+	started, err := s.startTransition(ctx, "plan.execute", record, "process", transitionrunner.PreparedInput{FirstRunNodeID: firstRunNodeID, WorkflowKeyOverride: workflowKey, ExecutionPreferences: executionPreferences})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
@@ -185,42 +191,106 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	return record, nil
 }
 
-func (s *Service) workflowForStrategy(strategyID string) (string, bool) {
-	if strings.TrimSpace(strategyID) == "" {
-		strategyID = defaultExecutionStrategy
+func (s *Service) workflowForStrategy(modeID string) (string, bool) {
+	if strings.TrimSpace(modeID) == "" {
+		modeID = defaultExecutionMode
 	}
-	for _, strategy := range s.declaredExecutionStrategies() {
-		if strategy.ID == strings.TrimSpace(strategyID) {
-			return strategy.WorkflowKey, strings.TrimSpace(strategy.WorkflowKey) != ""
+	modes, err := s.declaredExecutionModes()
+	if err != nil {
+		return "", false
+	}
+	for _, mode := range modes {
+		if mode.ID == strings.TrimSpace(modeID) {
+			return mode.WorkflowKey, strings.TrimSpace(mode.WorkflowKey) != ""
 		}
 	}
 	return "", false
 }
 
-// reapOperationForRecord marks a canceled run's operation execution canceled in
-// the durable workflow, so the record does not linger "running". Best-effort: it
-// only applies to operation-started records (OpExecutionID set) and never fails
-// the cancel — a missed reap is recovered by slice-C run reconciliation.
-func (s *Service) reapOperationForRecord(ctx context.Context, record Record) {
-	if s.operationStarter == nil || strings.TrimSpace(record.OpExecutionID) == "" {
-		return
-	}
-	item, err := s.loadBacklogItem(record.BacklogKind, record.BacklogName)
+// isDeclaredExecutionMode reports whether a mode id is declared by the
+// plan.execute transition. It separates "undeclared" from "declared but has no
+// workflow" (goal mode), which the launch path handles differently.
+func (s *Service) isDeclaredExecutionMode(modeID string) bool {
+	modes, err := s.declaredExecutionModes()
 	if err != nil {
-		return
+		return false
 	}
-	handle, err := executionPlanHandle(item)
+	modeID = strings.TrimSpace(modeID)
+	if modeID == "" {
+		modeID = defaultExecutionMode
+	}
+	for _, mode := range modes {
+		if mode.ID == modeID {
+			return true
+		}
+	}
+	return false
+}
+
+// launchGoalRun composes the goal message and creates exactly one Agent Manager
+// run for a goal-mode execution. It persists the run id, execution mode, and
+// message digest, then returns the record as starting. Reconcile projects the
+// terminal_class/stop_reason after the run ends.
+func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, record Record, item backlogItem, planHandle string) (Record, error) {
+	if s.goalRunCreator == nil {
+		return Record{}, apierr.Unavailable("goal run creator is not configured")
+	}
+	input := goalMessageInputForItem(item, record.PlanManagerExecutionID)
+	if note := strings.TrimSpace(record.OperatorNote); note != "" {
+		input.OperatorNote = note
+	}
+	message, err := ComposeGoalMessage(input)
 	if err != nil {
-		return
+		var tooLong *GoalMessageTooLongError
+		if errors.As(err, &tooLong) {
+			return Record{}, apierr.BadRequest("goal_message_too_long: %s", tooLong.Error())
+		}
+		return Record{}, apierr.BadRequest("compose goal message: %s", err)
 	}
-	if err := s.operationStarter.CancelOperation(ctx, OperationCancelRequest{
-		TargetKind:  targetKindPlanExecution,
-		TargetID:    handle,
-		ExecutionID: record.OpExecutionID,
-	}); err != nil {
-		slog.Warn("execution: reap operation on cancel failed",
-			"execution_id", record.ExecutionID, "op_execution_id", record.OpExecutionID, "err", err)
+	// A fresh-run resume carries the parent's last handoff so the agent continues
+	// from durable state rather than re-deriving it.
+	if strings.TrimSpace(record.ContinuationOf) != "" && strings.TrimSpace(record.LastHandoff) != "" {
+		message += "\n\nEarlier handoff:\n" + record.LastHandoff
+		if len([]rune(message)) > GoalMessageMaxChars {
+			return Record{}, apierr.BadRequest("goal_message_too_long: resume message with handoff is %d characters, over the %d limit", len([]rune(message)), GoalMessageMaxChars)
+		}
 	}
+	runReq := agentmanager.GoalRunRequest{
+		ProfileKey:     "swarm-manager/goal-work",
+		Prompt:         message,
+		Until:          RenderFinishLine(input),
+		IdempotencyKey: "goal/" + record.ExecutionID + "/1/1",
+		Tag:            "swarm-execution-" + record.ExecutionID,
+		// The Agent Manager task scope is the workspace root, the same
+		// projectRoot the sliced route hands the workflow snapshot. Agent
+		// Manager requires a non-empty scope_path, and the goal message's
+		// boundary slot carries the acceptance_allow globs the run may edit.
+		ScopePath:   filepath.Dir(s.repoRoot),
+		ProjectRoot: filepath.Dir(s.repoRoot),
+	}
+	if prefs := record.ExecutionPreferences; prefs != nil {
+		runReq.PreferredRunner = prefs.PreferredRunner
+		runReq.Model = prefs.Model
+		runReq.Effort = prefs.Effort
+	}
+	created, err := s.goalRunCreator.CreateGoalRun(ctx, runReq)
+	if err != nil {
+		return Record{}, wrapAgentError(err)
+	}
+	record.RunID = created.RunID
+	record.TaskID = created.TaskID
+	record.GoalMessageDigest = digestStrings(message)
+	record.StartedAt = nowRFC3339()
+	record.FinishedAt = ""
+	record.FailureReason = ""
+	record.Status = StatusStarting
+	record.UpdatedAt = nowRFC3339()
+	records[idx] = record
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+	s.dispatchStatusUpdate(record)
+	return record, nil
 }
 
 // Cancel withdraws execution authority. Workflow-owned plan execution remains
@@ -308,10 +378,6 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.stopper.StopRun(ctx, record.RunID); err != nil {
 			return Record{}, err
 		}
-		// Reap the operation execution so its durable workflow record does not
-		// linger "running" and the refresh driver stops polling the stopped run.
-		// The StopRun above is the cooperative cancel; this only updates bookkeeping.
-		s.reapOperationForRecord(ctx, record)
 		record.Status = StatusCanceled
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()

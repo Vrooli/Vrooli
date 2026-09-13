@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -653,6 +654,24 @@ func TestContinue_EmptySessionReturnsTypedError(t *testing.T) {
 	}
 }
 
+func TestContinueOpenCodeMissingStoreDoesNotLaunch(t *testing.T) {
+	launcher := &fakeLauncher{}
+	r := newRunnerForTest(t, codecs.NewOpenCodeForTestWithBinary("/bin/true"), launcher)
+	root := t.TempDir()
+	_, err := r.Continue(t.Context(), runner.ContinueRequest{RunID: uuid.New(), SessionID: "ses_missing", Environment: map[string]string{"XDG_DATA_HOME": root}})
+	var runnerErr *domain.RunnerError
+	if !errors.As(err, &runnerErr) || runnerErr.Code() != domain.ErrCodeRunnerSessionExpired {
+		t.Fatalf("expected missing-session admission error, got %v", err)
+	}
+	if got := launcher.lastRequestSnapshot(); got.Command != "" {
+		t.Fatalf("missing-session continuation launched: %+v", got)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("readiness initialized native state: entries=%v err=%v", entries, err)
+	}
+}
+
 func TestContinue_ClassifiesSessionExpired(t *testing.T) {
 	codec := newFakeCodec()
 	codec.expirePhrase = "session expired"
@@ -868,6 +887,23 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 				t.Fatalf("usage=%d charge=%d", usageCount, chargeCount)
 			}
 		})
+	}
+}
+
+func TestRunnerRuntimeVersionDelegatesToCodec(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fake-opencode")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 1.18.30\n"), 0o755); err != nil {
+		t.Fatalf("write fake binary: %v", err)
+	}
+	r := NewRunner(codecs.NewOpenCodeForTestWithBinary(path), nil, nil)
+
+	got, err := r.RuntimeVersion(context.Background())
+	if err != nil {
+		t.Fatalf("RuntimeVersion error = %v", err)
+	}
+	if got != "1.18.30" {
+		t.Fatalf("RuntimeVersion = %q, want 1.18.30", got)
 	}
 }
 

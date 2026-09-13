@@ -29,10 +29,11 @@ func TestNewService_DifferWired(t *testing.T) {
 
 	agent := &fullAgentService{}
 	svc := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		AgentService: agent,
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		AgentService:       agent,
 	})
 	if svc.differ == nil {
 		t.Fatal("expected differ to be non-nil when AgentService implements RunDiffer")

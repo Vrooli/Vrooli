@@ -12,8 +12,8 @@ func TestPlanBackedPreflightDoesNotSuggestGeneratingWorkItemName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			item := backlogItem{
 				Kind: "execute", Name: name, Status: backlogStatusBacklog,
-				ExecutionStrategy: adaptiveImprovementStrategy,
-				PlanRef:           &planRef{Provider: planRefProviderPlanManager, PlanID: "canonical-plan", Role: planRefRoleExecutionSpec},
+				ExecutionMode: "sliced",
+				PlanRef:       &planRef{Provider: planRefProviderPlanManager, PlanID: "canonical-plan", Role: planRefRoleExecutionSpec},
 			}
 			got := service.processPreflightForItem(context.Background(), item, false)
 			if got.ResolvedTargetScenarioID != "" || got.ArchivedRevival || got.SuggestedOperation != "plan.execute" || got.SuggestedSteerProfileID != "" {
@@ -47,9 +47,9 @@ func TestGoalSessionPreflightBlocksWithoutNativeRunnerButAllowsForce(t *testing.
 	}
 	got := service.processPreflightForItem(context.Background(), backlogItem{
 		Kind: "execute", Name: "goal-item", Status: backlogStatusBacklog,
-		ExecutionStrategy: "goal-session",
+		ExecutionMode: "goal",
 	}, false)
-	if got.Ready || len(got.ForceableBlockingDetails) != 1 || got.ForceableBlockingDetails[0].Code != "goal_session_runner_unavailable" {
+	if got.Ready || len(got.ForceableBlockingDetails) != 1 || got.ForceableBlockingDetails[0].Code != "goal_runner_unavailable" {
 		t.Fatalf("goal-session preflight=%+v", got)
 	}
 }

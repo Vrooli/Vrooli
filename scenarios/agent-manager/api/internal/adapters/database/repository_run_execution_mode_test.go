@@ -4,14 +4,158 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runmodel"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
+
+func TestRunOwnerAttenuationRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	expires := time.Now().UTC().Truncate(time.Second).Add(time.Hour)
+	run := &domain.Run{ID: uuid.New(), Tag: "owner-attenuation", RunMode: domain.RunModeInPlace, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, ApprovalState: domain.ApprovalStateNone, OwnerSubject: "owner-a", OwnerScopes: []string{"agent-manager:supervise"}, RequestedScopes: []string{}, OwnerExpiresAt: &expires}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	for _, scopes := range [][]string{{}, nil, {"agent-manager:supervise"}} {
+		run.RequestedScopes = scopes
+		if err := repos.Runs.Update(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		got, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+		if err != nil || len(rows) != 1 {
+			t.Fatal("list lost run", err)
+		}
+		for _, value := range []*domain.Run{got, rows[0]} {
+			if value.OwnerSubject != run.OwnerSubject || value.OwnerExpiresAt == nil || !value.OwnerExpiresAt.Equal(expires) || (value.RequestedScopes == nil) != (scopes == nil) || len(value.RequestedScopes) != len(scopes) {
+				t.Fatal("persistence changed owner ceiling or scope presence")
+			}
+		}
+	}
+}
+
+func TestSupervisorDispatchRunDeletionRetainsReplayEvidence(t *testing.T) {
+	for _, mode := range []string{"run", "task-cascade", "missing-expiry", "expired", "ordinary"} {
+		t.Run(mode, func(t *testing.T) {
+			db, cleanup := setupTestDB(t)
+			defer cleanup()
+			repos := NewRepositories(db, logrus.New())
+			ctx := context.Background()
+			task := &domain.Task{ID: uuid.New(), Title: "dispatch-retention", ScopePath: ".", Status: domain.TaskStatusCancelled}
+			if err := repos.Tasks.Create(ctx, task); err != nil {
+				t.Fatal(err)
+			}
+			expiry := time.Now().Add(3 * time.Hour)
+			if mode == "expired" {
+				expiry = time.Now().Add(-time.Hour)
+			}
+			run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "retained-dispatch", RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, OwnerExpiresAt: &expiry, DispatchBinding: &domain.DispatchBinding{EffortRef: "service:standing", AuthorizationID: uuid.NewString()}, IdempotencyKey: "original-dispatch"}
+			if mode == "missing-expiry" {
+				run.OwnerExpiresAt = nil
+			}
+			if mode == "ordinary" {
+				run.DispatchBinding = nil
+				run.OwnerExpiresAt = nil
+			}
+			if err := repos.Runs.Create(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			if mode == "task-cascade" {
+				err = repos.Tasks.Delete(ctx, task.ID)
+			} else {
+				err = repos.Runs.Delete(ctx, run.ID)
+			}
+			if err != nil {
+				t.Fatal("deletion should retain a receipt, not prohibit cleanup", err)
+			}
+			receipt, err := repos.Runs.GetCreationReceipt(ctx, run.IdempotencyKey)
+			if err != nil || receipt == nil || receipt.RunID != run.ID || receipt.TaskID != task.ID {
+				t.Fatal("original creation identity was not retained", err)
+			}
+			if got, err := repos.Runs.GetByIdempotencyKey(ctx, run.IdempotencyKey); err == nil || got != nil {
+				t.Fatal("missing accepted run was treated as a new admission")
+			}
+			replacement := *run
+			replacement.ID = uuid.New()
+			if err := repos.Runs.Create(ctx, &replacement); err == nil {
+				t.Fatal("receipt allowed reusing an accepted creation key")
+			}
+			if got, err := repos.Runs.Get(ctx, replacement.ID); err != nil || got != nil {
+				t.Fatal("receipt conflict did not roll back replacement run", err)
+			}
+		})
+	}
+}
+
+func TestRunCreationReceiptAbsentAfterProvenPreEffectFailure(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Tag: "missing-task", Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, IdempotencyKey: "pre-effect"}
+	if err := repos.Runs.Create(ctx, run); err == nil {
+		t.Fatal("missing task did not refuse creation")
+	}
+	if receipt, err := repos.Runs.GetCreationReceipt(ctx, run.IdempotencyKey); err != nil || receipt != nil {
+		t.Fatal("failed transaction invented acceptance", err)
+	}
+	if got, err := repos.Runs.GetByIdempotencyKey(ctx, run.IdempotencyKey); err != nil || got != nil {
+		t.Fatal("proven pre-effect failure closed retry", err)
+	}
+	task := &domain.Task{ID: run.TaskID, Title: "repaired prerequisite", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal("pre-effect retry refused", err)
+	}
+}
+
+func TestRunCreationReceiptSchemaAdoptsExistingRunWithoutReplacingIdentity(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{ID: uuid.New(), Tag: "legacy-accepted", Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, IdempotencyKey: "legacy-accepted"}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a persisted run from before creation receipts were introduced.
+	if _, err := db.ExecContext(ctx, `DELETE FROM run_creation_receipts WHERE idempotency_key = ?`, run.IdempotencyKey); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := db.ExecContext(ctx, runmodel.Schema()); err != nil {
+			t.Fatal("schema adoption is not idempotent", err)
+		}
+		receipt, err := repos.Runs.GetCreationReceipt(ctx, run.IdempotencyKey)
+		if err != nil || receipt == nil || receipt.RunID != run.ID {
+			t.Fatal("schema adoption lost the original acceptance", err)
+		}
+	}
+	if err := repos.Runs.Delete(ctx, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, runmodel.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	if receipt, err := repos.Runs.GetCreationReceipt(ctx, run.IdempotencyKey); err != nil || receipt == nil || receipt.RunID != run.ID {
+		t.Fatal("schema reapplication discarded deleted-run evidence", err)
+	}
+}
 
 // TestRunExecutionModeRoundTrip verifies the interactive substrate's durable
 // run-state additions (execution_mode + web_console_session_id) persist and
@@ -307,5 +451,38 @@ func TestMigrateRunColumnsAddsMissingColumns(t *testing.T) {
 	}
 	if runResult.Valid {
 		t.Errorf("historical run_result should remain NULL, got %q", runResult.String)
+	}
+}
+
+func TestInteractiveInvocationBoundaryPersistsWithLifecycleAndKeepsOriginalStart(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	original, attempt := time.Now().UTC().Add(-time.Hour), time.Now().UTC()
+	run := &domain.Run{ID: uuid.New(), Tag: "invocation-boundary", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, StartedAt: &original}
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	stale := *run
+	run.Status, run.Phase, run.InteractiveInvocationStartedAt = domain.RunStatusRunning, domain.RunPhaseExecuting, &attempt
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	// A historical observer cannot overwrite the atomically admitted attempt.
+	if err := repos.Runs.Update(t.Context(), &stale); err == nil {
+		t.Fatal("stale lifecycle overwrote invocation admission")
+	}
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := repos.Runs.List(t.Context(), repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})
+	if err != nil || len(listed) != 1 {
+		t.Fatal("list invocation", err)
+	}
+	for _, row := range []*domain.Run{got, listed[0]} {
+		if row.InteractiveInvocationStartedAt == nil || !row.InteractiveInvocationStartedAt.Equal(attempt) || row.StartedAt == nil || !row.StartedAt.Equal(original) || row.Status != domain.RunStatusRunning {
+			t.Fatal("admitted invocation boundary was not retained", row)
+		}
 	}
 }

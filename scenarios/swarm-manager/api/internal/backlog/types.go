@@ -11,6 +11,7 @@ import (
 	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/followup"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/transitions"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
@@ -153,11 +154,12 @@ type BacklogItem struct {
 	Creates            []string    `json:"creates,omitempty"`
 	SpawnedFrom        string      `json:"spawned_from,omitempty"`
 	PlanRef            *PlanRef    `json:"plan_ref,omitempty"`
-	// ExecutionStrategy selects the plan runner. It is deliberately part of
+	// ExecutionMode selects the plan runner. It is deliberately part of
 	// the plan-backed item contract rather than a separate backlog kind.
-	ExecutionStrategy         string                    `json:"execution_strategy,omitempty"`
+	ExecutionMode             string                    `json:"execution_mode,omitempty"`
 	ExecutionLimits           *identity.ExecutionLimits `json:"execution_limits,omitempty"`
 	Continuation              string                    `json:"continuation,omitempty"`
+	OperatorNote              string                    `json:"operator_note,omitempty"`
 	ScopePolicy               string                    `json:"scope_policy,omitempty"`
 	ContinuationHaltedAt      string                    `json:"continuation_halted_at,omitempty"`
 	ContinuationHaltedBy      string                    `json:"continuation_halted_by,omitempty"`
@@ -236,29 +238,36 @@ type PlanAcceptance struct {
 }
 
 const (
-	PlanRefProviderPlanManager           = "plan-manager"
-	PlanRefRoleExecutionSpec             = "execution_spec"
-	PlanRefRoleOperatingMode             = "operating_mode_plan"
-	ExecutionStrategyPhasedPlanDrain     = "phased-plan-drain"
-	ExecutionStrategyAdaptiveImprovement = "adaptive-improvement"
-	ExecutionStrategyGoalSession         = "goal-session"
-	ContinuationManual                   = "manual"
-	ContinuationUntilAllowance           = "until-allowance"
-	ScopePolicyFixed                     = "fixed"
-	ScopePolicyExtendWithRecord          = "extend-with-record"
+	PlanRefProviderPlanManager = "plan-manager"
+	PlanRefRoleExecutionSpec   = "execution_spec"
+	PlanRefRoleOperatingMode   = "operating_mode_plan"
+
+	// Execution mode ids re-exported from the transitions package, which owns
+	// the single const set.
+	ExecutionModeSliced = transitions.ExecutionModeSliced
+	ExecutionModeGoal   = transitions.ExecutionModeGoal
+
+	ContinuationManual          = "manual"
+	ContinuationUntilAllowance  = "until-allowance"
+	ScopePolicyFixed            = "fixed"
+	ScopePolicyExtendWithRecord = "extend-with-record"
 )
 
-func normalizeExecutionStrategy(raw string) (string, error) {
+// ExecutionModes is the ordered set of declared execution modes.
+var ExecutionModes = transitions.ExecutionModeIDs
+
+// NormalizeExecutionMode validates an execution mode id. Empty selects the
+// default (sliced).
+func NormalizeExecutionMode(raw string) (string, error) {
+	return transitions.NormalizeExecutionMode(raw)
+}
+
+func normalizeExecutionMode(raw string) (string, error) {
 	value := strings.ToLower(strings.TrimSpace(raw))
 	if value == "" {
 		return "", nil
 	}
-	switch value {
-	case ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement, ExecutionStrategyGoalSession:
-		return value, nil
-	default:
-		return "", fmt.Errorf("execution_strategy must be %q, %q, or %q", ExecutionStrategyPhasedPlanDrain, ExecutionStrategyAdaptiveImprovement, ExecutionStrategyGoalSession)
-	}
+	return transitions.NormalizeExecutionMode(value)
 }
 
 func normalizeContinuation(raw string) (string, error) {
@@ -390,8 +399,8 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if item.PlanRef != nil {
 		result.PlanRef = planRefToProto(item.PlanRef)
 	}
-	if strings.TrimSpace(item.ExecutionStrategy) != "" {
-		result.ExecutionStrategy = &item.ExecutionStrategy
+	if strings.TrimSpace(item.ExecutionMode) != "" {
+		result.ExecutionMode = &item.ExecutionMode
 	}
 	result.ExecutionLimits = executionLimitsProto(item.ExecutionLimits)
 	if strings.TrimSpace(item.Continuation) != "" {

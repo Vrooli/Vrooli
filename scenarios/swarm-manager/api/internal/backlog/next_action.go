@@ -224,7 +224,7 @@ func preflightSpec(item BacklogItem) execution.PreflightSpec {
 		AcceptanceDeny:     item.AcceptanceDeny,
 		Creates:            item.Creates,
 		ArchivedAt:         item.ArchivedAt,
-		ExecutionStrategy:  item.ExecutionStrategy,
+		ExecutionMode:  item.ExecutionMode,
 		ExecutionLimits:    item.ExecutionLimits.Clone(),
 	}
 	if item.PlanRef != nil {

@@ -84,7 +84,15 @@ Mitigation:
 
 ## Heartbeat cadence
 
-The heartbeat goroutine is started at the top of `RunExecutor.Execute()` and runs until the deferred `stopHeartbeat()` fires. Its sole purpose is to update `Run.LastHeartbeat` so the reconciler can detect stalled runs.
+The heartbeat goroutine is started at the top of `RunExecutor.Execute()` and runs until the deferred `stopHeartbeat()` fires. Its sole purpose is to update the durable run/checkpoint heartbeat so the reconciler can detect stalled runs.
+
+The executor copies the run ID, tag and previous heartbeat timestamps before
+starting the loop. The loop does not share mutable Run or RunCheckpoint pointers:
+writing those pointers raced the executor's startup repository serialization.
+Run writes use the existing status-guarded `TouchHeartbeat`; phase snapshot saves
+preserve newer checkpoint heartbeats. Per-target last-success evidence advances
+only after a successful owner write. `TestSendHeartbeatConcurrentRunPersistence`
+and `TestSendHeartbeatHonorsLatestLifecycle` cover the race and lifecycle fence.
 
 ```
 goroutine starts → SendHeartbeat (immediate)

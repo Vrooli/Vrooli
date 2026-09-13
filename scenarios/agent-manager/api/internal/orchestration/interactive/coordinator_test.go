@@ -31,6 +31,24 @@ func (s *fakeRunStore) Update(_ context.Context, _ *domain.Run) error {
 	return s.err
 }
 
+// ctxSensitiveRunStore fails any write made with an already-cancelled or
+// expired context, modelling a real store. It proves terminal persistence on
+// the timeout path uses a fresh context.
+type ctxSensitiveRunStore struct {
+	mu      sync.Mutex
+	updates int
+}
+
+func (s *ctxSensitiveRunStore) Update(ctx context.Context, _ *domain.Run) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.updates++
+	return nil
+}
+
 // fakeBroadcaster records the sequence of broadcast run statuses.
 type fakeBroadcaster struct {
 	mu       sync.Mutex
@@ -73,7 +91,10 @@ func newTestCoordinator(t *testing.T, sessions *fakeSessions, sink runner.EventS
 		Debounce:     80 * time.Millisecond,
 		ActivityPoll: 10 * time.Millisecond,
 		SessionPoll:  15 * time.Millisecond,
-		Heartbeat:    -1,
+		// Keep the session-reattach window short so a genuinely-gone session
+		// fails the run promptly in tests.
+		SessionReattachWindow: 60 * time.Millisecond,
+		Heartbeat:             -1,
 	})
 	return coord, store, bc
 }
@@ -290,6 +311,7 @@ func TestCoordinatorFinalizeSemantics(t *testing.T) {
 		{"success-then-session-gone", success, ErrSessionGone, domain.RunStatusComplete, ""},
 		{"failure", failure, nil, domain.RunStatusFailed, "boom"},
 		{"session-gone-no-terminal", nil, ErrSessionGone, domain.RunStatusFailed, "no longer exists"},
+		{"timeout", nil, context.DeadlineExceeded, domain.RunStatusFailed, "exceeded its configured timeout"},
 		{"graceful-shutdown", nil, context.Canceled, domain.RunStatusRunning, ""},
 	}
 	for _, tc := range cases {
@@ -311,6 +333,48 @@ func TestCoordinatorFinalizeSemantics(t *testing.T) {
 				t.Error("graceful shutdown must not set EndedAt")
 			}
 		})
+	}
+}
+
+// TestCoordinatorTimeoutPersistsOnExpiredContext proves the timeout terminal is
+// written even though the tail context is already expired when it fires — the
+// live Phase 2 smoke found the run stuck RUNNING because the write inherited the
+// expired deadline.
+func TestCoordinatorTimeoutPersistsOnExpiredContext(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeClaudeCode, "")
+	run.WebConsoleSessionID = "s1"
+	store := &ctxSensitiveRunStore{}
+	coord := NewCoordinator(CoordinatorDeps{
+		Runs:      store,
+		Heartbeat: -1,
+	})
+	expired, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := coord.Finalize(expired, run, nil, context.DeadlineExceeded); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	if run.Status != domain.RunStatusFailed {
+		t.Fatalf("status = %s, want failed", run.Status)
+	}
+	if run.TerminalClass != domain.RunTerminalClassInterruption || run.StopReason != domain.RunStopReasonTimeout {
+		t.Fatalf("terminal class/reason = %q/%q, want interruption/timeout", run.TerminalClass, run.StopReason)
+	}
+	if store.updates == 0 {
+		t.Fatal("timeout terminal was not persisted on a fresh context")
+	}
+}
+
+// TestCoordinatorClassifiesSessionLost proves a vanished session with no
+// retained terminal is a session_lost interruption, not a bare failure.
+func TestCoordinatorClassifiesSessionLost(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeClaudeCode, "")
+	run.WebConsoleSessionID = "s1"
+	coord, _, _ := newTestCoordinator(t, newFakeSessions("s1"), &collectSink{})
+	if err := coord.Finalize(context.Background(), run, nil, ErrSessionGone); err != nil {
+		t.Fatalf("Finalize: %v", err)
+	}
+	if run.TerminalClass != domain.RunTerminalClassInterruption || run.StopReason != domain.RunStopReasonSessionLost {
+		t.Fatalf("class/reason = %q/%q, want interruption/session_lost", run.TerminalClass, run.StopReason)
 	}
 }
 
@@ -336,6 +400,34 @@ func TestCoordinatorStructuredResultSatisfiedUsesOnlyDeterministicSuccess(t *tes
 	run.ResolvedConfig.ResultSpec.ExtractionMode = domain.StructuredExtractionConstrained
 	if coord.structuredResultSatisfied(context.Background(), run) {
 		t.Fatal("constrained extraction must not satisfy the completion rule")
+	}
+}
+
+// TestCoordinatorTurnCapEndsRun proves an interactive run that reaches its
+// configured assistant-turn ceiling returns with the max_turns terminal reason
+// instead of tailing forever.
+func TestCoordinatorTurnCapEndsRun(t *testing.T) {
+	path := writeFixtureFile(t, t.TempDir(), "claude_ondisk_trace.jsonl")
+	run := newInteractiveRun(domain.RunnerTypeClaudeCode, path)
+	run.ResolvedConfig.Until = "stop when the plan is complete"
+	run.ResolvedConfig.MaxTurns = 1
+	sess := newFakeSessions("sess-1")
+	run.WebConsoleSessionID = "sess-1"
+	sink := &collectSink{}
+	coord, _, _ := newTestCoordinator(t, sess, sink)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	terminal, err := coord.TailToCompletion(ctx, run)
+	if err != nil {
+		t.Fatalf("TailToCompletion: %v", err)
+	}
+	if terminal == nil {
+		t.Fatal("expected a terminal at the turn ceiling")
+	}
+	if terminal.TerminalReason != terminalReasonMaxTurns {
+		t.Fatalf("terminal reason = %q, want %q", terminal.TerminalReason, terminalReasonMaxTurns)
 	}
 }
 

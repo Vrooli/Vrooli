@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/testutil"
@@ -23,6 +24,196 @@ import (
 )
 
 type pendingRunRecoveryStub struct{ ids []uuid.UUID }
+
+func TestReconcilerRecognizesRecordedLegacyContinuationProcess(t *testing.T) {
+	rec, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeOpenCode)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeOpenCode)
+	run.Tag = "canonical-run-tag"
+	native := core.NewRunner(codecs.NewOpenCodeForTest(), nil, nil)
+	registry := runner.NewRegistry()
+	if err := registry.Register(native); err != nil {
+		t.Fatal(err)
+	}
+	rec.runners = registry
+	cmd := exec.CommandContext(t.Context(), "sleep", "10")
+	cmd.Env = []string{"OPENCODE_AGENT_TAG=" + native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	run.RunnerPID = cmd.Process.Pid
+	// /proc can briefly expose the pre-exec image on heavily loaded hosts.
+	deadline := time.Now().Add(time.Second)
+	for extractTagFromEnv(run.RunnerPID) == "" && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if !rec.isProcessAlive(t.Context(), run) {
+		t.Fatal("recorded continuation declared dead because its tag differs from canonical tag")
+	}
+	run.ID = uuid.New()
+	if rec.isProcessAlive(t.Context(), run) {
+		t.Fatal("unrelated PID accepted without matching continuation identity")
+	}
+}
+
+func TestRestartRecoveryDoesNotTimeoutReattachedLegacyExecutor(t *testing.T) {
+	rec, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeOpenCode)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeOpenCode)
+
+	native := core.NewRunner(codecs.NewOpenCodeForTest(), nil, nil)
+	registry := runner.NewRegistry()
+	if err := registry.Register(native); err != nil {
+		t.Fatal(err)
+	}
+	rec.runners = registry
+	// The fixture starts stale; normal repository updates cannot erase a
+	// newer heartbeat just to manufacture a timeout.
+	run.ID = uuid.New()
+	old := time.Now().Add(-time.Hour)
+	run.LastHeartbeat = &old
+	run.LifecycleVersion = 0
+	run.EndedAt = &old
+	run.ExitCode = intPtr(0)
+	run.ErrorMsg = "old attempt metadata"
+	run.TerminalClass = domain.RunTerminalClassInterruption
+	run.StopReason = domain.RunStopReasonTimeout
+	run.ProgressPercent = 42
+	run.Result = &domain.RunResult{FinalOutput: "prior accepted output"}
+	run.Summary = &domain.RunSummary{TokensUsed: 123, CostEstimate: 0.4}
+	attachedAt := time.Now().UTC()
+	rec.clock = func() time.Time { return attachedAt }
+	run.TranscriptPath = writeRecoveryTranscript(t, "")
+	cmd := exec.CommandContext(t.Context(), "sleep", "30")
+	cmd.Env = []string{"OPENCODE_AGENT_TAG=" + native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+	run.RunnerPID = cmd.Process.Pid
+	if err := repos.Runs.Create(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	if err := excludeLiveExecutor(t.Context(), run); err == nil {
+		t.Fatal("live recorded executor was not conservatively excluded")
+	}
+	// A liveness-only recovery read has not attached an owner and must not
+	// invent an attachment heartbeat or normalize the row as if it had.
+	if _, err := rec.recoverRun(t.Context(), run, false); err != nil {
+		t.Fatal(err)
+	}
+	unattached, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unattached.EndedAt == nil || !unattached.LastHeartbeat.Equal(old) {
+		t.Fatal("non-attaching recovery manufactured attachment state")
+	}
+	rec.config.MaxRecoveryAge = time.Minute
+	rec.handleStaleRun(t.Context(), run, &ReconcileStats{})
+	rec.CancelInteractiveTail(run.ID)
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusRunning || got.EndedAt != nil || got.ErrorMsg != "" {
+		t.Fatalf("healthy reattached process timed out: %+v", got)
+	}
+	if got.ExitCode != nil || got.TerminalClass != "" || got.StopReason != "" {
+		t.Fatal("reattached current turn retains stale terminal fields")
+	}
+	if got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(attachedAt) {
+		t.Fatalf("attachment did not establish an owned heartbeat: %v", got.LastHeartbeat)
+	}
+	if got.ProgressPercent != 42 || got.Result == nil || got.Result.FinalOutput != "prior accepted output" || got.Summary == nil || got.Summary.TokensUsed != 123 || got.Summary.CostEstimate != 0.4 {
+		t.Fatal("reattachment fabricated progress or changed prior evidence")
+	}
+	if got.StartedAt == nil || !got.StartedAt.Equal(*run.StartedAt) || got.SessionID != run.SessionID || got.RunnerPID != cmd.Process.Pid {
+		t.Fatal("reattachment replaced original run/process identity")
+	}
+	if !rec.isProcessAlive(t.Context(), got) {
+		t.Fatal("healthy reattached executor was killed")
+	}
+}
+
+func TestRecoveryArtifactFailurePreservesLiveLegacyExecutor(t *testing.T) {
+	for _, artifact := range []string{"unreadable", "malformed", "missing", "old_attempt_deadline"} {
+		t.Run(artifact, func(t *testing.T) {
+			rec, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeOpenCode)
+			run := createRecoveryTestRun(t, repos, domain.RunnerTypeOpenCode)
+			run.ID = uuid.New()
+			old := time.Now().Add(-2 * time.Hour)
+			run.LastHeartbeat, run.StartedAt = &old, &old
+			run.ResolvedConfig.Timeout = time.Minute
+			switch artifact {
+			case "unreadable":
+				run.TranscriptPath = t.TempDir() // EISDIR even when tests run as root.
+			case "malformed":
+				run.TranscriptPath = writeRecoveryTranscript(t, "{\"type\":invalid-json}\n")
+			case "missing":
+				run.TranscriptPath = filepath.Join(t.TempDir(), "absent.ndjson")
+			case "old_attempt_deadline":
+				run.TranscriptPath = writeRecoveryTranscript(t, "{\"type\":\"step_finish\",\"part\":{\"type\":\"step-finish\",\"reason\":\"error\",\"output\":\"old attempt deadline exceeded\"}}\n")
+			}
+			native := core.NewRunner(codecs.NewOpenCodeForTest(), nil, nil)
+			registry := runner.NewRegistry()
+			if err := registry.Register(native); err != nil {
+				t.Fatal(err)
+			}
+			rec.runners = registry
+			cmd := exec.CommandContext(t.Context(), "sleep", "30")
+			// The negative baseline must not invoke host resource cleanup CLIs.
+			// sleep was resolved above; liveness uses this exact recorded PID.
+			t.Setenv("PATH", t.TempDir())
+			legacyTag := native.ContinuationTag(runner.ContinueRequest{RunID: run.ID})
+			cmd.Env = []string{"OPENCODE_AGENT_TAG=" + legacyTag}
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
+			run.RunnerPID = cmd.Process.Pid
+			if err := repos.Runs.Create(t.Context(), run); err != nil {
+				t.Fatal(err)
+			}
+			if !rec.isProcessAlive(t.Context(), run) {
+				t.Fatal("fixture's exact legacy identity is not recognized")
+			}
+			rec.config.MaxRecoveryAge = time.Minute
+			stats := &ReconcileStats{}
+			rec.handleStaleRun(t.Context(), run, stats)
+			rec.CancelInteractiveTail(run.ID)
+			got, err := repos.Runs.Get(t.Context(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != domain.RunStatusRunning || got.EndedAt != nil || got.ErrorMsg != "" || got.RunnerPID != cmd.Process.Pid {
+				t.Errorf("artifact failure changed the live lifecycle: status=%s ended=%v error=%q pid=%d", got.Status, got.EndedAt, got.ErrorMsg, got.RunnerPID)
+			}
+			if extractTagFromEnv(cmd.Process.Pid) != legacyTag || !rec.isProcessAlive(t.Context(), got) {
+				t.Error("exact legacy executor was killed or replaced")
+			}
+			if err := excludeLiveExecutor(t.Context(), got); err == nil {
+				t.Error("artifact failure admitted replacement of the live executor")
+			}
+			owner := New(repos.Profiles, repos.Tasks, repos.Runs, WithRunners(registry), WithRunStateRoot(t.TempDir()))
+			if _, err := owner.RecoverMissingSessionRun(t.Context(), ResumeFromFailedRunRequest{RunID: got.ID}); err == nil || !domain.IsPreEffectRefusal(err) {
+				t.Errorf("fresh recovery was not refused before effects: %v", err)
+			}
+			if replacement, err := repos.Runs.GetByIdempotencyKey(t.Context(), "resume-from-failed:"+got.ID.String()); err != nil || replacement != nil {
+				t.Errorf("artifact failure created a replacement: %v %v", replacement, err)
+			}
+			if got.TranscriptCursor != 0 {
+				t.Error("unverified artifact/terminal was consumed; later owner diagnosis cannot replay it")
+			}
+			if stats.RunsRecovered != 0 {
+				t.Error("artifact failure claimed verified recovery")
+			}
+			diagnosis := strings.Join(stats.Errors, " ")
+			if !strings.Contains(diagnosis, "recovery outcome unknown") || !strings.Contains(diagnosis, "agent-manager owner diagnosis") {
+				t.Errorf("missing named owner diagnosis: %q", diagnosis)
+			}
+		})
+	}
+}
 
 func TestRecoveredCodexTranscriptUsesSavedBillingReceipt(t *testing.T) {
 	reconciler, repos, eventStore := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
@@ -41,7 +232,7 @@ func TestRecoveredCodexTranscriptUsesSavedBillingReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "transcript.ndjson")
-	if err := os.WriteFile(path, []byte("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19,\"output_tokens\":4}}\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":19,\"output_tokens\":4}}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	terminal, err := reconciler.drainTranscript(t.Context(), saved, path, nil, codecs.NewCodexForTest())

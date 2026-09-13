@@ -2,11 +2,15 @@
   "schemaVersion": "agent-profile/v1",
   "name": "prompt-manager-heartbeat",
   "profileKey": "prompt-manager/heartbeat-judgment",
-  "description": "Portable profile for Prompt Manager multi-process heartbeats",
-  "roleRef": "code.judgment",
+  "description": "Portable profile for Prompt Manager judgment heartbeats. Codex Luna at medium effort under the operator 2026-09-12 quota-conservation policy; no Astra or Sol and no Claude-pool fallback.",
+  "roleRef": "code.economy.judgment",
   "maxTurns": 50,
   "timeout": "600s",
-  "allowedTools": ["read", "write", "shell"],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,
   "sandboxConfig": {

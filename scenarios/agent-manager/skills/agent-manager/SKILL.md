@@ -9,9 +9,9 @@ metadata:
   tags: ["agent-manager", "run", "workflow", "conversation-search", "recall", "subagent", "delegation", "result-spec", "classify", "episodes", "friction", "findings", "investigation", "learning-spine"]
   icon: "terminal"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-02T00:00:00Z"
+  updatedAt: "2026-09-12T00:00:00Z"
   learning:
     scope: "agent-manager-usage"
     capture: "every attempt"
@@ -44,6 +44,18 @@ Required reading:
 
 For a plan-family cohort, read `agent-manager-plan-family-supervision` before
 creating a watch. It owns the watch/assessment path.
+
+For arbitrary large efforts, use `agent-manager effort board` (or `--effort-ref`
+for an exact selected effort) and the existing UI's Efforts view. Read
+`large-effort-supervision` for judgment and
+`path:scenarios/agent-manager/docs/reference/effort-supervision.md` for typed
+enrollment, assessment, directive and withdrawal requests. Automatic discovery
+permits observation only. A quiet assessment is independent of a directive;
+completion is independent of accepted outcomes. Missing metrics remain unknown.
+Use signed run identity for supervisor assessments; never exchange a supervisor
+credential for operator authority. Explicit local operators can use `--local-owner`
+on supported owner mutations without persisting tokens. Pending/uncertain effects
+retain their original owner identity and must not be reissued under a new key.
 
 For a bounded diagnosis of an existing run set, use the typed investigation
 operation or the `agent-manager.investigate` program. Its operation status is
@@ -119,6 +131,21 @@ A bare run has no server-side wait verb. Use this table; do not poll `run get`.
 | The run is already started and you are interactive | `agent-manager run events <id> --follow` streams to a terminal; it is a live socket, not a durable wait, and it ends when the session ends | S1 |
 | The run is already started and you are headless | Record the run id in your journal entry and stop; the next session reads `run get <id>` once | S1 |
 | Another scenario produces what the run needs | Park (§3.1); the producer wakes it | S1 |
+
+`run events <id> --follow` uses the resolved API base, including `--api-base`,
+and the saved API token for the WebSocket handshake. It forwards the current run
+identity and CLI invocation provenance through the shared CLI hooks. No earlier
+HTTP command is required. Ctrl+C or a normal server close ends the stream.
+The stream decodes the server's protobuf envelope and displays event content,
+progress, and status for the selected run. A terminal status is an observation;
+it does not make this socket a durable wait. Decode failures are explicit errors.
+
+For planned maintenance, `run quiesce --scenario <name> --timeout <duration>`
+waits once under the server's timeout; ordinary HTTP deadlines must not truncate
+that wait. Its scope/tag filters identify affected runs, not a global admission
+barrier. Recheck other active runs before restarting Agent Manager itself. Without
+`--force`, timeout leaves live work untouched. Do not infer global idleness from
+a scenario-scoped drained response.
 
 #### 3.1 Program contracts
 

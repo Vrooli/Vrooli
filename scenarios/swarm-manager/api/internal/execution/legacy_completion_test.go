@@ -1,10 +1,7 @@
 package execution
 
 import (
-	"context"
 	"testing"
-
-	"swarm-manager/internal/agentmanager"
 )
 
 // commitExecutionRoundForTest preserves historical-record coverage without
@@ -28,11 +25,20 @@ func commitExecutionRoundForTest(t *testing.T, service *Service, operationID, ou
 		previous := records[i].Status
 		records[i].Status = next
 		records[i].UpdatedAt = nowRFC3339()
+		records[i].FinishedAt = nowRFC3339()
 		if next == StatusFailed {
 			records[i].FailureReason = executionCommitAbstainReason(outcome)
 		}
-		var candidates []string
-		service.applyTerminalTransition(context.Background(), &records[i], agentmanager.RunState{}, next, &candidates)
+		item, loadErr := service.loadBacklogItem(records[i].BacklogKind, records[i].BacklogName)
+		if loadErr == nil {
+			switch next {
+			case StatusCompleted:
+				var candidates []string
+				service.applyCompletedTransition(&records[i], item, &candidates)
+			case StatusFailed:
+				_ = service.updateBacklogStatus(item, backlogStatusInReview)
+			}
+		}
 		if err := service.store.Save(records); err != nil {
 			t.Fatal(err)
 		}

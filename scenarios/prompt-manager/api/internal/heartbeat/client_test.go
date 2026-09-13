@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -230,6 +231,62 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if run.ID != "run-xyz" {
 		t.Errorf("expected run ID run-xyz, got %s", run.ID)
+	}
+}
+
+func TestCreateRunDelegatedKeepsAuthorityRequestLocal(t *testing.T) {
+	const secret = "private-owner-bearer"
+	var auths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auths = append(auths, r.Header.Get("Authorization"))
+		var req CreateRunRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatal(err)
+		}
+		if req.TaskID == "delegated" && (req.RequestedScopes == nil || req.RequestedScopes.ExpectedOwnerSubject != "owner-a" || len(req.RequestedScopes.Scopes) != 1) {
+			t.Fatal("delegated authority constraints lost")
+		}
+		body, _ := json.Marshal(req)
+		if strings.Contains(string(body), secret) {
+			t.Fatal("credential leaked into request body")
+		}
+		_ = json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "run-1"}})
+	}))
+	defer srv.Close()
+	c := newTestClient(t, srv)
+	request := &CreateRunRequest{TaskID: "delegated", IdempotencyKey: "wake-1", RequestedScopes: &RunIdentityScopeRequest{Scopes: []string{"agent-manager:supervise"}, ExpectedOwnerSubject: "owner-a"}}
+	if _, err := c.CreateRunDelegated(context.Background(), request, secret); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.CreateRun(context.Background(), &CreateRunRequest{TaskID: "ordinary"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(auths) != 2 || auths[0] != "Bearer "+secret || auths[1] != "" {
+		t.Fatal("delegation changed default caller authority")
+	}
+}
+
+func TestCreateRunDelegatedRefusalDoesNotLeakOrRedirect(t *testing.T) {
+	const secret = "private-owner-bearer"
+	for _, status := range []int{http.StatusForbidden, http.StatusInternalServerError, http.StatusTemporaryRedirect} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				w.Header().Set("Location", "/other-operation")
+				w.WriteHeader(status)
+				_, _ = w.Write([]byte(secret))
+			}))
+			defer srv.Close()
+			c := newTestClient(t, srv)
+			req := &CreateRunRequest{TaskID: "task", IdempotencyKey: "wake", RequestedScopes: &RunIdentityScopeRequest{Scopes: []string{}, ExpectedOwnerSubject: "owner-a"}}
+			if run, err := c.CreateRunDelegated(context.Background(), req, secret); run != nil || err == nil || strings.Contains(err.Error(), secret) {
+				t.Fatal("refusal leaked credential or accepted run")
+			}
+			if calls != 1 {
+				t.Fatal("delegated request was retried or redirected")
+			}
+		})
 	}
 }
 

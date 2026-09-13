@@ -5,7 +5,6 @@ import (
 	"swarm-manager/cli/domains/autofiler"
 	"swarm-manager/cli/domains/backlog"
 	"swarm-manager/cli/domains/captures"
-	"swarm-manager/cli/domains/development"
 	"swarm-manager/cli/domains/evidence"
 	"swarm-manager/cli/domains/execution"
 	"swarm-manager/cli/domains/goals"
@@ -60,6 +59,5 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		search.Register(deps),
 		autofiler.Register(),
 		transitions.Register(deps),
-		development.Register(),
 	}
 }

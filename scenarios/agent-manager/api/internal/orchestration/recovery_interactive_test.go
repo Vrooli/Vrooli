@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
@@ -24,6 +26,49 @@ import (
 type fakeInteractiveSessions struct {
 	mu    sync.Mutex
 	alive map[string]bool
+}
+
+type retainedGoalReplayRunner struct{ *mocks.TranscriptReplayRunner }
+
+func (r *retainedGoalReplayRunner) NewTranscriptParser() runner.TranscriptParser {
+	return codecs.NewCodexForTest().NewTranscriptParser()
+}
+
+func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testing.T) {
+	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("retained-ui"))
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	run := createInteractiveRecoveryRun(t, repos, "retained-ui", path)
+	run.SessionID = "exact-native-session"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish assignment"
+	stamp := run.StartedAt.Add(time.Second).Format(time.RFC3339Nano)
+	body := fmt.Sprintf("{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish assignment\",\"status\":\"complete\"}}}\n", stamp, run.SessionID, stamp)
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptCursor = int64(len(body))
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	cancelled := false
+	reconciler.tailers[run.ID] = func() { cancelled = true }
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cancelled || !result.Recovered || result.Run.Status != domain.RunStatusComplete || result.Run.Phase != domain.RunPhaseCompleted || result.Run.StopReason != domain.RunStopReasonComplete {
+		t.Fatal("attached stale tailer masked accepted goal", result)
+	}
+	retained, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil || retained.Status != domain.RunStatusComplete || retained.TranscriptCursor != int64(len(body)) {
+		t.Fatal("recovery not durable or replayed cursor", retained, err)
+	}
+	if _, err := reconciler.RecoverRun(t.Context(), run.ID); err != nil {
+		t.Fatal("terminal recovery replay failed", err)
+	}
 }
 
 func newFakeInteractiveSessions(aliveIDs ...string) *fakeInteractiveSessions {
@@ -242,6 +287,10 @@ func TestRecoverInteractive_SessionDiesMidReattach(t *testing.T) {
 	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
 	// Speed up the mid-tail session watcher for this test.
 	reconciler.interactiveDebounce = 40 * time.Millisecond
+	// Keep the session-reattach tolerance short so the vanished session fails
+	// the run promptly.
+	reconciler.interactiveSessionReattachWindow = 100 * time.Millisecond
+	reconciler.interactiveSessionPoll = 20 * time.Millisecond
 
 	transcript := filepath.Join(t.TempDir(), "transcript.ndjson")
 	if err := os.WriteFile(transcript, []byte("message:waiting for input\n"), 0o644); err != nil {
@@ -273,4 +322,63 @@ func containsAll(s string, subs ...string) bool {
 		}
 	}
 	return true
+}
+
+func TestRecoverInteractiveJoinsTailerBeforeInspectingFreshTranscript(t *testing.T) {
+	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("join-ui"))
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "rollout.jsonl")
+	run := createInteractiveRecoveryRun(t, repos, "join-ui", path)
+	run.SessionID = "joined-session"
+	run.ResolvedConfig.RunnerType, run.ResolvedConfig.Until = domain.RunnerTypeCodex, "finish assignment"
+	stamp := run.StartedAt.Add(time.Second).Format(time.RFC3339Nano)
+	body := fmt.Sprintf("{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish assignment\",\"status\":\"complete\"}}}\n", stamp, run.SessionID, stamp)
+	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptCursor = int64(len(body))
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	cancelled, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	reconciler.tailers[run.ID] = func() { once.Do(func() { close(cancelled) }) }
+	reconciler.interactiveTailDone[run.ID] = done
+	lateWrite := make(chan error, 1)
+	go func() {
+		<-cancelled
+		<-release
+		later := body + fmt.Sprintf("{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"new private work\"}}\n", run.StartedAt.Add(2*time.Second).Format(time.RFC3339Nano))
+		lateWrite <- os.WriteFile(path, []byte(later), 0600)
+		close(done)
+	}()
+	returned := make(chan error, 1)
+	go func() { _, err := reconciler.RecoverRun(t.Context(), run.ID); returned <- err }()
+	<-cancelled
+	var early bool
+	select {
+	case <-returned:
+		early = true
+	case <-time.After(40 * time.Millisecond):
+	}
+	close(release)
+	if err := <-lateWrite; err != nil {
+		t.Fatal(err)
+	}
+	if early {
+		t.Fatal("recovery returned before cancelled tailer finished its final write")
+	}
+	if err := <-returned; err != nil {
+		t.Fatal(err)
+	}
+	defer reconciler.CancelInteractiveTail(run.ID)
+	retained, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retained.Status != domain.RunStatusRunning {
+		t.Fatalf("historical completion closed newer transcript work: %s", retained.Status)
+	}
 }

@@ -79,7 +79,10 @@ func (r *checkpointRepository) Save(ctx context.Context, checkpoint *domain.RunC
 	checkpoint.SavedAt = time.Now()
 	row := checkpointFromDomain(checkpoint)
 
-	// Upsert: insert or update on conflict
+	// Phase snapshots do not share mutable state with the heartbeat goroutine.
+	// Preserve a newer owner heartbeat when saving an older phase snapshot.
+	// Compare UTC text without T/Z so legacy defaults and RFC3339Nano values
+	// sort alike, including an exact second versus its fractional successors.
 	query := `INSERT INTO run_checkpoints (run_id, phase, step_within_phase, sandbox_id, work_dir,
 		lock_id, last_event_sequence, last_heartbeat, retry_count, saved_at, metadata)
 		VALUES (:run_id, :phase, :step_within_phase, :sandbox_id, :work_dir,
@@ -88,7 +91,10 @@ func (r *checkpointRepository) Save(ctx context.Context, checkpoint *domain.RunC
 		phase = EXCLUDED.phase, step_within_phase = EXCLUDED.step_within_phase,
 		sandbox_id = EXCLUDED.sandbox_id, work_dir = EXCLUDED.work_dir,
 		lock_id = EXCLUDED.lock_id, last_event_sequence = EXCLUDED.last_event_sequence,
-		last_heartbeat = EXCLUDED.last_heartbeat, retry_count = EXCLUDED.retry_count,
+		last_heartbeat = CASE WHEN run_checkpoints.last_heartbeat IS NULL OR
+			REPLACE(REPLACE(run_checkpoints.last_heartbeat, 'T', ' '), 'Z', '') < REPLACE(REPLACE(EXCLUDED.last_heartbeat, 'T', ' '), 'Z', '')
+			THEN EXCLUDED.last_heartbeat ELSE run_checkpoints.last_heartbeat END,
+		retry_count = EXCLUDED.retry_count,
 		saved_at = EXCLUDED.saved_at, metadata = EXCLUDED.metadata`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)

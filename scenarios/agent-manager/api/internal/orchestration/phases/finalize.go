@@ -52,6 +52,12 @@ type FinalizeInput struct {
 func Finalize(in FinalizeInput) {
 	ctx, cancel := context.WithTimeout(context.Background(), in.Deps.Levers.Heartbeat.TeardownTimeout)
 	defer cancel()
+	if in.Deps.Runs != nil {
+		current, err := in.Deps.Runs.Get(ctx, in.Run.ID)
+		if err != nil || current == nil || current.LifecycleVersion != in.Run.LifecycleVersion {
+			return // Superseded executors own neither cleanup nor projection.
+		}
+	}
 
 	finalizeStart := in.Deps.Now()
 	sink := finalizeSink(in.Deps)
@@ -85,6 +91,7 @@ func Finalize(in FinalizeInput) {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
 			EmitSystemEvent(ctx, in.Deps, in.Run.ID, "warn",
 				"failed to persist final run state: "+err.Error())
+			return
 		}
 	}
 	if in.Deps.Broadcaster != nil {

@@ -25,7 +25,9 @@ func (*recordingReviewService) RecordUnavailableReview(string, string, string, s
 }
 
 func TestTriggerReviewAgent_ForwardsTypedReviewContract(t *testing.T) {
-	service := NewService(ServiceConfig{DataRoot: t.TempDir()})
+	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: t.TempDir(),
+	})
 	reviewService := &recordingReviewService{}
 	service.SetReviewService(reviewService)
 	criteria := []backlogCriterion{{ID: "criterion-1", Gherkin: "Given a completed run When reviewed Then proof is available."}}
@@ -43,7 +45,9 @@ func TestTriggerReviewAgent_ForwardsTypedReviewContract(t *testing.T) {
 }
 
 func TestTriggerReviewAgent_ForwardsMachineSettledEvidence(t *testing.T) {
-	service := NewService(ServiceConfig{DataRoot: t.TempDir()})
+	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t), DataRoot: t.TempDir(),
+	})
 	reviewService := &recordingReviewService{}
 	service.SetReviewService(reviewService)
 	item := backlogItem{

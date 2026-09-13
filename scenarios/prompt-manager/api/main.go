@@ -1033,6 +1033,7 @@ func main() {
 		teamExecStore,
 	)
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
+	heartbeat.WireStandingSupervisor(agentManagerClient, heartbeatExecutor, teamExecStore, heartbeatScheduler, heartbeatControlStore, roots.RuntimeData)
 	// World feed: the run registry and scheduler are the only signal sources
 	// the 3D world projects; nothing here invents agent behaviour.
 	worldStore := world.NewStore(roots.Config)

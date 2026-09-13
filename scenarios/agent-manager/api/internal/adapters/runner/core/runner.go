@@ -141,6 +141,10 @@ func (r *Runner) SetSandboxLauncherFactory(factory runner.SandboxLauncherFactory
 // Type satisfies [runner.Runner] by delegating to the codec.
 func (r *Runner) Type() domain.RunnerType { return r.codec.Type() }
 
+// ContinuationTag exposes the codec's historical continuation identity for
+// reconciliation of already-running processes after an owner restart.
+func (r *Runner) ContinuationTag(req runner.ContinueRequest) string { return r.codec.ContinueTag(req) }
+
 // Capabilities satisfies [runner.Runner] by delegating to the codec.
 func (r *Runner) Capabilities() runner.Capabilities { return r.codec.Capabilities() }
 
@@ -204,6 +208,17 @@ func (r *Runner) TagEnvKey() string { return r.codec.TagEnvKey() }
 // BinaryPath satisfies [runner.AgentLaunchInfo], exposing the codec's resolved
 // CLI binary path for the interactive launch command.
 func (r *Runner) BinaryPath() string { return r.codec.BinaryPath() }
+
+// RuntimeVersion satisfies [runner.RuntimeVersionReporter] by delegating to the
+// codec that owns the CLI binary. A codec that does not report a version
+// returns an error so the admission record stays truthfully empty.
+func (r *Runner) RuntimeVersion(ctx context.Context) (string, error) {
+	reporter, ok := r.codec.(runner.RuntimeVersionReporter)
+	if !ok {
+		return "", fmt.Errorf("runner %s does not report a runtime version", r.codec.Type())
+	}
+	return reporter.RuntimeVersion(ctx)
+}
 
 // ControlArgs exposes the codec-owned control translation to interactive
 // launchers without teaching orchestration about runner-specific flags.
@@ -425,7 +440,20 @@ func redactedEnvKeys(env []string) []string {
 // Returns a typed *domain.RunnerError (ErrCodeRunnerSessionExpired or
 // ErrCodeRunnerSessionStateLost) when the codec recognises a session
 // or rollout-state failure shape — see [codecs.Codec.ClassifyTerminalError].
+func (r *Runner) ValidateContinuation(ctx context.Context, req runner.ContinueRequest) error {
+	if strings.TrimSpace(req.SessionID) == "" {
+		return domain.NewRunnerSessionExpiredError(r.codec.Type(), errors.New("continue called with empty session id"))
+	}
+	if checker, ok := r.codec.(runner.ContinuationPreflighter); ok {
+		return checker.ValidateContinuation(ctx, req)
+	}
+	return nil
+}
+
 func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+	if err := r.ValidateContinuation(ctx, req); err != nil {
+		return nil, err
+	}
 	if avail, msg := r.codec.Available(ctx); !avail {
 		return nil, &domain.RunnerError{
 			RunnerType:  r.codec.Type(),
@@ -433,10 +461,6 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 			Cause:       errors.New(msg),
 			IsTransient: false,
 		}
-	}
-	if req.SessionID == "" {
-		return nil, domain.NewRunnerSessionExpiredError(r.codec.Type(),
-			errors.New("continue called with empty session id"))
 	}
 	if _, err := r.codec.ControlArgs(req.GetConfig()); err != nil {
 		return nil, fmt.Errorf("translate runner controls: %w", err)
@@ -448,7 +472,20 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	tag := r.codec.ContinueTag(req)
 
 	if req.Transcript != nil {
-		return r.continueWithDurableTranscript(ctx, req, state, tag, startTime)
+		result, err := r.continueWithDurableTranscript(ctx, req, state, tag, startTime)
+		if err != nil {
+			return result, err
+		}
+		// The durable path builds its result without the codec terminal
+		// classification the codec-pipe path applies below. Preserve the typed
+		// session/state-lost error so the orchestration layer can type the stop
+		// instead of recording a generic failure.
+		if result != nil && !result.Success && result.TerminalError == nil {
+			if classified := r.codec.ClassifyTerminalError(result.ErrorMessage, result.ExitCode); classified != nil {
+				result.TerminalError = classified
+			}
+		}
+		return result, nil
 	}
 
 	args := r.codec.BuildContinueArgs(state, req)

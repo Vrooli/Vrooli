@@ -36,12 +36,3 @@ func JSONRequest(t testing.TB, method, target string, body any, vars map[string]
 func Recorder() *httptest.ResponseRecorder {
 	return httptest.NewRecorder()
 }
-
-func DecodeJSON[T any](t testing.TB, recorder *httptest.ResponseRecorder) T {
-	t.Helper()
-	var out T
-	if err := json.NewDecoder(recorder.Body).Decode(&out); err != nil {
-		t.Fatalf("decode response body: %v\nbody: %s", err, recorder.Body.String())
-	}
-	return out
-}

@@ -3,6 +3,7 @@ package phases
 import (
 	"context"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
@@ -11,6 +12,38 @@ import (
 
 	"github.com/google/uuid"
 )
+
+func TestGenerateIdentityTokenReplacesRevokedGenerationEvenWithinSameSecond(t *testing.T) {
+	now := time.Now()
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: "original-owner", OwnerScopes: []string{"agent-manager:read"}}
+	in := GenerateIdentityTokenInput{Run: run, Secret: []byte("test-rotation-secret"), Deps: Deps{Clock: func() time.Time { return now }}}
+	first := GenerateIdentityToken(context.Background(), in)
+	run.IdentityTokenRevokedAt = &now
+	second := GenerateIdentityToken(context.Background(), in)
+	if first == "" || second == "" || first == second {
+		t.Fatal("reissued credential must have a distinct generation even at the same timestamp")
+	}
+	if run.IdentityTokenRevokedAt != nil || run.IdentityTokenHash != identity.HashToken(second) {
+		t.Fatal("new credential did not replace the revoked generation")
+	}
+	claims, err := identity.VerifyToken(second, in.Secret)
+	if err != nil || claims.Subject != "original-owner" || len(claims.Scopes) != 1 || claims.Scopes[0] != "agent-manager:read" {
+		t.Fatal("rotation changed authority or invalidated signature")
+	}
+	run.IdentityTokenRevokedAt = &now
+	in.Secret = nil
+	if got := GenerateIdentityToken(context.Background(), in); got != "" || run.IdentityTokenRevokedAt == nil {
+		t.Fatal("disabled minting must not un-revoke an old credential")
+	}
+}
+
+func TestGenerateIdentityTokenRequiresOwnerCeilingForDeclaredScopes(t *testing.T) {
+	in := GenerateIdentityTokenInput{Run: &domain.Run{ID: uuid.New(), TaskID: uuid.New()}, Profile: &domain.AgentProfile{DeclaredScopes: []string{"agent-manager:supervise"}}, RequestedScopes: []string{"agent-manager:supervise"}, Secret: []byte("test-secret")}
+	claims, err := identity.VerifyToken(GenerateIdentityToken(context.Background(), in), in.Secret)
+	if err != nil || len(claims.Scopes) != 0 {
+		t.Fatal("profile or request declaration became a grant", err)
+	}
+}
 
 func TestGenerateIdentityToken_SignsWorkflowMetadata(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New()}

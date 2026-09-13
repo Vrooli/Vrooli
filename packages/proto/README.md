@@ -12,6 +12,8 @@ This package hosts Protocol Buffers schemas for inter-scenario contracts and the
 - Lint: `cd packages/proto && make lint`
 - Breaking check: `cd packages/proto && make breaking SCENARIO=<scenario>`
 - Keep `gen/` in sync with `schemas/` before committing.
+- Preview deterministic orphan cleanup: `cd packages/proto && make cleanup`
+- Apply deterministic cleanup explicitly: `cd packages/proto && go run -mod=mod ./cmd/protogen cleanup --apply`
 - JSON serialization: Vrooli HTTP JSON endpoints use proto field names (`snake_case`) on the wire. Go writers use `protojson.MarshalOptions{UseProtoNames: true}`; TypeScript writers use `toJsonString(..., { useProtoFieldName: true })`. TypeScript `fromJson` accepts both proto field names and JSON/lowerCamel names, so UI readers should parse through generated descriptors instead of manually reshaping payloads.
 
 ## Type-safety guidance
@@ -115,6 +117,13 @@ directly inside `packages/proto`, but a routine schema edit should use
 unchanged outputs are not rewritten. Scoped runs include reverse dependents and
 shared imports. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1)
 for the canonical policy.
+
+`protogen cleanup` is the fleet-wide reconciliation command. It defaults to a
+dry run and discovers generated owner footprints and manifests with no active
+`.proto` source, plus empty retired owner directories. `--apply` performs a
+full staged generation so the descriptor, generated languages, and manifests
+converge together. It does not delete individual messages based only on local
+reachability; review those advisory candidates through `proto-health` first.
 
 ## Language support matrix
 

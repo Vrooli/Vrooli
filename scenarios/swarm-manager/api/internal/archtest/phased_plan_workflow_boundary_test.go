@@ -37,12 +37,25 @@ func TestPlanExecutionStartsOnlyThroughTransitionRunner(t *testing.T) {
 	}
 	// StartWith, not StartPrepared: plan execution must build its snapshot through
 	// the registered input builder so the same projection is used at start and at
-	// the apply-time rebuild that detects mid-run plan edits.
-	if !strings.Contains(body, `StartWith(ctx, "plan.execute"`) || strings.Contains(body, ".StartWorkflow(") {
+	// the apply-time rebuild that detects mid-run plan edits. The single
+	// startTransition helper is the one call site that wraps StartWith.
+	if !strings.Contains(body, `startTransition(ctx, "plan.execute"`) || strings.Contains(body, ".StartWorkflow(") {
 		t.Fatal("plan execution must start through the shared transition runner's registered input builder")
 	}
 	if strings.Contains(body, "StartPrepared(") {
 		t.Fatal("plan execution must not pass a pre-built input; that path bypasses the registered builder")
+	}
+	helperPath := filepath.Join("..", "execution", "work_workflow.go")
+	helperSource, err := os.ReadFile(helperPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	helper := string(helperSource)
+	if !strings.Contains(helper, "func (s *Service) startTransition(") || !strings.Contains(helper, ".StartWith(ctx, transitionKey") {
+		t.Fatal("startTransition must delegate to the runner's StartWith so the registered builder is used")
+	}
+	if strings.Contains(helper, "StartPrepared(") || strings.Contains(helper, ".StartWorkflow(") {
+		t.Fatal("startTransition must not bypass the registered input builder")
 	}
 	for _, forbidden := range []string{".StartOperation(", ".CreateRun(", ".ContinueRun(", "SpawnBacklog(", "SpawnResearch("} {
 		if strings.Contains(body, forbidden) {

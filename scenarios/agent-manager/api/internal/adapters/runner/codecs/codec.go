@@ -54,6 +54,9 @@ func codingAgentCapabilities(specific runner.Capabilities) runner.Capabilities {
 	specific.SupportsStreaming = true
 	specific.SupportsCancellation = true
 	specific.SupportsContinuation = true
+	// SupportsWarmIteration is retained as a reported capability (pinned by
+	// TestCapabilitiesConformance) but no longer gates `until` acceptance; native
+	// delivery is gated by the resolved spawn capability at execution time.
 	specific.SupportsWarmIteration = true
 	specific.MaxTurns = 0
 	specific.SupportsRunnerDefault = true

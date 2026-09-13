@@ -15,6 +15,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// continuationReplayCodec replaces native-state admission at the replay
+// executable boundary; it does not emulate or create a native session store.
+type continuationReplayCodec struct{ codecs.Codec }
+
+func (continuationReplayCodec) ValidateContinuation(context.Context, runner.ContinueRequest) error {
+	return nil
+}
+
 // TestProcessReplay_AllSupportedCodecs drives a real local process through the
 // host launcher, stdout/transcript writer, codec parser, and terminal result.
 // The executable is cmd/fake-agent, never a real coding-agent binary.
@@ -154,7 +162,10 @@ func TestProcessReplay_ContinuationAllSupportedCodecs(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			r := NewRunner(tc.codec, runner.NewHostLauncher(), nil)
+			// This corpus exercises process transport and decoding. Its provider
+			// is a replay executable, so native-session admission is a separate
+			// seam exercised by the OpenCode readiness regressions.
+			r := NewRunner(continuationReplayCodec{tc.codec}, runner.NewHostLauncher(), nil)
 			result, err := r.Continue(context.Background(), runner.ContinueRequest{
 				RunID: uuid.New(), SessionID: "prior-session", Prompt: "follow-up", WorkingDir: workDir,
 				ResolvedConfig: &domain.RunConfig{RunnerType: tc.codec.Type()}, EventSink: &recordingSink{},

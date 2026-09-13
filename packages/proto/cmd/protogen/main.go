@@ -24,7 +24,7 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: protogen <generate|verify|descriptor|artifact|lint|format|breaking|clean|refresh-vendor>")
+		return fmt.Errorf("usage: protogen <generate|verify|descriptor|artifact|lint|format|breaking|clean|cleanup|refresh-vendor>")
 	}
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -100,6 +100,39 @@ func run(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		return protogen.Clean(filepath.Join(protoRoot, "gen"))
+	case "cleanup":
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+		fs.SetOutput(stderr)
+		var scenarios scenarioFlags
+		fs.Var(&scenarios, "scenario", "schema owner to narrow cleanup (repeatable)")
+		apply := fs.Bool("apply", false, "apply deterministic cleanup; default is dry-run")
+		dryRun := fs.Bool("dry-run", false, "preview cleanup without writing (the default)")
+		jsonOutput := fs.Bool("json", false, "write machine-readable output")
+		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if *apply && *dryRun {
+			return fmt.Errorf("cleanup: --apply and --dry-run are mutually exclusive")
+		}
+		plan, err := protogen.PlanCleanup(protogen.CleanupOptions{
+			RepoRoot: repoRoot, ProtoRoot: protoRoot, Scenarios: scenarios, DryRun: !*apply,
+		})
+		if err != nil {
+			return err
+		}
+		result := protogen.CleanupResult{Plan: plan}
+		if *apply {
+			result, err = protogen.ApplyCleanup(context.Background(), protogen.CleanupOptions{
+				RepoRoot: repoRoot, ProtoRoot: protoRoot, Scenarios: scenarios, DryRun: false,
+			}, plan, stdout)
+			if err != nil {
+				return err
+			}
+		}
+		if *jsonOutput {
+			return json.NewEncoder(stdout).Encode(result)
+		}
+		return writeCleanupReport(stdout, result)
 	case "refresh-vendor":
 		if err := runBuf(context.Background(), protoRoot, "export", "buf.build/googleapis/googleapis", "-o", filepath.Join(protoRoot, "vendor", "googleapis")); err != nil {
 			return err
@@ -108,6 +141,32 @@ func run(args []string, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("unknown protogen command %q", command)
 	}
+}
+
+func writeCleanupReport(stdout io.Writer, result protogen.CleanupResult) error {
+	verb := "would"
+	if result.Applied {
+		verb = "did"
+	}
+	fmt.Fprintf(stdout, "protogen cleanup: %s apply %d deterministic action(s)\n", verb, len(result.Plan.Actions))
+	for _, action := range result.Plan.Actions {
+		if action.Kind == "regenerate_generated_tree" {
+			fmt.Fprintf(stdout, "  %s regenerate %s (%s)\n", verb, action.Path, action.Reason)
+			continue
+		}
+		operation := "remove"
+		if action.Kind == "empty_schema_owner" {
+			operation = "remove empty owner"
+		}
+		fmt.Fprintf(stdout, "  %s %s %s (%s)\n", verb, operation, action.Path, action.Reason)
+	}
+	for _, note := range result.Plan.Notes {
+		fmt.Fprintf(stdout, "  note: %s\n", note)
+	}
+	if result.GenerationRan {
+		fmt.Fprintln(stdout, "  generation: completed")
+	}
+	return nil
 }
 
 func runArtifactCommand(args []string, stdout, stderr io.Writer) error {

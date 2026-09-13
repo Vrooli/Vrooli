@@ -403,7 +403,7 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 		WorkingDir:     workingDir,
 		IsolationLevel: "vrooli-aware",
 		WithStdin:      withStdin,
-		WritableMounts: codecSessionHomeMounts(envMap),
+		WritableMounts: runRuntimeMounts(envMap),
 	})
 	if err != nil {
 		return nil, err
@@ -433,17 +433,22 @@ type startProcessBody struct {
 	WritableMounts []WritableMount   `json:"writableMounts,omitempty"`
 }
 
-// codecSessionHomeMounts is Agent Manager's side of the mount contract. The
-// runner owns these environment names; Workspace Sandbox receives only typed
-// mounts and validates them against roots registered with the sandbox.
-func codecSessionHomeMounts(env map[string]string) []WritableMount {
-	var mounts []WritableMount
-	for _, key := range []string{"CODEX_HOME", "GROK_HOME"} {
-		if path := env[key]; path != "" {
-			mounts = append(mounts, WritableMount{Path: path, Purpose: "codec-session-home"})
-		}
+// runtimeRootEnvKey carries the run's single runtime folder to the launcher.
+// orchestration.PrepareRunnerRuntimeRoot writes it; the name is duplicated as a
+// string so the sandbox package stays free of an orchestration import.
+const runtimeRootEnvKey = "VROOLI_AGENT_RUNTIME_ROOT"
+
+// runRuntimeMounts is Agent Manager's side of the mount contract. The run, not
+// the runner, is the unit of isolation: every runner-private folder (Codex/Grok
+// homes, skill scopes, OpenCode data) lives under one runtime folder, and that
+// one folder is mounted writable for every runner. Workspace Sandbox receives
+// only typed mounts and validates them against roots registered with the
+// sandbox.
+func runRuntimeMounts(env map[string]string) []WritableMount {
+	if path := strings.TrimSpace(env[runtimeRootEnvKey]); path != "" {
+		return []WritableMount{{Path: path, Purpose: "run-runtime"}}
 	}
-	return mounts
+	return nil
 }
 
 // startProcess POSTs /processes and returns the PID.

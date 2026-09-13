@@ -107,6 +107,7 @@ type ExecutionOption struct {
 	NativeObjective                 bool                   `json:"nativeObjective"`
 	SandboxModesWithNativeObjective []string               `json:"sandboxModesWithNativeObjective,omitempty"`
 	DefaultModel                    string                 `json:"defaultModel,omitempty"`
+	DefaultModelSource              string                 `json:"defaultModelSource,omitempty"`
 	Models                          []ExecutionModelOption `json:"models,omitempty"`
 	EffortLevels                    []string               `json:"effortLevels,omitempty"`
 }
@@ -114,6 +115,7 @@ type ExecutionOption struct {
 type ExecutionModelOption struct {
 	ID             string `json:"id"`
 	CanonicalModel string `json:"canonicalModel,omitempty"`
+	Source         string `json:"source,omitempty"`
 	IsDefault      bool   `json:"isDefault"`
 }
 

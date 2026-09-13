@@ -63,7 +63,7 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   /** Canonical plan-manager plan backing this work item. */
   planRef?: PlanRef;
   /** Plan runner selected for this ordinary plan-backed item. */
-  executionStrategy?: string;
+  executionMode?: string;
   /** Aggregate limits included in the reviewed work contract. */
   executionLimits?: ExecutionLimits;
   /** Explicit authorization for the currently bound canonical plan revision. */
@@ -93,7 +93,7 @@ export interface BacklogFormValues {
   effort?: string;
   acceptanceAllow?: string[];
   acceptanceDeny?: string[];
-  executionStrategy?: string;
+  executionMode?: string;
   executionLimits?: ExecutionLimits;
   continuation?: string;
   scopePolicy?: string;

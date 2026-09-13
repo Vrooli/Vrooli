@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"agent-manager/internal/adapters/runner/codecs"
 )
 
 func TestTranscriptGoalMetadataFindsNestedArrayAttachment(t *testing.T) {
@@ -17,7 +19,9 @@ func TestTranscriptGoalMetadataFindsNestedArrayAttachment(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer file.Close()
-	goalID, status := transcriptGoalMetadata(file)
+	// The import path routes goal markers through the codec seam; the Claude
+	// codec walks arbitrary object/array shapes for a nested goal_status.
+	goalID, status := transcriptGoalMetadata(file, codecs.NewClaudeForTest())
 	if goalID == "" || status != "complete" {
 		t.Fatalf("goal metadata=(%q,%q), want stable id and complete", goalID, status)
 	}

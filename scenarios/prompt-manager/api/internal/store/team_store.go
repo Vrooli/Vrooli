@@ -253,6 +253,15 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	}
 
 	// Apply updates
+	if updates.PurposeSet {
+		team.Purpose = updates.Purpose
+	}
+	if updates.LifetimeSet {
+		team.Lifetime = updates.Lifetime
+	}
+	if updates.EffortRefs != nil {
+		team.EffortRefs = updates.EffortRefs
+	}
 	if updates.DisplayName != "" {
 		team.DisplayName = updates.DisplayName
 	}
@@ -289,8 +298,8 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 
 	team.UpdateTimestamp()
 
-	// Preserve fields owned by adjacent domains (for example objectivesServed,
-	// instrument, and topicCatalog) that are intentionally not part of Team.
+	// Preserve objective declarations and fields owned by adjacent domains
+	// (for example instrument and topicCatalog).
 	// A partial update must not turn this package's narrow view into a lossy
 	// rewrite of the full persisted document.
 	teamPath := filepath.Join(s.teamsDir(), id, "team.json")
@@ -313,6 +322,15 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	fields := map[string]any{
 		"revision":  team.Revision,
 		"updatedAt": team.UpdatedAt,
+	}
+	if updates.PurposeSet {
+		fields["purpose"] = team.Purpose
+	}
+	if updates.LifetimeSet {
+		fields["lifetime"] = team.Lifetime
+	}
+	if updates.EffortRefs != nil {
+		fields["effortRefs"] = team.EffortRefs
 	}
 	if updates.DisplayName != "" {
 		fields["displayName"] = team.DisplayName
@@ -684,6 +702,18 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	}
+	finiteLeaderMu.Lock()
+	defer finiteLeaderMu.Unlock()
+	previous, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		return err
+	}
+	if err := validateFiniteLeaderUpdate(previous, config); err != nil {
+		return err
+	}
+	if err := config.Supervision.Validate(); err != nil {
+		return err
+	}
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -710,6 +740,15 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agentID string) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.DeleteHeartbeatConfig(ctx, teamID, agentID)
+	}
+	finiteLeaderMu.Lock()
+	defer finiteLeaderMu.Unlock()
+	config, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		return err
+	}
+	if config != nil && config.FiniteLeader != nil {
+		return fmt.Errorf("finite leader binding must be retained; disable or retire instead of deleting")
 	}
 	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return DeleteFile(configPath)

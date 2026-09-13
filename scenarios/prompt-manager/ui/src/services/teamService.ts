@@ -41,7 +41,7 @@ export function invalidateCache(): void {
  * Get all teams with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all teams (empty array on validation errors)
+ * @returns Array of all teams; invalid owner data rejects with ValidationError
  */
 export async function getTeams(forceRefresh = false): Promise<Team[]> {
   const cached = teamsCache.getIfValid(forceRefresh)
@@ -49,17 +49,10 @@ export async function getTeams(forceRefresh = false): Promise<Team[]> {
     return cached
   }
 
-  try {
-    const data = await api.getTeams()
-    teamsCache.set(data)
-    return data
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      console.warn('[teamService] Invalid API response for getTeams:', error.message)
-      return []
-    }
-    throw error
-  }
+  // Invalid owner data is unavailable registry coverage, never an empty list.
+  const data = await api.getTeams()
+  teamsCache.set(data)
+  return data
 }
 
 /**

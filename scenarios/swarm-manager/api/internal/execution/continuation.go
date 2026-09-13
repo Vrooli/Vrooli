@@ -2,17 +2,33 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/idgen"
 )
 
 const (
-	continuationOperation     = "continue"
-	continuationStartedBy     = "swarm-manager-sweeper"
-	continuationMaxNoProgress = 3
+	continuationOperation   = "continue"
+	continuationStartedBy   = "swarm-manager-sweeper"
+	maxChainWithoutProgress = 3
 )
+
+var errPlanProgressUnavailable = errors.New("plan-manager progress reader is unavailable")
+
+// continuationProgress reads durable Plan Manager progress for the parent's
+// bound execution (phase assessments + log entries). The caller treats an
+// error as "reader unavailable" and falls back to the chain-depth brake.
+func (s *Service) continuationProgress(ctx context.Context, record Record) (int, error) {
+	if s.planProgress == nil || strings.TrimSpace(record.PlanManagerExecutionID) == "" {
+		return 0, errPlanProgressUnavailable
+	}
+	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return s.planProgress(readCtx, record.PlanManagerExecutionID)
+}
 
 // continueExhaustedLocked creates at most one continuation child per sweep
 // for each eligible budget-exhausted execution. The caller does not hold the
@@ -28,7 +44,9 @@ func (s *Service) continueExhaustedLocked(ctx context.Context) {
 	}
 	changed := false
 	for _, parent := range records {
-		if parent.Status != StatusBudgetExhausted {
+		// A goal run interrupted with no verdict is resumed under until-allowance.
+		// The sliced route's budget_exhausted parent remains eligible for Phase 9.
+		if parent.Status != StatusBudgetExhausted && parent.Status != StatusInterrupted {
 			continue
 		}
 		item, itemErr := s.loadBacklogItemByRecord(&parent)
@@ -45,7 +63,26 @@ func (s *Service) continueExhaustedLocked(ctx context.Context) {
 			continue
 		}
 
-		if continuationChainDepth(records, parent) >= continuationMaxNoProgress {
+		progress, progressErr := s.continuationProgress(ctx, parent)
+		noProgressStreak := parent.NoProgressStreak
+		if progressErr == nil {
+			if progress <= parent.PlanManagerProgress {
+				noProgressStreak++
+			} else {
+				noProgressStreak = 0
+			}
+		}
+		if progressErr == nil {
+			if noProgressStreak >= maxChainWithoutProgress {
+				now := nowRFC3339()
+				if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, "no_progress") == nil {
+					changed = true
+				}
+				continue
+			}
+		} else if continuationChainDepth(records, parent) >= maxChainWithoutProgress {
+			// No progress reader: fall back to the chain-depth brake so a
+			// missing Plan Manager client can never permit an unbounded chain.
 			now := nowRFC3339()
 			if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, "no_progress") == nil {
 				changed = true
@@ -55,7 +92,8 @@ func (s *Service) continueExhaustedLocked(ctx context.Context) {
 
 		remaining, reason := remainingContinuationAllowance(records, parent)
 		if reason != "" {
-			if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, "", "", reason) == nil {
+			now := nowRFC3339()
+			if s.updateContinuationState(parent.BacklogKind, parent.BacklogName, now, continuationStartedBy, reason) == nil {
 				changed = true
 			}
 			continue
@@ -74,6 +112,13 @@ func (s *Service) continueExhaustedLocked(ctx context.Context) {
 		child.SettledUsage = nil
 		child.ContinuationOf = parent.ExecutionID
 		child.ParentExecutionID = parent.ExecutionID
+		child.ResumeOrdinal = continuationChainDepth(records, parent) + 1
+		child.ResumeReason = firstNonEmpty(parent.StopReason, string(parent.Status))
+		child.ResumePath = "fresh_run"
+		if progressErr == nil {
+			child.PlanManagerProgress = progress
+			child.NoProgressStreak = noProgressStreak
+		}
 		child.Operation = continuationOperation
 		child.StartedBy = continuationStartedBy
 		child.MaxSlices = minPositive(parent.MaxSlices, remaining)
@@ -101,8 +146,7 @@ func hasActiveContinuationRecord(records []Record, parent Record) bool {
 		if record.ExecutionID == parent.ExecutionID || record.BacklogKind != parent.BacklogKind || record.BacklogName != parent.BacklogName {
 			continue
 		}
-		switch record.Status {
-		case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview, StatusValidating, StatusCancelling:
+		if isInFlightStatus(record.Status) {
 			return true
 		}
 	}
@@ -121,7 +165,7 @@ func hasContinuationChild(records []Record, parentID string) bool {
 func continuationChainDepth(records []Record, record Record) int {
 	depth := 0
 	current := record
-	for current.ContinuationOf != "" && depth < continuationMaxNoProgress+1 {
+	for current.ContinuationOf != "" && depth < maxChainWithoutProgress+1 {
 		depth++
 		found := false
 		for _, candidate := range records {
@@ -193,8 +237,14 @@ func remainingContinuationAllowance(records []Record, parent Record) (int, strin
 		value  int64
 		reason string
 	}{
-		{tokens, "tokens"}, {turns, "turns"}, {wall, "wall"}, {charge, "charge"},
-		{children, "children"}, {attempts, "node_attempts"}, {retries, "retries"}, {slices, "slices"},
+		{tokens, "tokens"},
+		{turns, "turns"},
+		{wall, "wall"},
+		{charge, "charge"},
+		{children, "children"},
+		{attempts, "node_attempts"},
+		{retries, "retries"},
+		{slices, "slices"},
 	} {
 		if dimension.value <= 0 {
 			return 0, dimension.reason

@@ -1229,20 +1229,22 @@ func TestAuthoredPhasedPlanManualModeRestoresApprovalWait(t *testing.T) { // [RE
 }
 
 func TestAuthoredAdaptivePlanApprovalReasons(t *testing.T) { // [REQ:SWM-P0-015]
+	unattended := func(v bool) *bool { return &v }
 	for _, tc := range []struct {
-		name, strategy, mode, reason string
-		wantFresh                    bool
-		falseApprovalFlag            bool
+		name, mode, reason string
+		unattended         *bool
+		wantFresh          bool
+		falseApprovalFlag  bool
 	}{
-		{"adaptive phase", "adaptive-improvement", "manual", "phase-boundary", true, false},
-		{"ordinary phase", "phased-plan-drain", "manual", "phase-boundary", false, false},
-		{"missing strategy", "", "manual", "phase-boundary", false, false},
-		{"adaptive missing reason", "adaptive-improvement", "manual", "", false, false},
-		{"adaptive operator", "adaptive-improvement", "manual", "operator-decision", false, false},
-		{"adaptive operator with auto phases", "adaptive-improvement", "auto", "operator-decision", false, false},
-		{"ordinary operator with auto phases", "phased-plan-drain", "auto", "operator-decision", false, false},
-		{"operator reason overrides false flag", "adaptive-improvement", "auto", "operator-decision", false, true},
-		{"ordinary auto phase", "phased-plan-drain", "auto", "phase-boundary", true, false},
+		{"adaptive phase", "manual", "phase-boundary", unattended(true), true, false},
+		{"ordinary phase", "manual", "phase-boundary", unattended(false), false, false},
+		{"unattended absent defaults to manual", "manual", "phase-boundary", unattended(false), false, false},
+		{"adaptive missing reason", "manual", "", unattended(true), false, false},
+		{"adaptive operator", "manual", "operator-decision", unattended(true), false, false},
+		{"adaptive operator with auto phases", "auto", "operator-decision", unattended(true), false, false},
+		{"ordinary operator with auto phases", "auto", "operator-decision", unattended(false), false, false},
+		{"operator reason overrides false flag", "auto", "operator-decision", unattended(true), false, true},
+		{"ordinary auto phase", "auto", "phase-boundary", unattended(false), true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			definition := loadAuthoredPhasedPlanDefinition(t)
@@ -1253,8 +1255,8 @@ func TestAuthoredAdaptivePlanApprovalReasons(t *testing.T) { // [REQ:SWM-P0-015]
 			if err := json.Unmarshal(phasedPlanInput(2, tc.mode), &input); err != nil {
 				t.Fatal(err)
 			}
-			if tc.strategy != "" {
-				input["constraints"].(map[string]any)["executionStrategy"] = tc.strategy
+			if tc.unattended != nil {
+				input["constraints"].(map[string]any)["unattended"] = *tc.unattended
 			}
 			raw, err := json.Marshal(input)
 			if err != nil {

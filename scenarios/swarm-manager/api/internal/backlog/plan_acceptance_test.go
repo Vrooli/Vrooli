@@ -54,8 +54,8 @@ func (o *acceptanceWorkflowOwner) StartWorkflow(_ context.Context, invocation ag
 // [REQ:SWM-P0-004] acceptance gate: operator accept pins canonical plan
 func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 	h, root := setupTestHandler(t)
-	item := BacklogItem{Name: "accept-me", Title: "Accept me", Description: "scope", Status: StatusBacklog, Priority: 5, ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 64, MaxTokens: 2000000, MaxWallSeconds: 604800, MaxTurns: 1000, MaxChargeMicroUSD: 30000000, MaxChildren: 256, MaxNodeAttempts: 512, MaxRetries: 64}, ExecutionStrategy: ExecutionStrategyAdaptiveImprovement, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: PlanRefRoleExecutionSpec}}
-	createPayload, err := json.Marshal(map[string]any{"kind": "execute", "name": item.Name, "title": item.Title, "description": item.Description, "execution_strategy": item.ExecutionStrategy, "execution_limits": item.ExecutionLimits, "plan_ref": item.PlanRef})
+	item := BacklogItem{Name: "accept-me", Title: "Accept me", Description: "scope", Status: StatusBacklog, Priority: 5, ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 64, MaxTokens: 2000000, MaxWallSeconds: 604800, MaxTurns: 1000, MaxChargeMicroUSD: 30000000, MaxChildren: 256, MaxNodeAttempts: 512, MaxRetries: 64}, ExecutionMode: ExecutionModeSliced, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: PlanRefRoleExecutionSpec}}
+	createPayload, err := json.Marshal(map[string]any{"kind": "execute", "name": item.Name, "title": item.Title, "description": item.Description, "execution_mode": item.ExecutionMode, "execution_limits": item.ExecutionLimits, "plan_ref": item.PlanRef})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 		t.Fatalf("actual creation-to-dispatch path lost accepted grant: %+v %+v", started, owner.invocation)
 	}
 	amended := saved
-	amended.ExecutionStrategy = ExecutionStrategyPhasedPlanDrain
+	amended.ExecutionMode = ExecutionModeGoal
 	if PlanAcceptanceMatches(amended, "sha256:accepted") {
 		t.Fatal("changed execution strategy retained the previous operator acceptance")
 	}

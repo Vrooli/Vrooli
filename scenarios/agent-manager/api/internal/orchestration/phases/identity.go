@@ -13,11 +13,13 @@ package phases
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/scopecatalog"
 )
 
@@ -71,8 +73,20 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	if accountScopes == nil && in.Run != nil {
 		accountScopes = in.Run.OwnerScopes
 	}
+	// Absence of an owner grant is an empty authority ceiling, never a
+	// request/profile-provided grant.
+	if accountScopes == nil {
+		accountScopes = []string{}
+	}
 	if len(in.ConcreteScopes) > 0 {
-		accountScopes = scopecatalog.Materialize(in.AccountScopes, in.ConcreteScopes, false)
+		accountScopes = scopecatalog.Materialize(accountScopes, in.ConcreteScopes, false)
+	}
+	expires := now.Add(identity.DefaultTTL)
+	if in.Run.OwnerExpiresAt != nil && in.Run.OwnerExpiresAt.Before(expires) {
+		expires = *in.Run.OwnerExpiresAt
+	}
+	if !expires.After(now) {
+		return ""
 	}
 	claims := &identity.Claims{
 		RunID:       in.Run.ID,
@@ -83,8 +97,19 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 		ProfileKey:  profileKey,
 		ScopePath:   scopePath,
 		IssuedAt:    now.Unix(),
-		ExpiresAt:   now.Add(identity.DefaultTTL).Unix(),
+		ExpiresAt:   expires.Unix(),
 		Meta:        cloneMeta(in.Meta),
+	}
+	// A resumed turn replaces a revoked credential, not just its timestamps.
+	// Seconds-granularity issuance can otherwise recreate the exact previous
+	// token and revive it when the revocation marker is cleared below.
+	claims.Meta["credential_generation"] = uuid.NewString()
+	if binding := in.Run.DispatchBinding; binding != nil {
+		if binding.EffortRef == "" || binding.AuthorizationID == "" {
+			return ""
+		}
+		claims.DispatchEffortRef = binding.EffortRef
+		claims.DispatchAuthorizationID = binding.AuthorizationID
 	}
 
 	token, err := identity.GenerateToken(claims, in.Secret)
@@ -95,6 +120,9 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	}
 
 	in.Run.IdentityTokenHash = identity.HashToken(token)
+	// Revocation belongs to the replaced credential generation. Persist the new
+	// hash and its active state together; verification still requires that hash.
+	in.Run.IdentityTokenRevokedAt = nil
 
 	if in.Deps.Runs != nil {
 		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
@@ -110,7 +138,7 @@ func profileScopes(profile *domain.AgentProfile) []string {
 	if profile == nil {
 		return nil
 	}
-	return append([]string(nil), profile.DeclaredScopes...)
+	return slices.Clone(profile.DeclaredScopes)
 }
 
 func cloneMeta(meta map[string]string) map[string]string {

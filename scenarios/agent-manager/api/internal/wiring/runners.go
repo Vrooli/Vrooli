@@ -55,7 +55,7 @@ func NewRunners(pricingServices ...codecs.PricingService) Runners {
 		}
 	}
 	register("Claude Code", domain.RunnerTypeClaudeCode, func() (*runnercore.Runner, error) {
-		codec, err := codecs.NewClaude()
+		codec, err := codecs.NewClaude(codecs.WithClaudePricingService(pricingService))
 		if err != nil {
 			return nil, err
 		}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -15,6 +16,86 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
+	const id = "e13a9412-aec5-4aac-8125-1f6bd4b39052"
+	const message = "Resume checkpoint α.\nRetain the original objective."
+	for _, tc := range []struct {
+		name, key string
+		reinstall bool
+	}{
+		{"replay-safe", "retained-request-71", false},
+		{"reinstall-goal", "retained-request-71", true},
+		{"legacy-key-omitted", "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(cliutil.EnvIdentityToken, "")
+			calls := 0
+			var received domainpb.ContinueRunRequest
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/runs/"+id+"/continue" {
+					t.Errorf("unexpected owner operation: %s %s", r.Method, r.URL.Path)
+				}
+				if err := protojson.Unmarshal(readAll(t, r), &received); err != nil {
+					t.Error(err)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"success":true,"run":{"id":"` + id + `","status":"RUN_STATUS_RUNNING"}}`))
+			}))
+			defer server.Close()
+			app, err := NewApp()
+			if err != nil {
+				t.Fatal(err)
+			}
+			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+			app.services = NewServices(api)
+			args := []string{"run", "continue", id, "--message", message, "--json"}
+			if tc.key != "" {
+				args = append(args, "--idempotency-key", tc.key)
+			}
+			if tc.reinstall {
+				args = append(args, "--reinstall-goal")
+			}
+			if err := app.Run(args); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 || received.RunId != id || received.Message != message || received.IdempotencyKey != tc.key || received.ReinstallGoal != tc.reinstall {
+				t.Fatalf("retained request changed: calls=%d request=%+v", calls, &received)
+			}
+		})
+	}
+}
+
+func TestRunContinueAppRoutingPreservesRefusalAndValidation(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"error":"owner refused continuation: retained executor is active"}`))
+	}))
+	defer server.Close()
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+	app.services = NewServices(api)
+	args := []string{"run", "continue", "retained-run", "--idempotency-key", "retained-request", "--json"}
+	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "--message is required") || calls != 0 {
+		t.Fatalf("missing message reached owner: calls=%d err=%v", calls, err)
+	}
+	args = append(args, "--message", "Resume retained checkpoint", "--reinstall-goal")
+	if err := app.Run(args); err == nil || !strings.Contains(err.Error(), "owner refused continuation") || calls != 1 {
+		t.Fatalf("owner refusal hidden or automatically retried: calls=%d err=%v", calls, err)
+	}
+	t.Setenv(cliutil.EnvIdentityToken, "run-token")
+	if err := app.Run(args); err == nil || calls != 1 {
+		t.Fatalf("run identity bypassed lifecycle preflight: calls=%d err=%v", calls, err)
+	}
+}
 
 func TestRunCreateModelOverrideIsOptional(t *testing.T) {
 	for _, tc := range []struct {

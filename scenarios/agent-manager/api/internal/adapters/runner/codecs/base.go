@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -142,6 +143,31 @@ func (b *baseCodec) Available(_ context.Context) (bool, string) {
 	return true, b.binaryDesc + " is available"
 }
 
+// RuntimeVersion reports the concrete CLI binary version observed for this
+// codec by reading the resolved binary's first `--version` line. It is the
+// runner-observed runtime identity a run admission persists as RuntimeVersion.
+// An unavailable binary, a failed command, or an empty response returns an
+// error; callers record that absence truthfully instead of inventing a value.
+func (b *baseCodec) RuntimeVersion(ctx context.Context) (string, error) {
+	if !b.available || b.binaryPath == "" {
+		return "", fmt.Errorf("%s is unavailable", b.binaryDesc)
+	}
+	versionCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(versionCtx, b.binaryPath, "--version").Output()
+	if err != nil {
+		return "", fmt.Errorf("read %s version: %w", b.binaryDesc, err)
+	}
+	version := strings.TrimSpace(string(out))
+	if idx := strings.IndexByte(version, '\n'); idx >= 0 {
+		version = strings.TrimSpace(version[:idx])
+	}
+	if version == "" {
+		return "", fmt.Errorf("%s reported an empty version", b.binaryDesc)
+	}
+	return version, nil
+}
+
 // ProbeModel satisfies [Codec] with the available-gate-only default shared by
 // the Anthropic-native and codex codecs: a deep model check would cost vendor
 // quota, so the authoritative "model is gone" signal comes from runtime
@@ -154,9 +180,12 @@ func (b *baseCodec) ProbeModel(ctx context.Context, _ string) error {
 	return nil
 }
 
-// ContinueTag satisfies [Codec]. Synthesised tag distinguishes continuation
-// runs from initial runs of the same RunID for /proc-based reconciliation.
+// ContinueTag retains the durable run tag used by reconciliation and stopping.
+// The fallback is retained for callers predating the explicit continuation tag.
 func (b *baseCodec) ContinueTag(req runner.ContinueRequest) string {
+	if req.Tag != "" {
+		return req.Tag
+	}
 	return fmt.Sprintf("%s-continue-%s", b.continuePrefix, req.RunID.String()[:8])
 }
 

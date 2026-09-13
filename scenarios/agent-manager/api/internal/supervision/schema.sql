@@ -1,5 +1,57 @@
 -- Durable cohort supervision. Cursor internals stay server-side; clients only
 -- receive the random cursor_token that identifies the committed checkpoint.
+-- Generic supervision records share this domain and database. Payloads are
+-- typed enrollment/observation/directive messages, never external owner ledgers.
+CREATE TABLE IF NOT EXISTS supervision_efforts (
+    effort_ref TEXT PRIMARY KEY,
+    revision INTEGER NOT NULL,
+    enrollment_json TEXT NOT NULL,
+    observation_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_effort_directives (
+    directive_id TEXT PRIMARY KEY,
+    effort_ref TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    directive_json TEXT NOT NULL,
+    FOREIGN KEY (effort_ref) REFERENCES supervision_efforts(effort_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_supervision_effort_directives_effort
+    ON supervision_effort_directives(effort_ref, directive_id);
+CREATE TABLE IF NOT EXISTS supervision_effort_directive_reservations (
+    directive_id TEXT PRIMARY KEY REFERENCES supervision_effort_directives(directive_id),
+    effort_ref TEXT NOT NULL REFERENCES supervision_efforts(effort_ref),
+    reserved_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_supervision_effort_directive_reserved
+    ON supervision_effort_directive_reservations(effort_ref,reserved_at);
+-- Retain both idempotent results and immutable revisions of monitoring decisions.
+CREATE TABLE IF NOT EXISTS supervision_effort_transitions (
+    operation_key TEXT PRIMARY KEY,
+    request_digest TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    occurred_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_effort_discovery (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    discovery_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_effort_registry_cursor (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    run_offset INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_effort_assessments (
+    assessment_id TEXT PRIMARY KEY,
+    shared_operation_ref TEXT NOT NULL UNIQUE,
+    assessment_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS supervision_effort_assessment_subjects (
+    assessment_id TEXT NOT NULL REFERENCES supervision_effort_assessments(assessment_id),
+    effort_ref TEXT NOT NULL REFERENCES supervision_efforts(effort_ref),
+    PRIMARY KEY(assessment_id,effort_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_supervision_effort_assessment_subject
+    ON supervision_effort_assessment_subjects(effort_ref,assessment_id);
 CREATE TABLE IF NOT EXISTS cohort_watches (
     watch_id TEXT PRIMARY KEY,
     idempotency_key TEXT NOT NULL UNIQUE,

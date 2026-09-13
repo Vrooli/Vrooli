@@ -133,11 +133,40 @@ func seedRelocatedHome(spec agentSpec, relocatedHome, workingDir, userHome strin
 		}
 	}
 	if spec.dirTrustTOML != nil && spec.trustConfigFile != "" {
-		if err := appendToFile(filepath.Join(relocatedHome, spec.trustConfigFile), spec.dirTrustTOML(workingDir)); err != nil {
-			return fmt.Errorf("pre-trust working dir for interactive %s: %w", spec.runnerType, err)
+		configPath := filepath.Join(relocatedHome, spec.trustConfigFile)
+		// The seed copies the shared config, which may already trust the working
+		// directory (its own [projects."<dir>"] table). Appending a second table
+		// for the same key is invalid TOML; Codex then refuses to load its config
+		// and the interactive TUI exits before writing a transcript. Only append
+		// when the directory is not already trusted.
+		if !configTrustsDir(configPath, workingDir) {
+			if err := appendToFile(configPath, spec.dirTrustTOML(workingDir)); err != nil {
+				return fmt.Errorf("pre-trust working dir for interactive %s: %w", spec.runnerType, err)
+			}
 		}
 	}
 	return nil
+}
+
+// configTrustsDir reports whether a TOML config already marks workingDir as
+// trusted. It matches both TOML string forms (`[projects."<dir>"]` and
+// `[projects.'<dir>']`) so appending a duplicate table is avoided. A missing or
+// unreadable file returns false (the caller appends).
+func configTrustsDir(path, workingDir string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	content := string(data)
+	for _, table := range []string{
+		fmt.Sprintf("[projects.%q]", workingDir),
+		fmt.Sprintf("[projects.'%s']", workingDir),
+	} {
+		if strings.Contains(content, table) {
+			return true
+		}
+	}
+	return false
 }
 
 // cleanupSeededHome removes the credential/config files that seedRelocatedHome

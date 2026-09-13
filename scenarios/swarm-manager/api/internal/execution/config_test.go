@@ -29,9 +29,10 @@ func TestDefaultFinalizationConfig(t *testing.T) {
 
 func TestNewServiceAppliesDefaultFinalizationConfig(t *testing.T) {
 	svc := NewService(ServiceConfig{
-		DataRoot:     t.TempDir(),
-		StorePath:    t.TempDir() + "/exec.json",
-		PlanRenderer: testPlanRenderer(),
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           t.TempDir(),
+		StorePath:          t.TempDir() + "/exec.json",
+		PlanRenderer:       testPlanRenderer(),
 	})
 
 	want := DefaultFinalizationConfig()
@@ -52,10 +53,11 @@ func TestNewServiceRespectsCustomFinalizationConfig(t *testing.T) {
 	}
 
 	svc := NewService(ServiceConfig{
-		DataRoot:     t.TempDir(),
-		StorePath:    t.TempDir() + "/exec.json",
-		PlanRenderer: testPlanRenderer(),
-		Finalization: custom,
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           t.TempDir(),
+		StorePath:          t.TempDir() + "/exec.json",
+		PlanRenderer:       testPlanRenderer(),
+		Finalization:       custom,
 	})
 
 	if svc.finalizationCfg != custom {

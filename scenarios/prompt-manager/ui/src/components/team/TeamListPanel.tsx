@@ -3,7 +3,7 @@
  */
 
 import { useState, useMemo } from 'react'
-import { Download, Plus, Power, Trash2, Upload, Users } from 'lucide-react'
+import { Download, Plus, Power, Trash2, Upload, Users, Network } from 'lucide-react'
 import { CollectionList } from '@vrooli/react-component-library/CollectionList/1.0.0'
 import type { RowAction } from '@vrooli/react-component-library/useCollection/1'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,9 @@ import * as teamService from '@/services/teamService'
 import { CCTeamImportModal } from './CCTeamImportModal'
 import type { HeartbeatControlStatus } from '@/services/heartbeatService'
 import type { Team } from '@/types/team'
+import { Dialog } from '@/components/shared/Dialog'
+import { TeamModelHelp, TeamPurposeBadges, teamPresets, teamPurposeLabels, teamLifetimeLabels } from './TeamPurposePanel'
+import { TeamEffortsPanel } from './TeamEffortsPanel'
 
 function teamActions(
   onToggleEnabled: (id: string) => void,
@@ -74,19 +77,36 @@ export function TeamListPanel({
   heartbeatControlStatus,
 }: TeamListPanelProps) {
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
+  const [purposeFilter, setPurposeFilter] = useState('')
+  const [lifetimeFilter, setLifetimeFilter] = useState('')
+  const [preset, setPreset] = useState<keyof typeof teamPresets>('custom')
+  const [effortsOpen, setEffortsOpen] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const filteredTeams = useMemo(() => {
-    if (!searchQuery) return teams
-    const lower = searchQuery.toLowerCase()
-    return teams.filter((t) => t.displayName.toLowerCase().includes(lower))
-  }, [teams, searchQuery])
+    const lower = searchQuery?.toLowerCase() ?? ''
+    return teams.filter((team) => {
+      const purpose = team.purpose ? teamPurposeLabels[team.purpose] : 'Purpose unspecified'
+      const lifetime = team.lifetime ? teamLifetimeLabels[team.lifetime] : 'Lifetime unspecified'
+      return `${team.displayName} ${team.id} ${purpose} ${lifetime}`.toLowerCase().includes(lower)
+        && (!purposeFilter || (team.purpose || 'unspecified') === purposeFilter)
+        && (!lifetimeFilter || (team.lifetime || 'unspecified') === lifetimeFilter)
+    })
+  }, [teams, searchQuery, purposeFilter, lifetimeFilter])
   const [importModalOpen, setImportModalOpen] = useState(false)
 
   const handleCreateTeam = async () => {
-    const name = `Team ${teams.length + 1}`
-    const newTeam = await createTeam(buildDefaultCreateTeamRequest(name))
-    // Auto-select the newly created team
-    onSelectTeam(newTeam.id)
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const selected = teamPresets[preset]
+      const name = `Team ${teams.length + 1}`
+      const newTeam = await createTeam({ ...buildDefaultCreateTeamRequest(name), purpose: selected.purpose, lifetime: selected.lifetime })
+      onSelectTeam(newTeam.id)
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Team could not be created.')
+    } finally { setCreating(false) }
   }
 
   const handleDeleteTeam = async (id: string) => {
@@ -172,6 +192,23 @@ export function TeamListPanel({
       className={cn('flex flex-col min-h-0', className)}
       data-testid={selectors.teams.list}
     >
+      <div className="space-y-2 border-b border-border px-3 py-2">
+        <TeamModelHelp />
+        <div className="grid grid-cols-2 gap-2">
+          <select aria-label="Filter teams by purpose" value={purposeFilter} onChange={event => setPurposeFilter(event.target.value)} className="min-w-0 rounded border border-border bg-background p-1 text-xs">
+            <option value="">All purposes</option>
+            {Object.entries(teamPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            <option value="unspecified">Unspecified</option>
+          </select>
+          <select aria-label="Filter teams by lifetime" value={lifetimeFilter} onChange={event => setLifetimeFilter(event.target.value)} className="min-w-0 rounded border border-border bg-background p-1 text-xs">
+            <option value="">All lifetimes</option>
+            {Object.entries(teamLifetimeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            <option value="unspecified">Unspecified</option>
+          </select>
+        </div>
+        <button type="button" onClick={() => setEffortsOpen(true)} className="flex items-center gap-2 text-xs text-primary hover:underline"><Network className="h-3.5 w-3.5" />Efforts and orchestration</button>
+        <p className="text-[11px] text-muted-foreground">Includes observed efforts without a registered team.</p>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
         <CollectionList
           items={filteredTeams}
@@ -198,7 +235,7 @@ export function TeamListPanel({
             }}
           >
             <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', team.enabled ? 'bg-primary/20' : 'bg-muted')}><Users className={cn('h-4 w-4', team.enabled ? 'text-primary' : 'text-muted-foreground')} /></div>
-            <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-foreground">{team.displayName}</p><div className="flex items-center gap-2 text-xs text-muted-foreground"><span>{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span><span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide', team.enabled ? 'bg-emerald-500/15 text-emerald-500' : 'bg-slate-500/20 text-slate-400')}>{team.enabled ? 'On' : 'Off'}</span>{renderHeartbeatChip(team.id)}</div></div>
+            <div className="min-w-0 flex-1 space-y-1"><p className="truncate text-sm font-medium text-foreground">{team.displayName}</p><TeamPurposeBadges team={team} /><div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span><span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">{team.enabled ? 'Enabled' : 'Disabled'}</span>{renderHeartbeatChip(team.id)}</div></div>
           </button>}
           className="h-full w-full"
         />
@@ -207,9 +244,15 @@ export function TeamListPanel({
       {/* Footer - New team + Import buttons (hidden in select mode) */}
       {!isSelectMode && (
         <div className="flex-shrink-0 px-3 py-3 border-t border-border space-y-2">
+          <label className="block text-xs text-muted-foreground">New team preset
+            <select aria-label="New team preset" value={preset} disabled={creating} onChange={event => setPreset(event.target.value as keyof typeof teamPresets)} className="mt-1 block w-full rounded border border-border bg-background p-2 text-foreground">
+              {Object.entries(teamPresets).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
+            </select>
+          </label>
           <button
             type="button"
             onClick={() => void handleCreateTeam()}
+            disabled={creating}
             className={cn(
               'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
               'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
@@ -217,8 +260,9 @@ export function TeamListPanel({
             data-testid={selectors.teams.newButton}
           >
             <Plus className="h-4 w-4" />
-            New Team
+            {creating ? 'Creating…' : 'New Team'}
           </button>
+          {createError ? <p role="alert" className="text-xs text-destructive">{createError}</p> : null}
           <button
             type="button"
             onClick={() => setImportModalOpen(true)}
@@ -233,6 +277,10 @@ export function TeamListPanel({
           </button>
         </div>
       )}
+
+      <Dialog isOpen={effortsOpen} onClose={() => setEffortsOpen(false)} title="Efforts and orchestration" maxWidth="max-w-5xl" appearance="theme">
+        {effortsOpen ? <TeamEffortsPanel teams={teams} teamRegistryComplete onOpenTeam={id => { onSelectTeam(id); setEffortsOpen(false) }} /> : null}
+      </Dialog>
 
       {/* Import modal */}
       <CCTeamImportModal

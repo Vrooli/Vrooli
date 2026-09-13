@@ -22,10 +22,11 @@ func TestPruneOrphanedPending_DropsRecordsForMissingBacklogItems(t *testing.T) {
 	})
 
 	service := NewService(ServiceConfig{
-		DataRoot:     root,
-		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
-		PlanRenderer: testPlanRenderer(),
-		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+		TransitionRegistry: testTransitionRegistry(t),
+		DataRoot:           root,
+		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
+		PlanRenderer:       testPlanRenderer(),
+		PromptClient:       &promptmanager.MockClient{Result: "test prompt"},
 	})
 
 	// Seed the store with one orphaned pending, one live pending, and one
@@ -82,6 +83,7 @@ func TestQueueBacklog_PrunesOrphansBeforeDepthCheck(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "real-item")
 
 	service := NewService(ServiceConfig{
+		TransitionRegistry: testTransitionRegistry(t),
 		DataRoot:           root,
 		StorePath:          filepath.Join(root, ".vrooli", "execution-runs.json"),
 		PlanRenderer:       testPlanRenderer(),

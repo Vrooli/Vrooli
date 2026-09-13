@@ -24,6 +24,7 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
 require (

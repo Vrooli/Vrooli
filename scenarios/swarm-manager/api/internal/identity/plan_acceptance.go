@@ -18,7 +18,7 @@ type PlanAcceptanceContract struct {
 	AcceptanceDeny    []string                 `json:"acceptance_deny,omitempty"`
 	Creates           []string                 `json:"creates,omitempty"`
 	PlanRef           *PlanAcceptanceReference `json:"plan_ref,omitempty"`
-	ExecutionStrategy string                   `json:"execution_strategy,omitempty"`
+	ExecutionMode string                   `json:"execution_mode,omitempty"`
 	ExecutionLimits   *ExecutionLimits         `json:"execution_limits,omitempty"`
 	Continuation      string                   `json:"continuation,omitempty"`
 	ScopePolicy       string                   `json:"scope_policy,omitempty"`

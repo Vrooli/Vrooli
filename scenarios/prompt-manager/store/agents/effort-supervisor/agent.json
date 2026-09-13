@@ -1,0 +1,13 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "effort-supervisor",
+  "displayName": "Effort Supervisor",
+  "description": "Interprets owner-backed effort evidence and bounded healthy samples through large-effort-supervision.",
+  "status": "active",
+  "tags": ["supervision", "evidence"],
+  "fileOrder": ["AGENT.md"],
+  "revision": 1,
+  "createdAt": "2026-09-12T00:00:00Z",
+  "updatedAt": "2026-09-12T00:00:00Z"
+}

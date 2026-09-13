@@ -29,11 +29,13 @@ import type { Agent } from '@/types/agent'
 import { cn } from '@/lib/utils'
 import { selectors } from '@/constants/selectors'
 import * as heartbeatService from '@/services/heartbeatService'
-import type { HeartbeatConfig, TeamLogEntry } from '@/services/heartbeatService'
+import type { HeartbeatConfig, TeamLogEntry, TeamRunAccounting } from '@/services/heartbeatService'
 import { ExpandableDescription } from '@/components/shared/ExpandableDescription'
 import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
+import { TeamPurposePanel } from '@/components/team/TeamPurposePanel'
+import { TeamEffortsPanel } from '@/components/team/TeamEffortsPanel'
 import { runDetailPath } from '@/app/routes/route-paths'
-import { formatRelativeTime, formatRelativePastTime, formatDate, formatDuration } from '@/lib/timeUtils'
+import { formatRelativeTime, formatRelativePastTime, formatDate } from '@/lib/timeUtils'
 import { formatScheduleSummary } from '@/lib/scheduleUtils'
 import {
   buildBoundedParallelExecution,
@@ -78,14 +80,53 @@ export function TeamDashboardTab({
   const [heartbeatConfigs, setHeartbeatConfigs] = useState<HeartbeatConfig[]>([])
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState(false)
   const [heartbeatError, setHeartbeatError] = useState<string | null>(null)
+  const [heartbeatsLoaded, setHeartbeatsLoaded] = useState(false)
+
+  const observedEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
+    Object.entries(config.supervisionState?.efforts ?? {}).filter(([, effort]) => !effort.retired).map(([ref]) => ref),
+  ))], [heartbeatConfigs])
+  const leaderEffortRefs = useMemo(() => [...new Set(heartbeatConfigs.flatMap(config =>
+    config.finiteLeader?.effortRef && !config.finiteLeader.retired ? [config.finiteLeader.effortRef] : [],
+  ))], [heartbeatConfigs])
+  const supervisionConfigs = heartbeatConfigs.filter(config => config.supervision || config.supervisionState || config.supervisionError)
+  const supervisionObservationAvailable = heartbeatsLoaded && !heartbeatError
+    && supervisionConfigs.every(config => !config.supervisionError && !!config.supervisionState)
+    && (team.purpose !== 'supervision' || supervisionConfigs.length > 0)
+  const supervisionObservationError = supervisionConfigs.flatMap(config => config.supervisionError
+    ? [`${config.agentId}: ${config.supervisionError}`]
+    : !config.supervisionState ? [`${config.agentId}: supervision state unavailable`] : []).join('; ')
 
   // --- Activity feed state ---
   const [teamLogs, setTeamLogs] = useState<TeamLogEntry[]>([])
   const [logsOffset, setLogsOffset] = useState(0)
   const [hasMoreLogs, setHasMoreLogs] = useState(false)
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
+  const [logsError, setLogsError] = useState<string | null>(null)
   const [memberFilter, setMemberFilter] = useState('')
   const [openWorkCount, setOpenWorkCount] = useState<number | null>(null)
+  const [accountingResult, setAccounting] = useState<TeamRunAccounting | null>(null)
+  const [accountingError, setAccountingError] = useState<string | null>(null)
+  const accounting = accountingResult?.teamId === team.id && (accountingResult.agentId ?? '') === memberFilter ? accountingResult : null
+
+  useEffect(() => {
+    let active = true
+    let loading = false
+    setAccounting(null)
+    setAccountingError(null)
+    const load = async () => {
+      if (loading) return
+      loading = true
+      try {
+        const result = await heartbeatService.getTeamRunAccounting(team.id, memberFilter || undefined)
+        if (active) { setAccounting(result); setAccountingError(null) }
+      } catch {
+        if (active) { setAccounting(null); setAccountingError('Owner run accounting unavailable.') }
+      } finally { loading = false }
+    }
+    void load()
+    const interval = setInterval(() => void load(), 60_000)
+    return () => { active = false; clearInterval(interval) }
+  }, [team.id, memberFilter])
 
   // --- Agents lookup ---
   const agentsById = useMemo(() => {
@@ -357,39 +398,24 @@ export function TeamDashboardTab({
     return heartbeatConfigs.filter((c) => c.enabled).length
   }, [heartbeatConfigs])
 
-  // --- Summary stats ---
+  // Local files are not an AM run ledger. In particular, standing supervision
+  // produces owner runs without local logs, and lastExecution is one snapshot.
   const summaryStats = useMemo(() => {
-    // Success rate from heartbeat configs with last executions
-    const withExec = heartbeatConfigs.filter(
-      (c): c is HeartbeatConfig & { lastExecution: NonNullable<HeartbeatConfig['lastExecution']> } =>
-        !!c.lastExecution,
-    )
-    const total = withExec.length
-    const completed = withExec.filter((c) => c.lastExecution.status === 'completed').length
-    const successRate = total > 0 ? Math.round((completed / total) * 100) : -1
-
-    // Run count in 24h from teamLogs
-    const oneDayAgo = Date.now() - 86_400_000
-    const recentLogs = teamLogs.filter((l) => new Date(l.timestamp).getTime() >= oneDayAgo)
-    const runCount24h = recentLogs.length
-
-    // Average duration from heartbeat configs that have both startedAt and endedAt
-    const durations: number[] = []
-    for (const c of withExec) {
-      if (c.lastExecution.startedAt && c.lastExecution.endedAt) {
-        const d = new Date(c.lastExecution.endedAt).getTime() - new Date(c.lastExecution.startedAt).getTime()
-        if (d > 0) durations.push(d)
-      }
-    }
-    const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : -1
-
-    return { successRate, runCount24h, avgDuration }
-  }, [heartbeatConfigs, teamLogs])
+    const now = Date.now()
+    const oneDayAgo = now - 86_400_000
+    const recentLogs = teamLogs.filter((l) => {
+      const timestamp = new Date(l.timestamp).getTime()
+      return timestamp >= oneDayAgo && timestamp <= now
+    })
+    return { localLogCount24h: recentLogs.length }
+  }, [teamLogs])
 
   // --- Heartbeat polling (10s) ---
   useEffect(() => {
     let isActive = true
     let isFirstLoad = true
+    setHeartbeatsLoaded(false)
+    setHeartbeatConfigs([])
     const loadHeartbeats = async () => {
       if (isFirstLoad) {
         setIsLoadingHeartbeats(true)
@@ -399,14 +425,14 @@ export function TeamDashboardTab({
         const configs = await heartbeatService.listHeartbeats(team.id)
         if (!isActive) return
         setHeartbeatConfigs(configs)
-        if (isFirstLoad) setHeartbeatError(null)
+        setHeartbeatError(null)
+        setHeartbeatsLoaded(true)
       } catch (error) {
         if (!isActive) return
-        if (isFirstLoad) {
-          console.warn('Failed to load heartbeat schedule:', error)
-          setHeartbeatConfigs([])
-          setHeartbeatError('Unable to load heartbeat schedule.')
-        }
+        if (isFirstLoad) console.warn('Failed to load heartbeat schedule:', error)
+        setHeartbeatConfigs([])
+        setHeartbeatError('Unable to load heartbeat schedule.')
+        setHeartbeatsLoaded(false)
       } finally {
         if (isActive && isFirstLoad) setIsLoadingHeartbeats(false)
         isFirstLoad = false
@@ -426,6 +452,7 @@ export function TeamDashboardTab({
     let isActive = true
     const loadLogs = async () => {
       setIsLoadingLogs(true)
+      setLogsError(null)
       try {
         const response = await heartbeatService.listTeamLogs(team.id, {
           limit: LOGS_PAGE_SIZE,
@@ -442,6 +469,7 @@ export function TeamDashboardTab({
       } catch (error) {
         if (!isActive) return
         console.warn('Failed to load team logs:', error)
+        setLogsError('Local logs unavailable.')
         if (logsOffset === 0) setTeamLogs([])
       } finally {
         if (isActive) setIsLoadingLogs(false)
@@ -462,7 +490,7 @@ export function TeamDashboardTab({
 
   // --- Health computation ---
   useEffect(() => {
-    if (!team.enabled) {
+    if (!team.enabled || heartbeatError || !heartbeatsLoaded) {
       onHealthChange?.('gray')
     } else {
       const withExec = heartbeatConfigs.filter(
@@ -470,7 +498,7 @@ export function TeamDashboardTab({
           !!c.lastExecution,
       )
       if (withExec.length === 0) {
-        onHealthChange?.('green')
+        onHealthChange?.('gray')
       } else {
         const failed = withExec.filter((c) => c.lastExecution.status === 'failed')
         // Most recent execution across all configs
@@ -482,8 +510,10 @@ export function TeamDashboardTab({
           onHealthChange?.('red')
         } else if (failed.length > 0) {
           onHealthChange?.('yellow')
-        } else {
+        } else if (mostRecent?.lastExecution.status === 'completed') {
           onHealthChange?.('green')
+        } else {
+          onHealthChange?.('gray')
         }
       }
     }
@@ -498,7 +528,7 @@ export function TeamDashboardTab({
     } else {
       onLastActiveChange?.(null)
     }
-  }, [heartbeatConfigs, team.enabled, onHealthChange, onLastActiveChange])
+  }, [heartbeatConfigs, heartbeatError, heartbeatsLoaded, team.enabled, onHealthChange, onLastActiveChange])
 
   // --- Load more handler ---
   const handleLoadMore = useCallback(() => {
@@ -541,6 +571,21 @@ export function TeamDashboardTab({
           />
         </div>
       </section>
+
+      <TeamPurposePanel key={team.id} team={team} onUpdate={onUpdate} />
+      <TeamEffortsPanel
+        team={team}
+        observedEffortRefs={observedEffortRefs}
+        leaderEffortRefs={leaderEffortRefs}
+        observationAvailable={supervisionObservationAvailable}
+        observationError={supervisionObservationError || undefined}
+        scheduled={heartbeatsLoaded && !heartbeatError ? {
+          enabled: team.enabled && heartbeatConfigs.some(config => config.enabled),
+          summary: !team.enabled ? 'Team scheduling disabled' : heartbeatConfigs.length
+            ? heartbeatConfigs.map(config => `${config.agentId}: ${config.enabled ? config.lifecycleState || 'schedule enabled' : 'disabled'}`).join('; ')
+            : 'No member heartbeats configured',
+        } : undefined}
+      />
 
       {/* Member Roster */}
       <section>
@@ -935,29 +980,42 @@ export function TeamDashboardTab({
       <section>
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Activity</h3>
 
-        {/* Summary stats bar */}
-        <div className="flex gap-4 mb-3 text-sm">
-          {summaryStats.successRate >= 0 && (
-            <span
-              className={cn(
-                'font-medium',
-                summaryStats.successRate > 80 && 'text-emerald-500',
-                summaryStats.successRate >= 50 && summaryStats.successRate <= 80 && 'text-amber-500',
-                summaryStats.successRate < 50 && 'text-red-500',
-              )}
-            >
-              {summaryStats.successRate}% success
-            </span>
-          )}
-          <span className="text-muted-foreground">
-            {summaryStats.runCount24h} run{summaryStats.runCount24h !== 1 ? 's' : ''} in 24h
-          </span>
-          {summaryStats.avgDuration >= 0 && (
-            <span className="text-muted-foreground">
-              avg {formatDuration(summaryStats.avgDuration)}
-            </span>
-          )}
+        <div aria-label="Owner run accounting" className="mb-4 space-y-2 text-sm">
+          {!accounting && <p role="status" className="text-muted-foreground">{accountingError ?? 'Loading owner run accounting…'}</p>}
+          {accounting && <>
+            <p>{accounting.knownRuns} known owner run ID{accounting.knownRuns === 1 ? '' : 's'} from PM declarations in 24h</p>
+            <p className="text-muted-foreground">
+              {accounting.observedRuns} observed · {accounting.unavailableRuns} unavailable · {accounting.unqueriedRuns} not queried
+            </p>
+            <p>{accounting.observedExecutions} distinct observed execution{accounting.observedExecutions === 1 ? '' : 's'} · {accounting.duplicateExecutions} resumed/imported duplicate{accounting.duplicateExecutions === 1 ? '' : 's'} excluded</p>
+            <p>Runtime: {Object.entries(accounting.runtimeStates).map(([state, count]) => `${state}: ${count}`).join(' · ') || 'unknown'}</p>
+            <p>Actual models: {Object.entries(accounting.actualModels).map(([model, count]) => `${model}: ${count}`).join(' · ') || 'unknown'} · {accounting.unknownModelExecutions} unknown</p>
+            {Object.keys(accounting.terminalReasons).length > 0 && <p>Terminal reasons: {Object.entries(accounting.terminalReasons).map(([reason, count]) => `${reason}: ${count}`).join(' · ')}</p>}
+            <p>Token usage: {accounting.usage.tokens == null ? 'unknown' : accounting.usage.tokens.toLocaleString()} · Actual charge: {accounting.usage.costUSD == null ? 'unknown' : `$${accounting.usage.costUSD.toFixed(2)}`}</p>
+            <p className="text-muted-foreground">Usage coverage: {accounting.usage.qualifiedRuns}/{accounting.observedRuns} owner runs qualified; {accounting.usage.reportedTokenRuns} report tokens, {accounting.usage.reportedCostRuns} report cost estimates.</p>
+            <p className="text-muted-foreground">{accounting.coverage.partial ? 'Partial history coverage; these are known runs, not a complete team total.' : 'Complete declared history coverage.'} Runtime completion does not establish outcome acceptance.</p>
+            <details className="text-xs text-muted-foreground">
+              <summary>Coverage and owner evidence</summary>
+              <p>Observed <time dateTime={accounting.observedAt}>{formatDate(accounting.observedAt)}</time>; {accounting.coverage.declarationsRead}/{accounting.coverage.declarationLimit} declaration rows read; at most {accounting.coverage.ownerReadLimit} owner reads.</p>
+              {accounting.coverage.invalidTimestamps > 0 && <p>{accounting.coverage.invalidTimestamps} declarations excluded because their window timestamp is unavailable.</p>}
+              {accounting.coverage.limitations.map((reason) => <p key={reason}>{reason}</p>)}
+              <ul>{accounting.runs.map((run) => <li key={run.runId}>
+                <a className="text-primary underline" href={runDetailPath(run.runId)}>{run.runId}</a> · {run.agentIds.join(', ')} · {run.availability}
+              </li>)}</ul>
+            </details>
+          </>}
         </div>
+
+        {/* Summary stats bar */}
+        {!isLoadingLogs && !logsError && <div className="flex gap-4 mb-3 text-sm">
+          <span className="text-muted-foreground">
+            {hasMoreLogs ? 'At least ' : ''}{summaryStats.localLogCount24h} local log{summaryStats.localLogCount24h !== 1 ? 's' : ''} in 24h
+          </span>
+        </div>}
+        <p className="text-xs text-muted-foreground mb-3">
+          Run totals and success rate are unavailable from local logs.{' '}
+          <a className="text-primary underline" href="/embedded/agent-manager/">Agent Manager run history</a>
+        </p>
 
         {/* Member filter */}
         {team.members.length > 1 && (
@@ -979,10 +1037,11 @@ export function TeamDashboardTab({
         )}
 
         {/* Activity entries */}
-        {teamLogs.length === 0 && !isLoadingLogs ? (
+        {logsError && <p className="text-sm text-muted-foreground" role="status">{logsError}</p>}
+        {teamLogs.length === 0 && !isLoadingLogs && !logsError ? (
           <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
             <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-muted-foreground">No recent activity.</p>
+            <p className="text-sm text-muted-foreground">No local logs.</p>
           </div>
         ) : (
           <ul className="space-y-1.5">

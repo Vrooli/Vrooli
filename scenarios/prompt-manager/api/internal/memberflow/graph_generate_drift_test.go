@@ -15,6 +15,8 @@ import (
 // phase removed. Regenerate with:
 //
 //	go run ./cmd/gen-operating-graph <repo-root> --apply
+//
+// Add --team=<id> to regenerate one affected owner without rewriting peers.
 func TestCheckedInOperatingGraphsMatchTheGenerator(t *testing.T) {
 	repoRoot := requireRepositoryRoot(t)
 	storeDir := filepath.Join(repoRoot, "scenarios", "prompt-manager", "store")

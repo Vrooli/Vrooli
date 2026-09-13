@@ -120,6 +120,11 @@ type Reconciler struct {
 	// can detect a vanished session quickly.
 	interactiveSessionPoll time.Duration
 
+	// interactiveSessionReattachWindow overrides how long a reattached tailer
+	// tolerates a missing session before failing the run (0 uses the coordinator
+	// default 3 minutes). Field so tests can fail fast.
+	interactiveSessionReattachWindow time.Duration
+
 	config ReconcilerConfig
 	clock  func() time.Time
 
@@ -143,11 +148,17 @@ type Reconciler struct {
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
 
-	recoveryMu         sync.Mutex
-	tailers            map[uuid.UUID]context.CancelFunc
-	workflowRecovery   WorkflowExecutionRecoverer
-	workflowLiveness   WorkflowWaitingLivenessRecoverer
-	pendingRunRecovery PendingRunRecoverer
+	// Shares the continuation owner lock after SetReconciler. Recovery must not
+	// read a half-admitted interactive invocation.
+	interactiveRecoveryMu  *sync.Mutex
+	interactiveLiveDrivers *interactiveDriverRegistry
+	interactiveTailDone    map[uuid.UUID]chan struct{}
+	recoveryMu             sync.Mutex
+	tailers                map[uuid.UUID]context.CancelFunc
+	tailerOwners           map[uuid.UUID]context.Context
+	workflowRecovery       WorkflowExecutionRecoverer
+	workflowLiveness       WorkflowWaitingLivenessRecoverer
+	pendingRunRecovery     PendingRunRecoverer
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
@@ -187,15 +198,18 @@ func NewReconciler(
 	opts ...ReconcilerOption,
 ) *Reconciler {
 	r := &Reconciler{
-		runs:    runs,
-		events:  nil,
-		runners: runners,
-		config:  DefaultReconcilerConfig(),
-		clock:   time.Now,
-		levers:  cfgpkg.DefaultLevers(),
-		stopCh:  make(chan struct{}),
-		doneCh:  make(chan struct{}),
-		tailers: make(map[uuid.UUID]context.CancelFunc),
+		runs:                  runs,
+		events:                nil,
+		runners:               runners,
+		config:                DefaultReconcilerConfig(),
+		clock:                 time.Now,
+		levers:                cfgpkg.DefaultLevers(),
+		stopCh:                make(chan struct{}),
+		doneCh:                make(chan struct{}),
+		tailers:               make(map[uuid.UUID]context.CancelFunc),
+		interactiveRecoveryMu: &sync.Mutex{},
+		interactiveTailDone:   make(map[uuid.UUID]chan struct{}),
+		tailerOwners:          make(map[uuid.UUID]context.Context),
 	}
 
 	for _, opt := range opts {
@@ -784,11 +798,31 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 		run = full
 	}
 
-	if result, err := r.recoverRun(ctx, run, true); err == nil && result != nil {
+	// Use the hydrated heartbeat. A list snapshot can be stale even though
+	// the active executor renewed its lease before this check.
+	if run.LastHeartbeat != nil {
+		heartbeatAge = r.now().Sub(*run.LastHeartbeat)
+	}
+	result, recoveryErr := r.recoverRun(ctx, run, true)
+	if recoveryErr != nil && r.isProcessAlive(ctx, run) {
+		// Artifact failure is not executor death. In particular, neither an
+		// old heartbeat nor an old attempt deadline authorizes terminating a
+		// positively identified process when recovery evidence is unavailable.
+		stats.Errors = append(stats.Errors, recoveryErr.Error())
+		r.log().Warn("live executor retained for agent-manager owner diagnosis", obs.KeyRunID, run.ID.String(), obs.KeyError, recoveryErr.Error())
+		return
+	}
+	if recoveryErr == nil && result != nil {
 		if result.Recovered {
 			stats.RunsRecovered++
 		}
 		if run.Status == domain.RunStatusComplete || run.Status == domain.RunStatusFailed || run.Status == domain.RunStatusCancelled {
+			return
+		}
+		if result.Recovered {
+			// Recovery attached an owner to the surviving executor. The old
+			// process heartbeat is not a timeout for that new owner. In
+			// particular a long tool call survives an AM restart unchanged.
 			return
 		}
 	}
@@ -860,6 +894,7 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 
 	if err := r.runs.Update(ctx, run); err != nil {
 		r.log().Warn("run status update failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		return // Do not project a status that lost its atomic writer fence.
 	}
 
 	// Broadcast status change
@@ -893,11 +928,17 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 
 	// Method 1: Check via runner if available
 	if r.runners != nil && run.ResolvedConfig != nil {
-		if runner, err := r.runners.Get(run.ResolvedConfig.RunnerType); err == nil {
-			// Try to detect via runner's internal tracking
-			// This requires the runner to implement a status check method
-			// For now, fall through to process scanning
-			_ = runner
+		if rr, err := r.runners.Get(run.ResolvedConfig.RunnerType); err == nil {
+			if legacy, ok := rr.(interface {
+				ContinuationTag(runner.ContinueRequest) string
+			}); ok && run.RunnerPID > 0 {
+				// Existing continuations used a synthesized tag. Require both the
+				// recorded process and its exact codec tag; PID liveness alone
+				// could mistake an unrelated reused PID for this run.
+				if extractTagFromEnv(run.RunnerPID) == legacy.ContinuationTag(runner.ContinueRequest{RunID: run.ID}) {
+					return true
+				}
+			}
 		}
 	}
 

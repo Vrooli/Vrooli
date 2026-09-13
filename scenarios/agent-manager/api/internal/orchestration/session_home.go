@@ -12,6 +12,30 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	// RuntimeDirName is the single per-run folder every runner-private path
+	// lives under. The run, not the runner, is the unit of sandbox isolation.
+	RuntimeDirName = "runtime"
+	// RuntimeRootEnvKey carries the per-run runtime folder to the sandbox
+	// launcher, which mounts it writable for every runner.
+	RuntimeRootEnvKey = "VROOLI_AGENT_RUNTIME_ROOT"
+)
+
+// PrepareRunnerRuntimeRoot creates the per-run runtime folder and returns the
+// env entry the protected sandbox launcher mounts. Every runner's private state
+// (Codex/Grok homes, skill scopes, OpenCode data) lives beneath it.
+func PrepareRunnerRuntimeRoot(root string, runID uuid.UUID) (map[string]string, error) {
+	runDir, err := runstate.RunDir(root, runID)
+	if err != nil {
+		return nil, err
+	}
+	runtimeDir := filepath.Join(runDir, RuntimeDirName)
+	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+		return nil, fmt.Errorf("create run runtime folder: %w", err)
+	}
+	return map[string]string{RuntimeRootEnvKey: runtimeDir}, nil
+}
+
 // PrepareCodecSessionHome creates the durable, run-scoped session home used by
 // codec-pipe Codex and Grok runs. The run directory lives under the runtime
 // home, which the protected sandbox mounts at the same path, so the CLI can
@@ -35,7 +59,7 @@ func PrepareCodecSessionHome(root string, runID uuid.UUID, runnerType domain.Run
 	if err != nil {
 		return nil, err
 	}
-	home := filepath.Join(runDir, subdir)
+	home := filepath.Join(runDir, RuntimeDirName, subdir)
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return nil, fmt.Errorf("create run-scoped %s: %w", envKey, err)
 	}
@@ -68,7 +92,7 @@ func CleanupCodecSessionHomeCredentials(root string, runID uuid.UUID, runnerType
 	if err != nil {
 		return err
 	}
-	home := filepath.Join(runDir, subdir)
+	home := filepath.Join(runDir, RuntimeDirName, subdir)
 	var firstErr error
 	for _, name := range sessionHomeSeedFiles(runnerType) {
 		if err := os.Remove(filepath.Join(home, name)); err != nil && !os.IsNotExist(err) && firstErr == nil {

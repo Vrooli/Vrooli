@@ -41,16 +41,19 @@ func Attenuate(parent *Claims, childRunID, childTaskID uuid.UUID, requested []st
 		return nil, err
 	}
 	return &Claims{
-		RunID:       childRunID,
-		TaskID:      childTaskID,
-		Subject:     parent.Subject,
-		WorkspaceID: parent.WorkspaceID,
-		Scopes:      scopes,
-		ProfileKey:  parent.ProfileKey,
-		ScopePath:   parent.ScopePath,
-		IssuedAt:    now.Unix(),
-		ExpiresAt:   expiresAt.Unix(),
-		Meta:        maps.Clone(parent.Meta),
+		Purpose:                 parent.Purpose,
+		DispatchEffortRef:       parent.DispatchEffortRef,
+		DispatchAuthorizationID: parent.DispatchAuthorizationID,
+		RunID:                   childRunID,
+		TaskID:                  childTaskID,
+		Subject:                 parent.Subject,
+		WorkspaceID:             parent.WorkspaceID,
+		Scopes:                  scopes,
+		ProfileKey:              parent.ProfileKey,
+		ScopePath:               parent.ScopePath,
+		IssuedAt:                now.Unix(),
+		ExpiresAt:               expiresAt.Unix(),
+		Meta:                    maps.Clone(parent.Meta),
 	}, nil
 }
 

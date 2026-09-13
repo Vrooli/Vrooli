@@ -27,15 +27,15 @@ func TestJSONRequestEncodesBodyAndRouteVars(t *testing.T) {
 	}
 }
 
-func TestDecodeJSONAndAssertStatus(t *testing.T) {
+func TestRecorderSupportsSharedResponseAssertions(t *testing.T) {
 	recorder := Recorder()
 	recorder.Code = http.StatusAccepted
 	recorder.Body.WriteString(`{"ok":true}`)
 
 	apihttptest.AssertStatus(t, recorder.Result(), http.StatusAccepted)
-	resp := DecodeJSON[struct {
+	resp := apihttptest.MustDecodeJSON[struct {
 		OK bool `json:"ok"`
-	}](t, recorder)
+	}](t, recorder.Body.Bytes())
 	if !resp.OK {
 		t.Fatal("expected decoded response ok=true")
 	}

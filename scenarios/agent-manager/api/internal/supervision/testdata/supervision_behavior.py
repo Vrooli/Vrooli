@@ -4,6 +4,11 @@ import copy
 import io
 import json
 import sys
+from pathlib import Path
+
+# Exercise the canonical runtime helper, not a stale private emulation.
+sys.path.insert(0, str(Path(sys.argv[1]).resolve().parents[3] / "program-runtime" / "kernel"))
+from host.program_helper import ProgramHelper
 
 source = open(sys.argv[1], encoding="utf-8").read()
 base = {"policy":{"version":"test", "event_count_threshold":3,"friction_threshold":.8,
@@ -23,8 +28,12 @@ def evaluate(update):
     data=copy.deepcopy(base)
     data.update(update)
     out=io.StringIO()
+    environment={"inputs":data,"ai":Classifier()}
+    helper=ProgramHelper()
+    helper._bind(environment)
+    environment["program"]=helper
     with contextlib.redirect_stdout(out):
-        exec(compile(source,sys.argv[1],"exec"),{"inputs":data,"ai":Classifier()})
+        exec(compile(source,sys.argv[1],"exec"),environment)
     lines=out.getvalue().splitlines()
     assert len(lines)==1, lines
     result=json.loads(lines[0])

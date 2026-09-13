@@ -3,6 +3,9 @@ package orchestration
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -27,20 +30,44 @@ import (
 	"github.com/google/uuid"
 )
 
-func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error) {
+func continuationRequestHash(req ContinueRunRequest) []byte {
+	data, _ := json.Marshal(req)
+	sum := sha256.Sum256(data)
+	return sum[:]
+}
+
+func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (_ *domain.Run, returnErr error) {
+	effectsPossible := false
+	defer func() {
+		if !effectsPossible {
+			returnErr = domain.RefuseBeforeEffects(returnErr)
+		}
+	}()
 	if req.IdempotencyKey != "" && o.idempotency != nil {
+		effectsPossible = true // An unreadable or pending receipt may belong to accepted dispatch.
 		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
 		if err != nil {
 			return nil, err
 		}
 		if existing != nil && existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
+			if existing.EntityType != "Continuation" || *existing.EntityID != req.RunID || string(existing.Response) != string(continuationRequestHash(req)) {
+				return nil, domain.RefuseBeforeEffects(domain.NewValidationErrorWithCode("idempotencyKey", "key belongs to a different operation or continuation request", domain.ErrCodeValidationConflict))
+			}
 			return o.GetRun(ctx, *existing.EntityID)
 		}
 		if existing != nil && existing.Status == domain.IdempotencyStatusPending {
 			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
+		effectsPossible = false
 	}
+	releaseAdmission, err := o.admitMaintenance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseAdmission()
 	// Validate message
+	o.wakeMu.Lock()
+	defer o.wakeMu.Unlock()
 	if strings.TrimSpace(req.Message) == "" {
 		return nil, domain.NewValidationError("message", "message is required")
 	}
@@ -57,8 +84,12 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
+	if err := o.validateContinuationSession(ctx, run); err != nil {
+		return nil, err
+	}
 	if req.IdempotencyKey != "" && o.idempotency != nil {
 		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, time.Hour); err != nil {
+			effectsPossible = true // Another caller won; its outcome is not a refusal.
 			return nil, domain.NewStateError("Run", "continuing", "continue", "a continuation with this idempotency key is already in progress")
 		}
 	}
@@ -71,21 +102,35 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, domain.NewValidationError("continuationOverrides", "interactive continuation does not support per-turn workflow overrides")
 		}
-		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs)
+		effectsPossible = true
+		continued, err := o.continueInteractiveRun(ctx, run, req.Message, req.AttachmentIDs, req.ReinstallGoal)
 		if err != nil {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 			return nil, err
 		}
-		o.markIdempotencyComplete(ctx, req.IdempotencyKey, continued.ID, "Run")
+		if err := o.completeContinuationReceipt(ctx, req); err != nil {
+			return nil, err
+		}
 		return continued, nil
 	}
+	effectsPossible = true
 	continued, err := o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested", continuationOverrides{MaxTurns: req.MaxTurns, Timeout: req.Timeout, ResultSpec: req.ResultSpec})
 	if err != nil {
-		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		if domain.IsPreEffectRefusal(err) {
+			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		}
 		return nil, err
 	}
-	o.markIdempotencyComplete(ctx, req.IdempotencyKey, continued.ID, "Run")
+	if err := o.completeContinuationReceipt(ctx, req); err != nil {
+		return nil, err
+	}
 	return continued, nil
+}
+
+func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req ContinueRunRequest) error {
+	if req.IdempotencyKey == "" || o.idempotency == nil {
+		return nil
+	}
+	return o.idempotency.Complete(context.WithoutCancel(ctx), req.IdempotencyKey, req.RunID, "Continuation", continuationRequestHash(req))
 }
 
 // resumeConversation drives a single session-resume turn shared by both
@@ -104,7 +149,46 @@ type continuationOverrides struct {
 	ResultSpec *domain.ResultSpec
 }
 
-func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string, overrides continuationOverrides) (*domain.Run, error) {
+func (o *Orchestrator) validateContinuationSession(ctx context.Context, run *domain.Run) error {
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
+		return nil // The interactive substrate owns its live web-console session.
+	}
+	if run.ResolvedConfig == nil || o.runners == nil {
+		return nil // Existing config/capability gates report these failures.
+	}
+	r, err := o.runners.Get(run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return err
+	}
+	checker, ok := r.(runner.ContinuationPreflighter)
+	if !ok {
+		return nil
+	}
+	env := make(map[string]string, len(run.CustomEnv)+1)
+	for key, value := range run.CustomEnv {
+		env[key] = value
+	}
+	if run.ResolvedConfig.RunnerType == domain.RunnerTypeOpenCode {
+		root, err := o.resolveRunStateRoot(ctx)
+		if err != nil {
+			return err
+		}
+		runDir, err := runstate.RunDir(root, run.ID)
+		if err != nil {
+			return err
+		}
+		env["XDG_DATA_HOME"] = openCodeRunDataHome(runDir)
+	}
+	return checker.ValidateContinuation(ctx, runner.ContinueRequest{RunID: run.ID, SessionID: run.SessionID, Environment: env, ResolvedConfig: run.ResolvedConfig, SandboxID: run.SandboxID})
+}
+
+func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string, overrides continuationOverrides) (_ *domain.Run, returnErr error) {
+	effectsPossible := false
+	defer func() {
+		if !effectsPossible {
+			returnErr = domain.RefuseBeforeEffects(returnErr)
+		}
+	}()
 	// The immutable resolved config is the sole execution authority.
 	var runnerType domain.RunnerType
 	if run.ResolvedConfig != nil {
@@ -131,6 +215,11 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	if !caps.SupportsContinuation {
 		return nil, runner.ErrContinuationNotSupported
 	}
+	// Wake also enters here; check before sandbox, status, event, transcript,
+	// credential, or runtime-root writes. Continue checks before reservation too.
+	if err := o.validateContinuationSession(ctx, run); err != nil {
+		return nil, err
+	}
 
 	task, err := o.GetTask(ctx, run.TaskID)
 	if err != nil {
@@ -146,6 +235,7 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 		}
 	}
 
+	effectsPossible = true
 	workDir, err := o.prepareContinuationSandbox(ctx, run, task)
 	if err != nil {
 		return nil, err
@@ -312,25 +402,25 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 	if err != nil {
 		return nil, err
 	}
-	sessionEnv, err := PrepareCodecSessionHome(runStateRoot, run.ID, run.ResolvedConfig.RunnerType)
+	runtimeEnv, err := PrepareRunnerRuntimeRoot(runStateRoot, run.ID)
 	if err != nil {
 		return nil, err
 	}
-	for key, value := range sessionEnv {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		env[key] = value
+	sessionEnv, err := PrepareCodecSessionHome(runStateRoot, run.ID, run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return nil, err
 	}
 	skillEnv, err := PrepareRunnerSkillScope(runStateRoot, run.ID, run.ResolvedConfig.RunnerType)
 	if err != nil {
 		return nil, err
 	}
-	for key, value := range skillEnv {
-		if env == nil {
-			env = make(map[string]string)
+	for _, envSet := range []map[string]string{runtimeEnv, sessionEnv, skillEnv} {
+		for key, value := range envSet {
+			if env == nil {
+				env = make(map[string]string)
+			}
+			env[key] = value
 		}
-		env[key] = value
 	}
 	if len(run.ResolvedConfig.SkillPack) > 0 {
 		runtimeRoot := ""
@@ -530,6 +620,17 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 		return nil, nil, err
 	}
 
+	// Callbacks own their stream snapshot; they must never mutate the returned
+	// run or persist its stale lifecycle/heartbeat projection.
+	streamRun := *run
+	run = &streamRun
+	persistStream := func() error {
+		updated, err := o.runs.UpdateRunnerStreamState(context.Background(), run)
+		if err == nil && !updated {
+			return domain.NewStateError("Run", "superseded", "stream", "continuation no longer owns this lifecycle")
+		}
+		return err
+	}
 	cfg := &runner.TranscriptConfig{
 		TranscriptPath: snap.TranscriptPath,
 		StderrPath:     snap.StderrPath,
@@ -538,10 +639,13 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 		OnProcessStart: func(pid, pgid int) error {
 			run.RunnerPID = pid
 			run.RunnerPGID = pgid
+			if err := persistStream(); err != nil {
+				return err
+			}
 			if err := state.PersistProcess(pid, pgid); err != nil {
 				return err
 			}
-			return o.runs.Update(context.Background(), run)
+			return nil
 		},
 		OnAdvance: func(cursor, lastSeq int64) error {
 			if cursor > run.TranscriptCursor {
@@ -550,20 +654,26 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 			if lastSeq > run.TranscriptLastSeq {
 				run.TranscriptLastSeq = lastSeq
 			}
+			if err := persistStream(); err != nil {
+				return err
+			}
 			if err := state.PersistCursor(run.TranscriptCursor, run.TranscriptLastSeq); err != nil {
 				return err
 			}
-			return o.runs.Update(context.Background(), run)
+			return nil
 		},
 		OnSessionID: func(sessionID string) error {
 			if sessionID == "" || run.SessionID == sessionID {
 				return nil
 			}
 			run.SessionID = sessionID
+			if err := persistStream(); err != nil {
+				return err
+			}
 			if err := state.PersistSessionID(sessionID); err != nil {
 				return err
 			}
-			return o.runs.Update(context.Background(), run)
+			return nil
 		},
 	}
 
@@ -603,16 +713,16 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 			Broadcaster: o.broadcaster,
 			Levers:      levers,
 		},
-		Run:    run,
+		RunID:  run.ID,
+		Tag:    run.GetTag(),
+		State:  phases.HeartbeatState{LastRunHeartbeat: run.SafeLastHeartbeat()},
 		Levers: levers,
 		Stop:   heartbeatStop,
 		Done:   heartbeatDone,
 	})
-	// stopHeartbeat is idempotent (sync.Once): it must run BEFORE the terminal
-	// status transition below, because the heartbeat loop mutates the same *run
-	// (LastHeartbeat) that applyRunStatusTransition writes — concurrent writes to
-	// the shared run are a data race (the deferred -race failure). The defer is a
-	// safety net for the early-return paths.
+	// stopHeartbeat is idempotent (sync.Once) and drains the owner writes before
+	// the terminal transition. The loop holds copied identity/timestamps, never
+	// the executor's mutable run. The defer covers early-return paths.
 	var stopOnce sync.Once
 	stopHeartbeat := func() {
 		stopOnce.Do(func() {
@@ -627,6 +737,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 	// host-or-sandbox path as the original Execute call. Without these,
 	// protected runs would silently downgrade to host on continuation.
 	continueReq := runner.ContinueRequest{
+		Tag:            run.GetTag(),
 		RunID:          run.ID,
 		SessionID:      run.SessionID,
 		Prompt:         message,
@@ -693,6 +804,10 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		transition.Phase = domain.RunPhaseCompleted
 		transition.ErrorMsg = err.Error()
 		run.ErrorMsg = transition.ErrorMsg
+		if sessionLostOnContinue(err, result) {
+			run.TerminalClass = domain.RunTerminalClassInterruption
+			run.StopReason = domain.RunStopReasonSessionLost
+		}
 		if o.events != nil {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", err.Error(), false)
 			if appendErr := o.appendAndBroadcastEvents(ctx, run.ID, errorEvent); appendErr != nil {
@@ -707,6 +822,10 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		transition.Result = result.Result
 		transition.Summary = result.Summary
 		run.ErrorMsg = transition.ErrorMsg
+		if sessionLostOnContinue(nil, result) {
+			run.TerminalClass = domain.RunTerminalClassInterruption
+			run.StopReason = domain.RunStopReasonSessionLost
+		}
 		if o.events != nil && result.ErrorMessage != "" {
 			errorEvent := domain.NewErrorEvent(run.ID, "continuation_error", result.ErrorMessage, false)
 			if appendErr := o.appendAndBroadcastEvents(ctx, run.ID, errorEvent); appendErr != nil {
@@ -738,6 +857,10 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		run.SessionID = result.SessionID
 	}
 
+	// A continuation mints a fresh live credential at admission. Retire that
+	// generation with this terminal turn, just as the initial execution does.
+	// The parked path returned above and retains its separate wake lifecycle.
+	phases.RevokeIdentityToken(run)
 	updatedRun, err := o.applyRunStatusTransition(ctx, transition)
 	if err != nil {
 		obs.Component("continuation").Error("continuation status transition failed",
@@ -780,6 +903,36 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 func hasStructuredResult(result *domain.RunResult) bool {
 	return result != nil && result.Structured != nil && len(result.Structured.Value) > 0
+}
+
+// sessionLostOnContinue reports whether a continuation turn failed because the
+// runner-side session no longer exists. It inspects both shapes: the typed
+// error the codec-pipe path returns directly and the typed TerminalError the
+// durable-transcript path now preserves on the result. A session-lost
+// continuation is an interruption, not a terminal failure, so the run is typed
+// interruption/session_lost and Swarm's until-allowance sweeper starts a fresh
+// run instead of finalizing.
+func sessionLostOnContinue(err error, result *runner.ExecuteResult) bool {
+	if runnerErrorIsSessionLost(err) {
+		return true
+	}
+	if result != nil {
+		return runnerErrorIsSessionLost(result.TerminalError)
+	}
+	return false
+}
+
+func runnerErrorIsSessionLost(err error) bool {
+	var runnerErr *domain.RunnerError
+	if !errors.As(err, &runnerErr) {
+		return false
+	}
+	switch runnerErr.Code() {
+	case domain.ErrCodeRunnerSessionExpired, domain.ErrCodeRunnerSessionStateLost:
+		return true
+	default:
+		return false
+	}
 }
 
 func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *domain.Run, result *runner.ExecuteResult, timedOut bool) {
@@ -828,9 +981,14 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	// to completion, instead of owning a codec stdout pipe. Selected by the run's
 	// ExecutionMode (design §1).
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive {
-		o.executeInteractiveRun(ctx, run, task, initialPromptWithUntil(run, interactiveInitialPrompt(systemPrompt, prompt)), started)
+		o.executeInteractiveRun(ctx, run, task, interactiveInitialPrompt(systemPrompt, prompt), started)
 		return
 	}
+
+	// Codec-pipe runners have no native objective channel, so the engine-owned
+	// completion contract is delivered as exactly one prompt suffix. Interactive
+	// runs decide inside executeInteractiveRun between /goal and this suffix.
+	prompt = initialPromptWithUntil(run, prompt)
 
 	runStateRoot, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
@@ -960,6 +1118,10 @@ const (
 	// delegation when that contract is too large for the harness field.
 	maxNativeObjectiveCharacters = 4000
 	boundedNativeObjectiveText   = "Follow the complete engine-owned completion contract included in the task prompt exactly. Do not stop until it is satisfied; return blocked, abstained, or an operator-decision approval request when required."
+	// nativeGoalPointer replaces the full completion contract in the task prompt
+	// when the harness installs the goal natively via /goal. The finish line then
+	// reaches the agent exactly once, through /goal.
+	nativeGoalPointer = "\n\nYour goal is installed with /goal; the finish line is its text."
 )
 
 func boundedNativeObjective(objective string) string {
@@ -1053,6 +1215,17 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	runCtx, driver := o.interactiveDrivers.register(ctx, run.ID)
 	defer o.interactiveDrivers.finish(run.ID, driver)
 
+	// Interactive runs carry the same context deadline the codec-pipe path
+	// derives from the resolved config. Without it a goal run whose harness
+	// never reaches a terminal idles until the process dies (B4). Reaching the
+	// deadline surfaces as context.DeadlineExceeded; the coordinator records it
+	// as the timeout interruption Phase 3 types.
+	if run.ResolvedConfig.Timeout > 0 {
+		var cancel context.CancelFunc
+		runCtx, cancel = context.WithTimeout(runCtx, run.ResolvedConfig.Timeout)
+		defer cancel()
+	}
+
 	selectedRunner, _ := o.runners.Get(run.ResolvedConfig.RunnerType)
 	var nativeObjective string
 	if selectedRunner != nil {
@@ -1063,6 +1236,15 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	// contract remains in the task prompt; the harness field must stay within
 	// Claude Code's native limit regardless of where the value came from.
 	nativeObjective = boundedNativeObjective(strings.TrimSpace(nativeObjective))
+	// One owner for the finish line. When the harness installs the goal natively,
+	// the prompt only points at /goal; otherwise the full contract travels as a
+	// single prompt suffix.
+	deliveredPrompt := initialPrompt
+	if nativeObjective == "" {
+		deliveredPrompt = initialPromptWithUntil(run, initialPrompt)
+	} else {
+		deliveredPrompt = strings.TrimSpace(initialPrompt) + nativeGoalPointer
+	}
 	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
 		RunID:           run.ID,
 		RunnerType:      run.ResolvedConfig.RunnerType,
@@ -1070,7 +1252,7 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		WorkingDir:      workDir,
 		RunDir:          runDir,
 		DisplayLabel:    run.GetTag(),
-		Prompt:          initialPrompt,
+		Prompt:          deliveredPrompt,
 		NativeObjective: nativeObjective,
 		Model:           run.ResolvedConfig.Model,
 		Effort:          run.ResolvedConfig.Effort,
@@ -1189,6 +1371,15 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if !run.IsResumable() {
 		return nil, domain.NewStateError("Run", string(run.Status), "resume",
 			fmt.Sprintf("run in %s state cannot be resumed", run.Status))
+	}
+	// Pending/starting/running/parked work was already admitted and stays in
+	// the drain projection. A resting review resumption is new admission.
+	if run.Status != domain.RunStatusPending && run.Status != domain.RunStatusStarting && run.Status != domain.RunStatusRunning && run.Status != domain.RunStatusParked {
+		releaseAdmission, err := o.admitMaintenance(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer releaseAdmission()
 	}
 
 	// Get the last checkpoint
@@ -1484,6 +1675,9 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 	if err != nil {
 		return &IdentityVerifyResult{Valid: false, Error: err.Error()}, nil
 	}
+	if claims.Purpose != "" {
+		return &IdentityVerifyResult{Valid: false, Error: "credential is not an active run identity"}, nil
+	}
 
 	// A valid signature alone is insufficient. The token must still be the
 	// active token recorded for the same run and must not have been revoked at
@@ -1502,6 +1696,9 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 	}
 	if run.IdentityTokenRevokedAt != nil {
 		return &IdentityVerifyResult{Valid: false, Error: "identity token has been revoked"}, nil
+	}
+	if err := o.checkSupervisorBinding(ctx, run, claims); err != nil {
+		return &IdentityVerifyResult{Valid: false, Error: "supervisor authorization is no longer active"}, nil
 	}
 
 	return &IdentityVerifyResult{

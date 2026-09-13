@@ -1,7 +1,7 @@
 # Prompt-Manager Unit Testing Architecture
 
 ## Last Updated
-2026-05-02
+2026-09-12
 
 ## Test Organization Status
 - [x] Go tests are co-located with source files (`scenarios/prompt-manager/api/**/_test.go`).
@@ -50,12 +50,20 @@ The canonical shared test package is `scenarios/prompt-manager/api/internal/test
 |---------|---------|
 | `fixtures` | Domain object factories with functional options. Team fixtures live here first because heartbeat and teams tests had duplicate builders with undocumented drift. |
 | `mocks` | Hand-written fakes, one per production seam, with sane defaults and explicit error knobs. |
-| `httpx` | HTTP handler request/response helpers for JSON bodies, route variables, decoding, and status assertions. |
+| `httpx` | PM handler request construction with JSON bodies and mux route variables, plus recorders. Generic response decoding and status assertions use `github.com/vrooli/api-core/apihttptest` directly. |
 | `assertx` | Focused assertions for contract fragments and domain expectations that report broken contracts clearly. |
 
 Production code must not import `prompt-manager/internal/testutil/...`. Tests may import it directly, except tests in the `store` package should avoid fixture imports that create an import cycle back through `prompt-manager/store`.
 
-`httpx` is now used by handler tests in `agents`, `teams`, `heartbeat`, and `worldscale`. New handler tests should use it for recorder construction, JSON requests, route variables, response decoding, and status assertions instead of repeating raw `httptest` and mux setup. Use `assertx.Contains` when a test protects a named error-body or prompt-fragment contract; keep generic string checks local when they are incidental.
+`httpx` is used by handler tests in `agents`, `teams`, `heartbeat`, and `worldscale`
+for recorder construction, JSON requests and route variables. For JSON response
+bytes, call `apihttptest.MustDecodeJSON[T](t, recorder.Body.Bytes())`; for status,
+call `apihttptest.AssertStatus(t, recorder.Result(), expected)`. Prefer the
+shared `MustUnmarshalProto` when the response has a protobuf schema. The separate
+`servertest.DecodeJSON` consumes fixture **requests**, not recorder responses;
+do not manufacture a request or add a local decoder wrapper to adapt it.
+Use `assertx.Contains` when a test protects a named error-body or prompt-fragment
+contract; keep generic string checks local when they are incidental.
 
 ## Shared CLI Test Utilities
 

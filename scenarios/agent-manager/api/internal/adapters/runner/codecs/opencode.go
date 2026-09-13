@@ -20,10 +20,12 @@ package codecs
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -35,6 +37,7 @@ import (
 	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
+	_ "modernc.org/sqlite"
 )
 
 // =============================================================================
@@ -119,6 +122,52 @@ func NewOpenCodeForTestWithBinary(path string) *OpenCode {
 // HasChargeSource reports that OpenCode's native step_finish payload is the
 // charge source; it does not require the shared pricing lookup.
 func (c *OpenCode) HasChargeSource() bool { return true }
+
+// ValidateContinuation reads OpenCode's native store in the exact environment
+// selected for this launch. Never initialize a missing store, migrate its
+// schema, borrow the global store, or invoke a provider to check a session.
+func (c *OpenCode) ValidateContinuation(ctx context.Context, req runner.ContinueRequest) error {
+	missing := func() error {
+		return domain.NewRunnerSessionExpiredError(c.Type(), errors.New("OpenCode session is absent from the selected native store; start a fresh run"))
+	}
+	if strings.TrimSpace(req.SessionID) == "" {
+		return missing()
+	}
+	logDir := openCodeLogDirForEnv(req.Environment)
+	if logDir == "" {
+		return &domain.RunnerError{RunnerType: c.Type(), Operation: "session_readiness", Cause: errors.New("cannot resolve OpenCode native data directory")}
+	}
+	path := filepath.Join(filepath.Dir(logDir), "opencode.db")
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return missing()
+	}
+	if err == nil && !info.Mode().IsRegular() {
+		err = errors.New("OpenCode native store is not a regular file")
+	}
+	if err != nil {
+		return &domain.RunnerError{RunnerType: c.Type(), Operation: "session_readiness", Cause: err}
+	}
+	readCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	dsn := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String()
+	db, err := sql.Open("sqlite", dsn)
+	if err == nil {
+		defer db.Close()
+		db.SetMaxOpenConns(1)
+		var id string
+		err = db.QueryRowContext(readCtx, "SELECT id FROM session WHERE id = ?", req.SessionID).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return missing()
+		}
+	}
+	if err != nil {
+		// An unreadable/corrupt/unsupported store is uncertainty, not evidence
+		// that a replacement session is safe. Keep it distinct from expiry.
+		return &domain.RunnerError{RunnerType: c.Type(), Operation: "session_readiness", Cause: err}
+	}
+	return nil
+}
 
 // Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
 // discovered through OpenCode's first-class provider block; resource role
@@ -260,6 +309,7 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	}
 	cfg := req.GetConfig()
 	if s, ok := state.(*opencodeState); ok {
+		s.logDir = openCodeLogDirForEnv(req.Environment)
 		s.model = strings.TrimSpace(cfg.Model)
 		if s.model == "" {
 			s.model = "unknown"
@@ -295,6 +345,7 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 	}
 	controlArgs, _ := c.ControlArgs(req.GetConfig())
 	if s, ok := state.(*opencodeState); ok {
+		s.logDir = openCodeLogDirForEnv(req.Environment)
 		s.model = strings.TrimSpace(req.GetConfig().Model)
 	}
 	args = append(args, controlArgs...)
@@ -312,6 +363,7 @@ type opencodeState struct {
 	stepTermina bool // set by step_finish parsing when reason is terminal
 	turn        int
 	model       string
+	logDir      string // effective per-run data root, shared by fresh and resumed launches
 	// workingDir is the run's pinned --dir (absolute). Stashed by
 	// BuildArgs/BuildContinueArgs so the stream decoder can reject tool
 	// results whose target path resolves outside it (defense-in-depth
@@ -537,7 +589,7 @@ func looksLikeUnexecutedToolCall(text string) bool {
 // PostClassify satisfies [Codec]. When the wrapper exits with only an
 // exit-status string (typical for opencode subprocess crashes), tail
 // the latest log file and substitute the most recent error message.
-func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
+func (c *OpenCode) PostClassify(state State, result *runner.ExecuteResult) {
 	if result == nil {
 		return
 	}
@@ -568,27 +620,29 @@ func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
 	if msg != "" && !strings.Contains(msg, "exit status") {
 		return
 	}
-	if fallback := resolveOpenCodeLogError(); fallback != "" {
-		if msg == "" {
-			result.ErrorMessage = fallback
-		} else {
-			result.ErrorMessage = fallback
-		}
+	logDir := openCodeLogDir()
+	if s, ok := state.(*opencodeState); ok && s.logDir != "" {
+		logDir = s.logDir
+	}
+	if fallback := resolveOpenCodeLogErrorInDir(logDir); fallback != "" {
+		result.ErrorMessage = fallback
 	}
 }
 
 // ClassifyTerminalError satisfies [Codec]. OpenCode signals session
 // expiry via stderr that mentions "session" and one of "not found" /
-// "expired" / "invalid". OpenCode does not currently surface a state-
-// lost shape distinct from expiry, so all matches map to
-// ErrCodeRunnerSessionExpired.
+// "expired" / "invalid". The match is case-insensitive because the live
+// CLI prints "Error: Session not found" with a capital S. OpenCode does
+// not currently surface a state-lost shape distinct from expiry, so all
+// matches map to ErrCodeRunnerSessionExpired.
 func (c *OpenCode) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
-	if !strings.Contains(stderr, "session") {
+	lower := strings.ToLower(stderr)
+	if !strings.Contains(lower, "session") {
 		return nil
 	}
-	if !strings.Contains(stderr, "not found") &&
-		!strings.Contains(stderr, "expired") &&
-		!strings.Contains(stderr, "invalid") {
+	if !strings.Contains(lower, "not found") &&
+		!strings.Contains(lower, "expired") &&
+		!strings.Contains(lower, "invalid") {
 		return nil
 	}
 	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
@@ -1083,7 +1137,10 @@ func isLikelyHash(value string) bool {
 // extracts the most recent "message":"..." line. Used by PostClassify
 // when the wrapper exits with just an exit-status string.
 func resolveOpenCodeLogError() string {
-	logDir := openCodeLogDir()
+	return resolveOpenCodeLogErrorInDir(openCodeLogDir())
+}
+
+func resolveOpenCodeLogErrorInDir(logDir string) string {
 	if logDir == "" {
 		return ""
 	}
@@ -1100,15 +1157,25 @@ func resolveOpenCodeLogError() string {
 
 // openCodeLogDir resolves the directory raw opencode writes its log files
 // to. opencode honours XDG_DATA_HOME and otherwise defaults to
-// ~/.local/share/opencode/log — the same default-XDG location BuildEnv
-// relies on (no vrooli-scoped override).
+// ~/.local/share/opencode/log. Managed launches resolve the request overrides
+// through openCodeLogDirForEnv and retain the result on their private state.
 func openCodeLogDir() string {
-	base, _ := os.LookupEnv("XDG_DATA_HOME")
+	return openCodeLogDirForEnv(nil)
+}
+
+func openCodeLogDirForEnv(env map[string]string) string {
+	base, overridden := env["XDG_DATA_HOME"]
+	if !overridden {
+		base = os.Getenv("XDG_DATA_HOME")
+	}
 	if base = strings.TrimSpace(base); base != "" {
 		return filepath.Join(base, "opencode", "log")
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
+	home, overridden := env["HOME"]
+	if !overridden {
+		home, _ = os.UserHomeDir()
+	}
+	if home == "" {
 		return ""
 	}
 	return filepath.Join(home, ".local", "share", "opencode", "log")

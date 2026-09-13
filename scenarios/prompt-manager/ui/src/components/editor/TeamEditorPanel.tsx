@@ -568,7 +568,7 @@ export function TeamEditorPanel({
                   teamHealth === 'red' && 'bg-red-500',
                   teamHealth === 'gray' && 'bg-slate-500',
                 )}
-                title={teamHealth === 'green' ? 'Healthy' : teamHealth === 'yellow' ? 'Some failures' : teamHealth === 'red' ? 'Failing' : 'Disabled'}
+                title={teamHealth === 'green' ? 'Latest recorded heartbeat completed; outcome acceptance is separate' : teamHealth === 'yellow' ? 'Some recorded heartbeat failures' : teamHealth === 'red' ? 'Latest recorded heartbeat failed' : 'Scheduling disabled or execution evidence unavailable'}
               />
             </div>
 

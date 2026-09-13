@@ -1,0 +1,39 @@
+{
+  "createdAt": "2026-09-12T00:00:00Z",
+  "description": "Supervise approved efforts against accepted outcomes, investigate consequential friction, deliver bounded steering, and improve supervision itself using attributable cost and outcome evidence.",
+  "entry": "SKILL.md",
+  "icon": "eye",
+  "id": "large-effort-supervision",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "large-effort-supervision",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "agent-manager",
+      "prompt-manager skill read",
+      "program-runtime"
+    ],
+    "scenarios": [
+      "agent-manager",
+      "prompt-manager",
+      "program-runtime"
+    ]
+  },
+  "revision": 6,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "supervision",
+    "effort",
+    "efficiency",
+    "orchestration",
+    "evidence"
+  ],
+  "updatedAt": "2026-09-12T00:00:00Z"
+}

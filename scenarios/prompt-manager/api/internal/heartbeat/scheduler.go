@@ -41,20 +41,24 @@ type ScheduledHeartbeat struct {
 
 // Scheduler manages cron-based heartbeat execution
 type Scheduler struct {
-	mu            sync.RWMutex
-	cron          *cron.Cron
-	scheduled     map[string]*ScheduledHeartbeat // key: teamID/agentID
-	executor      HeartbeatExecutor
-	running       bool
-	profileKey    string
-	agentClient   AgentClient
-	configStore   HeartbeatConfigStore
-	teamExecStore *TeamExecutionStore
-	controlStore  *HeartbeatControlStore
+	mu               sync.RWMutex
+	cron             *cron.Cron
+	scheduled        map[string]*ScheduledHeartbeat // key: teamID/agentID
+	executor         HeartbeatExecutor
+	running          bool
+	profileKey       string
+	agentClient      AgentClient
+	configStore      HeartbeatConfigStore
+	teamExecStore    *TeamExecutionStore
+	controlStore     *HeartbeatControlStore
+	effortSupervisor *StandingSupervisor
 }
 
 // NewScheduler creates a new heartbeat scheduler
 func NewScheduler(executor HeartbeatExecutor, agentClient AgentClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore) *Scheduler {
+	if e, ok := executor.(*Executor); ok && e.teamStore != nil && teamExecStore != nil {
+		e.FiniteLeader = &FiniteLeaderRuntime{Executor: e, Queue: teamExecStore}
+	}
 	return &Scheduler{
 		cron:          cron.New(),
 		scheduled:     make(map[string]*ScheduledHeartbeat),
@@ -73,6 +77,13 @@ func (s *Scheduler) SetControlStore(controlStore *HeartbeatControlStore) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.controlStore = controlStore
+	if e, ok := s.executor.(*Executor); ok && e.FiniteLeader != nil {
+		e.FiniteLeader.Control = controlStore
+	}
+}
+
+func (s *Scheduler) SetEffortSupervisor(supervisor *StandingSupervisor) {
+	s.effortSupervisor = supervisor
 }
 
 // Start begins the scheduler
@@ -311,6 +322,24 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 			return
 		}
 		profileKey = config.ProfileKey
+		if config.FiniteLeader != nil {
+			if executor, ok := s.executor.(*Executor); ok && executor.FiniteLeader != nil {
+				if _, err := executor.FiniteLeader.Tick(ctx, teamID, agentID); err != nil {
+					log.Printf("Finite leader tick for %s/%s: %v", teamID, agentID, err)
+				}
+			}
+			return
+		}
+		if config.Supervision != nil {
+			if s.effortSupervisor == nil {
+				log.Printf("Standing supervision unavailable for %s/%s", teamID, agentID)
+				return
+			}
+			if _, err := s.effortSupervisor.Tick(ctx, teamID, agentID); err != nil {
+				log.Printf("Standing supervision tick for %s/%s: %v", teamID, agentID, err)
+			}
+			return
+		}
 	}
 
 	// Route through the team execution store so the configured queue policy is enforced.

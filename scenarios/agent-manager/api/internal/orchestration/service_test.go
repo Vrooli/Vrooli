@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +18,28 @@ import (
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
+
+func TestOrchestrator_CreateRun_RejectsUnboundedWorkReferencesBeforeEffects(t *testing.T) {
+	for name, refs := range map[string][]*eventpb.WorkReference{
+		"nil":              {nil},
+		"missing kind":     {{Id: "effort:test"}},
+		"missing identity": {{Kind: "effort"}},
+		"oversized":        {{Kind: "effort", Id: strings.Repeat("x", 4097)}},
+		"too many":         make([]*eventpb.WorkReference, 101),
+	} {
+		t.Run(name, func(t *testing.T) {
+			// No repositories or dispatch dependencies: invalid declarations must
+			// be refused before reserving an operation or creating a run.
+			svc := &orchestration.Orchestrator{}
+			run, err := svc.CreateRun(context.Background(), orchestration.CreateRunRequest{WorkReferences: refs})
+			if run != nil || err == nil || !strings.Contains(err.Error(), "work_references") {
+				t.Fatalf("expected bounded declaration refusal, got run=%v error=%v", run, err)
+			}
+		})
+	}
+}
 
 // testRolePolicyCatalogJSON is a minimal valid role-policy catalog declaring the
 // portable role every profile fixture uses ("code.default"). The catalog offers

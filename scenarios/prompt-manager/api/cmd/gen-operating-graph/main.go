@@ -21,7 +21,15 @@ import (
 func main() {
 	repoRoot := "../../.."
 	apply := false
+	selectedTeam := ""
 	for _, arg := range os.Args[1:] {
+		if strings.HasPrefix(arg, "--team=") {
+			selectedTeam = strings.TrimPrefix(arg, "--team=")
+			if selectedTeam == "" {
+				fatal(fmt.Errorf("team must not be empty"), "arguments")
+			}
+			continue
+		}
 		if arg == "--apply" {
 			apply = true
 			continue
@@ -46,6 +54,9 @@ func main() {
 			continue
 		}
 		team := block.Metadata.Team
+		if selectedTeam != "" && team != selectedTeam {
+			continue
+		}
 		presentation := memberflow.ExtractGraphPresentation(block)
 		if err := presentation.Validate(); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: extracted presentation is invalid: %v\n", team, err)

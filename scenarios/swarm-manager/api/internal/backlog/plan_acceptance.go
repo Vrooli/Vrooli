@@ -171,7 +171,7 @@ func PlanAcceptanceSubjectVersion(item BacklogItem) string {
 	contract := identity.PlanAcceptanceContract{
 		Kind: string(item.Kind), Name: item.Name, Title: item.Title, Description: item.Description,
 		AcceptanceAllow: item.AcceptanceAllow, AcceptanceDeny: item.AcceptanceDeny,
-		Creates: item.Creates, ExecutionStrategy: item.ExecutionStrategy, ExecutionLimits: item.ExecutionLimits,
+		Creates: item.Creates, ExecutionMode: item.ExecutionMode, ExecutionLimits: item.ExecutionLimits,
 	}
 	if item.Continuation != ContinuationManual {
 		contract.Continuation = item.Continuation

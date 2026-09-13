@@ -1,4 +1,6 @@
 {
+  "purpose": "domain-stewardship",
+  "lifetime": "standing",
   "kind": "team",
   "schemaVersion": 1,
   "id": "marketing-crew",
@@ -22,9 +24,10 @@
     "archetype": "production-ledger",
     "coversScenarios": [
       "content-desk",
-      "asset-studio"
+      "asset-studio",
+      "channel-manager"
     ],
-    "gapMarker": "2026-08-13 — content-desk and asset-studio are both real and substantially built, but no single address aggregates them, so a member must know which of the two holds the answer. A third capability the operating model assigns to `social-media-scheduler` (account activation, warming, cadence, posting) has no scenario at all — that capability is unowned, not merely unaggregated. Decide the aggregator (content-desk is the likeliest) before building anything new."
+    "gapMarker": "2026-09-12 — content-desk and asset-studio remain the two real production owners; channel-manager is added to coversScenarios (judgment recorded this date) because content-desk's board is the single aggregate address and projects channel-manager's distribution connectivity (RehydrateDistributionConnectivity), and channel-manager is the producing owner of the organic-distribution and paid-acquisition catalog rows. It is a covered source, not a second address, so the one-address invariant holds. Corrected: the capability the 2026-08-13 marker called unowned under a `social-media-scheduler` scenario is owned by Channel Manager (platform identities, warming programs, account health, and the approved-content release queue), so no new scheduler scenario is needed. The single aggregate address is content-desk's capability/readiness/production board (data plan 9c7302aa Phase 2): it reports the 19-category capability catalog, per-dimension readiness and the distribution projection, but remains active/unqualified and not yet approved, and its distribution reads degrade while channel-manager is stopped. Status stays partial until the board is qualified and approved as the team's declared aggregate."
   },
   "enabled": true,
   "runtime": {

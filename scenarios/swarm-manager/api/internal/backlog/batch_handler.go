@@ -108,7 +108,7 @@ type batchCreateItem struct {
 	// batch-landed items (e.g. plan imports) carry where they came from.
 	SpawnedFrom       string   `json:"spawned_from,omitempty"`
 	PlanRef           *PlanRef `json:"plan_ref,omitempty"`
-	ExecutionStrategy string   `json:"execution_strategy,omitempty"`
+	ExecutionMode string   `json:"execution_mode,omitempty"`
 	Continuation      string   `json:"continuation,omitempty"`
 	ScopePolicy       string   `json:"scope_policy,omitempty"`
 }
@@ -476,7 +476,7 @@ func (h *Handler) validateSingleBatchItem(
 	if err := validatePlanRef(planRef, PlanRefRoleExecutionSpec); err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
 	}
-	executionStrategy, err := normalizeExecutionStrategy(raw.ExecutionStrategy)
+	executionStrategy, err := normalizeExecutionMode(raw.ExecutionMode)
 	if err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: %s", i, err.Error())
 	}
@@ -507,7 +507,7 @@ func (h *Handler) validateSingleBatchItem(
 		Creates:           raw.Creates,
 		SpawnedFrom:       strings.TrimSpace(raw.SpawnedFrom),
 		PlanRef:           planRef,
-		ExecutionStrategy: executionStrategy,
+		ExecutionMode: executionStrategy,
 		Continuation:      continuation,
 		ScopePolicy:       scopePolicy,
 	}

@@ -67,7 +67,7 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
   if (patch.acceptanceCriteria !== undefined) payload.acceptance_criteria = patch.acceptanceCriteria;
   if (patch.note !== undefined) payload.note = patch.note;
-  if (patch.executionStrategy !== undefined) payload.execution_strategy = patch.executionStrategy;
+  if (patch.executionMode !== undefined) payload.execution_mode = patch.executionMode;
   if (patch.executionLimits !== undefined) payload.execution_limits = toProtoJson(ExecutionLimitsSchema, buildExecutionLimits(patch.executionLimits));
   if (patch.continuation !== undefined) payload.continuation = patch.continuation;
   if (patch.scopePolicy !== undefined) payload.scope_policy = patch.scopePolicy;
@@ -142,7 +142,7 @@ export function createCrudMethods(apiClient: IApiClient) {
         // actually supplied criteria; an explicit empty array remains useful
         // when a caller intentionally clears criteria through the update path.
         ...(item.acceptanceCriteria?.length ? { acceptanceCriteria: item.acceptanceCriteria } : {}),
-        ...(item.executionStrategy ? { executionStrategy: item.executionStrategy } : {}),
+        ...(item.executionMode ? { executionMode: item.executionMode } : {}),
         ...(item.executionLimits ? { executionLimits: buildExecutionLimits(item.executionLimits) } : {}),
         ...(item.continuation ? { continuation: item.continuation } : {}),
         ...(item.scopePolicy ? { scopePolicy: item.scopePolicy } : {}),

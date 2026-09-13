@@ -674,6 +674,34 @@ func TestCodex_ParseTranscriptLine_RolloutTaskCompleteAuthorizesLatestUsage(t *t
 	}
 }
 
+func TestCodexRetainedTerminalReceiptConservesCumulativeUsage(t *testing.T) {
+	for _, ending := range []string{"turn_aborted", "task_complete"} {
+		t.Run(ending, func(t *testing.T) {
+			parser := NewCodexForTest().NewTranscriptParser()
+			parser.(runner.TranscriptBillingSetter).SetTranscriptBilling(domain.BillingSnapshot{Basis: domain.ChargeBasisSubscription})
+			id := uuid.New()
+			parser.ParseTranscriptLine(id, `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":15211,"cached_input_tokens":10880,"output_tokens":205}}}}`)
+			parser.ParseTranscriptLine(id, `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":30666,"cached_input_tokens":21760,"output_tokens":415}}}}`)
+			result := parser.ParseTranscriptLine(id, fmt.Sprintf(`{"type":"event_msg","payload":{"type":%q}}`, ending))
+			var receipt *domain.UsageEventData
+			for _, event := range result.Events {
+				if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority {
+					receipt = usage
+				}
+			}
+			if receipt == nil || receipt.InputTokens != 8906 || receipt.CacheReadTokens != 21760 || receipt.OutputTokens != 415 || receipt.Turns != 1 {
+				t.Fatalf("terminal lost cumulative receipt: %+v", receipt)
+			}
+			if result.Terminal == nil || result.Terminal.Success != (ending == "task_complete") {
+				t.Fatal("accounting changed terminal outcome")
+			}
+			if receipt.Charge == nil || receipt.Charge.AmountMicroUSD == nil || *receipt.Charge.AmountMicroUSD != 0 || receipt.Charge.Basis != domain.ChargeBasisSubscription {
+				t.Fatalf("immutable billing lost: %+v", receipt.Charge)
+			}
+		})
+	}
+}
+
 func TestCodex_ParseTranscriptLine_RolloutTurnsPreserveProviderTurnIDs(t *testing.T) {
 	parser := NewCodexForTest().NewTranscriptParser()
 	runID := uuid.New()

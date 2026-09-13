@@ -2,7 +2,10 @@ package wiring
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
@@ -10,7 +13,34 @@ import (
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/rolepolicy"
+
+	"github.com/vrooli/api-core/health"
 )
+
+func TestLifecycleRefusalsAreFindingsNotReadinessFailures(t *testing.T) {
+	for _, fatal := range []bool{false, true} {
+		builder := health.New("agent-manager").Check(health.Func("database", func(context.Context) error {
+			if fatal {
+				return errors.New("database unavailable")
+			}
+			return nil
+		}), health.Critical)
+		handler := withLifecycleRefusalObservation(builder, func() (bool, string) { return false, "repeated run-identity lifecycle refusals detected" }).Handler()
+		response := httptest.NewRecorder()
+		handler(response, httptest.NewRequest(http.MethodGet, "/health", nil))
+		var body health.Response
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		wantStatus, wantCode := health.StatusHealthy, http.StatusOK
+		if fatal {
+			wantStatus, wantCode = health.StatusUnhealthy, http.StatusServiceUnavailable
+		}
+		if body.Status != wantStatus || response.Code != wantCode || body.Readiness == fatal || body.Functional != nil || body.Metrics["lifecycle_refusals"] == nil {
+			t.Fatalf("refusal/fatal dimensions coupled: fatal=%t HTTP=%d body=%+v", fatal, response.Code, body)
+		}
+	}
+}
 
 func TestPolicyHealthCheckersExposeUnavailableRequiredCatalogs(t *testing.T) {
 	if RolePolicyHealthChecker(nil) != nil || PermissionPolicyHealthChecker(nil, nil) != nil {

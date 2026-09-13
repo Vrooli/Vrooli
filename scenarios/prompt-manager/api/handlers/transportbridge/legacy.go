@@ -92,6 +92,12 @@ func ProtoBody(message proto.Message) (json.RawMessage, error) {
 // the flat partial-object shape expected by legacy PATCH-style domain logic.
 func MaskedBody(message proto.Message, paths []string) (map[string]any, error) {
 	raw, err := ProtoBody(message)
+	// An explicit mask supplies presence for scalar defaults and empty lists.
+	// The normal protobuf encoding omits these, which would turn a requested
+	// clear (or enabled=false) into a silent no-op at the domain boundary.
+	if len(paths) > 0 && message != nil {
+		raw, err = (protojson.MarshalOptions{EmitDefaultValues: true}).Marshal(message)
+	}
 	if err != nil {
 		return nil, err
 	}

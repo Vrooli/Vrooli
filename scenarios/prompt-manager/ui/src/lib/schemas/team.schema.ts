@@ -130,16 +130,37 @@ export const ExecutionSchema = z.object({
 })
 export type Execution = z.infer<typeof ExecutionSchema>
 
+export const TeamPurposeSchema = z.enum(['domain-stewardship', 'delivery', 'supervision'])
+export type TeamPurpose = z.infer<typeof TeamPurposeSchema>
+export const TeamLifetimeSchema = z.enum(['standing', 'finite'])
+export type TeamLifetime = z.infer<typeof TeamLifetimeSchema>
+
+const TeamClassificationFields = {
+  purpose: z.union([TeamPurposeSchema, z.literal('')]).optional(),
+  lifetime: z.union([TeamLifetimeSchema, z.literal('')]).optional(),
+  effortRefs: z.array(z.string().trim().min(1)).optional(),
+}
+
+const ObjectiveReferenceSchema = z.looseObject({
+  id: z.string(),
+  role: z.string().optional(),
+  coverage: z.string().optional(),
+  note: z.string().optional(),
+  acknowledgedRevision: z.string().optional(),
+})
+
 export const TeamSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   mission: z.string().optional(),
+  ...TeamClassificationFields,
+  objectivesServed: z.array(ObjectiveReferenceSchema).nullish(),
   enabled: z.boolean().optional().default(false),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
   operatingContract: OperatingContractSchema,
-  memberCount: z.number().int(),
+  memberCount: z.number().int().default(0),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -157,6 +178,7 @@ export const CreateTeamRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
+  ...TeamClassificationFields,
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
@@ -167,6 +189,7 @@ export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
 export const UpdateTeamRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
   mission: z.string().max(500).optional(),
+  ...TeamClassificationFields,
   enabled: z.boolean().optional(),
   runtime: RuntimeSchema.optional(),
   coordination: CoordinationSchema.optional(),

@@ -1,5 +1,7 @@
 import contextlib, io, json, pathlib, sys
 from types import SimpleNamespace as N
+sys.path.insert(0, str(pathlib.Path(sys.argv[1]).resolve().parents[2] / "program-runtime" / "kernel"))
+from host.program_helper import ProgramHelper
 class Handle:
     def __init__(self,meta=None,rows=None):self.m=meta or {};self.r=rows or []
     def meta(self):return self.m
@@ -8,7 +10,11 @@ class Handle:
 def run(name,inputs,watch):
     path=pathlib.Path(sys.argv[1])/f'{name}.py'
     out=io.StringIO()
-    with contextlib.redirect_stdout(out):exec(compile(path.read_text(),str(path),'exec'),{'inputs':inputs,'agent_manager':N(watch=watch),'gather':lambda *fs:tuple(f() for f in fs)})
+    environment={'inputs':inputs,'agent_manager':N(watch=watch),'gather':lambda *fs:tuple(f() for f in fs)}
+    helper=ProgramHelper()
+    helper._bind(environment)
+    environment['program']=helper
+    with contextlib.redirect_stdout(out):exec(compile(path.read_text(),str(path),'exec'),environment)
     assert len(out.getvalue().encode())<=4096
     return json.loads(out.getvalue())
 inspection={'watch':{'watchId':'watch','revision':'4','spec':{'policyVersion':'candidate'},'lastDecision':{'decisionId':'decision','classification':'stalled'}},'subjectStates':[{'runId':'child','status':'complete','terminal':True}],'cursorResetRequired':True}

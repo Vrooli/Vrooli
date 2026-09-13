@@ -1,29 +1,6 @@
 [
   {
     "schemaVersion": "swarm-transition/v1",
-    "key": "contract-development",
-    "subject": "backlog-item",
-    "kind": "workflow",
-    "workflow": {
-      "owner": "swarm-manager",
-      "key": "swarm-manager/contract-development"
-    },
-    "requires": [
-      "agent-manager",
-      "prompt-manager"
-    ],
-    "inputContract": "contract-development-input/v1",
-    "terminalOutcomes": [
-      "repaired",
-      "needs_attention",
-      "abstained",
-      "budget_exhausted",
-      "failed"
-    ],
-    "applyAction": "apply_development_outcome"
-  },
-  {
-    "schemaVersion": "swarm-transition/v1",
     "key": "session.meta_orchestration",
     "subject": "agent-session",
     "kind": "session",
@@ -206,30 +183,21 @@
       "budget_exhausted",
       "cancelled"
     ],
-    "strategies": [
+    "execution_modes": [
     {
-      "id": "phased-plan-drain",
+      "id": "sliced",
       "workflowKey": "swarm-manager/phased-plan-drain",
-      "displayName": "Phased plan drain",
-        "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
-        "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
-      "costBand": "Governed by the configured per-turn estimate and workflow budget."
+      "displayName": "Sliced plan drain",
+        "description": "Executes the accepted plan one verified slice at a time, with a fresh worker and reviewer per slice and operator approval where needed.",
+        "whenToUse": "Use for accepted plans that need durable slice-by-slice progress, per-slice review, and resumability.",
+      "costBand": "Cost per turn x slice cap x node turns, bounded by the item's remaining charge."
     },
     {
-      "id": "adaptive-improvement",
-      "workflowKey": "swarm-manager/phased-plan-drain",
-      "displayName": "Adaptive improvement campaign",
-      "description": "Executes the accepted plan through the self-improvement campaign while retaining the same plan, grant, budget, and evidence controls.",
-      "whenToUse": "Use when one approved plan should let the agent choose successive in-scope scenario improvements without creating per-repair backlog approvals.",
-      "costBand": "Uses the same governed plan-slice budget and aggregate limits as phased plan drain."
-    },
-    {
-      "id": "goal-session",
-      "workflowKey": "swarm-manager/goal-session-drain",
-      "displayName": "Native goal session",
-      "description": "Runs the accepted plan as warm harness goal sessions; the harness's own goal check keeps each session working, and every session is independently reviewed before the next.",
-      "whenToUse": "Use for target-shaped plans with working sensors when fewer, longer sessions are preferred and an available runner declares native goal support.",
-      "costBand": "Fewer re-orientation costs than slices; one review per session; bounded by the same aggregate limits."
+      "id": "goal",
+      "displayName": "Goal mode (one run)",
+      "description": "Runs the accepted plan as one Agent Manager run whose prompt is the composed goal message and whose until is the finish line. No workflow, slice cap, or per-session reviewer.",
+      "whenToUse": "Use for target-shaped plans when a runner declares native goal support and fewer, longer sessions are preferred.",
+      "costBand": "One run bounded by the item's remaining charge allowance."
     }
     ],
     "applyAction": "apply_plan_execution",

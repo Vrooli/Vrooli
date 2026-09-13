@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, continuity, recovery, planning]
   icon: network
   status: active
-  revision: 4
+  revision: 6
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-11T06:40:00Z"
+  updatedAt: "2026-09-12T00:00:00Z"
   requires:
     scenarios: [prompt-manager, plan-manager, agent-manager, program-runtime]
     commands: [prompt-manager skill read, plan-manager, agent-manager, program-runtime]
@@ -35,6 +35,14 @@ Supporting files below use repository paths because native skill projection does
 
 ### 1. Preserve the request and authority
 
+For efforts enrolled with an operational supervisor, read
+`path:docs/agent-system/EFFORT_SUPERVISION.md`. Retain the supervisor's identity
+and owner directive channel. Acknowledge delivered guidance, name justified waits,
+and challenge stale or incorrect instructions with evidence. Keep worker assignment
+with one parent and preserve accepted outcomes. Supervision does not grant another
+writer access to active effort control files. Read `large-effort-supervision` when
+assigned to assess orchestrators rather than deliver this effort.
+
 Entry: the user supplies a large outcome or an existing effort reference.
 
 1. Discover related work and reusable programs through Search Hub before inventing another work owner.
@@ -48,7 +56,7 @@ An approved destination permits in-scope implementation choices and repair; it d
 
 Exit: another agent can recover the full destination and authority without this conversation. The user has one review entrypoint.
 
-### 2. Qualify the path and prepare plans
+### 2. Qualify the path and select work shapes
 
 Entry: the destination is preserved.
 
@@ -60,11 +68,18 @@ Classify each dependency as observed usable, insufficient, unavailable, or unver
 
 Before dispatching implementation, confirm the target documentation describes the intended design. When it does not, the first assignment is a bounded docs-first authoring task, so later goals point at the docs instead of restating them.
 
-Delegate bounded investigation and plan authoring in parallel where their source claims do not conflict. Reuse existing plans after reading their current execution state; a draft label or old blocked phase alone does not establish missing work. A plan is one work shape; author one only where the Work shapes rule selects it. Author plans through Plan Manager, with the full change boundary and source requirement references. Candidate files are permitted only in the authoring skill's explicit candidate mode; label them unfinalized.
+Delegate bounded investigation, docs-first authoring and shape-specific authoring in parallel where their source claims do not conflict. Reuse existing plans after reading their current execution state; a draft label or old blocked phase alone does not establish missing work. A plan is one work shape; author one only where the Work shapes rule selects it. Author plans through Plan Manager, with the full change boundary and source requirement references. Candidate files are permitted only in the authoring skill's explicit candidate mode; label them unfinalized.
 
 Add a subplanner only when it owns a distinct outcome that would otherwise overload its parent. Workers do not coordinate with siblings or edit a shared scheduling file. They return one durable result to their assigning parent; the owner transport deduplicates retries of that handoff. Research, authoring, implementation and independent review are assignments, not permanent departments. Keep the tree shallow, with one effort-wide active-agent ceiling and usage allowance across every level. A child cannot create fresh budget by spawning descendants.
 
-Register independently executable plans in one family. Record shared package, generated-output, database and lifecycle claims. Let the current reviewed frontier determine admission. Family topology review can use an authorized reviewer; it need not create another human approval for every in-scope plan.
+Create a plan family only when `plan-family-orchestration` selects it: two or
+more plan-shaped units have independent identities or lifecycles and explicit
+dependencies or resource overlap. Register those members and their shared
+package, generated-output, database and lifecycle claims. Do not make phases of
+one plan, bounded tasks, investigations or every worker into family members.
+Let the current reviewed frontier determine admission. Family topology review
+can use an authorized reviewer; it need not create another human approval for
+every in-scope plan.
 
 Exit: each requirement is covered, deferred by an explicit user decision, or visibly unresolved. Plans expose dependencies and evidence; none claim runtime qualification that has not occurred.
 
@@ -72,7 +87,19 @@ Exit: each requirement is covered, deferred by an explicit user decision, or vis
 
 Entry: execution is authorized and the selected route is qualified.
 
-Use Swarm's declared workflow when it represents the effort's authority and autonomous continuation correctly. Otherwise select the authorized Agent Manager family/workflow route. Do not change a global autonomy setting to automate one effort. Preserve any owner-required human disposition separately from automatic evidence assessment.
+Use Swarm's declared workflow when it represents the effort's authority and
+autonomous continuation correctly. Otherwise select the authorized Agent
+Manager family/workflow route. If Swarm is unavailable, follow the qualified
+fallback in `references/recovery.md`; retain the original work identity,
+authority, scope, acceptance, budget and result contract. If the current Swarm
+implementation requires human approval only because it lacks an autonomous
+execution path for an assignment that is already explicitly authorized, use a
+qualified direct Agent Manager or harness route and record the missing Swarm
+receipt and reduced guarantees. If the effect genuinely requires a Swarm-owned
+grant—such as new scope, production access, paid spend, private data or an
+unapproved decision—pause that effect. Do not change a global autonomy setting
+to automate one effort. Preserve any owner-required human disposition
+separately from automatic evidence assessment.
 
 Persist work identity, admission, dispatch key, selected member context and expected result before spawning. Give each worker one assignment in one work shape: plan-backed, adaptive mandate, bounded task, or investigation. Write it as a harness goal per `harness-goal-authoring`: destination, proof, sources, boundary, dials, blocked, budget, handoff. Use existing plan-execution guidance for plan-backed work. When dispatching through Agent Manager, pass the destination clause as `until`; the engine delivers it natively where the runner declares support and as prompt text otherwise. A prompt saying "keep going" is not a persisted goal.
 
@@ -83,6 +110,12 @@ Persist selected runner/profile/model, credential-pool reference, policy revisio
 Reuse Program Runtime compositions for repeated joins and bounded fan-out. Read a discovered program and its owner skill together. Runtime code must retain owner IDs, cancellation, budgets, partial results and idempotency. Promote repeated deterministic composition only after its inputs and stop rule are known. Put state-machine, repair and scheduling invariants in their owning scenario, not a private shell loop or a growing program.
 
 The leader advances every useful admitted branch before waiting. On pending work, park on a supported producer or checkpoint and end its turn. A configured recurring wake is a recovery opportunity, not a queue: skip while the leader is running, queued, parked or uncertain. Qualify restart/outage behavior before enabling unattended wakeups. Never interpret an unavailable run lookup as a dead process.
+
+A maintenance admission fence belongs to the operation recorded in its owner,
+reason and revision. Do not reopen a different operation's hold to admit your
+workers or assume it was left over from a restart. Coordinate the owner release
+condition and preserve admitted work. A changed revision invalidates your drain
+proof; do not compete with another maintainer in a close/resume loop.
 
 For runner exhaustion, use the recovery reference to distinguish context capacity, session/weekly subscription limits, transient rate limits, exhausted API credits and denied access. Persist a checkpoint and owner wake condition. A timer or reset event should make work eligible once; repeated leader ticks must not create new attempts against the same exhausted allowance. Runtime restarts and provider fallback consume the original effort budget.
 
@@ -96,8 +129,8 @@ Read producer evidence and current owner state when useful results arrive; do no
 
 ```mermaid
 flowchart TD
-    A[Preserved destination and authority] --> B[Qualified path and plans]
-    B --> C[Reviewed family admission]
+    A[Preserved destination and authority] --> B[Qualified path and selected shapes]
+    B --> C[Reviewed owner admission]
     C --> D[Execute and collect owner evidence]
     D --> E[Independent outcome review]
     E -->|Required outcome unmet| F[Bounded repair or revised plan]
@@ -146,6 +179,8 @@ The coordinator may edit this effort's evolving strategy, findings and handoffs 
 | Every worker inherits the planner's expensive model | Routine work consumes scarce quota | Bind an explicit economical worker profile and justified escalation. |
 | Infinite scrutiny after the destination is met | Completion becomes unreachable | Close on the recorded acceptance policy. |
 | Every assignment becomes a plan | Plan authoring consumes the deliverable budget | Choose the shape with the Work shapes rule; author a plan only where it is selected. |
+| Every large effort becomes a plan family | Unrelated tasks inherit graph/review overhead and false dependencies | Apply `plan-family-orchestration`; mix plan-backed, bounded and investigative owners when appropriate. |
+| Swarm outage is bypassed by an untracked launcher | Grant, budget, attribution or uncertain-start guarantees disappear | Use the qualified recovery route or pause mutations when the Swarm-owned grant cannot be represented. |
 
 ### Troubleshooting & Edge Cases
 

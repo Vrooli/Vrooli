@@ -966,7 +966,9 @@ func (s *RunService) Quiesce(req *apipb.QuiesceScenarioRequest) ([]byte, *apipb.
 	if err != nil {
 		return nil, nil, err
 	}
-	body, err := s.api.Request("POST", "/api/v1/runs/quiesce", nil, payload)
+	// The owner enforces the requested drain timeout (five minutes by default).
+	// Reuse the same request-local wait transport as workflow execution-wait.
+	body, err := s.api.WithoutTimeout().Request("POST", "/api/v1/runs/quiesce", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}

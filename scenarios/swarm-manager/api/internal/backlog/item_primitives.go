@@ -36,7 +36,7 @@ type ItemPatch struct {
 	SpawnedFrom        *string
 	PlanRef            *PlanRef
 	PlanRefSet         bool
-	ExecutionStrategy  *string
+	ExecutionMode  *string
 	ExecutionLimits    *identity.ExecutionLimits
 	ExecutionLimitsSet bool
 	Continuation       *string
@@ -52,7 +52,7 @@ type ItemPatch struct {
 func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	contractChanged := patch.Title != nil || patch.Description != nil ||
 		patch.AcceptanceAllow != nil || patch.AcceptanceDeny != nil ||
-		patch.AcceptanceCriteria != nil || patch.ExecutionStrategy != nil ||
+		patch.AcceptanceCriteria != nil || patch.ExecutionMode != nil ||
 		patch.Creates != nil || patch.PlanRefSet || patch.ExecutionLimitsSet || patch.Continuation != nil || patch.ScopePolicy != nil
 	if patch.Title != nil {
 		item.Title = strings.TrimSpace(*patch.Title)
@@ -100,8 +100,8 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 		// different canonical plan under the old decision.
 		item.PlanAcceptance = nil
 	}
-	if patch.ExecutionStrategy != nil {
-		item.ExecutionStrategy = strings.ToLower(strings.TrimSpace(*patch.ExecutionStrategy))
+	if patch.ExecutionMode != nil {
+		item.ExecutionMode = strings.ToLower(strings.TrimSpace(*patch.ExecutionMode))
 	}
 	if patch.ExecutionLimitsSet {
 		item.ExecutionLimits = patch.ExecutionLimits.Clone()

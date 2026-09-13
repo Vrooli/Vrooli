@@ -197,6 +197,7 @@ agent-manager run logs <id>
 agent-manager run diff <id>
 agent-manager run approve <id>
 agent-manager run reject <id>
+agent-manager run continue <id> --message "Resume the retained checkpoint" --idempotency-key <retained-request-key>
 
 # Role-policy operations (declared catalog remains Git-managed)
 agent-manager role-policy status
@@ -233,6 +234,13 @@ agent-manager scenario-smoke --profile-id <id> --workspace-sandbox-url http://12
 
 See [docs/reference/configuration.md](docs/reference/configuration.md#role-policy-catalog)
 for catalog update, validation, rollback, and failure-recovery guidance.
+
+Programmatic `run continue` callers can supply `--idempotency-key`. Retain the
+same key, run ID, message, and goal setting when retrying an uncertain response.
+The CLI forwards the key to the existing owner continuation protocol; it does
+not retry automatically, create a replacement run, or bypass owner refusals.
+Add `--reinstall-goal` only when the continuation should reinstall the retained
+harness-native goal before sending the message.
 
 ### Typed investigations
 

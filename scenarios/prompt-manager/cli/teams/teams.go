@@ -26,6 +26,11 @@ import (
 
 // Team represents a team from the API (brief response)
 type Team struct {
+	Purpose          string                            `json:"purpose,omitempty"`
+	Lifetime         string                            `json:"lifetime,omitempty"`
+	EffortRefs       []string                          `json:"effortRefs,omitempty"`
+	ObjectivesServed []teamconfig.ObjectiveDeclaration `json:"objectivesServed,omitempty"`
+
 	ID                string                          `json:"id"`
 	DisplayName       string                          `json:"displayName"`
 	Mission           string                          `json:"mission,omitempty"`
@@ -224,6 +229,10 @@ type AddKnowledgeRequest struct {
 
 // CreateTeamRequest is the request body for creating a team
 type CreateTeamRequest struct {
+	Purpose    string   `json:"purpose,omitempty"`
+	Lifetime   string   `json:"lifetime,omitempty"`
+	EffortRefs []string `json:"effortRefs,omitempty"`
+
 	ID                string                          `json:"id,omitempty"`
 	DisplayName       string                          `json:"displayName"`
 	Mission           string                          `json:"mission,omitempty"`
@@ -235,6 +244,10 @@ type CreateTeamRequest struct {
 
 // UpdateTeamRequest is the request body for updating a team
 type UpdateTeamRequest struct {
+	Purpose    *string   `json:"purpose,omitempty"`
+	Lifetime   *string   `json:"lifetime,omitempty"`
+	EffortRefs *[]string `json:"effortRefs,omitempty"`
+
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`
 	Enabled           *bool                           `json:"enabled,omitempty"`
@@ -242,6 +255,33 @@ type UpdateTeamRequest struct {
 	Coordination      *Coordination                   `json:"coordination,omitempty"`
 	Execution         *Execution                      `json:"execution,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract,omitempty"`
+}
+
+// Descriptive metadata is independent of execution configuration.
+type teamMetadataFlags struct {
+	purpose, lifetime, effortRefs *string
+}
+
+func registerTeamMetadataFlags(fs *flag.FlagSet) teamMetadataFlags {
+	return teamMetadataFlags{
+		purpose:    fs.String("purpose", "", "Team purpose (domain-stewardship|delivery|supervision; empty clears)"),
+		lifetime:   fs.String("lifetime", "", "Team lifetime (standing|finite; empty clears)"),
+		effortRefs: fs.String("effort-refs", "", "Comma-separated canonical effort references; empty clears"),
+	}
+}
+
+func (f teamMetadataFlags) refs() []string {
+	refs := []string{}
+	if *f.effortRefs != "" {
+		for _, ref := range strings.Split(*f.effortRefs, ",") {
+			refs = append(refs, strings.TrimSpace(ref))
+		}
+	}
+	return refs
+}
+
+func (f teamMetadataFlags) validate() error {
+	return teamconfig.ValidateMetadata(*f.purpose, *f.lifetime, f.refs())
 }
 
 type teamConfigFlagSet struct {
@@ -565,6 +605,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeat(ctx, subArgs)
 	case "heartbeat-enable":
 		return cmdHeartbeatEnable(ctx, subArgs)
+	case "heartbeat-bind-effort":
+		return cmdHeartbeatBindEffort(ctx, subArgs)
+	case "heartbeat-retire-effort":
+		return cmdHeartbeatRetireEffort(ctx, subArgs)
 	case "heartbeat-disable":
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
@@ -667,6 +711,8 @@ Heartbeat Commands:
   heartbeat-fleet-health                      Count durable work products, blocked runs, and failures in the last 24 hours
   heartbeat <team-id> <agent-id>              Show heartbeat config
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
+  heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file
+  heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
@@ -715,6 +761,8 @@ Claude Code Interop Commands:
 
 func cmdList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	purpose := fs.String("purpose", "", "Filter by purpose (domain-stewardship|delivery|supervision|unspecified)")
+	lifetime := fs.String("lifetime", "", "Filter by lifetime (standing|finite|unspecified)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -725,6 +773,14 @@ func cmdList(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("failed to list teams: %w", err)
 	}
 
+	filtered := make([]Team, 0, len(teams))
+	for _, team := range teams {
+		if (*purpose == "" || team.Purpose == *purpose || (*purpose == "unspecified" && team.Purpose == "")) &&
+			(*lifetime == "" || team.Lifetime == *lifetime || (*lifetime == "unspecified" && team.Lifetime == "")) {
+			filtered = append(filtered, team)
+		}
+	}
+	teams = filtered
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -738,9 +794,16 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	fmt.Println("Teams:")
 	for _, t := range teams {
-		fmt.Printf("  %s - %d members [%s]\n", t.DisplayName, t.MemberCount, t.ID)
+		fmt.Printf("  %s - %d members [%s] · %s · %s\n", t.DisplayName, t.MemberCount, t.ID, metadataLabel(t.Lifetime), metadataLabel(t.Purpose))
 	}
 	return nil
+}
+
+func metadataLabel(value string) string {
+	if value == "" {
+		return "unspecified"
+	}
+	return value
 }
 
 func cmdShow(ctx appctx.Context, args []string) error {
@@ -781,6 +844,17 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Name: %s\n", team.DisplayName)
 	fmt.Printf("ID: %s\n", team.ID)
+	fmt.Printf("Purpose: %s\nLifetime: %s\n", metadataLabel(team.Purpose), metadataLabel(team.Lifetime))
+	if len(team.EffortRefs) > 0 {
+		fmt.Printf("Efforts: %s\n", strings.Join(team.EffortRefs, ", "))
+	}
+	for _, objective := range team.ObjectivesServed {
+		fmt.Printf("Objective: %s", objective.ID)
+		if objective.Role != "" {
+			fmt.Printf(" (%s)", objective.Role)
+		}
+		fmt.Println()
+	}
 	if team.Mission != "" {
 		fmt.Printf("Mission: %s\n", team.Mission)
 	}
@@ -844,6 +918,7 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
+	metadata := registerTeamMetadataFlags(fs)
 	mission := fs.String("mission", "", "Team mission statement")
 	configFlags := registerTeamConfigFlags(fs, true)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
@@ -852,7 +927,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team create <name> [--mission=...] [--runtime-mode=...] [--coordination-pattern=...]")
+		return fmt.Errorf("usage: team create <name> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--mission=...] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	name := fs.Arg(0)
 
@@ -861,7 +936,11 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 		return err
 	}
 
+	if err := metadata.validate(); err != nil {
+		return err
+	}
 	req := CreateTeamRequest{
+		Purpose: *metadata.purpose, Lifetime: *metadata.lifetime, EffortRefs: metadata.refs(),
 		DisplayName:       name,
 		Mission:           *mission,
 		Runtime:           runtime,
@@ -887,6 +966,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 
 func cmdUpdate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	metadata := registerTeamMetadataFlags(fs)
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
 	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
@@ -897,11 +977,25 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
+		return fmt.Errorf("usage: team update <id> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	teamID := fs.Arg(0)
 
+	if err := metadata.validate(); err != nil {
+		return err
+	}
 	req := UpdateTeamRequest{}
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "purpose":
+			req.Purpose = metadata.purpose
+		case "lifetime":
+			req.Lifetime = metadata.lifetime
+		case "effort-refs":
+			refs := metadata.refs()
+			req.EffortRefs = &refs
+		}
+	})
 	if *name != "" {
 		req.DisplayName = name
 	}
@@ -1437,19 +1531,25 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
-	TeamID                  string               `json:"teamId"`
-	AgentID                 string               `json:"agentId"`
-	Enabled                 bool                 `json:"enabled"`
-	Schedule                string               `json:"schedule"`
-	ProfileKey              string               `json:"profileKey,omitempty"`
-	TimeoutSeconds          int                  `json:"timeoutSeconds,omitempty"`
-	ConsecutiveFailures     int                  `json:"consecutiveFailures"`
-	LifecycleState          string               `json:"lifecycleState"`
-	LastExecution           *HeartbeatExecResult `json:"lastExecution,omitempty"`
-	LastSuccessfulExecution *HeartbeatExecResult `json:"lastSuccessfulExecution,omitempty"`
-	NextExecution           string               `json:"nextExecution,omitempty"`
-	CreatedAt               string               `json:"createdAt"`
-	UpdatedAt               string               `json:"updatedAt"`
+	FiniteLeader            *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
+	FiniteLeaderState       json.RawMessage          `json:"finiteLeaderState,omitempty"`
+	FiniteLeaderError       string                   `json:"finiteLeaderError,omitempty"`
+	Supervision             *teamconfig.Supervision  `json:"supervision,omitempty"`
+	SupervisionState        json.RawMessage          `json:"supervisionState,omitempty"`
+	SupervisionError        string                   `json:"supervisionError,omitempty"`
+	TeamID                  string                   `json:"teamId"`
+	AgentID                 string                   `json:"agentId"`
+	Enabled                 bool                     `json:"enabled"`
+	Schedule                string                   `json:"schedule"`
+	ProfileKey              string                   `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                      `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                      `json:"consecutiveFailures"`
+	LifecycleState          string                   `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResult     `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResult     `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string                   `json:"nextExecution,omitempty"`
+	CreatedAt               string                   `json:"createdAt"`
+	UpdatedAt               string                   `json:"updatedAt"`
 }
 
 type HeartbeatFleetHealth struct {
@@ -1478,18 +1578,22 @@ type HeartbeatExecResult struct {
 
 // CreateHeartbeatRequest is the request for creating a heartbeat
 type CreateHeartbeatRequest struct {
-	Schedule       string `json:"schedule"`
-	ProfileKey     string `json:"profileKey,omitempty"`
-	Enabled        *bool  `json:"enabled,omitempty"`
-	TimeoutSeconds int    `json:"timeoutSeconds,omitempty"`
+	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
+	Schedule       string                   `json:"schedule"`
+	ProfileKey     string                   `json:"profileKey,omitempty"`
+	Enabled        *bool                    `json:"enabled,omitempty"`
+	TimeoutSeconds int                      `json:"timeoutSeconds,omitempty"`
 }
 
 // UpdateHeartbeatRequest is the request for updating a heartbeat
 type UpdateHeartbeatRequest struct {
-	Schedule       *string `json:"schedule,omitempty"`
-	ProfileKey     *string `json:"profileKey,omitempty"`
-	Enabled        *bool   `json:"enabled,omitempty"`
-	TimeoutSeconds *int    `json:"timeoutSeconds,omitempty"`
+	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
+	Schedule       *string                  `json:"schedule,omitempty"`
+	ProfileKey     *string                  `json:"profileKey,omitempty"`
+	Enabled        *bool                    `json:"enabled,omitempty"`
+	TimeoutSeconds *int                     `json:"timeoutSeconds,omitempty"`
 }
 
 // TriggerResponse is the response from triggering a heartbeat
@@ -2033,6 +2137,23 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 	fmt.Printf("Agent: %s\n", config.AgentID)
 	fmt.Printf("Schedule: %s\n", config.Schedule)
 	fmt.Printf("Enabled: %v\n", config.Enabled)
+	if config.FiniteLeader != nil {
+		if err := printFiniteLeaderBinding(config, false); err != nil {
+			return err
+		}
+	}
+	if config.Supervision != nil {
+		fmt.Printf("Standing supervision: up to %d efforts per wake; discovery limit %d; minimum wake interval %ds\n", config.Supervision.MaxEffortsPerWake, config.Supervision.DiscoveryLimit, config.Supervision.MinWakeIntervalSeconds)
+		if config.Supervision.HealthySampleIntervalSeconds > 0 {
+			fmt.Printf("Healthy sampling: up to %d per wake, every %ds per effort\n", config.Supervision.MaxHealthySamplesPerWake, config.Supervision.HealthySampleIntervalSeconds)
+		}
+		if len(config.SupervisionState) > 0 {
+			fmt.Printf("Supervision state: %s\n", config.SupervisionState)
+		}
+		if config.SupervisionError != "" {
+			fmt.Printf("Supervision unavailable: %s\n", config.SupervisionError)
+		}
+	}
 	if config.ProfileKey != "" {
 		fmt.Printf("Profile Key: %s\n", config.ProfileKey)
 	}
@@ -2063,6 +2184,17 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 
 func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-enable", flag.ContinueOnError)
+	supervision := fs.Bool("supervision", false, "Use standing effort-supervisor admission")
+	dispatchEffort := fs.String("dispatch-effort-ref", "", "AM owner-granted standing service enrollment reference (not a credential)")
+	dispatchAuthorization := fs.String("dispatch-authorization-id", "", "AM owner-granted dispatcher authorization ID (not a credential)")
+	discoveryLimit := fs.Int("discovery-limit", 100, "Maximum efforts per owner discovery page")
+	maxEfforts := fs.Int("max-efforts-per-wake", 5, "Maximum efforts assessed in one supervisor wake")
+	minWake := fs.Int("min-wake-interval-seconds", 300, "Minimum interval between supervisor inference wakes")
+	sampleInterval := fs.Int("healthy-sample-interval-seconds", 0, "Per-effort healthy sampling interval; zero disables")
+	maxSamples := fs.Int("max-healthy-samples-per-wake", 0, "Maximum independent healthy samples in a wake")
+	diagnosticWakes := fs.Int("diagnostic-wakes-per-window", 4, "Maximum supervisor inference attempts per allowance window")
+	diagnosticWindow := fs.Int("diagnostic-window-seconds", 3600, "Diagnostic allowance window in seconds")
+	accountingRef := fs.String("accounting-ref", "", "Standing service allowance reference for shared/idle attribution")
 	schedule := fs.String("schedule", "0 */6 * * *", "Cron schedule expression")
 	profileKey := fs.String("profile", "", "Agent-manager profile key")
 	timeout := fs.String("timeout", "", "Execution timeout (e.g., 45m, 1h)")
@@ -2085,6 +2217,21 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	}
 	teamID := fs.Arg(0)
 	agentID := fs.Arg(1)
+	var supervisionConfig *teamconfig.Supervision
+	if !*supervision && (*dispatchEffort != "" || *dispatchAuthorization != "") {
+		return fmt.Errorf("dispatcher binding requires --supervision")
+	}
+	if *supervision {
+		supervisionConfig = &teamconfig.Supervision{DiscoveryLimit: *discoveryLimit, MaxEffortsPerWake: *maxEfforts,
+			MinWakeIntervalSeconds: *minWake, HealthySampleIntervalSeconds: *sampleInterval, MaxHealthySamplesPerWake: *maxSamples}
+		supervisionConfig.DiagnosticAllowance = teamconfig.DiagnosticAllowance{MaxWakesPerWindow: *diagnosticWakes, WindowSeconds: *diagnosticWindow, AccountingRef: *accountingRef}
+		if *dispatchEffort != "" || *dispatchAuthorization != "" {
+			supervisionConfig.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: *dispatchEffort, AuthorizationID: *dispatchAuthorization}
+		}
+		if err := supervisionConfig.Validate(); err != nil {
+			return err
+		}
+	}
 
 	// Check if config exists
 	var existing HeartbeatConfig
@@ -2094,6 +2241,7 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	if existsErr != nil {
 		// Create new config
 		req := CreateHeartbeatRequest{
+			Supervision:    supervisionConfig,
 			Schedule:       *schedule,
 			ProfileKey:     *profileKey,
 			Enabled:        &enabled,
@@ -2112,7 +2260,8 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	} else {
 		// Update existing config
 		req := UpdateHeartbeatRequest{
-			Enabled: &enabled,
+			Supervision: supervisionConfig,
+			Enabled:     &enabled,
 		}
 		if *schedule != "0 */6 * * *" {
 			req.Schedule = schedule

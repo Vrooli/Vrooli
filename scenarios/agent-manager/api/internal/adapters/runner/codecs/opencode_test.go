@@ -3,6 +3,7 @@ package codecs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,36 @@ import (
 
 	"github.com/google/uuid"
 )
+
+func TestOpenCodeContinuationUnreadableStoreIsNotSessionExpiry(t *testing.T) {
+	for _, kind := range []string{"directory", "corrupt"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "opencode", "opencode.db")
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if kind == "directory" {
+				if err := os.Mkdir(path, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := os.WriteFile(path, []byte("unreadable native state"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			err := NewOpenCodeForTest().ValidateContinuation(t.Context(), runner.ContinueRequest{SessionID: "ses_retained", Environment: map[string]string{"XDG_DATA_HOME": root}})
+			var runnerErr *domain.RunnerError
+			if !errors.As(err, &runnerErr) || runnerErr.Operation != "session_readiness" || runnerErr.Code() == domain.ErrCodeRunnerSessionExpired {
+				t.Fatalf("uncertain store must refuse without claiming session expiry: %v", err)
+			}
+			if kind == "corrupt" {
+				data, err := os.ReadFile(path)
+				if err != nil || string(data) != "unreadable native state" {
+					t.Fatalf("readiness changed native state: %q %v", data, err)
+				}
+			}
+		})
+	}
+}
 
 // =============================================================================
 // Test fixtures
@@ -736,6 +767,7 @@ func TestOpenCode_ClassifyTerminalError(t *testing.T) {
 		wantCode domain.ErrorCode // empty = expect nil
 	}{
 		{"session not found", "session not found", domain.ErrCodeRunnerSessionExpired},
+		{"session not found live capital", "Error: Session not found", domain.ErrCodeRunnerSessionExpired},
 		{"session expired", "session expired", domain.ErrCodeRunnerSessionExpired},
 		{"session invalid", "session is invalid", domain.ErrCodeRunnerSessionExpired},
 		{"thread missing without session", "thread missing", ""},
@@ -880,6 +912,50 @@ func TestOpenCodeStreamEvent_Unmarshal(t *testing.T) {
 // =============================================================================
 // openCodeLogDir resolution
 // =============================================================================
+
+func TestOpenCodePostClassifyUsesRunDataHome(t *testing.T) {
+	shared := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", shared)
+	writeLog := func(dataHome, message string) {
+		t.Helper()
+		logDir := filepath.Join(dataHome, "opencode", "log")
+		if err := os.MkdirAll(logDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		data, err := json.Marshal(map[string]string{"message": message})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(logDir, "run.log"), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeLog(shared, "unrelated interactive failure")
+	c := NewOpenCodeForTest()
+	first, resumed, missing := c.NewState(), c.NewState(), c.NewState()
+	firstHome, resumedHome := t.TempDir(), t.TempDir()
+	writeLog(firstHome, "first run failure")
+	writeLog(resumedHome, "resumed run failure")
+	c.BuildArgs(first, runner.ExecuteRequest{Environment: map[string]string{"XDG_DATA_HOME": firstHome}})
+	c.BuildContinueArgs(resumed, runner.ContinueRequest{SessionID: "ses_fixture", Environment: map[string]string{"XDG_DATA_HOME": resumedHome}})
+	c.BuildArgs(missing, runner.ExecuteRequest{Environment: map[string]string{"XDG_DATA_HOME": t.TempDir()}})
+	// Classify after all launches are prepared: the shared codec must retain
+	// each run's location independently and never borrow another run's error.
+	for _, tc := range []struct {
+		state State
+		want  string
+	}{
+		{first, "first run failure"},
+		{resumed, "resumed run failure"},
+		{missing, "exit status 1"},
+	} {
+		result := &runner.ExecuteResult{ExitCode: 1, ErrorMessage: "exit status 1"}
+		c.PostClassify(tc.state, result)
+		if result.ErrorMessage != tc.want {
+			t.Errorf("PostClassify error = %q, want %q", result.ErrorMessage, tc.want)
+		}
+	}
+}
 
 func TestOpenCodeLogDirUsesXDGDataHome(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", filepath.Join("custom", "data"))

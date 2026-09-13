@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // AgentManagerClient provides HTTP client for agent-manager API
@@ -86,28 +87,49 @@ type CreateTaskResponse struct {
 // channel is generic and other prompt-manager spawn sites may add additional
 // VROOLI_-prefixed vars without a contract change.
 type CreateRunRequest struct {
-	IdempotencyKey string            `json:"idempotency_key,omitempty"`
-	TaskID         string            `json:"task_id"`
-	ProfileRef     *ProfileRef       `json:"profile_ref,omitempty"`
-	Tag            *string           `json:"tag,omitempty"`
-	RunMode        string            `json:"run_mode,omitempty"`
-	Environment    map[string]string `json:"environment,omitempty"`
+	RequestedScopes *RunIdentityScopeRequest `json:"requested_scopes,omitempty"`
+	WorkReferences  []*eventpb.WorkReference `json:"work_references,omitempty"`
+	IdempotencyKey  string                   `json:"idempotency_key,omitempty"`
+	TaskID          string                   `json:"task_id"`
+	ProfileRef      *ProfileRef              `json:"profile_ref,omitempty"`
+	Tag             *string                  `json:"tag,omitempty"`
+	RunMode         string                   `json:"run_mode,omitempty"`
+	Environment     map[string]string        `json:"environment,omitempty"`
+}
+
+// RunIdentityScopeRequest is a narrowing declaration, never a grant.
+type RunIdentityScopeRequest struct {
+	Scopes               []string `json:"scopes"`
+	ExpectedOwnerSubject string   `json:"expected_owner_subject,omitempty"`
 }
 
 // Run represents an agent run.
 // JSON tags use snake_case to match agent-manager's protojson UseProtoNames output.
 type Run struct {
-	ID        string      `json:"id"`
-	TaskID    string      `json:"task_id"`
-	ProfileID string      `json:"agent_profile_id,omitempty"`
-	Status    string      `json:"status"`
-	StartedAt string      `json:"started_at,omitempty"`
-	EndedAt   string      `json:"ended_at,omitempty"`
-	Error     string      `json:"error_msg,omitempty"`
-	Tag       string      `json:"tag,omitempty"`
-	SessionID string      `json:"session_id,omitempty"`
-	Actions   *RunActions `json:"actions,omitempty"`
-	Result    *RunResult  `json:"result,omitempty"`
+	RequestedModel        string `json:"requested_model,omitempty"`
+	ActualModel           string `json:"actual_model,omitempty"`
+	HarnessKind           string `json:"harness_kind,omitempty"`
+	ImportSourceHarness   string `json:"import_source_harness,omitempty"`
+	ImportSourceSessionID string `json:"import_source_session_id,omitempty"`
+	CreatedAt             string `json:"created_at,omitempty"`
+	UpdatedAt             string `json:"updated_at,omitempty"`
+	TerminalClass         string `json:"terminal_class,omitempty"`
+	StopReason            string `json:"stop_reason,omitempty"`
+	// Keep owner JSON presence and open reference enums. A summary is reported
+	// evidence, not a qualified per-attempt usage or acceptance receipt.
+	Summary        json.RawMessage `json:"summary,omitempty"`
+	WorkReferences json.RawMessage `json:"work_references,omitempty"`
+	ID             string          `json:"id"`
+	TaskID         string          `json:"task_id"`
+	ProfileID      string          `json:"agent_profile_id,omitempty"`
+	Status         string          `json:"status"`
+	StartedAt      string          `json:"started_at,omitempty"`
+	EndedAt        string          `json:"ended_at,omitempty"`
+	Error          string          `json:"error_msg,omitempty"`
+	Tag            string          `json:"tag,omitempty"`
+	SessionID      string          `json:"session_id,omitempty"`
+	Actions        *RunActions     `json:"actions,omitempty"`
+	Result         *RunResult      `json:"result,omitempty"`
 }
 
 // RunResult is the provenance-bearing final-output projection returned by
@@ -338,6 +360,49 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 	var result CreateRunResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
+	}
+	return result.Run, nil
+}
+
+// CreateRunDelegated uses explicitly provisioned authority for this request only.
+// It never exchanges machine credentials or changes the default client's identity.
+func (c *AgentManagerClient) CreateRunDelegated(ctx context.Context, req *CreateRunRequest, ownerToken string) (*Run, error) {
+	if req == nil || req.RequestedScopes == nil || strings.TrimSpace(req.RequestedScopes.ExpectedOwnerSubject) == "" || strings.TrimSpace(ownerToken) == "" || strings.ContainsAny(ownerToken, "\r\n\t ") {
+		return nil, fmt.Errorf("delegated run requires an explicit owner credential, expected owner and scope narrowing")
+	}
+	if strings.TrimSpace(req.IdempotencyKey) == "" {
+		return nil, fmt.Errorf("delegated run requires an idempotency key")
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal delegated run request")
+	}
+	baseURL, err := c.resolveBaseURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve delegated run owner")
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/runs", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create delegated run request")
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+ownerToken)
+	client := *c.httpClient
+	// Even a same-origin redirect must not turn this CreateRun credential into
+	// authority for a different operation. Caller owns uncertain dispatch recovery.
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("delegated run transport failed; reconcile the original idempotency key")
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("delegated run refused: HTTP %d", response.StatusCode)
+	}
+	var result CreateRunResponse
+	if err := c.parseResponse(response, &result); err != nil || result.Run == nil || result.Run.ID == "" {
+		return nil, fmt.Errorf("delegated run response unavailable; reconcile the original idempotency key")
 	}
 	return result.Run, nil
 }

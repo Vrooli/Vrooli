@@ -112,7 +112,10 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if err := json.Unmarshal(response, &doc); err != nil {
 		return fmt.Errorf("decode conformance run: %w", err)
 	}
-	evidencePath := strings.TrimSpace(ctx.Flag("evidence-path"))
+	evidencePath, err := h.resolveEvidencePath(ctx.Flag("evidence-path"))
+	if err != nil {
+		return err
+	}
 	if evidencePath != "" {
 		if err := os.MkdirAll(filepath.Dir(evidencePath), 0o750); err != nil {
 			return fmt.Errorf("create evidence directory: %w", err)
@@ -156,6 +159,55 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	}
 	fmt.Fprintln(ctx.Stdout(), message)
 	return nil
+}
+
+func (h *handlers) resolveEvidencePath(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	if filepath.IsAbs(raw) {
+		return filepath.Clean(raw), nil
+	}
+
+	root, err := h.scenarioRoot()
+	if err != nil {
+		return "", err
+	}
+	candidate := filepath.Clean(filepath.Join(root, raw))
+	relative, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return "", fmt.Errorf("validate evidence path: %w", err)
+	}
+	if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("relative evidence path %q escapes the audio-tools scenario; use an absolute path for an external export", raw)
+	}
+	return candidate, nil
+}
+
+func (h *handlers) scenarioRoot() (string, error) {
+	if configured := strings.TrimSpace(h.getenv("AUDIO_TOOLS_SCENARIO_ROOT")); configured != "" {
+		return filepath.Abs(configured)
+	}
+	directory, err := h.getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve audio-tools scenario root: %w", err)
+	}
+	for {
+		candidate := filepath.Join(directory, "scenarios", "audio-tools")
+		if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+			return candidate, nil
+		}
+		if filepath.Base(directory) == "audio-tools" && filepath.Base(filepath.Dir(directory)) == "scenarios" {
+			return directory, nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			break
+		}
+		directory = parent
+	}
+	return "", fmt.Errorf("audio-tools scenario root not found from %q", directory)
 }
 
 // verifySoakDriver prevents admission while another browser qualification (or

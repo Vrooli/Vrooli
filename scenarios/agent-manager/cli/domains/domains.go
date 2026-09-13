@@ -35,6 +35,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"reconcile-scenario", "Reconcile a scenario's profiles and workflows"}, [2]string{"plan", "Validate declaration sources without writing"}),
 		support.SubcommandGroup("workflow", "Validate and execute declared workflows", deps.Workflow,
 			[2]string{"validate", "Validate and canonicalize a workflow file"}, [2]string{"plan", "Validate scenario workflow sources without writes"}, [2]string{"reconcile-scenario", "Reconcile scenario workflow sources"}, [2]string{"reload", "Reload scenario workflow sources"}, [2]string{"list", "List workflow revisions"}, [2]string{"get", "Get a workflow revision"}, [2]string{"explain", "Explain the active workflow revision"}, [2]string{"simulate", "Simulate a workflow execution plan"}, [2]string{"start", "Start a workflow execution"}, [2]string{"execution-list", "List workflow executions"}, [2]string{"execution-runs", "List execution node attempts and runs"}, [2]string{"execution-get", "Get a workflow execution"}, [2]string{"execution-result", "Get execution input and output"}, [2]string{"execution-advance", "Advance a workflow execution"}, [2]string{"execution-wait", "Wait for a terminal execution"}, [2]string{"trace", "Show an execution journal"}, [2]string{"signal", "Signal a waiting execution"}, [2]string{"cancel", "Cancel a workflow execution"}, [2]string{"retry", "Retry a workflow execution"}, [2]string{"resume", "Resume a workflow execution"}),
+		effortGroup(deps),
 		support.SubcommandGroup("watch", "Supervise a durable family execution cohort", deps.Watch,
 			[2]string{"create", "Create a durable cohort watch"}, [2]string{"get", "Get a cohort watch"}, [2]string{"list", "List cohort watches"}, [2]string{"wait", "Wait for a watch revision"}, [2]string{"cancel", "Cancel an active watch"}, [2]string{"inspect", "Inspect bounded pending events"}, [2]string{"action", "Request a typed intervention"}, [2]string{"actions", "List durable intervention history"}, [2]string{"policy-get", "Get the durable supervision policy"}, [2]string{"policy-outcomes", "List bounded durable policy outcomes"},
 			[2]string{"policy-candidate", "Create an immutable candidate policy"},
@@ -48,7 +49,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"start", "Start or reattach a typed investigation"}, [2]string{"get", "Get a typed investigation"}, [2]string{"list", "List typed investigations"}, [2]string{"wait", "Wait for a typed investigation"}, [2]string{"cancel", "Cancel a typed investigation"}),
 		support.SubcommandGroup("task", "Manage tasks", deps.Task,
 			[2]string{"list", "List all tasks"}, [2]string{"get", "Get task details"}, [2]string{"create", "Create a task"}, [2]string{"update", "Update a task"}, [2]string{"delete", "Delete a cancelled task"}, [2]string{"cancel", "Cancel a queued or running task"}),
-		support.SubcommandGroup("maintenance", "Run maintenance operations", deps.Maintenance, [2]string{"purge", "Delete matching profiles, tasks, or runs"}),
+		maintenanceGroup(deps),
 		support.SubcommandGroup("ops", "Inspect typed-event operational statistics", deps.Ops,
 			[2]string{"summary", "Show every operational category"}, [2]string{"fallback", "Show runner and model fallback insights"}, [2]string{"health", "Show engine-derived health transitions"}, [2]string{"sandbox", "Show sandbox operation outcomes"}, [2]string{"heartbeat", "Show heartbeat-miss counters"}, [2]string{"checkpoint", "Show checkpoint-failure counters"}, [2]string{"retry", "Show retry-attempt counters"}),
 		support.SubcommandGroup("health", "Inspect persisted health snapshots and audit", deps.Health,
@@ -61,6 +62,79 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		runs.SubcommandGroup(deps),
 		measures.Register(),
 	}
+}
+
+func maintenanceGroup(deps support.Dependencies) cliapp.SubcommandGroup {
+	group := support.SubcommandGroup("maintenance", "Run maintenance operations", deps.Maintenance,
+		[2]string{"status", "Inspect durable admission and admitted-work inventory"},
+		[2]string{"begin", "Close admission without cancelling admitted work"},
+		[2]string{"drain", "Wait for admitted work; timeout leaves the fence closed"},
+		[2]string{"resume", "Reopen admission using the exact maintenance revision"},
+		[2]string{"purge", "Delete matching profiles, tasks, or runs"})
+	for i := range group.Subcommands {
+		command := &group.Subcommands[i]
+		if command.Name == "purge" {
+			continue
+		}
+		command.Usage = "agent-manager maintenance " + command.Name + " [--json]"
+		command.HelpText = "Read the bounded owner projection. HTTP errors retain observed fence and inventory evidence; unknown is not empty proof."
+		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the owner projection"}}
+		if command.Name != "status" {
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local owner exchange; unavailable inside identified agent runs"})
+			command.HelpText = "Use canonical configured owner authentication. Optional --local-owner explicitly exchanges local human authority and is unavailable inside identified agent runs. Timeout or unknown evidence preserves the fence and admitted work."
+		}
+		switch command.Name {
+		case "begin":
+			command.Usage = "agent-manager maintenance begin --reason <text> [--local-owner] [--json]"
+			command.HelpText += " Required --reason: nonblank, 1-512 bytes."
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "reason", Required: true, Description: "Required nonblank reason, 1-512 bytes"})
+		case "drain":
+			command.Usage = "agent-manager maintenance drain [--timeout 1m] [--local-owner] [--json]"
+			command.HelpText += " --timeout accepts whole seconds from 1s to 120s (default 1m). It waits; it never cancels work."
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "timeout", Default: "1m", Description: "Whole seconds from 1s to 120s"})
+		case "resume":
+			command.Usage = "agent-manager maintenance resume --revision <closed-revision> [--local-owner] [--json]"
+			command.HelpText += " Required --revision: the exact closed revision returned by begin or status. Lifecycle lock contention refuses resume."
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "revision", Required: true, Description: "Exact maintenance revision"})
+		}
+	}
+	return group
+}
+
+func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
+	group := support.SubcommandGroup("effort", "Observe and supervise arbitrary efforts", deps.Effort,
+		[2]string{"board", "Read the shared effort board"}, [2]string{"list", "List durable effort enrollments"},
+		[2]string{"discover", "Reconcile bounded discovery (operator authentication)"},
+		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
+		[2]string{"direct", "Request an authorized directive"}, [2]string{"directives", "Read delivery and assessment"},
+		[2]string{"update-directive", "Acknowledge, assess or supersede"}, [2]string{"assess", "Record a quiet, sampled or intervention assessment"},
+		[2]string{"issue-dispatch", "Issue bounded recurring supervisor authority"},
+		[2]string{"revoke-dispatch", "Revoke dispatcher authority and its child identities"})
+	group.DefaultSubcommand = "board"
+	types := map[string]string{"enroll": "EnrollEffortRequest", "withdraw": "WithdrawEffortRequest", "direct": "RequestEffortDirectiveRequest", "update-directive": "UpdateEffortDirectiveRequest", "assess": "RecordEffortAssessmentRequest", "issue-dispatch": "IssueSupervisorDispatchRequest", "revoke-dispatch": "RevokeSupervisorDispatchRequest"}
+	for i := range group.Subcommands {
+		command := &group.Subcommands[i]
+		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
+		command.Usage = "agent-manager effort " + command.Name + " [--json]"
+		if types[command.Name] != "" || command.Name == "discover" {
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local operator exchange; unavailable in identified agent runs"})
+		}
+		if message := types[command.Name]; message != "" {
+			command.Usage = "agent-manager effort " + command.Name + " --request-file request.json [--json]"
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "request-file", Required: true, LocalOnly: true, Description: "Proto JSON agent_manager.v1." + message})
+			command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/domain/effort.proto (" + message + "). Examples and authority: scenarios/agent-manager/docs/reference/effort-supervision.md. Authentication uses the configured owner token or run identity; request text cannot grant permission."
+			if command.Name == "issue-dispatch" || command.Name == "revoke-dispatch" {
+				command.HelpText = "Request schema: packages/proto/schemas/agent-manager/v1/api/service.proto (" + message + "). See scenarios/agent-manager/docs/reference/effort-supervision.md. Requires current owner authority; returns metadata only."
+			}
+		} else if command.Name != "discover" {
+			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "page-size", Default: "50", Description: "Maximum rows, 1-100"}, cliapp.Flag{Name: "page-token", Description: "Next page token from prior response"})
+			if command.Name != "list" {
+				command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "effort-ref", Description: "Exact stable effort reference"})
+			}
+			command.Usage += " [--effort-ref ref] [--page-size 50] [--page-token token]"
+		}
+	}
+	return group
 }
 
 func conversationGroup(deps support.Dependencies) cliapp.SubcommandGroup {

@@ -7,6 +7,18 @@ import (
 	"agent-manager/internal/domain"
 )
 
+// codexEffortMappings are the reasoning-effort values Codex documents for its
+// `model_reasoning_effort` config. The portable scale has no `minimal`, and
+// `max` is not a Codex-native value (see Codex.Capabilities). Requesting an
+// effort Codex cannot enforce must fail closed before launch, never silently
+// run at the runner default.
+var codexEffortMappings = map[domain.Effort]struct{}{
+	domain.EffortLow:    {},
+	domain.EffortMedium: {},
+	domain.EffortHigh:   {},
+	domain.EffortXHigh:  {},
+}
+
 func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 	if cfg == nil {
 		return nil, nil
@@ -31,7 +43,10 @@ func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 		if bareModel != "" {
 			args = append(args, "-m", bareModel)
 		}
-		if cfg.Effort != "" && cfg.Effort != domain.EffortMax {
+		if cfg.Effort != "" {
+			if _, ok := codexEffortMappings[cfg.Effort]; !ok {
+				return nil, fmt.Errorf("codex has no native reasoning effort for %q; refusing to launch at the runner default", cfg.Effort)
+			}
 			args = append(args, "-c", "model_reasoning_effort="+string(cfg.Effort))
 		}
 	}
@@ -50,6 +65,13 @@ func claudeControlArgs(cfg *domain.RunConfig) ([]string, error) {
 		}
 		if cfg.Effort != "" {
 			args = append(args, "--effort", string(cfg.Effort))
+		}
+		// The interactive launch uses ControlArgs (not BuildArgs), so the
+		// permission flag must be applied here too; otherwise every Bash tool_use
+		// in an interactive Claude run waits for an unanswerable approval and no
+		// tool_result is ever written.
+		if cfg.SkipPermissionPrompt {
+			args = append(args, "--dangerously-skip-permissions")
 		}
 		if tools, err := translateCanonicalTools(claudeToolTranslations, cfg.AllowedTools); err != nil {
 			return nil, err

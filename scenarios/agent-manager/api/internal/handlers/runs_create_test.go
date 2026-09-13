@@ -14,12 +14,42 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
+
+type createIdentityCapture struct {
+	orchestration.RunService
+	request orchestration.CreateRunRequest
+}
+
+func (s *createIdentityCapture) CreateRun(_ context.Context, req orchestration.CreateRunRequest) (*domain.Run, error) {
+	s.request = req
+	return nil, domain.NewValidationError("test_capture", "request reached owner")
+}
+
+func TestCreateRunPreservesExplicitIdentityNarrowing(t *testing.T) {
+	for _, narrowing := range []string{`{"scopes":[],"expectedOwnerSubject":"owner-a"}`, `{"scopes":["agent-manager:supervise"],"expectedOwnerSubject":"owner-a"}`} {
+		capture := &createIdentityCapture{}
+		h := New(orchestration.HandlerServices{RunService: capture})
+		body := `{"taskId":"` + uuid.NewString() + `","requestedScopes":` + narrowing + `}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer private-owner-bearer")
+		response := httptest.NewRecorder()
+		h.CreateRun(response, req)
+		if capture.request.OwnerToken != "private-owner-bearer" || capture.request.ExpectedOwnerSubject != "owner-a" || capture.request.RequestedScopes == nil {
+			t.Fatal("transport dropped owner credential or explicit narrowing", response.Body.String())
+		}
+		if strings.Contains(response.Body.String(), "private-owner-bearer") {
+			t.Fatal("credential leaked into response")
+		}
+	}
+}
 
 func TestCreateRun_Success(t *testing.T) {
 	_, router := setupTestHandler(t)
@@ -61,6 +91,7 @@ func TestCreateRun_Success(t *testing.T) {
 	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         createdTask.Id,
 		AgentProfileId: &agentProfileID,
+		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort:arbitrary", Revision: "target", Relationship: "supervisor", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}},
 		InlineConfig: &pb.RunConfigOverrides{ResultSpec: &pb.ResultSpec{
 			Version: "result-spec/v1", Kind: pb.ResultSpecKind_RESULT_SPEC_KIND_CLASSIFICATION,
 			ClassificationValues: []string{"complete", "blocked"},
@@ -78,6 +109,9 @@ func TestCreateRun_Success(t *testing.T) {
 	var createdRunResp apipb.CreateRunResponse
 	decodeProtoJSON(t, rr.Body.Bytes(), &createdRunResp)
 	createdRun := createdRunResp.Run
+	if len(createdRun.GetWorkReferences()) != 1 || createdRun.WorkReferences[0].GetId() != "effort:arbitrary" || createdRun.WorkReferences[0].GetRelationship() != "supervisor" {
+		t.Fatal("run creation lost attributable effort membership")
+	}
 
 	if createdRun.GetTaskId() != createdTask.Id {
 		t.Errorf("expected task ID %s, got %s", createdTask.Id, createdRun.GetTaskId())
