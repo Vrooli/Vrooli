@@ -75,6 +75,16 @@ func (s *EffortService) reconcileRunRegistry(ctx context.Context, d *pb.EffortDi
 				}
 				continue
 			}
+			// A dispatcher enrollment is an owner authorization anchor, not an
+			// effort.  Keep its source subject set empty so the same generic
+			// server-owned predicate remains true before issuance and after a
+			// supervisor run is attributed through the run registry.  The
+			// supervisor run is still visible through the dispatch wake's owner
+			// references and authorization metadata; adding it here would turn
+			// the anchor into a judgment/sample subject.
+			if authorizationAnchorEnrollment(e) {
+				continue
+			}
 			exists := false
 			for _, subject := range e.Subjects {
 				if subject.RunId == run.ID.String() {

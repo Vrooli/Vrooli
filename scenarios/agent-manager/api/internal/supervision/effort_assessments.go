@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"strings"
 
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -67,6 +68,9 @@ func (s *EffortService) RecordAssessment(ctx context.Context, req *pb.RecordEffo
 	a := proto.Clone(req.Assessment).(*pb.EffortAssessment)
 	if a.IdempotencyKey == "" || a.SharedOperationRef == "" || a.Rationale == "" || len(a.EffortRefs) > 100 || len(a.EvidenceRefs) == 0 {
 		return nil, errors.New("assessment requires idempotency/shared operation identities, rationale, evidence and at most 100 efforts")
+	}
+	if err := validateRepairLinks(a.RepairLinks); err != nil {
+		return nil, err
 	}
 	switch a.Disposition {
 	case "quiet", "sample", "investigate", "steer", "unknown":
@@ -174,6 +178,49 @@ func (s *EffortService) RecordAssessment(ctx context.Context, req *pb.RecordEffo
 	}
 	return a, nil
 }
+
+func validateRepairLinks(links []*pb.EffortRepairLink) error {
+	if len(links) > 8 {
+		return errors.New("assessment permits at most 8 bounded repair links")
+	}
+	seen := map[string]bool{}
+	for _, link := range links {
+		if link == nil {
+			return errors.New("repair links must be complete typed records")
+		}
+		state := strings.TrimSpace(link.GetState())
+		if state != link.GetState() || (state != "assigned" && state != "needs_assignment" && state != "resolved") {
+			return errors.New("repair link state must be assigned, needs_assignment or resolved")
+		}
+		for _, value := range []string{link.GetWorkRef(), link.GetAssigningOwnerRef(), link.GetNextOperation(), link.GetStoppingCondition()} {
+			if len(value) > 2000 || value != strings.TrimSpace(value) {
+				return errors.New("repair link fields must be trimmed and within the bounded reference limit")
+			}
+		}
+		if state == "needs_assignment" {
+			if link.GetWorkRef() != "" || link.GetAssigningOwnerRef() == "" || link.GetNextOperation() == "" || link.GetStoppingCondition() == "" || len(link.GetCompletionEvidenceRefs()) != 0 {
+				return errors.New("needs_assignment repair link requires owner, next operation and stopping condition without claiming a work item or proof")
+			}
+			continue
+		}
+		if link.GetWorkRef() == "" || link.GetAssigningOwnerRef() == "" || link.GetNextOperation() == "" || link.GetStoppingCondition() == "" || len(link.GetCompletionEvidenceRefs()) == 0 || len(link.GetCompletionEvidenceRefs()) > 30 {
+			return errors.New("assigned or resolved repair link requires work, owner, next operation, stopping condition and bounded completion evidence")
+		}
+		if seen[link.GetWorkRef()] {
+			return errors.New("repair links must not duplicate a canonical work reference")
+		}
+		seen[link.GetWorkRef()] = true
+		seenEvidence := map[string]bool{}
+		for _, ref := range link.GetCompletionEvidenceRefs() {
+			if strings.TrimSpace(ref) == "" || ref != strings.TrimSpace(ref) || len(ref) > 2000 || seenEvidence[ref] {
+				return errors.New("repair completion evidence references must be bounded, nonempty and distinct")
+			}
+			seenEvidence[ref] = true
+		}
+	}
+	return nil
+}
+
 func sameUsageAmounts(a, b *pb.EffortUsage) bool {
 	return (a.Tokens == nil) == (b.Tokens == nil) && a.GetTokens() == b.GetTokens() && (a.ReportedCostUsd == nil) == (b.ReportedCostUsd == nil) && math.Abs(a.GetReportedCostUsd()-b.GetReportedCostUsd()) < 1e-9 && (a.AgentSeconds == nil) == (b.AgentSeconds == nil) && math.Abs(a.GetAgentSeconds()-b.GetAgentSeconds()) < 1e-9
 }

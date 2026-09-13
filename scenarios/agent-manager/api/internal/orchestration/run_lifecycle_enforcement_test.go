@@ -75,7 +75,7 @@ func TestContinueOpenCodeMissingSessionRejectedBeforeEffects(t *testing.T) {
 	if err := registry.Register(core.NewRunner(codec, nil, nil)); err != nil {
 		t.Fatal(err)
 	}
-	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithRunners(registry), WithRunStateRoot(root))
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithRunners(registry), WithRunStateRoot(root), newCurrentModelPolicyFixtureOption(t))
 	task, err := svc.CreateTask(ctx, &domain.Task{Title: "missing native session", ScopePath: "src"})
 	if err != nil {
 		t.Fatal(err)

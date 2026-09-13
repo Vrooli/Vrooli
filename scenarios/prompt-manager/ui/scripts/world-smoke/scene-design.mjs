@@ -4,7 +4,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 import { PNG } from 'pngjs'
 
 const option = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
@@ -101,6 +101,7 @@ try {
     await page.goto(`${base}/world?actors=16&profile=high&scene=${scene}&intro=0&diag=1&period=${period}&weather=clear`)
     await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 60000 })
     await page.waitForTimeout(1000)
+    await openCamera(page)
     const state = await inspect(); spaces.push({ scene, ...state })
     check(`${scene} generated spaces have named entrances and occupants`, state.spaces.length > 0 && state.spaces.every(p => (p.teamId ? p.space.occupantIds.length > 0 : p.space.occupantIds.length === 0) && p.space.entrance.length === 2), state)
     check(`${scene} simulation invariants`, state.violations.length === 0, state.violations)

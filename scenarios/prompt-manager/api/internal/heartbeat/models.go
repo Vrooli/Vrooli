@@ -61,6 +61,20 @@ type UpdateHeartbeatRequest struct {
 	ProfileKey     *string                  `json:"profileKey,omitempty"`
 	Enabled        *bool                    `json:"enabled,omitempty"`
 	TimeoutSeconds *int                     `json:"timeoutSeconds,omitempty"`
+
+	// FiniteEffortTransition is the explicit authorized lifecycle operation for
+	// a finite leader. It is mutually exclusive with every configuration field
+	// above: a completion or reopen receipt is not a configuration edit.
+	FiniteEffortTransition *FiniteEffortTransition `json:"finiteEffortTransition,omitempty"`
+}
+
+// FiniteEffortTransition is an operator-requested finite-effort lifecycle
+// operation. Operation is "complete" or "reopen". Revision and EvidenceRef are
+// the exact accepted/replacement revision and the retained owner evidence.
+type FiniteEffortTransition struct {
+	Operation   string `json:"operation"`
+	Revision    string `json:"revision"`
+	EvidenceRef string `json:"evidenceRef"`
 }
 
 // TriggerHeartbeatRequest is the request body for manually triggering a heartbeat
@@ -146,6 +160,9 @@ type RunningAgentEntry struct {
 	RunID     string `json:"runId"`
 	StartedAt string `json:"startedAt"`
 	Duration  string `json:"duration"`
+	// State is empty for an ordinary live run; otherwise it names the unresolved
+	// obligation (dispatch_uncertain, owner_unreachable, paused).
+	State string `json:"state,omitempty"`
 }
 
 // RunningAgentsResponse is the API response for listing running agents.

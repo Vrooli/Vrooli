@@ -4,7 +4,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 const root = resolve(process.argv[2] ?? `evidence/moon-${Date.now()}`)
 mkdirSync(root, { recursive: true })
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl-egl'] })
@@ -51,6 +51,7 @@ async function lookAtMoon(mode = 'first-person') {
 try {
   await page.goto('http://localhost:21235/world?actors=16&scene=park&seed=7&intro=0&profile=high&diag=1&weather=clear')
   await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 90000 })
+  await openCamera(page)
   await page.evaluate(() => {
     const pending = [...window.__cameraFixtureRoots].map(root => root.current); let render, clock
     while (pending.length) { const fiber = pending.pop();

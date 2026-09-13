@@ -30,6 +30,8 @@ interface ViewOverlayProps {
   helpTitle?: string
   homeView?: 'world' | 'graph'
   onHomeViewChange?: (view: 'world' | 'graph') => void
+  /** Called after the settings panel closes, so the caller can restore focus. */
+  onSettingsClose?: () => void
 }
 
 export function ViewOverlay({
@@ -43,6 +45,7 @@ export function ViewOverlay({
   helpTitle = 'Help',
   homeView = 'world',
   onHomeViewChange,
+  onSettingsClose,
 }: ViewOverlayProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
@@ -225,7 +228,7 @@ export function ViewOverlay({
       {/* Settings panel */}
       <FloatingPanel
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => { setIsSettingsOpen(false); onSettingsClose?.() }}
         title={settingsTitle}
         initialPosition={{ x: panelAnchorX, y: 88 }}
         className="max-w-md"

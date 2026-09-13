@@ -4,7 +4,7 @@ import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { installFixtureHook, insertFixture, insertLogFixture, removeFixture } from './camera-fixtures.mjs'
+import { installFixtureHook, insertFixture, insertLogFixture, openCamera, removeFixture } from './camera-fixtures.mjs'
 
 const option = (name, fallback) => { const index = process.argv.indexOf(name); return index < 0 ? fallback : process.argv[index + 1] }
 const root = resolve(option('--evidence-dir', `evidence/navigation-${Date.now()}`))
@@ -27,6 +27,7 @@ async function ready(scene = 'park') {
   await page.goto(`${base}/world?actors=25&profile=high&scene=${scene}&intro=0&diag=1&period=day`)
   await page.waitForFunction(() => window.__worldDiagnostics?.ready && window.__worldDiagnostics?.cameraNavigation !== null && window.__worldDiagnostics?.cameraPosition?.[1] > 0, null, { timeout: 60000 })
   await page.waitForTimeout(250)
+  await openCamera()
 }
 async function home() {
   await page.getByRole('button', { name: 'Home view', exact: true }).click()
@@ -335,6 +336,7 @@ try {
   check('Escape exits uncaptured walking', (await snapshot()).navigation.mode === 'explore')
   await page.reload()
   await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 60000 })
+  await openCamera()
   await page.getByText('Input settings', { exact: true }).click()
   check('device preference survives reload', await page.getByLabel('Navigation device').inputValue() === 'trackpad')
   check('no browser runtime errors', errors.length === 0, errors)

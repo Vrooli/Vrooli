@@ -740,7 +740,7 @@ func (r *repository) CreateExport(ctx context.Context, export *ExportIndex) erro
 
 func (r *repository) GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error) {
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -821,7 +821,7 @@ func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*Exp
 		limit = 100
 	}
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -837,7 +837,7 @@ func (r *repository) ListExports(ctx context.Context, limit, offset int) ([]*Exp
 
 func (r *repository) ListExportsByExecution(ctx context.Context, executionID uuid.UUID) ([]*ExportIndex, error) {
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id
@@ -856,7 +856,7 @@ func (r *repository) ListExportsByWorkflow(ctx context.Context, workflowID uuid.
 		limit = 100
 	}
 	query := r.db.Rebind(`
-		SELECT e.*, w.name AS workflow_name, ex.started_at AS execution_date
+		SELECT e.*, COALESCE(w.name, '') AS workflow_name, ex.started_at AS execution_date
 		FROM exports e
 		LEFT JOIN workflows w ON e.workflow_id = w.id
 		LEFT JOIN executions ex ON e.execution_id = ex.id

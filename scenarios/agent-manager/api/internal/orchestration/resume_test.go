@@ -163,6 +163,35 @@ func TestResumeFromFailedRunPreservesTaskPinsEnvironmentAndReplay(t *testing.T) 
 	}
 }
 
+func TestResumeFromFailedRunRejectsRetainedExcludedModelBeforeReplacementClaim(t *testing.T) {
+	svc, repos := newResumeTestOrchestrator(t)
+	_, _, source := seedFailedRun(t, svc, repos, "original", nil)
+	source.ResolvedConfig.Model = "blocked-model"
+	source.ResolvedConfig.PolicySnapshot = &domain.ExecutionPolicySnapshot{
+		SelectedCandidate: domain.ExecutionCandidate{
+			RunnerType:     domain.RunnerTypeClaudeCode,
+			SelectionType:  domain.ModelSelectionTypeModel,
+			Model:          "blocked-model",
+			ExcludedModels: []string{"blocked-model"},
+		},
+	}
+	if err := repos.Runs.Update(t.Context(), source); err != nil {
+		t.Fatal(err)
+	}
+	request := orchestration.ResumeFromFailedRunRequest{RunID: source.ID}
+	got, err := svc.ResumeFromFailedRun(t.Context(), request)
+	if got != nil || err == nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "excluded") {
+		t.Fatalf("retained excluded recovery escaped admission: run=%v err=%v", got, err)
+	}
+	claims := repos.Runs.(repository.RunFreshRecoveryClaimer)
+	if hash, readErr := claims.GetFreshRecoveryClaim(t.Context(), source.ID); readErr != nil || hash != "" {
+		t.Fatalf("rejected recovery left a source claim: hash=%q err=%v", hash, readErr)
+	}
+	if accepted, readErr := svc.FreshRecoveryAccepted(t.Context(), source.ID, ""); readErr != nil || accepted != nil {
+		t.Fatalf("rejected recovery created a replacement receipt: run=%v err=%v", accepted, readErr)
+	}
+}
+
 func TestResumeFromFailedRunRejectsChangedRecoveryRequest(t *testing.T) {
 	for _, changed := range []string{"context", "attachments"} {
 		t.Run(changed, func(t *testing.T) {

@@ -189,6 +189,7 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithOrchestrationSettings(settingsStore),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -303,6 +304,7 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 
 	// Create profile and task
@@ -451,6 +453,7 @@ func TestContinuation_SessionLostIsTypedInterruption(t *testing.T) {
 				orchestration.WithIdempotency(repos.Idempotency),
 				orchestration.WithRunners(registry),
 				orchestration.WithRunStateRoot(t.TempDir()),
+				newTestRolePolicyOption(t),
 			)
 
 			profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{

@@ -471,6 +471,53 @@ func TestCodex_DecodeStreamLine_Error(t *testing.T) {
 	}
 }
 
+func TestCodexTokenCountPreservesNativeRateLimitMetadata(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser().(*codexTranscriptParser)
+	runID := uuid.New()
+	result := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10,"output_tokens":2}},"rate_limits":{"primary":{"used_percent":42.5,"window_minutes":300,"resets_at":1789300000},"secondary":{"used_percent":100,"window_minutes":10080,"resets_at":1789400000}}}}`)
+	if len(result.Events) != 3 {
+		t.Fatalf("events=%d, want usage plus two quota observations", len(result.Events))
+	}
+	var observations []*domain.RateLimitEventData
+	for _, event := range result.Events {
+		if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+			observations = append(observations, data)
+		}
+	}
+	if len(observations) != 2 {
+		t.Fatalf("rate limit observations=%d", len(observations))
+	}
+	byPool := make(map[string]*domain.RateLimitEventData, len(observations))
+	for _, observation := range observations {
+		byPool[observation.Pool] = observation
+	}
+	primary := byPool["primary"]
+	if primary == nil || primary.Provider != "openai" || primary.WindowMinutes != 300 || primary.UsedPercent == nil || *primary.UsedPercent != 42.5 || primary.ResetTime == nil {
+		t.Fatalf("primary observation=%+v", primary)
+	}
+	secondary := byPool["secondary"]
+	if secondary == nil || secondary.UsedPercent == nil || *secondary.UsedPercent != 100 || secondary.ResetTime == nil {
+		t.Fatalf("secondary observation=%+v", secondary)
+	}
+}
+
+func TestCodexLiveCodecPipeObservesNativeRateLimitMetadata(t *testing.T) {
+	c := NewCodexForTest()
+	state := c.NewState()
+	percent := 42.5
+	events, err := c.DecodeStreamLine(state, uuid.New(), `{"timestamp":"2026-09-13T12:00:00Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":42.5,"window_minutes":300,"resets_at":1789300000}}}}`)
+	if err != nil || len(events) != 1 {
+		t.Fatalf("live decode events=%d err=%v", len(events), err)
+	}
+	data, ok := events[0].Data.(*domain.RateLimitEventData)
+	if !ok || data.UsedPercent == nil || *data.UsedPercent != percent || data.Provider != "openai" {
+		t.Fatalf("live quota event=%+v", events[0].Data)
+	}
+	if _, ok := events[0].Data.(*domain.ErrorEventData); ok {
+		t.Fatal("healthy native quota metadata became a generic error event")
+	}
+}
+
 func TestCodexToolResultRetainsNestedProcessMetadata(t *testing.T) {
 	line := `{"type":"item.completed","item":{"id":"item-meta","type":"tool_result","name":"bash","output":"{\"metadata\":{\"duration_seconds\":1.25}}"}}`
 	events := codexDecodeOne(t, NewCodexForTest(), line, "")

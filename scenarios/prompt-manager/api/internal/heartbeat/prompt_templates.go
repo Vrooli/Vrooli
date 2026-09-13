@@ -17,6 +17,7 @@ const (
 	promptSectionKindTeamWake           = "team-context-wake"
 	promptSectionKindChallengeReview    = "challenge-review"
 	promptSectionKindStorageMap         = "team-storage-map"
+	promptSectionKindTeamObjectives     = "team-objectives"
 	promptSectionKindOrgContext         = "team-org-context"
 	promptSectionKindOperatingPolicy    = "team-operating-policy"
 	promptSectionKindMemberPolicy       = "member-operating-policy"
@@ -70,6 +71,7 @@ var promptSectionKinds = map[string]promptSectionKind{
 	promptSectionKindTeamWake:           {Label: "Team Context Wake", Heading: "# Team Context Wake", Element: "team-context-wake", Scope: promptScopeVolatile},
 	promptSectionKindChallengeReview:    {Label: "Challenge Review", Heading: "# Challenge Review", Element: "challenge-review", Scope: promptScopeVolatile},
 	promptSectionKindStorageMap:         {Label: "Storage Map", Heading: "# Storage Map", Element: "storage-map", Scope: promptScopeTeam},
+	promptSectionKindTeamObjectives:     {Label: "Team Objectives", Heading: "# Team Objectives", Element: "team-objectives", Scope: promptScopeTeam},
 	promptSectionKindOrgContext:         {Label: "Team Org Context", Heading: "# Team Org Context", Element: "org-context", Scope: promptScopeMember},
 	promptSectionKindOperatingPolicy:    {Label: "Operating Policy (Team)", Heading: "# Operating Policy (Team)", Element: "operating-policy-team", Scope: promptScopeTeam},
 	promptSectionKindMemberPolicy:       {Label: "Operating Policy (Member)", Heading: "# Operating Policy (Member)", Element: "operating-policy-member", Scope: promptScopeMember},

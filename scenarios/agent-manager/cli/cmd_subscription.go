@@ -11,8 +11,25 @@ import (
 )
 
 func (a *App) cmdSubscription(args []string) error {
-	if len(args) < 2 || args[0] != "periods" {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		printSubscriptionHelp()
 		return nil
+	}
+	if args[0] == "quota" {
+		if len(args) == 1 || args[1] == "help" || args[1] == "-h" || args[1] == "--help" {
+			printSubscriptionQuotaHelp()
+			return nil
+		}
+		if args[1] != "list" {
+			return fmt.Errorf("unknown subscription quota subcommand: %s", args[1])
+		}
+		return a.subscriptionQuotaList(args[2:])
+	}
+	if args[0] != "periods" {
+		return fmt.Errorf("unknown subscription subcommand: %s", args[0])
+	}
+	if len(args) < 2 {
+		return fmt.Errorf("subscription periods requires create, list, or remove")
 	}
 	switch args[1] {
 	case "create":
@@ -24,6 +41,46 @@ func (a *App) cmdSubscription(args []string) error {
 	default:
 		return fmt.Errorf("unknown subscription periods subcommand: %s", args[1])
 	}
+}
+
+func (a *App) subscriptionQuotaList(args []string) error {
+	fs := flag.NewFlagSet("subscription quota list", flag.ContinueOnError)
+	provider := fs.String("provider", "", "provider")
+	pool := fs.String("pool", "", "provider quota pool")
+	window := fs.String("window", "", "provider quota window")
+	limit := fs.Int("limit", 100, "maximum observations (1-100)")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("unexpected subscription quota arguments: %s", strings.Join(fs.Args(), " "))
+	}
+	if *limit < 1 || *limit > 100 {
+		return fmt.Errorf("--limit must be between 1 and 100")
+	}
+	body, err := a.services.Subscriptions.QuotaObservations(*provider, *pool, *window, *limit)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+func printSubscriptionHelp() {
+	fmt.Println("Usage: agent-manager subscription <command>")
+	fmt.Println("Commands:")
+	fmt.Println("  periods create|list|remove   Manage billing periods")
+	fmt.Println("  quota list [--provider --pool --window --limit --json]   Read provider quota observations")
+}
+
+func printSubscriptionQuotaHelp() {
+	fmt.Println("Usage: agent-manager subscription quota list [--provider --pool --window --limit --json]")
+	fmt.Println("Reads provider-reported quota standing and percentage/window metadata with provenance; amounts remain unknown unless reported.")
 }
 
 func (a *App) subscriptionCreate(args []string) error {

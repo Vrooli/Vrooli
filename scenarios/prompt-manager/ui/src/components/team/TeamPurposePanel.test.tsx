@@ -1,12 +1,50 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@/test-utils/renderWithProviders'
 import { buildDefaultCreateTeamRequest } from '@/lib/schemas'
 import type { TeamDetails } from '@/types/team'
+import {
+  useAcknowledgeObjective,
+  useAddObjectiveRelation,
+  useAttachObjective,
+  useDeleteObjective,
+  useDeleteObjectiveRelation,
+  useDetachObjective,
+  useObjectiveRelations,
+  useObjectiveValidation,
+  useObjectives,
+  useReorderObjectives,
+  useReorderTeamAttachments,
+  useTeamAttachments,
+  useUpdateAttachment,
+  useUpsertObjective,
+} from '@/services/objectiveService'
 import { TeamPurposePanel } from './TeamPurposePanel'
 
 vi.mock('@/components/markdown/MarkdownRenderer', () => ({
   MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div>,
 }))
+
+vi.mock('@/services/objectiveService', () => ({
+  useObjectives: vi.fn(),
+  useObjectiveRelations: vi.fn(),
+  useObjectiveValidation: vi.fn(),
+  useTeamAttachments: vi.fn(),
+  useUpsertObjective: vi.fn(),
+  useDeleteObjective: vi.fn(),
+  useReorderObjectives: vi.fn(),
+  useAttachObjective: vi.fn(),
+  useUpdateAttachment: vi.fn(),
+  useDetachObjective: vi.fn(),
+  useReorderTeamAttachments: vi.fn(),
+  useAcknowledgeObjective: vi.fn(),
+  useAddObjectiveRelation: vi.fn(),
+  useDeleteObjectiveRelation: vi.fn(),
+}))
+
+function query<T>(data: T) {
+  return { data, isLoading: false, isError: false, refetch: vi.fn() }
+}
+const mutation = () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) })
 
 function makeTeam(overrides: Partial<TeamDetails> = {}): TeamDetails {
   return {
@@ -20,6 +58,22 @@ function makeTeam(overrides: Partial<TeamDetails> = {}): TeamDetails {
 }
 
 describe('TeamPurposePanel', () => {
+  beforeEach(() => {
+    vi.mocked(useObjectives).mockReturnValue(query([]) as never)
+    vi.mocked(useObjectiveRelations).mockReturnValue(query([]) as never)
+    vi.mocked(useObjectiveValidation).mockReturnValue(query(undefined) as never)
+    vi.mocked(useTeamAttachments).mockReturnValue(query({ attachments: [], attachmentRevision: '' }) as never)
+    vi.mocked(useUpsertObjective).mockReturnValue(mutation() as never)
+    vi.mocked(useDeleteObjective).mockReturnValue(mutation() as never)
+    vi.mocked(useReorderObjectives).mockReturnValue(mutation() as never)
+    vi.mocked(useAttachObjective).mockReturnValue(mutation() as never)
+    vi.mocked(useUpdateAttachment).mockReturnValue(mutation() as never)
+    vi.mocked(useDetachObjective).mockReturnValue(mutation() as never)
+    vi.mocked(useReorderTeamAttachments).mockReturnValue(mutation() as never)
+    vi.mocked(useAcknowledgeObjective).mockReturnValue(mutation() as never)
+    vi.mocked(useAddObjectiveRelation).mockReturnValue(mutation() as never)
+    vi.mocked(useDeleteObjectiveRelation).mockReturnValue(mutation() as never)
+  })
   afterEach(() => { vi.unstubAllGlobals() })
 
   it.each([
@@ -81,10 +135,22 @@ describe('TeamPurposePanel', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Team details saved.')
   })
 
-  it('shows objectives and declared contract boundaries without inferring grants from labels', () => {
+  it('mounts the shared objective editor with the team authority attachments', () => {
+    // The display must come from the objective authority, never from the team
+    // declaration, so the team carries no objectivesServed at all here.
+    vi.mocked(useObjectives).mockReturnValue(query([
+      { id: 'objective:quality', title: 'Release quality', class: 'terminal', evidenceSource: 'release board', hasEvidence: true, gapMarker: '', globalOrder: 0, meaningRevision: 'rev-1' },
+    ]) as never)
+    vi.mocked(useTeamAttachments).mockReturnValue(query({
+      attachments: [{
+        objectiveId: 'objective:quality', teamId: 'quality', role: 'supporting', coverage: 'partial',
+        note: 'Measure release quality.', priority: 0, acknowledgedRevision: 'revision-7',
+        attachmentRevision: 'arev-1', restatementPending: true,
+      }],
+      attachmentRevision: 'trev-1',
+    }) as never)
     const team = makeTeam({
       purpose: 'delivery', lifetime: 'finite',
-      objectivesServed: [{ id: 'objective:quality', role: 'contributor', coverage: 'partial', note: 'Measure release quality.', acknowledgedRevision: 'revision-7' }],
       members: [{ agentId: 'reviewer', displayName: 'Release reviewer', status: 'active', roles: [] }], memberCount: 1,
       operatingContract: {
         schemaVersion: 1,
@@ -98,10 +164,16 @@ describe('TeamPurposePanel', () => {
       },
     })
     render(<TeamPurposePanel team={team} onUpdate={vi.fn()} />)
-    expect(screen.getByText('objective:quality').closest('li')).toHaveTextContent('contributor · partial coverage')
-    expect(screen.getByText('Measure release quality.')).toBeInTheDocument()
-    expect(screen.getByText('Acknowledged revision: revision-7')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Declared authority and source contracts'))
+
+    // The team container reuses the canonical editor rather than a private list.
+    const editor = screen.getByRole('region', { name: 'Objective authority' })
+    expect(within(editor).getByText('Objective commitments')).toBeInTheDocument()
+    expect(within(editor).getByText('Release quality')).toBeInTheDocument()
+    expect(within(editor).getByText(/objective:quality · Terminal end · Supporting · Partial coverage/)).toBeInTheDocument()
+    expect(within(editor).getByText('Measure release quality.')).toBeInTheDocument()
+    expect(within(editor).getByText('Meaning changed; acknowledgement pending.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Advanced operating settings'))
     expect(screen.getByText('Release reviewer')).toBeInTheDocument()
     expect(screen.getByText('Propose release improvements')).toBeInTheDocument()
     expect(screen.getByText('Allowed writes: knowledge: team-shared: findings')).toBeInTheDocument()
@@ -112,16 +184,39 @@ describe('TeamPurposePanel', () => {
     expect(screen.getByText(/Current effort action grants appear with the effort observation below/)).toBeInTheDocument()
   })
 
+  it('persists team objective ordering through the canonical service', async () => {
+    const reorder = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useReorderTeamAttachments).mockReturnValue({ mutateAsync: reorder } as never)
+    vi.mocked(useObjectives).mockReturnValue(query([
+      { id: 'objective:one', title: 'First end', class: 'terminal', evidenceSource: '', hasEvidence: true, gapMarker: '', globalOrder: 0, meaningRevision: 'r1' },
+      { id: 'objective:two', title: 'Second end', class: 'instrumental', evidenceSource: '', hasEvidence: true, gapMarker: '', globalOrder: 1, meaningRevision: 'r1' },
+    ]) as never)
+    vi.mocked(useTeamAttachments).mockReturnValue(query({
+      attachments: [
+        { objectiveId: 'objective:one', teamId: 'quality', role: 'primary', coverage: 'full', priority: 0, attachmentRevision: 'a1', restatementPending: false },
+        { objectiveId: 'objective:two', teamId: 'quality', role: 'supporting', coverage: 'partial', priority: 1, attachmentRevision: 'a1', restatementPending: false },
+      ],
+      attachmentRevision: 'trev-9',
+    }) as never)
+    render(<TeamPurposePanel team={makeTeam()} onUpdate={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move Second end up' }))
+    await waitFor(() => expect(reorder).toHaveBeenCalledWith({
+      teamId: 'quality', objectiveIds: ['objective:two', 'objective:one'], expectedTeamRevision: 'trev-9',
+    }))
+  })
+
   it('preserves unspecified labels and resolves the owner link only after opening the model guide', async () => {
-    const fetchOwner = vi.fn(async (input: RequestInfo | URL) => {
-      expect(String(input)).toMatch(/\/embedded\/agent-manager\/external-url$/)
-      return new Response(JSON.stringify({ url: 'https://agents.example.test/apps/agent-manager/proxy/' }), { status: 200 })
+    const fetchOwner = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      expect(url).toMatch(/\/embedded\/agent-manager\/external-url$/)
+      return Promise.resolve(new Response(JSON.stringify({ url: 'https://agents.example.test/apps/agent-manager/proxy/' }), { status: 200 }))
     })
     vi.stubGlobal('fetch', fetchOwner)
     render(<TeamPurposePanel team={makeTeam({ purpose: undefined, lifetime: undefined })} onUpdate={vi.fn()} />)
     expect(screen.getByText('Lifetime unspecified')).toBeInTheDocument()
     expect(screen.getByText('Purpose unspecified')).toBeInTheDocument()
-    expect(screen.getByText('No objective relationships declared.')).toBeInTheDocument()
+    expect(screen.getByText('This team has no objective commitments yet. Link a terminal end or instrumental means.')).toBeInTheDocument()
     expect(fetchOwner).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'How teams and efforts work' }))
     const dialog = screen.getByRole('dialog', { name: 'Teams and efforts' })

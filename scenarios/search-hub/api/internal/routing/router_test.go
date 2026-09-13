@@ -974,6 +974,73 @@ func TestRecoveryProbeRunsUnattendedAfterDecayAndRestoresAutomaticRouting(t *tes
 	require.Equal(t, "recovery command", resp.GetGroups()[0].GetHits()[0].GetTitle())
 }
 
+// TestDemotedProviderWithholdingIsAttributable pins the S8 acceptance: a
+// graded-empty demotion withholds a provider before fan-out, so it produces no
+// result group. The query explanation must name the withheld provider and its
+// demotion reason, and the response must remain degraded rather than appear as
+// a clean empty success.
+func TestDemotedProviderWithholdingIsAttributable(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver:   staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:       doer,
+		Classifier: clf,
+		Now:        func() time.Time { return now },
+	})
+
+	for i := 0; i < 5; i++ {
+		resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command"})
+		require.NoError(t, err)
+		require.False(t, resp.GetDegraded(), "a healthy empty route is not degraded before demotion")
+	}
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command", Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetDegraded(), "a withheld provider must not be presented as a clean empty success")
+	require.Empty(t, resp.GetGroups(), "a demoted provider is withheld before fan-out")
+	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, joined, "withheld (demoted): cli-health.commands")
+	require.Contains(t, joined, "demoted from automatic routing after 5 successful empty route(s)")
+}
+
+// TestDemotedProviderNamedWhilePeerStillAnswers covers the mixed round: one
+// demoted provider is withheld while a healthy peer still returns hits. The
+// response is not empty and not necessarily degraded, but the withheld provider
+// must still be named so the omission is attributable.
+func TestDemotedProviderNamedWhilePeerStillAnswers(t *testing.T) {
+	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
+	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command", "record"}, Confidence: 0.9}}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[]}`},
+		"http://swarm-manager.test/api/v1/search/ai":                              {status: 200, body: `{"results":[{"id":"pt-1","score":0.7,"payload":{"record_id":"rec-a","scenario":"x"}}]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:     &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver:   staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test", "swarm-manager": "http://swarm-manager.test"}},
+		Doer:       doer,
+		Classifier: clf,
+		Now:        func() time.Time { return now },
+	})
+
+	for i := 0; i < 5; i++ {
+		_, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command"})
+		require.NoError(t, err)
+	}
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "find a command", Explain: true})
+	require.NoError(t, err)
+	groups := groupsByID(resp.GetGroups())
+	require.Contains(t, groups, "swarm-manager.records", "the healthy peer still answers")
+	require.NotContains(t, groups, "cli-health.commands", "the demoted provider is withheld")
+	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, joined, "withheld (demoted): cli-health.commands")
+}
+
 func TestRecoveryProbeClearsFailureCircuitWithoutInteractiveTraffic(t *testing.T) {
 	now := time.Date(2026, 8, 12, 0, 0, 0, 0, time.UTC)
 	clf := &fakeClassifier{result: routing.ClassifyResult{Types: []string{"command"}, Confidence: 0.9}}
@@ -1040,6 +1107,50 @@ func TestRerankSkippedForSingleCandidate(t *testing.T) {
 	require.False(t, resp.GetReranked())
 	require.False(t, resp.GetDegraded())
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker skipped (single provider group)")
+}
+
+// TestRerankSkipKeepsDegradedPeerAttributable reproduces the wake-86 Q12/HO1
+// transient: one healthy provider returns hits while a peer is unreachable, so
+// the reranker is skipped for a single hit-bearing group. The response must stay
+// attributable (degraded) and the healthy hits must remain discoverable, never a
+// clean empty success that hides the routed peer failure.
+func TestRerankSkipKeepsDegradedPeerAttributable(t *testing.T) {
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}}
+	resolver := staticResolver{
+		urls: map[string]string{"cli-health": "http://cli-health.test"},
+		errs: map[string]error{"swarm-manager": errors.New("scenario \"swarm-manager\" is not running")},
+	}
+	doer := routeDoer{byURL: map[string]cannedResponse{
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"scenario restart","description":"Restart","score":0.9}]}`},
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   lister,
+		Resolver: resolver,
+		Doer:     doer,
+		Reranker: &fakeReranker{err: errors.New("reranker must not be invoked for one hit-bearing group")},
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", All: true, Explain: true})
+	require.NoError(t, err)
+	require.False(t, resp.GetReranked(), "single hit-bearing group has nothing to rerank")
+	require.True(t, resp.GetDegraded(), "an unreachable routed peer must flag the response degraded")
+
+	bySvc := groupsByID(resp.GetGroups())
+	require.Equal(t, int32(1), bySvc["cli-health.commands"].GetCount(), "the healthy provider's hit survives")
+	require.True(t, bySvc["swarm-manager.records"].GetDegraded(), "the unreachable peer is attributed in its group")
+	require.Contains(t, bySvc["swarm-manager.records"].GetNote(), "unreachable")
+
+	// The hit must remain discoverable from the ordinary response: when the
+	// reranker is skipped the unified list stays empty by design, so the
+	// grouping must carry it. A consumer can never see a bare empty success.
+	discoverable := len(resp.GetRanked()) > 0
+	for _, g := range resp.GetGroups() {
+		discoverable = discoverable || len(g.GetHits()) > 0
+	}
+	require.True(t, discoverable, "hits must be present in ranked or groups, not lost")
+
+	joined := strings.Join(resp.GetRoutingExplanation(), "\n")
+	require.Contains(t, joined, "reranker skipped (single provider group)")
 }
 
 func TestRerankTimeoutDegradesBeforeQueryTimeout(t *testing.T) {

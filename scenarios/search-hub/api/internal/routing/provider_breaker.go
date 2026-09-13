@@ -451,6 +451,33 @@ func (p *providerBreakers) demotionDeadline(id string) time.Time {
 	return time.Time{}
 }
 
+// withheldReason explains why automatic routing dropped a provider before
+// fan-out. It mirrors the status surface's demotion reason so an ordinary query
+// response can attribute a withheld provider instead of silently omitting it.
+func (p *providerBreakers) withheldReason(id string) string {
+	if p == nil {
+		return "not eligible for automatic routing"
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	s := p.stats[id]
+	if s == nil {
+		return "not eligible for automatic routing"
+	}
+	reason := fmt.Sprintf("demoted from automatic routing after %d successful empty route(s) (window routed=%d, hits=%d)",
+		s.emptyStreak, s.routed, s.hits)
+	if s.probation {
+		reason += "; recovery probe in flight"
+	}
+	if !s.decayDeadline.IsZero() {
+		reason += fmt.Sprintf("; decay deadline=%s", s.decayDeadline.Format(time.RFC3339))
+	}
+	if s.trigger != "" {
+		reason += "; trigger=" + s.trigger
+	}
+	return reason
+}
+
 func (p *providerBreakers) state(id string) *providerYieldStats {
 	if p == nil {
 		return nil

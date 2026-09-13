@@ -63,6 +63,117 @@ func TestToolRestrictionCandidateReasonRejectsUnsupportedEnforcedFallback(t *tes
 	}
 }
 
+func TestPolicySnapshotExclusionSkipsBeforeRunnerEffectAndUsesAllowedFallback(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusPending, ResolvedConfig: &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex, Model: "blocked-model",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{CatalogDigest: "sha256:policy", Candidates: []domain.ExecutionCandidate{{
+			RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel,
+			Model: "blocked-model", Fallbacks: []string{"allowed-model"}, ExcludedModels: []string{"blocked-model"},
+		}}, SelectedIndex: 0, SelectedCandidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "blocked-model", ExcludedModels: []string{"blocked-model"}}},
+	}}
+	mock := runner.NewMockRunner(domain.RunnerTypeCodex)
+	var attempts int
+	mock.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		if req.ResolvedConfig.Model != "allowed-model" {
+			t.Fatalf("runner received excluded model %q", req.ResolvedConfig.Model)
+		}
+		return successResult(), nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{ExecuteAgentInput: ExecuteAgentInput{Deps: Deps{Levers: config.DefaultLevers()}, Run: run, Runner: mock, Runners: registry, RunStateRoot: t.TempDir()}})
+	if out.ExecErr != nil || out.Result == nil || !out.Result.Success || attempts != 1 {
+		t.Fatalf("exclusion fallback result=%+v err=%v attempts=%d", out.Result, out.ExecErr, attempts)
+	}
+}
+
+func TestPolicySnapshotExclusionRejectsAllModelsBeforeRunnerEffect(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusPending, ResolvedConfig: &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex, Model: "blocked-model",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{CatalogDigest: "sha256:policy", Candidates: []domain.ExecutionCandidate{{
+			RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel,
+			Model: "blocked-model", Fallbacks: []string{"blocked-fallback"}, ExcludedModels: []string{"blocked-model", "blocked-fallback"},
+		}}, SelectedIndex: 0, SelectedCandidate: domain.ExecutionCandidate{RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "blocked-model", ExcludedModels: []string{"blocked-model", "blocked-fallback"}}},
+	}}
+	mock := runner.NewMockRunner(domain.RunnerTypeCodex)
+	attempts := 0
+	mock.ExecuteFunc = func(context.Context, runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		return successResult(), nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{ExecuteAgentInput: ExecuteAgentInput{Deps: Deps{Levers: config.DefaultLevers()}, Run: run, Runner: mock, Runners: registry, RunStateRoot: t.TempDir()}})
+	if out.ExecErr == nil || !strings.Contains(out.ExecErr.Error(), "excluded") || attempts != 0 {
+		t.Fatalf("all-excluded admission result=%+v err=%v attempts=%d", out.Result, out.ExecErr, attempts)
+	}
+}
+
+func TestPolicySnapshotCurrentExclusionRejectsHistoricalFallbackBeforeRunnerEffect(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusPending, ResolvedConfig: &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex, Model: "blocked-model",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{Candidates: []domain.ExecutionCandidate{{
+			RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel,
+			Model: "blocked-model", Fallbacks: []string{"blocked-fallback"},
+		}}, SelectedIndex: 0, SelectedCandidate: domain.ExecutionCandidate{
+			RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel, Model: "blocked-model",
+		}},
+	}}
+	mock := runner.NewMockRunner(domain.RunnerTypeCodex)
+	attempts := 0
+	mock.ExecuteFunc = func(context.Context, runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		return successResult(), nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput:      ExecuteAgentInput{Deps: Deps{Levers: config.DefaultLevers()}, Run: run, Runner: mock, Runners: registry, RunStateRoot: t.TempDir()},
+		CurrentModelExclusions: map[domain.RunnerType][]string{domain.RunnerTypeCodex: {"blocked-model", "blocked-fallback"}},
+	})
+	if out.ExecErr == nil || !strings.Contains(out.ExecErr.Error(), "excluded") || attempts != 0 {
+		t.Fatalf("current exclusion fallback result=%+v err=%v attempts=%d", out.Result, out.ExecErr, attempts)
+	}
+}
+
+func TestPolicySnapshotRefreshesCurrentExclusionBeforeEachFallbackLaunch(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusPending, ResolvedConfig: &domain.RunConfig{
+		RunnerType: domain.RunnerTypeCodex, Model: "primary",
+		PolicySnapshot: &domain.ExecutionPolicySnapshot{Candidates: []domain.ExecutionCandidate{{
+			RunnerType: domain.RunnerTypeCodex, SelectionType: domain.ModelSelectionTypeModel,
+			Model: "primary", Fallbacks: []string{"fallback"},
+		}}, SelectedIndex: 0},
+	}}
+	mock := runner.NewMockRunner(domain.RunnerTypeCodex)
+	attempts := 0
+	mock.ExecuteFunc = func(context.Context, runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+		attempts++
+		return successResult(), nil
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	reads := 0
+	out := ExecuteWithModelFallback(context.Background(), ExecuteWithModelFallbackInput{
+		ExecuteAgentInput: ExecuteAgentInput{Deps: Deps{Levers: config.DefaultLevers()}, Run: run, Runner: mock, Runners: registry, RunStateRoot: t.TempDir()},
+		CurrentModelAdmission: func(context.Context, domain.ExecutionCandidate, string) (bool, error) {
+			reads++
+			return false, nil
+		},
+	})
+	if out.ExecErr == nil || !strings.Contains(out.ExecErr.Error(), "exhausted") || reads != 2 || attempts != 0 {
+		t.Fatalf("refresh admission result=%+v err=%v reads=%d attempts=%d", out.Result, out.ExecErr, reads, attempts)
+	}
+}
+
 // [REQ:REQ-P1-004] Runtime fallback follows the immutable persisted sequence,
 // including explicit runner-default and cross-runner candidates.
 func TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners(t *testing.T) {

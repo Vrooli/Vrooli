@@ -182,6 +182,14 @@ func groundWorkingDir(systemPrompt, workingDir string) string {
 // ExecuteWithModelFallbackInput is the explicit input.
 type ExecuteWithModelFallbackInput struct {
 	ExecuteAgentInput
+	// CurrentModelExclusions is a retained-run admission overlay. It is read
+	// from resource policy for the current operation and supplements the
+	// immutable candidate evidence without rewriting that historical snapshot.
+	CurrentModelExclusions map[domain.RunnerType][]string
+	// CurrentModelAdmission refreshes resource-owned policy immediately before
+	// each model launch. It closes the race where a deny policy tightens after
+	// the primary model starts but before a later fallback is selected.
+	CurrentModelAdmission func(context.Context, domain.ExecutionCandidate, string) (bool, error)
 }
 
 // ExecuteWithModelFallback walks the immutable candidate sequence persisted on
@@ -237,7 +245,38 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 			continue
 		}
 
-		for _, model := range candidateModels(candidate) {
+		for modelIndex, model := range candidateModels(candidate) {
+			canonical := ""
+			if modelIndex == 0 {
+				canonical = candidate.CanonicalModel
+			}
+			excludedModels := append([]string(nil), candidate.ExcludedModels...)
+			if current := in.CurrentModelExclusions[candidate.RunnerType]; len(current) > 0 {
+				excludedModels = append(excludedModels, current...)
+			}
+			if domain.IsModelExcluded(model, canonical, excludedModels) {
+				lastReason = fmt.Sprintf("model %q is excluded by resource policy", model)
+				excluded := candidate
+				excluded.Model = model
+				emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, excluded, eventlog.PolicyCandidateOutcomeSkipped, lastReason, "model_excluded")
+				continue
+			}
+			if in.CurrentModelAdmission != nil {
+				allowed, admissionErr := in.CurrentModelAdmission(ctx, candidate, model)
+				if admissionErr != nil {
+					lastReason = admissionErr.Error()
+					emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, candidate, eventlog.PolicyCandidateOutcomeSkipped, lastReason, "model_policy_unavailable")
+					out.ExecErr = admissionErr
+					return out
+				}
+				if !allowed {
+					lastReason = fmt.Sprintf("model %q is excluded by current resource policy", model)
+					excluded := candidate
+					excluded.Model = model
+					emitPolicyCandidate(ctx, in.Deps, in.Run, snapshot, index, excluded, eventlog.PolicyCandidateOutcomeSkipped, lastReason, "model_excluded")
+					continue
+				}
+			}
 			attemptCandidate := candidate
 			attemptCandidate.Model = model
 			applyPolicyCandidate(ctx, in.Deps, in.Run, attemptCandidate)

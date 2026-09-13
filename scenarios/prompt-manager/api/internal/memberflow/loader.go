@@ -176,3 +176,15 @@ func loadOne(team, member, path string) (MemberTopics, error) {
 	}
 	return mt, nil
 }
+
+// sortedMapKeys returns a map's keys in ascending order. It lives here rather
+// than beside any one consumer so the shared helper survives the retirement of
+// individual rule families.
+func sortedMapKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}

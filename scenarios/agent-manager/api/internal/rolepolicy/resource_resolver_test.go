@@ -47,6 +47,18 @@ func TestResourceRoleResolverResolvesStrictResourceEvidence(t *testing.T) {
 	}
 }
 
+func TestResourceRoleResolverCarriesConfiguredModelExclusions(t *testing.T) {
+	response := strings.Replace(string(validResponse("\"runner\":\"codex\"")), `"policy_path":"/catalog"`, `"excluded_models":["blocked-model","vendor/blocked"],"policy_path":"/catalog"`, 1)
+	executor := &fakeCommandExecutor{output: []byte(response)}
+	resolved, err := NewResourceRoleResolver(executor).Resolve(context.Background(), domain.RunnerTypeCodex, "code.default")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if !reflect.DeepEqual(resolved.ExcludedModels, []string{"blocked-model", "vendor/blocked"}) {
+		t.Fatalf("excluded models = %#v", resolved.ExcludedModels)
+	}
+}
+
 func TestResourceRoleResolverAcceptsUnverifiedHookPosture(t *testing.T) {
 	response := strings.Replace(string(validResponse(`"runner":"codex"`)), `"permissions":"intent_only"`, `"permissions":"hook_unverified"`, 1)
 	executor := &fakeCommandExecutor{output: []byte(response)}

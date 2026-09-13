@@ -7,10 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"github.com/google/uuid"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -61,16 +63,48 @@ func (f *dispatchFixture) wake(key string) *api.CreateSupervisorRunRequest {
 
 func TestSupervisorDispatchAnchorDoesNotBecomeItsOwnEffort(t *testing.T) {
 	f := newDispatchFixture(t)
+	preIssue, err := f.s.Board(t.Context(), &pb.GetEffortBoardRequest{EffortRef: f.e.EffortRef})
+	if err != nil || preIssue.ActiveCount != 0 || len(preIssue.Rows) != 1 || preIssue.Rows[0].GetNextAction() != "authorization-only" || preIssue.Rows[0].GetOutcomeStanding().GetState() != "not-applicable" {
+		t.Fatal("pre-issuance owner dispatch anchor counted as unfinished work", preIssue, err)
+	}
 	f.issue(t)
 	board, err := f.s.Board(t.Context(), &pb.GetEffortBoardRequest{EffortRef: f.e.EffortRef})
 	if err != nil || board.ActiveCount != 0 || len(board.Rows) != 1 || board.Rows[0].NextAction != "authorization-only" || board.Rows[0].GetOutcomeStanding().GetState() != "not-applicable" {
 		t.Fatal("dispatch-only anchor counted as unfinished work", board, err)
 	}
 	ordinary := proto.Clone(f.e).(*pb.EffortEnrollment)
-	ordinary.DispatchAuthorization = nil
+	ordinary.DispatchAuthorization, ordinary.AuthorizedBy, ordinary.SupervisorOwnerSubject, ordinary.SupervisorScope = nil, "", "", ""
 	row := f.s.projectEffort(t.Context(), ordinary, &pb.EffortBoardRow{NextAction: "authorization-only"}, &pb.EffortDiscovery{})
 	if row.NextAction == "authorization-only" {
 		t.Fatal("untrusted source hid an effort behind authorization-only standing")
+	}
+}
+
+func TestSupervisorDispatchAnchorStaysOutOfSubjectSetAfterSupervisorAttribution(t *testing.T) {
+	f := newDispatchFixture(t)
+	f.issue(t)
+	id := uuid.New()
+	f.s.SetRunRegistry(effortRegistryFixture{runs: []*domain.Run{{ID: id, Status: domain.RunStatusRunning, WorkReferences: []*eventpb.WorkReference{{
+		Kind: "effort", Id: f.e.EffortRef, Relationship: "supervisor", Revision: f.e.TargetRevision,
+		Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}}}}})
+	if _, err := f.s.ReconcileDiscovery(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	stored, _, err := f.r.GetEffort(t.Context(), f.e.EffortRef)
+	if err != nil || len(stored.Subjects) != 0 {
+		t.Fatal("supervisor attribution turned dispatch authorization into a subject", stored, err)
+	}
+	legacy := proto.Clone(stored).(*pb.EffortEnrollment)
+	legacy.Subjects = []*pb.EffortSubject{{Owner: "agent-manager", Kind: "run", Reference: id.String(), RunId: id.String(), Role: "supervisor"}}
+	legacyRow := f.s.projectEffort(t.Context(), legacy, &pb.EffortBoardRow{}, &pb.EffortDiscovery{})
+	if legacyRow.NextAction != "authorization-only" {
+		t.Fatal("retained supervisor attribution exposed the authorization anchor", legacyRow)
+	}
+	board, err := f.s.Board(t.Context(), &pb.GetEffortBoardRequest{EffortRef: f.e.EffortRef})
+	if err != nil || len(board.Rows) != 1 || board.Rows[0].NextAction != "authorization-only" || board.ActiveCount != 0 {
+		t.Fatal("anchor was exposed as active supervision work after attribution", board, err)
 	}
 }
 func TestSupervisorDispatchPurposeProvisioningAndReplay(t *testing.T) {

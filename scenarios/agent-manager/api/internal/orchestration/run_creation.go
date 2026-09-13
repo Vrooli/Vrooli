@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/tokenaccounting"
 
@@ -214,6 +215,9 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 		if pinned.PolicySnapshot == nil {
 			pinned.PolicySnapshot = resolvedConfig.PolicySnapshot
+		}
+		if err := validateExecutionModel(pinned); err != nil {
+			return nil, domain.RefuseBeforeEffects(err)
 		}
 		pinned.Admission = nil // The replacement earns its own admission receipt.
 		resolvedConfig = pinned
@@ -650,6 +654,180 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	}
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// validateExecutionModel is the retained-run admission fence. It evaluates
+// only the immutable policy evidence copied into a run; it never reloads or
+// rewrites historical configuration. This is used before continuation,
+// recovery, and replacement admission can touch a session, sandbox, or
+// executor.
+func validateExecutionModel(cfg *domain.RunConfig) error {
+	if cfg == nil || cfg.PolicySnapshot == nil || strings.TrimSpace(cfg.Model) == "" {
+		return nil
+	}
+	candidate := cfg.PolicySnapshot.SelectedCandidate
+	if candidate.RunnerType != cfg.RunnerType && cfg.PolicySnapshot.SelectedIndex >= 0 && cfg.PolicySnapshot.SelectedIndex < len(cfg.PolicySnapshot.Candidates) {
+		candidate = cfg.PolicySnapshot.Candidates[cfg.PolicySnapshot.SelectedIndex]
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(cfg.Model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if domain.IsModelExcluded(cfg.Model, canonical, candidate.ExcludedModels) {
+		return domain.NewValidationErrorWithHint("model", "retained model is excluded by resource policy", "stop the old run or use an allowed model in a new run")
+	}
+	return nil
+}
+
+// currentModelExclusions reads the current resource-owned deny overlay for a
+// retained config. It is deliberately separate from the immutable run
+// snapshot: policy tightening must fence future work without rewriting the
+// historical execution contract or receipts.
+func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *rolepolicy.State, resolver rolepolicy.Resolver) (map[domain.RunnerType][]string, error) {
+	if cfg == nil {
+		return nil, domain.NewValidationErrorWithHint("runConfig", "retained run configuration is unavailable", "stop the old run and create a new run with a complete execution policy")
+	}
+	if state == nil || resolver == nil {
+		return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy is unavailable", "restore the required resource policy before continuing this run")
+	}
+	role := strings.TrimSpace(cfg.RoleRef)
+	if role == "" && cfg.PolicySnapshot != nil {
+		role = strings.TrimSpace(cfg.PolicySnapshot.SelectedCandidate.ResourceRole)
+	}
+	if role == "" {
+		if active := state.Active(); active != nil && active.Catalog() != nil {
+			role = strings.TrimSpace(active.Catalog().DefaultRole)
+		}
+		if role == "" {
+			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained run has no resource policy role", "stop the old run and create a new run with a portable role")
+		}
+	}
+	resolution, err := state.ResolvePreferred(ctx, resolver, role, string(cfg.RunnerType))
+	if err != nil {
+		return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", err.Error())
+	}
+	exclusions := make(map[domain.RunnerType][]string)
+	observed := make(map[string]bool)
+	addExclusions := func(runnerType domain.RunnerType, values []string) {
+		// Keep an explicit empty entry for an observed runner. The map is also
+		// admission evidence: a missing key means that this fallback's current
+		// policy was never read, whereas an empty slice means it was read and
+		// currently permits every model.
+		if _, exists := exclusions[runnerType]; !exists {
+			exclusions[runnerType] = []string{}
+		}
+		seen := make(map[string]bool, len(exclusions[runnerType]))
+		for _, value := range exclusions[runnerType] {
+			seen[strings.ToLower(strings.TrimSpace(value))] = true
+		}
+		for _, value := range values {
+			key := strings.ToLower(strings.TrimSpace(value))
+			if key != "" && !seen[key] {
+				exclusions[runnerType] = append(exclusions[runnerType], strings.TrimSpace(value))
+				seen[key] = true
+			}
+		}
+	}
+	found := false
+	for _, candidate := range resolution.Candidates {
+		if !candidate.Available {
+			// Every candidate is part of the retained fallback contract. An
+			// unreadable resource policy cannot be silently omitted and later
+			// become an executable fallback.
+			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", candidate.Failure)
+		}
+		if candidate.Runner == cfg.RunnerType {
+			found = true
+		}
+		observed[string(candidate.Runner)+"\x00"+candidate.ResourceRole] = true
+		addExclusions(candidate.Runner, candidate.ExcludedModels)
+	}
+	// A retained snapshot can contain a runner/resource role that a later AM
+	// catalog revision removed. Resolve those historical fallback identities
+	// directly so an omitted current catalog entry cannot become an un-fenced
+	// executable fallback.
+	if cfg.PolicySnapshot != nil {
+		for _, historical := range cfg.PolicySnapshot.Candidates {
+			if !historical.RunnerType.IsValid() {
+				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained fallback runner identity is invalid", "stop the old run and create a new run with a current execution policy")
+			}
+			historicalRole := strings.TrimSpace(historical.ResourceRole)
+			if historicalRole == "" {
+				historicalRole = role
+			}
+			if historicalRole == "" {
+				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "retained fallback resource role is unavailable", "stop the old run and create a new run with a current execution policy")
+			}
+			identity := string(historical.RunnerType) + "\x00" + historicalRole
+			if observed[identity] {
+				continue
+			}
+			candidate, resolveErr := resolver.Resolve(ctx, historical.RunnerType, historicalRole)
+			if resolveErr != nil {
+				return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", resolveErr.Error())
+			}
+			observed[identity] = true
+			addExclusions(historical.RunnerType, candidate.ExcludedModels)
+		}
+	}
+	if strings.TrimSpace(string(cfg.RunnerType)) != "" && !found {
+		// Historical runs can retain a runner that a later AM catalog revision no
+		// longer lists. The resource policy is still authoritative for its own
+		// vocabulary, so resolve that runner directly with the retained role.
+		candidate, resolveErr := resolver.Resolve(ctx, cfg.RunnerType, role)
+		if resolveErr != nil {
+			return nil, domain.NewValidationErrorWithHint("rolePolicyCatalog", "current resource model policy could not be read", resolveErr.Error())
+		}
+		addExclusions(cfg.RunnerType, candidate.ExcludedModels)
+	}
+	return exclusions, nil
+}
+
+func (o *Orchestrator) validateCurrentExecutionModel(ctx context.Context, cfg *domain.RunConfig) error {
+	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(string(cfg.RunnerType)) == "" {
+		return domain.NewValidationErrorWithHint("runnerType", "retained run has no effective runner", "stop the old run and create a new run with a complete execution policy")
+	}
+	if strings.TrimSpace(cfg.Model) == "" {
+		for _, denied := range exclusions {
+			if len(denied) > 0 {
+				return domain.NewValidationErrorWithHint("model", "retained run has an unknown native model and current resource policy contains exclusions", "stop the old run and create a new run with an explicit allowed model")
+			}
+		}
+		return nil
+	}
+	var candidate domain.ExecutionCandidate
+	if cfg.PolicySnapshot != nil {
+		candidate = cfg.PolicySnapshot.SelectedCandidate
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(cfg.Model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if domain.IsModelExcluded(cfg.Model, canonical, exclusions[cfg.RunnerType]) {
+		return domain.NewValidationErrorWithHint("model", "model is excluded by current resource policy", "stop the old run or use an allowed model in a new run")
+	}
+	return nil
+}
+
+// currentCandidateAllowed refreshes the resource-owned deny overlay at the
+// final fallback launch boundary. It does not mutate the retained snapshot.
+func (o *Orchestrator) currentCandidateAllowed(ctx context.Context, cfg *domain.RunConfig, candidate domain.ExecutionCandidate, model string) (bool, error) {
+	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
+	if err != nil {
+		return false, err
+	}
+	canonical := ""
+	if strings.EqualFold(strings.TrimSpace(candidate.Model), strings.TrimSpace(model)) {
+		canonical = candidate.CanonicalModel
+	}
+	if strings.TrimSpace(model) == "" {
+		return len(exclusions[candidate.RunnerType]) == 0, nil
+	}
+	return !domain.IsModelExcluded(model, canonical, exclusions[candidate.RunnerType]), nil
 }
 
 // buildRunAdmission captures the immutable requested-versus-effective
@@ -1201,6 +1379,14 @@ func (o *Orchestrator) applyModelOverride(ctx context.Context, cfg *domain.RunCo
 	if cfg == nil || cfg.PolicySnapshot == nil {
 		return domain.NewValidationError("model", "cannot override model without a resolved execution policy")
 	}
+	selected := cfg.PolicySnapshot.SelectedCandidate
+	canonical := ""
+	if strings.EqualFold(model, strings.TrimSpace(selected.Model)) {
+		canonical = selected.CanonicalModel
+	}
+	if domain.IsModelExcluded(model, canonical, selected.ExcludedModels) {
+		return domain.NewValidationErrorWithHint("model", "model is excluded by resource policy", "select an allowed model or omit the override")
+	}
 	if o.runners != nil {
 		runner, err := o.runners.Get(cfg.RunnerType)
 		if err != nil {
@@ -1269,6 +1455,7 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 		if snapshot == nil || len(snapshot.Candidates) == 0 {
 			return domain.NewValidationError("rolePolicyCatalog", "role resolution produced no candidates")
 		}
+		applyModelExclusions(snapshot)
 		selectedIndex, preflight, err := o.selectInitialCandidate(ctx, snapshot.Candidates)
 		if err != nil {
 			return err
@@ -1305,6 +1492,50 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 	return domain.NewValidationError("roleRef", "field is required")
 }
 
+// applyModelExclusions removes denied model values from a newly resolved
+// candidate sequence before runner/model preflight. Resource policy remains
+// the source of the exclusion list; this function only materializes the
+// admission-safe snapshot. A candidate whose primary is denied may use its
+// first permitted same-runner fallback. Candidates with no permitted model
+// remain recorded as unavailable for an auditable fail-closed decision.
+func applyModelExclusions(snapshot *domain.ExecutionPolicySnapshot) {
+	if snapshot == nil {
+		return
+	}
+	for index := range snapshot.Candidates {
+		candidate := &snapshot.Candidates[index]
+		if candidate.SelectionType == domain.ModelSelectionTypeRunnerDefault {
+			continue
+		}
+		models := make([]string, 0, 1+len(candidate.Fallbacks))
+		for modelIndex, model := range append([]string{candidate.Model}, candidate.Fallbacks...) {
+			model = strings.TrimSpace(model)
+			canonical := ""
+			if modelIndex == 0 {
+				canonical = candidate.CanonicalModel
+			}
+			if model == "" || domain.IsModelExcluded(model, canonical, candidate.ExcludedModels) {
+				continue
+			}
+			models = append(models, model)
+		}
+		if len(models) == 0 {
+			candidate.Available = false
+			candidate.FailureCode = "model_excluded"
+			candidate.Failure = "all models in this candidate are excluded by resource policy"
+			continue
+		}
+		if strings.TrimSpace(candidate.Model) != models[0] {
+			// The resource response only provides a canonical identity for its
+			// primary. Do not carry that identity onto a fallback and accidentally
+			// reapply the primary's exclusion on continuation.
+			candidate.CanonicalModel = ""
+		}
+		candidate.Model = models[0]
+		candidate.Fallbacks = append([]string(nil), models[1:]...)
+	}
+}
+
 func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []domain.ExecutionCandidate) (int, []domain.CandidatePreflight, error) {
 	if len(candidates) == 0 {
 		return -1, nil, domain.NewValidationError("rolePolicyCatalog", "resolution produced no candidates")
@@ -1321,7 +1552,7 @@ func (o *Orchestrator) selectInitialCandidate(ctx context.Context, candidates []
 		// Availability is resource-resolution evidence for portable roles.
 		// Legacy snapshots predate that field, so their zero value must not
 		// make every historical/direct candidate unavailable.
-		if candidate.ResourceRole != "" && !candidate.Available {
+		if candidate.FailureCode == "model_excluded" || (candidate.ResourceRole != "" && !candidate.Available) {
 			check.Reason = candidate.Failure
 			if check.Reason == "" {
 				check.Reason = candidate.FailureCode

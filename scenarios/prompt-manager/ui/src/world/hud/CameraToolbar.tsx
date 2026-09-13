@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from 'react'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Crosshair, Home, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react'
+import { useState, useSyncExternalStore } from 'react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, Crosshair, Home, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react'
+import { selectors } from '@/constants/selectors'
 import { NAV_VISUALS, type NavigationCommand, type NavigationMode, type NavigationPreferences, type NavigationPreset, type NavigationTool } from '../config/navigation'
 import type { NavigationTelemetry } from './navigationState'
 
@@ -23,6 +24,7 @@ interface Props {
 const button = 'inline-flex h-8 min-w-8 items-center justify-center rounded border border-border bg-background px-2 text-xs hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-40'
 export function CameraToolbar(props: Props) {
   const state = useSyncExternalStore(props.telemetry.subscribe, props.telemetry.read)
+  const [open, setOpen] = useState(false)
   const walking = state.mode !== 'explore'
   const movement = [
     ['left', ArrowLeft, walking ? 'Step left' : 'Pan left'], ['up', ArrowUp, walking ? 'Step forward' : 'Pan up'],
@@ -32,8 +34,17 @@ export function CameraToolbar(props: Props) {
   return (
     <>
     {state.locked && <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 text-xl text-white drop-shadow">+</div>}
-    <section aria-label="Camera navigation" className="pointer-events-auto absolute left-3 top-16 z-30 w-60 max-w-[calc(100%-1.5rem)] rounded-xl border border-border bg-background/95 p-2 shadow-md backdrop-blur">
-      <div className="mb-2 flex items-center justify-between text-xs"><strong>Camera</strong><span title="Heading clockwise from north">N · {state.heading}°</span></div>
+    <div className="pointer-events-auto absolute left-3 top-16 z-30 flex flex-col items-start gap-1">
+    <button type="button" aria-label="Camera controls" title="Camera controls" aria-expanded={open} aria-controls="world-camera-panel"
+      data-testid={selectors.world.hud.cameraToggle} onClick={() => setOpen(value => !value)}
+      className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded border bg-background/95 px-2 text-xs hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${open ? 'border-sky-500 text-sky-600' : 'border-border'}`}>
+      <Camera size={NAV_VISUALS.iconPixels} />
+      <span className="sr-only">Camera controls</span>
+      {(state.blocked || state.message) && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+    </button>
+    {open && (
+    <section id="world-camera-panel" aria-label="Camera navigation" className="w-60 max-w-[calc(100vw-1.5rem)] rounded-xl border border-border bg-background/95 p-2 shadow-md backdrop-blur">
+      <div className="mb-2 flex items-center justify-between text-xs"><strong>Camera</strong><span title="Heading clockwise from north">N · {state.heading}°</span><button type="button" aria-label="Close camera controls" className="rounded px-1 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setOpen(false)}>×</button></div>
       <label className="flex items-center justify-between gap-2 text-xs">Mode
         <select aria-label="Camera mode" value={state.mode} onChange={e => props.onMode(e.target.value as NavigationMode)} className="h-8 rounded border border-border bg-background px-1">
           <option value="explore">Explore</option><option value="first-person">First person</option><option value="third-person">Third person</option>
@@ -41,7 +52,7 @@ export function CameraToolbar(props: Props) {
       </label>
       <div className="mt-2 text-xs"><label className="flex items-center justify-between">Device<select aria-label="Navigation device" value={props.preferences.device} onChange={e => props.onPreferences({ device: e.target.value as NavigationPreferences['device'] })} className="rounded border bg-background p-1"><option value="mouse">Mouse</option><option value="trackpad">Trackpad</option></select></label></div>
       <div className="my-2 flex flex-wrap gap-1" role="group" aria-label="Camera actions">
-        <button className={button} aria-label="Home view" title="Restore the full home view" onClick={props.onHome}><Home size={NAV_VISUALS.iconPixels} /></button>
+        <button className={button} aria-label="Home view" title="Restore the full home view" data-testid={selectors.world.hud.home} onClick={props.onHome}><Home size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} aria-label={walking ? "End conversation" : "Frame selection"} title={walking ? "Dismiss the selected agent" : "Frame selected agent"} disabled={!props.canFrame} onClick={walking ? props.onDismiss : props.onFrame}><Crosshair size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} aria-label="Zoom in" disabled={state.mode === 'first-person'} onClick={() => props.onCommand('zoom-in')}><Plus size={NAV_VISUALS.iconPixels} /></button>
         <button className={button} aria-label="Zoom out" disabled={state.mode === 'first-person'} onClick={() => props.onCommand('zoom-out')}><Minus size={NAV_VISUALS.iconPixels} /></button>
@@ -78,6 +89,8 @@ export function CameraToolbar(props: Props) {
         </div>
       </details>
     </section>
+    )}
+    </div>
     </>
   )
 }

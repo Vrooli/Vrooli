@@ -755,6 +755,73 @@ func TestValidateScenarioIncludeEvalsFailsOnTuningDrift(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioIncludeEvalsPrefersProviderDirectOverFederatedTier(t *testing.T) {
+	// A newer federated (router) run carries a mixed embed model and must not
+	// certify the provider's declared tuning. The newest provider_direct run is
+	// the quality evidence even when a federated run is fresher.
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	service := New(root)
+	service.Now = func() time.Time { return now }
+
+	direct := evalRun("run-direct", "demo.docs.primary", now.Add(-2*time.Hour), "met")
+	direct.Tier = "provider_direct"
+	direct.Config = &evalv1.ConfigSnapshot{EmbedModel: "nomic-embed-text", RerankEnabled: true}
+
+	federated := evalRun("run-federated", "demo.docs.primary", now.Add(-time.Hour), "below_expectation")
+	federated.Tier = "federated"
+	federated.Config = &evalv1.ConfigSnapshot{EmbedModel: "mixed:ai-gateway:embedding.default,nomic-embed-text"}
+
+	service.EvalStore = fakeEvalStore{
+		suites: map[string]*evalv1.EvalSuite{"demo.docs.primary": evalSuite("demo.docs.primary", "demo.docs")},
+		runs:   map[string][]*evalv1.EvalRun{"demo.docs.primary": {federated, direct}},
+	}
+	service.EvalValidator = fakeEvalValidator{rollup: &evalv1.CorpusValidationRollup{Positives: 1, Live: 1}}
+
+	report, err := service.ValidateScenarioWithOptions(context.Background(), "demo", "", Options{IncludeEvals: true, EvalFreshnessWindow: 24 * time.Hour})
+	if err != nil {
+		t.Fatalf("ValidateScenarioWithOptions: %v", err)
+	}
+	if hasFinding(report, CodeEvalRunOutdated) {
+		t.Fatalf("federated mixed model must not be read as provider tuning drift: %#v", report.Findings)
+	}
+	if hasFinding(report, CodeEvalRecallBelowTarget) {
+		t.Fatalf("provider_direct recall 1.0 must be the quality evidence: %#v", report.Findings)
+	}
+	if len(report.EvalEvidence) != 1 || report.EvalEvidence[0].LastRunID != "run-direct" {
+		t.Fatalf("quality evidence = %#v, want run-direct", report.EvalEvidence)
+	}
+}
+
+func TestValidateScenarioIncludeEvalsFallsBackToFederatedWhenNoDirectRun(t *testing.T) {
+	// Federated-only suites (external/smoke) keep their evidence when no
+	// provider_direct run exists.
+	root := t.TempDir()
+	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	service := New(root)
+	service.Now = func() time.Time { return now }
+
+	federated := evalRun("run-federated-only", "demo.docs.primary", now.Add(-time.Hour), "met")
+	federated.Tier = "federated"
+	federated.Config = &evalv1.ConfigSnapshot{EmbedModel: "nomic-embed-text"}
+
+	service.EvalStore = fakeEvalStore{
+		suites: map[string]*evalv1.EvalSuite{"demo.docs.primary": evalSuite("demo.docs.primary", "demo.docs")},
+		runs:   map[string][]*evalv1.EvalRun{"demo.docs.primary": {federated}},
+	}
+	service.EvalValidator = fakeEvalValidator{rollup: &evalv1.CorpusValidationRollup{Positives: 1, Live: 1}}
+
+	report, err := service.ValidateScenarioWithOptions(context.Background(), "demo", "", Options{IncludeEvals: true, EvalFreshnessWindow: 24 * time.Hour})
+	if err != nil {
+		t.Fatalf("ValidateScenarioWithOptions: %v", err)
+	}
+	if len(report.EvalEvidence) != 1 || report.EvalEvidence[0].LastRunID != "run-federated-only" {
+		t.Fatalf("quality evidence = %#v, want run-federated-only", report.EvalEvidence)
+	}
+}
+
 func TestValidateScenarioIncludeEvalsReportsStaleLiveLabels(t *testing.T) {
 	root := t.TempDir()
 	writeSearchConfig(t, root, "demo", cleanSearchConfig("demo"))

@@ -3,6 +3,8 @@
  * Imports sim, config and data. Never scene or engine components.
  */
 export { WorldSettingsContent, type WorldSettingsContentProps, type PeriodMode } from './SettingsPanel'
+export { WORLD_SETTINGS_SECTIONS, type WorldSettingsGroup, type WorldSettingsGroupSelection, type WorldSettingsSection } from './settingsGroups'
+export { SettingsOverlay, type SettingsOverlayProps, type SettingsSaveState } from './SettingsOverlay'
 export { WorldHelpContent } from './HelpContent'
 export { WorldHud, type HudProps } from './Hud'
 export { SummaryStrip, type SummaryFilter } from './SummaryStrip'

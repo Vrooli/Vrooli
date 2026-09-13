@@ -8,9 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
+	"time"
 
 	"prompt-manager/internal/teamconfig"
+
+	"github.com/google/uuid"
 )
 
 // One PM lifecycle owns a runtime root. Share serialization with configuration
@@ -20,19 +24,42 @@ var finiteLeaderMu sync.Mutex
 // FiniteLeaderState is the heartbeat's admission receipt, not an effort ledger
 // or a queue. The exact identity remains after terminal owner observations.
 type FiniteLeaderState struct {
-	Version         int                     `json:"version"`
-	TeamID          string                  `json:"teamId"`
-	AgentID         string                  `json:"agentId"`
-	Binding         teamconfig.FiniteLeader `json:"binding"`
-	ProfileKey      string                  `json:"profileKey"`
-	ID              string                  `json:"id"`
-	TaskID          string                  `json:"taskId,omitempty"`
-	RunID           string                  `json:"runId,omitempty"`
-	TaskStarted     bool                    `json:"taskStarted"`
-	DispatchStarted bool                    `json:"dispatchStarted"`
-	CreatedAt       string                  `json:"createdAt"`
-	Status          string                  `json:"status"`
-	Error           string                  `json:"error,omitempty"`
+	Version           int                      `json:"version"`
+	TeamID            string                   `json:"teamId"`
+	AgentID           string                   `json:"agentId"`
+	Binding           teamconfig.FiniteLeader  `json:"binding"`
+	ProfileKey        string                   `json:"profileKey"`
+	ID                string                   `json:"id"`
+	TaskID            string                   `json:"taskId,omitempty"`
+	RunID             string                   `json:"runId,omitempty"`
+	TaskStarted       bool                     `json:"taskStarted"`
+	DispatchStarted   bool                     `json:"dispatchStarted"`
+	CreatedAt         string                   `json:"createdAt"`
+	Status            string                   `json:"status"`
+	Error             string                   `json:"error,omitempty"`
+	Completed         *FiniteLeaderCompletion  `json:"completed,omitempty"`
+	CompletionHistory []FiniteLeaderCompletion `json:"completionHistory,omitempty"`
+}
+
+// FiniteLeaderCompletion is the retained completion receipt for a finite
+// effort. It is a lifecycle fact, not the effort's outcome ledger; the
+// evidence reference names the owner artifact that holds the outcome.
+type FiniteLeaderCompletion struct {
+	ReceiptID   string `json:"receiptId"`
+	Revision    string `json:"revision"`
+	EvidenceRef string `json:"evidenceRef"`
+	CompletedAt string `json:"completedAt"`
+}
+
+// Completion and pause are distinct: a completion receipt is terminal until an
+// explicit reopen, while a quota pause resumes on the owner's reset event.
+var (
+	ErrFiniteLeaderCompleted     = errors.New("finite leader effort is completed")
+	ErrFiniteLeaderStaleRevision = errors.New("finite leader revision is not the accepted revision")
+)
+
+func validFiniteReference(value string) bool {
+	return value != "" && strings.TrimSpace(value) == value && len(value) <= 1024 && !strings.ContainsAny(value, "\x00\r\n")
 }
 
 func sameFiniteBinding(a, b *teamconfig.FiniteLeader) bool {
@@ -141,4 +168,55 @@ func (s *FileTeamStore) RecordFiniteLeaderExecution(ctx context.Context, teamID,
 		return nil
 	})
 	return changed, err
+}
+
+// CompleteFiniteLeader records a revision-checked, idempotent completion
+// receipt. Completion is terminal: it never resumes on a timer or reset event.
+// Active and parked owner runs stay accounted until their owner settles them.
+func (s *FileTeamStore) CompleteFiniteLeader(ctx context.Context, teamID, agentID, revision, evidenceRef string) (*FiniteLeaderCompletion, bool, error) {
+	s = s.forContext(ctx)
+	var out *FiniteLeaderCompletion
+	changed := false
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	err := s.WithFiniteLeader(ctx, teamID, agentID, func(cfg *HeartbeatConfig, state *FiniteLeaderState, save func() error) error {
+		if !validFiniteReference(revision) || !validFiniteReference(evidenceRef) {
+			return fmt.Errorf("finite leader completion requires an exact revision and retained evidence reference")
+		}
+		if revision != cfg.FiniteLeader.AcceptedRevision {
+			return ErrFiniteLeaderStaleRevision
+		}
+		if state.Completed != nil {
+			if state.Completed.Revision == revision && state.Completed.EvidenceRef == evidenceRef {
+				out = state.Completed
+				return nil
+			}
+			return ErrFiniteLeaderCompleted
+		}
+		state.Completed = &FiniteLeaderCompletion{ReceiptID: uuid.NewString(), Revision: revision, EvidenceRef: evidenceRef, CompletedAt: now}
+		out = state.Completed
+		changed = true
+		return save()
+	})
+	return out, changed, err
+}
+
+// ReopenFiniteLeader is the explicit authorized operation that clears a
+// completion receipt. A replacement revision must differ from the completed
+// revision; the prior receipt is retained in history with its evidence.
+func (s *FileTeamStore) ReopenFiniteLeader(ctx context.Context, teamID, agentID, revision, evidenceRef string) error {
+	s = s.forContext(ctx)
+	return s.WithFiniteLeader(ctx, teamID, agentID, func(_ *HeartbeatConfig, state *FiniteLeaderState, save func() error) error {
+		if !validFiniteReference(revision) || !validFiniteReference(evidenceRef) {
+			return fmt.Errorf("finite leader reopen requires an exact replacement revision and retained evidence reference")
+		}
+		if state.Completed == nil {
+			return fmt.Errorf("finite leader effort is not completed")
+		}
+		if revision == state.Completed.Revision {
+			return ErrFiniteLeaderStaleRevision
+		}
+		state.CompletionHistory = append(state.CompletionHistory, *state.Completed)
+		state.Completed = nil
+		return save()
+	})
 }

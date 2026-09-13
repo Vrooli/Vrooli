@@ -5,6 +5,7 @@ import type { Team, TeamDetails, UpdateTeamRequest } from '@/types/team'
 import { UpdateTeamRequestSchema } from '@/lib/schemas'
 import teamModel from '../../../../docs/concepts/SWARM-MODEL.md?raw'
 import { useAgentManagerUrl } from '@/services/effortService'
+import { ObjectiveAuthorityEditor } from '@/components/objectives'
 
 export const teamPurposeLabels = {
   'domain-stewardship': 'Domain stewardship',
@@ -91,44 +92,41 @@ export function TeamPurposePanel({ team, onUpdate }: { team: TeamDetails; onUpda
   return <section aria-label="Team purpose and authority" className="space-y-4 rounded-lg border border-border p-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><TeamPurposeBadges team={team} /><TeamModelHelp /></div>
     <p className="text-sm text-muted-foreground">Purpose describes the responsibility. Lifetime describes when it ends. Execution and permissions have their own controls.</p>
-    <div className="grid gap-4 sm:grid-cols-2">
-      <label className="space-y-1 text-sm">Purpose
-        <select aria-label="Team purpose" value={purpose} disabled={saving} onChange={event => { setPurpose(event.target.value as typeof purpose); changed() }} className="block w-full rounded border border-border bg-background p-2">
-          <option value="">Unspecified</option>
-          {Object.entries(teamPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </label>
-      <label className="space-y-1 text-sm">Lifetime
-        <select aria-label="Team lifetime" value={lifetime} disabled={saving} onChange={event => { setLifetime(event.target.value as typeof lifetime); changed() }} className="block w-full rounded border border-border bg-background p-2">
-          <option value="">Unspecified</option>
-          {Object.entries(teamLifetimeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-      </label>
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">Basic configuration</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="space-y-1 text-sm">Purpose
+          <select aria-label="Team purpose" value={purpose} disabled={saving} onChange={event => { setPurpose(event.target.value as typeof purpose); changed() }} className="block w-full rounded border border-border bg-background p-2">
+            <option value="">Unspecified</option>
+            {Object.entries(teamPurposeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm">Lifetime
+          <select aria-label="Team lifetime" value={lifetime} disabled={saving} onChange={event => { setLifetime(event.target.value as typeof lifetime); changed() }} className="block w-full rounded border border-border bg-background p-2">
+            <option value="">Unspecified</option>
+            {Object.entries(teamLifetimeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground">{lifetime === 'finite' ? 'Finite teams stop recurring work after evidenced completion or withdrawal. Selecting this label does not activate or retire a schedule.' : lifetime === 'standing' ? 'Standing teams continue serving their responsibility. Completing a run or one effort does not retire the team.' : 'Choose a lifetime when the operating contract establishes one.'}</p>
+      <details>
+        <summary className="cursor-pointer text-sm">Linked effort references ({team.effortRefs?.length ?? 0})</summary>
+        <label className="mt-2 block space-y-1 text-sm">One canonical effort reference per line
+          <textarea aria-label="Linked effort references" value={effortRefs} disabled={saving} onChange={event => { setEffortRefs(event.target.value); changed() }} rows={3} className="block w-full rounded border border-border bg-background p-2 font-mono text-xs" />
+        </label>
+        <p className="mt-1 text-xs text-muted-foreground">Link delivery or contribution to existing efforts. This does not enroll work or grant authority. A supervisor's observed efforts are supplied by its runtime.</p>
+      </details>
+      <div className="flex items-center gap-3">
+        <button type="button" disabled={!dirty || saving} onClick={() => void save()} className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50">{saving ? 'Saving…' : 'Save team details'}</button>
+        {saved ? <span role="status" className="text-sm text-muted-foreground">Team details saved.</span> : null}
+      </div>
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     </div>
-    <p className="text-xs text-muted-foreground">{lifetime === 'finite' ? 'Finite teams stop recurring work after evidenced completion or withdrawal. Selecting this label does not activate or retire a schedule.' : lifetime === 'standing' ? 'Standing teams continue serving their responsibility. Completing a run or one effort does not retire the team.' : 'Choose a lifetime when the operating contract establishes one.'}</p>
-    <details>
-      <summary className="cursor-pointer text-sm">Linked effort references ({team.effortRefs?.length ?? 0})</summary>
-      <label className="mt-2 block space-y-1 text-sm">One canonical effort reference per line
-        <textarea aria-label="Linked effort references" value={effortRefs} disabled={saving} onChange={event => { setEffortRefs(event.target.value); changed() }} rows={3} className="block w-full rounded border border-border bg-background p-2 font-mono text-xs" />
-      </label>
-      <p className="mt-1 text-xs text-muted-foreground">Link delivery or contribution to existing efforts. This does not enroll work or grant authority. A supervisor's observed efforts are supplied by its runtime.</p>
-    </details>
-    <div className="flex items-center gap-3">
-      <button type="button" disabled={!dirty || saving} onClick={() => void save()} className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50">{saving ? 'Saving…' : 'Save team details'}</button>
-      {saved ? <span role="status" className="text-sm text-muted-foreground">Team details saved.</span> : null}
-    </div>
-    {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-    <div className="space-y-2 border-t border-border pt-3">
-      <h3 className="text-sm font-semibold">Objectives served</h3>
-      {team.objectivesServed?.length ? <ul className="space-y-1 text-sm">{team.objectivesServed.map(objective => <li key={objective.id}>
-        <span className="font-medium">{objective.id}</span>{objective.role ? ` · ${objective.role}` : ''}{objective.coverage ? ` · ${objective.coverage} coverage` : ''}
-        {objective.note ? <p className="text-xs text-muted-foreground">{objective.note}</p> : null}
-        {objective.acknowledgedRevision ? <p className="text-xs text-muted-foreground">Acknowledged revision: {objective.acknowledgedRevision}</p> : null}
-      </li>)}</ul> : <p className="text-sm text-muted-foreground">No objective relationships declared.</p>}
-    </div>
+    <p className="text-xs text-muted-foreground">The mission states what this team is for. The commitments below are the terminal ends and instrumental means the team serves, in the priority its prompt uses. Objective state is owned by the objective authority, never by this team declaration.</p>
+    <ObjectiveAuthorityEditor scope="team" teamId={team.id} />
     <details className="border-t border-border pt-3">
-      <summary className="cursor-pointer text-sm font-semibold">Declared authority and source contracts</summary>
-      <p className="my-2 text-xs text-muted-foreground">These are the member's declared work boundaries. Current effort action grants appear with the effort observation below.</p>
+      <summary className="cursor-pointer text-sm font-semibold">Advanced operating settings</summary>
+      <p className="my-2 text-xs text-muted-foreground">These are the member's declared work boundaries. Current effort action grants appear with the effort observation below. Editing the basic configuration above does not change them.</p>
       {Object.entries(team.operatingContract.members).length ? Object.entries(team.operatingContract.members).map(([id, member]) => <div key={id} className="my-3 space-y-1 rounded bg-muted p-3 text-sm">
         <h4 className="font-medium">{team.members.find(item => item.agentId === id)?.displayName ?? id}</h4>
         <p>{member.lane}</p>

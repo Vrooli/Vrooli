@@ -60,9 +60,16 @@ const (
 	// the compatibility fallback for injected rerankers; production uses the
 	// active-leg bounds below.
 	defaultRerankTimeout = 10 * time.Second
-	// Cross-encoder requests are measured in tens of milliseconds on this host;
-	// the bound leaves a small network margin without paying the 10s LLM tail.
-	defaultCrossEncoderRerankTimeout = 500 * time.Millisecond
+	// defaultCrossEncoderRerankTimeout bounds a cross-encoder leg. Isolated
+	// TEI calls are tens of milliseconds, but TEI serves requests serially, so
+	// under concurrent host load (e.g. the in-process eval scheduler) one call
+	// grows to ~0.9s at 16-way and ~1.8s at 32-way for 32x700-char docs, and
+	// ~0.4s at 32-way for 32x120-char docs (measured 2026-09-12). The old 500ms
+	// bound produced false timeouts, opened the 60s rerank breaker, and degraded
+	// healthy reranker load to unranked grouping. 2s covers observed loaded
+	// latency while still bounding the 8s LLM fallback tail and the 25s query
+	// budget.
+	defaultCrossEncoderRerankTimeout = 2 * time.Second
 	// The LLM fallback is intentionally looser because its warm path is
 	// model-dependent; cold residency is a host concern, not router code.
 	defaultLLMRerankTimeout = 8 * time.Second
@@ -482,10 +489,12 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		autoCandidates, withheldExternal := partitionByScope(active)
 		var qualityExplain []string
 		autoCandidates, qualityExplain = r.filterAutomatic(qctx, autoCandidates)
-		autoCandidates = r.filterDemoted(autoCandidates)
+		autoCandidates, demotionExplain := r.filterDemoted(autoCandidates)
 		var webShaped bool
-		targets, autoExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason, routingTrace = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
-		autoExplain = append(qualityExplain, autoExplain...)
+		var selectionExplain []string
+		targets, selectionExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason, routingTrace = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
+		autoExplain = append(qualityExplain, demotionExplain...)
+		autoExplain = append(autoExplain, selectionExplain...)
 		// The LLM classifier was removed from the interactive path. Preserve the
 		// legacy telemetry field as an explicit zero rather than charging lexical
 		// or cross-encoder selection to a retired model.
@@ -662,17 +671,23 @@ func returnedEvidenceState(groups []*routingv1.ProviderResultGroup, partial bool
 	return "empty"
 }
 
-func (r *Router) filterDemoted(providers []*registryv1.ProviderDescriptor) []*registryv1.ProviderDescriptor {
+func (r *Router) filterDemoted(providers []*registryv1.ProviderDescriptor) ([]*registryv1.ProviderDescriptor, []string) {
 	if r.providerBreakers == nil {
-		return providers
+		return providers, nil
 	}
 	out := make([]*registryv1.ProviderDescriptor, 0, len(providers))
+	var explain []string
 	for _, p := range providers {
 		if r.providerBreakers.eligibleAutomatic(p.GetProviderId(), r.deps.Now()) {
 			out = append(out, p)
+			continue
 		}
+		// A graded-empty demotion withholds the provider before fan-out, so it
+		// produces no result group. Name it here so an ordinary query can
+		// attribute the omission instead of appearing as a clean empty success.
+		explain = append(explain, fmt.Sprintf("withheld (demoted): %s — %s", p.GetProviderId(), r.providerBreakers.withheldReason(p.GetProviderId())))
 	}
-	return out
+	return out, explain
 }
 
 // ProbeProviderRecovery issues one unattended, provider-scoped probe when a

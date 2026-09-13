@@ -267,6 +267,23 @@ func (s *SubscriptionService) Remove(id string) ([]byte, error) {
 	return s.api.Request("DELETE", "/api/v1/pricing/subscription-periods/"+url.PathEscape(id), nil, nil)
 }
 
+func (s *SubscriptionService) QuotaObservations(provider, pool, window string, limit int) ([]byte, error) {
+	query := url.Values{}
+	if provider != "" {
+		query.Set("provider", provider)
+	}
+	if pool != "" {
+		query.Set("pool", pool)
+	}
+	if window != "" {
+		query.Set("window", window)
+	}
+	if limit > 0 {
+		query.Set("limit", strconv.Itoa(limit))
+	}
+	return s.api.Get("/api/v1/pricing/quota-observations", query)
+}
+
 type FindingsService struct{ api *cliutil.APIClient }
 
 func (s *FindingsService) List(query url.Values) ([]byte, error) {

@@ -32,6 +32,18 @@ type pricingHandlerFake struct {
 	deleted    bool
 }
 
+type quotaObservationHandlerFake struct {
+	rows []pricing.QuotaObservation
+}
+
+func (f *quotaObservationHandlerFake) RecordQuotaObservation(context.Context, *pricing.QuotaObservation) error {
+	return nil
+}
+
+func (f *quotaObservationHandlerFake) ListQuotaObservations(context.Context, string, string, string, int) ([]pricing.QuotaObservation, error) {
+	return f.rows, nil
+}
+
 func (f *pricingHandlerFake) ListModelsWithPricing(context.Context) ([]*pricing.ModelPricingListItem, error) {
 	return f.models, f.listErr
 }
@@ -162,6 +174,22 @@ func TestPricingHandlerDeleteAliasUsesService(t *testing.T) {
 	h.DeleteAlias(rw, req)
 	if rw.Code != http.StatusOK || !fake.deleted {
 		t.Fatalf("status=%d deleted=%v body=%s", rw.Code, fake.deleted, rw.Body.String())
+	}
+}
+
+func TestPricingHandlerListsQuotaObservationsWithScope(t *testing.T) {
+	quota := &quotaObservationHandlerFake{rows: []pricing.QuotaObservation{{Provider: "openai", Pool: "primary", Window: "300m", Standing: pricing.QuotaStandingAvailable, Provenance: "codex:native"}}}
+	h := NewPricingHandlerWithQuota(&pricingHandlerFake{}, mocks.NewFakeStatsRepository(), nil, quota)
+	rw := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/?provider=openai&pool=primary&window=300m&limit=1", nil)
+	h.ListQuotaObservations(rw, req)
+	if rw.Code != http.StatusOK || !strings.Contains(rw.Body.String(), `"provider":"openai"`) {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	rw = httptest.NewRecorder()
+	h.ListQuotaObservations(rw, httptest.NewRequest(http.MethodGet, "/?limit=0", nil))
+	if rw.Code != http.StatusBadRequest {
+		t.Fatalf("invalid limit status=%d", rw.Code)
 	}
 }
 

@@ -6,6 +6,11 @@
 // by hand", which is why an unserved objective could stand indefinitely without
 // any sensor moving.
 //
+// The read comes from the objective authority. The retained OBJECTIVES.md and
+// team.json::objectivesServed declarations appear only as declared-by context
+// and a drift report; the authority owns current identity, ordering, meaning
+// revision and restatement state.
+//
 // DOC: docs/director-swarm/strategy/OBJECTIVES.md § The coverage rule
 package graph
 
@@ -23,21 +28,25 @@ import (
 )
 
 type objectiveTeamRef struct {
-	TeamID   string `json:"teamId"`
-	Role     string `json:"role,omitempty"`
-	Coverage string `json:"coverage,omitempty"`
+	TeamID               string `json:"teamId"`
+	Role                 string `json:"role,omitempty"`
+	Coverage             string `json:"coverage,omitempty"`
+	AcknowledgedRevision string `json:"acknowledgedRevision,omitempty"`
+	RestatementPending   bool   `json:"restatementPending,omitempty"`
 }
 
 type objectiveRow struct {
-	ID             string             `json:"id"`
-	Title          string             `json:"title"`
-	Class          string             `json:"class"`
-	ServedBy       []objectiveTeamRef `json:"servedBy,omitempty"`
-	DeclaredBy     []objectiveTeamRef `json:"declaredBy,omitempty"`
-	GapMarker      string             `json:"gapMarker,omitempty"`
-	EvidenceSource string             `json:"evidenceSource,omitempty"`
-	HasEvidence    bool               `json:"hasEvidence"`
-	Served         bool               `json:"served"`
+	ID              string             `json:"id"`
+	Title           string             `json:"title"`
+	Class           string             `json:"class"`
+	GlobalOrder     int                `json:"globalOrder"`
+	MeaningRevision string             `json:"meaningRevision,omitempty"`
+	ServedBy        []objectiveTeamRef `json:"servedBy,omitempty"`
+	DeclaredBy      []objectiveTeamRef `json:"declaredBy,omitempty"`
+	GapMarker       string             `json:"gapMarker,omitempty"`
+	EvidenceSource  string             `json:"evidenceSource,omitempty"`
+	HasEvidence     bool               `json:"hasEvidence"`
+	Served          bool               `json:"served"`
 }
 
 type objectiveFinding struct {
@@ -49,12 +58,36 @@ type objectiveFinding struct {
 	Detail     string `json:"detail"`
 }
 
+type objectiveContextRef struct {
+	ObjectiveID     string `json:"objectiveId"`
+	Title           string `json:"title"`
+	Class           string `json:"class"`
+	GlobalOrder     int    `json:"globalOrder"`
+	MeaningRevision string `json:"meaningRevision,omitempty"`
+	Role            string `json:"role,omitempty"`
+	Coverage        string `json:"coverage,omitempty"`
+	Note            string `json:"note,omitempty"`
+	Priority        int    `json:"priority"`
+	// AcknowledgedRevision and RestatementPending are the authority's
+	// acknowledgement signal; a strict meaning change re-pends them while a
+	// pure reorder does not.
+	AcknowledgedRevision string `json:"acknowledgedRevision,omitempty"`
+	RestatementPending   bool   `json:"restatementPending,omitempty"`
+}
+
+type objectiveTeamContext struct {
+	TeamID             string                `json:"teamId"`
+	AttachmentRevision string                `json:"attachmentRevision,omitempty"`
+	Objectives         []objectiveContextRef `json:"objectives"`
+}
+
 type objectiveResponse struct {
-	SourcePath      string         `json:"sourcePath"`
-	Rows            []objectiveRow `json:"rows"`
-	UnattachedTeams []string       `json:"unattachedTeams,omitempty"`
-	Unserved        int            `json:"unserved"`
-	Undeclared      int            `json:"undeclaredHoles"`
+	SourcePath      string                 `json:"sourcePath"`
+	Rows            []objectiveRow         `json:"rows"`
+	Teams           []objectiveTeamContext `json:"teams,omitempty"`
+	UnattachedTeams []string               `json:"unattachedTeams,omitempty"`
+	Unserved        int                    `json:"unserved"`
+	Undeclared      int                    `json:"undeclaredHoles"`
 	Validation      struct {
 		Findings []objectiveFinding `json:"findings"`
 		Errors   int                `json:"errors"`
@@ -92,7 +125,10 @@ func printObjectives(resp objectiveResponse) {
 				status = "unserved (" + row.GapMarker + ")"
 			}
 		}
-		fmt.Printf("  %-4s %-12s %-28s %s\n", row.ID, row.Class, truncateObjectiveTitle(row.Title, 28), status)
+		fmt.Printf("  #%-2d %-4s %-12s %-28s %s\n", row.GlobalOrder, row.ID, row.Class, truncateObjectiveTitle(row.Title, 28), status)
+		if row.MeaningRevision != "" {
+			fmt.Printf("       revision: %s\n", row.MeaningRevision)
+		}
 		if teams := formatObjectiveTeams(row.ServedBy); teams != "" {
 			fmt.Printf("       table: %s\n", teams)
 		}
@@ -101,6 +137,21 @@ func printObjectives(resp objectiveResponse) {
 		}
 		if !row.HasEvidence {
 			fmt.Printf("       evidence: none — cannot be scored\n")
+		}
+	}
+
+	if len(resp.Teams) > 0 {
+		fmt.Println("\nOrdered team context:")
+		for _, tc := range resp.Teams {
+			fmt.Printf("  %s (attachment revision %s)\n", tc.TeamID, emptyRevision(tc.AttachmentRevision))
+			for _, ref := range tc.Objectives {
+				marker := ""
+				if ref.RestatementPending {
+					marker = " [restatement-pending]"
+				}
+				fmt.Printf("    %d. %s (order %d, revision %s)%s\n",
+					ref.Priority+1, ref.ObjectiveID, ref.GlobalOrder, emptyRevision(ref.MeaningRevision), marker)
+			}
 		}
 	}
 
@@ -143,12 +194,22 @@ func formatObjectiveTeams(refs []objectiveTeamRef) string {
 		if ref.Coverage == "partial" {
 			qualifiers = append(qualifiers, "partial")
 		}
+		if ref.RestatementPending {
+			qualifiers = append(qualifiers, "restatement-pending")
+		}
 		if len(qualifiers) > 0 {
 			part += " (" + strings.Join(qualifiers, ", ") + ")"
 		}
 		parts = append(parts, part)
 	}
 	return strings.Join(parts, ", ")
+}
+
+func emptyRevision(rev string) string {
+	if strings.TrimSpace(rev) == "" {
+		return "-"
+	}
+	return rev
 }
 
 func truncateObjectiveTitle(title string, width int) string {

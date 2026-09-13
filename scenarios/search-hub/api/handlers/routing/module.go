@@ -86,7 +86,7 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 		StrategyCatalog:           strategyCatalog,
 		RouterFactors:             &routerFactors,
 		RerankTimeout:             durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 10*time.Second, 100*time.Millisecond, 20*time.Second),
-		CrossEncoderRerankTimeout: durationEnv(logger, "SEARCH_HUB_CROSS_ENCODER_RERANK_TIMEOUT", 500*time.Millisecond, 100*time.Millisecond, 20*time.Second),
+		CrossEncoderRerankTimeout: durationEnv(logger, "SEARCH_HUB_CROSS_ENCODER_RERANK_TIMEOUT", 2*time.Second, 100*time.Millisecond, 20*time.Second),
 		LLMRerankTimeout:          durationEnv(logger, "SEARCH_HUB_LLM_RERANK_TIMEOUT", 8*time.Second, time.Second, 20*time.Second),
 		RerankBreaker: internalrouting.RerankBreakerConfig{
 			FailureThreshold: intEnv(logger, "SEARCH_HUB_RERANK_BREAKER_FAILURES", 3, 1, 20),

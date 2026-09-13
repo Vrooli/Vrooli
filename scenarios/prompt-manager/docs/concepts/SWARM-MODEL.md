@@ -121,7 +121,10 @@ a heartbeat. Creation presets provide initial values; both properties remain
 independently editable. Existing registered domain teams declare standing
 stewardship; the effort supervisor declares standing supervision.
 
-Keep existing `objectivesServed` records intact and expose them in team reads.
+Keep existing `objectivesServed` records intact as the authored declaration input.
+The canonical current-state authority for objective attachments, roles, coverage and
+priority is the objective authority (`objectives/v1`), surfaced by the team page
+editor and reconciled against the declarations by `prompt-manager graph objectives`.
 Optional `effortRefs` identify the team's delivery or contribution relationships
 with canonical efforts. These references do not enroll work or assert current
 execution. A supervisor's observed-effort relationships come from its heartbeat

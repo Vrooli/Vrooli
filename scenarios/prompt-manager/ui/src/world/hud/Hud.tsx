@@ -19,7 +19,6 @@ export interface HudProps {
   focusedId: string | null
   onFocus: (agentId: string | null) => void
   onFocusTeam: (teamId: string) => void
-  onHome: () => void
   following: boolean
   onFollowChange: (follow: boolean) => void
   filters: FilterState
@@ -78,9 +77,6 @@ export function WorldHud(props: HudProps) {
               <span className="text-[10px] uppercase tracking-wide text-muted-foreground" data-testid={selectors.world.hud.feedStatus} title={props.feed.lastError ?? undefined}>
                 feed: {props.feed.mode}
               </span>
-              <button type="button" onClick={props.onHome} className="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-muted" data-testid={selectors.world.hud.home} title="Home view (Esc)">
-                Home
-              </button>
               <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
                 <input type="checkbox" checked={props.twoD} onChange={(e) => props.onTwoDChange(e.target.checked)} data-testid={selectors.world.hud.twoDToggle} />
                 2D

@@ -6,5 +6,5 @@ import (
 )
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
-	return cliapp.CommandGroup{Title: "Subscription", Commands: []cliapp.Command{support.Command("subscription", "Record and inspect subscription billing periods", deps.Subscription)}}
+	return cliapp.CommandGroup{Title: "Subscription", Commands: []cliapp.Command{support.Command("subscription", "Record billing periods and inspect quota observations", deps.Subscription)}}
 }

@@ -29,3 +29,15 @@ func IsFailedStatus(s string) bool {
 func IsCancelledStatus(s string) bool {
 	return s == "RUN_STATUS_CANCELLED" || s == "cancelled"
 }
+
+// parkedStatuses are nonterminal run statuses where the owner has suspended the
+// run (for example, waiting on externally-owned async work or a quota pause).
+// A parked run is retained ownership: it must never be mistaken for a missing
+// or dead run, and scheduling must not start a duplicate.
+var parkedStatuses = map[string]bool{
+	"RUN_STATUS_PARKED": true,
+	"parked":            true,
+}
+
+// IsParkedStatus reports whether s represents a suspended (nonterminal) run.
+func IsParkedStatus(s string) bool { return parkedStatuses[s] }

@@ -28,6 +28,7 @@ type PromptBuilder struct {
 	teamStore        *store.FileTeamStore
 	agentStore       *store.FileAgentStore
 	contractFindings ContractFindingsProvider
+	teamObjectives   TeamObjectiveProvider
 }
 
 // NewPromptBuilder creates a new prompt builder.
@@ -176,6 +177,13 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			return nil, err
 		} else if section != "" {
 			sections = append(sections, newPromptSection(promptSectionKindStorageMap, "", section))
+		}
+
+		// Objectives are the team's setpoint. They are team-scoped and change
+		// only when the canonical objective authority changes, so they belong in
+		// the stable team band ahead of every member and volatile section.
+		if section := b.buildTeamObjectivesSection(ctx, teamID); section != "" {
+			sections = append(sections, newPromptSection(promptSectionKindTeamObjectives, "objectives:team:"+teamID, section))
 		}
 
 		memberPolicy, err := b.buildOperatingPolicyMemberSection(team, agentID)

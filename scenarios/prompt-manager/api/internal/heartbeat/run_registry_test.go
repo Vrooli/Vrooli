@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -188,5 +189,65 @@ func TestRunRegistry_PersistAfterUnregister(t *testing.T) {
 
 	if reg2.Count() != 0 {
 		t.Fatalf("expected 0 after unregister + recover, got %d", reg2.Count())
+	}
+}
+
+func TestRunRegistry_RecoverRetainsOwnerUnreachable(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
+
+	// Owner unavailable during recovery: absence of evidence is not terminal.
+	reg2 := NewRunRegistry(dir)
+	client := newMockAgentClient()
+	client.getRunErr = errors.New("connection refused")
+	reg2.Recover(context.Background(), client)
+
+	if reg2.Count() != 1 {
+		t.Fatalf("expected owner-unreachable run retained, got %d", reg2.Count())
+	}
+	run, ok := reg2.GetActiveRun("team-1", "agent-1")
+	if !ok {
+		t.Fatal("expected retained run")
+	}
+	if run.State != ObligationOwnerUnreachable {
+		t.Fatalf("expected owner_unreachable state, got %q", run.State)
+	}
+}
+
+func TestRunRegistry_RecoverRetainsMissingRunAsUncertain(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
+
+	reg2 := NewRunRegistry(dir)
+	client := newMockAgentClient().WithGetRunResponse("run-1", nil)
+	reg2.Recover(context.Background(), client)
+
+	run, ok := reg2.GetActiveRun("team-1", "agent-1")
+	if !ok {
+		t.Fatal("expected missing run retained as uncertain")
+	}
+	if run.State != ObligationDispatchUncertain {
+		t.Fatalf("expected dispatch_uncertain state, got %q", run.State)
+	}
+}
+
+func TestRunRegistry_RecoverClassifiesParkedAsPaused(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRunRegistry(dir)
+	reg.Register("team-1", "agent-1", "run-1", time.Now(), func() {})
+
+	reg2 := NewRunRegistry(dir)
+	client := newMockAgentClient().
+		WithGetRunResponse("run-1", &Run{ID: "run-1", Status: "RUN_STATUS_PARKED"})
+	reg2.Recover(context.Background(), client)
+
+	run, ok := reg2.GetActiveRun("team-1", "agent-1")
+	if !ok {
+		t.Fatal("expected parked run retained")
+	}
+	if run.State != ObligationPaused {
+		t.Fatalf("expected paused state, got %q", run.State)
 	}
 }

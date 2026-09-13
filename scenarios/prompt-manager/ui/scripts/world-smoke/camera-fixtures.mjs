@@ -1,3 +1,11 @@
+/** Open the progressively-disclosed camera menu so its controls are actionable. */
+export async function openCamera(page) {
+  const toggle = page.getByRole('button', { name: 'Camera controls', exact: true })
+  if (await toggle.count() === 0) return
+  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click()
+  await page.getByRole('region', { name: 'Camera navigation' }).waitFor({ state: 'visible', timeout: 10000 })
+}
+
 /** Browser-only fixtures: borrow rendered geometry, never alter production APIs. */
 export async function installFixtureHook(page) {
   await page.addInitScript(() => {

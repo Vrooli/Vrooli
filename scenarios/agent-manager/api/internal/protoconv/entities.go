@@ -1158,12 +1158,17 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 		}
 		event.Data = &pb.RunEvent_RateLimit{
 			RateLimit: &pb.RateLimitEventData{
-				LimitType:   data.LimitType,
-				ResetTime:   resetTime,
-				RetryAfter:  int32(data.RetryAfter),
-				CurrentUsed: int32(data.CurrentUsed),
-				Limit:       int32(data.Limit),
-				Message:     data.Message,
+				LimitType:     data.LimitType,
+				ResetTime:     resetTime,
+				RetryAfter:    int32(data.RetryAfter),
+				CurrentUsed:   int32(data.CurrentUsed),
+				Limit:         int32(data.Limit),
+				Message:       data.Message,
+				Provider:      data.Provider,
+				Pool:          data.Pool,
+				UsedPercent:   data.UsedPercent,
+				WindowMinutes: data.WindowMinutes,
+				Provenance:    data.Provenance,
 			},
 		}
 	case *domain.ErrorEventData:

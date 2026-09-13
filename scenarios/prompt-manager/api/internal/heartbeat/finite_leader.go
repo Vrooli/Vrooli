@@ -13,6 +13,26 @@ import (
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
+// finiteLeaderGuidance is the durable leader doctrine appended to every finite
+// coordinator prompt. It grants no authority; it states how to hold a finite
+// effort across the owner boundary.
+const finiteLeaderGuidance = "\n\nFinite effort coordinator guidance:\n" +
+	"- Prefer durable owner reads (files, journals, owner APIs) over re-deriving state; never invent a private outcome ledger.\n" +
+	"- Do independent, verifiable work while waiting; never hold a wait inside the run.\n" +
+	"- Park or checkpoint unfinished work through its owner when blocked; preserve owner identity instead of replacing a run.\n" +
+	"- Before ending a pass, write the final handoff: changed, verified, remaining, unverified and the exact next action.\n" +
+	"- Accept the effort only through the explicit completion receipt; a terminal run is not effort acceptance."
+
+// finiteMemberGuidance describes how a finite leader delegates to its members.
+// It grants no authority; it states the planner/worker contract and the exact
+// identity a delegated assignment must carry.
+const finiteMemberGuidance = "\n\nFinite member delegation guidance:\n" +
+	"- Finite members act as planners or workers, never permanent roles: a subplanner owns one narrower outcome, a worker returns one retained handoff to its assigning parent.\n" +
+	"- Every delegated assignment names its parent handoff identity, the task/attempt identity, and the exact model/context reference; descendants do not inherit the leader's model by default.\n" +
+	"- Independent review is bounded work assigned to a distinct member, not a permanent role and not the author.\n" +
+	"- A member handoff reports requirement coverage, changed paths, evidence, remaining outcomes and usage; a successful finite child stays terminal.\n" +
+	"- A member never reopens an accepted completion or replaces an owner identity; it returns the gap to the leader."
+
 // FiniteLeaderRuntime adds a single retained leader to the normal heartbeat
 // queue. AM owns continuation, stop and execution; PM never replaces this run
 // on a timer. FileTeamStore serializes dispatch with binding retirement/disable.
@@ -78,6 +98,11 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 	var observed *Run
 	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
 		out = state
+		// Completion is terminal until an explicit reopen. A tick may still
+		// reconcile an already-dispatched run so its accounting settles.
+		if state.Completed != nil && !state.DispatchStarted {
+			return store.ErrFiniteLeaderCompleted
+		}
 		if state.DispatchStarted {
 			var err error
 			observed, err = f.observe(ctx, state)
@@ -149,6 +174,11 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 	var run *Run
 	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, current *store.FiniteLeaderState, save func() error) error {
 		state = current
+		// A completed effort refuses every later scheduled or manual start; an
+		// already-dispatched run is still reconciled rather than replaced.
+		if current.Completed != nil && !current.DispatchStarted {
+			return store.ErrFiniteLeaderCompleted
+		}
 		if current.DispatchStarted {
 			var err error
 			run, err = f.observe(ctx, current)
@@ -185,7 +215,8 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 		}
 		binding, _ := json.Marshal(cfg.FiniteLeader)
 		prompt += "\n\nFinite effort coordinator binding (references are context, not authority):\n" + string(binding) +
-			"\nPreserve the accepted destination, exclusions and human input boundaries. Use existing owner operations and retain named waits. Run completion is not effort acceptance."
+			"\nPreserve the accepted destination, exclusions and human input boundaries. Use existing owner operations and retain named waits. Run completion is not effort acceptance." +
+			finiteLeaderGuidance + finiteMemberGuidance
 		current.TaskStarted, current.Status = true, "task-uncertain"
 		if err := save(); err != nil {
 			return err
@@ -272,4 +303,15 @@ func (f *FiniteLeaderRuntime) record(ctx context.Context, state *store.FiniteLea
 		f.Queue.OnComplete(state.TeamID, state.AgentID)
 	}
 	return nil
+}
+
+// Complete records the retained completion receipt for the accepted revision.
+// It is idempotent for a repeated exact completion and never reopens work.
+func (f *FiniteLeaderRuntime) Complete(ctx context.Context, teamID, agentID, revision, evidenceRef string) (*store.FiniteLeaderCompletion, bool, error) {
+	return f.Executor.teamStore.CompleteFiniteLeader(ctx, teamID, agentID, revision, evidenceRef)
+}
+
+// Reopen is the explicit authorized counter-operation to completion.
+func (f *FiniteLeaderRuntime) Reopen(ctx context.Context, teamID, agentID, revision, evidenceRef string) error {
+	return f.Executor.teamStore.ReopenFiniteLeader(ctx, teamID, agentID, revision, evidenceRef)
 }

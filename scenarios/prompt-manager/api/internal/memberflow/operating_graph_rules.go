@@ -9,6 +9,10 @@ const (
 	OperatingRuleGroupCoherence    RuleGroup = "coherence"
 	OperatingRuleGroupTopic        RuleGroup = "topic"
 	OperatingRuleGroupPlanOfRecord RuleGroup = "plan_of_record"
+	// OperatingRuleGroupObjective is retained as the group name for the retired
+	// objective rule family. The objective authority (internal/objectives) now
+	// owns objective validation; no memberflow rule registers under this group.
+	OperatingRuleGroupObjective RuleGroup = "objective"
 )
 
 type Rule interface {
@@ -26,7 +30,6 @@ type Rule interface {
 type RuleContext struct {
 	OperatingGraphRuleContext
 	ModelContext         *OperatingModelRuleContext
-	ObjectiveInput       *ObjectiveValidationInput
 	PlanOfRecordFindings []OperatingGraphFinding
 	Members              []MemberTopics
 	Options              ValidationOptions

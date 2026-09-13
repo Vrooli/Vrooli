@@ -1,8 +1,63 @@
 import { useState } from 'react'
 import { fireEvent, renderWithProviders as render, screen } from '@/test-utils/renderWithProviders'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorldSettingsContent, type PeriodMode } from './SettingsPanel'
 import { WorldClock } from '../config/clock'
+import {
+  useAcknowledgeObjective,
+  useAddObjectiveRelation,
+  useAttachObjective,
+  useDeleteObjective,
+  useDeleteObjectiveRelation,
+  useDetachObjective,
+  useObjectiveRelations,
+  useObjectiveValidation,
+  useObjectives,
+  useReorderObjectives,
+  useReorderTeamAttachments,
+  useTeamAttachments,
+  useUpdateAttachment,
+  useUpsertObjective,
+} from '@/services/objectiveService'
+
+vi.mock('@/services/objectiveService', () => ({
+  useObjectives: vi.fn(),
+  useObjectiveRelations: vi.fn(),
+  useObjectiveValidation: vi.fn(),
+  useTeamAttachments: vi.fn(),
+  useUpsertObjective: vi.fn(),
+  useDeleteObjective: vi.fn(),
+  useReorderObjectives: vi.fn(),
+  useAttachObjective: vi.fn(),
+  useUpdateAttachment: vi.fn(),
+  useDetachObjective: vi.fn(),
+  useReorderTeamAttachments: vi.fn(),
+  useAcknowledgeObjective: vi.fn(),
+  useAddObjectiveRelation: vi.fn(),
+  useDeleteObjectiveRelation: vi.fn(),
+}))
+
+function query<T>(data: T) {
+  return { data, isLoading: false, isError: false, refetch: vi.fn() }
+}
+const mutation = () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) })
+
+beforeEach(() => {
+  vi.mocked(useObjectives).mockReturnValue(query([]) as never)
+  vi.mocked(useObjectiveRelations).mockReturnValue(query([]) as never)
+  vi.mocked(useObjectiveValidation).mockReturnValue(query(undefined) as never)
+  vi.mocked(useTeamAttachments).mockReturnValue(query({ attachments: [], attachmentRevision: '' }) as never)
+  vi.mocked(useUpsertObjective).mockReturnValue(mutation() as never)
+  vi.mocked(useDeleteObjective).mockReturnValue(mutation() as never)
+  vi.mocked(useReorderObjectives).mockReturnValue(mutation() as never)
+  vi.mocked(useAttachObjective).mockReturnValue(mutation() as never)
+  vi.mocked(useUpdateAttachment).mockReturnValue(mutation() as never)
+  vi.mocked(useDetachObjective).mockReturnValue(mutation() as never)
+  vi.mocked(useReorderTeamAttachments).mockReturnValue(mutation() as never)
+  vi.mocked(useAcknowledgeObjective).mockReturnValue(mutation() as never)
+  vi.mocked(useAddObjectiveRelation).mockReturnValue(mutation() as never)
+  vi.mocked(useDeleteObjectiveRelation).mockReturnValue(mutation() as never)
+})
 
 
 function mount(clock?: WorldClock) {
@@ -66,6 +121,43 @@ describe('world seed settings', () => {
     expect(changed).toHaveBeenCalledWith(4294967295)
     expect(field).toHaveAttribute('aria-invalid', 'false')
   })
+})
+
+it('renders one group at a time without duplicating the form', () => {
+  function GroupHarness() {
+    const [seed, setSeed] = useState(1)
+    return <WorldSettingsContent
+      group="advanced"
+      seed={seed} onSeedChange={setSeed} weather="auto" onWeatherChange={() => {}}
+      sceneId="park" onSceneChange={() => {}} quality={{ auto: false, profileId: 'high' }}
+      onPickProfile={() => {}} onAutoChange={() => {}} periodMode={{ kind: 'fixed', period: 'night' }}
+      onPeriodModeChange={() => {}} showDiagnostics={false} onShowDiagnosticsChange={() => {}}
+      onCameraHome={() => {}} zoomTarget="cursor" onZoomTargetChange={() => {}} />
+  }
+  render(<GroupHarness />)
+  expect(screen.queryByRole('spinbutton', { name: 'World seed' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Reset camera' })).not.toBeInTheDocument()
+  expect(screen.getByText('Show diagnostics')).toBeInTheDocument()
+})
+
+it('mounts the shared objective editor in the management group with a team context selector', () => {
+  render(<WorldSettingsContent
+    group="management"
+    teams={[{ id: 'quality', label: 'Quality team' }, { id: 'delivery', label: 'Delivery team' }]}
+    seed={1} onSeedChange={() => {}} weather="auto" onWeatherChange={() => {}}
+    sceneId="park" onSceneChange={() => {}} quality={{ auto: false, profileId: 'high' }}
+    onPickProfile={() => {}} onAutoChange={() => {}} periodMode={{ kind: 'fixed', period: 'night' }}
+    onPeriodModeChange={() => {}} showDiagnostics={false} onShowDiagnosticsChange={() => {}}
+    onCameraHome={() => {}} zoomTarget="cursor" onZoomTargetChange={() => {}} />)
+
+  expect(screen.queryByText(/appears here once the shared objective editor is available/)).not.toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Objectives' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'New objective' })).toBeInTheDocument()
+  expect(useTeamAttachments).toHaveBeenCalledWith('')
+
+  fireEvent.change(screen.getByLabelText('Objective management scope'), { target: { value: 'quality' } })
+  expect(screen.getByRole('heading', { name: 'Objective commitments' })).toBeInTheDocument()
+  expect(useTeamAttachments).toHaveBeenLastCalledWith('quality')
 })
 
 it('offers deep night outside the workbench and freezes the selected local time', () => {

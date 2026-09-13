@@ -40,6 +40,7 @@ func setupContinueTest(t *testing.T, opts ...orchestration.Option) (
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	}
 	allOpts := append(baseOpts, opts...)
 

@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 6
+  revision: 7
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-09-12T00:00:00Z"
+  updatedAt: "2026-09-13T00:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager, program-runtime]
     commands: [agent-manager, prompt-manager skill read, program-runtime]
@@ -31,6 +31,12 @@ proof of runtime readiness. Read its implementation record before selecting an
 unqualified route. Use `prompt-manager skill read agent-manager` for owner
 operations and `large-effort-orchestration` for effort recovery.
 
+After the contract and owner route are qualified, a recurring wake with a
+supplied compact owner cut reuses that contract and the typed assessment
+skeleton. Do not repeat full contract, schema, board or transcript reads for
+orientation; open only a bounded owner detail when a specific material decision
+needs fresher evidence.
+
 ### Scope
 
 Supervise enrolled orchestrators and assess their progress, judgment, delegation,
@@ -48,16 +54,17 @@ Use owner discovery to include new orchestrations and changes without named-effo
 configuration. Discovery grants observation, not an extension of the effort's
 mutation authority. Report incomplete manifests and unknown grants explicitly.
 
-Read `agent-manager effort board` and prior pending decisions. For a runtime-selected
-effort, use `--effort-ref <exact-reference>`; reuse that qualified binding across
-wakes rather than repeating discovery. The same projection is in Agent Manager's
-Efforts view. Follow the owner usage skill for assessment and directive operations.
-If the board
-route is not qualified, use a bounded read of existing owner reports and label
-the missing join; do not launch a private replacement scheduler. Reconcile
-uncertain dispatches before requesting effects. Keep unavailable metrics unknown.
-Read changed summaries first. Open detailed evidence only for a decision it could
-change or a bounded independent sample.
+Use a supplied compact joined owner cut and prior pending decisions for recurring
+wakes. If no compact cut is available or the owner route is not qualified, read
+`agent-manager effort board` with `--effort-ref <exact-reference>` where applicable
+and use a bounded read of existing owner reports, labeling any missing join.
+Reuse a qualified runtime binding across wakes rather than repeating discovery;
+the same projection is in Agent Manager's Efforts view. Follow the owner usage
+skill for assessment and directive operations. Do not launch a private replacement
+scheduler or repeat full board/transcript reads for orientation. Reconcile uncertain
+dispatches before requesting effects. Keep unavailable metrics unknown. Read changed
+summaries first and open detailed evidence only for a decision it could change or
+a bounded independent sample.
 
 For a stopped or repeatedly blocked effort, compare its checkpoint with the
 declared resolution-source references on the board. Verify new operator/repair
@@ -79,8 +86,13 @@ retain remaining findings.
 
 An evidenced runtime or capability defect does not require independent product
 acceptance evidence before diagnosis. Separate business steering from an existing
-infrastructure repair assignment. Reconcile that assignment and its next action;
-do not repeat an owner wait that names neither an operation nor an assigning owner.
+infrastructure repair assignment. Reconcile the latest typed `repairLinks` in the
+owner cut and deduplicate by canonical `work_ref`; do not create a competing Swarm
+item, ledger entry or grant. An `assigned` or `resolved` link carries its assigning
+owner, next operation, completion evidence and stopping condition. If the link is
+`needs_assignment`, name the assigning owner, next operation and stopping condition
+without claiming dispatch. Escalate a missing assignment once, then retain the
+named owner wait rather than repeating a bare reconciliation wait.
 
 | Observation | Decision |
 |---|---|
@@ -112,6 +124,11 @@ and expected value of obtaining more evidence or acting.
 Entry: an admissible action addresses a material deviation or an independent sample
 selected by operating policy. Sampling alone grants no steering or repair authority.
 Return sample findings to outcome classification.
+
+When a policy-selected independent sample is admitted, perform that diagnostic
+sample even when the effort is stopped or the selected cut is observation-only.
+Sampling remains separate from steering authority and does not authorize a
+directive.
 
 Use the existing typed investigation operation for a bounded diagnostic question.
 Read its program and owning skill together. Diagnosis does not authorize repair.

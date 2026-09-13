@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { create, toJson } from '@bufbuild/protobuf'
+import { ListSharedFilesResponseSchema } from '@vrooli/proto-types/prompt-manager/v1/teams/teams_pb'
 import {
   TeamDetailsSchema,
+  TeamSharedFileListResponseSchema,
   UpdateTeamRequestSchema,
   buildBoundedParallelExecution,
   buildDefaultCreateTeamRequest,
@@ -126,5 +129,22 @@ describe('TeamDetailsSchema', () => {
 
     expect(result.roles).toEqual([])
     expect(result.members).toEqual([])
+  })
+})
+
+describe('TeamSharedFileListResponseSchema (proto int64 wire form)', () => {
+  it('parses a ListSharedFiles response whose int64 size is serialized as a string', () => {
+    const proto = create(ListSharedFilesResponseSchema, {
+      teamId: 'marketing-crew',
+      files: [{ path: 'SHARED.md', isDir: false, size: 321n }],
+    })
+    const wire = toJson(ListSharedFilesResponseSchema, proto) as {
+      files?: Array<{ size?: unknown }>
+    }
+
+    expect(wire.files?.[0]?.size).toBe('321')
+
+    const parsed = TeamSharedFileListResponseSchema.parse(wire)
+    expect(parsed.files[0]).toMatchObject({ path: 'SHARED.md', isDir: false, size: 321 })
   })
 })

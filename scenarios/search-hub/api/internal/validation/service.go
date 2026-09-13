@@ -858,12 +858,30 @@ func (s *Service) validateEvalEvidence(ctx context.Context, report *Report, prov
 	// A newer all-unavailable run is availability evidence, not retrieval
 	// evidence. Keep it visible as an advisory, then select the newest run with
 	// at least one graded case for quality, latency, and freshness arithmetic.
+	//
+	// Provider quality is measured by the provider-owned (provider_direct) tier.
+	// A federated run exercises the router across providers and captures a mixed
+	// embed model, so it cannot certify one provider's declared retrieval tuning.
+	// Prefer the newest provider-owned graded run and fall back to any graded run
+	// when no provider-owned run exists (federated-only suites keep their evidence).
 	newestRun := runs[0]
 	var lastRun *evalv1.EvalRun
 	for _, candidate := range runs {
-		if candidate != nil && (runGradedCases(candidate) > 0 || hasInformationalResults(candidate)) {
-			lastRun = candidate
-			break
+		if candidate == nil || !(runGradedCases(candidate) > 0 || hasInformationalResults(candidate)) {
+			continue
+		}
+		if isFederatedRun(candidate) {
+			continue
+		}
+		lastRun = candidate
+		break
+	}
+	if lastRun == nil {
+		for _, candidate := range runs {
+			if candidate != nil && (runGradedCases(candidate) > 0 || hasInformationalResults(candidate)) {
+				lastRun = candidate
+				break
+			}
 		}
 	}
 	if lastRun == nil {
@@ -1267,6 +1285,13 @@ func degradedRate(suite *evalv1.EvalSuite, run *evalv1.EvalRun) (float64, bool) 
 		return 0, false
 	}
 	return float64(degraded) / float64(total), true
+}
+
+// isFederatedRun reports whether a run exercised the federated (router) tier
+// rather than a provider-owned direct query. Federated runs capture the router's
+// cross-provider mix and cannot certify an individual provider's tuning.
+func isFederatedRun(run *evalv1.EvalRun) bool {
+	return run != nil && strings.EqualFold(strings.TrimSpace(run.GetTier()), "federated")
 }
 
 func isGradedOutcome(outcome string) bool {

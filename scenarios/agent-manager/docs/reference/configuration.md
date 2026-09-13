@@ -67,6 +67,12 @@ posture, and unavailable-candidate diagnostics.
 The role catalog is a readiness dependency. A failed reload keeps the prior
 active revision, and only subsequent runs see a successful new revision.
 
+Resource role responses may also carry an operator-owned `excluded_models`
+list. Agent Manager snapshots that evidence with each candidate and refuses a
+denied primary, explicit override, retained continuation, recovery, or
+fallback before executor effects. The resource policy owns model identifiers;
+Agent Manager only applies exact runner-facing and canonical identities.
+
 For a deploy that may require binary rollback, back up the Agent Manager SQLite
 database before starting the new binary. Profiles store portable `roleRef`
 intent only; historical run snapshots remain the audit source for their

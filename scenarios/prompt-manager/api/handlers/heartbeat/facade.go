@@ -9,6 +9,9 @@ type (
 	HandlersDeps               = domain.HandlersDeps
 	MemberflowContractFindings = domain.MemberflowContractFindings
 	PromptBuildRequest         = domain.PromptBuildRequest
+	TeamObjective              = domain.TeamObjective
+	TeamObjectiveContext       = domain.TeamObjectiveContext
+	TeamObjectiveProvider      = domain.TeamObjectiveProvider
 )
 
 var (
@@ -20,5 +23,5 @@ var (
 	NewRunRegistry           = domain.NewRunRegistry
 	NewScheduler             = domain.NewScheduler
 	NewTeamExecutionStore    = domain.NewTeamExecutionStore
-	WireStandingSupervisor  = domain.WireStandingSupervisor
+	WireStandingSupervisor   = domain.WireStandingSupervisor
 )

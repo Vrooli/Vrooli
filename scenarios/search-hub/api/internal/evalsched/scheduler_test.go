@@ -89,6 +89,9 @@ type fakeRunner struct {
 	errFor     map[string]bool
 	onStart    func(string)
 	onComplete func()
+
+	budget    time.Duration
+	budgetSet bool
 }
 
 func (r *fakeRunner) stats() (calls, maxActive int) {
@@ -97,10 +100,22 @@ func (r *fakeRunner) stats() (calls, maxActive int) {
 	return len(r.calls), r.maxActive
 }
 
-func (r *fakeRunner) Run(_ context.Context, suite *evalv1.EvalSuite, tag string, _ int32) (*evalv1.EvalRun, error) {
+// observedBudget returns the run budget the scheduler handed to the runner,
+// measured from the context deadline installed by runTier.
+func (r *fakeRunner) observedBudget() time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.budget
+}
+
+func (r *fakeRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, _ int32) (*evalv1.EvalRun, error) {
 	id := suite.GetSuiteId()
 	r.mu.Lock()
 	r.calls = append(r.calls, id)
+	if deadline, ok := ctx.Deadline(); ok {
+		r.budget = time.Until(deadline)
+		r.budgetSet = true
+	}
 	if r.errFor[id] {
 		r.mu.Unlock()
 		return nil, context.DeadlineExceeded
@@ -205,6 +220,57 @@ func TestSchedulerBoundsSuiteConcurrency(t *testing.T) {
 	_, federatedMax := federated.stats()
 	if directMax > 2 || federatedMax > 2 {
 		t.Fatalf("tier concurrency direct/federated = %d/%d, want each <= 2", directMax, federatedMax)
+	}
+}
+
+func TestSchedulerGivesFederatedTierItsOwnCaseBudget(t *testing.T) {
+	scheduler, _, direct, federated, store, _ := testScheduler(t, []*evalv1.EvalSuite{suite("one")}, 1)
+	if err := scheduler.Tick(context.Background()); err != nil {
+		t.Fatalf("tick: %v", err)
+	}
+	if got := store.count(); got != 2 {
+		t.Fatalf("stored runs = %d, want one direct and one federated run", got)
+	}
+	directBudget := direct.observedBudget()
+	federatedBudget := federated.observedBudget()
+	wantDirect := DefaultCaseTimeout*time.Duration(3) + DefaultRunOverhead
+	wantFederated := DefaultFederatedCaseTimeout*time.Duration(3) + DefaultRunOverhead
+	if directBudget <= 0 || federatedBudget <= 0 {
+		t.Fatalf("observed budgets direct=%s federated=%s, want both positive", directBudget, federatedBudget)
+	}
+	if directBudget > wantDirect {
+		t.Fatalf("direct run budget = %s, want <= %s", directBudget, wantDirect)
+	}
+	if federatedBudget <= directBudget {
+		t.Fatalf("federated run budget = %s, want wider than direct %s", federatedBudget, directBudget)
+	}
+	if federatedBudget > wantFederated {
+		t.Fatalf("federated run budget = %s, want <= %s", federatedBudget, wantFederated)
+	}
+}
+
+func TestOptionsDefaultCaseBudgetsAreTierAware(t *testing.T) {
+	o := Options{}.withDefaults()
+	if o.CaseTimeout != DefaultCaseTimeout {
+		t.Fatalf("default case timeout = %s, want %s", o.CaseTimeout, DefaultCaseTimeout)
+	}
+	if o.FederatedCaseTimeout != DefaultFederatedCaseTimeout {
+		t.Fatalf("default federated case timeout = %s, want %s", o.FederatedCaseTimeout, DefaultFederatedCaseTimeout)
+	}
+	if o.FederatedCaseTimeout <= o.CaseTimeout {
+		t.Fatalf("federated case timeout %s must exceed provider case timeout %s", o.FederatedCaseTimeout, o.CaseTimeout)
+	}
+}
+
+func TestOptionsFromEnvReadsFederatedTimeoutIndependently(t *testing.T) {
+	t.Setenv("SEARCH_HUB_EVAL_SCHEDULER_TIMEOUT", "6s")
+	t.Setenv("SEARCH_HUB_EVAL_SCHEDULER_FEDERATED_TIMEOUT", "45s")
+	o := OptionsFromEnv(log.New(io.Discard, "", 0))
+	if o.CaseTimeout != 6*time.Second {
+		t.Fatalf("provider case timeout = %s, want 6s", o.CaseTimeout)
+	}
+	if o.FederatedCaseTimeout != 45*time.Second {
+		t.Fatalf("federated case timeout = %s, want 45s", o.FederatedCaseTimeout)
 	}
 }
 

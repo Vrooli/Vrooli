@@ -30,6 +30,7 @@ import (
 	"prompt-manager/handlers/heartbeat"
 	"prompt-manager/handlers/memberflow"
 	"prompt-manager/handlers/metadata"
+	objectiveshandlers "prompt-manager/handlers/objectives"
 	"prompt-manager/handlers/ogmeta"
 	"prompt-manager/handlers/search"
 	"prompt-manager/handlers/skills"
@@ -43,6 +44,7 @@ import (
 	promptmeasures "prompt-manager/internal/measures"
 	"prompt-manager/internal/metrics"
 	localmodules "prompt-manager/internal/modules"
+	objectivesdomain "prompt-manager/internal/objectives"
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/projection"
 	"prompt-manager/internal/sourceledger"
@@ -309,6 +311,53 @@ func (p heartbeatPromptSectionProvider) SectionsForMember(ctx context.Context, t
 		})
 	}
 	return out, nil
+}
+
+// authorityTeamObjectives adapts the objective authority to the heartbeat
+// prompt's narrow consumer port. It returns the same ordered, revision-stamped
+// projection every other objective consumer sees, so the prompt cannot disagree
+// with the coverage read about identity, order or revision.
+type authorityTeamObjectives struct {
+	service *objectivesdomain.Service
+}
+
+func (a authorityTeamObjectives) TeamObjectives(ctx context.Context, teamID string) (heartbeat.TeamObjectiveContext, error) {
+	if a.service == nil {
+		return heartbeat.TeamObjectiveContext{TeamID: teamID}, nil
+	}
+	projection, err := objectivesdomain.BuildProjection(ctx, a.service)
+	if err != nil {
+		return heartbeat.TeamObjectiveContext{}, err
+	}
+	for _, oc := range objectivesdomain.BuildTeamObjectiveContexts(projection) {
+		if oc.TeamID == teamID {
+			return toHeartbeatObjectiveContext(oc), nil
+		}
+	}
+	return heartbeat.TeamObjectiveContext{TeamID: teamID}, nil
+}
+
+func toHeartbeatObjectiveContext(oc objectivesdomain.TeamObjectiveContext) heartbeat.TeamObjectiveContext {
+	out := heartbeat.TeamObjectiveContext{
+		TeamID:             oc.TeamID,
+		AttachmentRevision: oc.AttachmentRevision,
+		Objectives:         make([]heartbeat.TeamObjective, 0, len(oc.Objectives)),
+	}
+	for _, o := range oc.Objectives {
+		out.Objectives = append(out.Objectives, heartbeat.TeamObjective{
+			ObjectiveID:          o.ObjectiveID,
+			Title:                o.Title,
+			Class:                o.Class,
+			GlobalOrder:          o.GlobalOrder,
+			MeaningRevision:      o.MeaningRevision,
+			Role:                 o.Role,
+			Note:                 o.Note,
+			Priority:             o.Priority,
+			AcknowledgedRevision: o.AcknowledgedRevision,
+			RestatementPending:   o.RestatementPending,
+		})
+	}
+	return out
 }
 
 // World feed levers: how many events replay on reconnect, how far each
@@ -841,12 +890,22 @@ func main() {
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
 	// DOC: docs/agent-system/TOPICS_SCHEMA.md
+	// Objective authority: one owner for objective definitions, ordered team
+	// attachments, relation rules and acknowledgements. The generated Connect
+	// surface and every other client resolve through this service so they
+	// cannot disagree about objective identity, revision or order.
+	objectivesRepo := objectivesdomain.NewRepository(db)
+	objectivesService := objectivesdomain.NewService(objectivesRepo, func(teamID string) bool {
+		team, err := fileStore.Teams().Get(context.Background(), teamID)
+		return err == nil && team != nil
+	})
+
 	memberFlowHandlers := memberflow.NewHandlers(roots.Config, roots.RuntimeData)
 	memberFlowHandlers.SetKnowledgeQuery(
 		newTeamKnowledgeQuery(fileStore.Teams().(*store.FileTeamStore)),
 		memberflow.InboxAgingOptions{},
 	)
-	memberflowConnectPath, memberflowConnectHandler := memberflow.NewConnectMount(memberFlowHandlers, graphHandlers)
+	memberflowConnectPath, memberflowConnectHandler := memberflow.NewConnectMount(memberFlowHandlers, graphHandlers, objectivesService, roots.RepoRoot, roots.Config)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: memberflowConnectPath, Handler: memberflowConnectHandler})
 
 	// Topic routes
@@ -856,6 +915,11 @@ func main() {
 	topicHandlers.SetTopicMatchFn(buildTopicMatchFn(aiSearchService, fileStore.Topics()))
 	topicsConnectPath, topicsConnectHandler := topics.NewConnectMount(topicHandlers)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: topicsConnectPath, Handler: topicsConnectHandler})
+
+	// Objective authority: the single owner created above; register its
+	// generated Connect surface so generated RPC clients resolve through it.
+	objectivesConnectPath, objectivesConnectHandler := objectiveshandlers.NewConnectMount(objectivesService)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: objectivesConnectPath, Handler: objectivesConnectHandler})
 
 	// The uniform measures substrate executes the same domain reads as the
 	// generated RPCs. It is mounted outside /api/v1 because measures-go defines
@@ -1006,6 +1070,10 @@ func main() {
 		RepoRoot:       roots.RepoRoot,
 		RuntimeDataDir: roots.RuntimeData,
 	})
+	// The objective authority read reaches the same builder `team prompt-preview`
+	// and the real spawn path use, so a member is measured against the same
+	// setpoint in both.
+	heartbeatExecutor.SetTeamObjectiveProvider(authorityTeamObjectives{service: objectivesService})
 	memberFlowHandlers.SetPromptSectionProvider(heartbeatPromptSectionProvider{executor: heartbeatExecutor})
 	operatingMapStore, err := graph.NewOperatingMapStore(memberflow.OperatingModelService{
 		RepoRoot:       roots.RepoRoot,

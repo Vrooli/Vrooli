@@ -890,6 +890,46 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 	}
 }
 
+// TestDurableCodexCodecPipeNativeQuotaFrame exercises the managed codec-pipe
+// path: launcher stdout is written to the durable transcript, tailed by the
+// runner, and parsed by Codex's stateful native rollout adapter. It does not
+// launch a provider or inspect provider credentials.
+func TestDurableCodexCodecPipeNativeQuotaFrame(t *testing.T) {
+	codec := availableTestCodec{codecs.NewCodexForTest()}
+	launcher := &fakeLauncher{stdout: `{"timestamp":"2026-09-13T12:00:00Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"primary":{"used_percent":42.5,"window_minutes":300,"resets_at":1789300000}}}}` + "\n" + `{"timestamp":"2026-09-13T12:00:01Z","type":"event_msg","payload":{"type":"turn_completed"}}` + "\n"}
+	r := newRunnerForTest(t, codec, launcher)
+	sink := &recordingSink{}
+	stdout, err := os.CreateTemp(t.TempDir(), "codex-quota-transcript-*.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stdout.Close()
+	cfg := domain.DefaultRunConfig()
+	cfg.RunnerType = domain.RunnerTypeCodex
+	cfg.Model = "codex-test-model"
+	runID := uuid.New()
+	result, err := r.Execute(context.Background(), runner.ExecuteRequest{
+		RunID: runID, Prompt: "metadata-only native quota fixture", WorkingDir: t.TempDir(),
+		ResolvedConfig: cfg, EventSink: sink,
+		Transcript: &runner.TranscriptConfig{TranscriptPath: stdout.Name(), StdoutFile: stdout},
+	})
+	if err != nil || result == nil || !result.Success {
+		t.Fatalf("durable codec-pipe result=%+v err=%v", result, err)
+	}
+	var quota []*domain.RateLimitEventData
+	for _, event := range sink.snapshot() {
+		if data, ok := event.Data.(*domain.RateLimitEventData); ok {
+			quota = append(quota, data)
+		}
+	}
+	if len(quota) != 1 {
+		t.Fatalf("native quota frame count=%d, want one: %+v", len(quota), sink.snapshot())
+	}
+	if quota[0].Provider != "openai" || quota[0].Pool != "primary" || quota[0].UsedPercent == nil || *quota[0].UsedPercent != 42.5 || quota[0].WindowMinutes != 300 {
+		t.Fatalf("native quota metadata was not retained: %+v", quota[0])
+	}
+}
+
 func TestRunnerRuntimeVersionDelegatesToCodec(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "fake-opencode")

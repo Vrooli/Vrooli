@@ -190,7 +190,13 @@ type WakeRunInput struct {
 // re-resumed — so a waiter double-resolve never double-wakes. The await-handle
 // is cleared as part of the wake; resumeConversation transitions parked→running,
 // resets the heartbeat, and re-injects the full env + a fresh identity token.
-func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Run, error) {
+func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.Run, returnErr error) {
+	effectsPossible := false
+	defer func() {
+		if !effectsPossible {
+			returnErr = domain.RefuseBeforeEffects(returnErr)
+		}
+	}()
 	// Wake progresses an already-admitted parked run, which remains counted by
 	// maintenance inventory. It must not attempt a new maintenance admission.
 	// Claim the parked state under one process-wide lifecycle lock before
@@ -213,9 +219,16 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 	if run.Status != domain.RunStatusParked {
 		return o.attachRunActions(ctx, run), nil
 	}
+	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
+		return nil, err
+	}
+	if err := o.validateCurrentExecutionModel(ctx, run.ResolvedConfig); err != nil {
+		return nil, err
+	}
 	if err := o.validateContinuationSession(ctx, run); err != nil {
 		return nil, err
 	}
+	effectsPossible = true
 
 	// Cancel the background watcher before resuming. When wake is driven by the
 	// watcher itself this just clears the (already-resolved) entry; when driven

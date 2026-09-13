@@ -176,7 +176,6 @@ func DefaultRuleRegistry() (*RuleRegistry, error) {
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
 	rules = append(rules, DefaultPlanOfRecordRules()...)
-	rules = append(rules, DefaultObjectiveRules()...)
 	catalog, err := DefaultRuleCatalog()
 	if err != nil {
 		return nil, err
@@ -206,11 +205,6 @@ func DefaultRuleCatalog() (RuleCatalog, error) {
 	if err != nil {
 		return nil, err
 	}
-	objectiveCatalog, err := ObjectiveRuleCatalog()
-	if err != nil {
-		return nil, err
-	}
-	entries = append(entries, catalogEntries(objectiveCatalog)...)
 	entries = append(entries, catalogEntries(topicCatalog)...)
 	entries = append(entries, catalogEntries(porCatalog)...)
 	entries = append(entries, catalogEntries(modelCatalog)...)

@@ -667,6 +667,7 @@ export function BacklogDetailsPage() {
                   onAuthorPlan={() => planAuthorMutation.mutate()}
                   authorPlanPending={planAuthorMutation.isPending}
                   authorPlanError={planAuthorMutation.error instanceof Error ? planAuthorMutation.error.message : null}
+                  nextAction={nextAction}
                 />
               )}
               {activeTab === "decide" && backlogKind && name && item && (

@@ -39,7 +39,6 @@ function hudProps(store = makeStore(), overrides: Partial<Parameters<typeof Worl
     focusedId: null,
     onFocus: vi.fn(),
     onFocusTeam: vi.fn(),
-    onHome: vi.fn(),
     following: false,
     onFollowChange: vi.fn(),
     filters: EMPTY_FILTERS,
@@ -158,9 +157,8 @@ describe('WorldHud', () => {
     expect(props.onFocusTeam).toHaveBeenCalledWith('team-b')
     fireEvent.click(screen.getByText(/B1 started a run/))
     expect(props.onFocus).toHaveBeenCalledWith('b1')
-    fireEvent.click(screen.getByTestId('world-hud-home'))
-    expect(props.onHome).toHaveBeenCalled()
     expect(screen.getByTestId('world-hud-feed-status')).toHaveTextContent('feed: stream')
+    expect(screen.queryByTestId('world-hud-home')).not.toBeInTheDocument()
   })
 
   it('shows the agent card for the focused actor and closes it', () => {

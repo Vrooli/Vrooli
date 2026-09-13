@@ -17,14 +17,23 @@ import (
 
 type supervisorDispatchFake struct {
 	*mockAgentClient
-	requests []*api.CreateSupervisorRunRequest
-	tokens   []string
+	requests   []*api.CreateSupervisorRunRequest
+	tokens     []string
+	err        error
+	omitTaskID bool
 }
 
 func (f *supervisorDispatchFake) CreateSupervisorRun(_ context.Context, req *api.CreateSupervisorRunRequest, token string) (*Run, error) {
 	f.requests = append(f.requests, req)
 	f.tokens = append(f.tokens, token)
-	return &Run{ID: "wake-run-1", Status: "running"}, nil
+	if f.err != nil {
+		return nil, f.err
+	}
+	taskID := req.TaskId
+	if f.omitTaskID {
+		taskID = ""
+	}
+	return &Run{ID: "wake-run-1", TaskID: taskID, Tag: "supervision-" + req.IdempotencyKey, Status: "running"}, nil
 }
 
 func TestStandingSupervisorDelegatedFutureWakesAndMultipleEfforts(t *testing.T) {
@@ -75,6 +84,179 @@ func TestStandingSupervisorMissingCredentialFailsBeforeTaskWithoutFallback(t *te
 	state, _ := f.s.State.Load("supervisors", "leader")
 	if state.Pending.DispatchStarted || len(f.agent.createRunCalls) != 0 || len(f.agent.createTaskCalls) != 0 {
 		t.Fatal("missing credential created work or widened default authority")
+	}
+}
+
+func TestStandingSupervisorReplaysOnlyTheRetainedDelegatedBinding(t *testing.T) {
+	f := newSupervisionFixture(t)
+	agent := &supervisorDispatchFake{mockAgentClient: f.agent}
+	f.s.Agent = agent
+	f.s.DispatchCredential = func(context.Context) (string, error) { return "fresh-dispatch", nil }
+	f.cfg.Supervision.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}
+	wake := &SupervisionWake{ID: "wake-replay", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "delegated",
+		DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1", Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}}}
+	state := &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: wake}
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Pending.RunID != "wake-run-1" || got.Pending.DispatchReplayAttempts != 1 || len(agent.requests) != 1 {
+		t.Fatalf("expected one exact delegated replay, got state=%+v requests=%d", got.Pending, len(agent.requests))
+	}
+	req := agent.requests[0]
+	if req.IdempotencyKey != wake.ID || req.TaskId != wake.TaskID || req.EffortRef != wake.DispatchEffortRef || req.AuthorizationId != wake.DispatchAuthorizationID || len(req.WorkReferences) != 1 || req.WorkReferences[0].GetId() != "effort:one" {
+		t.Fatalf("replay changed the durable dispatch intent: %+v", req)
+	}
+}
+
+func TestStandingSupervisorReplaysLegacyOrdinaryWakeWithExactIntent(t *testing.T) {
+	f := newSupervisionFixture(t)
+	wakeID := "wake-legacy-replay"
+	tag := "supervision-" + wakeID
+	f.cfg.Supervision.DispatchRecovery = &teamconfig.SupervisorDispatchRecovery{WakeID: wakeID, Mode: "ordinary", TaskID: "task-1", ProfileKey: "qualified-role-profile", EvidenceRefs: []string{"run-report:dispatch-refused", "pm-state:pending-wake"}}
+	f.agent.WithCreateRunResponse(&Run{ID: "wake-run-legacy", TaskID: "task-1", Tag: tag, Status: "running"})
+	wake := &SupervisionWake{ID: wakeID, AccountingRef: "test:allowance", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true,
+		Efforts: []EffortObservation{{ID: "effort:one", TargetRevision: "rev-1"}}}
+	state := &SupervisionState{Version: 1, Status: "uncertain", WakesInWindow: 7, Efforts: map[string]SupervisedCut{}, Pending: wake}
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Pending.RunID != "wake-run-legacy" || got.Pending.DispatchReplayAttempts != 1 || got.WakesInWindow != 7 || len(f.agent.createRunCalls) != 1 {
+		t.Fatalf("expected one legacy replay, got state=%+v calls=%d", got.Pending, len(f.agent.createRunCalls))
+	}
+	req := f.agent.createRunCalls[0]
+	if req.IdempotencyKey != tag || req.Tag == nil || *req.Tag != tag || req.TaskID != wake.TaskID || req.ProfileRef == nil || req.ProfileRef.ProfileKey != wake.ProfileKey || len(req.WorkReferences) != 1 || req.WorkReferences[0].GetId() != "effort:one" {
+		t.Fatalf("legacy replay changed request identity: %+v", req)
+	}
+	if req.Environment["VROOLI_EFFORT_SUPERVISION_WAKE_ID"] != wakeID || req.Environment["VROOLI_EFFORT_SUPERVISION_ACCOUNTING_REF"] != wake.AccountingRef {
+		t.Fatalf("legacy replay lost attribution: %+v", req.Environment)
+	}
+}
+
+func TestStandingSupervisorKeepsLegacyOrMismatchedDelegatedWakeUncertain(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		wake *SupervisionWake
+	}{
+		{name: "legacy", wake: &SupervisionWake{ID: "wake-legacy", TaskID: "task-1", DispatchStarted: true}},
+		{name: "binding-mismatch", wake: &SupervisionWake{ID: "wake-mismatch", TaskID: "task-1", DispatchStarted: true, DispatchEffortRef: "service:old", DispatchAuthorizationID: "grant-old"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newSupervisionFixture(t)
+			agent := &supervisorDispatchFake{mockAgentClient: f.agent}
+			f.s.Agent = agent
+			f.s.DispatchCredential = func(context.Context) (string, error) { return "fresh-dispatch", nil }
+			f.cfg.Supervision.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}
+			f.cfg.Supervision.MaxEffortsPerWake = 1
+			state := &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: tc.wake}
+			if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+				t.Fatal(err)
+			}
+			got, err := f.s.State.Load("supervisors", "leader")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Pending.RunID != "" || got.Status != "uncertain" || len(agent.requests) != 0 || got.Pending.DispatchReplayError == "" {
+				t.Fatalf("wake was replayed or uncertainty was released: state=%+v requests=%d", got.Pending, len(agent.requests))
+			}
+		})
+	}
+}
+
+func TestStandingSupervisorRejectsContradictoryOrUnknownDispatchMode(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		wake *SupervisionWake
+		cfg  *teamconfig.SupervisorDispatchBinding
+	}{
+		{name: "ordinary-with-delegated-fields", wake: &SupervisionWake{ID: "wake-contradictory", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "ordinary", DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1"}, cfg: &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}},
+		{name: "unknown-mode", wake: &SupervisionWake{ID: "wake-unknown", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "future-mode"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newSupervisionFixture(t)
+			agent := &supervisorDispatchFake{mockAgentClient: f.agent}
+			f.s.Agent = agent
+			f.cfg.Supervision.DispatchAuthorization = tc.cfg
+			state := &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: tc.wake}
+			if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+				t.Fatal(err)
+			}
+			got, err := f.s.State.Load("supervisors", "leader")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Pending.RunID != "" || len(agent.requests) != 0 || len(f.agent.createRunCalls) != 0 || got.Pending.DispatchReplayError == "" {
+				t.Fatalf("contradictory/unknown mode escaped uncertainty: state=%+v delegated=%d ordinary=%d", got.Pending, len(agent.requests), len(f.agent.createRunCalls))
+			}
+		})
+	}
+}
+
+func TestStandingSupervisorRequiresDelegatedReplayTaskIdentity(t *testing.T) {
+	f := newSupervisionFixture(t)
+	agent := &supervisorDispatchFake{mockAgentClient: f.agent, omitTaskID: true}
+	f.s.Agent = agent
+	f.s.DispatchCredential = func(context.Context) (string, error) { return "fresh-dispatch", nil }
+	f.cfg.Supervision.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}
+	wake := &SupervisionWake{ID: "wake-no-task", TaskID: "task-1", ProfileKey: "qualified-role-profile", DispatchStarted: true, DispatchMode: "delegated", DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1"}
+	if err := f.s.State.Save("supervisors", "leader", &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: wake}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Pending.RunID != "" || got.Pending.DispatchReplayAttempts != 1 || got.Pending.DispatchReplayError == "" {
+		t.Fatalf("empty delegated task identity was accepted: %+v", got.Pending)
+	}
+}
+
+func TestStandingSupervisorBoundsDelegatedReplayAfterOwnerUncertainty(t *testing.T) {
+	f := newSupervisionFixture(t)
+	agent := &supervisorDispatchFake{mockAgentClient: f.agent, err: errors.New("owner unavailable")}
+	f.s.Agent = agent
+	f.s.DispatchCredential = func(context.Context) (string, error) { return "fresh-dispatch", nil }
+	f.cfg.Supervision.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: "service:standing", AuthorizationID: "grant-v1"}
+	state := &SupervisionState{Version: 1, Status: "uncertain", Efforts: map[string]SupervisedCut{}, Pending: &SupervisionWake{ID: "wake-bounded", TaskID: "task-1", DispatchStarted: true, DispatchMode: "delegated", DispatchEffortRef: "service:standing", DispatchAuthorizationID: "grant-v1"}}
+	if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := f.s.Dispatch(context.Background(), "supervisors", "leader"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := f.s.State.Load("supervisors", "leader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(agent.requests) != 1 || got.Pending.DispatchReplayAttempts != 1 || got.Pending.RunID != "" || got.Status != "uncertain" {
+		t.Fatalf("owner uncertainty was retried or released: state=%+v requests=%d", got.Pending, len(agent.requests))
+	}
+	if got.Pending.DispatchReplayError == "" {
+		t.Fatal("bounded replay did not retain the owner uncertainty")
 	}
 }
 

@@ -2,7 +2,9 @@ package heartbeat
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"prompt-manager/internal/store"
 )
@@ -235,4 +237,157 @@ func TestSchedulerHandlesMemberAlreadyQueued(t *testing.T) {
 	if status.State != "active" {
 		t.Fatalf("expected team state 'active', got %q", status.State)
 	}
+}
+
+// TestSchedulerSkipsTickWhenRecoveredObligationIsUncertain verifies the fence
+// survives a restart: a dispatch whose run identity was never bound is retained
+// as an uncertain obligation, and the next scheduled tick for that member is
+// refused instead of admitting a duplicate heartbeat.
+func TestSchedulerSkipsTickWhenRecoveredObligationIsUncertain(t *testing.T) {
+	dir := t.TempDir()
+	exec := &captureExecutor{}
+
+	// Seed a running entry with no bound RunID, as after a lost start response.
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID:            "team-1",
+		QueuePolicy:       "serialized",
+		MaxConcurrentRuns: 1,
+		Running: []queuedExecution{
+			{AgentID: "agent-1", ProfileKey: "p", RunID: ""},
+		},
+	})
+
+	teamExecStore := NewTeamExecutionStore(nil, exec, dir, newMockAgentClient())
+	teamExecStore.Recover(context.Background())
+
+	if got := teamExecStore.Status("team-1"); len(got.UncertainAgentIDs) != 1 {
+		t.Fatalf("expected one uncertain obligation after recovery, got %+v", got)
+	}
+
+	configStore := &stubConfigStore{
+		config: &store.HeartbeatConfig{
+			TeamID:   "team-1",
+			AgentID:  "agent-1",
+			Enabled:  true,
+			Schedule: "0 * * * *",
+		},
+	}
+	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
+
+	before := len(exec.calls)
+	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
+
+	if len(exec.calls) != before {
+		t.Fatalf("expected uncertain obligation to refuse the tick, executor called %d time(s)", len(exec.calls)-before)
+	}
+	if got := teamExecStore.Status("team-1"); len(got.RunningAgentIDs) != 1 {
+		t.Fatalf("expected obligation retained after refused tick, got %+v", got)
+	}
+}
+
+// TestSchedulerSkipsTickWhenRecoveredObligationIsPaused verifies that a
+// quota-paused (parked) owner run is retained nonterminal ownership: the next
+// scheduled tick is refused so a pause is never mistaken for a missing run.
+func TestSchedulerSkipsTickWhenRecoveredObligationIsPaused(t *testing.T) {
+	dir := t.TempDir()
+	exec := &captureExecutor{}
+
+	writeQueueFile(t, dir, "team-1", persistedTeamQueue{
+		TeamID:            "team-1",
+		QueuePolicy:       "serialized",
+		MaxConcurrentRuns: 1,
+		Running: []queuedExecution{
+			{AgentID: "agent-1", ProfileKey: "p", RunID: "run-parked"},
+		},
+	})
+
+	client := newMockAgentClient().
+		WithGetRunResponse("run-parked", &Run{ID: "run-parked", Status: "RUN_STATUS_PARKED"})
+	teamExecStore := NewTeamExecutionStore(nil, exec, dir, client)
+	teamExecStore.Recover(context.Background())
+
+	if got := teamExecStore.Status("team-1"); len(got.PausedAgentIDs) != 1 {
+		t.Fatalf("expected one paused obligation after recovery, got %+v", got)
+	}
+
+	configStore := &stubConfigStore{
+		config: &store.HeartbeatConfig{
+			TeamID:   "team-1",
+			AgentID:  "agent-1",
+			Enabled:  true,
+			Schedule: "0 * * * *",
+		},
+	}
+	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
+
+	before := len(exec.calls)
+	scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
+
+	if len(exec.calls) != before {
+		t.Fatalf("expected paused obligation to refuse the tick, executor called %d time(s)", len(exec.calls)-before)
+	}
+	if got := teamExecStore.Status("team-1"); len(got.PausedAgentIDs) != 1 || len(got.RunningAgentIDs) != 1 {
+		t.Fatalf("expected paused obligation retained after refused tick, got %+v", got)
+	}
+}
+
+// blockingExecutor holds each Execute call until released and records how many
+// calls were admitted.
+type blockingExecutor struct {
+	mu      sync.Mutex
+	calls   int
+	release chan struct{}
+}
+
+func (b *blockingExecutor) Execute(_ context.Context, teamID, agentID, _ string) (*ExecutionResult, error) {
+	b.mu.Lock()
+	b.calls++
+	b.mu.Unlock()
+	<-b.release
+	return &ExecutionResult{TeamID: teamID, AgentID: agentID, Status: store.HeartbeatStatusRunning}, nil
+}
+
+// TestSchedulerConcurrentDuplicateTicksAdmitOne verifies the duplicate-trigger
+// fence under concurrency: simultaneous scheduled ticks for one member admit
+// exactly one execution and refuse the rest, with no catch-up queue.
+func TestSchedulerConcurrentDuplicateTicksAdmitOne(t *testing.T) {
+	exec := &blockingExecutor{release: make(chan struct{})}
+	configStore := &stubConfigStore{
+		config: &store.HeartbeatConfig{
+			TeamID:   "team-1",
+			AgentID:  "agent-1",
+			Enabled:  true,
+			Schedule: "0 * * * *",
+		},
+	}
+	teamExecStore := NewTeamExecutionStore(nil, exec, t.TempDir(), nil)
+	scheduler := NewScheduler(exec, nil, configStore, teamExecStore)
+
+	const ticks = 8
+	var wg sync.WaitGroup
+	wg.Add(ticks)
+	for i := 0; i < ticks; i++ {
+		go func() {
+			defer wg.Done()
+			scheduler.executeHeartbeat(context.Background(), "team-1", "agent-1")
+		}()
+	}
+	wg.Wait()
+
+	waitFor(t, 5*time.Second, func() bool {
+		exec.mu.Lock()
+		defer exec.mu.Unlock()
+		return exec.calls == 1
+	}, "exactly one admitted execution")
+
+	exec.mu.Lock()
+	got := exec.calls
+	exec.mu.Unlock()
+	if got != 1 {
+		t.Fatalf("expected exactly one admitted execution, got %d", got)
+	}
+	if status := teamExecStore.Status("team-1"); len(status.Queue) != 0 {
+		t.Fatalf("expected no catch-up queue, got %+v", status.Queue)
+	}
+	close(exec.release)
 }

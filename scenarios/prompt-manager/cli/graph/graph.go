@@ -180,8 +180,9 @@ Subcommands:
                                       runtime finding
   operating-model <list|validate|diff|coverage> [--team X] [--id ID] [--json]
                                       Plan-of-record Mermaid contract checks
-  objectives [--json]                 Objective coverage: OBJECTIVES.md against
-                                      team.json::objectivesServed, both directions
+  objectives [--json]                 Objective coverage from the objective
+                                      authority, both directions, with the
+                                      retained declarations as drift context
   orientation-cost [--json]           Per-team orientation cost and its
                                       components, read against scenario coverage
   instruments [--json]                Per-team instrument declaration: one

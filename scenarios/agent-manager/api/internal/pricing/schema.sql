@@ -29,6 +29,33 @@ CREATE TABLE IF NOT EXISTS subscription_periods (
 CREATE INDEX IF NOT EXISTS idx_subscription_periods_provider_window
     ON subscription_periods(provider, starts_at, ends_at);
 
+-- Provider quota observations are immutable evidence. They are deliberately
+-- separate from subscription periods and run usage: token/dollar totals do
+-- not establish provider quota consumption or remaining allowance.
+CREATE TABLE IF NOT EXISTS quota_observations (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    pool TEXT NOT NULL,
+    window TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    standing TEXT NOT NULL,
+    used INTEGER,
+    quota_limit INTEGER,
+    remaining INTEGER,
+    used_percent REAL,
+    window_minutes INTEGER,
+    reset_at TEXT,
+    source_run_id TEXT,
+    freshness TEXT,
+    provenance TEXT NOT NULL,
+    uncertainty TEXT,
+    evidence_ref TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_quota_observations_scope_time
+    ON quota_observations(provider, pool, window, observed_at DESC);
+
 CREATE TABLE IF NOT EXISTS model_pricing (
     id TEXT PRIMARY KEY,
     canonical_model_name TEXT NOT NULL,

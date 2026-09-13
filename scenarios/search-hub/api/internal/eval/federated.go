@@ -122,10 +122,16 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 		limit = effectiveLimit(suite, limit)
 	}
 	if suite.GetSuiteId() == RouterSuiteID {
+		// The composed router suite measures provider selection only; its
+		// routing-only marker bypasses the hit reranker and authorizes a
+		// strategy override.
 		ctx = internalrouting.WithRoutingEvaluation(ctx)
-	} else {
-		ctx = internalrouting.WithBackgroundEvaluationProvider(ctx, suite.GetProviderId())
 	}
+	// A provider-owned suite is evaluated through the ordinary ranked path:
+	// automatic provider selection plus cross-provider reranking. Narrowing it
+	// to the provider (background marker) or bypassing the reranker would
+	// report a provider-sorted group concatenation as "retrieval recall",
+	// which is not the unified list an agent actually receives.
 	cases := suite.GetCases()
 	results := make([]*evalv1.CaseResult, len(cases))
 	latencies := make([]int64, len(cases))
@@ -207,9 +213,10 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 			}
 		}
 	}
-	if run.Config.GetSelectorLeg() == "unknown" && suite.GetSuiteId() != RouterSuiteID {
-		run.Config.SelectorLeg = "background_provider"
-	}
+	// A provider-owned federated run now exercises the ordinary ranked path, so
+	// the selector leg is whatever the live response reported (already copied
+	// from the per-case observations above). Do not fabricate a
+	// "background_provider" label that would describe a route this run did not take.
 	run.Results = results
 	run.Aggregate = aggregate(suite, results, latencies)
 	run.UnavailableCases = unavailable

@@ -2,6 +2,8 @@ package orchestration_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +16,7 @@ import (
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
 )
@@ -62,6 +65,63 @@ func newParkableRun(t *testing.T, ctx context.Context, svc *orchestration.Orches
 	return run
 }
 
+type parkedCurrentDenyResolver struct{}
+
+func (parkedCurrentDenyResolver) Resolve(_ context.Context, runnerType domain.RunnerType, role string) (rolepolicy.ResolvedRole, error) {
+	return rolepolicy.ResolvedRole{Runner: runnerType, Role: role, Model: "allowed-model", ExcludedModels: []string{"blocked-model"}}, nil
+}
+
+func TestWakeRunRejectsCurrentModelExclusionBeforeClearingAwaitHandle(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	continued := atomic.Int32{}
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued.Add(1)
+		return &runner.ExecuteResult{Success: true}, nil
+	}
+	if err := registry.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	rolePath := filepath.Join(t.TempDir(), "role-policy.json")
+	const catalog = `{"schemaVersion":1,"metadata":{"catalogId":"park-current-deny","updatedAt":"2026-07-13"},"defaultRole":"code.default","roles":{"code.default":{"description":"test","intent":"test","candidates":[{"runner":"claude-code","resourceRole":"code.default"}]}}}`
+	if err := os.WriteFile(rolePath, []byte(catalog), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	state, err := rolepolicy.NewState(rolePath, rolepolicy.Requirement{Required: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(registry),
+		orchestration.WithRolePolicyState(state, parkedCurrentDenyResolver{}),
+		orchestration.WithRunStateRoot(t.TempDir()))
+	run := newParkableRun(t, ctx, svc, repos)
+	run.ResolvedConfig = &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode, RoleRef: "code.default", Model: "blocked-model"}
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "current-deny"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.WakeRun(ctx, orchestration.WakeRunInput{RunID: run.ID, Result: "must not wake"}); err == nil || !domain.IsPreEffectRefusal(err) || !strings.Contains(err.Error(), "excluded") {
+		t.Fatalf("current deny wake error = %v", err)
+	}
+	retained, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retained.Status != domain.RunStatusParked || retained.AwaitHandle == nil {
+		t.Fatalf("rejected wake mutated parked run: status=%s handle=%v", retained.Status, retained.AwaitHandle)
+	}
+	if continued.Load() != 0 {
+		t.Fatal("current deny wake reached runner continuation")
+	}
+}
+
 // TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat is the Phase 2
 // round-trip anchor: running→parked records an await-handle (sandbox/identity
 // untouched, never revoked); parked→running (wake) clears the handle, injects
@@ -94,6 +154,7 @@ func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 		orchestration.WithIdentitySecret(identitySecret),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithMaintenanceGate(gate),
+		newTestRolePolicyOption(t),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
@@ -205,6 +266,7 @@ func TestWakeRun_Timeout_TypedResult(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
@@ -316,6 +378,7 @@ func TestWakeRun_ConcurrentNotificationsStartOneContinuation(t *testing.T) {
 		orchestration.WithEvents(eventStore),
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 	run := newParkableRun(t, ctx, svc, repos)
 	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: "test-genie", Key: "run-concurrent"}); err != nil {

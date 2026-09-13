@@ -82,3 +82,18 @@ func TestValidateEventsCountsTypedWarningsWithoutRejectingEvents(t *testing.T) {
 	ValidateEvent(&RunEvent{EventType: EventTypeMetric, Data: &MetricEventData{}})
 	ValidateEvent(&RunEvent{EventType: EventTypeMetric, Data: &MessageEventData{}})
 }
+
+func TestValidateEventsDoesNotCountHealthyQuotaObservationAsError(t *testing.T) {
+	percent := 42.5
+	stats := ValidateEvents([]*RunEvent{{EventType: EventTypeError, Data: &RateLimitEventData{
+		Provider: "openai", Pool: "primary", UsedPercent: &percent, WindowMinutes: 300,
+	}}})
+	if stats.ErrorCount != 0 {
+		t.Fatalf("healthy quota observation inflated errors: %+v", stats)
+	}
+	exhausted := 100.0
+	stats = ValidateEvents([]*RunEvent{{EventType: EventTypeError, Data: &RateLimitEventData{Provider: "openai", Pool: "primary", UsedPercent: &exhausted}}})
+	if stats.ErrorCount != 1 {
+		t.Fatalf("exhausted quota event lost error classification: %+v", stats)
+	}
+}

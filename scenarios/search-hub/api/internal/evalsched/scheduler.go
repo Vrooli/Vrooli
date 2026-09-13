@@ -28,14 +28,26 @@ const (
 	// DefaultCaseTimeout bounds one provider call. It is intentionally separate
 	// from the run budget: a ten-case suite must not be canceled after its first
 	// slow-but-valid query.
-	DefaultCaseTimeout   = 5 * time.Second
-	DefaultRunOverhead   = 10 * time.Second
-	DefaultStartupDelay  = 30 * time.Second
-	DefaultStartupJitter = 15 * time.Second
+	DefaultCaseTimeout = 5 * time.Second
+	// DefaultFederatedCaseTimeout bounds one federated case. A federated case
+	// runs the ordinary automatic-classification + fan-out + optional rerank
+	// path, whose warm p95 exceeds the provider-direct provider-call budget.
+	// Using the provider budget here made scheduled federated runs record
+	// no_result for most cases and degrade the integration signal, so the
+	// federated tier keeps its own wider budget (matching eval's
+	// defaultFederatedCaseTimeout).
+	DefaultFederatedCaseTimeout = 30 * time.Second
+	DefaultRunOverhead          = 10 * time.Second
+	DefaultStartupDelay         = 30 * time.Second
+	DefaultStartupJitter        = 15 * time.Second
 	// DefaultValidationCadence keeps label drift visible inside the eval
 	// freshness window without probing providers on every scheduler tick.
 	DefaultValidationCadence = 24 * time.Hour
 	schedulerRunTag          = "scheduler"
+	// Tier identifiers are shared by the tick, the run budget and the case
+	// timeout selection so a tier cannot silently receive the wrong budget.
+	directTier    = "provider_direct"
+	federatedTier = "federated"
 )
 
 type SuiteSource interface {
@@ -67,7 +79,11 @@ type Options struct {
 	Concurrency       int
 	CaseLimit         int32
 	CaseTimeout       time.Duration
-	RunTimeout        time.Duration
+	// FederatedCaseTimeout is the per-case budget for the federated tier. It is
+	// intentionally larger than CaseTimeout because the federated path runs the
+	// ordinary routed query rather than a single provider call.
+	FederatedCaseTimeout time.Duration
+	RunTimeout           time.Duration
 	// TierTimeout is retained as a source-compatible alias for operators that
 	// already set SEARCH_HUB_EVAL_SCHEDULER_TIMEOUT; it now means per-case.
 	TierTimeout   time.Duration
@@ -97,8 +113,8 @@ func (o Options) withDefaults() Options {
 	if o.CaseTimeout <= 0 {
 		o.CaseTimeout = DefaultCaseTimeout
 	}
-	if o.RunTimeout <= 0 {
-		o.RunTimeout = o.CaseTimeout*time.Duration(o.CaseLimit) + DefaultRunOverhead
+	if o.FederatedCaseTimeout <= 0 {
+		o.FederatedCaseTimeout = DefaultFederatedCaseTimeout
 	}
 	if o.StartupDelay < 0 {
 		o.StartupDelay = 0
@@ -162,6 +178,11 @@ func OptionsFromEnv(logger *log.Logger) Options {
 			o.CaseTimeout = value
 		}
 	}
+	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_FEDERATED_TIMEOUT"); raw != "" {
+		if value, err := time.ParseDuration(raw); err == nil {
+			o.FederatedCaseTimeout = value
+		}
+	}
 	if raw := os.Getenv("SEARCH_HUB_EVAL_SCHEDULER_STARTUP_DELAY"); raw != "" {
 		if value, err := time.ParseDuration(raw); err == nil {
 			o.StartupDelay = value
@@ -173,6 +194,26 @@ func OptionsFromEnv(logger *log.Logger) Options {
 		}
 	}
 	return o.withDefaults()
+}
+
+// caseTimeoutFor selects the per-case budget for one tier. The federated tier
+// owns the ordinary routed query and gets FederatedCaseTimeout; every other
+// tier keeps the provider-call CaseTimeout.
+func (o Options) caseTimeoutFor(tier string) time.Duration {
+	if tier == federatedTier && o.FederatedCaseTimeout > 0 {
+		return o.FederatedCaseTimeout
+	}
+	return o.CaseTimeout
+}
+
+// runBudgetFor derives a tier's run budget from its own case timeout so a wide
+// federated budget is not capped by the provider-direct run budget (or vice
+// versa). An explicitly configured RunTimeout still overrides both tiers.
+func (o Options) runBudgetFor(tier string) time.Duration {
+	if o.RunTimeout > 0 {
+		return o.RunTimeout
+	}
+	return o.caseTimeoutFor(tier)*time.Duration(o.CaseLimit) + DefaultRunOverhead
 }
 
 type Scheduler struct {
@@ -245,8 +286,8 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 				s.validateCorpus(ctx, suite, now)
 			}
 			if evalDue {
-				s.runTier(ctx, s.direct, suite, "provider_direct")
-				s.runTier(ctx, s.federated, suite, "federated")
+				s.runTier(ctx, s.direct, suite, directTier)
+				s.runTier(ctx, s.federated, suite, federatedTier)
 			}
 		}(suite, evalDue, validationDue)
 	}
@@ -296,13 +337,11 @@ func (s *Scheduler) runTier(ctx context.Context, runner TierRunner, suite *evalv
 	if runner == nil {
 		return
 	}
-	runBudget := s.opts.RunTimeout
-	if runBudget <= 0 {
-		runBudget = s.opts.CaseTimeout*time.Duration(s.opts.CaseLimit) + DefaultRunOverhead
-	}
+	caseTimeout := s.opts.caseTimeoutFor(tier)
+	runBudget := s.opts.runBudgetFor(tier)
 	tierCtx, cancel := context.WithTimeout(ctx, runBudget)
 	defer cancel()
-	run, err := runner.Run(internaleval.WithCaseTimeout(tierCtx, s.opts.CaseTimeout), suite, schedulerRunTag+":"+tier, s.opts.CaseLimit)
+	run, err := runner.Run(internaleval.WithCaseTimeout(tierCtx, caseTimeout), suite, schedulerRunTag+":"+tier, s.opts.CaseLimit)
 	if err != nil {
 		s.opts.Logger.Printf("eval scheduler: suite %q tier %s failed: %v", suite.GetSuiteId(), tier, err)
 		s.persistDegraded(ctx, suite, tier, err)

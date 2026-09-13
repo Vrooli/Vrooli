@@ -893,6 +893,7 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 
 	t.Run("rate limit", func(t *testing.T) {
 		reset := now.Add(2 * time.Minute)
+		usedPercent := 42.5
 		event := &domain.RunEvent{
 			ID:        uuid.New(),
 			RunID:     runID,
@@ -900,12 +901,17 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 			Timestamp: now,
 			Sequence:  6,
 			Data: &domain.RateLimitEventData{
-				LimitType:   "daily",
-				ResetTime:   &reset,
-				RetryAfter:  120,
-				CurrentUsed: 10,
-				Limit:       12,
-				Message:     "rate limited",
+				LimitType:     "daily",
+				ResetTime:     &reset,
+				RetryAfter:    120,
+				CurrentUsed:   10,
+				Limit:         12,
+				Message:       "rate limited",
+				Provider:      "openai",
+				Pool:          "primary",
+				UsedPercent:   &usedPercent,
+				WindowMinutes: 300,
+				Provenance:    "codex:event_msg.token_count.rate_limits",
 			},
 		}
 		proto := RunEventToProto(event)
@@ -915,6 +921,9 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 		}
 		if payload.ResetTime == nil || !payload.ResetTime.AsTime().Equal(reset) {
 			t.Errorf("ResetTime: expected %v, got %v", reset, payload.ResetTime)
+		}
+		if payload.Provider != "openai" || payload.Pool != "primary" || payload.UsedPercent == nil || *payload.UsedPercent != usedPercent || payload.WindowMinutes != 300 || payload.Provenance == "" {
+			t.Fatalf("quota metadata was not preserved: %+v", payload)
 		}
 	})
 

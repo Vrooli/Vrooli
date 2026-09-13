@@ -200,9 +200,14 @@ func (h *Handler) ResolveNextActionWith(ctx context.Context, item BacklogItem, i
 	for _, blocker := range blockers {
 		switch nextaction.ActionForBlocker(blocker.Code) {
 		case nextaction.AcceptPlan:
-			return nextAction(NextActionAcceptPlan, "Plan", "Accept plan", true, firstBlocker(blockers), blockers, "plan_accept"), nil
+			// A stale acceptance still exists on the item, so "Accept plan" would
+			// read as already done; say that the operator is renewing it.
+			if blocker.Code == string(nextaction.PlanChanged) {
+				return nextAction(NextActionAcceptPlan, "Re-accept", "Re-accept changed plan", true, blocker.Message, blockers, "plan_accept"), nil
+			}
+			return nextAction(NextActionAcceptPlan, "Accept plan", "Accept plan", true, firstBlocker(blockers), blockers, "plan_accept"), nil
 		case nextaction.RepairPlan:
-			return nextAction(NextActionRepairPlan, "Plan", "Repair plan", true, firstBlocker(blockers), blockers, "plan_repair"), nil
+			return nextAction(NextActionRepairPlan, "Repair plan", "Repair plan", true, firstBlocker(blockers), blockers, "plan_repair"), nil
 		case nextaction.ResolveDependencies:
 			return nextAction(NextActionResolveDependencies, "Blocked", "Resolve dependencies", true, firstBlocker(blockers), blockers, "dependencies"), nil
 		}
@@ -224,8 +229,10 @@ func preflightSpec(item BacklogItem) execution.PreflightSpec {
 		AcceptanceDeny:     item.AcceptanceDeny,
 		Creates:            item.Creates,
 		ArchivedAt:         item.ArchivedAt,
-		ExecutionMode:  item.ExecutionMode,
+		ExecutionMode:      item.ExecutionMode,
 		ExecutionLimits:    item.ExecutionLimits.Clone(),
+		Continuation:       item.Continuation,
+		ScopePolicy:        item.ScopePolicy,
 	}
 	if item.PlanRef != nil {
 		spec.PlanRef = &execution.PlanRefSpec{Provider: item.PlanRef.Provider, PlanID: item.PlanRef.PlanID, Slug: item.PlanRef.Slug, Role: item.PlanRef.Role}

@@ -12,16 +12,29 @@ import (
 	"prompt-manager/handlers/transportbridge"
 	graphdomain "prompt-manager/internal/graph"
 	domain "prompt-manager/internal/memberflow"
+	objectivesdomain "prompt-manager/internal/objectives"
 )
 
 type connectHandler struct {
 	memberflowconnect.UnimplementedMemberflowServiceHandler
 	legacy *domain.Handlers
 	graph  *graphdomain.Handlers
+	// objectives is the single objective authority. The coverage read uses it
+	// instead of the retired parser + team.json join. repoRoot and storeDir
+	// locate the retained operator declarations, used only for drift context.
+	objectives *objectivesdomain.Service
+	repoRoot   string
+	storeDir   string
 }
 
-func NewConnectMount(legacy *domain.Handlers, graph *graphdomain.Handlers) (string, http.Handler) {
-	return memberflowconnect.NewMemberflowServiceHandler(&connectHandler{legacy: legacy, graph: graph})
+func NewConnectMount(legacy *domain.Handlers, graph *graphdomain.Handlers, objectives *objectivesdomain.Service, repoRoot, storeDir string) (string, http.Handler) {
+	return memberflowconnect.NewMemberflowServiceHandler(&connectHandler{
+		legacy:     legacy,
+		graph:      graph,
+		objectives: objectives,
+		repoRoot:   repoRoot,
+		storeDir:   storeDir,
+	})
 }
 
 func (h *connectHandler) GetMemberTopics(ctx context.Context, req *connect.Request[memberflowv1.MemberRequest]) (*connect.Response[memberflowv1.JsonResponse], error) {
@@ -45,7 +58,7 @@ func (h *connectHandler) GetRules(ctx context.Context, req *connect.Request[memb
 }
 
 func (h *connectHandler) GetObjectives(ctx context.Context, req *connect.Request[memberflowv1.EmptyRequest]) (*connect.Response[memberflowv1.JsonResponse], error) {
-	return invokeSimple(ctx, req.Header(), h.legacy.GetObjectives, "/objectives")
+	return invokeSimple(ctx, req.Header(), h.serveObjectiveCoverage, "/objectives")
 }
 
 func (h *connectHandler) GetOrientationCost(ctx context.Context, req *connect.Request[memberflowv1.EmptyRequest]) (*connect.Response[memberflowv1.JsonResponse], error) {

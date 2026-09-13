@@ -12,8 +12,13 @@ const (
 	LifetimeFinite           = "finite"
 )
 
-// ObjectiveDeclaration is the `objectivesServed` block on a team.json —
-// the upward half of the join.
+// ObjectiveDeclaration is the `objectivesServed` block on a team.json.
+//
+// It is an authored import and declaration input, not a current-state
+// authority. The objective authority (internal/objectives) owns current
+// objective state; this block only carries the team's declaration and its
+// acknowledged revision for migration and drift comparison. Do not read it
+// as the source of current coverage.
 type ObjectiveDeclaration struct {
 	ID       string `json:"id"`
 	Role     string `json:"role,omitempty"`

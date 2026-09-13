@@ -11,6 +11,7 @@ import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
 import { planWorkshopService } from "../../services/plan-workshop-service";
 import type { BacklogKind } from "../../types";
+import type { BacklogNextAction } from "../../services/backlog/types";
 import { useModalBehavior } from "../../hooks/useModalBehavior";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
@@ -25,7 +26,16 @@ export interface PlanPanelProps {
   onAuthorPlan?: () => void;
   authorPlanPending?: boolean;
   authorPlanError?: string | null;
+  /**
+   * The server's readiness verdict. A recorded acceptance is not proof that it
+   * is current: when the plan or work contract changed since, the server asks
+   * for accept_plan while the item still carries the old acceptance.
+   */
+  nextAction?: BacklogNextAction | null;
 }
+
+// Plan Manager reports a healthy plan as "pass"; only other verdicts warrant a warning.
+const HEALTHY_QUALITY = new Set(["pass", "clean"]);
 
 const TOC_ITEM_STYLES: Record<number, string> = {
   1: "pl-3 font-medium text-slate-200",
@@ -40,6 +50,7 @@ export function PlanPanel({
   onAuthorPlan,
   authorPlanPending = false,
   authorPlanError,
+  nextAction,
 }: PlanPanelProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
@@ -79,6 +90,8 @@ export function PlanPanel({
   const refreshAcceptance = () => {
     void itemQuery.refetch();
     void queryClient.invalidateQueries({ queryKey: ["backlog-item", backlogKind, backlogName] });
+    // The header CTA is the server's next action; it must move with acceptance.
+    void queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, backlogName, "next-action"] });
   };
   // These report through the panel's own status line, which stays visible
   // beside the plan; a toast would restate the same event out of context.
@@ -110,6 +123,8 @@ export function PlanPanel({
     onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to start plan review.")),
   });
   const accepted = itemQuery.data?.planAcceptance;
+  const acceptanceStale = Boolean(accepted) && nextAction?.id === "accept_plan";
+  const acceptanceCurrent = Boolean(accepted) && !acceptanceStale;
 
   const handleCopy = useCallback(async () => {
     if (!markdown) return;
@@ -205,7 +220,7 @@ export function PlanPanel({
 
         <div className="min-w-0 flex-1 truncate text-xs text-slate-500">{data?.path}</div>
 
-        {accepted ? (
+        {accepted && acceptanceCurrent ? (
           <span className="hidden text-xs text-emerald-300 sm:inline">Accepted {new Date(accepted.acceptedAt).toLocaleDateString()}</span>
         ) : null}
 
@@ -213,10 +228,14 @@ export function PlanPanel({
           variant="outline"
           size="sm"
           disabled={accept.isPending || unaccept.isPending}
-          title={accepted ? "Clear the recorded acceptance before changing queue readiness" : "Accept this exact canonical plan revision"}
-          onClick={() => accepted ? unaccept.mutate() : accept.mutate()}
+          title={acceptanceCurrent
+            ? "Clear the recorded acceptance before changing queue readiness"
+            : acceptanceStale
+              ? "Accept the current plan revision and work contract, replacing the out-of-date acceptance"
+              : "Accept this exact canonical plan revision"}
+          onClick={() => acceptanceCurrent ? unaccept.mutate() : accept.mutate()}
         >
-          {accept.isPending || unaccept.isPending ? "Saving…" : accepted ? "Un-accept" : "Accept plan"}
+          {accept.isPending || unaccept.isPending ? "Saving…" : acceptanceCurrent ? "Un-accept" : acceptanceStale ? "Re-accept" : "Accept plan"}
         </Button>
 
         <Button
@@ -254,7 +273,14 @@ export function PlanPanel({
         </Button>
       </div>
 
-      {data?.qualityStatus && data.qualityStatus !== "clean" && (
+      {acceptanceStale && (
+        <p className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200" role="status">
+          <span className="font-medium">Acceptance out of date.</span>{" "}
+          {nextAction?.reason ?? "The plan or work contract changed after it was accepted."}
+        </p>
+      )}
+
+      {data?.qualityStatus && !HEALTHY_QUALITY.has(data.qualityStatus) && (
         <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200">
           <span className="font-medium">Plan quality: {data.qualityStatus}</span>
           {data.qualityFindings && data.qualityFindings.length > 0 && (

@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod'
+import { ProtoBoolDefaultFalseSchema, ProtoInt64Schema } from './common.schema'
 
 const nullableStringArray = z
   .array(z.string())
@@ -217,8 +218,8 @@ export type SetRolesRequest = z.infer<typeof SetRolesRequestSchema>
 
 export const TeamSharedFileEntrySchema = z.object({
   path: z.string(),
-  isDir: z.boolean(),
-  size: z.number().int().nonnegative().optional(),
+  isDir: ProtoBoolDefaultFalseSchema,
+  size: ProtoInt64Schema.pipe(z.number().int().nonnegative()).optional(),
 })
 export type TeamSharedFileEntry = z.infer<typeof TeamSharedFileEntrySchema>
 

@@ -630,3 +630,53 @@ func TestCancelledExecutionIsDurableAndTerminal(t *testing.T) {
 		}
 	}
 }
+
+func TestExportWithoutWorkflowReadsBack(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "ExportParent", FolderPath: "/exports", Version: 1}); err != nil {
+		t.Fatal(err)
+	}
+	exec := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusCompleted, StartedAt: time.Now().UTC()}
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatal(err)
+	}
+
+	size := int64(969455)
+	export := &ExportIndex{
+		ExecutionID:   exec.ID,
+		WorkflowID:    nil,
+		Name:          "Adhoc export without workflow",
+		Format:        "mp4",
+		StorageURL:    "/api/v1/recordings/assets/adhoc/artifacts/videos/demo.mp4",
+		FileSizeBytes: &size,
+		Status:        "completed",
+	}
+	if err := repo.CreateExport(ctx, export); err != nil {
+		t.Fatalf("CreateExport: %v", err)
+	}
+
+	got, err := repo.GetExport(ctx, export.ID)
+	if err != nil {
+		t.Fatalf("GetExport with nil workflow: %v", err)
+	}
+	if got.WorkflowName != "" {
+		t.Fatalf("expected empty workflow name, got %q", got.WorkflowName)
+	}
+
+	list, err := repo.ListExports(ctx, 10, 0)
+	if err != nil {
+		t.Fatalf("ListExports with nil workflow: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 export, got %d", len(list))
+	}
+
+	if err := repo.DeleteExport(ctx, export.ID); err != nil {
+		t.Fatalf("DeleteExport with nil workflow: %v", err)
+	}
+}

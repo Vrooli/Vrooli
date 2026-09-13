@@ -2,4 +2,4 @@
 
 
 def pending(required, observed):
-    return [name for name in required if not observed.get(name, False)]
+    return [name for name in required if name in observed and not observed[name]]

@@ -11,6 +11,7 @@
  * - Graceful handling of validation errors
  */
 
+import { Code, ConnectError } from '@connectrpc/connect'
 import { api } from '@/lib/api'
 import { createCacheManager } from '@/lib/cache'
 import { ValidationError } from '@/lib/schemas'
@@ -131,6 +132,64 @@ export async function getAgentSoul(agentId: string): Promise<string> {
  */
 export async function setAgentSoul(agentId: string, content: string): Promise<void> {
   await api.setAgentSoul(agentId, content)
+}
+
+/**
+ * Distinct failure reasons the Files tab can present for a file request.
+ * `empty` is a successful response with zero entries and is not an error.
+ */
+export type AgentFilesErrorKind = 'missing' | 'denied' | 'unavailable'
+
+export interface AgentFilesError {
+  kind: AgentFilesErrorKind
+  /** Short heading shown in the Files sidebar. */
+  title: string
+  /** Human-readable, non-technical explanation. */
+  description: string
+}
+
+/**
+ * Classify a file-request failure at the transport boundary so the UI can show
+ * an accurate state (missing / denied / unavailable) instead of one generic
+ * "Unable to load files" message for every cause.
+ */
+export function classifyAgentFilesError(error: unknown): AgentFilesError {
+  if (error instanceof ConnectError) {
+    switch (error.code) {
+      case Code.NotFound:
+        return {
+          kind: 'missing',
+          title: 'Agent not found',
+          description: 'This agent is missing or was removed, so its files cannot be shown.',
+        }
+      case Code.PermissionDenied:
+      case Code.Unauthenticated:
+        return {
+          kind: 'denied',
+          title: 'Files access denied',
+          description: 'You do not have permission to view this agent\u2019s files.',
+        }
+      case Code.Unavailable:
+      case Code.DeadlineExceeded:
+        return {
+          kind: 'unavailable',
+          title: 'Files unavailable',
+          description: 'The server is unreachable. Check that the API is running and try again.',
+        }
+    }
+  }
+  if (error instanceof ValidationError) {
+    return {
+      kind: 'unavailable',
+      title: 'Files unavailable',
+      description: 'The server returned an unexpected files response. Retry or check the API version.',
+    }
+  }
+  return {
+    kind: 'unavailable',
+    title: 'Unable to load files',
+    description: 'Check the API server and try again.',
+  }
 }
 
 /**

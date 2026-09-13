@@ -29,10 +29,20 @@ type ExecutionResult struct {
 }
 
 // TeamExecStoreRegistrar is the subset of TeamExecutionStore that Executor
-// needs to register a RunID for an in-flight running entry. Kept as an
-// interface so tests can inject a fake without depending on the full store.
+// needs to keep a member's durable execution obligation in step with owner
+// dispatch. Kept as an interface so tests can inject a fake without depending
+// on the full store.
 type TeamExecStoreRegistrar interface {
+	// BeginDispatch persists the dispatch intent (including its idempotency
+	// key and owner request essentials) before the owner start request, so a
+	// crash mid-dispatch recovers as a visible, replayable obligation rather
+	// than a silently free slot.
+	BeginDispatch(teamID, agentID string, intent DispatchIntent)
+	// SetRunningRunID binds a confirmed run identity, clearing uncertainty.
 	SetRunningRunID(teamID, agentID, runID string)
+	// MarkDispatchUncertain retains the slot when the owner may have accepted
+	// a run that the caller cannot confirm.
+	MarkDispatchUncertain(teamID, agentID, reason string)
 }
 
 // Executor handles the actual execution of heartbeats
@@ -156,6 +166,17 @@ func (e *Executor) SetContractFindingsProvider(provider ContractFindingsProvider
 		return
 	}
 	e.promptBuilder.SetContractFindingsProvider(provider)
+}
+
+// SetTeamObjectiveProvider forwards the canonical objective-authority read to
+// the executor's prompt builder. This is the builder that produces the prompt an
+// agent is spawned with and the one `team prompt-preview` renders, so wiring it
+// here keeps preview and runtime identity in agreement.
+func (e *Executor) SetTeamObjectiveProvider(provider TeamObjectiveProvider) {
+	if e == nil || e.promptBuilder == nil {
+		return
+	}
+	e.promptBuilder.SetTeamObjectiveProvider(provider)
 }
 
 // NewExecutor creates a new heartbeat executor
@@ -326,23 +347,50 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// docs/agent-system/RUNTIME_ATTRIBUTION.md § Env-var bridge).
 	runTag := fmt.Sprintf("heartbeat-%s-%s-%s", teamID, agentID, timestamp)
 	attribKey, attribValue := buildHeartbeatAttributionEnv(teamID, agentID)
+	// The idempotency key is derived from the durable dispatch attempt, so a
+	// replayed create after an uncertain response resolves to the same run
+	// instead of starting a second one.
+	dispatchKey := fmt.Sprintf("prompt-manager-heartbeat:%s:%s:%s", teamID, agentID, attemptID)
 	runReq := &CreateRunRequest{
 		TaskID: createdTask.ID,
 		ProfileRef: &ProfileRef{
 			ProfileKey: profileKey,
 		},
-		Tag: &runTag,
+		Tag:            &runTag,
+		IdempotencyKey: dispatchKey,
 		Environment: map[string]string{
 			attribKey: attribValue,
 		},
 	}
 
+	// Persist the dispatch intent before the owner start request. If the
+	// process dies between here and the response, recovery sees an obligation
+	// (with the idempotency key) instead of a free slot.
+	if e.teamExecStore != nil {
+		e.teamExecStore.BeginDispatch(teamID, agentID, DispatchIntent{
+			IdempotencyKey: dispatchKey,
+			TaskID:         createdTask.ID,
+			RunTag:         runTag,
+		})
+	}
+
 	run, err := e.agentClient.CreateRun(ctx, runReq)
 	if err != nil {
-		if cancelErr := e.agentClient.CancelTask(ctx, createdTask.ID); cancelErr != nil {
-			log.Printf("Warning: failed to cancel orphaned heartbeat task %s: %v", createdTask.ID, cancelErr)
-		} else if deleteErr := e.agentClient.DeleteTask(ctx, createdTask.ID); deleteErr != nil {
-			log.Printf("Warning: failed to delete cancelled heartbeat task %s: %v", createdTask.ID, deleteErr)
+		if IsDispatchUncertain(err) {
+			// The owner may have accepted the run. Do not cancel the task and
+			// do not release the slot: retain a visible, recoverable obligation.
+			log.Printf("heartbeat dispatch outcome uncertain for %s/%s (task %s, key %s): %v", teamID, agentID, createdTask.ID, dispatchKey, err)
+			if e.teamExecStore != nil {
+				e.teamExecStore.MarkDispatchUncertain(teamID, agentID, err.Error())
+			}
+		} else {
+			// Definitive refusal: no run was accepted, so the orphaned task is
+			// safe to cancel and the slot is safe to release.
+			if cancelErr := e.agentClient.CancelTask(ctx, createdTask.ID); cancelErr != nil {
+				log.Printf("Warning: failed to cancel orphaned heartbeat task %s: %v", createdTask.ID, cancelErr)
+			} else if deleteErr := e.agentClient.DeleteTask(ctx, createdTask.ID); deleteErr != nil {
+				log.Printf("Warning: failed to delete cancelled heartbeat task %s: %v", createdTask.ID, deleteErr)
+			}
 		}
 		result.Error = fmt.Errorf("creating run: %w", err)
 		result.Status = store.HeartbeatStatusFailed
@@ -400,6 +448,44 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	result.Status = store.HeartbeatStatusRunning
 	return result, nil
+}
+
+// WatchRecoveredRun re-attaches a completion waiter to a run that was not
+// created in this process. It is used after Recover binds a retained uncertain
+// dispatch to its confirmed owner run: without a waiter, the recovered
+// obligation would hold its slot even after the owner reports terminal state.
+//
+// The waiter is the same path a live dispatch uses, so a recovered run is
+// released (via OnComplete) exactly like a run started by Execute.
+func (e *Executor) WatchRecoveredRun(teamID, agentID, runID, profileKey, taskID, runTag string) {
+	if e.agentClient == nil || e.teamStore == nil || runID == "" {
+		return
+	}
+	startedAt := time.Now().UTC()
+	attemptID := uuid.NewString()
+	cfgCtx := context.Background()
+	logPath := e.teamStore.GetMemberLogPathForContext(cfgCtx, teamID, agentID, startedAt.Format("2006-01-02T15-04-05Z"))
+	timeout := 30 * time.Minute
+	if cfg, err := e.teamStore.GetHeartbeatConfig(cfgCtx, teamID, agentID); err == nil && cfg != nil {
+		timeout = cfg.EffectiveTimeout()
+	}
+
+	waitCtx, waitCancel := context.WithCancel(context.Background())
+	if e.runRegistry != nil {
+		e.runRegistry.Register(teamID, agentID, runID, startedAt, waitCancel)
+	}
+	waiterID, started := e.trackWaiter(waitCancel)
+	if !started {
+		waitCancel()
+		return
+	}
+	e.inflight.Add(1)
+	go func() {
+		defer e.inflight.Done()
+		defer e.releaseWaiter(waiterID)
+		defer waitCancel()
+		e.waitForCompletion(waitCtx, teamID, agentID, runID, attemptID, profileKey, taskID, runTag, startedAt, logPath, timeout)
+	}()
 }
 
 // BuildContext constructs team/agent context for external consumption.

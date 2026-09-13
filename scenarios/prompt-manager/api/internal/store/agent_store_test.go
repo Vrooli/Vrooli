@@ -93,6 +93,58 @@ func TestRenameFileUpdatesFileOrder(t *testing.T) {
 	}
 }
 
+// TestListFilesIsScopedToTheRequestedAgentAcrossAgentBoundary guards R27's
+// "another agent or team's files never appear" acceptance: the listing for one
+// agent must never surface files owned by a sibling agent, and path traversal
+// beyond the agent folder must be rejected.
+func TestListFilesIsScopedToTheRequestedAgentAcrossAgentBoundary(t *testing.T) {
+	ctx := context.Background()
+	agentStore := NewFileAgentStore(t.TempDir())
+
+	for _, id := range []string{"agent-a", "agent-b"} {
+		if err := agentStore.Create(ctx, &Agent{ID: id, DisplayName: id, Status: AgentStatusActive}); err != nil {
+			t.Fatalf("create %s: %v", id, err)
+		}
+	}
+	if err := agentStore.CreateFile(ctx, "agent-a", "a-only.md", "a", false); err != nil {
+		t.Fatalf("create agent-a file: %v", err)
+	}
+	if err := agentStore.CreateFile(ctx, "agent-b", "b-only.md", "b", false); err != nil {
+		t.Fatalf("create agent-b file: %v", err)
+	}
+
+	entries, err := agentStore.ListFiles(ctx, "agent-a")
+	if err != nil {
+		t.Fatalf("list agent-a files: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.Contains(entry.Path, "b-only") {
+			t.Fatalf("agent-a listing leaked agent-b file: %#v", entries)
+		}
+	}
+	found := false
+	for _, entry := range entries {
+		if entry.Path == "a-only.md" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("agent-a listing did not include its own file: %#v", entries)
+	}
+
+	if _, err := agentStore.ReadFile(ctx, "agent-a", "../agent-b/b-only.md"); err == nil {
+		t.Fatalf("expected cross-agent traversal to be rejected")
+	} else if !strings.Contains(err.Error(), "invalid path") {
+		t.Fatalf("expected invalid path error, got: %v", err)
+	}
+
+	if _, err := agentStore.ListFiles(ctx, "missing-agent"); err == nil {
+		t.Fatalf("expected missing agent to return an error")
+	} else if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not-found error, got: %v", err)
+	}
+}
+
 func TestRenameFileRemovesNonMarkdownFromFileOrder(t *testing.T) {
 	ctx := context.Background()
 	storeDir := t.TempDir()

@@ -64,16 +64,18 @@ type ModelHealthReporter = phases.ModelHealthReporter
 // functions. Phase logic does not live here.
 type RunExecutor struct {
 	// Dependencies
-	runs              repository.RunRepository
-	runners           runner.Registry
-	sandbox           sandbox.Provider
-	events            event.Store
-	checkpoints       repository.CheckpointRepository
-	broadcaster       phases.EventBroadcaster
-	workspaceSandbox  phases.WorkspaceSandboxEnsurer
-	modelHealth       ModelHealthReporter
-	structuredResults phases.StructuredResultResolver
-	clock             func() time.Time
+	runs                   repository.RunRepository
+	runners                runner.Registry
+	sandbox                sandbox.Provider
+	events                 event.Store
+	checkpoints            repository.CheckpointRepository
+	broadcaster            phases.EventBroadcaster
+	workspaceSandbox       phases.WorkspaceSandboxEnsurer
+	modelHealth            ModelHealthReporter
+	structuredResults      phases.StructuredResultResolver
+	currentModelExclusions map[domain.RunnerType][]string
+	currentModelAdmission  func(context.Context, domain.ExecutionCandidate, string) (bool, error)
+	clock                  func() time.Time
 
 	// Configuration
 	levers config.Levers
@@ -213,6 +215,22 @@ func (e *RunExecutor) WithModelHealthReporter(reporter ModelHealthReporter) *Run
 
 func (e *RunExecutor) WithStructuredResultResolver(resolver phases.StructuredResultResolver) *RunExecutor {
 	e.structuredResults = resolver
+	return e
+}
+
+// WithCurrentModelExclusions supplies the current resource deny overlay read
+// during retained-run admission. It supplements, and never rewrites, the run
+// snapshot used for historical receipts.
+func (e *RunExecutor) WithCurrentModelExclusions(exclusions map[domain.RunnerType][]string) *RunExecutor {
+	e.currentModelExclusions = make(map[domain.RunnerType][]string, len(exclusions))
+	for runnerType, models := range exclusions {
+		e.currentModelExclusions[runnerType] = append([]string(nil), models...)
+	}
+	return e
+}
+
+func (e *RunExecutor) WithCurrentModelAdmission(admission func(context.Context, domain.ExecutionCandidate, string) (bool, error)) *RunExecutor {
+	e.currentModelAdmission = admission
 	return e
 }
 
@@ -463,6 +481,8 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	defer eventSink.Close()
 
 	out := phases.ExecuteWithModelFallback(execCtx, phases.ExecuteWithModelFallbackInput{
+		CurrentModelExclusions: e.currentModelExclusions,
+		CurrentModelAdmission:  e.currentModelAdmission,
 		ExecuteAgentInput: phases.ExecuteAgentInput{
 			Deps:          e.deps(),
 			Run:           e.run,

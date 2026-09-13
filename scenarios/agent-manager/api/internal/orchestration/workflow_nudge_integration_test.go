@@ -122,7 +122,7 @@ func newRelayOrchestrator(t *testing.T, launcher *fakeRunLauncher) (*Orchestrato
 		t.Fatal(err)
 	}
 	repos := database.NewRepositories(db, log)
-	o := attachRelayEngine(New(repos.Profiles, repos.Tasks, repos.Runs, WithWorkflowExecutionRepository(repos.WorkflowExecutions), WithWorkflowRepository(repos.Workflows)), repos, launcher)
+	o := attachRelayEngine(New(repos.Profiles, repos.Tasks, repos.Runs, WithWorkflowExecutionRepository(repos.WorkflowExecutions), WithWorkflowRepository(repos.Workflows), newCurrentModelPolicyFixtureOption(t)), repos, launcher)
 	t.Cleanup(o.dispatcher.Close)
 	return o, repos
 }

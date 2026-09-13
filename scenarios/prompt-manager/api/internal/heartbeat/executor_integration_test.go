@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -250,6 +251,87 @@ func TestExecute_CreateRunFailure(t *testing.T) {
 	if len(mockClient.cancelTaskCalls) != 1 || mockClient.cancelTaskCalls[0] != "task-1" {
 		t.Fatalf("cancel task calls = %v, want [task-1]", mockClient.cancelTaskCalls)
 	}
+}
+
+// TestExecute_TransportUncertainRetainsObligation verifies the core fence: a
+// run-creation response lost in transport must not free the member's slot,
+// because the owner may have accepted the run. The obligation stays visible,
+// keeps the idempotency key for owner reconciliation, and refuses a duplicate.
+func TestExecute_TransportUncertainRetainsObligation(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	dir := t.TempDir()
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-unc", Title: "test"}).
+		WithCreateRunError(NewDispatchUncertainError(errors.New("connection reset by peer")))
+
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, mockClient)
+	executor.SetTeamExecStore(teamExecStore)
+
+	if _, err := teamExecStore.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+
+	waitFor(t, 5*time.Second, func() bool {
+		return len(teamExecStore.Status("team-1").UncertainAgentIDs) == 1
+	}, "uncertain obligation to be retained")
+
+	// The task must not be cancelled: the run may exist.
+	if len(mockClient.cancelTaskCalls) != 0 || len(mockClient.deleteTaskCalls) != 0 {
+		t.Fatalf("uncertain dispatch must not cancel/delete task: cancel=%v delete=%v", mockClient.cancelTaskCalls, mockClient.deleteTaskCalls)
+	}
+
+	// The dispatch intent must be durable with its idempotency key.
+	persisted := readQueueFile(t, dir, "team-1")
+	if len(persisted.Running) != 1 || persisted.Running[0].IdempotencyKey == "" {
+		t.Fatalf("expected persisted dispatch intent key, got %+v", persisted.Running)
+	}
+
+	// A duplicate heartbeat must be refused while the obligation is unresolved.
+	if _, err := teamExecStore.Enqueue(context.Background(), "team-1", "agent-1", "p"); err == nil || !IsMemberAlreadyQueued(err) {
+		t.Fatalf("expected duplicate heartbeat refused, got %v", err)
+	}
+}
+
+// TestExecute_RejectedDispatchReleasesObligation verifies a definitive owner
+// refusal (validation) does release the slot and clean up the orphaned task.
+func TestExecute_RejectedDispatchReleasesObligation(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+	dir := t.TempDir()
+
+	mockClient := newMockAgentClient().
+		WithCreateTaskResponse(&Task{ID: "task-rej", Title: "test"}).
+		WithCreateRunError(NewDispatchRejectedError(errors.New("validation error: bad profile")))
+
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, mockClient)
+	executor.SetTeamExecStore(teamExecStore)
+
+	if _, err := teamExecStore.Enqueue(context.Background(), "team-1", "agent-1", "p"); err != nil {
+		t.Fatalf("enqueue: %v", err)
+	}
+
+	waitFor(t, 5*time.Second, func() bool {
+		return len(teamExecStore.Status("team-1").RunningAgentIDs) == 0
+	}, "rejected dispatch to release the slot")
+
+	if len(mockClient.cancelTaskCalls) != 1 || len(mockClient.deleteTaskCalls) != 1 {
+		t.Fatalf("rejected dispatch must clean up orphaned task: cancel=%v delete=%v", mockClient.cancelTaskCalls, mockClient.deleteTaskCalls)
+	}
+}
+
+// waitFor polls until condition or the deadline elapses.
+func waitFor(t *testing.T, timeout time.Duration, condition func() bool, what string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if condition() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", what)
 }
 
 func TestExecute_WaitForRunFailure(t *testing.T) {
@@ -807,5 +889,38 @@ func TestExecute_AgentManagerReturnsProfileNotFound(t *testing.T) {
 	}
 	if result.Status != store.HeartbeatStatusFailed {
 		t.Errorf("expected failed, got %s", result.Status)
+	}
+}
+
+// TestWatchRecoveredRun_ReleasesOnTerminal verifies a recovered obligation
+// bound to an owner run is eventually released: the watcher observes terminal
+// owner state and fires OnComplete, so a restart cannot strand a slot.
+func TestWatchRecoveredRun_ReleasesOnTerminal(t *testing.T) {
+	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+
+	mockClient := newMockAgentClient().
+		WithWaitRunResponse(&Run{ID: "run-recovered", Status: "RUN_STATUS_COMPLETE"})
+	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
+
+	var released sync.WaitGroup
+	released.Add(1)
+	executor.OnComplete = func(teamID, agentID string) {
+		if teamID != "team-1" || agentID != "agent-1" {
+			t.Errorf("unexpected complete callback: %s/%s", teamID, agentID)
+		}
+		released.Done()
+	}
+
+	executor.WatchRecoveredRun("team-1", "agent-1", "run-recovered", "profile-p", "task-1", "heartbeat-team-1-agent-1")
+
+	done := make(chan struct{})
+	go func() {
+		released.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected recovered run watcher to fire OnComplete on terminal owner state")
 	}
 }

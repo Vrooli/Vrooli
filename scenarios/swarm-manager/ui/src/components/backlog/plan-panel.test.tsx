@@ -138,6 +138,43 @@ describe("PlanPanel", () => {
     });
   });
 
+  describe("plan acceptance", () => {
+    const acceptance = { actor: "operator", acceptedAt: "2026-09-13T02:39:59Z", planContentHash: "hash", subjectVersion: "sha256:old" };
+    const nextAction = (id: string, reason?: string) => ({ id, compactLabel: id, expandedLabel: id, enabled: true, reason, blockers: [] });
+
+    it("offers re-acceptance when the server reports the recorded acceptance is out of date", async () => {
+      vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);
+      vi.mocked(backlogService.get).mockResolvedValueOnce({ name: "test-item", planAcceptance: acceptance } as never);
+
+      renderWithProviders(
+        <PlanPanel backlogKind="execute" backlogName="test-item" nextAction={nextAction("accept_plan", "work contract changed after plan acceptance")} />,
+      );
+
+      expect(await screen.findByRole("button", { name: "Re-accept" })).toBeInTheDocument();
+      expect(screen.getByText(/work contract changed after plan acceptance/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Un-accept" })).not.toBeInTheDocument();
+    });
+
+    it("offers un-acceptance only while the recorded acceptance is current", async () => {
+      vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);
+      vi.mocked(backlogService.get).mockResolvedValueOnce({ name: "test-item", planAcceptance: acceptance } as never);
+
+      renderWithProviders(<PlanPanel backlogKind="execute" backlogName="test-item" nextAction={nextAction("run")} />);
+
+      expect(await screen.findByRole("button", { name: "Un-accept" })).toBeInTheDocument();
+      expect(screen.queryByText(/Acceptance out of date/)).not.toBeInTheDocument();
+    });
+
+    it("does not warn about a plan whose quality passed", async () => {
+      vi.mocked(backlogService.getRenderedPlan).mockResolvedValue({ ...mockRenderedPlan, qualityStatus: "pass" });
+
+      renderWithProviders(<PlanPanel backlogKind="execute" backlogName="test-item" />);
+
+      await screen.findByLabelText("Copy plan");
+      expect(screen.queryByText(/Plan quality/)).not.toBeInTheDocument();
+    });
+  });
+
   describe("TOC Popover", () => {
     it("shows TOC button when content has headings", async () => {
       vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);

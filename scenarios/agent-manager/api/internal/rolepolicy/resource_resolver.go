@@ -88,6 +88,7 @@ type ResolvedRole struct {
 	Model          string
 	CanonicalModel string
 	Fallbacks      []string
+	ExcludedModels []string
 	Capabilities   []string
 	Provenance     ResourceProvenance
 	Enforcement    EnforcementPosture
@@ -114,6 +115,7 @@ type resourceRoleResponse struct {
 	Model          string   `json:"model"`
 	CanonicalModel string   `json:"canonical_model,omitempty"`
 	Fallbacks      []string `json:"fallbacks"`
+	ExcludedModels []string `json:"excluded_models,omitempty"`
 	Description    string   `json:"description"`
 	Capabilities   []string `json:"capabilities"`
 	Provenance     struct {
@@ -238,6 +240,11 @@ func (r resourceRoleResponse) validate() error {
 			return errors.New("fallbacks must contain trimmed values")
 		}
 	}
+	for _, excluded := range r.ExcludedModels {
+		if strings.TrimSpace(excluded) == "" || strings.TrimSpace(excluded) != excluded {
+			return errors.New("excluded_models must contain trimmed values")
+		}
+	}
 	if r.Challenger != nil && (strings.TrimSpace(r.Challenger.Model) == "" || r.Challenger.SampleRate < 0 || r.Challenger.SampleRate > 1) {
 		return errors.New("challenger requires a model and sample_rate between 0 and 1")
 	}
@@ -256,6 +263,7 @@ func (r resourceRoleResponse) toResolvedRole() ResolvedRole {
 		Model:          r.Model,
 		CanonicalModel: r.CanonicalModel,
 		Fallbacks:      append([]string(nil), r.Fallbacks...),
+		ExcludedModels: append([]string(nil), r.ExcludedModels...),
 		Capabilities:   append([]string(nil), r.Capabilities...),
 		Provenance:     ResourceProvenance{Source: r.Provenance.Source, ObservedAt: r.Provenance.ObservedAt},
 		Enforcement:    EnforcementPosture{Permissions: r.Enforcement.Permissions, Caveats: append([]string(nil), r.Enforcement.Caveats...)},

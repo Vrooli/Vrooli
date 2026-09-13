@@ -108,12 +108,38 @@ pause. The heartbeat read retains `finiteLeaderState` and any owner-read error.
 Live adoption still requires qualified finite recurrence and purpose-bound
 coordinator authority; the initial single-run binding is not that qualification.
 
+Record the revision-checked completion receipt, or explicitly reopen a completed
+effort:
+
+```bash
+prompt-manager team heartbeat-complete-effort <team-id> <leader-id> --request-file transition.json
+prompt-manager team heartbeat-reopen-effort <team-id> <leader-id> --request-file transition.json
+```
+
+`transition.json` is a single JSON object of at most 16 KiB with no unknown
+fields:
+
+```json
+{ "revision": "<exact-accepted-or-replacement-revision>", "evidenceRef": "<retained-owner-evidence>" }
+```
+
+Completion records an idempotent receipt only when `revision` equals the
+accepted binding revision, and permanently refuses later scheduled or manual
+starts until an explicit reopen. Reopen requires a replacement revision
+different from the completed one and retains the prior receipt in
+`finiteLeaderState.completionHistory`. Both commands read the exact binding
+first and send only `finiteEffortTransition`; they never combine the lifecycle
+operation with scheduling or configuration changes. Neither cancels an active
+run or claims effort acceptance on its own.
+
 Focused CLI verification (2026-09-12): `go test -race ./teams -run
 '^TestFiniteLeaderCLI|^TestHeartbeatEnableStanding' -count=1 -timeout=60s`
-passes. The five finite CLI tests cover disabled create/update, malformed and
+passes. The finite CLI tests cover disabled create/update, malformed and
 activation-bearing input rejection, mismatched owner responses, retirement with
-retained identity, and the real human/JSON read commands. Two standing-supervision
-CLI regressions also pass. No live configuration was provisioned by these tests.
+retained identity, explicit completion/reopen transition payloads that carry no
+configuration change, refusal of ambiguous transition input or an unbound member,
+and the real human/JSON read commands. Two standing-supervision CLI regressions
+also pass. No live configuration was provisioned by these tests.
 
 ### Standing effort supervisor
 

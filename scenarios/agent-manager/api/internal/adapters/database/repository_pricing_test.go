@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
@@ -47,6 +48,31 @@ func TestPricingRepositoryPersistsAndQueriesModelPricing(t *testing.T) {
 	}
 	if got, err := repo.GetPricing(t.Context(), "model", "provider"); err != nil || got != nil {
 		t.Fatalf("deleted get=%+v err=%v", got, err)
+	}
+}
+
+func TestPricingRepositoryPersistsQuotaObservationWithoutInventingAmounts(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := NewPricingRepository(db, logrus.New())
+	when := time.Date(2026, 9, 13, 12, 0, 0, 0, time.UTC)
+	observation, err := pricing.FromRateLimitEvent("openai", "codex", "codex-native-rate-limit", when, &domain.RateLimitEventData{LimitType: "5h", Message: "limit reached"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := repo.(pricing.QuotaObservationRepository)
+	if err := store.RecordQuotaObservation(t.Context(), observation); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordQuotaObservation(t.Context(), observation); err != nil {
+		t.Fatalf("replaying the same observation: %v", err)
+	}
+	rows, err := store.ListQuotaObservations(t.Context(), "openai", "codex", "5h", 10)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("rows=%+v err=%v", rows, err)
+	}
+	if rows[0].Standing != pricing.QuotaStandingExhausted || rows[0].Freshness != pricing.ObservationUnknown || rows[0].Used != nil || rows[0].Limit != nil || rows[0].Remaining != nil {
+		t.Fatalf("persisted observation invented quota amounts: %+v", rows[0])
 	}
 }
 

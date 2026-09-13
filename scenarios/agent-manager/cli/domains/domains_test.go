@@ -26,12 +26,15 @@ func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 }
 
 func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
-	for _, operation := range []string{"issue-dispatch", "revoke-dispatch"} {
+	for _, operation := range []string{"compact", "issue-dispatch", "revoke-dispatch"} {
 		t.Run(operation, func(t *testing.T) {
 			var received []string
 			group := effortGroup(support.Dependencies{Effort: func(args []string) error { received = args; return nil }})
 			app := cliapp.NewApp(cliapp.AppOptions{Name: "agent-manager", SubcommandGroups: []cliapp.SubcommandGroup{group}})
-			args := []string{operation, "--request-file", "request.json", "--local-owner", "--json"}
+			args := []string{operation, "--json"}
+			if operation != "compact" {
+				args = append(args, "--request-file", "request.json", "--local-owner")
+			}
 			if err := app.RunWithWriters(append([]string{"effort"}, args...), io.Discard, io.Discard); err != nil {
 				t.Fatal(err)
 			}

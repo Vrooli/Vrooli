@@ -33,6 +33,7 @@ import { PNG } from 'pngjs'
 import pixelmatch from 'pixelmatch'
 import { createServer } from 'vite'
 import { captureContrasts } from './contrast.mjs'
+import { openCamera } from './camera-fixtures.mjs'
 
 const args = process.argv.slice(2)
 const flag = (name) => args.includes(name)
@@ -249,6 +250,7 @@ for (const scene of scenes) {
           await page.evaluate(() => globalThis.__worldDiagnostics?.measure())
         }
         const interactionSamples = []
+        if (ready && interaction) await openCamera(page)
         if (ready && interaction) for (const mode of ['first-person', 'third-person']) {
           await page.getByLabel('Camera mode', { exact: true }).selectOption(mode)
           await page.waitForTimeout(400)

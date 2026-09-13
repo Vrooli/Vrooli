@@ -8,30 +8,33 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // SupervisionState contains admission evidence only. It is not an effort ledger.
 type SupervisionState struct {
-	AccountingRef      string                   `json:"accountingRef"`
-	WindowStartedAt    time.Time                `json:"windowStartedAt"`
-	WakesInWindow      int                      `json:"wakesInWindow"`
-	AllowanceResumesAt time.Time                `json:"allowanceResumesAt"`
-	DiscoveryReads     uint64                   `json:"discoveryReads"`
-	OwnerRunReads      uint64                   `json:"ownerRunReads"`
-	AssessmentReads    uint64                   `json:"assessmentReads"`
-	WakeAttempts       uint64                   `json:"wakeAttempts"`
-	LastWake           *SupervisionWake         `json:"lastWake,omitempty"`
-	Version            int                      `json:"version"`
-	Status             string                   `json:"status"`
-	LastScanAt         time.Time                `json:"lastScanAt"`
-	LastSuccessAt      time.Time                `json:"lastSuccessAt"`
-	LastWakeAt         time.Time                `json:"lastWakeAt"`
-	NextCursor         string                   `json:"nextCursor,omitempty"`
-	Coverage           string                   `json:"coverage,omitempty"`
-	Error              string                   `json:"error,omitempty"`
-	Sequence           uint64                   `json:"sequence"`
-	Efforts            map[string]SupervisedCut `json:"efforts"`
-	Pending            *SupervisionWake         `json:"pending,omitempty"`
+	AccountingRef      string                         `json:"accountingRef"`
+	WindowStartedAt    time.Time                      `json:"windowStartedAt"`
+	WakesInWindow      int                            `json:"wakesInWindow"`
+	AllowanceResumesAt time.Time                      `json:"allowanceResumesAt"`
+	DiscoveryReads     uint64                         `json:"discoveryReads"`
+	OwnerRunReads      uint64                         `json:"ownerRunReads"`
+	AssessmentReads    uint64                         `json:"assessmentReads"`
+	WakeAttempts       uint64                         `json:"wakeAttempts"`
+	LastWake           *SupervisionWake               `json:"lastWake,omitempty"`
+	Version            int                            `json:"version"`
+	Status             string                         `json:"status"`
+	LastScanAt         time.Time                      `json:"lastScanAt"`
+	LastSuccessAt      time.Time                      `json:"lastSuccessAt"`
+	LastWakeAt         time.Time                      `json:"lastWakeAt"`
+	NextCursor         string                         `json:"nextCursor,omitempty"`
+	Coverage           string                         `json:"coverage,omitempty"`
+	Error              string                         `json:"error,omitempty"`
+	QuotaObservations  []*ampb.EffortQuotaObservation `json:"quotaObservations,omitempty"`
+	Sequence           uint64                         `json:"sequence"`
+	Efforts            map[string]SupervisedCut       `json:"efforts"`
+	Pending            *SupervisionWake               `json:"pending,omitempty"`
 }
 
 type SupervisedCut struct {
@@ -48,20 +51,26 @@ type SupervisedCut struct {
 }
 
 type SupervisionWake struct {
-	AccountingRef    string              `json:"accountingRef"`
-	ID               string              `json:"id"`
-	Efforts          []EffortObservation `json:"efforts"`
-	ProfileKey       string              `json:"profileKey"`
-	TaskID           string              `json:"taskId,omitempty"`
-	RunID            string              `json:"runId,omitempty"`
-	DispatchStarted  bool                `json:"dispatchStarted"`
-	CreatedAt        time.Time           `json:"createdAt"`
-	DiscoveryCursor  string              `json:"discoveryCursor,omitempty"`
-	SampledEffortIDs []string            `json:"sampledEffortIds,omitempty"`
-	Disposition      string              `json:"disposition,omitempty"`
-	AssessmentError  string              `json:"assessmentError,omitempty"`
-	TerminalStatus   string              `json:"terminalStatus,omitempty"`
-	TerminalError    string              `json:"terminalError,omitempty"`
+	AccountingRef           string                         `json:"accountingRef"`
+	ID                      string                         `json:"id"`
+	Efforts                 []EffortObservation            `json:"efforts"`
+	ProfileKey              string                         `json:"profileKey"`
+	TaskID                  string                         `json:"taskId,omitempty"`
+	RunID                   string                         `json:"runId,omitempty"`
+	DispatchStarted         bool                           `json:"dispatchStarted"`
+	DispatchMode            string                         `json:"dispatchMode,omitempty"`
+	DispatchEffortRef       string                         `json:"dispatchEffortRef,omitempty"`
+	DispatchAuthorizationID string                         `json:"dispatchAuthorizationId,omitempty"`
+	DispatchReplayAttempts  uint8                          `json:"dispatchReplayAttempts,omitempty"`
+	DispatchReplayError     string                         `json:"dispatchReplayError,omitempty"`
+	CreatedAt               time.Time                      `json:"createdAt"`
+	DiscoveryCursor         string                         `json:"discoveryCursor,omitempty"`
+	QuotaObservations       []*ampb.EffortQuotaObservation `json:"quotaObservations,omitempty"`
+	SampledEffortIDs        []string                       `json:"sampledEffortIds,omitempty"`
+	Disposition             string                         `json:"disposition,omitempty"`
+	AssessmentError         string                         `json:"assessmentError,omitempty"`
+	TerminalStatus          string                         `json:"terminalStatus,omitempty"`
+	TerminalError           string                         `json:"terminalError,omitempty"`
 }
 
 type SupervisionStateStore interface {

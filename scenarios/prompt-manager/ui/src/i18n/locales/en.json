@@ -12,5 +12,12 @@
         "transport-failure-preserves-intent": "Transport failure preserves intent"
       }
     }
+  },
+  "navigation": {
+    "navigation-tree": {
+      "library": "Library",
+      "primary-navigation": "Primary navigation",
+      "workspace": "Workspace"
+    }
   }
 }

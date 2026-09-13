@@ -373,6 +373,32 @@ func TestEffortRuntimeSupervisorJoinsAndSharedQuietAssessmentIsRetainedOnce(t *t
 	}
 }
 
+func TestEffortAssessmentRepairLinkValidationKeepsCanonicalAssignmentBounded(t *testing.T) {
+	valid := &pb.EffortRepairLink{WorkRef: "swarm-manager:backlog/chore/adoption", AssigningOwnerRef: "owner:root", NextOperation: "vrooli scenario restart agent-manager", CompletionEvidenceRefs: []string{"test-genie:adoption"}, StoppingCondition: "stop after one attempt", State: "assigned"}
+	for _, tc := range []struct {
+		name  string
+		links []*pb.EffortRepairLink
+		ok    bool
+	}{
+		{name: "assigned", links: []*pb.EffortRepairLink{valid}, ok: true},
+		{name: "resolved", links: []*pb.EffortRepairLink{{WorkRef: "swarm:item", AssigningOwnerRef: "owner", NextOperation: "verify", CompletionEvidenceRefs: []string{"proof"}, StoppingCondition: "stop", State: "resolved"}}, ok: true},
+		{name: "needs_assignment", links: []*pb.EffortRepairLink{{AssigningOwnerRef: "owner:infra", NextOperation: "reconcile", StoppingCondition: "one escalation", State: "needs_assignment"}}, ok: true},
+		{name: "needs_assignment_claims_work", links: []*pb.EffortRepairLink{{WorkRef: "swarm:item", AssigningOwnerRef: "owner", NextOperation: "reconcile", StoppingCondition: "stop", State: "needs_assignment"}}},
+		{name: "assigned_without_proof", links: []*pb.EffortRepairLink{{WorkRef: "swarm:item", AssigningOwnerRef: "owner", NextOperation: "reconcile", StoppingCondition: "stop", State: "assigned"}}},
+		{name: "duplicate_work", links: []*pb.EffortRepairLink{valid, valid}},
+		{name: "unnamed_assigning_owner", links: []*pb.EffortRepairLink{{AssigningOwnerRef: " ", NextOperation: "reconcile", StoppingCondition: "one escalation", State: "needs_assignment"}}},
+		{name: "empty_next_operation", links: []*pb.EffortRepairLink{{AssigningOwnerRef: "owner:infra", NextOperation: "\t", StoppingCondition: "one escalation", State: "needs_assignment"}}},
+		{name: "unnamed_stopping_condition", links: []*pb.EffortRepairLink{{AssigningOwnerRef: "owner:infra", NextOperation: "reconcile", StoppingCondition: " ", State: "needs_assignment"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRepairLinks(tc.links)
+			if (err == nil) != tc.ok {
+				t.Fatalf("repair link validation ok=%t want=%t: %v", err == nil, tc.ok, err)
+			}
+		})
+	}
+}
+
 func TestEffortActualScanClearsNotScannedButRetainsCurrentFailure(t *testing.T) {
 	s, _, _ := effortFixture(t)
 	workspaceFixture(t, s.config.Root, "good", "effort:good", nil)

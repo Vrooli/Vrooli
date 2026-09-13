@@ -26,9 +26,16 @@ not name efforts, paths, providers or models. Agent Manager resolves its own
 protected discovery roots. The existing heartbeat profile resolves resource
 policy. Global/team engagement gates and member enabled state still apply.
 
-The consumer-owned `EffortSupervisionOwner` port returns a bounded discovery cut:
+The consumer-owned `EffortSupervisionOwner` port returns a bounded joined
+discovery cut:
 stable effort ID, target revision, meaningful evidence revision, eligibility,
 owner wait reference, retirement standing, board reference, coverage and errors.
+Each selected row also carries its prior assessment, changed evidence references,
+usage, named waits and detail references. The heartbeat prompt uses this one
+owner read and follows detail references only when they can change the decision;
+it does not repeat full board or transcript reads. A server-owned dispatch
+authorization anchor is excluded by its typed authorization metadata and empty
+subject set, including when a supervisor run is attributed.
 Timestamps alone must not change evidence identity. Unknown, missing, conflicting
 and removed sources remain unavailable, never accepted completion. AM owns
 enrollment and directive fencing. PM stores only wake admission state.
@@ -81,8 +88,10 @@ prior cut, never unrelated subject changes that arrive while a wake is running.
 Observation identity is provisioned by ordinary AM CreateRun, not by prompt text
 or a manually supplied owner credential. PM attaches one typed public, active,
 verified `WorkReference` per owner-selected effort, with relationship `supervisor`
-and the exact target revision. Verification here means that PM re-read the owner
-selection; it grants no steering authority. AM persists these references and its
+and the exact target revision. On a recurring wake, PM uses the supplied compact
+owner cut and exact target revision; AM atomically validates membership and
+revision, and PM rereads only a bounded compact detail when a material decision
+needs freshness. This grants no steering authority. AM persists these references and its
 discovery scheduler joins them as observed-supervisor membership. The run uses
 the ordinary AM-issued signed identity token to submit an assessment. Before the
 periodic join, AM can verify the exact persisted run references directly; pending
@@ -123,6 +132,9 @@ sampling. Samples share normal cooldown and capacity gates, are identified in th
 wake prompt, and do not grant steering authority. With no eligible efforts,
 sampling cannot buy inference. The state response reports coverage, waits,
 sampling selections and any unresolved dispatch identity without reading AM.
+An admitted policy-selected sample remains required for a stopped or
+observation-only effort; perform it as diagnostic evidence and keep it separate
+from steering authority.
 
 `diagnosticAllowance` persists `maxWakesPerWindow`, `windowSeconds` and
 `accountingRef`. Its unit is attempted supervisor inference wakes, including

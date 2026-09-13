@@ -1,15 +1,20 @@
 package orchestration
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/workflowruntime"
 	"connectrpc.com/connect"
-	"context"
-	"encoding/json"
-	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	watchpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -17,9 +22,6 @@ import (
 	executionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution/execution_v1connect"
 	familyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/families/families_v1connect"
 	"google.golang.org/protobuf/proto"
-	"strings"
-	"testing"
-	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/workflowcatalog"
@@ -88,6 +90,7 @@ type familyProofOwner struct {
 func (f *familyProofOwner) GetFamily(context.Context, *connect.Request[familypb.GetFamilyRequest]) (*connect.Response[familypb.GetFamilyResponse], error) {
 	return connect.NewResponse(&familypb.GetFamilyResponse{Family: proto.Clone(f.family).(*familypb.PlanFamily)}), nil
 }
+
 func (f *familyProofOwner) PutMember(_ context.Context, r *connect.Request[familypb.PutMemberRequest]) (*connect.Response[familypb.PutMemberResponse], error) {
 	if r.Msg.GetExpectedRevision() != f.family.GetRevision() {
 		return nil, fmt.Errorf("stale family revision")
@@ -159,6 +162,17 @@ func TestFamilyExecutorDurableParallelAdmissionAndOwnerAcceptance(t *testing.T) 
 				t.Fatal(err)
 			}
 			runs := newFakeRunLauncher()
+			complete := func(id uuid.UUID, value map[string]any) {
+				runs.complete(id, value)
+				// This fixture supplies explicit terminal accounting. Unknown
+				// accounting refusal is covered by the cleanup owner tests.
+				runs.mu.Lock()
+				defer runs.mu.Unlock()
+				state := runs.states[id]
+				state.Tokens, state.Turns, state.ChargeMicroUSD = 12, 1, 3
+				state.TokensKnown, state.ChargeMeasured = true, true
+				runs.states[id] = state
+			}
 			buildParent := func() *Orchestrator {
 				o := New(repos.Profiles, repos.Tasks, repos.Runs, WithWorkflowRepository(repos.Workflows), WithWorkflowExecutionRepository(repos.WorkflowExecutions))
 				t.Cleanup(o.dispatcher.Close)
@@ -207,7 +221,7 @@ func TestFamilyExecutorDurableParallelAdmissionAndOwnerAcceptance(t *testing.T) 
 			}
 			// One child remains productive while the other is not finished. Restart the
 			// parent and repeat wake delivery; neither operation may duplicate a child.
-			runs.complete(a, map[string]any{"outcome": "completed", "evidence": []string{"plan:a"}})
+			complete(a, map[string]any{"outcome": "completed", "evidence": []string{"plan:a"}})
 			o = buildParent()
 			for i := 0; i < 2; i++ {
 				x, err = o.driveWorkflowExecution(ctx, x.ID)
@@ -218,7 +232,7 @@ func TestFamilyExecutorDurableParallelAdmissionAndOwnerAcceptance(t *testing.T) 
 			if runIDForNode(t, repos.WorkflowExecutions, x.ID, "child2") != b || runIDForNode(t, repos.WorkflowExecutions, x.ID, "child3") != uuid.Nil {
 				t.Fatal("restart duplicated or prematurely advanced children")
 			}
-			runs.complete(b, map[string]any{"outcome": "completed", "evidence": []string{"plan:b"}})
+			complete(b, map[string]any{"outcome": "completed", "evidence": []string{"plan:b"}})
 			x, err = o.driveWorkflowExecution(ctx, x.ID)
 			if err != nil {
 				t.Fatal(err)
@@ -227,6 +241,9 @@ func TestFamilyExecutorDurableParallelAdmissionAndOwnerAcceptance(t *testing.T) 
 			if !accepted {
 				if integration != uuid.Nil || x.Status != domain.WorkflowExecutionFailed {
 					t.Fatalf("unaccepted plans advanced: %+v", x)
+				}
+				if x.BudgetUsage.Tokens != 24 || x.BudgetUsage.ChargeMicroUSD != 6 || !x.BudgetUsage.AccountingComplete {
+					t.Fatalf("unaccepted plan cleanup lost original accounting: %+v", x.BudgetUsage)
 				}
 				return
 			}

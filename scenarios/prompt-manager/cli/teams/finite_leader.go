@@ -110,6 +110,78 @@ func cmdHeartbeatRetireEffort(ctx appctx.Context, args []string) error {
 	return printFiniteLeaderBinding(result, *jsonOut)
 }
 
+// finiteEffortTransitionInput is the bounded operator input for a completion
+// or reopen. It carries no scheduling or configuration changes.
+type finiteEffortTransitionInput struct {
+	Revision    string `json:"revision"`
+	EvidenceRef string `json:"evidenceRef"`
+}
+
+func cmdHeartbeatCompleteEffort(ctx appctx.Context, args []string) error {
+	return cmdFiniteEffortTransition(ctx, args, "complete")
+}
+
+func cmdHeartbeatReopenEffort(ctx appctx.Context, args []string) error {
+	return cmdFiniteEffortTransition(ctx, args, "reopen")
+}
+
+// cmdFiniteEffortTransition records an explicit authorized lifecycle operation.
+// It reads the exact binding first so a completion cannot be sent against an
+// unbound or differently-identified member, then writes only the transition.
+func cmdFiniteEffortTransition(ctx appctx.Context, args []string, operation string) error {
+	fs := flag.NewFlagSet("heartbeat-"+operation+"-effort", flag.ContinueOnError)
+	file := fs.String("request-file", "", "JSON transition: revision, evidenceRef")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 2 || *file == "" {
+		return fmt.Errorf("usage: team heartbeat-%s-effort <team-id> <agent-id> --request-file <transition.json> [--json]", operation)
+	}
+	reader, err := os.Open(*file)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	data, err := io.ReadAll(io.LimitReader(reader, 16385))
+	if err != nil {
+		return err
+	}
+	if len(data) > 16384 {
+		return fmt.Errorf("finite effort transition exceeds 16 KiB")
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	var input finiteEffortTransitionInput
+	if err := decoder.Decode(&input); err != nil {
+		return fmt.Errorf("decode finite effort transition: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return fmt.Errorf("finite effort transition must contain exactly one JSON object")
+	}
+	if strings.TrimSpace(input.Revision) == "" || strings.TrimSpace(input.EvidenceRef) == "" {
+		return fmt.Errorf("finite effort transition requires revision and evidenceRef")
+	}
+	team, agent := fs.Arg(0), fs.Arg(1)
+	path := fmt.Sprintf("/teams/%s/heartbeats/%s", url.PathEscape(team), url.PathEscape(agent))
+	var current HeartbeatConfig
+	if err := ctx.Get(path, &current); err != nil {
+		return fmt.Errorf("read finite leader before %s: %w", operation, err)
+	}
+	if current.FiniteLeader == nil || current.TeamID != team || current.AgentID != agent {
+		return fmt.Errorf("exact finite leader binding unavailable")
+	}
+	var result HeartbeatConfig
+	transition := &FiniteEffortTransition{Operation: operation, Revision: input.Revision, EvidenceRef: input.EvidenceRef}
+	if err := ctx.Put(path, UpdateHeartbeatRequest{FiniteEffortTransition: transition}, &result); err != nil {
+		return fmt.Errorf("%s finite leader effort: %w", operation, err)
+	}
+	if result.TeamID != team || result.AgentID != agent || result.FiniteLeader == nil {
+		return fmt.Errorf("owner response did not confirm the finite effort transition; inspect heartbeat state")
+	}
+	return printFiniteLeaderBinding(result, *jsonOut)
+}
+
 func printFiniteLeaderBinding(config HeartbeatConfig, jsonOut bool) error {
 	if jsonOut {
 		encoder := json.NewEncoder(os.Stdout)

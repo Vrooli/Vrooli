@@ -331,6 +331,12 @@ func (c *Codex) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*
 	if !ok {
 		return nil, fmt.Errorf("codex: invalid state type %T", state)
 	}
+	// Some native Codex builds put the same event_msg rollout records on the
+	// codec pipe as on disk. Reuse the rollout parser against the live state so
+	// quota metadata is observed without reading CODEX_HOME or credentials.
+	if result, rollout := (&codexTranscriptParser{codec: c, state: s}).parseRolloutLine(runID, line); rollout {
+		return result.Events, nil
+	}
 
 	streamEvent, ok := decodeCodexStreamEvent(line)
 	if !ok {
@@ -586,12 +592,27 @@ type codexRolloutPayload struct {
 	// turn_aborted
 	Reason string               `json:"reason"`
 	Info   *codexTokenCountInfo `json:"info"`
+	// Native quota metadata is a sibling of info in token_count frames. It is
+	// present even when info is null (for example at session start).
+	RateLimits map[string]CodexRateLimitWindow `json:"rate_limits"`
 }
 
 type codexTokenCountInfo struct {
 	LastTokenUsage  *CodexUsage `json:"last_token_usage"`
 	TotalTokenUsage *CodexUsage `json:"total_token_usage"`
 }
+
+// CodexRateLimitWindow is the bounded, metadata-only native quota shape. The
+// CLI reports a percentage/window/reset rather than an absolute token quota;
+// keeping these as optional fields avoids inventing a ceiling.
+type CodexRateLimitWindow struct {
+	UsedPercent   *float64 `json:"used_percent,omitempty"`
+	WindowMinutes int64    `json:"window_minutes,omitempty"`
+	ResetAt       int64    `json:"reset_at,omitempty"`
+	ResetsAt      int64    `json:"resets_at,omitempty"`
+}
+
+const codexProvider = "openai"
 
 // rolloutWrapperTypes are the outer `type` values that mark a line as the
 // on-disk rollout dialect rather than the flat exec-json stdout dialect.
@@ -687,6 +708,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 					}
 				}
 			}
+			result.Events = append(result.Events, codexQuotaEvents(runID, result.Timestamp, pl.RateLimits)...)
 		case "agent_message":
 			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
 				p.state.lastMessage = text
@@ -723,6 +745,52 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 	}
 	return result, true
+}
+
+// codexQuotaEvents converts only the native rate-limit metadata into typed
+// observations. A Codex token_count frame has no absolute quota ceiling, so
+// this intentionally emits percentage/window/reset metadata only.
+func codexQuotaEvents(runID uuid.UUID, observedAt time.Time, rateLimits map[string]CodexRateLimitWindow) []*domain.RunEvent {
+	if len(rateLimits) == 0 {
+		return nil
+	}
+	capacity := len(rateLimits)
+	if capacity > 64 {
+		capacity = 64
+	}
+	result := make([]*domain.RunEvent, 0, capacity)
+	for pool, limit := range rateLimits {
+		if len(result) >= 64 {
+			break
+		}
+		pool = strings.TrimSpace(pool)
+		if pool == "" || len(pool) > 64 || limit.UsedPercent == nil || *limit.UsedPercent < 0 || *limit.UsedPercent > 100 || limit.WindowMinutes <= 0 {
+			continue
+		}
+		resetEpoch := limit.ResetAt
+		if resetEpoch == 0 {
+			resetEpoch = limit.ResetsAt
+		}
+		var reset *time.Time
+		if resetEpoch > 0 {
+			value := time.Unix(resetEpoch, 0).UTC()
+			reset = &value
+		}
+		event := domain.NewRateLimitEvent(runID, fmt.Sprintf("%dm", limit.WindowMinutes), "Codex provider quota observation", reset, 0)
+		event.Timestamp = observedAt
+		data, ok := event.Data.(*domain.RateLimitEventData)
+		if !ok {
+			continue
+		}
+		percent := *limit.UsedPercent
+		data.Provider = codexProvider
+		data.Pool = pool
+		data.UsedPercent = &percent
+		data.WindowMinutes = limit.WindowMinutes
+		data.Provenance = "codex:event_msg.token_count.rate_limits"
+		result = append(result, event)
+	}
+	return result
 }
 
 // Both explicit successful and aborted turn boundaries close provider usage.

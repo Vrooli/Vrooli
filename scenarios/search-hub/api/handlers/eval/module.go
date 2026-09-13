@@ -166,12 +166,18 @@ func (c *providerClientWithSubstrate) Snapshot(ctx context.Context, descriptor *
 		snapshot.SelectorLeg = "provider_direct"
 	}
 	live := c.substrate.Snapshot(ctx)
-	if snapshot.RerankerLeg == "" || snapshot.RerankerLeg == "unknown" || snapshot.RerankerLeg == "none" {
-		snapshot.RerankerLeg = live.GetRerankerLeg()
-		snapshot.RerankEnabled = live.GetRerankEnabled()
-	}
+	snapshot.RerankerLeg, snapshot.RerankEnabled = resolveRunRerank(
+		snapshot.RerankerLeg, descriptor.GetTuning(), live.GetRerankerLeg(), live.GetRerankEnabled(),
+	)
 	if snapshot.EmbedModel == "" || snapshot.EmbedModel == "unknown" {
-		snapshot.EmbedModel = live.GetEmbedModel()
+		// The provider's registered tuning is more truthful than the substrate's
+		// cross-provider aggregate: a provider-direct run is graded against the
+		// model the provider declared it indexed with.
+		if declared := strings.TrimSpace(descriptor.GetTuning().GetEmbedModel()); declared != "" {
+			snapshot.EmbedModel = declared
+		} else {
+			snapshot.EmbedModel = live.GetEmbedModel()
+		}
 	}
 	if snapshot.IndexedCount <= 0 && live.GetIndexedCount() > 0 {
 		snapshot.IndexedCount = live.GetIndexedCount()
@@ -185,22 +191,48 @@ func (c *providerClientWithSubstrate) Snapshot(ctx context.Context, descriptor *
 	return snapshot
 }
 
+// resolveRunRerank derives the reranker leg and enabled flag a stored run should
+// record. A provider-direct run uses the provider's own read path, so an
+// explicit provider declaration wins first — including an explicit "none"
+// (rerank-off), which the shared substrate reranker must not overwrite. The
+// provider's registered tuning is the next source; the substrate is only a
+// fallback for a provider that declares neither, because the substrate reranker
+// participates in federated routing, not a direct provider read.
+func resolveRunRerank(statusLeg string, declaredTuning *registryv1.Tuning, substrateLeg string, substrateEnabled bool) (string, bool) {
+	leg := strings.TrimSpace(statusLeg)
+	switch {
+	case leg != "" && leg != "unknown":
+		return leg, leg != "none"
+	case declaredTuning != nil:
+		if !declaredTuning.GetRerankEnabled() {
+			return "none", false
+		}
+		if live := strings.TrimSpace(substrateLeg); live != "" {
+			return live, true
+		}
+		return "unknown", true
+	default:
+		return substrateLeg, substrateEnabled
+	}
+}
+
 func (c *routingQueryClient) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
-	// FederatedRunner marks router.routing contexts with WithRoutingEvaluation
-	// (and provider-owned suites with a provider-scoped background marker).
-	// Preserve that marker: replacing it here would make strategy overrides look
-	// like public queries and would erase the evaluation-only authorization.
+	// FederatedRunner marks the composed router suite with WithRoutingEvaluation.
+	// Provider-owned suites deliberately carry no marker: their federated run
+	// must exercise the ordinary ranked path (automatic selection + reranker),
+	// so it is sent as an ordinary query. The routing handler and the federated
+	// runner are separate HTTP handlers, so Go context values cannot cross this
+	// Connect hop; carry the routing-only authorization as an internal metadata
+	// marker and let the handler rebuild it.
 	base, err := c.resolver.ResolveScenarioURL(ctx, "search-hub")
 	if err != nil {
 		return nil, err
 	}
 	runQuery := routingconnect.NewRoutingServiceClient(c.http, base).Query
 	rpcRequest := connect.NewRequest(req)
-	// The federated runner and router are separate HTTP handlers, so Go context
-	// values cannot cross this Connect hop. Carry the evaluation authorization as
-	// an internal metadata marker; the routing handler turns it back into its
-	// request context before invoking the router.
-	rpcRequest.Header().Set("X-Vrooli-Search-Hub-Evaluation", "1")
+	if internalrouting.IsRoutingEvaluation(ctx) {
+		rpcRequest.Header().Set("X-Vrooli-Search-Hub-Evaluation", "1")
+	}
 	rpcResponse, err := runQuery(ctx, rpcRequest)
 	if err != nil {
 		return nil, err

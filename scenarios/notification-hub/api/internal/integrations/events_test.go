@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/storage"
 )
 
 // [REQ:NOTIFICA-P1-003]
@@ -169,15 +170,23 @@ func TestRenderEventUsesLiveOperatorTemplateForFacts(t *testing.T) {
 
 func TestOperatorStateRecipientReadsTheOperatorSetting(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", root)
 	resolve := OperatorStateRecipient()
 	if got := resolve(context.Background()); got != "" {
 		t.Fatalf("missing state resolved %q", got)
 	}
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1","updated_at":"now","notifications":{"recipient":" operator@host "}}`), 0o600); err != nil {
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.StateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "operator-state.json"), []byte(`{"version":"1","updated_at":"now","notifications":{"recipient":" operator@host "}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if got := resolve(context.Background()); got != "operator@host" {

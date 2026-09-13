@@ -4,7 +4,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 const root = resolve(process.argv[2] ?? `evidence/conversations-${Date.now()}`)
 mkdirSync(root, { recursive: true })
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl-egl'] })
@@ -62,6 +62,7 @@ async function inspect() {
 try {
   await page.goto('http://localhost:21235/world?scene=park&seed=7&profile=medium&intro=0&diag=1&period=day&weather=clear')
   await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 90000 })
+  await openCamera(page)
   await page.getByLabel('Camera mode', { exact: true }).selectOption('explore')
   await page.waitForTimeout(1000)
   const candidates = await inspect()

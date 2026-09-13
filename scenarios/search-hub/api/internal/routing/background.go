@@ -58,6 +58,14 @@ func isRoutingEvaluation(ctx context.Context) bool {
 	return value
 }
 
+// IsRoutingEvaluation reports whether ctx marks the composed router suite's
+// routing-only probe. Transport edges that must reconstruct the marker after a
+// process/HTTP hop use this predicate; provider-owned suites deliberately do
+// not set it so their federated runs exercise the ordinary ranked path.
+func IsRoutingEvaluation(ctx context.Context) bool {
+	return isRoutingEvaluation(ctx)
+}
+
 func backgroundEvaluationProvider(ctx context.Context) string {
 	value, _ := ctx.Value(backgroundEvaluationProviderKey{}).(string)
 	return value

@@ -18,9 +18,12 @@ type (
 
 // Response is the API response for a team.
 type Response struct {
-	Purpose          string                            `json:"purpose,omitempty"`
-	Lifetime         string                            `json:"lifetime,omitempty"`
-	EffortRefs       []string                          `json:"effortRefs,omitempty"`
+	Purpose    string   `json:"purpose,omitempty"`
+	Lifetime   string   `json:"lifetime,omitempty"`
+	EffortRefs []string `json:"effortRefs,omitempty"`
+	// ObjectivesServed is the team's authored declaration from team.json. It is
+	// an import and drift-comparison input, not the current-state authority;
+	// internal/objectives owns current objective state.
 	ObjectivesServed []teamconfig.ObjectiveDeclaration `json:"objectivesServed,omitempty"`
 
 	ID                 string                          `json:"id"`

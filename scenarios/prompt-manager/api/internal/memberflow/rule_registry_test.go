@@ -10,7 +10,7 @@ func TestDefaultRuleRegistryRegistersEveryRegisteredRuleFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultRuleRegistry() error = %v", err)
 	}
-	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules()) + len(DefaultPlanOfRecordRules()) + len(DefaultObjectiveRules())
+	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules()) + len(DefaultPlanOfRecordRules())
 	if got := len(registry.Rules()); got != want {
 		t.Fatalf("registered rules = %d, want %d", got, want)
 	}
@@ -24,7 +24,6 @@ func TestDefaultRuleCatalogExactlyMatchesDefaultRegistry(t *testing.T) {
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
 	rules = append(rules, DefaultPlanOfRecordRules()...)
-	rules = append(rules, DefaultObjectiveRules()...)
 	if _, err := NewRuleRegistryWithCatalog(catalog, rules...); err != nil {
 		t.Fatalf("default catalog and registry drifted: %v", err)
 	}

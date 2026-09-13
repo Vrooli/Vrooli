@@ -55,6 +55,7 @@ type mockAgentClient struct {
 	createRunCalls     []*CreateRunRequest
 	getRunCalls        []string
 	stopRunCalls       []string
+	continueRunCalls   []continueRunCall
 	ensureProfileCalls []*EnsureProfileRequest
 	listRunsCalls      []ListRunsOptions
 }
@@ -292,7 +293,16 @@ func (m *mockAgentClient) ListRuns(_ context.Context, opts ListRunsOptions) (*Li
 	return &ListRunsResponse{Runs: []*Run{}, Total: 0, HasMore: false}, nil
 }
 
-func (m *mockAgentClient) ContinueRun(_ context.Context, _ string, _ string) (*Run, error) {
+type continueRunCall struct {
+	RunID          string
+	Message        string
+	IdempotencyKey string
+}
+
+func (m *mockAgentClient) ContinueRun(_ context.Context, runID string, message string, idempotencyKey string) (*Run, error) {
+	m.mu.Lock()
+	m.continueRunCalls = append(m.continueRunCalls, continueRunCall{RunID: runID, Message: message, IdempotencyKey: idempotencyKey})
+	m.mu.Unlock()
 	if m.continueRunErr != nil {
 		return nil, m.continueRunErr
 	}

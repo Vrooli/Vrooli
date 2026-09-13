@@ -36,6 +36,7 @@ type recordingSessions struct {
 	getNotFound bool
 	onCreate    func()
 	onPrompt    func()
+	shellScreen string
 }
 
 func newRecordingSessions() *recordingSessions {
@@ -104,7 +105,9 @@ func (r *recordingSessions) Interrupt(context.Context, string, string) error {
 	return nil
 }
 
-func (r *recordingSessions) Screen(context.Context, string, bool) (string, error) { return "", nil }
+func (r *recordingSessions) Screen(context.Context, string, bool) (string, error) {
+	return r.shellScreen, nil
+}
 
 func interactiveTestTask(t *testing.T, svc *Orchestrator) *domain.Task {
 	t.Helper()
@@ -206,6 +209,7 @@ func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) 
 
 	root := t.TempDir()
 	sessions := newRecordingSessions()
+	sessions.shellScreen = "fixture$ "
 	provider := mocks.NewFakeSandboxProvider()
 	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{
 		Success: true, Applied: 2, TotalSizeBytes: 3072,
@@ -216,7 +220,7 @@ func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) 
 		t.Fatal(err)
 	}
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root))
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root), newCurrentModelPolicyFixtureOption(t))
 	task := interactiveTestTask(t, svc)
 
 	now := time.Now()
@@ -405,7 +409,7 @@ func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
 
 	sessions := newRecordingSessions()
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry))
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry), newCurrentModelPolicyFixtureOption(t))
 	reconciler := NewReconciler(repos.Runs, registry, WithReconcilerEvents(eventStore), WithReconcilerInteractive(sessions))
 	svc.SetReconciler(reconciler)
 	task := interactiveTestTask(t, svc)
@@ -488,7 +492,7 @@ func TestContinueInteractiveRun_SessionGone(t *testing.T) {
 	sessions := newRecordingSessions()
 	sessions.getNotFound = true
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithInteractiveSessions(sessions), WithEvents(eventStore))
+		WithInteractiveSessions(sessions), WithEvents(eventStore), newCurrentModelPolicyFixtureOption(t))
 	task := interactiveTestTask(t, svc)
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-sess", "wc-dead")
 

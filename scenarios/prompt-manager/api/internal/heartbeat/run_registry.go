@@ -17,6 +17,9 @@ type ActiveRun struct {
 	RunID     string             `json:"runId"`
 	StartedAt time.Time          `json:"startedAt"`
 	CancelFn  context.CancelFunc `json:"-"`
+	// State carries a durable obligation classification across restart. Empty
+	// for ordinary live runs; see the Obligation* constants.
+	State string `json:"state,omitempty"`
 }
 
 // RunObserver receives run lifecycle notifications from the registry. The
@@ -133,6 +136,7 @@ type persistedRun struct {
 	AgentID   string    `json:"agentId"`
 	RunID     string    `json:"runId"`
 	StartedAt time.Time `json:"startedAt"`
+	State     string    `json:"state,omitempty"`
 }
 
 // persistLocked writes the current active map to disk. Caller must hold mu.
@@ -144,6 +148,7 @@ func (r *RunRegistry) persistLocked() {
 			AgentID:   run.AgentID,
 			RunID:     run.RunID,
 			StartedAt: run.StartedAt,
+			State:     run.State,
 		})
 	}
 
@@ -164,8 +169,13 @@ func (r *RunRegistry) persistLocked() {
 }
 
 // Recover loads persisted runs from disk and checks each against agent-manager.
-// Terminal runs are removed; active ones are kept (without CancelFn since the
-// goroutine is gone after a restart).
+// Definitive terminal runs are removed; active runs and unresolved obligations
+// are kept (without CancelFn since the goroutine is gone after a restart).
+//
+// A GetRun error means the owner is unavailable: retaining the entry prevents a
+// later tick from mistaking an outage for a dead run. A run the owner no longer
+// knows is retained as uncertain rather than dropped, because absence of
+// terminal evidence is not terminal evidence.
 func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
 	data, err := os.ReadFile(r.filePath)
 	if err != nil {
@@ -185,28 +195,41 @@ func (r *RunRegistry) Recover(ctx context.Context, client AgentClient) {
 	defer r.mu.Unlock()
 
 	for _, pr := range runs {
-		// Check run status with agent-manager
-		run, err := client.GetRun(ctx, pr.RunID)
-		if err != nil {
-			log.Printf("run_registry: failed to check run %s: %v", pr.RunID, err)
-			continue
-		}
-
-		// If run is nil or terminal, skip it
-		if run == nil {
-			continue
-		}
-		if IsTerminalStatus(run.Status) {
-			continue
-		}
-
-		// Still active — add to registry without CancelFn
-		r.active[registryKey(pr.TeamID, pr.AgentID)] = &ActiveRun{
+		base := ActiveRun{
 			TeamID:    pr.TeamID,
 			AgentID:   pr.AgentID,
 			RunID:     pr.RunID,
 			StartedAt: pr.StartedAt,
 		}
+
+		// A prior recovery already recorded a non-resolvable obligation.
+		// Preserve it without re-probing the owner.
+		if pr.State != ObligationRunning {
+			base.State = pr.State
+			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+			continue
+		}
+
+		run, err := client.GetRun(ctx, pr.RunID)
+		if err != nil {
+			log.Printf("run_registry: retaining owner_unreachable run %s: %v", pr.RunID, err)
+			base.State = ObligationOwnerUnreachable
+			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+			continue
+		}
+		if run == nil {
+			log.Printf("run_registry: retaining dispatch_uncertain run %s (owner reports not found)", pr.RunID)
+			base.State = ObligationDispatchUncertain
+			r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
+			continue
+		}
+		if IsTerminalStatus(run.Status) {
+			continue
+		}
+		if IsParkedStatus(run.Status) {
+			base.State = ObligationPaused
+		}
+		r.active[registryKey(pr.TeamID, pr.AgentID)] = &base
 	}
 
 	r.persistLocked()

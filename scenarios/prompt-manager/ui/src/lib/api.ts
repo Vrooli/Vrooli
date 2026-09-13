@@ -11,7 +11,7 @@
 
 import { create, fromJson, toJson, type JsonValue } from '@bufbuild/protobuf'
 import { ValueSchema, type Value } from '@bufbuild/protobuf/wkt'
-import { createClient } from '@connectrpc/connect'
+import { Code, ConnectError, createClient } from '@connectrpc/connect'
 import { createConnectTransport } from '@connectrpc/connect-web'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import {
@@ -202,6 +202,26 @@ import {
   TeamRequestSchema as MemberflowTeamRequestSchema,
   UpdateMemberTopicsRequestSchema,
 } from '@vrooli/proto-types/prompt-manager/v1/memberflow/memberflow_pb'
+import {
+  ObjectivesService,
+  AcknowledgeObjectiveRequestSchema as AcknowledgeObjectiveRequestProtoSchema,
+  AddRelationRequestSchema as AddRelationRequestProtoSchema,
+  AttachmentInputSchema as AttachmentInputProtoSchema,
+  AttachObjectiveRequestSchema as AttachObjectiveRequestProtoSchema,
+  DeleteObjectiveRequestSchema as DeleteObjectiveRequestProtoSchema,
+  DeleteRelationRequestSchema as DeleteRelationRequestProtoSchema,
+  DetachObjectiveRequestSchema as DetachObjectiveRequestProtoSchema,
+  GetObjectiveRequestSchema as GetObjectiveRequestProtoSchema,
+  ListObjectivesRequestSchema as ListObjectivesRequestProtoSchema,
+  ListRelationsRequestSchema as ListRelationsRequestProtoSchema,
+  ListTeamAttachmentsRequestSchema as ListTeamAttachmentsRequestProtoSchema,
+  ObjectiveInputSchema as ObjectiveInputProtoSchema,
+  ReorderObjectivesRequestSchema as ReorderObjectivesRequestProtoSchema,
+  ReorderTeamAttachmentsRequestSchema as ReorderTeamAttachmentsRequestProtoSchema,
+  UpdateAttachmentRequestSchema as UpdateAttachmentRequestProtoSchema,
+  UpsertObjectiveRequestSchema as UpsertObjectiveRequestProtoSchema,
+  ValidateObjectivesRequestSchema as ValidateObjectivesRequestProtoSchema,
+} from '@vrooli/proto-types/prompt-manager/v1/objectives/objectives_pb'
 import {
   HeartbeatService,
   EmptyRequestSchema as HeartbeatEmptyRequestSchema,
@@ -438,6 +458,7 @@ const metadataClient = createClient(MetadataService, connectTransport)
 const experimentsClient = createClient(ExperimentsService, connectTransport)
 const graphClient = createClient(GraphService, connectTransport)
 const memberflowClient = createClient(MemberflowService, connectTransport)
+const objectivesClient = createClient(ObjectivesService, connectTransport)
 const heartbeatClient = createClient(HeartbeatService, connectTransport)
 
 type Slice4Result = { handled: true; data: unknown } | { handled: false }
@@ -1143,6 +1164,159 @@ class ApiClient {
     return parseOrThrow(AgentTeamsResponseSchema, toJson(ListAgentTeamsResponseProtoSchema, response), 'AgentsService.ListAgentTeams')
   }
 
+  // Objective authority methods
+  /**
+   * Read a team's objective attachments from the objective authority.
+   *
+   * The authority (objectives/v1 ListTeamAttachments) is the only owner of
+   * current objective state. The team.json::objectivesServed declaration is an
+   * authored import input, not a second authority, so readers must not resolve
+   * coverage from it.
+   */
+  async listTeamObjectiveAttachments(teamId: string): Promise<TeamObjectiveAttachment[]> {
+    const response = await objectivesClient.listTeamAttachments(create(ListTeamAttachmentsRequestProtoSchema, { teamId }))
+    return response.attachments.map(attachment => ({
+      id: attachment.objectiveId,
+      role: attachment.role || undefined,
+      coverage: attachment.coverage || undefined,
+      note: attachment.note || undefined,
+      acknowledgedRevision: attachment.acknowledgedRevision || undefined,
+    }))
+  }
+
+  /** List every objective in persisted global order. */
+  async listObjectives(): Promise<Objective[]> {
+    const response = await objectivesClient.listObjectives(create(ListObjectivesRequestProtoSchema))
+    return response.objectives.map(objectiveToModel)
+  }
+
+  /** Read one objective; undefined when the owner reports not found. */
+  async getObjective(id: string): Promise<Objective | undefined> {
+    try {
+      const response = await objectivesClient.getObjective(create(GetObjectiveRequestProtoSchema, { id }))
+      return objectiveToModel(response)
+    } catch (error) {
+      if (isConnectErrorCode(error, Code.NotFound)) return undefined
+      throw error
+    }
+  }
+
+  /**
+   * Create or update one objective. Pass the caller's view of the current
+   * meaning revision for an update so a concurrent edit cannot be overwritten;
+   * pass an empty string only when creating a new objective.
+   */
+  async upsertObjective(input: ObjectiveInput, expectedMeaningRevision = ''): Promise<Objective> {
+    const response = await objectivesClient.upsertObjective(create(UpsertObjectiveRequestProtoSchema, {
+      objective: create(ObjectiveInputProtoSchema, input),
+      expectedMeaningRevision,
+    }))
+    return objectiveToModel(response)
+  }
+
+  /** Delete an objective that no team or relation still references. */
+  async deleteObjective(id: string, expectedMeaningRevision = ''): Promise<void> {
+    await objectivesClient.deleteObjective(create(DeleteObjectiveRequestProtoSchema, { id, expectedMeaningRevision }))
+  }
+
+  /** Rewrite global objective order; the id set must match the persisted set. */
+  async reorderObjectives(objectiveIds: string[]): Promise<Objective[]> {
+    const response = await objectivesClient.reorderObjectives(create(ReorderObjectivesRequestProtoSchema, { objectiveIds }))
+    return response.objectives.map(objectiveToModel)
+  }
+
+  /** Read a team's attachments in priority order with revision and restatement state. */
+  async listTeamAttachments(teamId: string): Promise<TeamObjectiveAttachments> {
+    const response = await objectivesClient.listTeamAttachments(create(ListTeamAttachmentsRequestProtoSchema, { teamId }))
+    return {
+      teamId: response.teamId,
+      attachmentRevision: response.attachmentRevision,
+      attachments: response.attachments.map(attachmentToModel),
+    }
+  }
+
+  /** Link a team to an objective; a duplicate pair is refused by the owner. */
+  async attachObjective(input: ObjectiveAttachmentInput, expectedTeamRevision = ''): Promise<ObjectiveAttachment> {
+    const response = await objectivesClient.attachObjective(create(AttachObjectiveRequestProtoSchema, {
+      attachment: create(AttachmentInputProtoSchema, input),
+      expectedTeamRevision,
+    }))
+    return attachmentToModel(response)
+  }
+
+  /** Edit role, coverage or note on an existing link. */
+  async updateAttachment(input: ObjectiveAttachmentInput, expectedTeamRevision = ''): Promise<ObjectiveAttachment> {
+    const response = await objectivesClient.updateAttachment(create(UpdateAttachmentRequestProtoSchema, {
+      attachment: create(AttachmentInputProtoSchema, input),
+      expectedTeamRevision,
+    }))
+    return attachmentToModel(response)
+  }
+
+  /** Remove a team's link to an objective. */
+  async detachObjective(objectiveId: string, teamId: string, expectedTeamRevision = ''): Promise<void> {
+    await objectivesClient.detachObjective(create(DetachObjectiveRequestProtoSchema, { objectiveId, teamId, expectedTeamRevision }))
+  }
+
+  /** Rewrite a team's objective priority; reorder alone does not acknowledge meaning. */
+  async reorderTeamAttachments(teamId: string, objectiveIds: string[], expectedTeamRevision = ''): Promise<TeamObjectiveAttachments> {
+    const response = await objectivesClient.reorderTeamAttachments(create(ReorderTeamAttachmentsRequestProtoSchema, {
+      teamId,
+      objectiveIds,
+      expectedTeamRevision,
+    }))
+    return {
+      teamId: response.teamId,
+      attachmentRevision: response.attachmentRevision,
+      attachments: response.attachments.map(attachmentToModel),
+    }
+  }
+
+  /** Confirm a team has reconsidered an objective's current meaning revision. */
+  async acknowledgeObjective(objectiveId: string, teamId: string, revision: string): Promise<ObjectiveAttachment> {
+    const response = await objectivesClient.acknowledgeObjective(create(AcknowledgeObjectiveRequestProtoSchema, {
+      objectiveId,
+      teamId,
+      revision,
+    }))
+    return attachmentToModel(response)
+  }
+
+  /** List every objective support edge. */
+  async listObjectiveRelations(): Promise<ObjectiveRelation[]> {
+    const response = await objectivesClient.listRelations(create(ListRelationsRequestProtoSchema))
+    return response.relations.map(relation => ({
+      fromObjectiveId: relation.fromObjectiveId,
+      toObjectiveId: relation.toObjectiveId,
+    }))
+  }
+
+  /** Add an instrumental support edge; the owner refuses unknown or cyclic edges. */
+  async addObjectiveRelation(fromObjectiveId: string, toObjectiveId: string): Promise<void> {
+    await objectivesClient.addRelation(create(AddRelationRequestProtoSchema, { fromObjectiveId, toObjectiveId }))
+  }
+
+  /** Remove a support edge. */
+  async deleteObjectiveRelation(fromObjectiveId: string, toObjectiveId: string): Promise<void> {
+    await objectivesClient.deleteRelation(create(DeleteRelationRequestProtoSchema, { fromObjectiveId, toObjectiveId }))
+  }
+
+  /** Read the owner's validation findings for the whole objective authority. */
+  async validateObjectives(): Promise<ObjectiveValidation> {
+    const response = await objectivesClient.validateObjectives(create(ValidateObjectivesRequestProtoSchema))
+    return {
+      errors: response.errors,
+      warnings: response.warnings,
+      findings: response.findings.map(finding => ({
+        rule: finding.rule,
+        severity: finding.severity,
+        objectiveId: finding.objectiveId || undefined,
+        teamId: finding.teamId || undefined,
+        detail: finding.detail,
+      })),
+    }
+  }
+
   // Team methods
   async getTeams(): Promise<Team[]> {
     const response = await teamsClient.listTeams(create(ListTeamsRequestProtoSchema))
@@ -1486,6 +1660,141 @@ class ApiClient {
       ExperimentSchema
     )
   }
+}
+
+/**
+ * TeamObjectiveAttachment is one objective attachment read from the objective
+ * authority for display. It mirrors the fields the team page already showed from
+ * the declaration: objective id, role, coverage, note and acknowledged revision.
+ */
+export interface TeamObjectiveAttachment {
+  id: string
+  role?: string
+  coverage?: string
+  note?: string
+  acknowledgedRevision?: string
+}
+
+/** Objective is one owner objective with its persisted global order and meaning revision. */
+export interface Objective {
+  id: string
+  title: string
+  class: string
+  evidenceSource?: string
+  hasEvidence: boolean
+  gapMarker?: string
+  globalOrder: number
+  meaningRevision: string
+}
+
+/** ObjectiveInput is the authored objective fields; meaning revision and order are owner-managed. */
+export interface ObjectiveInput {
+  id: string
+  title: string
+  class: string
+  evidenceSource?: string
+  gapMarker?: string
+}
+
+/** ObjectiveAttachment links a team to an objective with role, coverage and priority. */
+export interface ObjectiveAttachment {
+  objectiveId: string
+  teamId: string
+  role?: string
+  coverage?: string
+  note?: string
+  priority: number
+  acknowledgedRevision?: string
+  attachmentRevision?: string
+  restatementPending: boolean
+}
+
+/** TeamObjectiveAttachments is a team's ordered attachments plus its links/order revision. */
+export interface TeamObjectiveAttachments {
+  teamId: string
+  attachmentRevision: string
+  attachments: ObjectiveAttachment[]
+}
+
+/** ObjectiveAttachmentInput is the editable subset of an attachment. */
+export interface ObjectiveAttachmentInput {
+  objectiveId: string
+  teamId: string
+  role?: string
+  coverage?: string
+  note?: string
+}
+
+/** ObjectiveRelation is a directed instrumental-to-target support edge. */
+export interface ObjectiveRelation {
+  fromObjectiveId: string
+  toObjectiveId: string
+}
+
+/** ObjectiveValidationFinding is one owner validation observation. */
+export interface ObjectiveValidationFinding {
+  rule: string
+  severity: string
+  objectiveId?: string
+  teamId?: string
+  detail: string
+}
+
+/** ObjectiveValidation is the owner's tally over current objective state. */
+export interface ObjectiveValidation {
+  findings: ObjectiveValidationFinding[]
+  errors: number
+  warnings: number
+}
+
+function objectiveToModel(o: {
+  id: string
+  title: string
+  class: string
+  evidenceSource: string
+  hasEvidence: boolean
+  gapMarker: string
+  globalOrder: number
+  meaningRevision: string
+}): Objective {
+  return {
+    id: o.id,
+    title: o.title,
+    class: o.class,
+    evidenceSource: o.evidenceSource || undefined,
+    hasEvidence: o.hasEvidence,
+    gapMarker: o.gapMarker || undefined,
+    globalOrder: o.globalOrder,
+    meaningRevision: o.meaningRevision,
+  }
+}
+
+function attachmentToModel(a: {
+  objectiveId: string
+  teamId: string
+  role: string
+  coverage: string
+  note: string
+  priority: number
+  acknowledgedRevision: string
+  attachmentRevision: string
+  restatementPending: boolean
+}): ObjectiveAttachment {
+  return {
+    objectiveId: a.objectiveId,
+    teamId: a.teamId,
+    role: a.role || undefined,
+    coverage: a.coverage || undefined,
+    note: a.note || undefined,
+    priority: a.priority,
+    acknowledgedRevision: a.acknowledgedRevision || undefined,
+    attachmentRevision: a.attachmentRevision || undefined,
+    restatementPending: a.restatementPending,
+  }
+}
+
+function isConnectErrorCode(error: unknown, code: Code): boolean {
+  return error instanceof ConnectError && error.code === code
 }
 
 export const api = new ApiClient()

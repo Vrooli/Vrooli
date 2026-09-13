@@ -8,6 +8,7 @@ TypeScript and Python messages use the same contract. No plan family is required
 | CLI operation | RPC | Request message |
 | --- | --- | --- |
 | `effort board` | `GetEffortBoard` | `GetEffortBoardRequest` |
+| `effort compact` | `GetEffortBoard` | `GetEffortBoardRequest` |
 | `effort list` | `ListEfforts` | `ListEffortsRequest` |
 | `effort discover` | `ReconcileEffortDiscovery` | `ReconcileEffortDiscoveryRequest` |
 | `effort enroll` | `EnrollEffort` | `EnrollEffortRequest` |
@@ -23,6 +24,17 @@ Invoke these with `agent-manager` before the operation. Read operations accept
 `--json`, `--page-size` (1–100) and `--page-token`; board and directives accept
 `--effort-ref`. Mutation operations accept `--request-file PATH` containing the
 whole typed request, not only its nested enrollment/directive. For example:
+
+`effort compact` is a bounded presentation of the same one-call board join. Its
+text output shows selected efforts, the prior assessment, changed evidence
+references, owner usage, provider quota observations and named waits with detail
+references. `--json` intentionally returns the complete typed `EffortBoard`
+response from that same call for machine consumers; it does not produce a
+second compact JSON schema.
+Shared quota observations appear once at the owner-cut level; run-attributable
+quota observations remain on their effort row. Following a detail reference is
+explicit; the command does not read transcripts or repeat the full board
+implicitly.
 
 ```json
 {
@@ -43,6 +55,22 @@ This example grants no steering. To amend, pass the current enrollment and its
 conflicts. Withdrawal requires `effortRef`, `expectedRevision`, `reason` and
 `idempotencyKey`; it survives rediscovery. Automatic observation needs neither
 operator credentials nor enrollment calls; explicit reconciliation is operator-only.
+
+Provider quota observations are also readable through the existing pricing
+owner:
+
+```bash
+agent-manager subscription quota list --provider openai --pool primary --json
+```
+
+The equivalent endpoint is `GET /api/v1/pricing/quota-observations` with
+optional `provider`, `pool`, `window`, and `limit` (1–100) filters. Rows retain
+the source run, provider pool/window, observed time, ingestion freshness,
+provenance, reset time, and provider-reported percentage where available.
+Missing absolute ceilings remain unknown; token totals and estimated dollars
+are never converted into quota use. Native frames currently lack a credential
+or account identifier, so their uncertainty explicitly says account scope is
+unavailable; observations from different credentials must not be combined.
 
 ## Authority and recurring wakes
 
@@ -253,6 +281,13 @@ supervisor can record an assessment from its exact canonical public active
 supervisor reference and target revision before periodic discovery joins it to
 the board. The owner reads that run once; no directory scan, enrollment rewrite,
 operator exchange or steering permission is implied.
+
+Assessments may carry bounded `repairLinks` for one existing infrastructure
+assignment. Each assigned or resolved link names the canonical Swarm `workRef`,
+assigning owner, next owner operation, completion evidence references and stopping
+condition. `needs_assignment` names the owner, next operation and stopping
+condition without claiming a work item or dispatch. AM stores these links as
+evidence metadata; it does not create a Swarm item, ledger entry or grant.
 
 Directive request JSON includes `directive`, `expectedEnrollmentRevision` and
 `authority`. The directive needs `effortRef`, `targetRevision`, `targetRunId`,

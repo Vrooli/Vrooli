@@ -20,6 +20,14 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 	spaceCommand := spacecli.CommandGroup(spacecli.Config{Owner: "agent-manager", Projection: spacedoc.ProjectionAgentThroughput}).Commands[0]
 	spaceCommand.Name = "get"
 	space := cliapp.SubcommandGroup{Name: "space", Description: "Inspect the coverage-space denominator", DefaultSubcommand: "get", Subcommands: []cliapp.Command{spaceCommand}}
+	subscription := support.SubcommandGroup("subscription", "Manage subscription billing periods and quota observations", deps.Subscription,
+		[2]string{"periods", "Create, list, or remove billing periods"}, [2]string{"quota", "List provider quota observations"})
+	for i := range subscription.Subcommands {
+		if subscription.Subcommands[i].Name == "quota" {
+			subscription.Subcommands[i].Usage = "agent-manager subscription quota list [--provider --pool --window --limit --json]"
+			subscription.Subcommands[i].HelpText = "Reads provider-reported quota standing and percentage/window metadata with provenance; amounts remain unknown unless reported."
+		}
+	}
 	return []cliapp.SubcommandGroup{
 		support.SubcommandGroup("profile", "Manage agent profiles", deps.Profile,
 			[2]string{"list", "List all agent profiles"}, [2]string{"get", "Get profile details by id or key"}, [2]string{"create", "Create a new profile"}, [2]string{"update", "Update an existing profile"}, [2]string{"delete", "Delete a profile"}, [2]string{"ensure", "Resolve a profile key, creating defaults if needed"}, [2]string{"reconcile-scenario", "Reconcile profiles declared by a scenario"}),
@@ -56,7 +64,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"models", "Show current model health"}, [2]string{"runners", "Show current runner health"}, [2]string{"audit", "Show paginated health history"}),
 		support.SubcommandGroup("events", "Query the typed operational event log", deps.Events, [2]string{"list", "List typed events with optional filters"}),
 		support.SubcommandGroup("findings", "Inspect recurring investigation findings", deps.Findings, [2]string{"list", "List recurring findings"}),
-		support.SubcommandGroup("subscription", "Manage subscription billing periods", deps.Subscription, [2]string{"periods", "Create, list, or remove billing periods"}),
+		subscription,
 		conversationGroup(deps),
 		space,
 		runs.SubcommandGroup(deps),
@@ -103,7 +111,7 @@ func maintenanceGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 
 func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 	group := support.SubcommandGroup("effort", "Observe and supervise arbitrary efforts", deps.Effort,
-		[2]string{"board", "Read the shared effort board"}, [2]string{"list", "List durable effort enrollments"},
+		[2]string{"board", "Read the shared effort board"}, [2]string{"compact", "Read a compact joined owner observation"}, [2]string{"list", "List durable effort enrollments"},
 		[2]string{"discover", "Reconcile bounded discovery (operator authentication)"},
 		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
 		[2]string{"direct", "Request an authorized directive"}, [2]string{"directives", "Read delivery and assessment"},
@@ -116,6 +124,9 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		command := &group.Subcommands[i]
 		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
 		command.Usage = "agent-manager effort " + command.Name + " [--json]"
+		if command.Name == "compact" {
+			command.HelpText = "Text output renders the compact joined owner observation; --json returns the full typed EffortBoard response for machine consumers."
+		}
 		if types[command.Name] != "" || command.Name == "discover" {
 			command.Args.Flags = append(command.Args.Flags, cliapp.Flag{Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local operator exchange; unavailable in identified agent runs"})
 		}

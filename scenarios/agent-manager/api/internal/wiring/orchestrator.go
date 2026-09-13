@@ -121,6 +121,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 
 	pricingRepository := database.NewPricingRepository(db, logger)
 	pricingService := pricing.NewServiceWithModelResolver(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider(), providers.NewOpenCodeGoProvider()}, logger, pricing.NewCLIModelResolver())
+	quotaObservationStore, _ := pricingRepository.(pricing.QuotaObservationRepository)
 	startPricingLifecycle(pricingService, bootLog)
 	runners := NewRunners(pricingCodecAdapter{service: pricingService})
 	registry := runners.Registry
@@ -219,7 +220,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	})
 	actionAuthorizer := watchActionAuthorizer{orchestrator: nil, owners: ownerIdentity}
 	opts := []orchestration.Option{
-		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
+		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithQuotaObservationStore(quotaObservationStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceEnsurer), orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithWorkflowRepository(repos.Workflows), orchestration.WithWorkflowExecutionRepository(repos.WorkflowExecutions), orchestration.WithBroadcaster(hub),
 		orchestration.WithTerminator(terminator), orchestration.WithStorageLabel("sqlite"), orchestration.WithRolePolicyState(roleState, roleResolver),
@@ -301,6 +302,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	effortConfig := effortDiscoveryConfig()
 	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, supervisionPolicies, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
+	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
 	supervisionService.Efforts.ConfigureDispatch(identitySecret, provisionSupervisorCredential, func(ctx context.Context, key string) error {
 		profile, err := repos.Profiles.GetByKey(ctx, key)
 		if err != nil {

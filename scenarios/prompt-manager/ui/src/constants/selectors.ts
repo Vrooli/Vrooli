@@ -1,4 +1,5 @@
 import { librarySelectors } from "../consts/selectors.library";
+export { librarySelectors };
 /**
  * Prompt Manager selector registry
  *
@@ -40,6 +41,7 @@ const literalSelectors = {
     header: 'agent-editor-header',
     nameDisplay: 'agent-editor-name-display',
     nameInput: 'agent-editor-name-input',
+    sharedContext: 'agent-editor-shared-context',
   },
   teams: {
     list: 'team-list',
@@ -103,6 +105,7 @@ const literalSelectors = {
       actorList: 'world-hud-actor-list',
       feedStatus: 'world-hud-feed-status',
       home: 'world-hud-home',
+      cameraToggle: 'world-hud-camera-toggle',
     },
     editor: {
       toolbar: 'world-editor-toolbar',

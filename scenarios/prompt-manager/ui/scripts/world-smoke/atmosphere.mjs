@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 const option = (name, fallback) => { const i = process.argv.indexOf(name); return i < 0 ? fallback : process.argv[i + 1] }
 const root = resolve(option('--evidence-dir', `evidence/atmosphere-${Date.now()}`))
 mkdirSync(root, { recursive: true })
@@ -34,6 +34,7 @@ try {
   for (const scene of ['park', 'office']) {
     await page.goto(`http://localhost:21235/world?actors=16&scene=${scene}&intro=0&profile=high&diag=1&period=night&weather=clear`)
     await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 60000 })
+    await openCamera(page)
     await page.evaluate(() => {
       const pending = [...window.__cameraFixtureRoots].map(r => r.current); let render, clock, world
       while (pending.length) { const f = pending.pop();

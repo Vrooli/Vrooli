@@ -386,6 +386,7 @@
         "agent-manager.conversation-recall",
         "agent-manager.supervision-evaluate",
         "agent-manager.supervision-case-read",
+        "agent-manager.supervision-observation-read",
         "agent-manager.supervision-experiment-read"
       ]
     },

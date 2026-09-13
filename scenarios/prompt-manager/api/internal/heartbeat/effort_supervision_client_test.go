@@ -24,10 +24,78 @@ type effortBoardHandlerFake struct {
 }
 
 func TestStandingSupervisorDoesNotJudgeDispatchAuthorizationAnchor(t *testing.T) {
-	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{{Enrollment: &ampb.EffortEnrollment{EffortRef: "arbitrary-authorization-id"}, ChangeIdentity: "grant-cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, NextAction: "authorization-only"}}})
+	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{{Enrollment: &ampb.EffortEnrollment{EffortRef: "arbitrary-authorization-id", DispatchAuthorization: &ampb.SupervisorDispatchAuthorization{AuthorizationId: "grant"}}, ChangeIdentity: "grant-cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, NextAction: "observe"}}})
 	if len(cut.Efforts) != 1 || cut.Efforts[0].Eligible || cut.Efforts[0].Retired {
 		t.Fatal("authorization anchor became a judgment target or was falsely withdrawn", cut)
 	}
+	if !strings.Contains(cut.Efforts[0].Reason, "authorization anchor") || len(cut.Efforts[0].DetailRefs) != 1 {
+		t.Fatal("anchor classification did not retain a bounded detail reference", cut.Efforts[0])
+	}
+}
+
+func TestStandingSupervisorDoesNotJudgePreIssuanceOwnerAnchor(t *testing.T) {
+	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{{Enrollment: &ampb.EffortEnrollment{
+		EffortRef: "arbitrary-preissuance-anchor", AuthorizedBy: "owner-subject",
+		SupervisorOwnerSubject: "owner-subject", SupervisorScope: "agent-manager:supervise",
+	}, ChangeIdentity: "owner-cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, NextAction: "observe"}}})
+	if len(cut.Efforts) != 1 || cut.Efforts[0].Eligible || cut.Efforts[0].Retired || !strings.Contains(cut.Efforts[0].Reason, "authorization anchor") {
+		t.Fatal("pre-issuance owner anchor became a judgment target", cut)
+	}
+}
+
+func TestStandingSupervisorAnchorClassificationIsGenericAndSurvivesSupervisorAttribution(t *testing.T) {
+	row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{
+		EffortRef: "owner:arbitrary-dispatch", SupervisorRunId: "supervisor-run",
+		Subjects:              []*ampb.EffortSubject{{Owner: "agent-manager", Kind: "run", Reference: "supervisor-run", RunId: "supervisor-run", Role: "supervisor"}},
+		DispatchAuthorization: &ampb.SupervisorDispatchAuthorization{AuthorizationId: "grant"},
+	}, ChangeIdentity: "grant-cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH}
+	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, QuotaObservations: []*ampb.EffortQuotaObservation{{Provider: "openai", Pool: "primary", Window: "daily", Standing: "reported", EvidenceRef: "quota:1"}}})
+	if len(cut.Efforts) != 1 || cut.Efforts[0].Eligible || cut.Efforts[0].Retired {
+		t.Fatal("supervisor attribution turned an authorization anchor into a sample", cut)
+	}
+	// A mutable display hint cannot hide an ordinary effort when the owner did
+	// not provide the server-owned authorization metadata.
+	ordinary := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "owner:ordinary"}, ChangeIdentity: "cut", Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, NextAction: "authorization-only"}
+	if mapped := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{ordinary}}); !mapped.Efforts[0].Eligible {
+		t.Fatal("mutable authorization-only hint hid an ordinary effort", mapped)
+	}
+}
+
+func TestStandingSupervisorCompactJoinedObservationRetainsOwnerReferences(t *testing.T) {
+	assessment := &ampb.EffortAssessment{AssessmentId: "assessment-1", EffortRefs: []string{"owner:arbitrary"}, TargetRevisions: map[string]string{"owner:arbitrary": "accepted-1"}, IdempotencyKey: "wake-1", SupervisorRunId: "supervisor-1", Disposition: "quiet", EvidenceRefs: []string{"checkpoint:1"}, SourceLedgerRef: "ledger:1", AllowanceRef: "allowance:1", ObservedUsage: &ampb.EffortUsage{Partial: true}, RepairLinks: []*ampb.EffortRepairLink{{WorkRef: "swarm-manager:backlog/chore/effort-supervision-runtime-adoption", AssigningOwnerRef: "owner:root", NextOperation: "vrooli scenario restart agent-manager", CompletionEvidenceRefs: []string{"test-genie:adoption"}, StoppingCondition: "stop after one bounded adoption attempt", State: "assigned"}}}
+	row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{EffortRef: "owner:arbitrary", TargetRevision: "accepted-1"}, ChangeIdentity: "changed-cut", EvidenceRefs: []string{"checkpoint:2"}, PendingOperations: []string{"owner:wait:1"}, Usage: &ampb.EffortUsage{Partial: true, Source: "owner-summary"}, LastAssessment: assessment, QuotaObservations: []*ampb.EffortQuotaObservation{{Provider: "openai", Pool: "primary", Window: "daily", Standing: "available", UsedPercent: func() *float64 { v := 42.5; return &v }(), Provenance: "codex:native", EvidenceRef: "quota:row"}}}
+	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, QuotaObservations: []*ampb.EffortQuotaObservation{{Provider: "openai", Pool: "primary", Window: "daily", Standing: "reported", EvidenceRef: "quota:1"}}})
+	if len(cut.Efforts) != 1 {
+		t.Fatal("compact mapping dropped effort", cut)
+	}
+	effort := cut.Efforts[0]
+	if effort.PriorAssessment == nil || effort.PriorAssessment.ID != "assessment-1" || effort.PriorAssessment.SourceLedgerRef != "ledger:1" || effort.PriorAssessment.AllowanceRef != "allowance:1" {
+		t.Fatal("prior assessment was not joined into compact observation", effort.PriorAssessment)
+	}
+	if len(effort.RepairLinks) != 1 || effort.RepairLinks[0].GetWorkRef() == "" || effort.RepairLinks[0].GetNextOperation() == "" || len(effort.RepairLinks[0].GetCompletionEvidenceRefs()) != 1 {
+		t.Fatal("typed repair linkage was not joined into compact observation", effort.RepairLinks)
+	}
+	if effort.Usage == nil || effort.Usage.Source != "owner-summary" || len(effort.NamedWaits) != 1 || effort.NamedWaits[0] != "owner:wait:1" {
+		t.Fatal("usage or named owner wait was not retained", effort)
+	}
+	if len(effort.ChangedEvidence) != 2 || len(effort.DetailRefs) > 32 || !containsEffortRef(effort.DetailRefs, "swarm-manager:backlog/chore/effort-supervision-runtime-adoption") {
+		t.Fatal("changed evidence/detail refs were not bounded and joined", effort)
+	}
+	if len(cut.QuotaObservations) != 1 || cut.QuotaObservations[0].GetEvidenceRef() != "quota:1" {
+		t.Fatal("shared quota observation was dropped or duplicated in compact mapping", cut.QuotaObservations)
+	}
+	if len(effort.QuotaObservations) != 1 || effort.QuotaObservations[0].GetUsedPercent() != 42.5 || effort.QuotaObservations[0].GetEvidenceRef() != "quota:row" {
+		t.Fatal("row quota observation was not retained beside usage and outcome", effort.QuotaObservations)
+	}
+}
+
+func containsEffortRef(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestStandingSupervisorFreshBoardWithoutGrantRemainsObservationOnly(t *testing.T) {
@@ -199,6 +267,15 @@ func TestStandingSupervisorObservationWorkReferencesAndTypedAssessment(t *testin
 	}
 	if !strings.Contains(prompt, "pending periodic board membership join does not require waiting") || !strings.Contains(prompt, "retain the exact refusal and finish without claiming a receipt") {
 		t.Fatal("prompt lost immediate owner verification or explicit refusal handling")
+	}
+	if !strings.Contains(prompt, "one compact joined owner observation") || !strings.Contains(prompt, "do not repeat full board or transcript reads") {
+		t.Fatal("prompt did not adopt the bounded joined evidence contract")
+	}
+	if strings.Contains(prompt, "Before submission, read agent-manager effort board") || !strings.Contains(prompt, "use the supplied compact owner cut") || !strings.Contains(prompt, "AM atomically validates membership and revisions as authoritative") || !strings.Contains(prompt, "one bounded compact owner read rather than the full board") {
+		t.Fatal("prompt requires an unconditional full-board reread instead of using the supplied compact cut")
+	}
+	if !strings.Contains(prompt, "perform it even for a stopped or observation-only effort") || !strings.Contains(prompt, "sampling is separate from steering authority") {
+		t.Fatal("prompt conflated an admitted diagnostic sample with steering authority")
 	}
 	if !strings.Contains(prompt, `prompt-manager team knowledge-add "supervisors" --topic="supervision-assessment/`+wake.ID+`"`) || !strings.Contains(prompt, "Retain any link failure separately from the accepted AM receipt and finish") {
 		t.Fatal("prompt lost the selected team's typed link operation or bounded post-receipt exit")

@@ -15,7 +15,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/attempt"
@@ -125,6 +129,36 @@ type Handler struct {
 	followUpDispatcher     FollowUpDispatcher
 	attemptDecisionRouter  attempt.Decider
 	developmentLookup      func(context.Context, string) (bool, error)
+	effortControl          *EffortControlService
+}
+
+// SetEffortControlService installs the owner effort-control admission service.
+// A nil service leaves the effort endpoints unavailable rather than falling
+// back to a second policy authority.
+func (h *Handler) SetEffortControlService(service *EffortControlService) {
+	h.effortControl = service
+}
+
+// newDefaultEffortControlService wires durable effort persistence under the
+// runtime data root and binds approved policy from the live effort workspace.
+func newDefaultEffortControlService(dataRoot string) *EffortControlService {
+	store := NewFileEffortControlStore(filepath.Join(dataRoot, "effort-control"))
+	return NewEffortControlService(store, FileEffortPolicySource{Root: defaultEffortPolicyRoot()})
+}
+
+// defaultEffortPolicyRoot resolves the runtime-home plan_artifacts/efforts
+// directory. It is best-effort: a resolution failure leaves the source root
+// empty so admission reports the missing approved policy explicitly instead of
+// inventing one.
+func defaultEffortPolicyRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return ""
+	}
+	if root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyPlanArtifacts); err == nil && strings.TrimSpace(root) != "" {
+		return filepath.Join(root, "efforts")
+	}
+	return filepath.Join(home, ".vrooli", "plan-artifacts", "efforts")
 }
 
 // SetDevelopmentLookup reads the retained work shape by indexed item key.
@@ -218,11 +252,12 @@ func NewHandler(dataRoot, repoRoot string) *Handler {
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	return &Handler{
-		dataRoot:     dataRoot,
-		repoRoot:     repoRoot,
-		store:        NewFileStore(dataRoot),
-		promptClient: promptmanager.NewHTTPClient(),
-		planClient:   planclient.NewConnectClient(nil, nil),
+		dataRoot:      dataRoot,
+		repoRoot:      repoRoot,
+		store:         NewFileStore(dataRoot),
+		promptClient:  promptmanager.NewHTTPClient(),
+		planClient:    planclient.NewConnectClient(nil, nil),
+		effortControl: newDefaultEffortControlService(dataRoot),
 	}
 }
 
@@ -233,11 +268,12 @@ func NewHandlerWithClients(dataRoot, repoRoot string, agentService AgentManagerA
 	dataRoot = resolveDataRootOrDefault(dataRoot)
 	repoRoot = resolveRepoRootOrDefault(repoRoot)
 	h := &Handler{
-		dataRoot:     dataRoot,
-		repoRoot:     repoRoot,
-		store:        NewFileStore(dataRoot),
-		promptClient: promptClient,
-		planClient:   planclient.NewConnectClient(nil, nil),
+		dataRoot:      dataRoot,
+		repoRoot:      repoRoot,
+		store:         NewFileStore(dataRoot),
+		promptClient:  promptClient,
+		planClient:    planclient.NewConnectClient(nil, nil),
+		effortControl: newDefaultEffortControlService(dataRoot),
 	}
 	// The injected agent service is consumed only as the active-agent guard source
 	// (a narrow, read-only capability). Its Agent Manager spawn methods are never
@@ -456,6 +492,15 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/review", h.BatchReviewHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
+
+	// Versioned effort-control aggregate. Admission and amendment are
+	// owner-version-checked; completion standing stays separate from human
+	// product acceptance. See effort_control.go and effort_control_handler.go.
+	r.HandleFunc("/api/v1/efforts/{effortID}", h.AdmitEffort).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}", h.AmendEffort).Methods("PUT")
+	r.HandleFunc("/api/v1/efforts/{effortID}", h.GetEffort).Methods("GET")
+	r.HandleFunc("/api/v1/efforts/{effortID}/completion/evidence", h.MarkEffortEvidenceComplete).Methods("POST")
+	r.HandleFunc("/api/v1/efforts/{effortID}/completion/accept", h.AcceptEffortCompletion).Methods("POST")
 
 	// Connect BacklogService — the typed cross-scenario feedback contract
 	// (CreateItem/GetItem). See connect_service.go. Mounted alongside the REST

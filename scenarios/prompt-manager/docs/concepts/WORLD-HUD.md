@@ -14,7 +14,8 @@ signals are added to the sim view first.
 | Swarm panel | bottom left | Filters (search, team, only failed), the team list with member state counts, the event ticker | Team click focuses the room; hover highlights it; ticker click focuses the actor |
 | Conversation bubble | anchored near the selected agent | greeting, operator messages, agent replies and send status | Send, continue the run, open full conversation, close |
 | Agent card | bottom right (docked in 2D mode) | Name, team, state and how long, last run with a link to `/runs/:id`, error, skill count, last message | Run now, Stop, Acknowledge (Failed only), Open editor, Follow |
-| Settings | the overlay gear | Scene, quality profile and auto toggle, time of day, camera home, diagnostics, and a dev-only Levers tab | Choices persist through `WorldService.SetWorldConfig` |
+| Camera controls | a labelled toggle near the camera tools | a "Camera controls" button (`aria-expanded`/`aria-controls`) that hides the mode, Home and movement tools until opened | Toggling reveals or collapses the camera panel; when collapsed the button carries an amber state when the camera is blocked or a notice is pending |
+| Settings | the overlay gear | One responsive container: desktop uses a `NavigationTree` side nav, narrow screens use a `Tabs` strip, both driving the same selection. Groups cover scene/world, quality profile and auto toggle, time of day, camera home, diagnostics, a dev-only Levers tab, and a Management group with the shared objective editor | Selecting a group renders only that group's content through one form state; choices persist through `WorldService.SetWorldConfig`, and Management edits objectives through the `objectives/v1` authority |
 | 2D mode | replaces the canvas | Every actor as a row grouped by team, with state and time-in-state | Row click focuses; the agent card docks below |
 
 ## What each signal means
@@ -77,6 +78,15 @@ tests against the docked card in 2D mode and checks the HUD with axe at
 desktop and narrow widths.
 
 
+## Camera controls
+
+The camera tools are collapsed by default behind a labelled **Camera controls**
+toggle (`aria-expanded`/`aria-controls`). Opening it reveals the mode switcher,
+the Home control and the movement hints; the toggle advertises an amber state
+when the camera is blocked or a notice is pending. Home belongs to this panel, so
+the HUD carries no duplicate Home control. The Canvas is outside the panel and
+keeps the documented keyboard mapping whether the panel is open or closed.
+
 ## Camera continuity
 
 The live world remembers its camera in this browser, separately for each scene
@@ -118,3 +128,19 @@ full transcript, accessible through the bubble's link. This browser-local index
 is not cross-device conversation discovery. The initial send retains its UUID
 across failures/reloads; the server reuses its task and run on retry rather than
 starting duplicate work. A pending first message is restored to the composer.
+
+## Agent page chat
+
+The agent detail view offers the same persona conversation as the world, mounted
+as a **Chat** tab on the agent editor (`AgentChatTab`). It reads the world roster
+so the base-agent and team-member identities match the 3-D world, defaults to the
+owning agent's base context, and lists every team the agent belongs to.
+
+One shared context selector drives both the Chat tab and the Prompt tab, so the
+visible base/team context cannot silently change when the user switches tabs; the
+prompt preview reloads against the selected context. The selected context stays
+visible for the duration of the conversation. Starting and continuing turns go
+through the same `conversationSession` + `HeartbeatService` contract as the world
+bubble, so a first turn retains its idempotency key and a lost response reloads
+rather than launching duplicate work. Agent Manager remains the transcript
+authority.

@@ -844,9 +844,11 @@ type experimentLivenessRow struct {
 // auditObjectiveCoverage reads the objective join in both directions.
 //
 // This target was `external` until the objective edge became a declaration.
-// The coverage rule joins the operator's objective table against
-// team.json::objectivesServed, so the downward direction (objectives to teams)
-// and the upward direction (teams to objectives) are both mechanical here.
+// The coverage read now comes from the objective authority, which owns current
+// identity, ordering, meaning revision and restatement state; the operator
+// statement and team.json::objectivesServed are retained only as declaration
+// context and drift. The downward direction (objectives to teams) and the
+// upward direction (teams to objectives) are both mechanical here.
 //
 // What stays outside this sensor: the outcome-category half of the upward
 // direction. Categories are Command Center dashboard ids in the outcomes

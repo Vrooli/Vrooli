@@ -230,6 +230,7 @@ type ExecutionCandidate struct {
 	CanonicalModel       string                `json:"canonicalModel,omitempty"`
 	ResourceRole         string                `json:"resourceRole,omitempty"`
 	Fallbacks            []string              `json:"fallbacks,omitempty"`
+	ExcludedModels       []string              `json:"excludedModels,omitempty"`
 	Available            bool                  `json:"available"`
 	FailureCode          string                `json:"failureCode,omitempty"`
 	Failure              string                `json:"failure,omitempty"`

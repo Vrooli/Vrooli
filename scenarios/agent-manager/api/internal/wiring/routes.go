@@ -258,10 +258,12 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	if deps.PricingService != nil && deps.StatsRepository != nil {
 		var subscriptions pricing.SubscriptionRepository
+		var quotaStore pricing.QuotaObservationRepository
 		if deps.PricingRepository != nil {
 			subscriptions, _ = deps.PricingRepository.(pricing.SubscriptionRepository)
+			quotaStore, _ = deps.PricingRepository.(pricing.QuotaObservationRepository)
 		}
-		handlers.NewPricingHandler(deps.PricingService, deps.StatsRepository, subscriptions).RegisterRoutes(router)
+		handlers.NewPricingHandlerWithQuota(deps.PricingService, deps.StatsRepository, subscriptions, quotaStore).RegisterRoutes(router)
 		routesLog.Info("pricing endpoints registered", "path", "/api/v1/pricing/*")
 	}
 	router.Handle("/metrics", metrics.Handler()).Methods("GET")

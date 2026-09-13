@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
@@ -337,5 +338,69 @@ func TestTriggerTeam_IndependentTriggersConfiguredMembers(t *testing.T) {
 	}
 	if len(resp.Triggers) != 1 || resp.Triggers[0].AgentID != "agent-1" {
 		t.Fatalf("expected only configured agent to trigger, got %+v", resp.Triggers)
+	}
+}
+
+// TestWithinManualTriggerWindow_ControlledTime verifies the manual-trigger
+// idempotency window is computed from the member's cron schedule rather than
+// wall-clock state: a duplicate manual trigger before the next scheduled
+// boundary is deduplicated, while one after the boundary is admitted. Invalid
+// or absent schedules fall back to a conservative one-hour window.
+func TestWithinManualTriggerWindow_ControlledTime(t *testing.T) {
+	base := time.Date(2026, 9, 13, 10, 5, 0, 0, time.UTC)
+	hourly := "0 * * * *"
+
+	cases := []struct {
+		name     string
+		config   *store.HeartbeatConfig
+		now      time.Time
+		expected bool
+	}{
+		{"nil config", nil, base, false},
+		{"no prior trigger", &store.HeartbeatConfig{Schedule: hourly}, base, false},
+		{
+			"before next hourly boundary",
+			&store.HeartbeatConfig{Schedule: hourly, LastManualTriggerAt: base.Format(time.RFC3339Nano)},
+			base.Add(25 * time.Minute), // 10:30, next boundary 11:00
+			true,
+		},
+		{
+			"after next hourly boundary",
+			&store.HeartbeatConfig{Schedule: hourly, LastManualTriggerAt: base.Format(time.RFC3339Nano)},
+			base.Add(70 * time.Minute), // 11:15
+			false,
+		},
+		{
+			"invalid schedule falls back to one hour",
+			&store.HeartbeatConfig{Schedule: "not a cron", LastManualTriggerAt: base.Format(time.RFC3339Nano)},
+			base.Add(30 * time.Minute),
+			true,
+		},
+		{
+			"invalid schedule past one hour",
+			&store.HeartbeatConfig{Schedule: "not a cron", LastManualTriggerAt: base.Format(time.RFC3339Nano)},
+			base.Add(90 * time.Minute),
+			false,
+		},
+		{
+			"clock before last trigger",
+			&store.HeartbeatConfig{Schedule: hourly, LastManualTriggerAt: base.Format(time.RFC3339Nano)},
+			base.Add(-time.Minute),
+			false,
+		},
+		{
+			"unparsable last trigger",
+			&store.HeartbeatConfig{Schedule: hourly, LastManualTriggerAt: "not-a-time"},
+			base.Add(10 * time.Minute),
+			false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := withinManualTriggerWindow(tc.config, tc.now); got != tc.expected {
+				t.Fatalf("withinManualTriggerWindow(%s) = %v, want %v", tc.name, got, tc.expected)
+			}
+		})
 	}
 }

@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 )
 
 type effortOwnerFake struct {
 	rows     []EffortObservation
+	quota    []*ampb.EffortQuotaObservation
 	err      error
 	calls    int
 	pages    map[string]*EffortDiscovery
@@ -33,7 +35,7 @@ func (o *effortOwnerFake) DiscoverEfforts(_ context.Context, limit int, cursor s
 	if o.pages != nil {
 		return o.pages[cursor], nil
 	}
-	return &EffortDiscovery{Efforts: append([]EffortObservation(nil), o.rows...), Coverage: "complete"}, nil
+	return &EffortDiscovery{Efforts: append([]EffortObservation(nil), o.rows...), QuotaObservations: append([]*ampb.EffortQuotaObservation(nil), o.quota...), Coverage: "complete"}, nil
 }
 
 type effortQueueFake struct {
@@ -108,6 +110,16 @@ func (f *supervisionFixture) receipt(t *testing.T, disposition string) {
 	}
 	for _, row := range state.Pending.Efforts {
 		f.owner.receipts[row.ID] = &SupervisionAssessment{ID: "assessment-" + state.Pending.ID, WakeID: state.Pending.ID, RunID: "wake-run-1", Disposition: disposition, TargetRevisions: map[string]string{row.ID: row.TargetRevision}}
+	}
+}
+
+func TestStandingSupervisorRetainsSharedQuotaOnceInWake(t *testing.T) {
+	f := newSupervisionFixture(t)
+	f.owner.rows = []EffortObservation{effort("effort:quota")}
+	f.owner.quota = []*ampb.EffortQuotaObservation{{Provider: "openai", Pool: "primary", Window: "5h", Standing: "available", Provenance: "codex:native", EvidenceRef: "quota:shared"}}
+	state := f.tick(t)
+	if state.Pending == nil || len(state.Pending.QuotaObservations) != 1 || state.Pending.QuotaObservations[0].GetEvidenceRef() != "quota:shared" {
+		t.Fatalf("shared quota observation was dropped from durable wake: %+v", state.Pending)
 	}
 }
 
@@ -188,14 +200,19 @@ func TestStandingSupervisorRecoveryRetainsUncertainDispatch(t *testing.T) {
 		t.Fatal("dispatch lacks stable wake identity")
 	}
 	// Simulate the ordinary queue dropping an uncertain entry and process restart.
+	// The retained ordinary request is replayed once with the same key; the
+	// allowance reservation and pending wake remain held while the owner result
+	// is still unavailable.
 	f.queue.status = TeamExecutionStatus{}
 	f.s = &StandingSupervisor{Owner: f.owner, State: f.s.State, Queue: f.queue, Agent: f.agent, Config: f.s.Config, Prompt: f.s.Prompt, Root: f.s.Root, Now: f.s.Now}
 	f.now = f.now.Add(time.Hour)
 	if state := f.tick(t); state.Status != "uncertain" {
 		t.Fatalf("lost dispatch status = %s", state.Status)
 	}
-	if len(f.agent.createRunCalls) != 1 || f.queue.enqueues != 1 {
-		t.Fatal("restart replaced an uncertain effect")
+	state := f.s.State
+	stored, err := state.Load("supervisors", "leader")
+	if err != nil || stored.Pending == nil || stored.Pending.DispatchReplayAttempts != 1 || len(f.agent.createRunCalls) != 2 || f.queue.enqueues != 1 {
+		t.Fatalf("restart did not perform one fenced replay: state=%+v calls=%d enqueues=%d err=%v", stored, len(f.agent.createRunCalls), f.queue.enqueues, err)
 	}
 	f.agent.listRunsResp = &ListRunsResponse{Runs: []*Run{{ID: "wake-run-1", Tag: *wakeRequest.Tag}}}
 	f.agent.getRunErr = errors.New("owner outage")
@@ -545,8 +562,8 @@ func TestStandingSupervisorCoverageRequiresMatchingSampleReceipt(t *testing.T) {
 }
 
 func TestStandingSupervisorDeclinedSampleRespectsIntervalAcrossRestart(t *testing.T) {
-	for _, changed := range []bool{false, true} {
-		t.Run(fmt.Sprintf("changed=%t", changed), func(t *testing.T) {
+	for _, variant := range []struct{ changed, legacy bool }{{}, {changed: true}, {legacy: true}} {
+		t.Run(fmt.Sprintf("changed=%t/legacy=%t", variant.changed, variant.legacy), func(t *testing.T) {
 			f := newSupervisionFixture(t)
 			f.owner.rows = []EffortObservation{effort("stopped-subject")}
 			f.cfg.Supervision.HealthySampleIntervalSeconds, f.cfg.Supervision.MaxHealthySamplesPerWake = 3600, 1
@@ -565,15 +582,23 @@ func TestStandingSupervisorDeclinedSampleRespectsIntervalAcrossRestart(t *testin
 			if !state.Efforts["stopped-subject"].LastSampleAt.IsZero() {
 				t.Fatal("declined sample fabricated successful coverage")
 			}
+			if variant.legacy {
+				row := state.Efforts["stopped-subject"]
+				row.LastSampleAttemptAt = time.Time{}
+				state.Efforts["stopped-subject"] = row
+				if err := f.s.State.Save("supervisors", "leader", state); err != nil {
+					t.Fatal(err)
+				}
+			}
 			// Reconstruct the scheduler while retaining only its durable state store.
 			old := f.s
 			f.s = &StandingSupervisor{Owner: old.Owner, State: old.State, Queue: old.Queue, Agent: old.Agent, Config: old.Config, Prompt: old.Prompt, Root: old.Root, Now: old.Now}
 			f.now = f.now.Add(5 * time.Minute)
-			if changed {
+			if variant.changed {
 				f.owner.rows[0].EvidenceRevision = "new-resolution-evidence"
 			}
 			state = f.tick(t)
-			if changed {
+			if variant.changed {
 				if state.Pending == nil || len(state.Pending.SampledEffortIDs) != 0 {
 					t.Fatal("changed evidence must admit ordinary judgment without a sample claim")
 				}

@@ -150,6 +150,8 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
     isDir: boolean
   } | null>(null)
   const skipFileLoadRef = useRef<string | null>(null)
+  const loadGenerationRef = useRef(0)
+  const loadedTeamRef = useRef<string | null>(null)
 
   // Cross-reference highlight state
   const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
@@ -174,10 +176,25 @@ export function TeamFilesTab({ teamId, highlightRequest, onHighlightHandled, cla
   const isFileDirty = isFileEditorActive && fileContent !== originalContent
 
   const refreshFiles = useCallback(async () => {
+    const generation = ++loadGenerationRef.current
+
+    // Team navigation must never show a previous team's shared files. Clear the
+    // listing synchronously when the target team changes; the generation guard
+    // discards any in-flight response for the previous team.
+    if (loadedTeamRef.current !== teamId) {
+      loadedTeamRef.current = teamId
+      setFiles([])
+      setSelectedPath(null)
+      setFileContent('')
+      setOriginalContent('')
+    }
+
     try {
       const entries = await teamService.listTeamSharedFiles(teamId)
+      if (generation !== loadGenerationRef.current) return
       setFiles(entries)
     } catch (error) {
+      if (generation !== loadGenerationRef.current) return
       console.warn('[TeamFilesTab] Failed to load shared files:', error)
       toast({
         title: 'Unable to load shared files',

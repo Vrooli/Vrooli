@@ -1599,6 +1599,7 @@ function SkillManagerLayoutImpl() {
                 highlightRequest={highlightRequest}
                 onHighlightHandled={handleHighlightHandled}
                 initialTab={agentEditorInitialTab}
+                enableChat
                 className="h-full"
               />
             ) : (

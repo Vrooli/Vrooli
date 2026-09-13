@@ -200,6 +200,8 @@ export function FilesTab({
   })
 
   const [files, setFiles] = useState<AgentFileEntry[]>([])
+  const [filesStatus, setFilesStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [filesError, setFilesError] = useState<agentService.AgentFilesError | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set())
   const [fileContent, setFileContent] = useState('')
@@ -220,6 +222,8 @@ export function FilesTab({
     isReserved: boolean
   } | null>(null)
   const skipFileLoadRef = useRef<string | null>(null)
+  const loadGenerationRef = useRef(0)
+  const loadedAgentRef = useRef<string | null>(null)
 
   // Cross-reference highlight state
   const [highlightMatches, setHighlightMatches] = useState<ContentSearchMatch[]>([])
@@ -286,14 +290,36 @@ export function FilesTab({
   const templateOptions = selectedTemplateKey ? templateOptionsByFile[selectedTemplateKey] : undefined
 
   const refreshFiles = useCallback(async () => {
+    const generation = ++loadGenerationRef.current
+
+    // Agent navigation must never show a previous agent's files. Clear the
+    // listing synchronously when the target agent changes; the generation guard
+    // below discards any in-flight response for the previous agent.
+    if (loadedAgentRef.current !== agentId) {
+      loadedAgentRef.current = agentId
+      setFiles([])
+      setSelectedPath(null)
+      setFileContent('')
+      setOriginalContent('')
+      setFilesError(null)
+      setFilesStatus('loading')
+    }
+
     try {
       const entries = await agentService.listAgentFiles(agentId)
+      if (generation !== loadGenerationRef.current) return
       setFiles(entries)
+      setFilesError(null)
+      setFilesStatus('ready')
     } catch (error) {
+      if (generation !== loadGenerationRef.current) return
       console.warn('[FilesTab] Failed to load agent files:', error)
+      const classified = agentService.classifyAgentFilesError(error)
+      setFilesError(classified)
+      setFilesStatus('error')
       toast({
-        title: 'Unable to load files',
-        description: 'Check the API server and try again.',
+        title: classified.title,
+        description: classified.description,
       })
     }
   }, [agentId])
@@ -952,12 +978,50 @@ export function FilesTab({
               </div>
 
               <div className="flex-1 overflow-y-auto px-2 py-2">
-                {files.length === 0 ? (
+                {filesStatus === 'error' && files.length === 0 ? (
+                  <div className="px-2 py-4 space-y-2" role="alert">
+                    <div className="text-xs font-semibold text-foreground">
+                      {filesError?.title ?? 'Unable to load files'}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {filesError?.description ?? 'Check the API server and try again.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void refreshFiles()}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1 text-xs text-foreground hover:bg-muted"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Retry
+                    </button>
+                  </div>
+                ) : filesStatus === 'loading' && files.length === 0 ? (
+                  <div className="text-xs text-muted-foreground px-2 py-4" role="status">
+                    Loading files...
+                  </div>
+                ) : files.length === 0 ? (
                   <div className="text-xs text-muted-foreground px-2 py-4">
                     No files yet. Create a file to get started.
                   </div>
                 ) : (
-                  renderNode(tree)
+                  <>
+                    {filesStatus === 'error' && (
+                      <div
+                        className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200/90 space-y-1"
+                        role="alert"
+                      >
+                        <div>{filesError?.title ?? 'Unable to load files'}</div>
+                        <button
+                          type="button"
+                          onClick={() => void refreshFiles()}
+                          className="inline-flex items-center gap-1 underline underline-offset-2"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+                    {renderNode(tree)}
+                  </>
                 )}
               </div>
             </div>

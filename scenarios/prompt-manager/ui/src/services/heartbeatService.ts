@@ -1075,14 +1075,38 @@ export async function listHeartbeatAttempts(opts?: {
 
 /**
  * Continue a run with an additional message.
+ *
+ * Pass a stable `requestId` for conversation turns. The server derives the
+ * owner-visible idempotency key from it, so a retried send or a reload that
+ * replays the same turn cannot advance the conversation twice. Generate one id
+ * per logical turn with {@link newConversationRequestId} and reuse it across
+ * retries of that turn only.
  */
-export async function continueRun(runId: string, message: string): Promise<void> {
+export async function continueRun(
+  runId: string,
+  message: string,
+  opts?: { requestId?: string }
+): Promise<void> {
   await apiRequest<Record<string, never>>(
     `/runs/${encodeURIComponent(runId)}/continue`,
     {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, request_id: opts?.requestId }),
     }
+  )
+}
+
+/**
+ * Generate a stable request identity for one conversation turn. Reuse the
+ * returned value when retrying that same turn; do not reuse it for a new turn.
+ */
+export function newConversationRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Conservative fallback for environments without Web Crypto.
+  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
+    (Number(c) ^ (Math.random() * 16 >> (Number(c) / 4))).toString(16)
   )
 }
 

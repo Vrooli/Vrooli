@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -115,5 +116,45 @@ func TestFiniteLeaderMigrationRequiresSettledUnusedHeartbeat(t *testing.T) {
 		if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", finiteConfig()); err == nil {
 			t.Fatal("migration discarded ordinary execution uncertainty")
 		}
+	}
+}
+
+func TestFiniteLeaderCompletionIsRevisionCheckedAndIdempotent(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", finiteConfig()); err != nil {
+		t.Fatal(err)
+	}
+	if receipt, changed, err := s.CompleteFiniteLeader(ctx, "team-1", "agent-1", "revision:8", "evidence:owner/1"); !errors.Is(err, ErrFiniteLeaderStaleRevision) || receipt != nil || changed {
+		t.Fatalf("stale revision was accepted: %+v %v %v", receipt, changed, err)
+	}
+	first, changed, err := s.CompleteFiniteLeader(ctx, "team-1", "agent-1", "revision:7", "evidence:owner/1")
+	if err != nil || !changed || first == nil || first.ReceiptID == "" || first.EvidenceRef != "evidence:owner/1" {
+		t.Fatalf("completion receipt not retained: %+v %v %v", first, changed, err)
+	}
+	again, changed, err := s.CompleteFiniteLeader(ctx, "team-1", "agent-1", "revision:7", "evidence:owner/1")
+	if err != nil || changed || again.ReceiptID != first.ReceiptID {
+		t.Fatalf("duplicate completion was not idempotent: %+v %v %v", again, changed, err)
+	}
+	if _, _, err := s.CompleteFiniteLeader(ctx, "team-1", "agent-1", "revision:7", "evidence:owner/2"); !errors.Is(err, ErrFiniteLeaderCompleted) {
+		t.Fatalf("conflicting completion evidence was accepted: %v", err)
+	}
+	restarted := NewFileTeamStore(s.configRoot, s.runtimeDataRoot, s.relationStore)
+	state, err := restarted.ReadFiniteLeader(ctx, "team-1", "agent-1")
+	if err != nil || state.Completed == nil || state.Completed.ReceiptID != first.ReceiptID {
+		t.Fatalf("restart lost the completion receipt: %+v %v", state, err)
+	}
+	if err := restarted.ReopenFiniteLeader(ctx, "team-1", "agent-1", "revision:7", "evidence:owner/3"); !errors.Is(err, ErrFiniteLeaderStaleRevision) {
+		t.Fatalf("reopen accepted the completed revision: %v", err)
+	}
+	if err := restarted.ReopenFiniteLeader(ctx, "team-1", "agent-1", "revision:9", "evidence:owner/3"); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := restarted.ReadFiniteLeader(ctx, "team-1", "agent-1")
+	if err != nil || reopened.Completed != nil || len(reopened.CompletionHistory) != 1 || reopened.CompletionHistory[0].ReceiptID != first.ReceiptID {
+		t.Fatalf("explicit reopen did not retain history: %+v %v", reopened, err)
+	}
+	if err := restarted.ReopenFiniteLeader(ctx, "team-1", "agent-1", "revision:10", "evidence:owner/4"); err == nil {
+		t.Fatal("reopen succeeded without a completion")
 	}
 }

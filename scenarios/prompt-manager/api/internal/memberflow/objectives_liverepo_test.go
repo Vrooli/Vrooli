@@ -4,10 +4,11 @@ package memberflow
 
 import "testing"
 
-// TestLiveObjectiveJoinIsIntact runs the real coverage rule against the real
-// objective table and the real roster. It is the check that makes recommendation
-// 1 load-bearing: before this existed, editing OBJECTIVES.md fired nothing, and
-// a team could be renamed, retired, or repointed without any surface noticing.
+// TestLiveObjectiveJoinIsIntact runs the real objective parse against the real
+// objective table and the real roster. Retirement of the memberflow objective
+// rule family moved current-state validation to the objective authority
+// (internal/objectives); this canary keeps the parse that the one-way import
+// depends on from silently breaking.
 //
 // It runs under -tags liverepo because it reads the checked-in store rather
 // than a fixture, matching the other repository-conformance canaries here.
@@ -21,25 +22,9 @@ func TestLiveObjectiveJoinIsIntact(t *testing.T) {
 	if len(registry.Objectives) == 0 {
 		t.Fatalf("no objectives parsed from %s; the table shape changed", ObjectivesDocPath)
 	}
-	declared, paths, err := LoadTeamObjectives(storeDir)
+	declared, _, err := LoadTeamObjectives(storeDir)
 	if err != nil {
 		t.Fatalf("LoadTeamObjectives: %v", err)
-	}
-	models, err := LoadOperatingModelDocuments(repoRoot)
-	if err != nil {
-		t.Fatalf("LoadOperatingModelDocuments: %v", err)
-	}
-
-	result := ValidateObjectives(ObjectiveValidationInput{
-		Registry:        registry,
-		Declared:        declared,
-		TeamSourcePaths: paths,
-		Models:          models,
-	})
-	for _, f := range result.Findings {
-		if f.Severity == SeverityError {
-			t.Errorf("objective join error: [%s] team=%s objective=%s: %s", f.Rule, f.Team, f.NodeID, f.Detail)
-		}
 	}
 
 	// Every team in the store must trace to at least one objective. This is the

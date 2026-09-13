@@ -97,6 +97,10 @@
       "testId": "agent-editor-name-input",
       "selector": "[data-testid=\"agent-editor-name-input\"]"
     },
+    "agentEditor.sharedContext": {
+      "testId": "agent-editor-shared-context",
+      "selector": "[data-testid=\"agent-editor-shared-context\"]"
+    },
     "teams.list": {
       "testId": "team-list",
       "selector": "[data-testid=\"team-list\"]"
@@ -304,6 +308,10 @@
     "world.hud.home": {
       "testId": "world-hud-home",
       "selector": "[data-testid=\"world-hud-home\"]"
+    },
+    "world.hud.cameraToggle": {
+      "testId": "world-hud-camera-toggle",
+      "selector": "[data-testid=\"world-hud-camera-toggle\"]"
     },
     "world.editor.toolbar": {
       "testId": "world-editor-toolbar",
@@ -544,11 +552,23 @@
     "library.patterns.swipe-actions.lastAction": {
       "testId": "patterns.swipe-actions.last-action",
       "selector": "[data-testid=\"patterns.swipe-actions.last-action\"]"
+    },
+    "library.navigation.navigation-tree.root": {
+      "testId": "navigation.navigation-tree",
+      "selector": "[data-testid=\"navigation.navigation-tree\"]"
+    },
+    "library.overlays.popover.root": {
+      "testId": "overlays.popover",
+      "selector": "[data-testid=\"overlays.popover\"]"
+    },
+    "library.overlays.tooltip.root": {
+      "testId": "overlays.tooltip",
+      "selector": "[data-testid=\"overlays.tooltip\"]"
     }
   },
   "dynamicSelectors": {},
   "sources": {
-    "ui/src/constants/selectors.ts": "bb1e7c43d86514e601a475febe462753ca164c683c63fcbb5a67c56c4354f46c",
-    "ui/src/consts/selectors.library.ts": "9df07337b279dc0439b3bff913f99d90621caf6cd213de1ba00eccd203e6f496"
+    "ui/src/constants/selectors.ts": "6592b649f6b2c0b89a666d1237ed6a51fee90f8a637404e2ff5a4894fdad9025",
+    "ui/src/consts/selectors.library.ts": "fe101f34cc38410d1637ecbf94f28a3cf95e9e216b44b4155bb5213e64c953e2"
   }
 }

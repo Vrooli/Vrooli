@@ -50,15 +50,59 @@ func (c *AgentManagerClient) GetEffortAssessment(ctx context.Context, effortID s
 		}
 		for _, id := range a.GetEffortRefs() {
 			if id == effortID {
-				return &SupervisionAssessment{ID: a.GetAssessmentId(), WakeID: a.GetIdempotencyKey(), RunID: a.GetSupervisorRunId(), Disposition: a.GetDisposition(), TargetRevisions: a.GetTargetRevisions()}, nil
+				return mapEffortAssessment(a), nil
 			}
 		}
 	}
 	return nil, nil
 }
 
+func mapEffortAssessment(a *ampb.EffortAssessment) *SupervisionAssessment {
+	if a == nil {
+		return nil
+	}
+	return &SupervisionAssessment{
+		ID: a.GetAssessmentId(), WakeID: a.GetIdempotencyKey(), RunID: a.GetSupervisorRunId(),
+		Disposition: a.GetDisposition(), TargetRevisions: a.GetTargetRevisions(),
+		EvidenceRefs: append([]string(nil), a.GetEvidenceRefs()...), SourceLedgerRef: a.GetSourceLedgerRef(),
+		AllowanceRef: a.GetAllowanceRef(), ObservedUsage: a.GetObservedUsage(), RepairLinks: a.GetRepairLinks(),
+	}
+}
+
+func appendUniqueRef(refs []string, values ...string) []string {
+	seen := make(map[string]struct{}, len(refs)+len(values))
+	for _, ref := range refs {
+		if strings.TrimSpace(ref) != "" {
+			seen[ref] = struct{}{}
+		}
+	}
+	for _, ref := range values {
+		if strings.TrimSpace(ref) == "" {
+			continue
+		}
+		if _, ok := seen[ref]; ok {
+			continue
+		}
+		seen[ref] = struct{}{}
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+func boundedRefs(refs []string, limit int) []string {
+	refs = appendUniqueRef(nil, refs...)
+	if len(refs) > limit {
+		return refs[:limit]
+	}
+	return refs
+}
+
 func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
-	cut := &EffortDiscovery{Coverage: "complete", NextCursor: board.GetNextPageToken()}
+	cut := &EffortDiscovery{
+		Coverage:          "complete",
+		NextCursor:        board.GetNextPageToken(),
+		QuotaObservations: append([]*ampb.EffortQuotaObservation(nil), board.GetQuotaObservations()...),
+	}
 	if board.GetPartial() || cut.NextCursor != "" {
 		cut.Coverage = "partial"
 	}
@@ -104,17 +148,66 @@ func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
 				verificationPending = true
 			}
 		}
+		anchor := dispatchAuthorizationAnchor(enrollment)
+		namedWaits := boundedRefs(row.GetPendingOperations(), 16)
+		detailRefs := appendUniqueRef(nil, "agent-manager:GetEffortBoard:"+enrollment.GetEffortRef())
+		detailRefs = appendUniqueRef(detailRefs, row.GetEvidenceRefs()...)
+		detailRefs = appendUniqueRef(detailRefs, namedWaits...)
+		if assessment := row.GetLastAssessment(); assessment != nil {
+			detailRefs = appendUniqueRef(detailRefs, assessment.GetEvidenceRefs()...)
+			detailRefs = appendUniqueRef(detailRefs, assessment.GetSourceLedgerRef(), assessment.GetAllowanceRef())
+			for _, link := range assessment.GetRepairLinks() {
+				if link == nil {
+					continue
+				}
+				detailRefs = appendUniqueRef(detailRefs, link.GetWorkRef(), link.GetAssigningOwnerRef())
+				detailRefs = appendUniqueRef(detailRefs, link.GetCompletionEvidenceRefs()...)
+			}
+		}
+		changedEvidence := appendUniqueRef(nil, row.GetEvidenceRefs()...)
+		if row.GetChangeIdentity() != "" {
+			changedEvidence = appendUniqueRef(changedEvidence, row.GetChangeIdentity())
+		}
+		if anchor {
+			reason = "server-owned dispatch authorization anchor; no accepted effort or supervision/sample subject"
+		}
+		changedEvidence = boundedRefs(changedEvidence, 16)
+		detailRefs = boundedRefs(detailRefs, 32)
+		assessment := row.GetLastAssessment()
 		cut.Efforts = append(cut.Efforts, EffortObservation{
 			RecoveryVerificationPending: verificationPending,
 			ID:                          enrollment.GetEffortRef(), TargetRevision: enrollment.GetTargetRevision(),
 			EvidenceRevision:       row.GetChangeIdentity(),
 			SupervisorOwnerSubject: enrollment.GetSupervisorOwnerSubject(), SupervisorScope: enrollment.GetSupervisorScope(),
-			Eligible:  !enrollment.GetWithdrawn() && valid && row.GetNextAction() != "authorization-only",
+			Eligible:  !enrollment.GetWithdrawn() && valid && !anchor,
 			Freshness: freshness, ObservationOnly: observationOnly,
-			Retired: enrollment.GetWithdrawn(), WaitRef: strings.Join(row.GetPendingOperations(), ", "),
+			Retired: enrollment.GetWithdrawn(), WaitRef: strings.Join(namedWaits, ", "),
 			BoardRef: "agent-manager:GetEffortBoard:" + enrollment.GetEffortRef(), Reason: reason,
+			PriorAssessment: mapEffortAssessment(assessment), ChangedEvidence: changedEvidence,
+			Usage: row.GetUsage(), NamedWaits: namedWaits, DetailRefs: detailRefs,
+			QuotaObservations: append([]*ampb.EffortQuotaObservation(nil), row.GetQuotaObservations()...),
+			RepairLinks:       assessment.GetRepairLinks(),
 		})
 	}
 	cut.Error = strings.Join(findings, "; ")
 	return cut
+}
+
+func dispatchAuthorizationAnchor(enrollment *ampb.EffortEnrollment) bool {
+	if enrollment == nil || enrollment.GetWorkspace() != "" || enrollment.GetDestinationRef() != "" || len(enrollment.GetPermittedActions()) != 0 {
+		return false
+	}
+	hasOwnerAnchor := enrollment.GetAuthorizedBy() != "" && enrollment.GetSupervisorOwnerSubject() != "" && enrollment.GetSupervisorScope() != "" && enrollment.GetAuthorizedBy() == enrollment.GetSupervisorOwnerSubject()
+	if enrollment.GetDispatchAuthorization() == nil && !hasOwnerAnchor {
+		return false
+	}
+	if len(enrollment.GetSubjects()) == 0 {
+		return true
+	}
+	for _, subject := range enrollment.GetSubjects() {
+		if subject == nil || subject.GetRole() != "supervisor" {
+			return false
+		}
+	}
+	return true
 }

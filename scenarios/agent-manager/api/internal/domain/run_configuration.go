@@ -407,6 +407,14 @@ type RateLimitEventData struct {
 	CurrentUsed int        `json:"currentUsed,omitempty"` // Current usage count
 	Limit       int        `json:"limit,omitempty"`       // The limit that was hit
 	Message     string     `json:"message"`               // Human-readable message
+	// Native provider windows may expose a percentage and reset metadata but
+	// no absolute token ceiling. Preserve those fields as observations; they
+	// must not be converted into token or dollar usage.
+	Provider      string   `json:"provider,omitempty"`
+	Pool          string   `json:"pool,omitempty"`
+	UsedPercent   *float64 `json:"usedPercent,omitempty"`
+	WindowMinutes int64    `json:"windowMinutes,omitempty"`
+	Provenance    string   `json:"provenance,omitempty"`
 }
 
 func (d *RateLimitEventData) EventType() RunEventType { return EventTypeError }

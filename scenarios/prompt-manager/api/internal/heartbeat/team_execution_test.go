@@ -222,11 +222,11 @@ func TestPersistAndRecover(t *testing.T) {
 	if len(status.RunningAgentIDs) != 1 || status.RunningAgentIDs[0] != "agent-1" {
 		t.Fatalf("expected recovered running [agent-1], got %v", status.RunningAgentIDs)
 	}
-	if len(status.Queue) != 2 {
-		t.Fatalf("expected 2 in recovered queue, got %d", len(status.Queue))
-	}
-	if status.Queue[0] != "agent-2" || status.Queue[1] != "agent-3" {
-		t.Fatalf("expected recovered queue [agent-2, agent-3], got %v", status.Queue)
+	// Stale not-yet-dispatched ticks are intentionally dropped on recovery:
+	// the cron schedule is the source of truth after a restart, so restoring
+	// the backlog would start a catch-up queue the acceptance forbids.
+	if len(status.Queue) != 0 {
+		t.Fatalf("expected stale queued ticks dropped, got %v", status.Queue)
 	}
 }
 

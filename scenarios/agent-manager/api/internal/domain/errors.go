@@ -43,6 +43,50 @@ func IsPreEffectRefusal(err error) bool {
 	return errors.As(err, &refusal)
 }
 
+// IsModelExcluded applies a resource-owned, exact model deny list. Both the
+// runner-facing alias and its canonical pricing identity are checked so an
+// alias cannot bypass the same configured exclusion.
+func IsModelExcluded(model, canonical string, excluded []string) bool {
+	model = strings.TrimSpace(model)
+	canonical = strings.TrimSpace(canonical)
+	if model == "" && canonical == "" {
+		return false
+	}
+	for _, value := range excluded {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if modelIdentityMatches(value, model) || modelIdentityMatches(value, canonical) {
+			return true
+		}
+	}
+	return false
+}
+
+// modelIdentityMatches accepts a resource's bare model alias together with a
+// provider-prefixed spelling of that same model. A configured provider prefix
+// remains exact; only a deny value without a slash may match a final model
+// segment, which prevents a caller from bypassing a bare operator exclusion
+// by adding an unlisted provider prefix.
+func modelIdentityMatches(excluded, candidate string) bool {
+	if excluded == "" || candidate == "" {
+		return false
+	}
+	if strings.EqualFold(excluded, candidate) {
+		return true
+	}
+	if strings.Contains(excluded, "/") {
+		return false
+	}
+	_, candidateModel, ok := strings.Cut(candidate, "/")
+	for ok {
+		candidate = candidateModel
+		_, candidateModel, ok = strings.Cut(candidate, "/")
+	}
+	return strings.EqualFold(excluded, candidate)
+}
+
 const (
 	// --- Not Found Errors (404) ---
 	ErrCodeNotFoundTask     ErrorCode = "NOT_FOUND_TASK"

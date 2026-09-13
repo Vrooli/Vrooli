@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 const option = (key, fallback) => { const i = process.argv.indexOf(key); return i < 0 ? fallback : process.argv[i + 1] }
 const root = resolve(option('--evidence-dir', `evidence/doorways-${Date.now()}`))
 const sceneName = option('--scene', 'office')
@@ -19,6 +19,7 @@ const mode = async value => { await page.getByLabel('Camera mode', { exact: true
 try {
   await page.goto(`http://localhost:21235/world?actors=${option('--actors', '16')}&scene=${sceneName}&intro=0&profile=high&diag=1&period=day&weather=clear`)
   await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 60000 })
+  await openCamera(page)
   const rooms = await page.evaluate(() => {
     const pending = [...window.__cameraFixtureRoots].map(root => root.current); let world, render
     while (pending.length) { const f = pending.pop(); for (const v of [f.memoizedProps?.store, f.memoizedProps?.value]) {

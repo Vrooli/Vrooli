@@ -84,6 +84,12 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
+	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
+		return nil, err
+	}
+	if err := o.validateCurrentExecutionModel(ctx, run.ResolvedConfig); err != nil {
+		return nil, err
+	}
 	if err := o.validateContinuationSession(ctx, run); err != nil {
 		return nil, err
 	}
@@ -198,6 +204,9 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	if runnerType == "" {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue",
 			"cannot determine runner type for this run")
+	}
+	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
+		return nil, err
 	}
 
 	// Get the runner
@@ -1372,16 +1381,24 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		return nil, domain.NewStateError("Run", string(run.Status), "resume",
 			fmt.Sprintf("run in %s state cannot be resumed", run.Status))
 	}
-	// Pending/starting/running/parked work was already admitted and stays in
-	// the drain projection. A resting review resumption is new admission.
+	// A resting review resumption is new admission. Take this fence before
+	// reading resource policy so maintenance refusal remains authoritative and
+	// does not require a retained run configuration or resource CLI.
+	var releaseAdmission func()
 	if run.Status != domain.RunStatusPending && run.Status != domain.RunStatusStarting && run.Status != domain.RunStatusRunning && run.Status != domain.RunStatusParked {
-		releaseAdmission, err := o.admitMaintenance(ctx)
+		releaseAdmission, err = o.admitMaintenance(ctx)
 		if err != nil {
 			return nil, err
 		}
 		defer releaseAdmission()
 	}
-
+	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
+		return nil, err
+	}
+	currentExclusions, err := currentModelExclusions(ctx, run.ResolvedConfig, o.rolePolicy, o.roleResolver)
+	if err != nil {
+		return nil, err
+	}
 	// Get the last checkpoint
 	var checkpoint *domain.RunCheckpoint
 	if o.checkpoints != nil {
@@ -1430,7 +1447,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 			defer obs.RecoverToFailure("run resumption dispatch", func(failure obs.PanicFailure) {
 				o.recoverPanickedRun(run, failure)
 			})
-			o.resumeRun(context.WithoutCancel(ctx), run, task, profile, checkpoint, started)
+			o.resumeRun(context.WithoutCancel(ctx), run, task, profile, checkpoint, currentExclusions, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)
@@ -1451,7 +1468,7 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 
 // resumeRun handles the actual agent resumption (runs in background).
 // `started` is the spawn dispatcher's slot-release callback.
-func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint, started spawn.StartedFn) {
+func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, checkpoint *domain.RunCheckpoint, currentExclusions map[domain.RunnerType][]string, started spawn.StartedFn) {
 	runStateRoot, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
 		started()
@@ -1475,6 +1492,10 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
+	executor.WithCurrentModelExclusions(currentExclusions)
+	executor.WithCurrentModelAdmission(func(admissionCtx context.Context, candidate domain.ExecutionCandidate, model string) (bool, error) {
+		return o.currentCandidateAllowed(admissionCtx, run.ResolvedConfig, candidate, model)
+	})
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
 	if levers, ok := o.executorLevers(); ok {

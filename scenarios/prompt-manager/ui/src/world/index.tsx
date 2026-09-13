@@ -93,7 +93,7 @@ import { createNavigationTelemetry, useNavigationPreferences } from './hud/navig
 import type { NavigationTool } from './config/navigation'
 import { inGrid, worldToCell } from './sim/nav/grid'
 import { shoreDistance, slopeAt } from './sim/terrain'
-import { EMPTY_FILTERS, EditorToolbar, WorldHelpContent, WorldHud, WorldSettingsContent, type FilterState, type SummaryFilter } from './hud'
+import { EMPTY_FILTERS, EditorToolbar, WORLD_SETTINGS_SECTIONS, SettingsOverlay, WorldHelpContent, WorldHud, WorldSettingsContent, type FilterState, type SummaryFilter, type WorldSettingsGroup } from './hud'
 import { createWorldActions, syntheticRoster, useLayoutPersistence, useWorldPreferences, useWorldRoster, useWorldRuntime } from './data'
 import { canRedo, canUndo, commit, emptyHistory, heightAt, maximumHeightInRegion, redo, terrainDigest, undo, upsertOverride, type OverrideHistory } from './sim'
 import { terrainForBounds } from './sim/layout/centre'
@@ -745,7 +745,6 @@ export function WorldView(props: WorldViewProps) {
         focusedId={focusedId}
         onFocus={setFocusedId}
         onFocusTeam={focusTeam}
-        onHome={goHome}
         following={following}
         onFollowChange={setFollowing}
         filters={filters}
@@ -810,10 +809,18 @@ export function WorldView(props: WorldViewProps) {
         homeView={props.homeView}
         onHomeViewChange={props.onHomeViewChange}
         leftPanelContent={props.leftPanelContent}
+        onSettingsClose={() => document.querySelector<HTMLCanvasElement>('canvas')?.focus()}
         settingsTitle="World Settings"
         settingsContent={
-          <WorldSettingsContent
-            worldClock={!twoD ? worldClock : undefined}
+          <SettingsOverlay
+            title="World Settings"
+            sections={WORLD_SETTINGS_SECTIONS}
+            saveState={preferences.saveState.status === 'idle' ? undefined : { ...preferences.saveState, onRetry: preferences.retry }}
+            renderSection={(group) => (
+              <WorldSettingsContent
+                group={group as WorldSettingsGroup}
+                teams={roster.teams.map(team => ({ id: team.id, label: team.name || team.id }))}
+                worldClock={!twoD ? worldClock : undefined}
             wildlifePreview={workbench && !twoD ? { status: wildlifePreviewStatus, onPreview: kind => { void previewWildlife(kind) } } : undefined}
             ambientLife={!twoD ? { enabled: ambientEnabled, onChange: enabled => { setAmbientEnabled(enabled); preferences.update({ ambientLife: enabled }) } } : undefined}
             skyPreview={!twoD ? { status: skyStatus, onPreview: variant => {
@@ -825,7 +832,7 @@ export function WorldView(props: WorldViewProps) {
               setSkyPreview(variant === 'comet' ? { ...base, family: 'comet' } : { ...base, family: 'meteor', variant })
             } } : undefined}
             cameraCollisionOverlay={!twoD ? { enabled: showCameraCollisionOverlay, onChange: setShowCameraCollisionOverlay, status: cameraCollisionStatus } : undefined}
-            navigationOverlay={!twoD ? { enabled: showNavigationOverlay, onChange: enabled => { setShowNavigationOverlay(enabled); if (enabled) { setShowBiomeOverlay(false); setShowHabitatOverlay(false) } }, cells: runtime.store.getState().nav.walkable.length, status: navigationOverlayStatus } : undefined}
+            navigationOverlay={!twoD ? { enabled: showNavigationOverlay, onChange: enabled => { setShowNavigationOverlay(enabled); if (enabled) { setShowBiomeOverlay(false); setShowHabitatOverlay(false) } }, cells: runtime.store?.getState().nav.walkable.length ?? 0, status: navigationOverlayStatus } : undefined}
             biomeOverlay={!twoD ? { enabled: showBiomeOverlay, onChange: enabled => { setShowBiomeOverlay(enabled); if (enabled) { setShowNavigationOverlay(false); setShowHabitatOverlay(false) } }, legend: biomeLegend(biomeSets[scene.biomeSet]), status: navigationOverlayStatus } : undefined}
             habitatOverlay={!twoD ? { enabled: showHabitatOverlay, onChange: enabled => { setShowHabitatOverlay(enabled); if (enabled) { setShowNavigationOverlay(false); setShowBiomeOverlay(false) } }, legend: habitatLegend(), status: navigationOverlayStatus } : undefined}
             weather={pinnedWeather ?? 'auto'}
@@ -903,6 +910,8 @@ export function WorldView(props: WorldViewProps) {
                 window.setTimeout(() => URL.revokeObjectURL(url), 1000)
               } : undefined,
             } : undefined}
+              />
+            )}
           />
         }
         helpTitle="World"

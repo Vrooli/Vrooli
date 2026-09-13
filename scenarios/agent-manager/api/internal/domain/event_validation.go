@@ -181,7 +181,13 @@ func ValidateEvents(events []*RunEvent) EventValidationStats {
 		case EventTypeMetric:
 			stats.MetricCount++
 		case EventTypeError:
-			stats.ErrorCount++
+			// Native quota observations use the historical rate-limit payload
+			// for compatibility. A provider-reported percentage below 100 is
+			// an observation frame, not throttling; exhausted/amount-unknown
+			// limit events retain their historical error classification.
+			if quota, quotaObservation := evt.Data.(*RateLimitEventData); !quotaObservation || quota.UsedPercent == nil || *quota.UsedPercent >= 100 {
+				stats.ErrorCount++
+			}
 		case EventTypeLog:
 			stats.LogCount++
 		}

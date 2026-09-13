@@ -6,10 +6,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
 	"swarm-manager/internal/execution"
+	"swarm-manager/internal/identity"
 
 	"github.com/gorilla/mux"
 )
@@ -233,6 +235,46 @@ func TestResolveNextActionCoversCanonicalBlockerCodes(t *testing.T) {
 				t.Fatalf("action = %#v, want enabled %q", action, tt.want)
 			}
 		})
+	}
+}
+
+// The next-action projection hands execution a spec copied from the loaded item
+// instead of letting execution read spec.json. Any field that copy drops changes
+// the readiness verdict: dropping continuation and scope policy made every
+// accepted until-allowance item report plan_changed while queueing said ready.
+func TestPreflightSpecCarriesEveryReadinessField(t *testing.T) {
+	archivedAt := "2026-09-01T00:00:00Z"
+	item := BacklogItem{
+		Name: "complete", Kind: KindExecute, Title: "Complete", Description: "Every field set.", Status: StatusBacklog,
+		SourceScenarioName: "audio-tools", AcceptanceAllow: []string{"scenarios/audio-tools/**"}, AcceptanceDeny: []string{"scenarios/other/**"},
+		Creates: []string{"scenarios/new"}, ArchivedAt: &archivedAt, PlanRef: testPlanRef("complete"), ExecutionMode: "sliced",
+		ExecutionLimits: &identity.ExecutionLimits{MaxSlices: 1}, Continuation: ContinuationUntilAllowance, ScopePolicy: ScopePolicyExtendWithRecord,
+		PlanAcceptance: &PlanAcceptance{Actor: "operator", AcceptedAt: "2026-09-02T00:00:00Z", PlanContentHash: "hash", SubjectVersion: "sha256:x"},
+	}
+	spec := reflect.ValueOf(preflightSpec(item))
+	for i := 0; i < spec.NumField(); i++ {
+		if spec.Field(i).IsZero() {
+			t.Errorf("preflightSpec drops %s", spec.Type().Field(i).Name)
+		}
+	}
+}
+
+// A stale acceptance is still recorded on the item, so the action must say it
+// renews one rather than reuse the label of a first acceptance.
+func TestResolveNextActionLabelsStaleAcceptanceAsReaccept(t *testing.T) {
+	h, root := setupTestHandler(t)
+	h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{
+		BlockingReasons: []string{"work contract changed after plan acceptance"},
+		BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_changed", Message: "work contract changed after plan acceptance"}},
+	}})
+	item := BacklogItem{Name: "stale", Kind: KindExecute, Status: StatusBacklog, PlanRef: testPlanRef("stale"), AcceptanceCriteria: testAcceptanceCriteria()}
+	createTestItem(t, root, item.Kind, item)
+	action, err := h.ResolveNextAction(t.Context(), item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action.ID != NextActionAcceptPlan || action.CompactLabel != "Re-accept" || action.Reason != "work contract changed after plan acceptance" {
+		t.Fatalf("stale acceptance resolved %#v", action)
 	}
 }
 

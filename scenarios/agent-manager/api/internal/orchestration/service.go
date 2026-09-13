@@ -26,6 +26,7 @@ import (
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
+	"agent-manager/internal/pricing"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
@@ -679,13 +680,14 @@ type Orchestrator struct {
 	investigationSettings repository.InvestigationSettingsRepository // For investigation config
 
 	// Adapters (external integrations)
-	runners          runner.Registry
-	sandbox          sandbox.Provider
-	workspaceSandbox phases.WorkspaceSandboxEnsurer
-	events           event.Store
-	artifacts        artifact.Collector
-	runStateRoot     string
-	runStateResolver runstate.RootResolver
+	runners           runner.Registry
+	sandbox           sandbox.Provider
+	workspaceSandbox  phases.WorkspaceSandboxEnsurer
+	events            event.Store
+	quotaObservations pricing.QuotaObservationRepository
+	artifacts         artifact.Collector
+	runStateRoot      string
+	runStateResolver  runstate.RootResolver
 
 	// Policy evaluation
 	policy policy.Evaluator
@@ -1025,6 +1027,13 @@ func WithEvents(e event.Store) Option {
 	return func(o *Orchestrator) {
 		o.events = e
 	}
+}
+
+// WithQuotaObservationStore installs the pricing-owned durable sink for
+// provider quota frames. Observation failures remain diagnostic and never
+// change a run's owner outcome.
+func WithQuotaObservationStore(store pricing.QuotaObservationRepository) Option {
+	return func(o *Orchestrator) { o.quotaObservations = store }
 }
 
 func WithReceiptSummaryReader(reader ReceiptSummaryReader) Option {

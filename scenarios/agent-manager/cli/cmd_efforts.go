@@ -15,6 +15,7 @@ import (
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (a *App) cmdEffort(args []string) error {
@@ -49,6 +50,13 @@ func (a *App) cmdEffort(args []string) error {
 		path = apiconnect.AgentManagerServiceRevokeSupervisorDispatchProcedure
 		request, response, mutation = &api.RevokeSupervisorDispatchRequest{}, &pb.EffortEnrollment{}, true
 	case "board":
+		path = apiconnect.AgentManagerServiceGetEffortBoardProcedure
+		request = &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: uint32(*limit), PageToken: *cursor}
+		response = &pb.EffortBoard{}
+	case "compact":
+		// The compact owner read uses the same single joined AM projection as
+		// board. It only changes presentation, so detail references can be
+		// followed explicitly without repeating board/transcript reads.
 		path = apiconnect.AgentManagerServiceGetEffortBoardProcedure
 		request = &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: uint32(*limit), PageToken: *cursor}
 		response = &pb.EffortBoard{}
@@ -131,7 +139,11 @@ func (a *App) cmdEffort(args []string) error {
 	}
 	switch out := response.(type) {
 	case *pb.EffortBoard:
-		printEffortBoard(out)
+		if command == "compact" {
+			printCompactEffortBoard(out)
+		} else {
+			printEffortBoard(out)
+		}
 	case *pb.ListEffortsResponse:
 		for _, e := range out.Efforts {
 			fmt.Printf("%s  %s  revision=%d withdrawn=%t\n", e.EffortRef, e.DisplayName, e.Revision, e.Withdrawn)
@@ -158,6 +170,107 @@ func (a *App) cmdEffort(args []string) error {
 		printEffortPage(out.NextPageToken)
 	}
 	return nil
+}
+
+func printCompactEffortBoard(b *pb.EffortBoard) {
+	fmt.Printf("Efforts: %d active; observed=%s; partial=%t\n", b.GetActiveCount(), effortTimestamp(b.GetObservedAt()), b.GetPartial())
+	if quotas := b.GetQuotaObservations(); len(quotas) > 0 {
+		fmt.Println("Quota observations (shared owner cut):")
+		for _, quota := range quotas {
+			if quota == nil {
+				continue
+			}
+			used := "unknown"
+			if quota.UsedPercent != nil {
+				used = fmt.Sprintf("%.2f%%", quota.GetUsedPercent())
+			}
+			fmt.Printf("  %s/%s/%s standing=%s used=%s reset=%s source=%s evidence=%s\n", quota.GetProvider(), quota.GetPool(), quota.GetWindow(), quota.GetStanding(), used, effortTimestamp(quota.GetResetAt()), effortKnown(quota.GetSourceRunId()), effortKnown(quota.GetEvidenceRef()))
+		}
+	}
+	for _, r := range b.GetRows() {
+		e := r.GetEnrollment()
+		fmt.Printf("\n%s (%s)\n  Standing: runtime=%s outcome=%s freshness=%s target=%s @ %s\n", e.GetDisplayName(), e.GetEffortRef(), r.GetRuntimeState(), r.GetOutcomeStanding().GetState(), strings.TrimPrefix(r.GetFreshness().String(), "EFFORT_FRESHNESS_"), e.GetDestinationRef(), e.GetTargetRevision())
+		if a := r.GetLastAssessment(); a != nil {
+			fmt.Printf("  Prior assessment: %s disposition=%s benefit=%s evidence=%s allowance=%s\n", a.GetAssessmentId(), a.GetDisposition(), a.GetBenefit(), strings.Join(a.GetEvidenceRefs(), ","), effortKnown(a.GetAllowanceRef()))
+			if links := a.GetRepairLinks(); len(links) > 0 {
+				for _, link := range links {
+					fmt.Printf("  Repair link: state=%s work=%s owner=%s next=%s proof=%s stop=%s\n", link.GetState(), effortKnown(link.GetWorkRef()), effortKnown(link.GetAssigningOwnerRef()), effortKnown(link.GetNextOperation()), strings.Join(link.GetCompletionEvidenceRefs(), ","), effortKnown(link.GetStoppingCondition()))
+				}
+			}
+		} else {
+			fmt.Println("  Prior assessment: unknown")
+		}
+		fmt.Printf("  Changed evidence: %s\n", strings.Join(r.GetEvidenceRefs(), ","))
+		if usage := r.GetUsage(); usage != nil {
+			tokens, cost := "unknown", "unknown"
+			if usage.Tokens != nil {
+				tokens = fmt.Sprint(usage.GetTokens())
+			}
+			if usage.ReportedCostUsd != nil {
+				cost = fmt.Sprintf("$%.4f", usage.GetReportedCostUsd())
+			}
+			fmt.Printf("  Usage: tokens=%s reported-cost=%s observed-runs=%d/%d\n", tokens, cost, usage.GetObservedRuns(), usage.GetDeclaredRuns())
+		} else {
+			fmt.Println("  Usage: unknown")
+		}
+		if waits := r.GetPendingOperations(); len(waits) > 0 {
+			fmt.Printf("  Named waits: %s\n", strings.Join(waits, ", "))
+		} else {
+			fmt.Println("  Named waits: none")
+		}
+		refs := append([]string{}, r.GetEvidenceRefs()...)
+		if a := r.GetLastAssessment(); a != nil {
+			refs = append(refs, a.GetEvidenceRefs()...)
+			refs = append(refs, a.GetSourceLedgerRef(), a.GetAllowanceRef())
+			for _, link := range a.GetRepairLinks() {
+				if link == nil {
+					continue
+				}
+				refs = append(refs, link.GetWorkRef(), link.GetAssigningOwnerRef())
+				refs = append(refs, link.GetCompletionEvidenceRefs()...)
+			}
+		}
+		refs = append(refs, r.GetPendingOperations()...)
+		refs = append(refs, "agent-manager:GetEffortBoard:"+e.GetEffortRef())
+		fmt.Printf("  Detail refs: %s\n", strings.Join(boundedEffortRefs(refs, 32), ", "))
+	}
+	if findings := b.GetDiscovery().GetFindings(); len(findings) > 0 {
+		for _, f := range findings {
+			fmt.Printf("Discovery %s: %s\n", f.GetSource(), f.GetReason())
+		}
+	}
+	printEffortPage(b.GetNextPageToken())
+}
+
+func effortTimestamp(ts *timestamppb.Timestamp) string {
+	if ts == nil || !ts.IsValid() {
+		return "unknown"
+	}
+	return ts.AsTime().Format(time.RFC3339)
+}
+
+func uniqueEffortRefs(refs []string) []string {
+	seen := make(map[string]struct{}, len(refs))
+	out := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if strings.TrimSpace(ref) == "" {
+			continue
+		}
+		if _, ok := seen[ref]; ok {
+			continue
+		}
+		seen[ref] = struct{}{}
+		out = append(out, ref)
+	}
+	return out
+}
+
+func boundedEffortRefs(refs []string, limit int) []string {
+	out := uniqueEffortRefs(refs)
+	if len(out) > limit {
+		return out[:limit]
+	}
+	return out
 }
 func printEffortPage(token string) {
 	if token != "" {

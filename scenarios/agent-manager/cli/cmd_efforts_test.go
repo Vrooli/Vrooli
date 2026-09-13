@@ -49,6 +49,17 @@ func TestEffortCLIUsesSharedBoardAndExplicitMutationRequests(t *testing.T) {
 	}
 }
 
+func TestEffortCLICompactBoardPrintsJoinedOwnerFacts(t *testing.T) {
+	assessment := &pb.EffortAssessment{AssessmentId: "assessment", Disposition: "quiet", Benefit: "unknown", EvidenceRefs: []string{"checkpoint:prior"}, AllowanceRef: "allowance:supervision", RepairLinks: []*pb.EffortRepairLink{{WorkRef: "swarm-manager:backlog/chore/adoption", AssigningOwnerRef: "owner:root", NextOperation: "reconcile", CompletionEvidenceRefs: []string{"proof:adoption"}, StoppingCondition: "one attempt", State: "assigned"}}}
+	board := &pb.EffortBoard{ActiveCount: 1, QuotaObservations: []*pb.EffortQuotaObservation{{Provider: "openai", Pool: "primary", Window: "daily", Standing: "reported", EvidenceRef: "quota:1"}}, Rows: []*pb.EffortBoardRow{{Enrollment: &pb.EffortEnrollment{EffortRef: "effort:arbitrary", DisplayName: "Arbitrary effort", TargetRevision: "accepted"}, RuntimeState: "active", Freshness: pb.EffortFreshness_EFFORT_FRESHNESS_FRESH, OutcomeStanding: &pb.EffortOutcomeStanding{State: "unknown"}, EvidenceRefs: []string{"checkpoint:changed"}, PendingOperations: []string{"owner:wait"}, Usage: &pb.EffortUsage{Partial: true}, LastAssessment: assessment}}}
+	output := captureStdout(t, func() error { printCompactEffortBoard(board); return nil })
+	for _, want := range []string{"Prior assessment: assessment", "Repair link: state=assigned", "swarm-manager:backlog/chore/adoption", "checkpoint:changed", "Named waits: owner:wait", "agent-manager:GetEffortBoard:effort:arbitrary", "Usage: tokens=unknown", "Quota observations (shared owner cut):", "openai/primary/daily", "quota:1"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("compact owner projection omitted %q: %s", want, output)
+		}
+	}
+}
+
 func TestEffortLocalOwnerDoesNotElevateAgentRequests(t *testing.T) {
 	services, recorder := newContractServices(t)
 	app := &App{services: services}

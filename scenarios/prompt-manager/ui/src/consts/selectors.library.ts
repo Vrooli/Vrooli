@@ -41,5 +41,22 @@ export const librarySelectors = {
     "hostCleanupSweepActionClose": "patterns.swipe-actions.host-cleanup-sweep.action.close",
     "lastAction": "patterns.swipe-actions.last-action",
   },
+  "react-component-library:useOverlaySurface": {
+  },
+  "navigation.tabs": {
+  },
+  "navigation.navigation-tree": {
+    "root": "navigation.navigation-tree",
+  },
+  "overlays.responsive-dialog": {
+  },
+  "overlays.popover": {
+    "root": "overlays.popover",
+  },
+  "overlays.tooltip": {
+    "root": "overlays.tooltip",
+  },
+  "react-component-library:SettingsList": {
+  },
 } as const;
 // vrooli:library-selectors end

@@ -68,6 +68,16 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		return nil, domain.NewStateError("Run", "recovery_unresolved", "fresh recovery", "source was already claimed; replacement acceptance is missing or was deleted; owner reconciliation required, no redispatch")
 	}
 	effectsPossible = false
+	// A fresh recovery retains the source's immutable execution contract. Fence
+	// excluded models before liveness/session checks, executor exclusion, or a
+	// replacement claim can have effects. Existing accepted receipts above are
+	// read-only replays and intentionally return before this fence.
+	if err := validateExecutionModel(failedRun.ResolvedConfig); err != nil {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
+	if err := o.validateCurrentExecutionModel(ctx, failedRun.ResolvedConfig); err != nil {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
 	// Fresh identity cannot shed the source's revocable dispatcher grant.
 	// Until this owner route can enroll the replacement under that grant,
 	// refuse new work rather than turning retained scopes into authority.

@@ -13,9 +13,39 @@ import (
 
 // The existing enrollment store also retains purpose-bound dispatcher grants.
 // A grant-only record must not turn the standing service into its own work item.
-// This uses server-issued authorization, never an effort-name or file-supplied tag.
+// Before issuance, the authenticated owner/scope binding is the typed purpose
+// marker; after issuance, server authorization is the stronger marker. Neither
+// path uses an effort name or file-supplied tag.
 func dispatchOnlyEnrollment(e *pb.EffortEnrollment) bool {
 	return e != nil && e.DispatchAuthorization != nil && e.Workspace == "" && e.DestinationRef == "" && len(e.Subjects) == 0 && len(e.PermittedActions) == 0
+}
+
+// authorizationAnchorEnrollment extends the strict source predicate for a
+// retained row that already received supervisor attribution before the source
+// guard was installed. Only supervisor observations are tolerated; a business
+// subject makes the row an ordinary effort. This remains generic and never
+// relies on an effort name or display hint.
+func authorizationAnchorEnrollment(e *pb.EffortEnrollment) bool {
+	if e == nil || e.Workspace != "" || e.DestinationRef != "" || len(e.PermittedActions) != 0 {
+		return false
+	}
+	// Before IssueDispatch, the authenticated owner binding is the only typed
+	// purpose signal. After issuance, the server authorization remains the
+	// stronger anchor. Both shapes are generic and tolerate supervisor
+	// attribution added by discovery, without naming a particular effort.
+	hasOwnerAnchor := e.AuthorizedBy != "" && e.SupervisorOwnerSubject != "" && e.SupervisorScope != "" && e.AuthorizedBy == e.SupervisorOwnerSubject
+	if e.DispatchAuthorization == nil && !hasOwnerAnchor {
+		return false
+	}
+	if len(e.Subjects) == 0 {
+		return true
+	}
+	for _, subject := range e.Subjects {
+		if subject == nil || subject.Role != "supervisor" {
+			return false
+		}
+	}
+	return true
 }
 
 func bindDirectiveAuthority(actor EffortActor, e *pb.EffortEnrollment) *pb.EffortDirectiveAuthorityBinding {

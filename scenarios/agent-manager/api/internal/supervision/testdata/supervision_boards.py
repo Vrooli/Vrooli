@@ -27,6 +27,14 @@ assert case['signals']['classification']=='stalled'  # historical decision is no
 experiment=run('supervision-experiment-read',{'policy_version':'candidate'},watch)
 assert experiment['status']=='ok' and experiment['signals']['evaluation'] is None
 assert experiment['signals']['next_action']=='collect_assessed_evidence' and experiment['signals']['coverage']['families']==1
+compact=run('supervision-observation-read',{'owner_observation':{'coverage':'complete','quotaObservations':[{'provider':'openai','pool':'primary','window':'daily','evidence_ref':'quota:1'}],'efforts':[{'id':'effort:a','targetRevision':'accepted','evidenceRevision':'changed','priorAssessment':{'id':'assessment:prior'},'changedEvidence':['checkpoint:2'],'usage':{'partial':True},'quotaObservations':[{'provider':'openai','pool':'primary','window':'run','evidence_ref':'quota:row'}],'namedWaits':['owner:wait:1'],'repairLinks':[{'work_ref':'swarm-manager:backlog/chore/adoption','state':'assigned'}],'detailRefs':['agent-manager:GetEffortBoard:effort:a','checkpoint:2','owner:wait:1']}]},'selected_effort_refs':['effort:a']},watch)
+assert compact['status']=='ok' and compact['signals']['projected_count']==1
+assert compact['signals']['efforts'][0]['priorAssessment']['id']=='assessment:prior'
+assert compact['signals']['efforts'][0]['namedWaits']==['owner:wait:1']
+assert compact['signals']['efforts'][0]['repairLinks'][0]['work_ref']=='swarm-manager:backlog/chore/adoption'
+assert compact['signals']['quotaObservations'][0]['evidence_ref']=='quota:1'
+assert compact['signals']['efforts'][0]['quotaObservations'][0]['evidence_ref']=='quota:row'
+assert 'owner:wait:1' in compact['signals']['detail_refs']
 inspection['watch']['watchId']='other'
 assert run('supervision-case-read',{'watch_id':'watch'},watch)['status']=='failed'
 print('supervision boards: current vs historical state, missing assessment, denominators, and identity passed')

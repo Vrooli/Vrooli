@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -209,10 +210,19 @@ func (s *FileAgentStore) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// loadAgent loads an agent from the agents directory
+// loadAgent loads an agent from the agents directory. A missing agent returns an
+// error that reports "not found" so HTTP handlers can map it to 404 rather than
+// surfacing a raw filesystem error as a server failure.
 func (s *FileAgentStore) loadAgent(agentID string) (*Agent, error) {
 	agentPath := filepath.Join(s.agentsDir(), agentID, "agent.json")
-	return LoadJSON[Agent](agentPath)
+	agent, err := LoadJSON[Agent](agentPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("agent not found: %s: %w", agentID, err)
+		}
+		return nil, err
+	}
+	return agent, nil
 }
 
 // GetProse reads an agent's standing-prose content. Callers depend on the

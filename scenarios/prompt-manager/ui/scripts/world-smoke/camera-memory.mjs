@@ -3,6 +3,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { openCamera } from './camera-fixtures.mjs'
 const option = (key, fallback) => { const i = process.argv.indexOf(key); return i < 0 ? fallback : process.argv[i + 1] }
 const root = resolve(option('--evidence-dir', `evidence/camera-memory-${Date.now()}`)); mkdirSync(root, { recursive: true })
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl-egl'] })
@@ -12,7 +13,7 @@ page.on('pageerror', e => errors.push(e.message))
 const check = (name, pass, detail) => { checks.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'} ${name}`); if (!pass) throw Error(name) }
 const dist = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]))
 const read = () => page.evaluate(() => ({ ...window.__worldDiagnostics.cameraNavigation }))
-async function ready() { await page.waitForFunction(() => window.__worldDiagnostics?.ready && window.__worldDiagnostics.cameraNavigation?.position, null, { timeout: 120000 }); await page.waitForTimeout(1000) }
+async function ready() { await page.waitForFunction(() => window.__worldDiagnostics?.ready && window.__worldDiagnostics.cameraNavigation?.position, null, { timeout: 120000 }); await page.waitForTimeout(1000); await openCamera(page) }
 async function key(value, ms = 220) { await page.locator('canvas').focus(); await page.keyboard.down(value); await page.waitForTimeout(ms); await page.keyboard.up(value); await page.waitForTimeout(200) }
 try {
   for (const scene of ['park', 'office']) {

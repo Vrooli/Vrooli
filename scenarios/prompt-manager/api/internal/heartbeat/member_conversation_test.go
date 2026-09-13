@@ -13,6 +13,8 @@ import (
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/store"
+
+	"github.com/gorilla/mux"
 )
 
 func conversationFixture(t *testing.T) (*Handlers, *mockAgentClient, func(string) *httptest.ResponseRecorder) {
@@ -120,6 +122,62 @@ func TestMemberConversationUnassignedPersona(t *testing.T) {
 	}
 	if strings.Contains(client.createTaskCalls[0].Description, "CARE_FOR_REFERENCE_GARDEN") {
 		t.Fatal("unassigned conversation inherited team responsibilities")
+	}
+}
+
+// continueConversation issues a continue request against the fixture handlers
+// with the path variable the router normally supplies.
+func continueConversation(h *Handlers, client *mockAgentClient, runID, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/runs/"+runID+"/continue", bytes.NewBufferString(body))
+	req = mux.SetURLVars(req, map[string]string{"runId": runID})
+	w := httptest.NewRecorder()
+	h.ContinueRun(w, req)
+	return w
+}
+
+func TestMemberConversationContinueIdentity(t *testing.T) {
+	h, client, _ := conversationFixture(t)
+	client.getRuns["run-1"] = &Run{ID: "run-1", Tag: "conversation-abc123"}
+
+	// A conversation turn without a stable request identity is refused so a
+	// retry cannot advance the same conversation twice.
+	w := continueConversation(h, client, "run-1", `{"message":"second turn"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected conversation turn to require request_id: %d %s", w.Code, w.Body.String())
+	}
+	if len(client.continueRunCalls) != 0 {
+		t.Fatal("refused turn reached the owner")
+	}
+
+	// An invalid identity is refused rather than forwarded.
+	if w := continueConversation(h, client, "run-1", `{"message":"second turn","request_id":"invalid"}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid request_id refusal: %d %s", w.Code, w.Body.String())
+	}
+	if len(client.continueRunCalls) != 0 {
+		t.Fatal("invalid identity reached the owner")
+	}
+
+	// A stable identity is forwarded as the owner-visible idempotency key so the
+	// owner can deduplicate a retried or reloaded turn.
+	const turnID = "0f8fad5b-d9cb-469f-a165-70867728950e"
+	if w := continueConversation(h, client, "run-1", `{"message":"second turn","request_id":"`+turnID+`"}`); w.Code != http.StatusOK {
+		t.Fatalf("expected accepted turn: %d %s", w.Code, w.Body.String())
+	}
+	if len(client.continueRunCalls) != 1 {
+		t.Fatalf("expected one forwarded turn, got %d", len(client.continueRunCalls))
+	}
+	call := client.continueRunCalls[0]
+	if call.RunID != "run-1" || call.Message != "second turn" || call.IdempotencyKey != "prompt-manager-conversation-turn:"+turnID {
+		t.Fatalf("wrong continuation binding: %+v", call)
+	}
+
+	// Non-conversation continues keep working without a request identity.
+	client.getRuns["run-2"] = &Run{ID: "run-2"}
+	if w := continueConversation(h, client, "run-2", `{"message":"resume"}`); w.Code != http.StatusOK {
+		t.Fatalf("expected non-conversation continue: %d %s", w.Code, w.Body.String())
+	}
+	if got := client.continueRunCalls[1].IdempotencyKey; got != "" {
+		t.Fatalf("non-conversation continue invented an idempotency key: %q", got)
 	}
 }
 

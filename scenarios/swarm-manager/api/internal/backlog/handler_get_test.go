@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
@@ -15,9 +16,11 @@ import (
 
 func TestList_EmitsExplicitFreshStalenessVerdict(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
+	// Relative to now: a fixed date inside the staleness window expires with the calendar.
+	fresh := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{
 		Name: "fresh-item", Title: "Fresh Item", Status: StatusBacklog, Priority: 1,
-		Created: "2026-08-30T00:00:00Z", Updated: "2026-08-30T00:00:00Z",
+		Created: fresh, Updated: fresh,
 	})
 
 	w := httptest.NewRecorder()

@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/pricing"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
@@ -497,7 +498,10 @@ func (b *broadcastingEventSink) LastSequence() int64 {
 }
 
 func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
-	afterPersist := func(evt *domain.RunEvent) { o.nudgeWorkflowUsage(runID, evt) }
+	afterPersist := func(evt *domain.RunEvent) {
+		o.nudgeWorkflowUsage(runID, evt)
+		o.observeQuotaEvent(evt)
+	}
 	switch {
 	case o.events != nil && o.broadcaster != nil:
 		return &broadcastingEventSink{
@@ -510,6 +514,39 @@ func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
 		return &eventStoreAdapter{store: o.events, runID: runID, afterPersist: afterPersist}
 	default:
 		return &noOpEventSink{}
+	}
+}
+
+func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent) {
+	if o == nil || o.quotaObservations == nil || evt == nil {
+		return
+	}
+	data, ok := evt.Data.(*domain.RateLimitEventData)
+	if !ok || strings.TrimSpace(data.Provider) == "" || strings.TrimSpace(data.Pool) == "" {
+		return
+	}
+	provider := data.Provider
+	pool := data.Pool
+	provenance := strings.TrimSpace(data.Provenance)
+	if provenance == "" {
+		provenance = "agent-manager:run-event.rate-limit"
+	}
+	observation, err := pricing.FromRateLimitEvent(provider, pool, provenance, evt.Timestamp, data)
+	if err != nil {
+		obs.Component("quota-observation").Warn("provider quota frame rejected", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
+		return
+	}
+	observation.SourceRunID = evt.RunID.String()
+	observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String() + "/events/" + evt.ID.String()
+	observation.ID = pricing.QuotaObservationID(observation.SourceRunID, observation)
+	now := o.now().UTC()
+	if !evt.Timestamp.IsZero() && !evt.Timestamp.After(now) {
+		observation.Freshness = pricing.ObservationFresh
+	} else {
+		observation.Freshness = pricing.ObservationUnknown
+	}
+	if err := o.quotaObservations.RecordQuotaObservation(context.Background(), observation); err != nil {
+		obs.Component("quota-observation").Warn("provider quota frame persistence failed", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
 	}
 }
 

@@ -16,7 +16,7 @@ export function WorldHelpContent({ camera }: { camera: CameraTuning }) {
         Acknowledge, Open editor, Follow.
       </p>
       <p>
-        Use the Camera toolbar to choose Orbit drag or Pan drag, frame a selection, or switch to top, front, and isometric views.
+        Open the camera controls (the camera icon at the top left) to choose Orbit drag or Pan drag, frame a selection, return Home, or switch to top, front, and isometric views.
         Mouse: left drag uses the selected tool, middle drag {label(camera.input.mouse.middle)},
         right drag {label(camera.input.mouse.right)}, wheel zooms. Choose Trackpad in Input settings for two-finger scroll to pan and pinch to zoom.
         Touch: one finger {label(camera.input.touch.one)}, two fingers {label(camera.input.touch.two)},

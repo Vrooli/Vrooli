@@ -1,7 +1,10 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -105,6 +108,36 @@ func TestApp_Run_UnknownCommand(t *testing.T) {
 	err = app.Run([]string{"agent-manager", "nonexistent-command"})
 	// We expect either an error or graceful handling
 	_ = err
+}
+
+func TestApp_RunEffortCompactUsesPublicDispatcher(t *testing.T) {
+	var mu sync.Mutex
+	var paths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"active_count":0,"rows":[]}`))
+	}))
+	defer server.Close()
+	t.Setenv("API_BASE_URL", server.URL)
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	t.Setenv("VROOLI_SUPPRESS_CLI_PATH_WARNING", "1")
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() failed: %v", err)
+	}
+	if err := app.Run([]string{"effort", "compact", "--json", "--effort-ref", "effort:any", "--page-size", "7"}); err != nil {
+		t.Fatalf("public compact command failed: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(paths) != 2 || paths[0] != "GET /health" || paths[1] != "POST /agent_manager.v1.AgentManagerService/GetEffortBoard" {
+		t.Fatalf("public compact dispatch requests = %v", paths)
+	}
 }
 
 // =============================================================================

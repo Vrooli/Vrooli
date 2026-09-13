@@ -6,6 +6,8 @@ import { LeversPanel } from './LeversPanel'
 import { WorkbenchStatus, type WorkbenchSnapshot } from './WorkbenchStatus'
 import { selectors } from '@/constants/selectors'
 import { METEOR_VARIANTS, WILDLIFE_PREVIEWS, type MeteorVariant, type WildlifePreviewId } from '../config/ambient'
+import { type WorldSettingsGroup, type WorldSettingsGroupSelection } from './settingsGroups'
+import { ObjectiveAuthorityEditor } from '@/components/objectives'
 
 export type PeriodMode = { kind: 'clock' } | { kind: 'fixed'; period: PeriodId }
 
@@ -36,6 +38,18 @@ export interface WorldSettingsContentProps {
   onZoomTargetChange: (target: 'cursor' | 'center') => void
   /** Opt-in development workbench; overrides apply only to this mounted tab. */
   levers?: { tuning: WorldTuning; override: TuningOverride; onChange: (override: TuningOverride) => void; onReset: () => void; exportRecipe?: () => void; importRecipe?: (text: string) => void; readStatus?: () => WorkbenchSnapshot }
+  /**
+   * Which group to render. Defaults to `all` so the content can be mounted
+   * standalone (for example by the focused content tests). The responsive
+   * overlay passes the active group so one form state serves both layouts.
+   */
+  group?: WorldSettingsGroupSelection
+  /**
+   * Teams from the world roster, offered as objective-management contexts in
+   * the Management group. The editor itself reads and mutates through the
+   * objective authority; this list only selects which team to view.
+   */
+  teams?: ReadonlyArray<{ id: string; label: string }>
 }
 
 function SegmentedControl<T extends string>({
@@ -104,7 +118,10 @@ export function WorldSettingsContent({
   zoomTarget,
   onZoomTargetChange,
   levers,
+  group = 'all',
+  teams = [],
 }: WorldSettingsContentProps) {
+  const show = (section: WorldSettingsGroup) => group === 'all' || group === section
   const [seedDraft, setSeedDraft] = useState<string | null>(null)
   const [seedError, setSeedError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -121,69 +138,74 @@ export function WorldSettingsContent({
     if (next !== seed) onSeedChange(next)
   }
   return (
-    <div className="space-y-4 text-sm" data-testid={selectors.world.settings.popup}>
-      <SegmentedControl
-        label={choiceSettings.scene.label}
-        value={sceneId}
-        options={choiceSettings.scene.choices}
-        onChange={onSceneChange}
-        testId={selectors.world.settings.scene}
-      />
-      <SegmentedControl
-        label={choiceSettings.profile.label}
-        value={quality.profileId}
-        options={choiceSettings.profile.choices}
-        onChange={onPickProfile}
-        testId={selectors.world.settings.graphics}
-      />
-      <div className="space-y-1.5">
-        <label htmlFor="world-seed" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{integerSettings.seed.label}</label>
-        <div className="flex items-center gap-2">
-          <input id="world-seed" type="number" min={integerSettings.seed.minimum} max={integerSettings.seed.maximum} step="1"
-            value={seedDraft ?? String(seed)} onChange={event => setSeedDraft(event.target.value)}
-            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); applySeed() } }}
-            aria-invalid={Boolean(seedError)} aria-describedby={seedError ? 'world-seed-error world-seed-help' : 'world-seed-help'}
-            className="min-w-0 w-36 rounded-md border border-border bg-background px-2 py-1" />
-          <button type="button" onClick={applySeed} className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-muted">Apply seed</button>
-        </div>
-        <p id="world-seed-help" className="text-xs text-muted-foreground">{integerSettings.seed.description}</p>
-        {seedError && <p id="world-seed-error" role="alert" className="text-xs text-red-600 dark:text-red-400">{seedError}</p>}
-      </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={quality.auto}
-          onChange={(event) => onAutoChange(event.target.checked)}
-          data-testid={selectors.world.settings.qualityAuto}
-        />
-        <span>Adjust quality automatically</span>
-      </label>
-      <SegmentedControl<'clock' | PeriodId>
-        label={choiceSettings.period.label}
-        value={periodMode.kind === 'clock' ? 'clock' : periodMode.period}
-        options={choiceSettings.period.choices}
-        onChange={(id) => onPeriodModeChange(id === 'clock' ? { kind: 'clock' } : { kind: 'fixed', period: id })}
-        testId={selectors.world.settings.period}
-      />
-      {worldClock && <ClockControls clock={worldClock} onClockMode={() => onPeriodModeChange({ kind: 'clock' })} />}
-      <div className="space-y-1.5">
-        <SegmentedControl<WeatherId | 'auto'> label={choiceSettings.weather.label} value={weather}
-          options={choiceSettings.weather.choices}
-          onChange={onWeatherChange} testId="world-settings-weather" />
-        <p className="text-xs text-muted-foreground">{choiceSettings.weather.description}</p>
-      </div>
-      <fieldset className="space-y-1.5">
-        <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Zoom toward</legend>
-        <div className="flex gap-3">
-          {(['cursor', 'center'] as const).map(target => (
-            <label key={target} className="flex items-center gap-1.5">
-              <input type="radio" name="world-zoom-target" checked={zoomTarget === target} onChange={() => onZoomTargetChange(target)} />
-              {target === 'cursor' ? 'Cursor' : 'Center'}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <div className="flex items-center gap-2">
+    <div className="space-y-4 text-sm" data-testid={selectors.world.settings.popup} data-settings-group={group}>
+      {show('world') && (
+        <>
+          <SegmentedControl
+            label={choiceSettings.scene.label}
+            value={sceneId}
+            options={choiceSettings.scene.choices}
+            onChange={onSceneChange}
+            testId={selectors.world.settings.scene}
+          />
+          <SegmentedControl
+            label={choiceSettings.profile.label}
+            value={quality.profileId}
+            options={choiceSettings.profile.choices}
+            onChange={onPickProfile}
+            testId={selectors.world.settings.graphics}
+          />
+          <div className="space-y-1.5">
+            <label htmlFor="world-seed" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{integerSettings.seed.label}</label>
+            <div className="flex items-center gap-2">
+              <input id="world-seed" type="number" min={integerSettings.seed.minimum} max={integerSettings.seed.maximum} step="1"
+                value={seedDraft ?? String(seed)} onChange={event => setSeedDraft(event.target.value)}
+                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); applySeed() } }}
+                aria-invalid={Boolean(seedError)} aria-describedby={seedError ? 'world-seed-error world-seed-help' : 'world-seed-help'}
+                className="min-w-0 w-36 rounded-md border border-border bg-background px-2 py-1" />
+              <button type="button" onClick={applySeed} className="rounded-md border border-border px-2.5 py-1 text-xs hover:bg-muted">Apply seed</button>
+            </div>
+            <p id="world-seed-help" className="text-xs text-muted-foreground">{integerSettings.seed.description}</p>
+            {seedError && <p id="world-seed-error" role="alert" className="text-xs text-red-600 dark:text-red-400">{seedError}</p>}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={quality.auto}
+              onChange={(event) => onAutoChange(event.target.checked)}
+              data-testid={selectors.world.settings.qualityAuto}
+            />
+            <span>Adjust quality automatically</span>
+          </label>
+          <SegmentedControl<'clock' | PeriodId>
+            label={choiceSettings.period.label}
+            value={periodMode.kind === 'clock' ? 'clock' : periodMode.period}
+            options={choiceSettings.period.choices}
+            onChange={(id) => onPeriodModeChange(id === 'clock' ? { kind: 'clock' } : { kind: 'fixed', period: id })}
+            testId={selectors.world.settings.period}
+          />
+          {worldClock && <ClockControls clock={worldClock} onClockMode={() => onPeriodModeChange({ kind: 'clock' })} />}
+          <div className="space-y-1.5">
+            <SegmentedControl<WeatherId | 'auto'> label={choiceSettings.weather.label} value={weather}
+              options={choiceSettings.weather.choices}
+              onChange={onWeatherChange} testId="world-settings-weather" />
+            <p className="text-xs text-muted-foreground">{choiceSettings.weather.description}</p>
+          </div>
+          <fieldset className="space-y-1.5">
+            <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Zoom toward</legend>
+            <div className="flex gap-3">
+              {(['cursor', 'center'] as const).map(target => (
+                <label key={target} className="flex items-center gap-1.5">
+                  <input type="radio" name="world-zoom-target" checked={zoomTarget === target} onChange={() => onZoomTargetChange(target)} />
+                  {target === 'cursor' ? 'Cursor' : 'Center'}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {ambientLife && <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={ambientLife.enabled} onChange={event => ambientLife.onChange(event.target.checked)} />Ambient life</label>}
+        </>
+      )}
+      {show('appearance') && (
         <button
           type="button"
           onClick={onCameraHome}
@@ -192,18 +214,22 @@ export function WorldSettingsContent({
         >
           Reset camera
         </button>
-        <label className="flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            checked={showDiagnostics}
-            onChange={(event) => onShowDiagnosticsChange(event.target.checked)}
-            data-testid={selectors.world.settings.diagnosticsToggle}
-          />
-          <span>Show diagnostics</span>
-        </label>
-      </div>
-      {ambientLife && <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={ambientLife.enabled} onChange={event => ambientLife.onChange(event.target.checked)} />Ambient life</label>}
-      {levers && (
+      )}
+      {show('management') && (
+        <ManagementObjectives teams={teams} />
+      )}
+      {show('advanced') && (
+        <>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={showDiagnostics}
+              onChange={(event) => onShowDiagnosticsChange(event.target.checked)}
+              data-testid={selectors.world.settings.diagnosticsToggle}
+            />
+            <span>Show diagnostics</span>
+          </label>
+          {levers && (
         <details className="rounded-md border border-dashed border-border p-2" onToggle={event => setWorkbenchOpen(event.currentTarget.open)}>
           <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-muted-foreground">World workbench</summary>
           <p className="mt-2 text-xs text-muted-foreground">Changes apply to this tab and reset when the page reloads.</p>
@@ -270,6 +296,41 @@ export function WorldSettingsContent({
           {levers.readStatus && <WorkbenchStatus read={levers.readStatus} active={workbenchOpen} />}
         </details>
       )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** The Management group mounts the same owner-backed editor used on team pages. */
+function ManagementObjectives({ teams }: { teams: ReadonlyArray<{ id: string; label: string }> }) {
+  const [scopeId, setScopeId] = useState('global')
+  const selectedTeam = teams.find((team) => team.id === scopeId) ?? null
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold">Objective management</h3>
+        <p className="text-xs text-muted-foreground">
+          The same owner-backed editor the team page uses. Global shows operator ends and means;
+          a team shows the commitments that team serves, in the priority its prompt uses.
+        </p>
+      </div>
+      {teams.length > 0 && (
+        <label className="block space-y-1 text-xs">
+          <span className="font-medium uppercase tracking-wide text-muted-foreground">Manage objectives for</span>
+          <select
+            aria-label="Objective management scope"
+            value={scopeId}
+            onChange={(event) => setScopeId(event.target.value)}
+            data-testid="world-settings-objective-scope"
+            className="block w-full rounded-md border border-border bg-background px-2 py-1"
+          >
+            <option value="global">All objectives (global)</option>
+            {teams.map((team) => <option key={team.id} value={team.id}>{team.label}</option>)}
+          </select>
+        </label>
+      )}
+      <ObjectiveAuthorityEditor scope={selectedTeam ? 'team' : 'global'} teamId={selectedTeam?.id ?? ''} />
     </div>
   )
 }

@@ -182,9 +182,13 @@ type ListRunsResponse struct {
 	HasMore bool   `json:"has_more"`
 }
 
-// ContinueRunRequest is the request for continuing a paused run.
+// ContinueRunRequest is the request for continuing a paused run. A stable
+// IdempotencyKey lets the owner (agent-manager) deduplicate a retried send or a
+// reload that replays the same accepted turn; the caller owns generation and
+// must not reuse one key for a different message.
 type ContinueRunRequest struct {
-	Message string `json:"message"`
+	Message        string `json:"message"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 }
 
 // InvestigationApplyRequest is the request for applying an investigation.
@@ -340,26 +344,39 @@ func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) erro
 	return nil
 }
 
-// CreateRun starts a new run for a task
+// CreateRun starts a new run for a task.
+//
+// Run creation is the only heartbeat owner call that can leave a durable
+// effect without returning an identity. The outcome is therefore classified so
+// the caller can retain an uncertain obligation instead of releasing the
+// member's slot on a response that may simply have been lost:
+//
+//   - marshal failure / non-2xx response -> definitive rejection (no run accepted)
+//   - transport failure or malformed 2xx body -> uncertain (run may exist)
 func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, NewDispatchRejectedError(fmt.Errorf("marshal request: %w", err))
 	}
 
 	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs", body)
 	if err != nil {
-		return nil, err
+		// The request may have reached the owner before the transport failed.
+		return nil, NewDispatchUncertainError(err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+		return nil, NewDispatchRejectedError(c.parseError(resp))
 	}
 
 	var result CreateRunResponse
 	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+		// The owner answered successfully but the run identity is unreadable.
+		return nil, NewDispatchUncertainError(err)
+	}
+	if result.Run == nil || strings.TrimSpace(result.Run.ID) == "" {
+		return nil, NewDispatchUncertainError(fmt.Errorf("run creation returned no run identity"))
 	}
 	return result.Run, nil
 }
@@ -561,9 +578,11 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions)
 	return &result, nil
 }
 
-// ContinueRun sends a continue message to a paused run.
-func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, message string) (*Run, error) {
-	body, err := json.Marshal(ContinueRunRequest{Message: message})
+// ContinueRun sends a continue message to a paused run. A non-empty
+// idempotencyKey is forwarded so agent-manager can deduplicate a retried or
+// reloaded turn instead of advancing the conversation twice.
+func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, message string, idempotencyKey string) (*Run, error) {
+	body, err := json.Marshal(ContinueRunRequest{Message: message, IdempotencyKey: idempotencyKey})
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}

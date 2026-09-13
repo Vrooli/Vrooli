@@ -1,12 +1,12 @@
 {
-  "scene": "park",
+  "scene": "office",
   "qualityProfile": "ultra",
   "qualityAuto": false,
   "periodMode": "clock",
-  "twoDMode": false,
+  "twoDMode": true,
   "showDiagnostics": false,
   "scale": 1,
-  "updatedAt": "2026-09-08T18:34:33Z",
+  "updatedAt": "2026-09-13T14:54:57Z",
   "zoomTarget": "cursor",
-  "ambientLife": true
+  "ambientLife": false
 }

@@ -101,8 +101,15 @@ func TestFiniteLeaderExactBindingAndConcurrentAdmission(t *testing.T) {
 	if len(refs) != 1 || refs[0].Id != state.Binding.EffortRef || refs[0].Revision != "accepted:revision/7" || refs[0].Relationship != "orchestrator" || !refs[0].Verified {
 		t.Fatalf("missing exact AM effort association: %+v", refs)
 	}
-	if !strings.Contains(f.agent.createTaskCalls[0].Description, "retain the human input wait") || !strings.Contains(f.agent.createTaskCalls[0].Description, state.Binding.SourceRefs[0]) {
+	description := f.agent.createTaskCalls[0].Description
+	if !strings.Contains(description, "retain the human input wait") || !strings.Contains(description, state.Binding.SourceRefs[0]) {
 		t.Fatal("normal coordinator prompt or accepted source references lost")
+	}
+	for _, guidance := range []string{"durable owner reads", "independent, verifiable work", "Park or checkpoint", "final handoff", "explicit completion receipt",
+		"planners or workers", "parent handoff identity", "Independent review is bounded work", "successful finite child stays terminal"} {
+		if !strings.Contains(description, guidance) {
+			t.Fatalf("finite coordinator guidance missing %q", guidance)
+		}
 	}
 }
 
@@ -304,4 +311,107 @@ type finiteCompletionProbe struct {
 func (p finiteCompletionProbe) Execute(ctx context.Context, team, agent, profile string) (*ExecutionResult, error) {
 	defer close(p.done)
 	return p.executor.Execute(ctx, team, agent, profile)
+}
+
+func TestFiniteLeaderCompletionClosesQueuedDispatchAndSurvivesRestart(t *testing.T) {
+	f := newFiniteFixture(t)
+	ctx := context.Background()
+	reserved, err := f.runtime.Tick(ctx, "committee", "lead")
+	if err != nil || reserved.ID == "" || reserved.DispatchStarted {
+		t.Fatalf("reservation not queued: %+v %v", reserved, err)
+	}
+	receipt, changed, err := f.runtime.Complete(ctx, "committee", "lead", "accepted:revision/7", "evidence:owner/launch/1")
+	if err != nil || !changed || receipt == nil || receipt.ReceiptID == "" {
+		t.Fatalf("completion refused: %+v %v %v", receipt, changed, err)
+	}
+	if again, changed, err := f.runtime.Complete(ctx, "committee", "lead", "accepted:revision/7", "evidence:owner/launch/1"); err != nil || changed || again.ReceiptID != receipt.ReceiptID {
+		t.Fatalf("duplicate completion not idempotent: %+v %v %v", again, changed, err)
+	}
+	if _, err := f.runtime.Dispatch(ctx, "committee", "lead"); !errors.Is(err, store.ErrFiniteLeaderCompleted) {
+		t.Fatalf("manual trigger reopened completed work: %v", err)
+	}
+	// Lose ephemeral runtime state; the durable receipt must still refuse a tick.
+	restarted := &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &effortQueueFake{}}
+	if _, err := restarted.Tick(ctx, "committee", "lead"); !errors.Is(err, store.ErrFiniteLeaderCompleted) {
+		t.Fatalf("hourly tick reopened completed work: %v", err)
+	}
+	if len(f.agent.createTaskCalls) != 0 || len(f.agent.createRunCalls) != 0 {
+		t.Fatal("completed effort bought owner inference")
+	}
+	state, err := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+	if err != nil || state.Completed == nil || state.Completed.ReceiptID != receipt.ReceiptID {
+		t.Fatalf("completion receipt not durable: %+v %v", state, err)
+	}
+	// Only the explicit authorized reopen returns the effort to scheduling.
+	if err := restarted.Reopen(ctx, "committee", "lead", "accepted:revision/8", "evidence:owner/launch/2"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := restarted.Tick(ctx, "committee", "lead"); err != nil {
+		t.Fatalf("reopened effort could not resume: %v", err)
+	}
+}
+
+func TestFiniteLeaderCompletionTransportIsExplicitAndRevisionChecked(t *testing.T) {
+	f := newFiniteFixture(t)
+	h := NewHandlers(HandlersDeps{TeamStore: f.teams, RelationStore: f.relations, Executor: f.runtime.Executor})
+	put := func(body string) *httptest.ResponseRecorder {
+		req := mux.SetURLVars(httptest.NewRequest(http.MethodPut, "/", strings.NewReader(body)), map[string]string{"id": "committee", "agentId": "lead"})
+		w := httptest.NewRecorder()
+		h.UpdateHeartbeat(w, req)
+		return w
+	}
+	const completion = `{"finiteEffortTransition":{"operation":"complete","revision":"accepted:revision/7","evidenceRef":"evidence:owner/1"}}`
+	if w := put(`{"finiteEffortTransition":{"operation":"complete","revision":"accepted:revision/7","evidenceRef":"evidence:owner/1"},"enabled":true}`); w.Code != http.StatusBadRequest {
+		t.Fatalf("combined transition/config accepted: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(`{"finiteEffortTransition":{"operation":"complete","revision":"accepted:revision/9","evidenceRef":"evidence:owner/1"}}`); w.Code != http.StatusConflict {
+		t.Fatalf("stale revision accepted: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(completion); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"completed"`) {
+		t.Fatalf("completion not recorded: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(completion); w.Code != http.StatusOK {
+		t.Fatalf("idempotent completion refused: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(`{"finiteEffortTransition":{"operation":"complete","revision":"accepted:revision/7","evidenceRef":"evidence:owner/2"}}`); w.Code != http.StatusConflict {
+		t.Fatalf("conflicting completion accepted: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(`{"finiteEffortTransition":{"operation":"reopen","revision":"accepted:revision/7","evidenceRef":"evidence:owner/3"}}`); w.Code != http.StatusConflict {
+		t.Fatalf("reopen with the completed revision accepted: %d %s", w.Code, w.Body.String())
+	}
+	if w := put(`{"finiteEffortTransition":{"operation":"reopen","revision":"accepted:revision/8","evidenceRef":"evidence:owner/3"}}`); w.Code != http.StatusOK {
+		t.Fatalf("reopen refused: %d %s", w.Code, w.Body.String())
+	}
+	state, err := f.teams.ReadFiniteLeader(context.Background(), "committee", "lead")
+	if err != nil || state.Completed != nil || len(state.CompletionHistory) != 1 {
+		t.Fatalf("reopen did not retain prior receipt: %+v %v", state, err)
+	}
+	if w := put(`{"finiteEffortTransition":{"operation":"reopen","revision":"accepted:revision/9","evidenceRef":"evidence:owner/4"}}`); w.Code != http.StatusConflict {
+		t.Fatalf("reopen of a non-completed effort accepted: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestFiniteLeaderCompletionRetainsActiveRunAccounting(t *testing.T) {
+	f := newFiniteFixture(t)
+	ctx := context.Background()
+	state := f.dispatch(t)
+	if _, _, err := f.runtime.Complete(ctx, "committee", "lead", "accepted:revision/7", "evidence:owner/launch/1"); err != nil {
+		t.Fatal(err)
+	}
+	run := f.agent.getRuns[state.RunID]
+	run.Status, run.StartedAt, run.EndedAt = "complete", "2026-09-12T10:00:00Z", "2026-09-12T10:05:00Z"
+	if _, err := f.runtime.Tick(ctx, "committee", "lead"); err != nil {
+		t.Fatalf("completed active run was not settled: %v", err)
+	}
+	cfg, _ := f.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+	if cfg.LastExecution == nil || cfg.LastExecution.RunID != state.RunID {
+		t.Fatalf("settled accounting lost: %+v", cfg.LastExecution)
+	}
+	if len(f.agent.createRunCalls) != 1 {
+		t.Fatal("completion dispatched a replacement run")
+	}
+	retained, _ := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+	if retained.Completed == nil || retained.RunID != state.RunID {
+		t.Fatalf("completion receipt or owner identity lost after settling: %+v", retained)
+	}
 }

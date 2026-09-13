@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod'
-import { HexColorSchema } from './common.schema'
+import { HexColorSchema, ProtoBoolDefaultFalseSchema, ProtoInt64Schema } from './common.schema'
 
 /**
  * Helper for array fields that may be null (Go nil slice) or undefined (missing).
@@ -170,8 +170,8 @@ export type SoulResponse = z.infer<typeof SoulResponseSchema>
  */
 export const AgentFileEntrySchema = z.object({
   path: z.string(),
-  isDir: z.boolean(),
-  size: z.number().int().nonnegative().optional(),
+  isDir: ProtoBoolDefaultFalseSchema,
+  size: ProtoInt64Schema.pipe(z.number().int().nonnegative()).optional(),
 })
 
 export type AgentFileEntry = z.infer<typeof AgentFileEntrySchema>

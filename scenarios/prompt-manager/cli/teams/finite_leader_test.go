@@ -108,6 +108,55 @@ func TestFiniteLeaderCLIRetirementPreservesBinding(t *testing.T) {
 	}
 }
 
+func TestFiniteLeaderCLICompletionAndReopenAreExplicitTransitions(t *testing.T) {
+	for _, operation := range []string{"complete", "reopen"} {
+		t.Run(operation, func(t *testing.T) {
+			current, updated := finiteCLIConfig(), finiteCLIConfig()
+			ctx := &fakeContext{getResponse: current, response: updated}
+			input, _ := json.Marshal(finiteEffortTransitionInput{Revision: "accepted:revision/8", EvidenceRef: "owner:evidence/2"})
+			if err := route(ctx, []string{"heartbeat-" + operation + "-effort", "new-team", "leader", "--request-file", finiteCLIRequest(t, string(input))}); err != nil {
+				t.Fatal(err)
+			}
+			ctx.assertMethodPath(t, "PUT", "/teams/new-team/heartbeats/leader")
+			var sent UpdateHeartbeatRequest
+			if err := json.Unmarshal(ctx.gotPayload, &sent); err != nil {
+				t.Fatal(err)
+			}
+			if sent.FiniteEffortTransition == nil || sent.FiniteEffortTransition.Operation != operation ||
+				sent.FiniteEffortTransition.Revision != "accepted:revision/8" || sent.FiniteEffortTransition.EvidenceRef != "owner:evidence/2" {
+				t.Fatalf("%s sent the wrong transition: %s", operation, ctx.gotPayload)
+			}
+			if sent.FiniteLeader != nil || sent.Enabled != nil || sent.Schedule != nil || sent.ProfileKey != nil {
+				t.Fatalf("%s smuggled a configuration change into the request: %s", operation, ctx.gotPayload)
+			}
+		})
+	}
+}
+
+func TestFiniteLeaderCLITransitionRefusesAmbiguousInputAndUnboundMember(t *testing.T) {
+	for _, payload := range []string{
+		`{"revision":"","evidenceRef":"owner:evidence/1"}`,
+		`{"revision":"accepted:revision/8","evidenceRef":""}`,
+		`{"revision":"a","evidenceRef":"b","operation":"delete"}`,
+		`{} {}`,
+	} {
+		ctx := &fakeContext{}
+		if err := cmdHeartbeatCompleteEffort(ctx, []string{"new-team", "leader", "--request-file", finiteCLIRequest(t, payload)}); err == nil {
+			t.Fatalf("invalid transition accepted: %q", payload)
+		}
+		if ctx.gotMethod != "" {
+			t.Fatal("invalid input reached API")
+		}
+	}
+	unbound := finiteCLIConfig()
+	unbound.FiniteLeader = nil
+	ctx := &fakeContext{getResponse: unbound}
+	input, _ := json.Marshal(finiteEffortTransitionInput{Revision: "accepted:revision/8", EvidenceRef: "owner:evidence/2"})
+	if err := cmdHeartbeatCompleteEffort(ctx, []string{"new-team", "leader", "--request-file", finiteCLIRequest(t, string(input))}); err == nil || ctx.gotMethod != "GET" {
+		t.Fatal("completion proceeded without an exact binding")
+	}
+}
+
 func TestFiniteLeaderCLIReadRetainsReservation(t *testing.T) {
 	config := finiteCLIConfig()
 	ctx := &fakeContext{getResponse: config}

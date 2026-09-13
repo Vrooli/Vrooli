@@ -28,8 +28,9 @@ func NewPricingRepository(db *DB, log *logrus.Logger) pricing.Repository {
 }
 
 var (
-	_ pricing.Repository             = (*pricingRepository)(nil)
-	_ pricing.SubscriptionRepository = (*pricingRepository)(nil)
+	_ pricing.Repository                 = (*pricingRepository)(nil)
+	_ pricing.SubscriptionRepository     = (*pricingRepository)(nil)
+	_ pricing.QuotaObservationRepository = (*pricingRepository)(nil)
 )
 
 func (r *pricingRepository) CreateSubscriptionPeriod(ctx context.Context, period *domain.SubscriptionPeriod) error {
@@ -87,6 +88,93 @@ func (r *pricingRepository) DeleteSubscriptionPeriod(ctx context.Context, id str
 		return errors.New("subscription_period.not_found: period does not exist")
 	}
 	return err
+}
+
+// RecordQuotaObservation persists provider-reported quota evidence as an
+// immutable row. It intentionally has no relationship to run token totals or
+// pricing calculations: those facts cannot establish provider quota use.
+func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observation *pricing.QuotaObservation) error {
+	if observation != nil && observation.Freshness == "" {
+		observation.Freshness = pricing.ObservationUnknown
+	}
+	if err := observation.Validate(); err != nil {
+		return err
+	}
+	var reset any
+	if observation.ResetAt != nil {
+		reset = SQLiteTime(observation.ResetAt.UTC())
+	}
+	if observation.ID == "" {
+		observation.ID = pricing.QuotaObservationID(observation.SourceRunID, observation)
+		if observation.ID == "" {
+			observation.ID = uuid.NewString()
+		}
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO quota_observations (id,provider,pool,window,observed_at,standing,used,quota_limit,remaining,used_percent,window_minutes,reset_at,source_run_id,freshness,provenance,uncertainty,evidence_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`,
+		observation.ID, observation.Provider, observation.Pool, observation.Window, SQLiteTime(observation.ObservedAt.UTC()), observation.Standing, observation.Used, observation.Limit, observation.Remaining, observation.UsedPercent, observation.WindowMinutes, reset, observation.SourceRunID, observation.Freshness, observation.Provenance, observation.Uncertainty, observation.EvidenceRef)
+	return err
+}
+
+func (r *pricingRepository) ListQuotaObservations(ctx context.Context, provider, pool, window string, limit int) ([]pricing.QuotaObservation, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := r.db.QueryxContext(ctx, `SELECT id,provider,pool,window,observed_at,standing,used,quota_limit,remaining,used_percent,window_minutes,reset_at,source_run_id,freshness,provenance,uncertainty,evidence_ref FROM quota_observations WHERE (?='' OR provider=?) AND (?='' OR pool=?) AND (?='' OR window=?) ORDER BY observed_at DESC, id DESC LIMIT ?`, provider, provider, pool, pool, window, window, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]pricing.QuotaObservation, 0)
+	for rows.Next() {
+		var o pricing.QuotaObservation
+		var observedAt, resetAt SQLiteTime
+		var standing string
+		var used, quotaLimit, remaining, windowMinutes sql.NullInt64
+		var usedPercent sql.NullFloat64
+		var sourceRunID, freshness, uncertainty, evidenceRef sql.NullString
+		if err := rows.Scan(&o.ID, &o.Provider, &o.Pool, &o.Window, &observedAt, &standing, &used, &quotaLimit, &remaining, &usedPercent, &windowMinutes, &resetAt, &sourceRunID, &freshness, &o.Provenance, &uncertainty, &evidenceRef); err != nil {
+			return nil, err
+		}
+		o.ObservedAt, o.Standing = observedAt.Time(), pricing.QuotaStanding(standing)
+		if used.Valid {
+			v := used.Int64
+			o.Used = &v
+		}
+		if quotaLimit.Valid {
+			v := quotaLimit.Int64
+			o.Limit = &v
+		}
+		if remaining.Valid {
+			v := remaining.Int64
+			o.Remaining = &v
+		}
+		if usedPercent.Valid {
+			v := usedPercent.Float64
+			o.UsedPercent = &v
+		}
+		if windowMinutes.Valid {
+			v := windowMinutes.Int64
+			o.WindowMinutes = &v
+		}
+		if !resetAt.Time().IsZero() {
+			v := resetAt.Time()
+			o.ResetAt = &v
+		}
+		if uncertainty.Valid {
+			o.Uncertainty = uncertainty.String
+		}
+		if sourceRunID.Valid {
+			o.SourceRunID = sourceRunID.String
+		}
+		if freshness.Valid {
+			o.Freshness = pricing.ObservationFreshness(freshness.String)
+		}
+		if evidenceRef.Valid {
+			o.EvidenceRef = evidenceRef.String
+		}
+		result = append(result, o)
+	}
+	return result, rows.Err()
 }
 
 // --- Row Types ---

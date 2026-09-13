@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"prompt-manager/internal/store"
 )
@@ -16,6 +17,10 @@ type TeamExecutionStore struct {
 	persistDir  string
 	teamStore   *store.FileTeamStore
 	agentClient AgentClient
+	// resumer and clock are defaults applied to every context the store
+	// creates, so a store configured once covers contexts recovered later.
+	resumer PausedRunResumer
+	clock   func() time.Time
 }
 
 // NewTeamExecutionStore creates a new store for team execution contexts.
@@ -48,8 +53,84 @@ func (s *TeamExecutionStore) GetOrCreate(teamID string) *TeamExecutionContext {
 	}
 
 	ctx = newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
+	s.applyDefaults(ctx)
 	s.contexts[teamID] = ctx
 	return ctx
+}
+
+// applyDefaults copies store-level pause/resume configuration onto a freshly
+// created context. Caller holds s.mu; the context is not yet shared.
+func (s *TeamExecutionStore) applyDefaults(tec *TeamExecutionContext) {
+	if s.resumer != nil {
+		tec.resumer = s.resumer
+	}
+	if s.clock != nil {
+		tec.clock = s.clock
+	}
+}
+
+// SetPausedRunResumer installs the runtime-owner pause/resume port on the store
+// and every existing context.
+func (s *TeamExecutionStore) SetPausedRunResumer(resumer PausedRunResumer) {
+	s.mu.Lock()
+	s.resumer = resumer
+	contexts := make([]*TeamExecutionContext, 0, len(s.contexts))
+	for _, tec := range s.contexts {
+		contexts = append(contexts, tec)
+	}
+	s.mu.Unlock()
+	for _, tec := range contexts {
+		tec.SetPausedRunResumer(resumer)
+	}
+}
+
+// SetClock overrides the reset-eligibility clock on the store and every
+// existing context (tests only).
+func (s *TeamExecutionStore) SetClock(now func() time.Time) {
+	s.mu.Lock()
+	s.clock = now
+	contexts := make([]*TeamExecutionContext, 0, len(s.contexts))
+	for _, tec := range s.contexts {
+		contexts = append(contexts, tec)
+	}
+	s.mu.Unlock()
+	for _, tec := range contexts {
+		tec.SetClock(now)
+	}
+}
+
+// ConsumeResetEligibility routes one runtime-owner reset-eligibility event to
+// the context for its team.
+func (s *TeamExecutionStore) ConsumeResetEligibility(ctx context.Context, ev ResetEligibility) (ResetConsumeOutcome, error) {
+	if ev.TeamID == "" {
+		return ResetConsumeNone, nil
+	}
+	tec := s.GetOrCreate(ev.TeamID)
+	return tec.ConsumeResetEligibility(ctx, ev)
+}
+
+// RunResetEligibility consumes owner reset-eligibility events until the source
+// is exhausted or ctx is done. It is event-driven: it blocks on the source and
+// never wakes on a timer, so an unknown reset is not polled.
+func (s *TeamExecutionStore) RunResetEligibility(ctx context.Context, src ResetEligibilitySource) {
+	if src == nil {
+		return
+	}
+	for {
+		ev, ok, err := src.Next(ctx)
+		if err != nil {
+			if ctx.Err() == nil {
+				log.Printf("team_execution_store: reset eligibility source stopped: %v", err)
+			}
+			return
+		}
+		if !ok {
+			return
+		}
+		if _, err := s.ConsumeResetEligibility(ctx, ev); err != nil {
+			log.Printf("team_execution_store: consuming reset eligibility for %s/%s: %v", ev.TeamID, ev.AgentID, err)
+		}
+	}
 }
 
 // SetRunningRunID routes a RunID update to the context for teamID.
@@ -62,6 +143,40 @@ func (s *TeamExecutionStore) SetRunningRunID(teamID, agentID, runID string) {
 		return
 	}
 	tec.SetRunningRunID(agentID, runID)
+}
+
+// BeginDispatch routes a pre-request dispatch intent to the context for teamID.
+// No-op if no context exists yet for the team.
+func (s *TeamExecutionStore) BeginDispatch(teamID, agentID string, intent DispatchIntent) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return
+	}
+	tec.BeginDispatch(agentID, intent)
+}
+
+// ReconcileDispatch routes an owner-mediated replay of a retained uncertain
+// dispatch to the context for teamID.
+func (s *TeamExecutionStore) ReconcileDispatch(ctx context.Context, teamID, agentID string) error {
+	tec, err := s.configureContext(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	return tec.ReconcileDispatch(ctx, agentID)
+}
+
+// MarkDispatchUncertain routes a retained uncertain obligation to the context
+// for teamID. No-op if no context exists yet for the team.
+func (s *TeamExecutionStore) MarkDispatchUncertain(teamID, agentID, reason string) {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return
+	}
+	tec.MarkDispatchUncertain(agentID, reason)
 }
 
 // ClearRunning clears a single running entry on the given team's context.
@@ -139,6 +254,7 @@ func (s *TeamExecutionStore) Recover(ctx context.Context) {
 		}
 
 		tec := newTeamExecutionContext(teamID, s.executor, s.persistDir, s.agentClient)
+		s.applyDefaults(tec)
 		tec.Recover(ctx)
 		s.contexts[teamID] = tec
 	}

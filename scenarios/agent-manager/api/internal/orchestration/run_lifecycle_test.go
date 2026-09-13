@@ -381,6 +381,7 @@ func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithBroadcaster(broadcaster),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -534,6 +535,7 @@ func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *
 			},
 		}),
 		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -655,6 +657,7 @@ func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
 				return nil, errors.New("resume failed")
 			},
 		}),
+		newTestRolePolicyOption(t),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{

@@ -45,7 +45,7 @@ Already-accepted notifications continue to drain, because their recipient
 was resolved at acceptance time.
 
 **Trust posture selects the recipient model.** `trust_posture` in
-`.vrooli/operator-state.json` is `personal`, `shared`, or `hosted`.
+`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is `personal`, `shared`, or `hosted`.
 Multi-user routing is a data consequence of keying recipients by
 authenticator identity, not a separate feature: in `personal` there is one
 recipient and the UI shows no picker; in `shared` or `hosted` the same

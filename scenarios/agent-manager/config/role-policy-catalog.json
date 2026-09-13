@@ -11,10 +11,7 @@
       "intent": "economical judgment",
       "orderingReason": "Codex is the only candidate on purpose: this role exists to keep judgment work off the nearly exhausted Claude subscription, so a silent fall-through to Claude would defeat it.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.judgment"
-        }
+        {"runner": "codex", "resourceRole": "code.judgment"}
       ]
     },
     "code.flatrate": {
@@ -22,10 +19,7 @@
       "intent": "flat-rate long-horizon coding",
       "orderingReason": "OpenCode is the only candidate on purpose: the role exists to protect the metered and Claude subscription pools, so a silent runner fallback would defeat it.",
       "candidates": [
-        {
-          "runner": "opencode",
-          "resourceRole": "code.flatrate"
-        }
+        {"runner": "opencode", "resourceRole": "code.flatrate"}
       ]
     },
     "code.default": {
@@ -33,26 +27,11 @@
       "intent": "balanced coding",
       "orderingReason": "Codex is the primary coding path for repository work; the remaining candidates provide independent runner fallbacks.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.default"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.default"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.default"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.default"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.default"
-        }
+        {"runner": "codex", "resourceRole": "code.default"},
+        {"runner": "claude-code", "resourceRole": "code.default"},
+        {"runner": "opencode", "resourceRole": "code.default"},
+        {"runner": "grok", "resourceRole": "code.default"},
+        {"runner": "antigravity", "resourceRole": "code.default"}
       ]
     },
     "code.fast": {
@@ -60,26 +39,11 @@
       "intent": "fast coding",
       "orderingReason": "Codex is preferred for low-latency edits, followed by the fastest available alternatives.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.fast"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.fast"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.fast"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.fast"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.fast"
-        }
+        {"runner": "codex", "resourceRole": "code.fast"},
+        {"runner": "claude-code", "resourceRole": "code.fast"},
+        {"runner": "opencode", "resourceRole": "code.fast"},
+        {"runner": "grok", "resourceRole": "code.fast"},
+        {"runner": "antigravity", "resourceRole": "code.fast"}
       ]
     },
     "code.smart": {
@@ -87,26 +51,11 @@
       "intent": "high capability coding",
       "orderingReason": "Codex remains the first deep-reasoning candidate; the order preserves high-capability fallbacks across independent runners.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.smart"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.smart"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.smart"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.smart"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.smart"
-        }
+        {"runner": "codex", "resourceRole": "code.smart"},
+        {"runner": "claude-code", "resourceRole": "code.smart"},
+        {"runner": "opencode", "resourceRole": "code.smart"},
+        {"runner": "grok", "resourceRole": "code.smart"},
+        {"runner": "antigravity", "resourceRole": "code.smart"}
       ]
     },
     "code.cheap": {
@@ -114,26 +63,11 @@
       "intent": "cost-conscious coding",
       "orderingReason": "Codex is preferred for the low-cost coding lane, with other runners retained as ordered fallbacks.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.cheap"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.cheap"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.cheap"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.cheap"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.cheap"
-        }
+        {"runner": "codex", "resourceRole": "code.cheap"},
+        {"runner": "claude-code", "resourceRole": "code.cheap"},
+        {"runner": "opencode", "resourceRole": "code.cheap"},
+        {"runner": "grok", "resourceRole": "code.cheap"},
+        {"runner": "antigravity", "resourceRole": "code.cheap"}
       ]
     },
     "code.ux": {
@@ -141,26 +75,11 @@
       "intent": "user experience coding",
       "orderingReason": "Codex leads because UX work benefits from its strongest interaction quality, then Claude for a second high-quality path.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.ux"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.ux"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.ux"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.ux"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.ux"
-        }
+        {"runner": "codex", "resourceRole": "code.ux"},
+        {"runner": "claude-code", "resourceRole": "code.ux"},
+        {"runner": "opencode", "resourceRole": "code.ux"},
+        {"runner": "grok", "resourceRole": "code.ux"},
+        {"runner": "antigravity", "resourceRole": "code.ux"}
       ]
     },
     "code.longrun": {
@@ -168,26 +87,11 @@
       "intent": "long-horizon coding",
       "orderingReason": "Claude leads because Fable is selected for long-horizon autonomy, with Codex as the next high-capability fallback.",
       "candidates": [
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.longrun"
-        },
-        {
-          "runner": "codex",
-          "resourceRole": "code.longrun"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.longrun"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.longrun"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.longrun"
-        }
+        {"runner": "claude-code", "resourceRole": "code.longrun"},
+        {"runner": "codex", "resourceRole": "code.longrun"},
+        {"runner": "opencode", "resourceRole": "code.longrun"},
+        {"runner": "grok", "resourceRole": "code.longrun"},
+        {"runner": "antigravity", "resourceRole": "code.longrun"}
       ]
     },
     "code.judgment": {
@@ -195,26 +99,11 @@
       "intent": "judgment and reasoning",
       "orderingReason": "Claude Code is preferred for judgment work, with Codex as the first independent fallback.",
       "candidates": [
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.judgment"
-        },
-        {
-          "runner": "codex",
-          "resourceRole": "code.judgment"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.judgment"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.judgment"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.judgment"
-        }
+        {"runner": "claude-code", "resourceRole": "code.judgment"},
+        {"runner": "codex", "resourceRole": "code.judgment"},
+        {"runner": "opencode", "resourceRole": "code.judgment"},
+        {"runner": "grok", "resourceRole": "code.judgment"},
+        {"runner": "antigravity", "resourceRole": "code.judgment"}
       ]
     },
     "code.inspection": {
@@ -222,26 +111,11 @@
       "intent": "inspection and execution",
       "orderingReason": "Codex is preferred for repeatable inspection and execution work.",
       "candidates": [
-        {
-          "runner": "codex",
-          "resourceRole": "code.inspection"
-        },
-        {
-          "runner": "claude-code",
-          "resourceRole": "code.inspection"
-        },
-        {
-          "runner": "opencode",
-          "resourceRole": "code.inspection"
-        },
-        {
-          "runner": "grok",
-          "resourceRole": "code.inspection"
-        },
-        {
-          "runner": "antigravity",
-          "resourceRole": "code.inspection"
-        }
+        {"runner": "codex", "resourceRole": "code.inspection"},
+        {"runner": "claude-code", "resourceRole": "code.inspection"},
+        {"runner": "opencode", "resourceRole": "code.inspection"},
+        {"runner": "grok", "resourceRole": "code.inspection"},
+        {"runner": "antigravity", "resourceRole": "code.inspection"}
       ]
     }
   }

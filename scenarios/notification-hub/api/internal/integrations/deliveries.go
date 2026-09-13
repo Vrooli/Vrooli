@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"notification-hub/internal/hub"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // DeliveryProjectionHandler serves the durable delivery projection to the
@@ -33,11 +35,9 @@ func DeliveryProjectionHandler(service *hub.Service) http.Handler {
 	})
 }
 
-// operatorStateFile is the control plane's operator state, relative to the
-// repository root. The hub is outside the control-plane module and cannot
-// import internal/operatorstate, so it reads the one field it owns the
-// meaning of; the field is declared in .vrooli/schemas/operator-state.schema.json.
-const operatorStateFile = ".vrooli/operator-state.json"
+// The hub is outside the control-plane module and cannot import
+// internal/operatorstate, so it reads the one field it owns the meaning of
+// through the same contract-routed state namespace.
 
 // OperatorStateRecipient reads notifications.recipient from operator state
 // at call time, so a recipient set after the hub started is honored on the
@@ -66,22 +66,13 @@ func OperatorStateRecipient() func(context.Context) string {
 }
 
 func operatorStatePath() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return filepath.Join(root, filepath.FromSlash(operatorStateFile))
-	}
-	dir, err := os.Getwd()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
 		return ""
 	}
-	for {
-		candidate := filepath.Join(dir, filepath.FromSlash(operatorStateFile))
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return ""
-		}
-		dir = parent
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-onboarding"})
+	if err != nil {
+		return ""
 	}
+	return filepath.Join(paths.StateDir, "operator-state.json")
 }

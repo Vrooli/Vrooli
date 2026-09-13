@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/pricing"
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -56,6 +57,7 @@ type EffortService struct {
 	nextScan          time.Time
 	directiveCursor   string
 	runRegistry       EffortRunRegistry
+	quotaStore        pricing.QuotaObservationRepository
 	dispatchSecret    []byte
 	dispatchProvision func(string) error
 	dispatchProfile   func(context.Context, string) error
@@ -75,6 +77,51 @@ func NewEffortService(repo EffortRepository, controller ActionController, polici
 		config.StaleAfter = 5 * time.Minute
 	}
 	return &EffortService{repo: repo, controller: controller, policies: policies, config: config, now: time.Now}
+}
+
+// SetQuotaObservationStore installs the pricing-owned provider observation
+// surface. Board reads it once and joins by canonical source run identity.
+func (s *EffortService) SetQuotaObservationStore(store pricing.QuotaObservationRepository) {
+	s.quotaStore = store
+}
+
+func quotaObservationProto(o pricing.QuotaObservation) *pb.EffortQuotaObservation {
+	result := &pb.EffortQuotaObservation{
+		Provider: o.Provider, Pool: o.Pool, Window: o.Window,
+		ObservedAt: timestamppb.New(o.ObservedAt.UTC()), Standing: string(o.Standing),
+		Freshness: string(o.Freshness), Provenance: o.Provenance,
+		Uncertainty: o.Uncertainty, EvidenceRef: o.EvidenceRef, SourceRunId: o.SourceRunID,
+	}
+	if o.UsedPercent != nil {
+		result.UsedPercent = o.UsedPercent
+	}
+	if o.WindowMinutes != nil {
+		result.WindowMinutes = o.WindowMinutes
+	}
+	if o.ResetAt != nil {
+		result.ResetAt = timestamppb.New(o.ResetAt.UTC())
+	}
+	return result
+}
+
+func quotaObservationsForRow(row *pb.EffortBoardRow, observations map[string][]*pb.EffortQuotaObservation) {
+	if row == nil {
+		return
+	}
+	seen := map[string]bool{}
+	for _, assignment := range row.GetAssignments() {
+		if assignment == nil || assignment.GetSubject() == nil {
+			continue
+		}
+		runID := assignment.GetSubject().GetRunId()
+		for _, observation := range observations[runID] {
+			if observation == nil || seen[observation.GetSourceRunId()+"\x00"+observation.GetProvider()+"\x00"+observation.GetPool()+"\x00"+observation.GetWindow()+"\x00"+observation.GetObservedAt().String()] {
+				continue
+			}
+			row.QuotaObservations = append(row.QuotaObservations, observation)
+			seen[observation.GetSourceRunId()+"\x00"+observation.GetProvider()+"\x00"+observation.GetPool()+"\x00"+observation.GetWindow()+"\x00"+observation.GetObservedAt().String()] = true
+		}
+	}
 }
 func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time) error {
 	if e == nil || strings.TrimSpace(e.EffortRef) == "" || len(e.EffortRef) > 512 || len(e.Subjects) > 100 {
@@ -230,7 +277,7 @@ func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*
 		return nil, err
 	}
 	for _, e := range all {
-		if !e.Withdrawn && !dispatchOnlyEnrollment(e) {
+		if !e.Withdrawn && !authorizationAnchorEnrollment(e) {
 			response.ActiveCount++
 		}
 	}
@@ -249,6 +296,32 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 		return nil, err
 	}
 	b := &pb.EffortBoard{ObservedAt: timestamppb.New(s.now().UTC()), Discovery: d, ActiveCount: list.ActiveCount, NextPageToken: list.NextPageToken, Partial: d.Partial}
+	quotaByRun := map[string][]*pb.EffortQuotaObservation{}
+	if s.quotaStore != nil {
+		quotaRows, quotaErr := s.quotaStore.ListQuotaObservations(ctx, "", "", "", 100)
+		if quotaErr != nil {
+			b.Partial = true
+			b.Limitations = append(b.Limitations, "provider quota observation read unavailable: "+quotaErr.Error())
+		} else {
+			if len(quotaRows) == 0 {
+				b.Partial = true
+				b.Limitations = append(b.Limitations, "provider quota standing is unknown: no native provider observation has been received")
+			}
+			for _, quota := range quotaRows {
+				if quota.Freshness == "" || quota.Freshness == pricing.ObservationFresh || quota.Freshness == pricing.ObservationStale {
+					quota.Freshness = pricing.Freshness(&quota, s.now().UTC(), s.config.StaleAfter)
+				}
+				mapped := quotaObservationProto(quota)
+				// Keep every provider/pool/window observation once at board scope.
+				// Row joins below only add observations attributable to that row's
+				// canonical run subjects.
+				b.QuotaObservations = append(b.QuotaObservations, mapped)
+				if mapped.GetSourceRunId() != "" {
+					quotaByRun[mapped.GetSourceRunId()] = append(quotaByRun[mapped.GetSourceRunId()], mapped)
+				}
+			}
+		}
+	}
 	if list.ActiveCount > 1000 {
 		b.Partial = true
 		b.Limitations = append(b.Limitations, "active count is censored at 1001 enrollments")
@@ -268,6 +341,7 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 			return nil, getErr
 		}
 		row := s.projectEffort(ctx, e, ob, d)
+		quotaObservationsForRow(row, quotaByRun)
 		assessment, assessmentErr := s.repo.LatestEffortAssessment(ctx, e.EffortRef)
 		if assessmentErr != nil && !errors.Is(assessmentErr, ErrNotFound) {
 			return nil, assessmentErr
@@ -529,7 +603,7 @@ func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollmen
 	if unavailable > 0 {
 		row.Limitations = append(row.Limitations, fmt.Sprintf("%d subject owner observations unavailable", unavailable))
 	}
-	if dispatchOnlyEnrollment(e) && !e.Withdrawn {
+	if authorizationAnchorEnrollment(e) && !e.Withdrawn {
 		row.RuntimeState = "authorization"
 		row.NextAction = "authorization-only"
 		row.Rationale = "recurring dispatch authorization anchor, not an accepted effort or a supervision target"

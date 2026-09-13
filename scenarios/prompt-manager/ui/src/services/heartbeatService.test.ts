@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { connectSlice4Request } from '@/lib/api'
 import {
+  continueRun,
   getHeartbeat,
   getRunEvents,
   getTeamRunAccounting,
   listHeartbeats,
   listTeamLogs,
   listRuns,
+  newConversationRequestId,
   retryRun,
   resetHeartbeatServiceCachesForTests,
 } from './heartbeatService'
@@ -381,5 +383,39 @@ describe('heartbeatService retryRun', () => {
     const retryUrl = String(retryCallArgs[0] as string | URL)
     expect(retryUrl).toContain('/runs/run-1/retry')
     expect((retryCallArgs[1] as RequestInit | undefined)?.method).toBe('POST')  // eslint-disable-line @typescript-eslint/no-unnecessary-type-assertion -- vi.mocked returns unknown[]
+  })
+})
+
+describe('heartbeatService conversation turns', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('forwards the stable request id so a retried turn can be deduplicated', async () => {
+    mockFetchResponse(
+      new Response(JSON.stringify({ run: { id: 'run-1', task_id: 'task-1', status: 'RUN_STATUS_RUNNING' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+
+    await continueRun('run-1', 'second turn', { requestId: 'turn-2' })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const callArgs = vi.mocked(fetch).mock.calls[0] ?? []
+    const url = String(callArgs[0] as string | URL)
+    expect(url).toContain('/runs/run-1/continue')
+    const init = callArgs[1]
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({
+      message: 'second turn',
+      request_id: 'turn-2',
+    })
+  })
+
+  it('generates a UUID-shaped request identity', () => {
+    expect(newConversationRequestId()).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
   })
 })

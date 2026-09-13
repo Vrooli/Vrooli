@@ -319,3 +319,33 @@ func TestMetadataPurposeAndLifetimeAreIndependent(t *testing.T) {
 		}
 	}
 }
+
+func TestSupervisionDispatchRecoveryRequiresExactOwnerMarker(t *testing.T) {
+	base := &Supervision{DiagnosticAllowance: DiagnosticAllowance{MaxWakesPerWindow: 1, WindowSeconds: 60, AccountingRef: "allowance"}, DiscoveryLimit: 1, MaxEffortsPerWake: 1, MinWakeIntervalSeconds: 60}
+	valid := *base
+	valid.DispatchRecovery = &SupervisorDispatchRecovery{WakeID: "wake-1", Mode: "ordinary", TaskID: "task-1", ProfileKey: "profile-1", EvidenceRefs: []string{"owner-report:1"}}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid recovery marker rejected: %v", err)
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*SupervisorDispatchRecovery)
+	}{
+		{name: "wrong mode", edit: func(r *SupervisorDispatchRecovery) { r.Mode = "delegated" }},
+		{name: "missing evidence", edit: func(r *SupervisorDispatchRecovery) { r.EvidenceRefs = nil }},
+		{name: "conflicting binding", edit: func(r *SupervisorDispatchRecovery) { r.Mode = "ordinary" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := valid
+			candidate.DispatchRecovery = &SupervisorDispatchRecovery{WakeID: "wake-1", Mode: "ordinary", TaskID: "task-1", ProfileKey: "profile-1", EvidenceRefs: []string{"owner-report:1"}}
+			if tc.name == "conflicting binding" {
+				candidate.DispatchAuthorization = &SupervisorDispatchBinding{EffortRef: "effort-1", AuthorizationID: "grant-1"}
+			} else {
+				tc.edit(candidate.DispatchRecovery)
+			}
+			if err := candidate.Validate(); err == nil {
+				t.Fatal("invalid recovery marker accepted")
+			}
+		})
+	}
+}

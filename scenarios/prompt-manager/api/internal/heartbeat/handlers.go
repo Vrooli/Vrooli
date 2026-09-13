@@ -461,6 +461,10 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if req.FiniteEffortTransition != nil {
+		h.applyFiniteEffortTransition(w, r, teamID, agentID, req)
+		return
+	}
 
 	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 	if err != nil {
@@ -542,6 +546,62 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))
+}
+
+// applyFiniteEffortTransition records an explicit completion or reopen for a
+// finite leader. It refuses to combine a lifecycle operation with configuration
+// changes so a receipt cannot be smuggled in as a configuration edit.
+func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Request, teamID, agentID string, req UpdateHeartbeatRequest) {
+	ctx := r.Context()
+	transition := req.FiniteEffortTransition
+	if req.FiniteLeader != nil || req.Supervision != nil || req.Schedule != nil || req.ProfileKey != nil || req.Enabled != nil || req.TimeoutSeconds != nil {
+		http.Error(w, "finite effort transition must not be combined with configuration changes", http.StatusBadRequest)
+		return
+	}
+	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if config == nil || config.FiniteLeader == nil {
+		http.Error(w, "finite leader binding unavailable", http.StatusConflict)
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(transition.Operation)) {
+	case "complete":
+		if _, _, err := h.teamStore.CompleteFiniteLeader(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
+			writeFiniteEffortTransitionError(w, err)
+			return
+		}
+	case "reopen":
+		if err := h.teamStore.ReopenFiniteLeader(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
+			writeFiniteEffortTransitionError(w, err)
+			return
+		}
+	default:
+		http.Error(w, "finite effort transition operation must be 'complete' or 'reopen'", http.StatusBadRequest)
+		return
+	}
+	updated, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
+	if err != nil || updated == nil {
+		http.Error(w, "finite effort transition recorded; reread heartbeat state", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(h.toResponse(updated))
+}
+
+// writeFiniteEffortTransitionError maps lifecycle conflicts to 409 and bad
+// completion/reopen inputs to 400. The owner's exact error is never hidden.
+func writeFiniteEffortTransitionError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, store.ErrFiniteLeaderStaleRevision), errors.Is(err, store.ErrFiniteLeaderCompleted):
+		http.Error(w, err.Error(), http.StatusConflict)
+	case strings.Contains(err.Error(), "not completed"):
+		http.Error(w, err.Error(), http.StatusConflict)
+	default:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 // DeleteHeartbeat handles DELETE /teams/{id}/heartbeats/{agentId} - deletes heartbeat config
@@ -1272,6 +1332,7 @@ func (h *Handlers) ListRunning(w http.ResponseWriter, r *http.Request) {
 			RunID:     run.RunID,
 			StartedAt: run.StartedAt.Format(time.RFC3339),
 			Duration:  formatDuration(now.Sub(run.StartedAt)),
+			State:     run.State,
 		}
 
 		// Look up display names (best-effort)
@@ -2039,14 +2100,35 @@ func (h *Handlers) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Message string `json:"message"`
+		Message   string `json:"message"`
+		RequestID string `json:"request_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(req.Message) == "" {
+		http.Error(w, "message is required", http.StatusBadRequest)
+		return
+	}
 
-	run, err := h.agentClient.ContinueRun(r.Context(), runID, req.Message)
+	// A stable request identity lets the owner deduplicate a retried or reloaded
+	// turn. Conversation runs require one so a duplicate send cannot advance the
+	// conversation twice; other continues keep the prior best-effort behavior.
+	idempotencyKey := ""
+	if req.RequestID != "" {
+		requestID, err := uuid.Parse(req.RequestID)
+		if err != nil || requestID == uuid.Nil {
+			http.Error(w, "request_id must be a UUID", http.StatusBadRequest)
+			return
+		}
+		idempotencyKey = "prompt-manager-conversation-turn:" + requestID.String()
+	} else if existing, lookupErr := h.agentClient.GetRun(r.Context(), runID); lookupErr == nil && existing != nil && strings.HasPrefix(existing.Tag, "conversation-") {
+		http.Error(w, "conversation turns require a stable request_id", http.StatusBadRequest)
+		return
+	}
+
+	run, err := h.agentClient.ContinueRun(r.Context(), runID, req.Message, idempotencyKey)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)

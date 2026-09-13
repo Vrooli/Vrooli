@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { installFixtureHook } from './camera-fixtures.mjs'
+import { installFixtureHook, openCamera } from './camera-fixtures.mjs'
 const root = resolve(process.argv[2] ?? `evidence/saved-layout-${Date.now()}`)
 mkdirSync(root, { recursive: true })
 const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=gl-egl'] })
@@ -50,6 +50,7 @@ async function ready(scene, reload = false) {
   else await page.goto(`http://localhost:21235/world?scene=${scene}&seed=7&profile=medium&intro=0&diag=1&period=day&weather=clear`)
   await page.waitForFunction(() => window.__worldDiagnostics?.ready, null, { timeout: 90000 })
   await page.waitForTimeout(400)
+  await openCamera(page)
   return inspect()
 }
 function overlaps(a, b) {

@@ -46,6 +46,28 @@ describe('ViewOverlay', () => {
     expect(screen.queryByTestId('view-overlay-mobile-stats-button')).not.toBeInTheDocument()
   })
 
+  it('notifies the caller when the settings panel closes so focus can return', () => {
+    const onSettingsClose = vi.fn()
+    render(
+      <ViewOverlay
+        settingsContent={<div>Settings Body</div>}
+        helpContent={<div>Help Body</div>}
+        onSettingsClose={onSettingsClose}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('view-overlay-settings-button'))
+    expect(screen.getByText('Settings Body')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Close panel'))
+    expect(onSettingsClose).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Settings Body')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('view-overlay-settings-button'))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onSettingsClose).toHaveBeenCalledTimes(2)
+  })
+
   it('shows compact mobile controls and opens/closes stats + queries sheets', () => {
     vi.mocked(useIsMobile).mockReturnValue(true)
     const onOpenMobileSidebar = vi.fn()

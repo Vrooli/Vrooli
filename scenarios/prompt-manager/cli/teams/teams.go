@@ -609,6 +609,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatBindEffort(ctx, subArgs)
 	case "heartbeat-retire-effort":
 		return cmdHeartbeatRetireEffort(ctx, subArgs)
+	case "heartbeat-complete-effort":
+		return cmdHeartbeatCompleteEffort(ctx, subArgs)
+	case "heartbeat-reopen-effort":
+		return cmdHeartbeatReopenEffort(ctx, subArgs)
 	case "heartbeat-disable":
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
@@ -713,6 +717,8 @@ Heartbeat Commands:
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
   heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file
   heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
+  heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
+  heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
@@ -1594,6 +1600,16 @@ type UpdateHeartbeatRequest struct {
 	ProfileKey     *string                  `json:"profileKey,omitempty"`
 	Enabled        *bool                    `json:"enabled,omitempty"`
 	TimeoutSeconds *int                     `json:"timeoutSeconds,omitempty"`
+
+	FiniteEffortTransition *FiniteEffortTransition `json:"finiteEffortTransition,omitempty"`
+}
+
+// FiniteEffortTransition is an explicit finite-effort lifecycle operation sent
+// on the member heartbeat update path. It carries no configuration changes.
+type FiniteEffortTransition struct {
+	Operation   string `json:"operation"`
+	Revision    string `json:"revision"`
+	EvidenceRef string `json:"evidenceRef"`
 }
 
 // TriggerResponse is the response from triggering a heartbeat

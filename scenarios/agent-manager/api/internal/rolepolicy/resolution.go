@@ -18,6 +18,7 @@ type ResolvedCandidate struct {
 	Model          string                   `json:"model,omitempty"`
 	CanonicalModel string                   `json:"canonicalModel,omitempty"`
 	Fallbacks      []string                 `json:"fallbacks,omitempty"`
+	ExcludedModels []string                 `json:"excludedModels,omitempty"`
 	Available      bool                     `json:"available"`
 	FailureCode    string                   `json:"failureCode,omitempty"`
 	Failure        string                   `json:"failure,omitempty"`
@@ -55,7 +56,7 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 		candidates = append(candidates, domain.ExecutionCandidate{
 			RunnerType: candidate.Runner, SelectionType: selection, Model: candidate.Model,
 			CanonicalModel: candidate.CanonicalModel,
-			ResourceRole:   candidate.ResourceRole, Fallbacks: append([]string(nil), candidate.Fallbacks...),
+			ResourceRole:   candidate.ResourceRole, Fallbacks: append([]string(nil), candidate.Fallbacks...), ExcludedModels: append([]string(nil), candidate.ExcludedModels...),
 			Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
 			Provenance:  domain.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt},
 			Enforcement: domain.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)},
@@ -148,6 +149,7 @@ func (s *State) ResolvePreferred(ctx context.Context, resolver Resolver, roleRef
 		resolved.Model = evidence.Model
 		resolved.CanonicalModel = evidence.CanonicalModel
 		resolved.Fallbacks = append([]string(nil), evidence.Fallbacks...)
+		resolved.ExcludedModels = append([]string(nil), evidence.ExcludedModels...)
 		resolved.Available = true
 		resolved.Provenance = evidence.Provenance
 		resolved.Enforcement = EnforcementPosture{Permissions: evidence.Enforcement.Permissions, Caveats: append([]string(nil), evidence.Enforcement.Caveats...)}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ type PricingHandler struct {
 	svc           pricing.Service
 	statsRepo     repository.StatsRepository
 	subscriptions pricing.SubscriptionRepository
+	quotaStore    pricing.QuotaObservationRepository
 }
 
 // NewPricingHandler creates a new pricing handler.
@@ -31,6 +33,12 @@ func NewPricingHandler(svc pricing.Service, statsRepo repository.StatsRepository
 		subscriptionStore = subscriptions[0]
 	}
 	return &PricingHandler{svc: svc, statsRepo: statsRepo, subscriptions: subscriptionStore}
+}
+
+// NewPricingHandlerWithQuota adds the optional provider quota observation read
+// surface while preserving the existing constructor for lightweight callers.
+func NewPricingHandlerWithQuota(svc pricing.Service, statsRepo repository.StatsRepository, subscriptions pricing.SubscriptionRepository, quotaStore pricing.QuotaObservationRepository) *PricingHandler {
+	return &PricingHandler{svc: svc, statsRepo: statsRepo, subscriptions: subscriptions, quotaStore: quotaStore}
 }
 
 // RegisterRoutes registers pricing API routes on the given router.
@@ -62,6 +70,29 @@ func (h *PricingHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/pricing/subscription-periods", h.ListSubscriptionPeriods).Methods("GET")
 	r.HandleFunc("/api/v1/pricing/subscription-periods", h.CreateSubscriptionPeriod).Methods("POST")
 	r.HandleFunc("/api/v1/pricing/subscription-periods/{id}", h.DeleteSubscriptionPeriod).Methods("DELETE")
+	r.HandleFunc("/api/v1/pricing/quota-observations", h.ListQuotaObservations).Methods("GET")
+}
+
+func (h *PricingHandler) ListQuotaObservations(w http.ResponseWriter, r *http.Request) {
+	if h.quotaStore == nil {
+		writeSimpleError(w, r, "quota_observation", "quota observations are unavailable")
+		return
+	}
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		} else {
+			writeSimpleError(w, r, "quota_observation", "limit must be between 1 and 100")
+			return
+		}
+	}
+	rows, err := h.quotaStore.ListQuotaObservations(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rows)
 }
 
 func (h *PricingHandler) ListSubscriptionPeriods(w http.ResponseWriter, r *http.Request) {
