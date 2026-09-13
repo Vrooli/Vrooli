@@ -40,8 +40,50 @@ func (h *handlers) listReport(_ cliapp.OperationContext, message *reviewv1.ListR
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d review run(s).", len(message.ReviewRuns))}, ResultsHeading: "Review runs", Results: results}
 }
 
+// buildVerdicts assembles one review run from the repeated --mode and
+// --blocked flags. The ReviewService requires every failure mode declared by
+// the draft's post type plus the global review policy in a single run, so the
+// CLI must be able to submit the whole set: --mode lists the declared modes
+// (passed when --passed is set and not named in --blocked) and --blocked lists
+// the failing modes, which carry --finding. Order is deterministic: --mode
+// values first, then any --blocked value not already listed.
+func buildVerdicts(modes, blockedModes []string, allPassed bool, evidence, finding string) []*reviewv1.Verdict {
+	blocked := make(map[string]struct{}, len(blockedModes))
+	for _, mode := range blockedModes {
+		blocked[mode] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(modes)+len(blockedModes))
+	out := make([]*reviewv1.Verdict, 0, len(modes)+len(blockedModes))
+	add := func(mode string, passed bool) {
+		if mode == "" {
+			return
+		}
+		if _, duplicate := seen[mode]; duplicate {
+			return
+		}
+		seen[mode] = struct{}{}
+		verdict := &reviewv1.Verdict{Mode: mode, Passed: passed, Evidence: evidence}
+		if !passed {
+			verdict.Finding = finding
+		}
+		out = append(out, verdict)
+	}
+	for _, mode := range modes {
+		_, isBlocked := blocked[mode]
+		add(mode, allPassed && !isBlocked)
+	}
+	for _, mode := range blockedModes {
+		add(mode, false)
+	}
+	return out
+}
+
 func (h *handlers) recordCall(ctx cliapp.OperationContext) (*reviewv1.RecordReviewRunResponse, error) {
-	response, err := h.client.RecordReviewRun(context.Background(), connect.NewRequest(&reviewv1.RecordReviewRunRequest{DraftId: ctx.Flag("draft"), Verdicts: []*reviewv1.Verdict{{Mode: ctx.Flag("mode"), Passed: ctx.BoolFlag("passed"), Evidence: ctx.Flag("evidence"), Finding: ctx.Flag("finding")}}}))
+	verdicts := buildVerdicts(ctx.FlagValues("mode"), ctx.FlagValues("blocked"), ctx.BoolFlag("passed"), ctx.Flag("evidence"), ctx.Flag("finding"))
+	if len(verdicts) == 0 {
+		return nil, fmt.Errorf("record at least one verdict with --mode <declared-mode> (repeatable) or --blocked <declared-mode>")
+	}
+	response, err := h.client.RecordReviewRun(context.Background(), connect.NewRequest(&reviewv1.RecordReviewRunRequest{DraftId: ctx.Flag("draft"), Verdicts: verdicts}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("record review run", err, nil)
 	}
@@ -50,6 +92,7 @@ func (h *handlers) recordCall(ctx cliapp.OperationContext) (*reviewv1.RecordRevi
 	}
 	return response.Msg, nil
 }
+
 func (h *handlers) recordReport(_ cliapp.OperationContext, message *reviewv1.RecordReviewRunResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Recorded review %s: %s.", message.ReviewRun.Id, message.ReviewRun.Outcome)}}
 }

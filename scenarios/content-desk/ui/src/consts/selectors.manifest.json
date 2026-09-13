@@ -81,6 +81,14 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
+    "pages.board": {
+      "testId": "page-board",
+      "selector": "[data-testid=\"page-board\"]"
+    },
+    "pages.boardRefresh": {
+      "testId": "page-board-refresh",
+      "selector": "[data-testid=\"page-board-refresh\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -165,6 +173,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "board",
             "settings"
           ]
         }
@@ -180,6 +189,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "board",
             "settings"
           ]
         }
@@ -220,7 +230,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "ed6757d68f66f1dc4959ab3361133389c1828e0540efaeff21192076ac3a179f",
+    "ui/src/consts/selectors.ts": "41479ad1f6a66d6a38ad45b2c1e78a41267ad88c3e2215deae2e0782092e9d6c",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

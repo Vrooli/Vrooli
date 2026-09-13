@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { BoardPage } from "../pages/BoardPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "board", element: <BoardPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

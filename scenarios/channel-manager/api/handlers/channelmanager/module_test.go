@@ -492,3 +492,68 @@ func TestDeliveryAcknowledgesDurableReleaseAndMetric(t *testing.T) {
 		t.Fatalf("delivery state=%#v/%#v", receipt, service.MetricSamples["sample-delivery"])
 	}
 }
+
+// [REQ:CHANMGR-P1-007] The operator metric path records a sample only for a
+// completed release, attempts delivery, keeps a failed delivery pending and
+// visible, retries idempotently on replay, and stores a measured zero as zero
+// rather than as missing data.
+func TestRecordMetricRequiresCompletedReleaseAndRetriesIdempotently(t *testing.T) {
+	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 3, ActionKinds: []string{"publish"}, Formats: testFormats()}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := service.Release("active", "main", "draft-metric-record", "metric-record-key", time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:metric-record?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(core.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	deliverer := &deliveryStub{err: errors.New("content desk unavailable")}
+	router := mux.NewRouter()
+	moduleWithDeliverer(service, core.NewStore(db), deliverer).Mount(router)
+	call := func(body any) *httptest.ResponseRecorder {
+		raw, _ := json.Marshal(body)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/channel-manager/releases/"+receipt.ID+"/metrics", bytes.NewReader(raw)))
+		return response
+	}
+	if got := call(map[string]any{"sample_id": "sample-zero", "metric": "impressions", "value": 0}).Code; got != http.StatusBadRequest {
+		t.Fatalf("metric before completion must be refused, got %d", got)
+	}
+	if len(service.MetricSamples) != 0 {
+		t.Fatalf("refused metric must not be retained: %#v", service.MetricSamples)
+	}
+	if _, err = service.CompleteRelease(receipt.ActionID, "post-1", "https://example.test/post-1", "succeeded", "", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	pending := call(map[string]any{"sample_id": "sample-zero", "metric": "impressions", "value": 0})
+	if pending.Code != http.StatusCreated {
+		t.Fatalf("record=%d: %s", pending.Code, pending.Body.String())
+	}
+	if sample := service.MetricSamples["sample-zero"]; sample == nil || sample.DeliveryStatus != "pending" || sample.Value != 0 {
+		t.Fatalf("pending metric=%#v", sample)
+	}
+	deliverer.err = nil
+	replayed := call(map[string]any{"sample_id": "sample-zero", "metric": "impressions", "value": 0})
+	if replayed.Code != http.StatusCreated {
+		t.Fatalf("replay=%d: %s", replayed.Code, replayed.Body.String())
+	}
+	if len(service.MetricSamples) != 1 {
+		t.Fatalf("replay must not duplicate the sample: %#v", service.MetricSamples)
+	}
+	if status := service.MetricSamples["sample-zero"].DeliveryStatus; status != "acknowledged" {
+		t.Fatalf("delivery status after retry=%q", status)
+	}
+	if deliverer.metric.ID != "sample-zero" || deliverer.metric.Value != 0 || deliverer.metric.DraftID != "draft-metric-record" {
+		t.Fatalf("delivered metric=%#v", deliverer.metric)
+	}
+}

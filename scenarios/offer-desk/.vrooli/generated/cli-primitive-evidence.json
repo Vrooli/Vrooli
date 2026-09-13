@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "6edf4d26c32e06340ffa7f7029405b717eed5f6604c98226cdbcf3cc0931ef8b",
+  "manifest_hash": "3af3b249c98b57651e80384422ec878dd63bf852b7b281ab2a1a46ca274c0a2d",
   "commands": [
     {
       "path": "offers board-show",

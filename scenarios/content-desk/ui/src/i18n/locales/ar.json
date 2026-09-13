@@ -5,11 +5,68 @@
     "eyebrow": "قالب السيناريو",
     "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
   },
+  "board": {
+    "title": "لوحة التسويق",
+    "subtitle": "حالة الحملات والمسودات والقدرات الحالية مع الإجراء التالي.",
+    "refresh": "تحديث اللوحة",
+    "loading": "جارٍ تحميل لوحة التسويق…",
+    "error": "تعذر تحميل لوحة التسويق.",
+    "emptyTitle": "لا يوجد ما ينتظر",
+    "emptyDetail": "لا توجد مسودات غير منتهية ولا فجوات في جاهزية القدرات.",
+    "currentWorkTitle": "العمل الحالي",
+    "currentWorkCaption": "كل مسودة غير منتهية وإجرائها التالي الحتمي.",
+    "capabilityTitle": "فجوات جاهزية القدرات",
+    "capabilityCaption": "القدرات التي لا تزال أبعاد جاهزيتها غير سليمة.",
+    "offerTitle": "جاهزية إطلاق العرض",
+    "offerCaption": "أهداف إطلاق Offer Desk للسيناريوهات التي تسميها الحملات النشطة.",
+    "offerUnavailable": "جاهزية إطلاق العرض غير متاحة من قراءة اللوحة؛ قراءات Content Desk أعلاه غير متأثرة.",
+    "offerEmpty": "لا يوجد هدف حملة نشط يطابق عنصراً في سلّم إطلاق Offer Desk.",
+    "filterLabel": "الحالة",
+    "summary": {
+      "currentWork": "مسودات تحتاج إجراءً",
+      "activeCampaigns": "الحملات النشطة",
+      "capabilities": "القدرات",
+      "gaps": "فجوات الجاهزية"
+    },
+    "columns": {
+      "draft": "المسودة",
+      "campaign": "الحملة",
+      "channel": "القناة",
+      "status": "الحالة",
+      "nextAction": "الإجراء التالي",
+      "capability": "القدرة",
+      "readiness": "الجاهزية",
+      "owner": "المالك",
+      "nextCapabilityAction": "الإجراء التالي",
+      "offerScenario": "السيناريو",
+      "offerStatus": "حالة العرض",
+      "offerRank": "رتبة الإطلاق",
+      "offerBlockedBy": "المعوّقات"
+    },
+    "dimensions": {
+      "definition": "التعريف",
+      "implementation": "التنفيذ",
+      "operational": "الجاهزية التشغيلية",
+      "quality": "جودة المخرجات",
+      "distribution": "التوزيع"
+    },
+    "nextAction": {
+      "requested": "ابدأ الصياغة.",
+      "drafting": "أكمل الصياغة.",
+      "drafted": "ابدأ الفحص والمراجعة.",
+      "checking": "أكمل تشغيل المراجعة.",
+      "blocked": "حل البوابة المانعة.",
+      "reviewed": "مطلوب موافقة المشغّل.",
+      "approved": "قدّم للنشر.",
+      "drift": "حالة غير معروفة: وائم دورة حياة المسودة."
+    }
+  },
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "board": "اللوحة",
       "settings": "الإعدادات"
     }
   },

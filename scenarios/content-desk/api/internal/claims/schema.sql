@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS claims (
   statement TEXT NOT NULL,
   kind TEXT NOT NULL,
   verification_status TEXT NOT NULL,
+  qualification TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
 

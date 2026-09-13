@@ -26,9 +26,11 @@ import (
 
 	healthH "offer-desk/handlers/health"
 	offersH "offer-desk/handlers/offers"
+	searchH "offer-desk/handlers/search"
 	localdb "offer-desk/internal/database"
 
 	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/search"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -40,6 +42,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, offersH.Endpoints...)
+	out = append(out, searchH.Endpoints...)
 	return out
 }
 
@@ -67,6 +70,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "offers", File: offersv1.File_offer_desk_v1_offers_offers_proto},
+		{Module: "search", File: searchv1.File_offer_desk_v1_search_search_proto},
 	}
 }
 
@@ -82,5 +86,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(offersH.Schema),
+		apidb.SchemaProviderFunc(searchH.Schema),
 	}
 }

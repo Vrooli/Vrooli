@@ -39,6 +39,7 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/content-desk/v1/shared/health.proto` |
 | campaigns | Own the campaign record, its evidence gate, and its artifact slot budget. | The work context a producer draws from; the budget is what keeps in-flight work and operator review load bounded. | Campaigns, slots, evidence refs. | crud | policy | Campaign, Slot, Hypothesis | `api/internal/campaigns/` |
+| capabilities | Own the marketing-capability catalog and re-derive each readiness dimension from its owner at read time. | One place to ask what marketing can do, what is prerequisite, what is next, and what evidence backs each verdict. | Capability definitions, qualifications, typed owner links, the stored fallback inventory. | crud | projection | Capability, CapabilityQualification, CapabilityLink | `api/internal/capabilities/`, `api/handlers/capabilities/`, `packages/proto/schemas/content-desk/v1/capabilities/` |
 | artifacts | Own the draft object and its lifecycle. | One place a draft lives from request to publication, with illegal transitions refused rather than discouraged. | Drafts, revisions, requests, approval attribution. | crud | workflow | Draft, Request, Revision | `api/internal/artifacts/` |
 | claims | Own the claim library, evidence strength, and the verification gate. | Makes the honesty doctrine mechanical: a draft cannot be approved while it cites something unverified. | Claims, evidence, checks, citations. | policy | service | Claim, Evidence, Check, Citation | `api/internal/claims/` |
 | posttypes | Own the post-type registry and the activation gate. | Turns the v0→v1 activation rule from prose into something executable. | Type definitions, activation state, failure-mode sets. | policy | reporting | PostType, Criterion, FailureMode | `api/internal/posttypes/` |
@@ -63,6 +64,37 @@ belong in [`DATA.md`](DATA.md).
   refused. This is the only mechanism that bounds operator review load, which
   becomes the binding constraint once agents are freer.
 - Requirements: `CONTENTD-P0-001`, `CONTENTD-P0-002`.
+
+### capabilities
+
+- Purpose: hold the marketing-capability catalog and answer, for each
+  capability, what it needs, what is next, and what evidence backs each verdict.
+- Primary archetype: CRUD with a read-time projection surface.
+- Owns: capability definitions (name, medium, aliases, channels, audience and
+  delivery applicability, producing operation, prerequisites, priority and
+  priority reason/scope); observed qualification records; typed links to owner
+  records; and the stored fallback inventory value for each readiness dimension.
+- Does not own: the live readiness of each dimension. `output_quality` is
+  re-derived from evidence-linked owner artifacts, `operational_readiness` from
+  the capability's observed qualification, and `distribution_connectivity` from
+  the Channel Manager account surface. Campaign, draft, claim, publish, and
+  metric state stay with their own domains. The catalog stores only the fallback
+  value, never a rehydrated second copy.
+- Invariant: one marketing fact has one owner and one read address. The
+  capability board is the aggregate address; a covered source (for example
+  Channel Manager distribution) is projected into it, not duplicated as a second
+  address.
+- Invariant: unknown is not zero. A dimension that cannot be re-derived keeps its
+  stored value and names the reason in `readiness_limitations`, and an unknown
+  qualification reads as the explicit unknown sentinel rather than a zero value.
+- Read-time provenance: `output_quality_source` and
+  `operational_readiness_source` name the owner record behind each verdict. The
+  source field for `distribution_connectivity` is a deferred response field
+  handled with the proto owner once the shared generated tree is quiescent; until
+  then the rehydrated value and its named limitations are exposed through
+  `distribution_connectivity` and `readiness_limitations`.
+- Requirements: introduced by the Aquila effort (`R02`, `R03`, `R05`–`R10`,
+  `R53`); no `CONTENTD-P*` requirement owns it yet.
 
 ### artifacts
 

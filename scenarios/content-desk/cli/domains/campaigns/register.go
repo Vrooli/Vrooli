@@ -110,7 +110,7 @@ func (h *handlers) launchAssetsCall(ctx cliapp.OperationContext) (*campaignsv1.G
 func (h *handlers) launchAssetsReport(_ cliapp.OperationContext, message *campaignsv1.GetLaunchAssetsResponse) cliapp.ListReport {
 	results := make([]string, 0, len(message.Slots))
 	for _, slot := range message.Slots {
-		results = append(results, fmt.Sprintf("%s / %s — %s:%s reserved=%d/%d drafts=%d", slot.CampaignName, slot.CampaignId, slot.Channel, slot.Format, slot.Reserved, slot.Capacity, slot.DraftCount))
+		results = append(results, fmt.Sprintf("%s / %s — %s:%s reserved=%d/%d readiness=%s approved=%d ready_for_review=%d", slot.CampaignName, slot.CampaignId, slot.Channel, slot.Format, slot.Reserved, slot.Capacity, slot.Readiness, slot.ApprovedCount, slot.ReadyForReviewCount))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Launch assets for %s: %d slot(s).", message.ScenarioName, len(results))}, ResultsHeading: "Launch assets", Results: results}
 }

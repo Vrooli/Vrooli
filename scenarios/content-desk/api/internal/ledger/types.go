@@ -14,19 +14,6 @@ type PublishRecord struct {
 	PublishedAt    time.Time
 }
 
-// ReleaseReceipt is the minimal, credential-free outcome Content Desk accepts
-// from Channel Manager. The receipt ID is an idempotency boundary: replaying a
-// delivery must return the original ledger record rather than add a post.
-type ReleaseReceipt struct {
-	ReceiptID      string
-	DraftID        string
-	Channel        string
-	PlatformPostID string
-	PublishedURL   string
-	Status         string
-	PublishedAt    time.Time
-}
-
 // MetricSample is the idempotent metric-delivery contract accepted from
 // Channel Manager. A sample ID identifies the measurement, not a transport
 // attempt, so retries cannot duplicate analytics.
@@ -37,6 +24,37 @@ type MetricSample struct {
 	Metric     string
 	Value      float64
 	ObservedAt time.Time
+}
+
+// Metric state labels for a truthful metrics projection. A measured zero is
+// reported as MetricStateMeasured with Value==0; absent measurements are not
+// projected as readings at all and are surfaced by HasMeasurements==false, so
+// zero is never confused with missing data.
+const (
+	MetricStateMeasured = "measured"
+	MetricStateStale    = "stale"
+)
+
+// MetricReading is the latest observed value for one metric of one draft,
+// derived only from stored samples. State is measured when the latest
+// observation is within the freshness bound and stale otherwise; the value and
+// count are always the retained observation, never a substituted default.
+type MetricReading struct {
+	Metric         string
+	Value          float64
+	State          string
+	SampleCount    int
+	LastObservedAt time.Time
+}
+
+// DraftMetricProjection is the current-state metrics read for one draft.
+// HasMeasurements is false when no samples exist at all, which is distinct from
+// a measured zero. Readings is ordered by metric name and holds the latest
+// sample per metric across every release attributed to the draft.
+type DraftMetricProjection struct {
+	DraftID         string
+	HasMeasurements bool
+	Readings        []MetricReading
 }
 
 type Remediation struct {

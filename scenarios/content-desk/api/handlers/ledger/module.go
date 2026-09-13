@@ -70,6 +70,21 @@ func (h handler) IngestMetricSample(ctx context.Context, request *connect.Reques
 	return connect.NewResponse(&ledgerv1.IngestMetricSampleResponse{SampleId: sample.SampleID, Accepted: true}), nil
 }
 
+// GetDraftMetrics returns the retained current metric state for one draft. It
+// reports whether any measurement exists separately from the values, so a
+// measured zero is never confused with missing data.
+func (h handler) GetDraftMetrics(ctx context.Context, request *connect.Request[ledgerv1.GetDraftMetricsRequest]) (*connect.Response[ledgerv1.GetDraftMetricsResponse], error) {
+	projection, err := h.repo.DraftMetricProjection(ctx, request.Msg.DraftId, time.Duration(request.Msg.StaleAfterDays)*24*time.Hour)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	response := &ledgerv1.GetDraftMetricsResponse{DraftId: projection.DraftID, HasMeasurements: projection.HasMeasurements}
+	for _, reading := range projection.Readings {
+		response.Readings = append(response.Readings, &ledgerv1.MetricReading{Metric: reading.Metric, Value: reading.Value, State: reading.State, SampleCount: int32(reading.SampleCount), LastObservedAt: reading.LastObservedAt.Format(time.RFC3339Nano)})
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (h handler) ListRemediations(ctx context.Context, request *connect.Request[ledgerv1.ListRemediationsRequest]) (*connect.Response[ledgerv1.ListRemediationsResponse], error) {
 	remediations, err := h.repo.ListRemediations(ctx, request.Msg.PublishRecordId, request.Msg.OpenOnly)
 	if err != nil {
@@ -121,6 +136,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "ledger_contamination", Path: ledgerconnect.LedgerServiceListContaminatedPublishRecordsProcedure, Method: "POST", Summary: "List published records contaminated by a claim", Category: "ledger"},
 	{ID: "ledger_coverage", Path: ledgerconnect.LedgerServiceListCoverageProcedure, Method: "POST", Summary: "List publish coverage cells and staleness", Category: "ledger"},
 	{ID: "ledger_ingest_metric", Path: ledgerconnect.LedgerServiceIngestMetricSampleProcedure, Method: "POST", Summary: "Ingest idempotent Channel Manager metric sample", Category: "ledger"},
+	{ID: "ledger_draft_metrics", Path: ledgerconnect.LedgerServiceGetDraftMetricsProcedure, Method: "POST", Summary: "Read truthful current metric state for a draft", Category: "ledger"},
 	{ID: "ledger_list_remediations", Path: ledgerconnect.LedgerServiceListRemediationsProcedure, Method: "POST", Summary: "List active or historical contamination remediations", Category: "ledger"},
 	{ID: "ledger_create_remediation", Path: ledgerconnect.LedgerServiceCreateRemediationProcedure, Method: "POST", Summary: "Create a remediation for a published record", Category: "ledger"},
 	{ID: "ledger_resolve_remediation", Path: ledgerconnect.LedgerServiceResolveRemediationProcedure, Method: "POST", Summary: "Resolve an open remediation without deleting history", Category: "ledger"},

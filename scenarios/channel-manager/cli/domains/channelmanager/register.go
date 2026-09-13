@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -67,6 +68,17 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		}},
 		{Name: "observe", Description: "Record a manually observed reach measurement", NeedsAPI: true, Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "identity", Required: true, Description: "Identity id"}}, Flags: []cliapp.Flag{{Name: "value", Required: true, Description: "Observed reach or impressions"}}}, RunCtx: func(ctx cliapp.RunContext) error {
 			return request(ctx, http.MethodPost, "/channel-manager/identities/"+ctx.Positional("identity")+"/observations", map[string]string{"metric": "reach", "value": ctx.Flag("value")}, "Observation recorded.")
+		}},
+		{Name: "metric", Description: "Record a post-performance metric sample for a completed release", NeedsAPI: true, Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "release", Required: true, Description: "Completed release id"}}, Flags: []cliapp.Flag{{Name: "sample-id", Required: true, Description: "Stable sample id for idempotent replay"}, {Name: "metric", Required: true, Description: "Metric name such as impressions or likes"}, {Name: "value", Required: true, Description: "Observed value; zero is a measured zero"}, {Name: "observed-at", Description: "Optional RFC3339 observation time"}}}, RunCtx: func(ctx cliapp.RunContext) error {
+			value, err := strconv.ParseFloat(ctx.Flag("value"), 64)
+			if err != nil {
+				return fmt.Errorf("value must be a number: %w", err)
+			}
+			body := map[string]any{"sample_id": ctx.Flag("sample-id"), "metric": ctx.Flag("metric"), "value": value}
+			if observedAt := ctx.Flag("observed-at"); observedAt != "" {
+				body["observed_at"] = observedAt
+			}
+			return request(ctx, http.MethodPost, "/channel-manager/releases/"+ctx.Positional("release")+"/metrics", body, "Metric sample recorded.")
 		}},
 		{Name: "assign-automation", Description: "Assign an operator-approved BAS profile and workflow reference", NeedsAPI: true, Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "identity-id", Required: true, Description: "Identity id"}, {Name: "consumer-profile-key", Required: true, Description: "Profile key declared in this scenario's BAS consumer declaration"}, {Name: "session-profile-ref", Required: true, Description: "Opaque BAS profile reference"}, {Name: "workflow-ref", Required: true, Description: "Operator-approved BAS workflow UUID"}, {Name: "enabled-action-kind", Required: true, Description: "Permitted action kind"}, {Name: "operator-note", Required: true, Description: "Operator acceptance decision"}}}, RunCtx: func(ctx cliapp.RunContext) error {
 			return request(ctx, http.MethodPost, "/channel-manager/identities/"+ctx.Flag("identity-id")+"/automation", map[string]any{"consumer_profile_key": ctx.Flag("consumer-profile-key"), "session_profile_ref": ctx.Flag("session-profile-ref"), "workflow_ref": ctx.Flag("workflow-ref"), "enabled_action_kinds": []string{ctx.Flag("enabled-action-kind")}, "operator_note": ctx.Flag("operator-note")}, "Browser automation gate saved.")

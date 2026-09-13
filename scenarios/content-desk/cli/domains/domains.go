@@ -3,6 +3,7 @@ package domains
 import (
 	"content-desk/cli/domains/artifacts"
 	"content-desk/cli/domains/campaigns"
+	"content-desk/cli/domains/capabilities"
 	"content-desk/cli/domains/claims"
 	"content-desk/cli/domains/ledger"
 	"content-desk/cli/domains/posttypes"
@@ -52,6 +53,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, campaignsGroup)
+	capabilitiesGroup, err := capabilities.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, capabilitiesGroup)
 	claimsGroup, err := claims.Register(core, manifest)
 	if err != nil {
 		return nil, err

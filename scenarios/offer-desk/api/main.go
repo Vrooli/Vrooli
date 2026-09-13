@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 
+	"offer-desk/internal/aisearch"
 	"offer-desk/internal/capabilities"
 	"offer-desk/internal/catalog"
 	"offer-desk/internal/modules"
@@ -20,11 +22,13 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
 	capsH "offer-desk/handlers/capabilities"
 	healthH "offer-desk/handlers/health"
 	offersH "offer-desk/handlers/offers"
+	searchH "offer-desk/handlers/search"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -74,11 +78,29 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	clock := schedule.System()
+	searchCtx, cancelSearch := context.WithCancel(context.Background())
+
+	// Search wiring: the scenario-owned .vrooli/search.json is the SSOT for the
+	// provider descriptor and tuning. Start assembles the shared engine over the
+	// authoritative catalog (best-effort — a down Ollama/Qdrant degrades to the
+	// lexical projection) and self-registers the provider with search-hub in the
+	// background. search-hub is optional, so registration never blocks boot.
+	searchJSONPath := filepath.Join("..", ".vrooli", "search.json")
+	searchSource := aisearch.NewStoreSource(catalog.NewStore(db, clock.Now), clock.Now)
+	searcher := aisearch.Start(searchCtx, searchSource, searchJSONPath, log.Default())
+	go searchregister.Register(searchCtx, searchregister.Config{
+		ScenarioID:     "offer-desk",
+		SearchFilePath: searchJSONPath,
+		Logger:         log.Default(),
+	})
+
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "offer-desk-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		offersH.Module(db, schedule.System(), log.Default()),
+		offersH.Module(db, clock, log.Default()),
+		searchH.Module(db, clock, searcher),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -96,7 +118,10 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelSearch()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

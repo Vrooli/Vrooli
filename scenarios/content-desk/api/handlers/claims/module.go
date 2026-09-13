@@ -78,6 +78,14 @@ func (h handler) VerifyClaim(ctx context.Context, request *connect.Request[claim
 	return connect.NewResponse(&claimsv1.VerifyClaimResponse{Claim: claimMessage(claim)}), nil
 }
 
+func (h handler) SetClaimQualification(ctx context.Context, request *connect.Request[claimsv1.SetClaimQualificationRequest]) (*connect.Response[claimsv1.SetClaimQualificationResponse], error) {
+	claim, err := h.library.SetQualification(ctx, request.Msg.Id, request.Msg.Qualification)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&claimsv1.SetClaimQualificationResponse{Claim: claimMessage(claim)}), nil
+}
+
 func (h handler) SweepClaims(ctx context.Context, _ *connect.Request[claimsv1.SweepClaimsRequest]) (*connect.Response[claimsv1.SweepClaimsResponse], error) {
 	claims, err := h.library.Sweep(ctx)
 	if err != nil {
@@ -141,7 +149,7 @@ func (h handler) DecideClaimProposal(ctx context.Context, request *connect.Reque
 }
 
 func claimMessage(claim internalclaims.Claim) *claimsv1.Claim {
-	return &claimsv1.Claim{Id: claim.ID, Statement: claim.Statement, VerificationStatus: claim.VerificationStatus, Kind: claim.Kind}
+	return &claimsv1.Claim{Id: claim.ID, Statement: claim.Statement, VerificationStatus: claim.VerificationStatus, Kind: claim.Kind, Qualification: claim.QualificationState()}
 }
 
 func proposalMessage(proposal internalclaims.Proposal) *claimsv1.ClaimProposal {
@@ -164,6 +172,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "claims_create", Path: claimsconnect.ClaimsServiceCreateClaimProcedure, Method: "POST", Summary: "Create claim with evidence", Category: "claims"},
 	{ID: "claims_cite", Path: claimsconnect.ClaimsServiceCiteClaimProcedure, Method: "POST", Summary: "Cite a claim at a draft span", Category: "claims"},
 	{ID: "claims_verify", Path: claimsconnect.ClaimsServiceVerifyClaimProcedure, Method: "POST", Summary: "Run claim verification", Category: "claims"},
+	{ID: "claims_set_qualification", Path: claimsconnect.ClaimsServiceSetClaimQualificationProcedure, Method: "POST", Summary: "Record a claim's reviewed evidence verdict", Category: "claims"},
 	{ID: "claims_sweep", Path: claimsconnect.ClaimsServiceSweepClaimsProcedure, Method: "POST", Summary: "Verify all check-backed claims", Category: "claims"},
 	{ID: "claims_coverage", Path: claimsconnect.ClaimsServiceGetClaimCoverageProcedure, Method: "POST", Summary: "Get supported and uncovered citation spans for a draft", Category: "claims"},
 	{ID: "claims_extract_proposals", Path: claimsconnect.ClaimsServiceExtractClaimProposalsProcedure, Method: "POST", Summary: "Create review-only claim proposals", Category: "claims"},

@@ -145,6 +145,11 @@ func (h handler) AdoptAgentSuggestion(ctx context.Context, request *connect.Requ
 // lifecycle state and delegates durable queue ownership to Channel Manager.
 // A scheduled receipt remains an approved draft until Channel Manager later
 // delivers a completed/partial outcome to the ledger inbox.
+//
+// The release must target the identity and lane that were eligibility-checked
+// when the draft was approved. A request may echo that approved target or omit
+// it, but never override it with a different account, so the operator's
+// approval and the actual release cannot diverge.
 func (h handler) SubmitReleaseDraft(ctx context.Context, request *connect.Request[artifactsv1.SubmitReleaseDraftRequest]) (*connect.Response[artifactsv1.SubmitReleaseDraftResponse], error) {
 	if h.submitter == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, nil)
@@ -152,6 +157,10 @@ func (h handler) SubmitReleaseDraft(ctx context.Context, request *connect.Reques
 	draft, err := h.repo.RevalidateForRelease(ctx, request.Msg.Id)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	identityID, lane, err := h.resolveReleaseTarget(ctx, request.Msg.Id, request.Msg.IdentityId, request.Msg.Lane)
+	if err != nil {
+		return nil, err
 	}
 	attachments, err := h.repo.ListAttachments(ctx, draft.ID)
 	if err != nil {
@@ -161,11 +170,40 @@ func (h handler) SubmitReleaseDraft(ctx context.Context, request *connect.Reques
 	for _, attachment := range attachments {
 		assetIDs = append(assetIDs, attachment.AssetID)
 	}
-	receipt, err := h.submitter.SubmitRelease(ctx, channelmanager.Submission{IdentityID: request.Msg.IdentityId, Lane: request.Msg.Lane, DraftID: draft.ID, IdempotencyKey: request.Msg.IdempotencyKey, AssetIDs: assetIDs, DisclosureVisible: request.Msg.DisclosureVisible})
+	receipt, err := h.submitter.SubmitRelease(ctx, channelmanager.Submission{IdentityID: identityID, Lane: lane, DraftID: draft.ID, IdempotencyKey: request.Msg.IdempotencyKey, AssetIDs: assetIDs, DisclosureVisible: request.Msg.DisclosureVisible})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
 	return connect.NewResponse(&artifactsv1.SubmitReleaseDraftResponse{Draft: draftMessage(draft), ReleaseId: receipt.ID, ActionId: receipt.ActionID, ReleaseStatus: receipt.Status}), nil
+}
+
+// resolveReleaseTarget binds a submission to the approved release target. When
+// the operator recorded an eligible identity/lane at approval, the release must
+// use that target: a request may echo it or omit it, but not contradict it.
+// A submission with no request target and no recorded approval target fails
+// closed, because Channel Manager cannot own a release for an unidentified
+// account. Channel Manager's own eligibility check remains the second gate.
+func (h handler) resolveReleaseTarget(ctx context.Context, draftID, requestIdentity, requestLane string) (string, string, error) {
+	target, recorded, err := h.repo.GetReleaseTarget(ctx, draftID)
+	if err != nil {
+		return "", "", connect.NewError(connect.CodeInternal, err)
+	}
+	if recorded && target.Eligibility != "eligible" {
+		return "", "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("approved release target %s/%s is %s", target.IdentityID, target.Lane, target.Eligibility))
+	}
+	identityID, lane := requestIdentity, requestLane
+	if identityID == "" && lane == "" {
+		if !recorded {
+			return "", "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("release requires an approved channel identity and lane"))
+		}
+		identityID, lane = target.IdentityID, target.Lane
+	} else if identityID == "" || lane == "" {
+		return "", "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("release target requires both identity and lane"))
+	}
+	if recorded && (target.IdentityID != identityID || target.Lane != lane) {
+		return "", "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("release target %s/%s differs from approved target %s/%s", identityID, lane, target.IdentityID, target.Lane))
+	}
+	return identityID, lane, nil
 }
 
 func (h handler) RecordReleaseOutcome(ctx context.Context, request *connect.Request[artifactsv1.RecordReleaseOutcomeRequest]) (*connect.Response[artifactsv1.RecordReleaseOutcomeResponse], error) {
@@ -212,12 +250,51 @@ func (h handler) ApproveDraft(ctx context.Context, request *connect.Request[arti
 	return connect.NewResponse(&artifactsv1.ApproveDraftResponse{Draft: draftMessage(draft)}), nil
 }
 
+// GetDraftCurrentRevision exposes the honest current-state read: the effective
+// body and only the review/approval that still applies to it. A consumer must
+// use this rather than a prior review or approval, which a revision may have
+// invalidated.
+func (h handler) GetDraftCurrentRevision(ctx context.Context, request *connect.Request[artifactsv1.GetDraftCurrentRevisionRequest]) (*connect.Response[artifactsv1.GetDraftCurrentRevisionResponse], error) {
+	current, err := h.repo.GetCurrentRevision(ctx, request.Msg.Id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&artifactsv1.GetDraftCurrentRevisionResponse{CurrentRevision: currentRevisionMessage(current)}), nil
+}
+
 func draftMessage(draft internalartifacts.Draft) *artifactsv1.Draft {
 	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU, ScenarioName: draft.ScenarioName}
 }
 
 func attachmentMessage(attachment internalartifacts.Attachment) *artifactsv1.DraftAttachment {
 	return &artifactsv1.DraftAttachment{Id: attachment.ID, DraftId: attachment.DraftID, AssetId: attachment.AssetID, Role: attachment.Role, AspectRatio: attachment.AspectRatio, AltText: attachment.AltText, Position: int32(attachment.Position)}
+}
+
+func currentRevisionMessage(current internalartifacts.CurrentRevision) *artifactsv1.DraftCurrentRevision {
+	return &artifactsv1.DraftCurrentRevision{
+		DraftId:               current.DraftID,
+		Status:                string(current.Status),
+		Body:                  current.Body,
+		RevisionId:            current.RevisionID,
+		RevisionActorKind:     current.ActorKind,
+		RevisionCapacity:      current.Capacity,
+		CreatedAt:             formatTimestamp(current.CreatedAt),
+		ReviewRunId:           current.ReviewRunID,
+		ReviewAt:              formatTimestamp(current.ReviewAt),
+		ApprovalActorKind:     current.ApprovalActorKind,
+		ApprovalCapacity:      current.ApprovalCapacity,
+		ApprovedAt:            formatTimestamp(current.ApprovedAt),
+		HasStoredRevision:     current.HasStoredRevision(),
+		HasApplicableReview:   current.HasApplicableReview(),
+		HasApplicableApproval: current.HasApplicableApproval(),
+	}
+}
+
+func formatTimestamp(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
 }
 
 func Module(db *database.RoutedDB) module.Module {
@@ -234,6 +311,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "artifacts_submit_release", Path: artifactsconnect.ArtifactsServiceSubmitReleaseDraftProcedure, Method: "POST", Summary: "Submit an approved draft to Channel Manager", Category: "artifacts"},
 	{ID: "artifacts_record_release_outcome", Path: artifactsconnect.ArtifactsServiceRecordReleaseOutcomeProcedure, Method: "POST", Summary: "Record an idempotent Channel Manager publication outcome", Category: "artifacts"},
 	{ID: "artifacts_transition", Path: artifactsconnect.ArtifactsServiceTransitionDraftProcedure, Method: "POST", Summary: "Transition draft", Category: "artifacts"},
+	{ID: "artifacts_get_current_revision", Path: artifactsconnect.ArtifactsServiceGetDraftCurrentRevisionProcedure, Method: "POST", Summary: "Read a draft's effective body and applicable review/approval authority", Category: "artifacts"},
 	{ID: "artifacts_update_body", Path: artifactsconnect.ArtifactsServiceUpdateDraftBodyProcedure, Method: "POST", Summary: "Create attributed draft revision", Category: "artifacts"},
 	{ID: "artifacts_attach_asset", Path: artifactsconnect.ArtifactsServiceAttachReleasedAssetProcedure, Method: "POST", Summary: "Attach a released Asset Studio reference", Category: "artifacts"},
 	{ID: "artifacts_list_attachments", Path: artifactsconnect.ArtifactsServiceListDraftAttachmentsProcedure, Method: "POST", Summary: "List draft asset references", Category: "artifacts"},

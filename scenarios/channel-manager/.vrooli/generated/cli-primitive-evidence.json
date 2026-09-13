@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "channel-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "3820109eb8de6c7570bff073199a770b1b2e689b9418511117d8e53c1e100f20",
+  "manifest_hash": "703d5efb7b1834abd9d2a8f54f53b14026da63afbd83001ccdd077814409b9ff",
   "commands": [
     {
       "path": "channel assign-automation",
@@ -34,6 +34,12 @@
       "path": "channel edit",
       "group": "channel",
       "command": "edit",
+      "binding": "."
+    },
+    {
+      "path": "channel metric",
+      "group": "channel",
+      "command": "metric",
       "binding": "."
     },
     {

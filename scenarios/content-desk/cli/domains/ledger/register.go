@@ -51,6 +51,7 @@ func (h *handlers) contaminationCall(ctx cliapp.OperationContext) (*ledgerv1.Lis
 	}
 	return response.Msg, nil
 }
+
 func (h *handlers) contaminationReport(_ cliapp.OperationContext, message *ledgerv1.ListContaminatedPublishRecordsResponse) cliapp.ListReport {
 	results := make([]string, 0, len(message.PublishRecords))
 	for _, record := range message.PublishRecords {
@@ -73,6 +74,7 @@ func (h *handlers) coverageCall(ctx cliapp.OperationContext) (*ledgerv1.ListCove
 	}
 	return response.Msg, nil
 }
+
 func (h *handlers) coverageReport(_ cliapp.OperationContext, message *ledgerv1.ListCoverageResponse) cliapp.ListReport {
 	results := make([]string, 0, len(message.Cells))
 	for _, cell := range message.Cells {
@@ -81,40 +83,86 @@ func (h *handlers) coverageReport(_ cliapp.OperationContext, message *ledgerv1.L
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d coverage cell(s).", len(message.Cells))}, ResultsHeading: "Coverage", Results: results}
 }
 
+func (h *handlers) draftMetricsCall(ctx cliapp.OperationContext) (*ledgerv1.GetDraftMetricsResponse, error) {
+	days, err := strconv.ParseInt(ctx.Flag("stale-after-days"), 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("parse stale-after-days: %w", err)
+	}
+	response, err := h.client.GetDraftMetrics(context.Background(), connect.NewRequest(&ledgerv1.GetDraftMetricsRequest{DraftId: ctx.Positional("draft-id"), StaleAfterDays: int32(days)}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("get draft metrics", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, fmt.Errorf("server returned no draft metrics response")
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) draftMetricsReport(_ cliapp.OperationContext, message *ledgerv1.GetDraftMetricsResponse) cliapp.ListReport {
+	summary := fmt.Sprintf("No measurements for draft=%s (missing data is not zero).", message.DraftId)
+	if message.HasMeasurements {
+		summary = fmt.Sprintf("Draft=%s has %d measured metric(s).", message.DraftId, len(message.Readings))
+	}
+	results := make([]string, 0, len(message.Readings))
+	for _, reading := range message.Readings {
+		results = append(results, fmt.Sprintf("%s=%v state=%s samples=%d last_observed=%s", reading.Metric, reading.Value, reading.State, reading.SampleCount, reading.LastObservedAt))
+	}
+	return cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Draft metrics", Results: results}
+}
+
 func (h *handlers) remediationsCall(ctx cliapp.OperationContext) (*ledgerv1.ListRemediationsResponse, error) {
 	openOnly := false
 	if raw := ctx.Flag("open-only"); raw != "" {
 		parsed, err := strconv.ParseBool(raw)
-		if err != nil { return nil, fmt.Errorf("parse open-only: %w", err) }
+		if err != nil {
+			return nil, fmt.Errorf("parse open-only: %w", err)
+		}
 		openOnly = parsed
 	}
 	response, err := h.client.ListRemediations(context.Background(), connect.NewRequest(&ledgerv1.ListRemediationsRequest{PublishRecordId: ctx.Flag("publish-record-id"), OpenOnly: openOnly}))
-	if err != nil { return nil, cliapp.WrapAPIError("list remediations", err, nil) }
-	if response == nil || response.Msg == nil { return nil, fmt.Errorf("server returned no remediations response") }
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list remediations", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, fmt.Errorf("server returned no remediations response")
+	}
 	return response.Msg, nil
 }
+
 func (h *handlers) remediationsReport(_ cliapp.OperationContext, message *ledgerv1.ListRemediationsResponse) cliapp.ListReport {
 	results := make([]string, 0, len(message.Remediations))
-	for _, remediation := range message.Remediations { results = append(results, fmt.Sprintf("%s — %s %s (%s)", remediation.Id, remediation.Kind, remediation.Status, remediation.PublishRecordId)) }
+	for _, remediation := range message.Remediations {
+		results = append(results, fmt.Sprintf("%s — %s %s (%s)", remediation.Id, remediation.Kind, remediation.Status, remediation.PublishRecordId))
+	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d remediation(s).", len(message.Remediations))}, ResultsHeading: "Remediations", Results: results}
 }
 
 func (h *handlers) remediateCall(ctx cliapp.OperationContext) (*ledgerv1.CreateRemediationResponse, error) {
 	response, err := h.client.CreateRemediation(context.Background(), connect.NewRequest(&ledgerv1.CreateRemediationRequest{PublishRecordId: ctx.Flag("publish-record-id"), Kind: ctx.Flag("kind"), Note: ctx.Flag("note")}))
-	if err != nil { return nil, cliapp.WrapAPIError("create remediation", err, nil) }
-	if response == nil || response.Msg == nil || response.Msg.Remediation == nil { return nil, fmt.Errorf("server returned no remediation") }
+	if err != nil {
+		return nil, cliapp.WrapAPIError("create remediation", err, nil)
+	}
+	if response == nil || response.Msg == nil || response.Msg.Remediation == nil {
+		return nil, fmt.Errorf("server returned no remediation")
+	}
 	return response.Msg, nil
 }
+
 func (h *handlers) remediateReport(_ cliapp.OperationContext, message *ledgerv1.CreateRemediationResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Recorded remediation %s.", message.Remediation.Id)}}
 }
 
 func (h *handlers) resolveRemediationCall(ctx cliapp.OperationContext) (*ledgerv1.ResolveRemediationResponse, error) {
 	response, err := h.client.ResolveRemediation(context.Background(), connect.NewRequest(&ledgerv1.ResolveRemediationRequest{Id: ctx.Positional("id")}))
-	if err != nil { return nil, cliapp.WrapAPIError("resolve remediation", err, nil) }
-	if response == nil || response.Msg == nil || response.Msg.Remediation == nil { return nil, fmt.Errorf("server returned no resolved remediation") }
+	if err != nil {
+		return nil, cliapp.WrapAPIError("resolve remediation", err, nil)
+	}
+	if response == nil || response.Msg == nil || response.Msg.Remediation == nil {
+		return nil, fmt.Errorf("server returned no resolved remediation")
+	}
 	return response.Msg, nil
 }
+
 func (h *handlers) resolveRemediationReport(_ cliapp.OperationContext, message *ledgerv1.ResolveRemediationResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Resolved remediation %s.", message.Remediation.Id)}}
 }
@@ -125,6 +173,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"LedgerService.ListPublishRecords":             cliapp.ProtoList(h.listCall, h.listReport),
 		"LedgerService.ListContaminatedPublishRecords": cliapp.ProtoList(h.contaminationCall, h.contaminationReport),
 		"LedgerService.ListCoverage":                   cliapp.ProtoList(h.coverageCall, h.coverageReport),
+		"LedgerService.GetDraftMetrics":                cliapp.ProtoList(h.draftMetricsCall, h.draftMetricsReport),
 		"LedgerService.ListRemediations":               cliapp.ProtoList(h.remediationsCall, h.remediationsReport),
 		"LedgerService.CreateRemediation":              cliapp.ProtoMutation(h.remediateCall, h.remediateReport),
 		"LedgerService.ResolveRemediation":             cliapp.ProtoMutation(h.resolveRemediationCall, h.resolveRemediationReport),

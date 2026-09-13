@@ -132,6 +132,42 @@ func TestExtractionStoresReviewOnlyProposals(t *testing.T) {
 	require.Error(t, err)
 }
 
+// [REQ:CONTENTD-P0-005] Reviewed evidence verdicts are distinct from the
+// re-runnable check lifecycle, so a citation-backed claim can be recorded as
+// supported and a captured artifact as captured-review-pending without
+// collapsing the two into the old catch-all asserted state.
+func TestQualificationRepresentsSupportedAndCapturedReviewPending(t *testing.T) {
+	library := newLibrary(t, &claimsmocks.FakeRunner{})
+	supported, err := library.Create(context.Background(), claims.Claim{Statement: "C1 first marketed deliverable", Kind: claims.KindCapability}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "offer-desk release-ladder"})
+	require.NoError(t, err)
+	require.Equal(t, claims.StateAsserted, supported.QualificationState())
+
+	qualified, err := library.SetQualification(context.Background(), supported.ID, claims.StateSupported)
+	require.NoError(t, err)
+	require.Equal(t, claims.StateSupported, qualified.Qualification)
+	require.Equal(t, claims.StateAsserted, qualified.VerificationStatus)
+
+	captured, err := library.Create(context.Background(), claims.Claim{Statement: "C4 multi-pane terminals", Kind: claims.KindCapability}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "captures aquila-web-console-multipane"})
+	require.NoError(t, err)
+	_, err = library.SetQualification(context.Background(), captured.ID, claims.StateCapturedReviewPending)
+	require.NoError(t, err)
+
+	listed, err := library.List(context.Background())
+	require.NoError(t, err)
+	require.Len(t, listed, 2)
+	byID := map[string]claims.Claim{}
+	for _, c := range listed {
+		byID[c.ID] = c
+	}
+	require.Equal(t, claims.StateSupported, byID[supported.ID].Qualification)
+	require.Equal(t, claims.StateCapturedReviewPending, byID[captured.ID].Qualification)
+
+	_, err = library.SetQualification(context.Background(), supported.ID, "looks-good")
+	require.Error(t, err)
+	_, err = library.SetQualification(context.Background(), "missing-claim", claims.StateSupported)
+	require.Error(t, err)
+}
+
 // [REQ:CONTENTD-P1-012] Citation spans produce a deterministic coverage map
 // with non-colour-safe uncovered intervals for reviewer presentation.
 func TestCoverageReturnsSupportedAndUncoveredTextSpans(t *testing.T) {

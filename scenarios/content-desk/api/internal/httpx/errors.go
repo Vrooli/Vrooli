@@ -38,6 +38,10 @@ const (
 	// log line carrying the underlying error; the wire message stays
 	// human-safe.
 	CodeInternal = "internal"
+
+	// CodeUnavailable is the 503 code for a dependency the caller can
+	// retry: the owning scenario or governed program did not answer.
+	CodeUnavailable = "unavailable"
 )
 
 // WriteError serialises a proto-typed ErrorEnvelope as the response

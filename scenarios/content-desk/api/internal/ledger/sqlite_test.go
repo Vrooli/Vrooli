@@ -140,22 +140,6 @@ func TestRecordPublishAllowsImportedHistoryWithoutDraftAndListsIt(t *testing.T) 
 	})
 }
 
-// [REQ:CONTENTD-P1-006] Channel Manager's completed or partial receipt is
-// ingested exactly once; its delivery identity never becomes a second post.
-func TestRecordReleaseReceiptIsAnIdempotentInbox(t *testing.T) {
-	fixture := newLedgerDB(t)
-	receipt := ledger.ReleaseReceipt{ReceiptID: "release-42", DraftID: "draft-42", Channel: "x", PlatformPostID: "post-42", PublishedURL: "https://example.test/post-42", Status: "partial", PublishedAt: time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)}
-	first, err := fixture.repo.RecordReleaseReceipt(context.Background(), receipt)
-	require.NoError(t, err)
-	second, err := fixture.repo.RecordReleaseReceipt(context.Background(), receipt)
-	require.NoError(t, err)
-	require.Equal(t, first.ID, second.ID)
-	history, err := fixture.repo.ListPublishHistory(context.Background(), 10)
-	require.NoError(t, err)
-	require.Len(t, history, 1)
-	require.Equal(t, "channel-manager", history[0].SourceKind)
-}
-
 // [REQ:CHANMGR-P1-007] Channel Manager metric deliveries are acknowledged by
 // a unique sample identity, so retries retain one authoritative measurement.
 func TestIngestMetricSampleIsIdempotent(t *testing.T) {
@@ -166,6 +150,53 @@ func TestIngestMetricSampleIsIdempotent(t *testing.T) {
 	second, err := fixture.repo.IngestMetricSample(context.Background(), ledger.MetricSample{SampleID: sample.SampleID, ReleaseID: sample.ReleaseID, DraftID: sample.DraftID, Metric: sample.Metric, Value: 99, ObservedAt: sample.ObservedAt})
 	require.NoError(t, err)
 	require.Equal(t, first.Value, second.Value)
+}
+
+// [REQ:CONTENTD-P2-001] [REQ:CHANMGR-P1-007] The current-state metrics read
+// keeps a measured zero distinct from missing data and from a stale
+// observation, and selects the latest retained sample deterministically.
+func TestDraftMetricProjectionDistinguishesZeroMissingAndStale(t *testing.T) {
+	fixture := newLedgerDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	ingest := func(sample ledger.MetricSample) {
+		t.Helper()
+		_, err := fixture.repo.IngestMetricSample(ctx, sample)
+		require.NoError(t, err)
+	}
+	ingest(ledger.MetricSample{SampleID: "zero-1", ReleaseID: "rel-zero", DraftID: "draft-zero", Metric: "impressions", Value: 0, ObservedAt: now})
+	// Two out-of-order observations; the read must select the latest, not the
+	// most recently inserted.
+	ingest(ledger.MetricSample{SampleID: "bbb", ReleaseID: "rel-live", DraftID: "draft-live", Metric: "impressions", Value: 7, ObservedAt: now.Add(-time.Hour)})
+	ingest(ledger.MetricSample{SampleID: "aaa", ReleaseID: "rel-live", DraftID: "draft-live", Metric: "impressions", Value: 5, ObservedAt: now.Add(-3 * time.Hour)})
+	ingest(ledger.MetricSample{SampleID: "old-1", ReleaseID: "rel-old", DraftID: "draft-stale", Metric: "impressions", Value: 12, ObservedAt: now.Add(-72 * time.Hour)})
+
+	zero, err := fixture.repo.DraftMetricProjection(ctx, "draft-zero", 24*time.Hour)
+	require.NoError(t, err)
+	require.True(t, zero.HasMeasurements, "a stored zero is a measurement")
+	require.Len(t, zero.Readings, 1)
+	require.Equal(t, 0.0, zero.Readings[0].Value)
+	require.Equal(t, ledger.MetricStateMeasured, zero.Readings[0].State)
+
+	missing, err := fixture.repo.DraftMetricProjection(ctx, "draft-none", 24*time.Hour)
+	require.NoError(t, err)
+	require.False(t, missing.HasMeasurements, "no samples is missing data, never zero")
+	require.Empty(t, missing.Readings)
+
+	live, err := fixture.repo.DraftMetricProjection(ctx, "draft-live", 24*time.Hour)
+	require.NoError(t, err)
+	require.True(t, live.HasMeasurements)
+	require.Len(t, live.Readings, 1)
+	require.Equal(t, 7.0, live.Readings[0].Value, "latest observed_at wins regardless of insert order")
+	require.Equal(t, 2, live.Readings[0].SampleCount)
+	require.Equal(t, ledger.MetricStateMeasured, live.Readings[0].State)
+
+	stale, err := fixture.repo.DraftMetricProjection(ctx, "draft-stale", 24*time.Hour)
+	require.NoError(t, err)
+	require.True(t, stale.HasMeasurements)
+	require.Len(t, stale.Readings, 1)
+	require.Equal(t, 12.0, stale.Readings[0].Value, "stale keeps its last retained value, not zero")
+	require.Equal(t, ledger.MetricStateStale, stale.Readings[0].State)
 }
 
 // [REQ:CONTENTD-P1-013] Remediation history is append-only and resolution

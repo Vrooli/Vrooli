@@ -122,6 +122,63 @@ func (c *Client) CheckEligibility(ctx context.Context, identityID, lane string) 
 	return "unknown", fmt.Errorf("channel manager eligibility unavailable: %w", lastErr)
 }
 
+// DistributionState is a credential-free projection of whether Channel Manager
+// currently has a live, attributable distribution surface. It never carries an
+// account handle, credential reference or platform-specific detail.
+type DistributionState struct {
+	Connected  bool
+	Source     string
+	ObservedAt string
+}
+
+const (
+	overviewSource      = "channel-manager:overview"
+	identityStatusAlive = "active"
+)
+
+// ConnectedSurfaces reports whether Channel Manager currently has any identity
+// in the active state, which is the observed condition for a wired distribution
+// surface. A reachable owner with no active identity is a real disconnected
+// reading. An unreachable owner returns an error so the caller keeps the stored
+// value instead of fabricating a verdict.
+func (c *Client) ConnectedSurfaces(ctx context.Context) (DistributionState, error) {
+	if c == nil || c.resolver == nil || c.http == nil {
+		return DistributionState{}, fmt.Errorf("channel manager integration is not configured")
+	}
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		callCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		baseURL, err := c.resolver.ResolveScenarioURLDefault(callCtx, scenarioID)
+		if err == nil {
+			client := channelmanagerconnect.NewChannelManagerServiceClient(c.http, strings.TrimRight(baseURL, "/"))
+			response, callErr := client.GetOverview(callCtx, connect.NewRequest(&channelmanagerv1.GetOverviewRequest{}))
+			if callErr == nil && response != nil && response.Msg != nil {
+				cancel()
+				return DistributionState{Connected: hasActiveIdentity(response.Msg.Identities), Source: overviewSource, ObservedAt: time.Now().UTC().Format(time.RFC3339Nano)}, nil
+			}
+			if callErr == nil {
+				callErr = fmt.Errorf("channel manager returned no overview")
+			}
+			err = callErr
+		}
+		cancel()
+		lastErr = err
+		if !retryable(err) {
+			break
+		}
+	}
+	return DistributionState{}, fmt.Errorf("channel manager overview unavailable: %w", lastErr)
+}
+
+func hasActiveIdentity(identities []*channelmanagerv1.Identity) bool {
+	for _, identity := range identities {
+		if identity.GetStatus() == identityStatusAlive {
+			return true
+		}
+	}
+	return false
+}
+
 func retryable(err error) bool {
 	return connect.CodeOf(err) == connect.CodeUnavailable || connect.CodeOf(err) == connect.CodeDeadlineExceeded
 }

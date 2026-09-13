@@ -126,6 +126,65 @@
       ]
     },
     {
+      "name": "capabilities",
+      "description": "Query marketing capabilities and their readiness",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List marketing capabilities",
+          "flags": [
+            {
+              "name": "medium",
+              "description": "Optional medium filter: text, image, video, audio, distribution, measurement, or governance"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "ListCapabilities"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one capability by id or alias",
+          "positionals": [
+            {
+              "name": "id",
+              "required": false,
+              "description": "Capability id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "alias",
+              "description": "Capability alias to resolve instead of id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "GetCapability"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
       "name": "artifacts",
       "description": "Inspect draft lifecycle state",
       "commands": [
@@ -223,6 +282,32 @@
             "kind": "connect-rpc",
             "service": "ArtifactsService",
             "method": "ListDrafts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "current-revision",
+          "description": "Read a draft's effective body and only the review/approval that still applies to it",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "GetDraftCurrentRevision"
           },
           "governance": {
             "effect": "read",
@@ -503,6 +588,42 @@
           }
         },
         {
+          "name": "qualify",
+          "description": "Record a claim's reviewed evidence verdict",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Claim id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "qualification",
+              "required": true,
+              "description": "asserted, supported, captured-review-pending, verified, or stale",
+              "bind": {
+                "field": "qualification"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "SetClaimQualification"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "sweep",
           "description": "Verify every check-backed claim",
           "binding": {
@@ -612,6 +733,39 @@
             "kind": "connect-rpc",
             "service": "LedgerService",
             "method": "ListCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "draft-metrics",
+          "description": "Read truthful current metric state for a draft (measured zero distinct from missing or stale)",
+          "positionals": [
+            {
+              "name": "draft-id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "stale-after-days",
+              "required": true,
+              "description": "Days without an observation before a metric is stale"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "GetDraftMetrics"
           },
           "governance": {
             "effect": "read",
@@ -836,12 +990,19 @@
             {
               "name": "mode",
               "required": true,
-              "description": "Failure mode assessed",
+              "repeatable": true,
+              "description": "Declared failure mode assessed as passed (repeatable; pass every declared mode in one run)",
+              "local_only": true
+            },
+            {
+              "name": "blocked",
+              "repeatable": true,
+              "description": "Declared failure mode that failed (repeatable; takes --finding)",
               "local_only": true
             },
             {
               "name": "passed",
-              "description": "Verdict passed",
+              "description": "Verdict passed for every --mode not named in --blocked",
               "bool": true,
               "local_only": true
             },
@@ -908,6 +1069,21 @@
   },
   "exceptions": [],
   "omitted": [
+    {
+      "service": "CapabilitiesService",
+      "method": "UpsertCapability",
+      "reason": "Capability records are seeded and reconciled from owner evidence by an agent/operator program; a standalone CLI mutation would let a capability be invented without its readiness dimensions."
+    },
+    {
+      "service": "CapabilitiesService",
+      "method": "RecordQualification",
+      "reason": "Qualification is observed evidence bound to an artifact/run; the recording caller presents its environment and freshness basis in context, which a bare CLI mutation strips."
+    },
+    {
+      "service": "CapabilitiesService",
+      "method": "LinkCapability",
+      "reason": "Capability links join a capability to an already-typed owner record; the linking surface keeps the relation and target reviewable together."
+    },
     {
       "service": "ArtifactsService",
       "method": "RecordReleaseOutcome",

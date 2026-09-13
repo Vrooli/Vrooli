@@ -35,6 +35,15 @@ func (releaseHandler) SubmitRelease(_ context.Context, request *connect.Request[
 	return connect.NewResponse(&channelmanagerv1.SubmitReleaseResponse{Receipt: &channelmanagerv1.ReleaseReceipt{Id: "release-1", ActionId: "action-1", Status: "scheduled"}}), nil
 }
 
+type overviewHandler struct {
+	channelmanagerconnect.UnimplementedChannelManagerServiceHandler
+	identities []*channelmanagerv1.Identity
+}
+
+func (h overviewHandler) GetOverview(context.Context, *connect.Request[channelmanagerv1.GetOverviewRequest]) (*connect.Response[channelmanagerv1.GetOverviewResponse], error) {
+	return connect.NewResponse(&channelmanagerv1.GetOverviewResponse{Identities: h.identities}), nil
+}
+
 func TestClientUsesGeneratedContractAndResolvedURL(t *testing.T) {
 	_, handler := channelmanagerconnect.NewChannelManagerServiceHandler(releaseHandler{})
 	server := httptest.NewServer(handler)
@@ -46,4 +55,35 @@ func TestClientUsesGeneratedContractAndResolvedURL(t *testing.T) {
 	eligibility, err := client.CheckEligibility(context.Background(), "identity-1", "main")
 	require.NoError(t, err)
 	require.Equal(t, "eligible", eligibility)
+}
+
+func TestConnectedSurfacesRequiresAnActiveIdentity(t *testing.T) {
+	_, handler := channelmanagerconnect.NewChannelManagerServiceHandler(overviewHandler{identities: []*channelmanagerv1.Identity{
+		{Id: "identity-warming", Status: "warming"},
+		{Id: "identity-active", Status: "active"},
+	}})
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	client := &Client{resolver: staticResolver{url: server.URL}, http: server.Client()}
+
+	state, err := client.ConnectedSurfaces(context.Background())
+	require.NoError(t, err)
+	require.True(t, state.Connected)
+	require.Equal(t, overviewSource, state.Source)
+	require.NotEmpty(t, state.ObservedAt)
+}
+
+func TestConnectedSurfacesReachableWithoutActiveIdentityIsDisconnected(t *testing.T) {
+	_, handler := channelmanagerconnect.NewChannelManagerServiceHandler(overviewHandler{identities: []*channelmanagerv1.Identity{
+		{Id: "identity-draft", Status: "draft"},
+		{Id: "identity-retired", Status: "retired"},
+	}})
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	client := &Client{resolver: staticResolver{url: server.URL}, http: server.Client()}
+
+	state, err := client.ConnectedSurfaces(context.Background())
+	require.NoError(t, err)
+	require.False(t, state.Connected)
+	require.Equal(t, overviewSource, state.Source)
 }

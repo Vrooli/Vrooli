@@ -10,6 +10,7 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
+    | "board"
     | "settings";
   /** Router path. */
   path: string;
@@ -21,5 +22,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "board", path: "/board", labelKey: strings.layout.nav.board },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

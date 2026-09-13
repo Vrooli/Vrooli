@@ -77,10 +77,67 @@
   "id": "empty",
   "kind": "role",
   "label": "Current",
+  "board": {
+    "title": "Marketing board",
+    "subtitle": "Current campaign, draft and capability state with the next action.",
+    "refresh": "Refresh board",
+    "loading": "Loading the marketing board…",
+    "error": "Unable to load the marketing board.",
+    "emptyTitle": "Nothing is waiting",
+    "emptyDetail": "There are no non-terminal drafts and no capability readiness gaps.",
+    "currentWorkTitle": "Current work",
+    "currentWorkCaption": "Every non-terminal draft and its deterministic next action.",
+    "capabilityTitle": "Capability readiness gaps",
+    "capabilityCaption": "Capabilities whose readiness dimensions are not yet healthy.",
+    "offerTitle": "Offer release readiness",
+    "offerCaption": "Offer Desk release targets for the scenarios the active campaigns name.",
+    "offerUnavailable": "Offer release readiness is unavailable from the board read; the Content Desk reads above are unaffected.",
+    "offerEmpty": "No active campaign target matches an Offer Desk release-ladder deliverable.",
+    "filterLabel": "Status",
+    "summary": {
+      "currentWork": "Drafts needing action",
+      "activeCampaigns": "Active campaigns",
+      "capabilities": "Capabilities",
+      "gaps": "Readiness gaps"
+    },
+    "columns": {
+      "draft": "Draft",
+      "campaign": "Campaign",
+      "channel": "Channel",
+      "status": "Status",
+      "nextAction": "Next action",
+      "capability": "Capability",
+      "readiness": "Readiness",
+      "owner": "Owner",
+      "nextCapabilityAction": "Next action",
+      "offerScenario": "Scenario",
+      "offerStatus": "Offer status",
+      "offerRank": "Release rank",
+      "offerBlockedBy": "Blocked by"
+    },
+    "dimensions": {
+      "definition": "Definition",
+      "implementation": "Implementation",
+      "operational": "Operational readiness",
+      "quality": "Output quality",
+      "distribution": "Distribution"
+    },
+    "nextAction": {
+      "requested": "Begin drafting.",
+      "drafting": "Complete drafting.",
+      "drafted": "Start checking and review.",
+      "checking": "Complete the review run.",
+      "blocked": "Resolve the blocking gate.",
+      "reviewed": "Operator approval required.",
+      "approved": "Submit for release.",
+      "drift": "Unknown status: reconcile the draft lifecycle."
+    }
+  },
   "layout": {
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
+      "board": "Board",
       "settings": "Settings"
     },
     "sidebarLabel": "Primary navigation"

@@ -44,6 +44,11 @@
     "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
     "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d"
   },
+  "skills": {
+    "usage": {
+      "source": "skills/channel-manager/SKILL.md"
+    }
+  },
   "cli": {
     "enabled": true,
     "command": "channel-manager",

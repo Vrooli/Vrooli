@@ -5,11 +5,68 @@
     "eyebrow": "シナリオテンプレート",
     "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
   },
+  "board": {
+    "title": "マーケティングボード",
+    "subtitle": "現在のキャンペーン、ドラフト、ケイパビリティの状態と次のアクション。",
+    "refresh": "ボードを更新",
+    "loading": "マーケティングボードを読み込み中…",
+    "error": "マーケティングボードを読み込めませんでした。",
+    "emptyTitle": "待機中の項目はありません",
+    "emptyDetail": "未完了のドラフトも、ケイパビリティの準備不足もありません。",
+    "currentWorkTitle": "現在の作業",
+    "currentWorkCaption": "未完了のドラフトとその決定論的な次のアクション。",
+    "capabilityTitle": "ケイパビリティの準備不足",
+    "capabilityCaption": "準備状態の各次元がまだ健全でないケイパビリティ。",
+    "offerTitle": "オファー公開準備状況",
+    "offerCaption": "アクティブなキャンペーンが対象とするシナリオの Offer Desk リリース対象。",
+    "offerUnavailable": "ボード読み取りからオファー公開準備状況を取得できません。上記の Content Desk の各読み取りには影響しません。",
+    "offerEmpty": "アクティブなキャンペーンの対象と一致する Offer Desk のリリースラダー項目はありません。",
+    "filterLabel": "ステータス",
+    "summary": {
+      "currentWork": "対応が必要なドラフト",
+      "activeCampaigns": "アクティブなキャンペーン",
+      "capabilities": "ケイパビリティ",
+      "gaps": "準備不足"
+    },
+    "columns": {
+      "draft": "ドラフト",
+      "campaign": "キャンペーン",
+      "channel": "チャネル",
+      "status": "ステータス",
+      "nextAction": "次のアクション",
+      "capability": "ケイパビリティ",
+      "readiness": "準備状態",
+      "owner": "担当",
+      "nextCapabilityAction": "次のアクション",
+      "offerScenario": "シナリオ",
+      "offerStatus": "オファーステータス",
+      "offerRank": "リリース順位",
+      "offerBlockedBy": "ブロック要因"
+    },
+    "dimensions": {
+      "definition": "定義",
+      "implementation": "実装",
+      "operational": "運用準備",
+      "quality": "出力品質",
+      "distribution": "配信"
+    },
+    "nextAction": {
+      "requested": "執筆を開始します。",
+      "drafting": "執筆を完了します。",
+      "drafted": "確認とレビューを開始します。",
+      "checking": "レビュー実行を完了します。",
+      "blocked": "ブロックしているゲートを解決します。",
+      "reviewed": "オペレーターの承認が必要です。",
+      "approved": "公開を申請します。",
+      "drift": "不明なステータス: ドラフトのライフサイクルを調整してください。"
+    }
+  },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
+      "board": "ボード",
       "settings": "設定"
     }
   },

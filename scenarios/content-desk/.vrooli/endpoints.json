@@ -93,6 +93,14 @@
       "category": "artifacts"
     },
     {
+      "id": "artifacts_get_current_revision",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetDraftCurrentRevision",
+      "method": "POST",
+      "summary": "Read a draft's effective body and applicable review/approval authority",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
       "id": "artifacts_update_body",
       "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/UpdateDraftBody",
       "method": "POST",
@@ -141,6 +149,53 @@
       "category": "artifacts"
     },
     {
+      "id": "board_read",
+      "path": "/api/v1/board",
+      "method": "GET",
+      "summary": "Read the Content Desk marketing board",
+      "description": "Executes the content-desk.board-read declared program and returns its envelope: current campaign/draft work and next actions, capability readiness gaps and offer release readiness.",
+      "category": "board",
+      "response": {
+        "type": "object",
+        "properties": {
+          "errors": "[]object",
+          "evidence": "[]string",
+          "signals": "object",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Program runtime or the declared board program is unavailable"
+        },
+        {
+          "status": 502,
+          "code": "internal",
+          "description": "The board program returned a non-JSON envelope"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser-facing read of a governed declared program; Connect cannot invoke a declared program without exposing program-runtime to the browser.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "campaigns_list",
       "path": "/vrooli.content_desk.v1.campaigns.CampaignsService/ListCampaigns",
       "method": "POST",
@@ -163,6 +218,54 @@
       "summary": "Activate evidence-backed campaign",
       "description": "",
       "category": "campaigns"
+    },
+    {
+      "id": "launch_assets",
+      "path": "/vrooli.content_desk.v1.campaigns.CampaignsService/GetLaunchAssets",
+      "method": "POST",
+      "summary": "Report launch assets and open slots for a scenario",
+      "description": "",
+      "category": "campaigns"
+    },
+    {
+      "id": "capabilities_list",
+      "path": "/vrooli.content_desk.v1.capabilities.CapabilitiesService/ListCapabilities",
+      "method": "POST",
+      "summary": "List marketing capabilities",
+      "description": "",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_get",
+      "path": "/vrooli.content_desk.v1.capabilities.CapabilitiesService/GetCapability",
+      "method": "POST",
+      "summary": "Get a capability by id or alias",
+      "description": "",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_upsert",
+      "path": "/vrooli.content_desk.v1.capabilities.CapabilitiesService/UpsertCapability",
+      "method": "POST",
+      "summary": "Create or update a capability",
+      "description": "",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_record_qualification",
+      "path": "/vrooli.content_desk.v1.capabilities.CapabilitiesService/RecordQualification",
+      "method": "POST",
+      "summary": "Record observed capability qualification",
+      "description": "",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_link",
+      "path": "/vrooli.content_desk.v1.capabilities.CapabilitiesService/LinkCapability",
+      "method": "POST",
+      "summary": "Link a capability to an owner record",
+      "description": "",
+      "category": "capabilities"
     },
     {
       "id": "claims_list",
@@ -201,6 +304,14 @@
       "path": "/vrooli.content_desk.v1.claims.ClaimsService/VerifyClaim",
       "method": "POST",
       "summary": "Run claim verification",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_set_qualification",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/SetClaimQualification",
+      "method": "POST",
+      "summary": "Record a claim's reviewed evidence verdict",
       "description": "",
       "category": "claims"
     },
@@ -273,6 +384,14 @@
       "path": "/vrooli.content_desk.v1.ledger.LedgerService/IngestMetricSample",
       "method": "POST",
       "summary": "Ingest idempotent Channel Manager metric sample",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_draft_metrics",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/GetDraftMetrics",
+      "method": "POST",
+      "summary": "Read truthful current metric state for a draft",
       "description": "",
       "category": "ledger"
     },

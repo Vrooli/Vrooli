@@ -135,6 +135,14 @@
       "category": "offers"
     },
     {
+      "id": "catalog_rename",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/RenameNode",
+      "method": "POST",
+      "summary": "Rename a catalog node without changing its identity",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "catalog_verify",
       "path": "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog",
       "method": "POST",
@@ -223,6 +231,14 @@
       "category": "offers"
     },
     {
+      "id": "board_enabling",
+      "path": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetEnablingDeliverables",
+      "method": "POST",
+      "summary": "Read enabling deliverables and derived urgency",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "board_prerequisites",
       "path": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites",
       "method": "POST",
@@ -237,6 +253,22 @@
       "summary": "Read monetization obligation cells",
       "description": "",
       "category": "offers"
+    },
+    {
+      "id": "search_query",
+      "path": "/vrooli.offer_desk.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search the authoritative offer catalog for federation",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.offer_desk.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report truthful live catalog search status",
+      "description": "",
+      "category": "search"
     }
   ]
 }

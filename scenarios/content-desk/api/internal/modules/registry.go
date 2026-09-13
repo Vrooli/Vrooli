@@ -23,7 +23,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	artifactsH "content-desk/handlers/artifacts"
+	boardH "content-desk/handlers/board"
 	campaignsH "content-desk/handlers/campaigns"
+	capabilitiesH "content-desk/handlers/capabilities"
 	claimsH "content-desk/handlers/claims"
 	healthH "content-desk/handlers/health"
 	ledgerH "content-desk/handlers/ledger"
@@ -33,6 +35,7 @@ import (
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts"
 	campaignsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns"
+	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/capabilities"
 	claimsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims"
 	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger"
 	posttypesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/posttypes"
@@ -47,7 +50,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, artifactsH.Endpoints...)
+	out = append(out, boardH.Endpoints...)
 	out = append(out, campaignsH.Endpoints...)
+	out = append(out, capabilitiesH.Endpoints...)
 	out = append(out, claimsH.Endpoints...)
 	out = append(out, ledgerH.Endpoints...)
 	out = append(out, posttypesH.Endpoints...)
@@ -80,6 +85,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "artifacts", File: artifactsv1.File_content_desk_v1_artifacts_artifacts_proto},
 		{Module: "campaigns", File: campaignsv1.File_content_desk_v1_campaigns_campaigns_proto},
+		{Module: "capabilities", File: capabilitiesv1.File_content_desk_v1_capabilities_capabilities_proto},
 		{Module: "claims", File: claimsv1.File_content_desk_v1_claims_claims_proto},
 		{Module: "ledger", File: ledgerv1.File_content_desk_v1_ledger_ledger_proto},
 		{Module: "posttypes", File: posttypesv1.File_content_desk_v1_posttypes_posttypes_proto},
@@ -98,7 +104,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(artifactsH.Schema),
+		apidb.SchemaProviderFunc(boardH.Schema),
 		apidb.SchemaProviderFunc(campaignsH.Schema),
+		apidb.SchemaProviderFunc(capabilitiesH.Schema),
 		apidb.SchemaProviderFunc(claimsH.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(ledgerH.Schema),

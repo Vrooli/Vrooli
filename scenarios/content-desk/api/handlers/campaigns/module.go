@@ -78,19 +78,43 @@ func (h handler) GetLaunchAssets(ctx context.Context, request *connect.Request[c
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	response := &campaignsv1.GetLaunchAssetsResponse{ScenarioName: request.Msg.GetScenarioName()}
+	approved, readyForReview, inProgress := 0, 0, 0
 	for _, slot := range slots {
-		response.Slots = append(response.Slots, &campaignsv1.LaunchAssetSlot{CampaignId: slot.CampaignID, CampaignName: slot.CampaignName, Channel: slot.Channel, Format: slot.Format, Capacity: int32(slot.Capacity), Reserved: int32(slot.Reserved), DraftCount: int32(slot.DraftCount)})
+		response.Slots = append(response.Slots, &campaignsv1.LaunchAssetSlot{
+			CampaignId: slot.CampaignID, CampaignName: slot.CampaignName, Channel: slot.Channel, Format: slot.Format,
+			Capacity: int32(slot.Capacity), Reserved: int32(slot.Reserved),
+			DraftCount: int32(slot.DraftCount), ApprovedCount: int32(slot.ApprovedCount),
+			ReadyForReviewCount: int32(slot.ReadyForReviewCount), Readiness: slot.Readiness,
+		})
+		approved += slot.ApprovedCount
+		readyForReview += slot.ReadyForReviewCount
+		inProgress += slot.InProgressCount
 	}
-	status := "passed"
-	if len(slots) == 0 {
-		status = "failed"
-	}
+	status, detail := launchAssetReadiness(request.Msg.GetScenarioName(), len(slots), approved, readyForReview, inProgress)
 	if h.readinessReporter != nil {
-		if err := h.readinessReporter.ReportStatus(ctx, request.Msg.GetScenarioName(), status, fmt.Sprintf("launch assets returned %d slot(s)", len(slots)), "content-desk:launch-assets:"+request.Msg.GetScenarioName(), time.Now().UTC()); err != nil {
+		if err := h.readinessReporter.ReportStatus(ctx, request.Msg.GetScenarioName(), status, detail, "content-desk:launch-assets:"+request.Msg.GetScenarioName(), time.Now().UTC()); err != nil {
 			return nil, connect.NewError(connect.CodeUnavailable, err)
 		}
 	}
 	return connect.NewResponse(response), nil
+}
+
+// launchAssetReadiness maps the attached draft tiers to the advisory
+// marketing-assets-available signal. Approved work outranks reviewable work;
+// an empty or purely in-flight slot is reported as failed with a named reason
+// so a drafted asset is never invisible and a missing asset is never a
+// silent zero.
+func launchAssetReadiness(scenario string, slots, approved, readyForReview, inProgress int) (string, string) {
+	switch {
+	case slots == 0:
+		return "failed", fmt.Sprintf("no launch slots reported for scenario %s", scenario)
+	case approved > 0:
+		return "passed", fmt.Sprintf("%d approved/published, %d ready-for-review, %d in-progress draft(s) across %d slot(s)", approved, readyForReview, inProgress, slots)
+	case readyForReview > 0:
+		return "passed", fmt.Sprintf("0 approved/published, %d ready-for-review, %d in-progress draft(s) across %d slot(s)", readyForReview, inProgress, slots)
+	default:
+		return "failed", fmt.Sprintf("no reviewable launch assets for scenario %s: %d in-progress draft(s) across %d slot(s)", scenario, inProgress, slots)
+	}
 }
 
 func campaignMessage(campaign internalcampaigns.Campaign) *campaignsv1.Campaign {

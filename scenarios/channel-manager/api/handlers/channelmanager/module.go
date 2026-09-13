@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -66,6 +67,7 @@ func moduleWithAssetResolver(service *core.Service, store core.Store, deliverer 
 		r.HandleFunc("/api/v1/channel-manager/identities/{id}/eligibility", h.eligibility).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/channel-manager/releases", h.release).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/releases/preview", h.previewRelease).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/releases/{id}/metrics", h.recordMetric).Methods(http.MethodPost)
 	}}
 }
 
@@ -583,6 +585,50 @@ func (h *api) release(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, receipt)
+}
+
+// recordMetric is the operator entry point for the durable metric outbox. It
+// records one post-performance sample attributed to a completed release and
+// attempts delivery to Content Desk. A delivery failure leaves the sample
+// pending and visible; replaying the same sample id retries delivery without
+// duplicating the measurement. A measured zero is recorded as zero, never as
+// missing data.
+func (h *api) recordMetric(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SampleID   string  `json:"sample_id"`
+		Metric     string  `json:"metric"`
+		Value      float64 `json:"value"`
+		ObservedAt string  `json:"observed_at"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	observedAt := time.Now().UTC()
+	if req.ObservedAt != "" {
+		parsed, err := time.Parse(time.RFC3339, req.ObservedAt)
+		if err != nil {
+			writeError(w, fmt.Errorf("observed_at must be an RFC3339 timestamp"))
+			return
+		}
+		observedAt = parsed.UTC()
+	}
+	h.mu.Lock()
+	sample, err := h.service.RecordMetric(mux.Vars(r)["id"], req.SampleID, req.Metric, req.Value, observedAt)
+	if err == nil && h.deliverer != nil {
+		deliveryErr := h.deliverer.DeliverMetric(r.Context(), contentdesk.MetricSample{ID: sample.ID, ReleaseID: sample.ReleaseID, DraftID: sample.DraftID, Metric: sample.Metric, Value: sample.Value, ObservedAt: sample.ObservedAt})
+		if deliveryErr == nil {
+			err = h.service.AcknowledgeMetric(sample.ID)
+		}
+	}
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, sample)
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

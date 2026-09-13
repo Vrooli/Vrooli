@@ -1,6 +1,12 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/content-desk/SKILL.md",
+      "programs": ["content-desk.board-read", "content-desk.capabilities-read"]
+    }
+  },
   "storage": {
     "entries": {
       "data": {
@@ -28,6 +34,9 @@
     "tags": [
       "react-ui",
       "go-api"
+    ],
+    "capabilities": [
+      "search"
     ]
   },
   "generation": {
@@ -127,6 +136,22 @@
         "startup_policy": "ignore",
         "description": "Metadata-only released-asset reference lookup for editor attachments; Content Desk never receives artifact bytes.",
         "degraded_behavior": "Existing draft attachments remain visible, but a new Asset Studio reference cannot be attached until provenance can be resolved."
+      },
+      "offer-desk": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Read-only offer release ladder used by content-desk.board-read to surface offer launch readiness for active campaign scenarios.",
+        "degraded_behavior": "The board still reads campaign, draft and capability state; offer readiness reads unreadable and the board degrades to partial with offer_readiness_unavailable."
+      },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Executes the governed content-desk.board-read declared program that backs the browser /api/v1/board read.",
+        "degraded_behavior": "The /api/v1/board edge returns unavailable; the direct Connect reads (campaigns, drafts, capabilities) still work and the CLI board read remains available."
       }
     }
   },

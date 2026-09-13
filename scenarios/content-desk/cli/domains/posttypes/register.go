@@ -52,6 +52,7 @@ func (h *handlers) registerCall(ctx cliapp.OperationContext) (*posttypesv1.Regis
 	}
 	return response.Msg, nil
 }
+
 func (h *handlers) registerReport(_ cliapp.OperationContext, message *posttypesv1.RegisterPostTypeResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Post type %s is %s.", message.PostType.Id, message.PostType.Status)}}
 }

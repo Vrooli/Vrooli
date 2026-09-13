@@ -12,17 +12,32 @@ import (
 )
 
 const (
-	KindQuantitative     = "quantitative"
-	KindExistence        = "existence"
-	KindStatus           = "status"
-	KindCapability       = "capability"
-	KindNovelty          = "novelty"
-	EvidenceKindCitation = "citation"
-	EvidenceKindCheck    = "check"
-	StateAsserted        = "asserted"
-	StateVerified        = "verified"
-	StateStale           = "stale"
+	KindQuantitative           = "quantitative"
+	KindExistence              = "existence"
+	KindStatus                 = "status"
+	KindCapability             = "capability"
+	KindNovelty                = "novelty"
+	EvidenceKindCitation       = "citation"
+	EvidenceKindCheck          = "check"
+	StateAsserted              = "asserted"
+	StateSupported             = "supported"
+	StateCapturedReviewPending = "captured-review-pending"
+	StateVerified              = "verified"
+	StateStale                 = "stale"
 )
+
+// qualificationStates is the closed set a reviewed evidence verdict may take.
+// verification_status stays the re-runnable check lifecycle; qualification is
+// the reviewer's verdict about the attached evidence, so a citation-backed
+// claim can read supported while a captured artifact awaiting review reads
+// captured-review-pending.
+var qualificationStates = map[string]bool{
+	StateAsserted:              true,
+	StateSupported:             true,
+	StateCapturedReviewPending: true,
+	StateVerified:              true,
+	StateStale:                 true,
+}
 
 var (
 	ErrCheckRequired = errors.New("claim kind requires a re-runnable check")
@@ -30,7 +45,9 @@ var (
 )
 
 type (
-	Claim    struct{ ID, Statement, Kind, VerificationStatus string }
+	Claim struct {
+		ID, Statement, Kind, VerificationStatus, Qualification string
+	}
 	Evidence struct {
 		Kind, Reference, Command, ExpectedResult, LastResult string
 		LastRunAt                                            time.Time
@@ -63,6 +80,7 @@ type (
 		Cite(context.Context, Citation, string) error
 		CitingDrafts(context.Context, string) ([]string, error)
 		Verify(context.Context, string) (Claim, error)
+		SetQualification(context.Context, string, string) (Claim, error)
 		Sweep(context.Context) ([]Claim, error)
 		ExpireNovelty(context.Context, time.Time, time.Duration) ([]Claim, error)
 		Coverage(context.Context, string, string) ([]TextSpan, []TextSpan, error)
@@ -169,7 +187,44 @@ func (l *library) DecideProposal(ctx context.Context, id, status string) (Propos
 	return proposal, err
 }
 
+// QualificationState reports the reviewed verdict, defaulting an unclassified
+// claim to asserted. It never invents a stronger state than the record holds.
+func (c Claim) QualificationState() string {
+	if c.Qualification == "" {
+		return StateAsserted
+	}
+	return c.Qualification
+}
+
 func NewLibrary(db SQLExecutor, runner Runner) Library { return &library{db: db, runner: runner} }
+
+// SetQualification records a reviewed evidence verdict for a claim. It is
+// separate from Verify: a reviewer can mark a citation-backed claim supported,
+// or a claim with captured artifacts captured-review-pending, without a
+// re-runnable check. Unknown states are refused.
+func (l *library) SetQualification(ctx context.Context, id, qualification string) (Claim, error) {
+	qualification = strings.TrimSpace(qualification)
+	if !qualificationStates[qualification] {
+		return Claim{}, fmt.Errorf("qualification %q is invalid", qualification)
+	}
+	result, err := l.db.ExecContext(ctx, `UPDATE claims SET qualification = ? WHERE id = ?`, qualification, id)
+	if err != nil {
+		return Claim{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return Claim{}, err
+	}
+	if affected != 1 {
+		return Claim{}, fmt.Errorf("claim %q not found", id)
+	}
+	row := l.db.QueryRowContext(ctx, `SELECT id, statement, kind, verification_status, qualification FROM claims WHERE id = ?`, id)
+	var claim Claim
+	if err := row.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &claim.Qualification); err != nil {
+		return Claim{}, err
+	}
+	return claim, nil
+}
 
 func (l *library) Create(ctx context.Context, claim Claim, evidence Evidence) (Claim, error) {
 	if claim.ID == "" {
@@ -177,6 +232,9 @@ func (l *library) Create(ctx context.Context, claim Claim, evidence Evidence) (C
 	}
 	if claim.VerificationStatus == "" {
 		claim.VerificationStatus = StateAsserted
+	}
+	if claim.Qualification != "" && !qualificationStates[claim.Qualification] {
+		return Claim{}, fmt.Errorf("qualification %q is invalid", claim.Qualification)
 	}
 	if requiresCheck(claim.Kind) && evidence.Kind != EvidenceKindCheck {
 		return Claim{}, ErrCheckRequired
@@ -187,7 +245,7 @@ func (l *library) Create(ctx context.Context, claim Claim, evidence Evidence) (C
 	if claim.Kind == KindNovelty && evidence.ObservedAt.IsZero() {
 		return Claim{}, fmt.Errorf("novelty claim requires dated prior-art evidence")
 	}
-	if _, err := l.db.ExecContext(ctx, `INSERT INTO claims (id, statement, kind, verification_status, created_at) VALUES (?, ?, ?, ?, ?)`, claim.ID, claim.Statement, claim.Kind, claim.VerificationStatus, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	if _, err := l.db.ExecContext(ctx, `INSERT INTO claims (id, statement, kind, verification_status, qualification, created_at) VALUES (?, ?, ?, ?, ?, ?)`, claim.ID, claim.Statement, claim.Kind, claim.VerificationStatus, claim.Qualification, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return Claim{}, err
 	}
 	_, err := l.db.ExecContext(ctx, `INSERT INTO claim_evidence (id, claim_id, kind, reference, command, expected_result) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), claim.ID, evidence.Kind, evidence.Reference, evidence.Command, evidence.ExpectedResult)
@@ -275,7 +333,7 @@ func (l *library) Sweep(ctx context.Context) ([]Claim, error) {
 // governed by their explicit checks.
 func (l *library) ExpireNovelty(ctx context.Context, now time.Time, maxAge time.Duration) ([]Claim, error) {
 	cutoff := now.UTC().Add(-maxAge).Format(time.RFC3339Nano)
-	rows, err := l.db.QueryContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status FROM claims c JOIN claim_novelty_evidence n ON n.claim_id = c.id WHERE n.observed_at < ? AND c.verification_status <> ? ORDER BY c.id`, cutoff, StateAsserted)
+	rows, err := l.db.QueryContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status, c.qualification FROM claims c JOIN claim_novelty_evidence n ON n.claim_id = c.id WHERE n.observed_at < ? AND c.verification_status <> ? ORDER BY c.id`, cutoff, StateAsserted)
 	if err != nil {
 		return nil, err
 	}
@@ -283,7 +341,7 @@ func (l *library) ExpireNovelty(ctx context.Context, now time.Time, maxAge time.
 	var expired []Claim
 	for rows.Next() {
 		var claim Claim
-		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus); err != nil {
+		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &claim.Qualification); err != nil {
 			return nil, err
 		}
 		expired = append(expired, claim)
@@ -305,7 +363,7 @@ func requiresCheck(kind string) bool {
 }
 
 func (l *library) List(ctx context.Context) ([]Claim, error) {
-	rows, err := l.db.QueryContext(ctx, `SELECT id, statement, kind, verification_status FROM claims ORDER BY id`)
+	rows, err := l.db.QueryContext(ctx, `SELECT id, statement, kind, verification_status, qualification FROM claims ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +371,7 @@ func (l *library) List(ctx context.Context) ([]Claim, error) {
 	var out []Claim
 	for rows.Next() {
 		var claim Claim
-		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus); err != nil {
+		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &claim.Qualification); err != nil {
 			return nil, err
 		}
 		out = append(out, claim)
@@ -322,7 +380,7 @@ func (l *library) List(ctx context.Context) ([]Claim, error) {
 }
 
 func (l *library) ListForDraft(ctx context.Context, draftID string) ([]Claim, error) {
-	rows, err := l.db.QueryContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status FROM claims c JOIN claim_citations cc ON cc.claim_id = c.id WHERE cc.draft_id = ? ORDER BY c.id`, draftID)
+	rows, err := l.db.QueryContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status, c.qualification FROM claims c JOIN claim_citations cc ON cc.claim_id = c.id WHERE cc.draft_id = ? ORDER BY c.id`, draftID)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +388,7 @@ func (l *library) ListForDraft(ctx context.Context, draftID string) ([]Claim, er
 	var out []Claim
 	for rows.Next() {
 		var claim Claim
-		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus); err != nil {
+		if err := rows.Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &claim.Qualification); err != nil {
 			return nil, err
 		}
 		out = append(out, claim)
@@ -367,7 +425,7 @@ func (l *library) Verify(ctx context.Context, claimID string) (Claim, error) {
 	var claim Claim
 	var evidence Evidence
 	var raw sql.NullString
-	err := l.db.QueryRowContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status, e.kind, e.reference, e.command, e.expected_result, e.last_result, e.last_run_at FROM claims c JOIN claim_evidence e ON e.claim_id = c.id WHERE c.id = ? AND e.kind = 'check' LIMIT 1`, claimID).Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &evidence.Kind, &evidence.Reference, &evidence.Command, &evidence.ExpectedResult, &evidence.LastResult, &raw)
+	err := l.db.QueryRowContext(ctx, `SELECT c.id, c.statement, c.kind, c.verification_status, c.qualification, e.kind, e.reference, e.command, e.expected_result, e.last_result, e.last_run_at FROM claims c JOIN claim_evidence e ON e.claim_id = c.id WHERE c.id = ? AND e.kind = 'check' LIMIT 1`, claimID).Scan(&claim.ID, &claim.Statement, &claim.Kind, &claim.VerificationStatus, &claim.Qualification, &evidence.Kind, &evidence.Reference, &evidence.Command, &evidence.ExpectedResult, &evidence.LastResult, &raw)
 	if err != nil {
 		return Claim{}, err
 	}

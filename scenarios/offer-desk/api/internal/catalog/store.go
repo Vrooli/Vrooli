@@ -911,6 +911,131 @@ func (s *Store) LatestEvaluation(ctx context.Context) (string, int, string, time
 	return result, scored, reason, at, nil
 }
 
+// ListTriggers returns every declared trigger, stable-ordered by node then id
+// so a search projection is deterministic across reads.
+func (s *Store) ListTriggers(ctx context.Context) ([]*offerspb.Trigger, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,node_id,fact_name,operator,threshold,expression,clauses_json,composition FROM triggers ORDER BY node_id,id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*offerspb.Trigger
+	for rows.Next() {
+		var t offerspb.Trigger
+		var clausesJSON string
+		var composition int32
+		if err := rows.Scan(&t.Id, &t.NodeId, &t.FactName, &t.Operator, &t.Threshold, &t.Expression, &clausesJSON, &composition); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(clausesJSON), &t.Clauses); err != nil || len(t.Clauses) == 0 {
+			t.Clauses = []*offerspb.TriggerClause{{FactName: t.FactName, Operator: t.Operator, Threshold: t.Threshold}}
+		}
+		t.Composition = offerspb.TriggerComposition(composition)
+		out = append(out, &t)
+	}
+	return out, rows.Err()
+}
+
+// ListFacts returns every observed fact ordered by name.
+func (s *Store) ListFacts(ctx context.Context) ([]*offerspb.Fact, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT name,value,observed_at,stale_after_days,dimension FROM facts ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*offerspb.Fact
+	for rows.Next() {
+		var f offerspb.Fact
+		var observed string
+		if err := rows.Scan(&f.Name, &f.Value, &observed, &f.StaleAfterDays, &f.Dimension); err != nil {
+			return nil, err
+		}
+		if at, parseErr := time.Parse(time.RFC3339Nano, observed); parseErr == nil {
+			f.ObservedAt = timestamppb.New(at)
+		}
+		out = append(out, &f)
+	}
+	return out, rows.Err()
+}
+
+// ListEvaluations returns recorded evaluations, newest first. An empty nodeID
+// returns the whole history, which a projection needs to label current versus
+// historical rows.
+func (s *Store) ListEvaluations(ctx context.Context, nodeID string) ([]*offerspb.Evaluation, error) {
+	query := `SELECT id,node_id,verdict,fact_name,explanation,evaluated_at FROM evaluations WHERE 1=1`
+	args := []any{}
+	if strings.TrimSpace(nodeID) != "" {
+		query += ` AND node_id=?`
+		args = append(args, nodeID)
+	}
+	query += ` ORDER BY evaluated_at DESC,id DESC`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*offerspb.Evaluation
+	for rows.Next() {
+		var e offerspb.Evaluation
+		var verdict int32
+		var evaluated string
+		if err := rows.Scan(&e.Id, &e.NodeId, &verdict, &e.FactName, &e.Explanation, &evaluated); err != nil {
+			return nil, err
+		}
+		e.Verdict = offerspb.Verdict(verdict)
+		if at, parseErr := time.Parse(time.RFC3339Nano, evaluated); parseErr == nil {
+			e.EvaluatedAt = timestamppb.New(at)
+		}
+		out = append(out, &e)
+	}
+	return out, rows.Err()
+}
+
+// AuditEntry is one immutable catalog-audit row. The audit ledger is
+// append-only, so every entry is history rather than current state.
+type AuditEntry struct {
+	ID            string
+	NodeID        string
+	Actor         string
+	PriorStatus   offerspb.Status
+	NextStatus    offerspb.Status
+	Reason        string
+	CreatedAt     time.Time
+	RelatedNodeID string
+}
+
+// ListAudit returns catalog audit rows, newest first. An empty nodeID returns
+// the whole history.
+func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, error) {
+	query := `SELECT id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id FROM catalog_audit WHERE 1=1`
+	args := []any{}
+	if strings.TrimSpace(nodeID) != "" {
+		query += ` AND node_id=?`
+		args = append(args, nodeID)
+	}
+	query += ` ORDER BY created_at DESC,id DESC`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []AuditEntry
+	for rows.Next() {
+		var a AuditEntry
+		var prior, next int32
+		var created string
+		if err := rows.Scan(&a.ID, &a.NodeID, &a.Actor, &prior, &next, &a.Reason, &created, &a.RelatedNodeID); err != nil {
+			return nil, err
+		}
+		a.PriorStatus, a.NextStatus = offerspb.Status(prior), offerspb.Status(next)
+		if at, parseErr := time.Parse(time.RFC3339Nano, created); parseErr == nil {
+			a.CreatedAt = at
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) listProposalDeclines(ctx context.Context, proposalID string) ([]*offerspb.ProposalDecline, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT actor,reason,created_at FROM proposal_declines WHERE proposal_id=? ORDER BY created_at,id`, proposalID)
 	if err != nil {

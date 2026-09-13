@@ -11,10 +11,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// Repository is the ledger read/append surface. Channel Manager release
+// receipts are accepted, and idempotently reconciled against the draft
+// lifecycle, by the artifacts module's RecordReleaseOutcome. The ledger does
+// not expose a second receipt writer, so a publication record cannot be
+// appended without advancing its draft.
 type Repository interface {
 	RecordPublish(context.Context, PublishRecord) (PublishRecord, error)
-	RecordReleaseReceipt(context.Context, ReleaseReceipt) (PublishRecord, error)
 	IngestMetricSample(context.Context, MetricSample) (MetricSample, error)
+	DraftMetricProjection(context.Context, string, time.Duration) (DraftMetricProjection, error)
 	CreateRemediation(context.Context, Remediation) (Remediation, error)
 	ResolveRemediation(context.Context, string) (Remediation, error)
 	ListRemediations(context.Context, string, bool) ([]Remediation, error)
@@ -130,36 +135,57 @@ func (r *sqliteRepository) IngestMetricSample(ctx context.Context, sample Metric
 	return sample, nil
 }
 
-// RecordReleaseReceipt is Content Desk's idempotent inbox for Channel Manager
-// publication outcomes. It intentionally accepts only completed or partial
-// publication results, never an identity, session, or executor credential.
-func (r *sqliteRepository) RecordReleaseReceipt(ctx context.Context, receipt ReleaseReceipt) (PublishRecord, error) {
-	if receipt.ReceiptID == "" || receipt.DraftID == "" || receipt.PlatformPostID == "" || receipt.PublishedURL == "" {
-		return PublishRecord{}, fmt.Errorf("release receipt requires id, draft, platform post id, and URL")
+// DraftMetricProjection reads retained samples as current state. It selects the
+// latest sample per metric (deterministic on observed_at then sample_id), counts
+// every retained sample, and marks a reading stale only when its latest
+// observation is older than staleAfter. No samples yields HasMeasurements false;
+// a stored zero is returned as a measured zero. Values are always the retained
+// observation, never a fabricated default.
+func (r *sqliteRepository) DraftMetricProjection(ctx context.Context, draftID string, staleAfter time.Duration) (DraftMetricProjection, error) {
+	if draftID == "" {
+		return DraftMetricProjection{}, fmt.Errorf("draft metrics require a draft id")
 	}
-	if receipt.Status != "published" && receipt.Status != "partial" {
-		return PublishRecord{}, fmt.Errorf("release receipt status %q is not publishable", receipt.Status)
+	if staleAfter <= 0 {
+		staleAfter = 30 * 24 * time.Hour
 	}
-	var existing PublishRecord
-	var raw string
-	err := r.db.QueryRowContext(ctx, `SELECT id, COALESCE(draft_id,''), COALESCE(series_id,''), channel, audience, published_url, platform_post_id, source_kind, published_at FROM ledger_publish_records WHERE import_key = ?`, "channel-manager:"+receipt.ReceiptID).Scan(&existing.ID, &existing.DraftID, &existing.SeriesID, &existing.Channel, &existing.Audience, &existing.PublishedURL, &existing.PlatformPostID, &existing.SourceKind, &raw)
-	if err == nil {
-		existing.PublishedAt, err = time.Parse(time.RFC3339Nano, raw)
-		return existing, err
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return PublishRecord{}, fmt.Errorf("lookup release receipt: %w", err)
-	}
-	when := receipt.PublishedAt
-	if when.IsZero() {
-		when = time.Now().UTC()
-	}
-	record := PublishRecord{ID: uuid.NewString(), DraftID: receipt.DraftID, Channel: receipt.Channel, PublishedURL: receipt.PublishedURL, PlatformPostID: receipt.PlatformPostID, SourceKind: "channel-manager", PublishedAt: when}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO ledger_publish_records (id, import_key, draft_id, series_id, channel, audience, published_url, platform_post_id, source_kind, published_at, payload_json) VALUES (?, ?, ?, NULL, ?, '', ?, ?, ?, ?, ?)`, record.ID, "channel-manager:"+receipt.ReceiptID, record.DraftID, record.Channel, record.PublishedURL, record.PlatformPostID, record.SourceKind, record.PublishedAt.UTC().Format(time.RFC3339Nano), `{"status":"`+receipt.Status+`"}`)
+	rows, err := r.db.QueryContext(ctx, `SELECT m.metric, m.value, m.observed_at,
+		(SELECT COUNT(*) FROM ledger_metric_samples c WHERE c.draft_id = m.draft_id AND c.metric = m.metric)
+		FROM ledger_metric_samples m
+		WHERE m.draft_id = ?
+		  AND m.sample_id = (
+			SELECT m2.sample_id FROM ledger_metric_samples m2
+			WHERE m2.draft_id = m.draft_id AND m2.metric = m.metric
+			ORDER BY m2.observed_at DESC, m2.sample_id DESC LIMIT 1
+		  )
+		ORDER BY m.metric`, draftID)
 	if err != nil {
-		return PublishRecord{}, fmt.Errorf("record release receipt: %w", err)
+		return DraftMetricProjection{}, fmt.Errorf("read draft metrics: %w", err)
 	}
-	return record, nil
+	defer rows.Close()
+	projection := DraftMetricProjection{DraftID: draftID}
+	cutoff := time.Now().UTC().Add(-staleAfter)
+	for rows.Next() {
+		var reading MetricReading
+		var raw string
+		if err := rows.Scan(&reading.Metric, &reading.Value, &raw, &reading.SampleCount); err != nil {
+			return DraftMetricProjection{}, fmt.Errorf("scan draft metric: %w", err)
+		}
+		observed, err := time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			return DraftMetricProjection{}, fmt.Errorf("parse metric observation: %w", err)
+		}
+		reading.LastObservedAt = observed
+		reading.State = MetricStateMeasured
+		if observed.Before(cutoff) {
+			reading.State = MetricStateStale
+		}
+		projection.Readings = append(projection.Readings, reading)
+	}
+	if err := rows.Err(); err != nil {
+		return DraftMetricProjection{}, err
+	}
+	projection.HasMeasurements = len(projection.Readings) > 0
+	return projection, nil
 }
 
 func (r *sqliteRepository) Coverage(ctx context.Context, staleAfter time.Duration) ([]CoverageCell, error) {

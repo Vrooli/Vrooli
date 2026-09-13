@@ -40,6 +40,8 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    board: "page-board",
+    boardRefresh: "page-board-refresh",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -58,6 +60,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "board",
             "settings",
           ] as const,
         },
@@ -71,6 +74,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "board",
             "settings",
           ] as const,
         },

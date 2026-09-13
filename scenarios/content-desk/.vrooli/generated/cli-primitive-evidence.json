@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "content-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "c0358bae410811f6142336ac13f476c893780b7f9c6b2c7f646087aaec6b6a27",
+  "manifest_hash": "45411f818d0f28a5b56c091515098d7dbc63f49f34af632909d58c2a02d5acf8",
   "commands": [
     {
       "path": "artifacts approve",
@@ -21,6 +21,14 @@
       "binding": "ArtifactsService.CreateDraft",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts current-revision",
+      "group": "artifacts",
+      "command": "current-revision",
+      "binding": "ArtifactsService.GetDraftCurrentRevision",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "artifacts list",
@@ -87,6 +95,22 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "capabilities get",
+      "group": "capabilities",
+      "command": "get",
+      "binding": "CapabilitiesService.GetCapability",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "capabilities list",
+      "group": "capabilities",
+      "command": "list",
+      "binding": "CapabilitiesService.ListCapabilities",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "claims cite",
       "group": "claims",
       "command": "cite",
@@ -119,6 +143,14 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "claims qualify",
+      "group": "claims",
+      "command": "qualify",
+      "binding": "ClaimsService.SetClaimQualification",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "claims sweep",
       "group": "claims",
       "command": "sweep",
@@ -147,6 +179,14 @@
       "group": "ledger",
       "command": "coverage",
       "binding": "LedgerService.ListCoverage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger draft-metrics",
+      "group": "ledger",
+      "command": "draft-metrics",
+      "binding": "LedgerService.GetDraftMetrics",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

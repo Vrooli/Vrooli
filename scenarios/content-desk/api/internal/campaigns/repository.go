@@ -36,7 +36,13 @@ func (r *sqliteRepository) LaunchAssets(ctx context.Context, scenarioName string
 		SELECT c.id, c.name, s.channel, s.format, s.capacity, s.reserved,
 		       (SELECT COUNT(*) FROM draft_slots ds JOIN drafts d ON d.id = ds.draft_id
 		        WHERE ds.campaign_id = c.id AND ds.channel = s.channel AND ds.format = s.format
-		          AND d.status IN ('approved','published'))
+		          AND d.status IN ('approved','published')),
+		       (SELECT COUNT(*) FROM draft_slots ds JOIN drafts d ON d.id = ds.draft_id
+		        WHERE ds.campaign_id = c.id AND ds.channel = s.channel AND ds.format = s.format
+		          AND d.status IN ('drafted','checking','reviewed')),
+		       (SELECT COUNT(*) FROM draft_slots ds JOIN drafts d ON d.id = ds.draft_id
+		        WHERE ds.campaign_id = c.id AND ds.channel = s.channel AND ds.format = s.format
+		          AND d.status IN ('requested','drafting','blocked'))
 		FROM campaigns c JOIN campaign_slots s ON s.campaign_id = c.id
 		WHERE EXISTS (SELECT 1 FROM json_each(c.scenario_names) WHERE value = ?)
 		ORDER BY c.name, s.channel, s.format`, scenarioName)
@@ -47,9 +53,11 @@ func (r *sqliteRepository) LaunchAssets(ctx context.Context, scenarioName string
 	var result []LaunchAssetSlot
 	for rows.Next() {
 		var item LaunchAssetSlot
-		if err := rows.Scan(&item.CampaignID, &item.CampaignName, &item.Channel, &item.Format, &item.Capacity, &item.Reserved, &item.DraftCount); err != nil {
+		if err := rows.Scan(&item.CampaignID, &item.CampaignName, &item.Channel, &item.Format, &item.Capacity, &item.Reserved, &item.ApprovedCount, &item.ReadyForReviewCount, &item.InProgressCount); err != nil {
 			return nil, err
 		}
+		item.DraftCount = item.ApprovedCount
+		item.Readiness = item.ReadinessTier()
 		result = append(result, item)
 	}
 	return result, rows.Err()

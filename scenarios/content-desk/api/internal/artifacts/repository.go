@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,6 +15,32 @@ type Draft struct {
 	ID, CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU, ScenarioName string
 	Status                                                                     DraftStatus
 }
+
+// CurrentRevision is an artifact's effective body plus the editorial authority
+// that still applies to exactly that body. A consumer must never act on a
+// revision invalidated by a later body change or a superseding review, so
+// invalidated, superseded or withdrawn evidence resolves to "none" (an empty
+// field) instead of to the prior evidence.
+type CurrentRevision struct {
+	DraftID    string
+	Status     DraftStatus
+	Body       string
+	RevisionID string
+	ActorKind  string
+	Capacity   string
+	CreatedAt  time.Time
+
+	ReviewRunID string
+	ReviewAt    time.Time
+
+	ApprovalActorKind string
+	ApprovalCapacity  string
+	ApprovedAt        time.Time
+}
+
+func (r CurrentRevision) HasStoredRevision() bool     { return r.RevisionID != "" }
+func (r CurrentRevision) HasApplicableReview() bool   { return r.ReviewRunID != "" }
+func (r CurrentRevision) HasApplicableApproval() bool { return r.ApprovalActorKind != "" }
 
 type EventRecord struct {
 	ID, DraftID          string
@@ -60,10 +87,12 @@ type Repository interface {
 	Create(context.Context, Draft) (Draft, error)
 	List(context.Context) ([]Draft, error)
 	Get(context.Context, string) (Draft, error)
+	GetCurrentRevision(context.Context, string) (CurrentRevision, error)
 	Transition(context.Context, string, DraftEvent) (Draft, error)
 	Approve(context.Context, string) (Draft, error)
 	UpdateBody(context.Context, string, string) (Draft, error)
 	RecordEligibility(context.Context, string, ReleaseTarget) error
+	GetReleaseTarget(context.Context, string) (ReleaseTarget, bool, error)
 	RevalidateForRelease(context.Context, string) (Draft, error)
 	RecordReleaseOutcome(context.Context, ReleaseOutcome) (Draft, string, error)
 	Attach(context.Context, Attachment) (Attachment, error)
@@ -159,9 +188,41 @@ func (r *sqliteRepository) RecordEligibility(ctx context.Context, draftID string
 	return err
 }
 
+// GetReleaseTarget returns the Channel Manager identity/lane and eligibility
+// recorded when the draft was approved for a specific channel. The second
+// result is false when no target was recorded, which is distinct from an
+// ineligible target: a release submission for a targetless approval must still
+// name its own identity and lane.
+func (r *sqliteRepository) GetReleaseTarget(ctx context.Context, draftID string) (ReleaseTarget, bool, error) {
+	var target ReleaseTarget
+	var checked string
+	err := r.db.QueryRowContext(ctx, `SELECT identity_id, lane, eligibility, checked_at FROM draft_release_targets WHERE draft_id = ?`, draftID).Scan(&target.IdentityID, &target.Lane, &target.Eligibility, &checked)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ReleaseTarget{}, false, nil
+	}
+	if err != nil {
+		return ReleaseTarget{}, false, err
+	}
+	if target.CheckedAt, err = time.Parse(time.RFC3339Nano, checked); err != nil {
+		return ReleaseTarget{}, false, err
+	}
+	return target, true, nil
+}
+
 // RecordReleaseOutcome atomically accepts a completed Channel Manager receipt,
 // advances the approved draft, and appends the immutable publication record.
-// Replays return the original record without a second lifecycle transition.
+//
+// The ledger row keyed by the receipt's import key is the single durable
+// idempotency boundary. A replay never appends a second publication and never
+// applies a second lifecycle transition. It also reconciles the draft
+// lifecycle exactly once when the receipt was stored out of band (for example
+// by the ledger inbox or the publish-log importer) before the draft advanced:
+// an approved draft converges to published, an already-published draft is
+// returned unchanged, and any other state is refused rather than fabricated.
+//
+// The status change is a compare-and-set. If a concurrent caller already
+// advanced the draft, this call fails instead of appending a duplicate
+// publication, so a replay or race cannot double-count capacity or receipts.
 func (r *sqliteRepository) RecordReleaseOutcome(ctx context.Context, outcome ReleaseOutcome) (Draft, string, error) {
 	if outcome.ReceiptID == "" || outcome.DraftID == "" || outcome.PlatformPostID == "" || outcome.PublishedURL == "" {
 		return Draft{}, "", fmt.Errorf("release outcome requires receipt, draft, post id, and URL")
@@ -177,12 +238,26 @@ func (r *sqliteRepository) RecordReleaseOutcome(ctx context.Context, outcome Rel
 		return Draft{}, "", err
 	}
 	defer func() { _ = tx.Rollback() }()
-	var existingID string
-	lookupErr := tx.QueryRowContext(ctx, `SELECT id FROM ledger_publish_records WHERE import_key = ?`, "channel-manager:"+outcome.ReceiptID).Scan(&existingID)
+	var existingID, existingDraftID string
+	lookupErr := tx.QueryRowContext(ctx, `SELECT id, COALESCE(draft_id,'') FROM ledger_publish_records WHERE import_key = ?`, "channel-manager:"+outcome.ReceiptID).Scan(&existingID, &existingDraftID)
 	if lookupErr == nil {
+		if existingDraftID != "" && existingDraftID != outcome.DraftID {
+			return Draft{}, "", fmt.Errorf("release receipt %q is already recorded for draft %q, not %q", outcome.ReceiptID, existingDraftID, outcome.DraftID)
+		}
 		draft, err := scanDraft(ctx, tx, outcome.DraftID)
 		if err != nil {
 			return Draft{}, "", err
+		}
+		switch draft.Status {
+		case DraftPublished:
+			// Already converged; return the original record.
+		case DraftApproved:
+			draft, err = advanceDraftToPublished(ctx, tx, draft, outcome.PublishedAt)
+			if err != nil {
+				return Draft{}, "", err
+			}
+		default:
+			return Draft{}, "", fmt.Errorf("release receipt %q is already recorded but draft %q is %s", outcome.ReceiptID, draft.ID, draft.Status)
 		}
 		return draft, existingID, tx.Commit()
 	}
@@ -193,26 +268,46 @@ func (r *sqliteRepository) RecordReleaseOutcome(ctx context.Context, outcome Rel
 	if err != nil {
 		return Draft{}, "", err
 	}
-	next, err := TransitionDraft(DraftState{Status: draft.Status}, DraftPublish)
+	draft, err = advanceDraftToPublished(ctx, tx, draft, outcome.PublishedAt)
 	if err != nil {
 		return Draft{}, "", err
 	}
-	now := outcome.PublishedAt.UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `UPDATE drafts SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, next.Status, now, draft.ID, draft.Status); err != nil {
-		return Draft{}, "", err
-	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO draft_events (id, draft_id, event, from_status, to_status, occurred_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), draft.ID, DraftPublish, draft.Status, next.Status, now); err != nil {
-		return Draft{}, "", err
-	}
 	recordID := uuid.NewString()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO ledger_publish_records (id, import_key, draft_id, series_id, channel, audience, published_url, platform_post_id, source_kind, published_at, payload_json) VALUES (?, ?, ?, NULL, ?, '', ?, ?, 'channel-manager', ?, ?)`, recordID, "channel-manager:"+outcome.ReceiptID, draft.ID, draft.Channel, outcome.PublishedURL, outcome.PlatformPostID, now, `{"status":"`+outcome.Status+`"}`); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO ledger_publish_records (id, import_key, draft_id, series_id, channel, audience, published_url, platform_post_id, source_kind, published_at, payload_json) VALUES (?, ?, ?, NULL, ?, '', ?, ?, 'channel-manager', ?, ?)`, recordID, "channel-manager:"+outcome.ReceiptID, draft.ID, draft.Channel, outcome.PublishedURL, outcome.PlatformPostID, outcome.PublishedAt.UTC().Format(time.RFC3339Nano), `{"status":"`+outcome.Status+`"}`); err != nil {
 		return Draft{}, "", err
 	}
 	if err = tx.Commit(); err != nil {
 		return Draft{}, "", err
 	}
-	draft.Status = next.Status
 	return draft, recordID, nil
+}
+
+// advanceDraftToPublished applies the publish transition under a compare-and-set
+// and appends the lifecycle event in the caller's transaction. It fails when the
+// draft is no longer in the state that was read, which turns a concurrent
+// duplicate into a refusal rather than a second publication.
+func advanceDraftToPublished(ctx context.Context, tx *sql.Tx, draft Draft, publishedAt time.Time) (Draft, error) {
+	next, err := TransitionDraft(DraftState{Status: draft.Status}, DraftPublish)
+	if err != nil {
+		return Draft{}, err
+	}
+	now := publishedAt.UTC().Format(time.RFC3339Nano)
+	result, err := tx.ExecContext(ctx, `UPDATE drafts SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, next.Status, now, draft.ID, draft.Status)
+	if err != nil {
+		return Draft{}, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return Draft{}, err
+	}
+	if affected != 1 {
+		return Draft{}, fmt.Errorf("draft %q changed concurrently; release outcome not recorded", draft.ID)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO draft_events (id, draft_id, event, from_status, to_status, occurred_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), draft.ID, DraftPublish, draft.Status, next.Status, now); err != nil {
+		return Draft{}, err
+	}
+	draft.Status = next.Status
+	return draft, nil
 }
 
 func scanDraft(ctx context.Context, queryer interface {
@@ -267,6 +362,15 @@ func (r *sqliteRepository) RevalidateForRelease(ctx context.Context, id string) 
 
 // UpdateBody creates an immutable revision owned by the current provenance
 // actor. Published and abandoned drafts are terminal editorial records.
+//
+// A body change is a new artifact revision. The review that passed and the
+// operator approval describe the prior body, not this one, so UpdateBody
+// withdraws the approval and invalidates every live review run for the draft
+// in every non-terminal status. A reviewed or approved draft is also returned
+// to blocked, so it must be re-checked and re-reviewed before it can be
+// approved or released again. Review invalidation and status change share the
+// revision transaction, so a crash cannot leave stale authority attached to a
+// revised body.
 func (r *sqliteRepository) UpdateBody(ctx context.Context, id, body string) (Draft, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -287,6 +391,27 @@ func (r *sqliteRepository) UpdateBody(ctx context.Context, id, body string) (Dra
 	actor := provenance.FromContext(ctx)
 	if _, err := tx.ExecContext(ctx, `INSERT INTO draft_revisions (id, draft_id, body, actor_kind, capacity, created_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), id, body, actor.Actor, "author", now); err != nil {
 		return Draft{}, err
+	}
+	if body != draft.Body {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM draft_approvals WHERE draft_id = ?`, id); err != nil {
+			return Draft{}, err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE review_runs SET invalidated_at = ? WHERE draft_id = ? AND invalidated_at = ''`, now, id); err != nil {
+			return Draft{}, err
+		}
+		if draft.Status == DraftReviewed || draft.Status == DraftApproved {
+			next, err := TransitionDraft(DraftState{Status: draft.Status}, DraftBlock)
+			if err != nil {
+				return Draft{}, err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE drafts SET status = ?, updated_at = ? WHERE id = ? AND status = ?`, next.Status, now, id, draft.Status); err != nil {
+				return Draft{}, err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO draft_events (id, draft_id, event, from_status, to_status, occurred_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), id, DraftBlock, draft.Status, next.Status, now); err != nil {
+				return Draft{}, err
+			}
+			draft.Status = next.Status
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Draft{}, err
@@ -328,7 +453,10 @@ func (r *sqliteRepository) Approve(ctx context.Context, id string) (Draft, error
 		return Draft{}, err
 	}
 	var passed int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_runs WHERE draft_id = ? AND outcome = 'passed'`, id).Scan(&passed); err != nil {
+	// Only a passed review that still applies to the current body counts.
+	// Invalidated runs were performed before a revision; superseded runs were
+	// replaced by a later review. Either must be re-earned before approval.
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_runs WHERE draft_id = ? AND outcome = 'passed' AND invalidated_at = '' AND id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, id).Scan(&passed); err != nil {
 		return Draft{}, err
 	}
 	verdict := EvaluateApproval(ctx, ApprovalInput{DraftStatus: draft.Status, UnverifiedClaimIDs: unverified, PostTypeActive: active > 0, ReviewPassed: passed > 0})
@@ -432,6 +560,62 @@ func (r *sqliteRepository) Get(ctx context.Context, id string) (Draft, error) {
 	var draft Draft
 	err := r.db.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format)
 	return draft, err
+}
+
+// GetCurrentRevision resolves the artifact's effective body and the review and
+// operator-approval authority that still applies to it. The latest stored
+// revision is selected only when its body matches the live draft; otherwise
+// the live draft body is authoritative. A review that was invalidated or
+// superseded, or an approval withdrawn by a revision, returns as absent.
+func (r *sqliteRepository) GetCurrentRevision(ctx context.Context, id string) (CurrentRevision, error) {
+	var current CurrentRevision
+	var draftBody, draftCreated string
+	if err := r.db.QueryRowContext(ctx, `SELECT id, status, body, created_at FROM drafts WHERE id = ?`, id).Scan(&current.DraftID, &current.Status, &draftBody, &draftCreated); err != nil {
+		return CurrentRevision{}, err
+	}
+	current.Body = draftBody
+	if parsed, err := time.Parse(time.RFC3339Nano, draftCreated); err == nil {
+		current.CreatedAt = parsed
+	}
+	var revID, revBody, revActor, revCapacity, revCreated string
+	err := r.db.QueryRowContext(ctx, `SELECT id, body, actor_kind, capacity, created_at FROM draft_revisions WHERE draft_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`, id).Scan(&revID, &revBody, &revActor, &revCapacity, &revCreated)
+	switch {
+	case err == nil && revBody == draftBody:
+		current.RevisionID = revID
+		current.ActorKind = revActor
+		current.Capacity = revCapacity
+		if parsed, err := time.Parse(time.RFC3339Nano, revCreated); err == nil {
+			current.CreatedAt = parsed
+		}
+	case err != nil && err != sql.ErrNoRows:
+		return CurrentRevision{}, err
+	}
+	var runID, outcome, runCreated string
+	err = r.db.QueryRowContext(ctx, `SELECT id, outcome, created_at FROM review_runs WHERE draft_id = ? AND invalidated_at = '' AND id NOT IN (SELECT superseded_run_id FROM review_supersessions) ORDER BY created_at DESC, id DESC LIMIT 1`, id).Scan(&runID, &outcome, &runCreated)
+	switch {
+	case err == nil:
+		if outcome == "passed" {
+			current.ReviewRunID = runID
+			if parsed, err := time.Parse(time.RFC3339Nano, runCreated); err == nil {
+				current.ReviewAt = parsed
+			}
+		}
+	case err != sql.ErrNoRows:
+		return CurrentRevision{}, err
+	}
+	var approvalActor, approvalCapacity, approvedAt string
+	err = r.db.QueryRowContext(ctx, `SELECT actor_kind, capacity, approved_at FROM draft_approvals WHERE draft_id = ?`, id).Scan(&approvalActor, &approvalCapacity, &approvedAt)
+	switch {
+	case err == nil:
+		current.ApprovalActorKind = approvalActor
+		current.ApprovalCapacity = approvalCapacity
+		if parsed, err := time.Parse(time.RFC3339Nano, approvedAt); err == nil {
+			current.ApprovedAt = parsed
+		}
+	case err != sql.ErrNoRows:
+		return CurrentRevision{}, err
+	}
+	return current, nil
 }
 
 func (r *sqliteRepository) Transition(ctx context.Context, id string, event DraftEvent) (Draft, error) {
