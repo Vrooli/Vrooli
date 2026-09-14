@@ -193,6 +193,38 @@ func TestMaintainBoundsOnePassByItsTimeBudget(t *testing.T) {
 	}
 }
 
+// TestMaintainFinishesADrainBelowTheTrigger: once a drain starts, later passes
+// run it down to the floor even when the remainder no longer exceeds the
+// trigger that started it.
+func TestMaintainFinishesADrainBelowTheTrigger(t *testing.T) {
+	db, path := openFileDB(t, true)
+	fill(t, db, 200, 4)
+	svc := newService(t, db, path, nil, nil)
+	svc.opts.Policy.BatchPages, svc.opts.Policy.MinBatchPages, svc.opts.Policy.BatchHoldTarget = 8, 8, 0
+	svc.opts.Policy.TickBudget, svc.opts.Policy.BatchPause = 5*time.Millisecond, 5*time.Millisecond
+
+	if err := svc.Maintain(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	partial, _ := svc.Stats(t.Context())
+	if partial.FreelistCount == 0 {
+		t.Fatal("the first pass was meant to stop partway")
+	}
+	svc.opts.Policy.FreeTriggerBytes = partial.FreeBytes + 1
+	svc.opts.Policy.TickBudget = 10 * time.Second
+	if st, _ := svc.Stats(t.Context()); st.Action != ActionNone {
+		t.Fatalf("remainder should be below the trigger: %s", st.Action)
+	}
+
+	if err := svc.Maintain(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+
+	if st, _ := svc.Stats(t.Context()); st.FreelistCount != 0 {
+		t.Fatalf("drain stopped at %d free pages above a zero floor", st.FreelistCount)
+	}
+}
+
 func TestMaintainNeverRewritesANoneModeDatabase(t *testing.T) {
 	db, path := openFileDB(t, false)
 	fill(t, db, 100, 4)
@@ -360,8 +392,57 @@ func TestReclaimDryRunPreviewsAndRealRunReturnsPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !receipt.Complete || receipt.After == nil || receipt.After.FreelistCount != 0 {
+	if !receipt.Complete || receipt.After == nil || receipt.After.FreelistCount != 0 || receipt.Performed != PerformedIncrementalVacuum || receipt.CompactionRequired {
 		t.Fatalf("receipt=%+v", receipt)
+	}
+	if receipt.BytesBefore != preview.Before.OccupiedBytes || receipt.BytesAfter != receipt.After.OccupiedBytes || receipt.ProjectedBytesAfter != receipt.BytesAfter {
+		t.Fatalf("byte fields inconsistent: %+v", receipt)
+	}
+}
+
+// TestReclaimStaysWithinItsBudget is the storage-manager backstop contract:
+// the request returns after ReclaimBudget with the remainder left for later
+// passes, never running until every page is back.
+func TestReclaimStaysWithinItsBudget(t *testing.T) {
+	db, path := openFileDB(t, true)
+	fill(t, db, 200, 4)
+	svc := newService(t, db, path, nil, nil)
+	svc.opts.Policy.BatchPages, svc.opts.Policy.MinBatchPages, svc.opts.Policy.BatchHoldTarget = 4, 4, 0
+	svc.opts.Policy.ReclaimBudget, svc.opts.Policy.BatchPause = 20*time.Millisecond, 10*time.Millisecond
+
+	started := time.Now()
+	receipt, err := svc.Reclaim(t.Context(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if time.Since(started) > 2*time.Second {
+		t.Fatalf("reclaim ran %s past a 20ms budget", time.Since(started))
+	}
+	if receipt.Complete || receipt.After == nil || receipt.After.FreeBytes == 0 || !strings.Contains(receipt.Guidance, "remain") {
+		t.Fatalf("bounded reclaim should leave work for later passes: %+v", receipt)
+	}
+}
+
+func TestVacuumAdaptsTheBatchToTheHoldTarget(t *testing.T) {
+	db, path := openFileDB(t, true)
+	fill(t, db, 200, 4)
+	svc := newService(t, db, path, nil, nil)
+	// A clock that reports every batch as slow must shrink the batch to the
+	// minimum, so later transactions each move MinBatchPages.
+	var ticks int64
+	svc.opts.Clock = func() time.Time { ticks++; return time.Unix(0, 0).Add(time.Duration(ticks) * time.Second) }
+	svc.opts.Policy.BatchPages, svc.opts.Policy.MinBatchPages, svc.opts.Policy.BatchHoldTarget = 64, 8, 100*time.Millisecond
+	before, _ := svc.Stats(t.Context())
+
+	if _, err := svc.vacuumTo(t.Context(), 0, 12*time.Second); err != nil {
+		t.Fatal(err)
+	}
+
+	after, _ := svc.Stats(t.Context())
+	moved := before.FreelistCount - after.FreelistCount
+	if moved <= 0 || moved >= 64*3 {
+		t.Fatalf("moved %d pages; slow batches should shrink toward the minimum", moved)
 	}
 }
 
@@ -376,6 +457,12 @@ func TestReclaimOnANoneModeFileOnlyGivesGuidance(t *testing.T) {
 	}
 	if receipt.Action != ActionCompactionRequired || receipt.After != nil || !strings.Contains(receipt.Guidance, "storage compact") {
 		t.Fatalf("receipt=%+v", receipt)
+	}
+	if !receipt.CompactionRequired || receipt.Performed != PerformedNone || receipt.BytesAfter != receipt.BytesBefore || receipt.ProjectedBytesAfter >= receipt.BytesBefore {
+		t.Fatalf("backstop receipt must report the fenced compaction and its projection: %+v", receipt)
+	}
+	if st, _ := svc.Stats(t.Context()); st.AutoVacuum != "none" {
+		t.Fatal("the unauthenticated reclaim path rewrote the file")
 	}
 }
 

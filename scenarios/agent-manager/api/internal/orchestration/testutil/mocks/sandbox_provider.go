@@ -31,6 +31,7 @@ type FakeSandboxProvider struct {
 	IsAvailableFunc    func(context.Context) (bool, string)
 	ValidatePathFunc   func(context.Context, string, string) (*sandbox.PathValidationResult, error)
 	ExecProcessFunc    func(context.Context, sandbox.ExecProcessRequest) (*sandbox.ExecProcessResult, error)
+	ListProcessesFunc  func(context.Context, uuid.UUID) ([]sandbox.ProcessSnapshot, error)
 	ApplyAtRunEndFunc  func(context.Context, sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error)
 	TurnCheckpointFunc func(context.Context, sandbox.TurnCheckpointRequest) (*sandbox.TurnCheckpointResult, error)
 
@@ -221,6 +222,13 @@ func (p *FakeSandboxProvider) ExecProcess(ctx context.Context, req sandbox.ExecP
 		return p.ExecProcessFunc(ctx, req)
 	}
 	return &sandbox.ExecProcessResult{ExitCode: 0}, nil
+}
+
+func (p *FakeSandboxProvider) ListProcesses(ctx context.Context, id uuid.UUID) ([]sandbox.ProcessSnapshot, error) {
+	if p.ListProcessesFunc != nil {
+		return p.ListProcessesFunc(ctx, id)
+	}
+	return nil, nil
 }
 
 func (p *FakeSandboxProvider) CreateRequests() []sandbox.CreateRequest {

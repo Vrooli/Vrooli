@@ -11,26 +11,32 @@ import (
 
 // HeartbeatConfigResponse is the API response for a heartbeat configuration
 type HeartbeatConfigResponse struct {
-	FiniteLeader            *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	FiniteLeaderState       *store.FiniteLeaderState `json:"finiteLeaderState,omitempty"`
-	FiniteLeaderError       string                   `json:"finiteLeaderError,omitempty"`
-	Supervision             *teamconfig.Supervision  `json:"supervision,omitempty"`
-	SupervisionState        *SupervisionState        `json:"supervisionState,omitempty"`
-	SupervisionError        string                   `json:"supervisionError,omitempty"`
-	TeamID                  string                   `json:"teamId"`
-	AgentID                 string                   `json:"agentId"`
-	Enabled                 bool                     `json:"enabled"`
-	Schedule                string                   `json:"schedule"`
-	ProfileKey              string                   `json:"profileKey,omitempty"`
-	TimeoutSeconds          int                      `json:"timeoutSeconds,omitempty"`
-	ConsecutiveFailures     int                      `json:"consecutiveFailures"`
-	LifecycleState          string                   `json:"lifecycleState"`
-	LastExecution           *HeartbeatExecResultDTO  `json:"lastExecution,omitempty"`
-	LastSuccessfulExecution *HeartbeatExecResultDTO  `json:"lastSuccessfulExecution,omitempty"`
-	NextExecution           string                   `json:"nextExecution,omitempty"`
-	NextExecutions          []string                 `json:"nextExecutions,omitempty"`
-	CreatedAt               string                   `json:"createdAt"`
-	UpdatedAt               string                   `json:"updatedAt"`
+	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	FiniteLeaderState       *store.FiniteLeaderState  `json:"finiteLeaderState,omitempty"`
+	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
+	Supervision             *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	SupervisionState        *SupervisionState         `json:"supervisionState,omitempty"`
+	SupervisionError        string                    `json:"supervisionError,omitempty"`
+	TeamID                  string                    `json:"teamId"`
+	AgentID                 string                    `json:"agentId"`
+	Enabled                 bool                      `json:"enabled"`
+	TeamEnabled             bool                      `json:"teamEnabled"`
+	EffectiveState          string                    `json:"effectiveState"`
+	EffectiveReason         string                    `json:"effectiveReason,omitempty"`
+	ControlState            string                    `json:"controlState,omitempty"`
+	Scheduled               bool                      `json:"scheduled"`
+	Schedule                string                    `json:"schedule"`
+	ProfileKey              string                    `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                       `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                       `json:"consecutiveFailures"`
+	LifecycleState          string                    `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResultDTO   `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResultDTO   `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string                    `json:"nextExecution,omitempty"`
+	NextExecutions          []string                  `json:"nextExecutions,omitempty"`
+	CreatedAt               string                    `json:"createdAt"`
+	UpdatedAt               string                    `json:"updatedAt"`
 }
 
 // HeartbeatExecResultDTO represents execution result in API responses
@@ -45,22 +51,24 @@ type HeartbeatExecResultDTO struct {
 
 // CreateHeartbeatRequest is the request body for creating a heartbeat config
 type CreateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
-	Schedule       string                   `json:"schedule"`                 // Cron expression (required)
-	ProfileKey     string                   `json:"profileKey,omitempty"`     // Optional profile key override
-	Enabled        *bool                    `json:"enabled,omitempty"`        // Defaults to false
-	TimeoutSeconds int                      `json:"timeoutSeconds,omitempty"` // 0 = use default (45 min)
+	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	Schedule       string                    `json:"schedule"`                 // Cron expression (required)
+	ProfileKey     string                    `json:"profileKey,omitempty"`     // Optional profile key override
+	Enabled        *bool                     `json:"enabled,omitempty"`        // Defaults to false
+	TimeoutSeconds int                       `json:"timeoutSeconds,omitempty"` // 0 = use default (45 min)
 }
 
 // UpdateHeartbeatRequest is the request body for updating a heartbeat config
 type UpdateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
-	Schedule       *string                  `json:"schedule,omitempty"`
-	ProfileKey     *string                  `json:"profileKey,omitempty"`
-	Enabled        *bool                    `json:"enabled,omitempty"`
-	TimeoutSeconds *int                     `json:"timeoutSeconds,omitempty"`
+	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	Schedule       *string                   `json:"schedule,omitempty"`
+	ProfileKey     *string                   `json:"profileKey,omitempty"`
+	Enabled        *bool                     `json:"enabled,omitempty"`
+	TimeoutSeconds *int                      `json:"timeoutSeconds,omitempty"`
 
 	// FiniteEffortTransition is the explicit authorized lifecycle operation for
 	// a finite leader. It is mutually exclusive with every configuration field
@@ -69,8 +77,8 @@ type UpdateHeartbeatRequest struct {
 }
 
 // FiniteEffortTransition is an operator-requested finite-effort lifecycle
-// operation. Operation is "complete" or "reopen". Revision and EvidenceRef are
-// the exact accepted/replacement revision and the retained owner evidence.
+// operation. Operation is "complete", "reopen", or "restart". Revision and
+// EvidenceRef are the exact accepted revision and the retained owner evidence.
 type FiniteEffortTransition struct {
 	Operation   string `json:"operation"`
 	Revision    string `json:"revision"`

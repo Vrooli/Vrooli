@@ -1,6 +1,7 @@
 package supervision
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,6 +11,88 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func TestAutonomousSupervisionDoesNotRequireAnActionEnumeration(t *testing.T) {
+	s, _, c := effortFixture(t)
+	e := grantFixture(t, s, c, domain.RunStatusRunning)
+	e.PermittedActions = nil
+	e.AutonomousSupervision = true
+	req := directiveFixture(s, e)
+	d, err := s.RequestDirective(context.Background(), req, EffortActor{ID: e.SupervisorRunId})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_REFUSED || d.DeliveryReason == "action outside authorized scope" {
+		t.Fatalf("autonomous mandate was treated as an action list: %+v", d)
+	}
+}
+
+func TestAutonomousSupervisionCanCoordinateAnEnrolledWorker(t *testing.T) {
+	s, _, c := effortFixture(t)
+	e := grantFixture(t, s, c, domain.RunStatusRunning)
+	e.AutonomousSupervision = true
+	e.PermittedActions = nil
+	workerID := uuid.New()
+	c.runs[workerID] = &domain.Run{ID: workerID, Status: domain.RunStatusNeedsReview}
+	e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: workerID.String(), RunId: workerID.String(), Role: "worker"})
+	enrolled, err := s.Enroll(t.Context(), &pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: "autonomous-worker"}, EffortActor{ID: "owner", Operator: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := directiveFixture(s, enrolled)
+	req.ExpectedEnrollmentRevision = enrolled.Revision
+	req.Directive.TargetRunId = workerID.String()
+	d, err := s.RequestDirective(t.Context(), req, EffortActor{ID: enrolled.SupervisorRunId})
+	if err != nil || d.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_REFUSED {
+		t.Fatalf("autonomous mandate could not coordinate enrolled worker: directive=%+v err=%v", d, err)
+	}
+}
+
+func TestAutonomousSupervisionCoordinatesTwoEffortsWithoutCrossingLineage(t *testing.T) {
+	s, _, c := effortFixture(t)
+	type effortWorker struct {
+		enrollment *pb.EffortEnrollment
+		workerID   uuid.UUID
+	}
+	efforts := make([]effortWorker, 0, 2)
+	for i := 0; i < 2; i++ {
+		e := grantFixture(t, s, c, domain.RunStatusRunning)
+		e.AutonomousSupervision = true
+		e.PermittedActions = nil
+		workerID := uuid.New()
+		c.runs[workerID] = &domain.Run{ID: workerID, Status: domain.RunStatusNeedsReview}
+		e.Subjects = append(e.Subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: workerID.String(), RunId: workerID.String(), Role: "worker"})
+		enrolled, err := s.Enroll(t.Context(), &pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: "two-effort-autonomous-" + workerID.String()}, EffortActor{ID: "owner", Operator: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		efforts = append(efforts, effortWorker{enrollment: enrolled, workerID: workerID})
+	}
+
+	for _, item := range efforts {
+		req := directiveFixture(s, item.enrollment)
+		req.ExpectedEnrollmentRevision = item.enrollment.Revision
+		req.Directive.TargetRunId = item.workerID.String()
+		got, err := s.RequestDirective(t.Context(), req, EffortActor{ID: item.enrollment.SupervisorRunId})
+		if err != nil || got.Delivery == pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_REFUSED {
+			t.Fatalf("autonomous supervisor could not advance its own worker: directive=%+v err=%v", got, err)
+		}
+	}
+	if c.continued != 2 {
+		t.Fatalf("two-effort pilot advanced %d workers, want 2", c.continued)
+	}
+
+	cross := directiveFixture(s, efforts[0].enrollment)
+	cross.ExpectedEnrollmentRevision = efforts[0].enrollment.Revision
+	cross.Directive.TargetRunId = efforts[1].workerID.String()
+	got, err := s.RequestDirective(t.Context(), cross, EffortActor{ID: efforts[0].enrollment.SupervisorRunId})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Delivery != pb.EffortDirectiveDelivery_EFFORT_DIRECTIVE_DELIVERY_REFUSED || c.continued != 2 {
+		t.Fatalf("cross-effort target escaped enrollment boundary: directive=%+v continued=%d", got, c.continued)
+	}
+}
 
 func TestPendingDirectiveCannotInheritReplacementAuthority(t *testing.T) {
 	for _, variant := range []string{"unchanged", "observation-revision", "new-supervisor", "new-grant", "new-owner", "expired-original-renewed", "stable-new-wake", "changed-stable-owner", "changed-stable-scope"} {

@@ -27,6 +27,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "current", Description: "Get the current metrics snapshot", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "fresh", Description: "Collect a fresh metrics snapshot", Bool: true}}}, RunCtx: h.current},
 			{Name: "detailed", Description: "Get detailed system metrics", RunCtx: h.detailed},
+			{Name: "network-diagnostic", Description: "Run a bounded on-demand network ownership and endpoint snapshot", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "top", Description: "Maximum owners/endpoints", Default: "10"}, {Name: "timeout", Description: "Maximum diagnostic duration (e.g. 2s)", Default: "2s"}}}, RunCtx: h.networkDiagnostic},
 			{Name: "processes", Description: "Get process monitoring metrics", RunCtx: h.processes},
 			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}, {Name: "rank", Description: "Rank by cpu, cpu_seconds, rss, or gpu", Default: "cpu"}}}, RunCtx: h.processTimeline},
 			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", RunCtx: h.infrastructure},
@@ -130,6 +131,39 @@ func (h *handlers) detailed(ctx cliapp.RunContext) error {
 		RetrievalHints: []string{"system-monitor metrics processes", "system-monitor metrics infrastructure", "system-monitor metrics timeline --window 300"},
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, report)
+}
+
+func (h *handlers) networkDiagnostic(ctx cliapp.RunContext) error {
+	top := 10
+	if raw := ctx.Flag("top"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			return fmt.Errorf("top must be between 1 and 100")
+		}
+		top = parsed
+	}
+	timeout := 2 * time.Second
+	if raw := ctx.Flag("timeout"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed <= 0 || parsed > 10*time.Second {
+			return fmt.Errorf("timeout must be positive and at most 10s")
+		}
+		timeout = parsed
+	}
+	resp, err := h.client.GetNetworkDiagnostic(context.Background(), connect.NewRequest(&metricspb.GetNetworkDiagnosticRequest{TopN: int32(top), MaxDurationMs: int32(timeout.Milliseconds())}))
+	if err != nil {
+		return cliapp.WrapAPIError("get network diagnostic", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetSnapshot() == nil {
+		return fmt.Errorf("server returned no network diagnostic snapshot")
+	}
+	snapshot := resp.Msg.GetSnapshot()
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Network diagnostic: %d inventory connections, %dms", snapshot.GetInventoryConnections(), snapshot.GetDurationMs())},
+		ResultsHeading: "Bounded network evidence",
+		Results:        []string{fmt.Sprintf("Owners: %d; endpoints: %d; truncated: %t", len(snapshot.GetOwnership().GetOwners()), len(snapshot.GetEndpoints()), snapshot.GetTruncated()), fmt.Sprintf("Attribution coverage: %.1f%%", snapshot.GetOwnership().GetAttributionCoveragePercent())},
+		RetrievalHints: []string{"system-monitor metrics detailed", "system-monitor metrics network-diagnostic --top 10 --timeout 2s"},
+	})
 }
 
 func (h *handlers) processes(ctx cliapp.RunContext) error {

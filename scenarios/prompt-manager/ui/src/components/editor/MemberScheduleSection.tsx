@@ -29,6 +29,7 @@ interface MemberScheduleSectionProps {
   /** Open the run view for a run ID */
   onOpenRun?: (runId: string) => void
   heartbeatControlStatus?: HeartbeatControlStatus | null
+  teamEnabled?: boolean
 }
 
 function formatTimestamp(value?: string): string | null {
@@ -50,6 +51,7 @@ export function MemberScheduleSection({
   runningRunId = null,
   onOpenRun,
   heartbeatControlStatus,
+  teamEnabled = true,
 }: MemberScheduleSectionProps) {
   const [isScheduleEditing, setIsScheduleEditing] = useState(false)
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>('custom')
@@ -70,6 +72,20 @@ export function MemberScheduleSection({
     [heartbeatConfig?.lastExecution?.startedAt]
   )
   const isHeartbeatPaused = heartbeatControlStatus?.status === 'paused-auto-idle' || heartbeatControlStatus?.status === 'paused-manual'
+  const effectiveState = heartbeatConfig?.effectiveState
+  const effectiveLabel = effectiveState === 'team-disabled'
+    ? 'Paused by team'
+    : effectiveState === 'paused'
+      ? 'Paused by heartbeat control'
+      : effectiveState === 'scheduled'
+        ? 'Scheduled'
+        : effectiveState === 'not-scheduled'
+          ? 'Configured, not scheduled'
+          : effectiveState === 'disabled'
+            ? 'Disabled'
+            : heartbeatConfig
+              ? 'State unavailable'
+              : 'Not configured'
 
   const loadScheduleEditorState = useCallback((value: string) => {
     const parsed = parseSchedule(value)
@@ -235,15 +251,15 @@ export function MemberScheduleSection({
               <button
                 type="button"
                 onClick={onTriggerHeartbeat}
-                disabled={!heartbeatConfig || isSaving || isHeartbeatPaused}
+                disabled={!heartbeatConfig || isSaving || !teamEnabled || isHeartbeatPaused}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  heartbeatConfig && !isHeartbeatPaused
+                  heartbeatConfig && teamEnabled && !isHeartbeatPaused
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
                 aria-label="Run now"
-                title={isHeartbeatPaused ? 'Resume heartbeat control before running this heartbeat' : 'Run now'}
+                title={!teamEnabled ? 'Turn the team on before running this heartbeat' : isHeartbeatPaused ? 'Resume heartbeat control before running this heartbeat' : 'Run now'}
               >
                 <Play className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Run now</span>
@@ -264,6 +280,17 @@ export function MemberScheduleSection({
                 {heartbeatConfig ? (heartbeatConfig.enabled ? 'Enabled' : 'Disabled') : 'Not configured'}
               </button>
             </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className={cn(
+              'rounded-full border px-2 py-0.5 font-medium',
+              effectiveState === 'scheduled' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500' : 'border-amber-500/30 bg-amber-500/10 text-amber-500'
+            )}>
+              {effectiveLabel}
+            </span>
+            {heartbeatConfig?.effectiveReason && effectiveState !== 'scheduled' && (
+              <span className="text-muted-foreground">{heartbeatConfig.effectiveReason}</span>
+            )}
           </div>
           {lastExecutionLabel && heartbeatConfig?.lastExecution && (
             <div className="text-xs text-muted-foreground">

@@ -147,13 +147,11 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			continue
 		}
 		if _, gatedAction := gatedActionIDs[selectedAction.ID]; gatedAction {
-			if gate := r.recoveryOwnershipGate(); gate != nil {
-				if allowed, reason := gate.AllowsAutoHealRestart(ctx, result.CheckID, selectedAction.ID); !allowed {
-					autoHealResults = append(autoHealResults, AutoHealResult{
-						CheckID: result.CheckID, Attempted: false, Reason: reason,
-					})
-					continue
-				}
+			if allowed, reason := r.allowsGatedHeal(ctx, result.CheckID, selectedAction.ID); !allowed {
+				autoHealResults = append(autoHealResults, AutoHealResult{
+					CheckID: result.CheckID, Attempted: false, Reason: reason,
+				})
+				continue
 			}
 		}
 
@@ -243,6 +241,17 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		if skipped := r.preHealRecheck(ctx, c, &autoHealResults); skipped {
 			continue
 		}
+		// The owner can enter coordinated maintenance while this tick is
+		// rechecking health. Refresh the same gate immediately before invoking
+		// the action so a stale phase-one observation cannot race the lifecycle.
+		if _, gatedAction := gatedActionIDs[c.selectedAction.ID]; gatedAction {
+			if allowed, reason := r.allowsGatedHeal(ctx, c.result.CheckID, c.selectedAction.ID); !allowed {
+				autoHealResults = append(autoHealResults, AutoHealResult{
+					CheckID: c.result.CheckID, Attempted: false, Reason: reason,
+				})
+				continue
+			}
+		}
 
 		actionCtx, cancel := context.WithTimeout(ctx, r.actionTimeoutFor(c.selectedAction.ID))
 		actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
@@ -268,6 +277,14 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 	}
 
 	return autoHealResults
+}
+
+func (r *Registry) allowsGatedHeal(ctx context.Context, checkID, actionID string) (bool, string) {
+	gate := r.recoveryOwnershipGate()
+	if gate == nil {
+		return true, ""
+	}
+	return gate.AllowsAutoHealRestart(ctx, checkID, actionID)
 }
 
 func (r *Registry) requestScenarioRecoveryIfReady(ctx context.Context, result Result) string {

@@ -55,6 +55,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/eventlog"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -396,6 +397,14 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 		}
 	}
 
+	// Capture the provider incarnation before process creation. If the
+	// provider restarts after this point, the later observation can prove the
+	// restart instead of accidentally treating the new process as its baseline.
+	expectedIncarnation := ""
+	identityCtx, identityCancel := context.WithTimeout(ctx, config.DefaultLevers().Runners.ProbeTimeout)
+	expectedIncarnation, _ = l.provider.IncarnationID(identityCtx)
+	identityCancel()
+
 	pid, err := l.startProcess(ctx, startProcessBody{
 		Command:        command,
 		Args:           translatedArgs,
@@ -418,7 +427,7 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 		}
 	}
 
-	proc := newSandboxLaunchedProcess(ctx, l, pid, req.IdleTimeout)
+	proc := newSandboxLaunchedProcess(ctx, l, pid, req.IdleTimeout, req.RunID, req.EventSink, expectedIncarnation)
 	return proc, nil
 }
 
@@ -560,7 +569,11 @@ type sandboxLaunchedProcess struct {
 
 	timedOut atomic.Bool
 
-	idleResetCh chan struct{}
+	idleResetCh                   chan struct{}
+	runID                         uuid.UUID
+	eventSink                     runner.EventSink
+	expectedProviderIncarnationID string
+	observedProviderIncarnationID string
 }
 
 // remoteExitInfo is the structured exit payload from the server's exit
@@ -571,20 +584,23 @@ type remoteExitInfo struct {
 	OOMKilled bool `json:"oomKilled,omitempty"`
 }
 
-func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int, idleTimeout time.Duration) *sandboxLaunchedProcess {
+func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int, idleTimeout time.Duration, runID uuid.UUID, sink runner.EventSink, expectedIncarnation string) *sandboxLaunchedProcess {
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
 
 	p := &sandboxLaunchedProcess{
-		launcher:    l,
-		pid:         pid,
-		idleTimeout: idleTimeout,
-		stdoutR:     stdoutR,
-		stdoutW:     stdoutW,
-		stderrR:     stderrR,
-		stderrW:     stderrW,
-		waitCh:      make(chan struct{}),
-		idleResetCh: make(chan struct{}, 8),
+		launcher:                      l,
+		pid:                           pid,
+		idleTimeout:                   idleTimeout,
+		stdoutR:                       stdoutR,
+		stdoutW:                       stdoutW,
+		stderrR:                       stderrR,
+		stderrW:                       stderrW,
+		waitCh:                        make(chan struct{}),
+		idleResetCh:                   make(chan struct{}, 8),
+		runID:                         runID,
+		eventSink:                     sink,
+		expectedProviderIncarnationID: expectedIncarnation,
 	}
 
 	// Two SSE streams (stdout + stderr) concurrently. Whichever finishes
@@ -601,6 +617,8 @@ func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int,
 		streamsWg.Wait()
 		_ = p.stdoutW.Close()
 		_ = p.stderrW.Close()
+		p.reconcileExitInfo()
+		p.emitStreamInterruptionObservation()
 		p.finalizeWaitErr()
 		close(p.waitCh)
 	}()
@@ -609,6 +627,77 @@ func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int,
 		go p.watchIdle(ctx)
 	}
 	return p
+}
+
+// reconcileExitInfo performs one bounded provider read after both SSE
+// streams close without an exit frame. This covers a stream disconnect or
+// provider-side notification race without replaying logs or guessing success.
+// If the provider cannot prove the exact PID's terminal result, the existing
+// ErrSandboxNoExitInfo path remains in force.
+func (p *sandboxLaunchedProcess) reconcileExitInfo() {
+	if p.killed.Load() || p.exitInfoAlreadyRecorded() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), config.DefaultLevers().Runners.ProbeTimeout)
+	defer cancel()
+	processes, err := p.launcher.provider.ListProcesses(ctx, p.launcher.sandboxID)
+	if err != nil {
+		return
+	}
+	for _, observed := range processes {
+		if observed.PID != p.pid || observed.ExitCode == nil {
+			continue
+		}
+		info := remoteExitInfo{ExitCode: *observed.ExitCode}
+		if observed.Signal != nil {
+			info.Signal = *observed.Signal
+		}
+		if observed.OOMKilled != nil {
+			info.OOMKilled = *observed.OOMKilled
+		}
+		p.recordExitInfoFromObservation(info)
+		return
+	}
+}
+
+func (p *sandboxLaunchedProcess) emitStreamInterruptionObservation() {
+	if p.killed.Load() || p.eventSink == nil || p.runID == uuid.Nil || p.exitInfoAlreadyRecorded() && p.expectedProviderIncarnationID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), config.DefaultLevers().Runners.ProbeTimeout)
+	observed, _ := p.launcher.provider.IncarnationID(ctx)
+	cancel()
+	p.observedProviderIncarnationID = observed
+	detected := false
+	if p.expectedProviderIncarnationID != "" && observed != "" {
+		detected = p.expectedProviderIncarnationID != observed
+	}
+	disposition := "no_exit_info"
+	if p.exitInfoAlreadyRecorded() {
+		disposition = "reconciled"
+	}
+	eventlog.NewEmitter(p.eventSink, p.runID).EmitSandboxOperation(eventlog.SandboxOperationPayload{
+		Operation: eventlog.SandboxOpStreamInterrupted,
+		SandboxID: p.launcher.sandboxID.String(), PID: p.pid,
+		ExpectedProviderIncarnationID: p.expectedProviderIncarnationID,
+		ObservedProviderIncarnationID: observed,
+		ProviderRestartDetected:       &detected,
+		Disposition:                   disposition,
+	})
+}
+
+func (p *sandboxLaunchedProcess) exitInfoAlreadyRecorded() bool {
+	p.exitInfoMu.Lock()
+	defer p.exitInfoMu.Unlock()
+	return p.exitInfo != nil
+}
+
+func (p *sandboxLaunchedProcess) recordExitInfoFromObservation(info remoteExitInfo) {
+	p.exitOnce.Do(func() {
+		p.exitInfoMu.Lock()
+		p.exitInfo = &info
+		p.exitInfoMu.Unlock()
+	})
 }
 
 func (p *sandboxLaunchedProcess) Stdout() io.Reader { return p.stdoutR }

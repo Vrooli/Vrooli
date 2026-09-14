@@ -20,6 +20,7 @@ type MonitorQuerier interface {
 	GetGPUHistory(ctx context.Context, window time.Duration) (*models.GPUHistory, error)
 	GetPressureHistory(ctx context.Context, window time.Duration) (*models.PressureHistory, error)
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
+	GetNetworkDiagnostic(ctx context.Context, topN int, maxDuration time.Duration, includeAddresses bool) (*models.NetworkDiagnosticSnapshot, error)
 	GetDiskDetail(ctx context.Context) (*models.DiskDetailResponse, error)
 	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)

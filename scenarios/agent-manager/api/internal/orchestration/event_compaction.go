@@ -1,3 +1,4 @@
+// This file paces reconciler-driven compaction of aged imported tool payloads.
 package orchestration
 
 import (

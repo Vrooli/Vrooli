@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"agent-manager/internal/adapters/database"
 	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
@@ -80,6 +82,7 @@ func (h *searchControlTokens) get(providerID string) string {
 type Server struct {
 	recovery               *maintenance.Recovery
 	maintenance            *maintenance.Handler
+	lifecycleService       *maintenance.LifecycleService
 	capabilityRegistry     *capabilities.Registry
 	db                     *database.DB
 	fileRoots              *filerouting.RoutedRoots
@@ -281,6 +284,19 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	inventory := wiring.NewMaintenanceInventory(db)
+	srv.lifecycleService, err = maintenance.NewLifecycleService(gate, func(ctx context.Context) (maintenance.Inventory, error) {
+		state, observeErr := inventory.Observe(ctx)
+		if recovery := srv.recovery.Snapshot(); !recovery.Readiness {
+			state.Remaining = nil
+			state.Unknown = append(state.Unknown, "startup recovery "+recovery.Status+": "+recovery.Phase)
+			return state, fmt.Errorf("startup recovery is not ready")
+		}
+		return state, observeErr
+	}, "agent-manager", "agent-manager", uuid.NewString())
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	srv.maintenance, err = maintenance.NewHandler(gate, func(ctx context.Context) (maintenance.Inventory, error) {
 		state, err := inventory.Observe(ctx)
 		if recovery := srv.recovery.Snapshot(); !recovery.Readiness {
@@ -442,6 +458,7 @@ func (s *Server) setupRoutes() {
 		ConversationSearchFile:   s.conversationSearchFile,
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 		StorageHealth:            s.storageHealthHandler(),
+		LifecycleService:         s.lifecycleService,
 	})
 }
 

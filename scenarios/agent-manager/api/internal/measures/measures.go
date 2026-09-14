@@ -195,9 +195,22 @@ func provenanceFor(filter invocationreadmodel.Filter, source string, rows int64)
 	return provenance
 }
 
-func provenanceWithQuery(filter invocationreadmodel.Filter, source string, rows int64, query string) *measurepb.MeasureProvenance {
+func (h *Handler) provenanceWithQuery(ctx context.Context, filter invocationreadmodel.Filter, source string, rows int64, query string) *measurepb.MeasureProvenance {
 	provenance := provenanceFor(filter, source, rows)
 	provenance.ExecutedQuery = query
+	if provider, ok := h.store.(invocationreadmodel.FreshnessStore); ok {
+		if projectedAt, err := provider.LatestProjection(ctx); err == nil && !projectedAt.IsZero() {
+			provenance.ProjectionAt = projectedAt.UTC().Format(time.RFC3339)
+			provenance.ProjectionAgeMs = h.now().UTC().Sub(projectedAt.UTC()).Milliseconds()
+			if provenance.ProjectionAgeMs < 0 {
+				provenance.ProjectionAgeMs = 0
+			}
+			if filter.To != nil && projectedAt.Before(*filter.To) {
+				provenance.ProjectionStale = true
+				provenance.ProjectionStaleReason = "projection_before_window_end"
+			}
+		}
+	}
 	return provenance
 }
 
@@ -450,8 +463,8 @@ func protoValidity(validity Validity) *measurepb.MeasureValidity {
 	return &measurepb.MeasureValidity{State: string(validity.State), Reason: validity.Reason, SampleSize: validity.SampleSize, LargestFingerprintBucket: validity.LargestFingerprintBucket, LargestFingerprintShare: validity.LargestFingerprintShare, ClassifiedBase: validity.ClassifiedBase, UnclassifiedCount: validity.UnclassifiedCount, UnclassifiedShare: validity.UnclassifiedShare, MinimumClassifiedShare: validity.MinimumClassifiedShare}
 }
 
-func metricProvenance(name string, result metricResult) *measurepb.MeasureProvenance {
-	return provenanceWithQuery(result.Filter, definitionFor(name).SourceTable, result.Validity.SampleSize, result.Query)
+func (h *Handler) metricProvenance(ctx context.Context, name string, result metricResult) *measurepb.MeasureProvenance {
+	return h.provenanceWithQuery(ctx, result.Filter, definitionFor(name).SourceTable, result.Validity.SampleSize, result.Query)
 }
 
 func (h *Handler) validityForSample(sample int64) *measurepb.MeasureValidity {
@@ -463,7 +476,7 @@ func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[me
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, Validity: protoValidity(r.Validity), Provenance: metricProvenance(ExternalToolShare, r), DefinitionId: definitionID(ExternalToolShare)}), nil
+	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, ExternalToolShare, r), DefinitionId: definitionID(ExternalToolShare)}), nil
 }
 
 func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.RetryRateRequest]) (*connect.Response[measurepb.RetryRateResponse], error) {
@@ -471,7 +484,7 @@ func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RetryRate, r), DefinitionId: definitionID(RetryRate)}), nil
+	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RetryRate, r), DefinitionId: definitionID(RetryRate)}), nil
 }
 
 func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[measurepb.HelpRecoveryRateRequest]) (*connect.Response[measurepb.HelpRecoveryRateResponse], error) {
@@ -479,7 +492,7 @@ func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(HelpRecoveryRate, r), DefinitionId: definitionID(HelpRecoveryRate)}), nil
+	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, HelpRecoveryRate, r), DefinitionId: definitionID(HelpRecoveryRate)}), nil
 }
 
 func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
@@ -487,7 +500,7 @@ func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RepeatedWorkRate, r), DefinitionId: definitionID(RepeatedWorkRate)}), nil
+	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RepeatedWorkRate, r), DefinitionId: definitionID(RepeatedWorkRate)}), nil
 }
 
 func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[measurepb.ToolFailureRateRequest]) (*connect.Response[measurepb.ToolFailureRateResponse], error) {
@@ -495,7 +508,7 @@ func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[meas
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(ToolFailureRate, r), DefinitionId: definitionID(ToolFailureRate)}), nil
+	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, ToolFailureRate, r), DefinitionId: definitionID(ToolFailureRate)}), nil
 }
 
 func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measurepb.RunSuccessRateRequest]) (*connect.Response[measurepb.RunSuccessRateResponse], error) {
@@ -503,7 +516,7 @@ func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunSuccessRate, r), DefinitionId: definitionID(RunSuccessRate)}), nil
+	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RunSuccessRate, r), DefinitionId: definitionID(RunSuccessRate)}), nil
 }
 
 func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measurepb.RunCycleTimeRequest]) (*connect.Response[measurepb.RunCycleTimeResponse], error) {
@@ -511,7 +524,7 @@ func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measure
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunCycleTime, r), DefinitionId: definitionID(RunCycleTime)}), nil
+	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RunCycleTime, r), DefinitionId: definitionID(RunCycleTime)}), nil
 }
 
 func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.RunCostRequest]) (*connect.Response[measurepb.RunCostResponse], error) {
@@ -528,7 +541,7 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 	}
 	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 	validity := h.validityForSample(runs.TotalRuns)
-	response := &measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, TotalChargeMicroUsd: runs.TotalChargeMicroUSD, UnpricedTokenCount: runs.UnpricedTokenCount, Validity: validity, Provenance: provenanceWithQuery(filter, definitionFor(RunCost).SourceTable, runs.TotalRuns, query), DefinitionId: definitionID(RunCost)}
+	response := &measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, TotalChargeMicroUsd: runs.TotalChargeMicroUSD, UnpricedTokenCount: runs.UnpricedTokenCount, Validity: validity, Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(RunCost).SourceTable, runs.TotalRuns, query), DefinitionId: definitionID(RunCost)}
 	if chargeStore, ok := h.store.(interface {
 		ChargeByBasis(context.Context, invocationreadmodel.Filter) ([]invocationreadmodel.ChargeByBasis, error)
 	}); ok {
@@ -585,7 +598,7 @@ func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	response := &measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunVolume, r), DefinitionId: definitionID(RunVolume)}
+	response := &measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RunVolume, r), DefinitionId: definitionID(RunVolume)}
 	if coverageStore, ok := h.store.(interface {
 		HistoryCoverage(context.Context) (time.Time, int64, error)
 	}); ok {
@@ -630,7 +643,7 @@ func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[meas
 		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
 	}
 	query := "SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND target_scenario <> ''"
-	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: provenanceWithQuery(filter, definitionFor("friction.capability_usage").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_usage")}), nil
+	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("friction.capability_usage").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_usage")}), nil
 }
 
 func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[measurepb.CapabilityEfficacyRequest]) (*connect.Response[measurepb.CapabilityEfficacyResponse], error) {
@@ -659,7 +672,7 @@ func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[m
 		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
 	}
 	query := "SELECT receipt calls joined to fallback and abandoned episode projections"
-	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: provenanceWithQuery(filter, definitionFor("friction.capability_efficacy").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_efficacy")}), nil
+	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("friction.capability_efficacy").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_efficacy")}), nil
 }
 
 // SelectCohort preserves the aggregate-to-run drill-down without reopening
@@ -707,7 +720,7 @@ func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measure
 		}
 	}
 	query := fmt.Sprintf("SELECT DISTINCT run_id FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q ORDER BY run_id LIMIT %d", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), limit)
-	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Rows: rows, Truncated: cohort.Truncated, Validity: h.validityForSample(int64(len(cohort.RunIDs))), Provenance: provenanceWithQuery(filter, definitionFor("select_cohort").SourceTable, int64(len(cohort.RunIDs)), query), DefinitionId: definitionID("select_cohort")}), nil
+	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Rows: rows, Truncated: cohort.Truncated, Validity: h.validityForSample(int64(len(cohort.RunIDs))), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("select_cohort").SourceTable, int64(len(cohort.RunIDs)), query), DefinitionId: definitionID("select_cohort")}), nil
 }
 
 // EpisodeCohort exposes the ranked friction-episode investigation projection
@@ -735,7 +748,7 @@ func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measur
 		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
 	}
 	response.Validity = h.validityForSample(int64(len(cohort.Signals)))
-	response.Provenance = provenanceWithQuery(filter, definitionFor("episode_cohort").SourceTable, int64(len(cohort.Signals)), query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor("episode_cohort").SourceTable, int64(len(cohort.Signals)), query)
 	response.DefinitionId = definitionID("episode_cohort")
 	return connect.NewResponse(response), nil
 }
@@ -766,7 +779,7 @@ func (h *Handler) RunStatusDistribution(ctx context.Context, req *connect.Reques
 		sample += row.Count
 	}
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor(RunStatusDistribution).SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(RunStatusDistribution).SourceTable, sample, query)
 	response.DefinitionId = definitionID(RunStatusDistribution)
 	return connect.NewResponse(response), nil
 }
@@ -781,7 +794,7 @@ func (h *Handler) RunDurationStatistics(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable duration summary FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, Validity: h.validityForSample(stats.Count), Provenance: provenanceWithQuery(filter, definitionFor("throughput.run_duration_statistics").SourceTable, stats.Count, query), DefinitionId: definitionID("throughput.run_duration_statistics")}), nil
+	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, Validity: h.validityForSample(stats.Count), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("throughput.run_duration_statistics").SourceTable, stats.Count, query), DefinitionId: definitionID("throughput.run_duration_statistics")}), nil
 }
 
 func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, dimension string) ([]invocationreadmodel.RunBreakdownRow, string, invocationreadmodel.Filter, error) {
@@ -823,7 +836,7 @@ func (h *Handler) RunnerBreakdown(ctx context.Context, req *connect.Request[meas
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(RunnerBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(RunnerBreakdown)}), nil
+	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(RunnerBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(RunnerBreakdown)}), nil
 }
 
 func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measurepb.ModelBreakdownRequest]) (*connect.Response[measurepb.ModelBreakdownResponse], error) {
@@ -831,7 +844,7 @@ func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(ModelBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ModelBreakdown)}), nil
+	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(ModelBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ModelBreakdown)}), nil
 }
 
 func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[measurepb.ProfileBreakdownRequest]) (*connect.Response[measurepb.ProfileBreakdownResponse], error) {
@@ -839,7 +852,7 @@ func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(ProfileBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ProfileBreakdown)}), nil
+	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(ProfileBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ProfileBreakdown)}), nil
 }
 
 func (h *Handler) WorkloadBreakdown(ctx context.Context, req *connect.Request[measurepb.WorkloadBreakdownRequest]) (*connect.Response[measurepb.WorkloadBreakdownResponse], error) {
@@ -851,7 +864,7 @@ func (h *Handler) WorkloadBreakdown(ctx context.Context, req *connect.Request[me
 		return nil, err
 	}
 	sample := sumBreakdownRuns(rows)
-	return connect.NewResponse(&measurepb.WorkloadBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sample), Provenance: provenanceWithQuery(filter, definitionFor(WorkloadBreakdown).SourceTable, sample, query), DefinitionId: definitionID(WorkloadBreakdown)}), nil
+	return connect.NewResponse(&measurepb.WorkloadBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sample), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(WorkloadBreakdown).SourceTable, sample, query), DefinitionId: definitionID(WorkloadBreakdown)}), nil
 }
 
 func (h *Handler) WorkloadEfficiency(ctx context.Context, req *connect.Request[measurepb.WorkloadEfficiencyRequest]) (*connect.Response[measurepb.WorkloadEfficiencyResponse], error) {
@@ -876,7 +889,7 @@ func (h *Handler) WorkloadEfficiency(ctx context.Context, req *connect.Request[m
 		SuccessfulRuns:                     runs.SuccessfulRuns,
 		ObservationalLimitation:            "model assignment was observational, not randomized",
 		Validity:                           protoValidity(validity),
-		Provenance:                         provenanceWithQuery(filter, definitionFor(WorkloadEfficiency).SourceTable, runs.TerminalRuns, query),
+		Provenance:                         h.provenanceWithQuery(ctx, filter, definitionFor(WorkloadEfficiency).SourceTable, runs.TerminalRuns, query),
 		DefinitionId:                       definitionID(WorkloadEfficiency),
 	}
 	return connect.NewResponse(response), nil
@@ -901,7 +914,7 @@ func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[mea
 		sample += row.TerminalRuns
 	}
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor(TerminalRunTrend).SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(TerminalRunTrend).SourceTable, sample, query)
 	response.DefinitionId = definitionID(TerminalRunTrend)
 	return connect.NewResponse(response), nil
 }
@@ -925,7 +938,7 @@ func (h *Handler) ToolUsage(ctx context.Context, req *connect.Request[measurepb.
 		sample += row.CallCount
 	}
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor(ToolUsage).SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(ToolUsage).SourceTable, sample, query)
 	response.DefinitionId = definitionID(ToolUsage)
 	return connect.NewResponse(response), nil
 }
@@ -957,7 +970,7 @@ func (h *Handler) ToolCommandBreakdown(ctx context.Context, req *connect.Request
 	}
 	query := fmt.Sprintf("SELECT executable, command_path, COUNT(*) FROM invocation_read_model_facts WHERE tool_name = %q GROUP BY executable, command_path LIMIT %d", filter.ToolName, limit)
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor("friction.tool_command_breakdown").SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor("friction.tool_command_breakdown").SourceTable, sample, query)
 	response.DefinitionId = definitionID("friction.tool_command_breakdown")
 	return connect.NewResponse(response), nil
 }
@@ -996,7 +1009,7 @@ func (h *Handler) TokenAttribution(ctx context.Context, req *connect.Request[mea
 	}
 	query := fmt.Sprintf("SELECT %s token aggregates FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s ORDER BY %s DESC LIMIT %d", view, filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), groupBy, view, limit)
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor(TokenAttribution).SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(TokenAttribution).SourceTable, sample, query)
 	response.DefinitionId = definitionID(TokenAttribution)
 	return connect.NewResponse(response), nil
 }
@@ -1020,7 +1033,7 @@ func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measur
 		sample += row.Count
 	}
 	response.Validity = h.validityForSample(sample)
-	response.Provenance = provenanceWithQuery(filter, definitionFor(ErrorPatterns).SourceTable, sample, query)
+	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(ErrorPatterns).SourceTable, sample, query)
 	response.DefinitionId = definitionID(ErrorPatterns)
 	return connect.NewResponse(response), nil
 }
@@ -1030,7 +1043,7 @@ func (h *Handler) FileRereadRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(FileRereadRate, r), DefinitionId: definitionID(FileRereadRate)}), nil
+	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, FileRereadRate, r), DefinitionId: definitionID(FileRereadRate)}), nil
 }
 
 func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Request[measurepb.FindingRecurrenceRateRequest]) (*connect.Response[measurepb.FindingRecurrenceRateResponse], error) {
@@ -1038,7 +1051,7 @@ func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, Validity: protoValidity(r.Validity), Provenance: metricProvenance(FindingRecurrenceRate, r), DefinitionId: definitionID(FindingRecurrenceRate)}), nil
+	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, FindingRecurrenceRate, r), DefinitionId: definitionID(FindingRecurrenceRate)}), nil
 }
 
 func (h *Handler) ConversationSearchQuality(ctx context.Context, req *connect.Request[measurepb.ConversationSearchQualityRequest]) (*connect.Response[measurepb.ConversationSearchQualityResponse], error) {
@@ -1074,7 +1087,7 @@ func (h *Handler) ConversationSearchQuality(ctx context.Context, req *connect.Re
 		P50LatencyMs: aggregate.P50LatencyMS, P95LatencyMs: aggregate.P95LatencyMS,
 		ErrorQueries: aggregate.Errors, ErrorRate: rate(aggregate.Errors), Truncated: aggregate.Truncated,
 		Validity: protoValidity(validity), DefinitionId: definitionID(ConversationSearchQuality),
-		Provenance: provenanceWithQuery(filter, "conversation_search_telemetry", aggregate.Queries, "SELECT bounded categorical conversation-search aggregates; no query or result content columns exist"),
+		Provenance: h.provenanceWithQuery(ctx, filter, "conversation_search_telemetry", aggregate.Queries, "SELECT bounded categorical conversation-search aggregates; no query or result content columns exist"),
 	}
 	if h.conversationIndexer != nil {
 		if status, statusErr := h.conversationIndexer.StatusSnapshot(ctx); statusErr == nil {

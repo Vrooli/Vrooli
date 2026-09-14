@@ -1,3 +1,4 @@
+// This file reads one run's metered usage for consumers that settle allowances.
 package orchestration
 
 import (

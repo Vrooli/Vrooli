@@ -1,120 +1,56 @@
 import { useMemo } from 'react';
-import { Network } from 'lucide-react';
+import { Activity, ArrowDownToLine, ArrowUpToLine, Network, Radio, Server, ShieldCheck, Wifi } from 'lucide-react';
 
 import { DetailRow } from '../../../shared/components/DetailRow';
-import { getStatusColor } from '../../../shared/utils/colors';
-import type {
-  MetricsResponse,
-  DetailedMetrics,
-  MetricHistory,
-  ConnectionPool,
-} from '../../../types';
+import type { MetricsResponse, DetailedMetrics, MetricHistory, ConnectionPool, MetricValue } from '../../../types';
 import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { formatProtoTimestamp } from '../../../shared/utils/formatters';
 import { buildSingleSeriesData } from '../../../shared/utils/chartData';
 
-export interface NetworkDetailViewProps {
-  metrics: MetricsResponse | null;
-  detailedMetrics: DetailedMetrics | null;
-  metricHistory: MetricHistory | null;
-  onBack: () => void;
-}
+export interface NetworkDetailViewProps { metrics: MetricsResponse | null; detailedMetrics: DetailedMetrics | null; metricHistory: MetricHistory | null; onBack: () => void; }
+
+const metricLabel = (metric: MetricValue | undefined, unit: string): string => {
+  if (!metric?.state?.case) return 'Not yet sampled';
+  if (metric.state.case === 'measured') return `${metric.state.value.toFixed(1)}${unit ? ` ${unit}` : ''}`;
+  if (metric.state.case === 'notYetSampledReason') return `Waiting: ${metric.state.value}`;
+  return `${metric.state.case}: ${String(metric.state.value || 'unavailable')}`;
+};
+
+const capabilityLabel = (metric: MetricValue | undefined): string => {
+  if (!metric?.state?.case) return 'Not yet sampled';
+  if (metric.state.case === 'measured') return 'Measured';
+  if (metric.state.case === 'notYetSampledReason') return `Waiting: ${metric.state.value}`;
+  return `${metric.state.case}: ${String(metric.state.value || 'unavailable')}`;
+};
+
+const sectionHeading = (title: string, description: string) => <div className="network-section-heading"><div><h2>{title}</h2><p>{description}</p></div></div>;
+
+const stateLabel = (state: string): string => state.replaceAll('_', ' ').toUpperCase();
 
 export const NetworkDetailView = ({ metrics, detailedMetrics, metricHistory, onBack }: NetworkDetailViewProps) => {
   const networkData = useMemo(() => buildSingleSeriesData(metricHistory?.network), [metricHistory?.network]);
-  const networkDetails = detailedMetrics?.networkDetails;
-  const totalConnections = metrics?.connections?.state?.case === 'measured'
-    ? metrics.connections.state.value
-    : networkDetails?.tcpStates?.total;
-
-  const subhead = detailedMetrics?.timestamp
-    ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
-    : undefined;
-
-  return (
-    <MetricDetailLayout
-      layoutId="network"
-      title="NETWORK ACTIVITY"
-      icon={<Network size={22} />}
-      headline={totalConnections === undefined ? 'Connections not measured' : `${totalConnections.toLocaleString()} active connections`}
-      subhead={subhead}
-      onBack={onBack}
-    >
-      <DetailSection id="connection-history" title="Connection history"><MetricLineChart
-        status={metricHistory === null ? 'loading' : 'ready'}
-        seriesLabel="connection"
-        className="card"
-        data={networkData.map(point => ({ timestamp: point.timestamp, value: point.value }))}
-        lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-primary)' }]}
-        unit=""
-        yDomain={['auto', 'auto']}
-        valueFormatter={value => `${Math.round(value).toLocaleString()} connections`}
-      /></DetailSection>
-
-      <DetailSection id="network-state" title="Network state"><div className="metric-grid-auto-lg">
-        <div className="card flex-col-gap-sm">
-          <h3 className="section-heading">TCP States</h3>
-          {networkDetails?.tcpStates ? (
-            <div className="detail-grid detail-grid-sm">
-              {Object.entries(networkDetails.tcpStates).filter(([key]) => key !== 'total' && key !== '$typeName' && key !== '$unknown').map(([state, value]) => (
-                <DetailRow key={state} label={state.toUpperCase()} value={Number(value).toLocaleString()} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-muted">
-              Connection state metrics unavailable.
-            </div>
-          )}
-        </div>
-
-        <div className="card flex-col-gap-sm">
-          <h3 className="section-heading">Network Health</h3>
-          {networkDetails ? (
-            <div className="detail-grid detail-grid-md">
-              <DetailRow label="Ingress Bandwidth" value={`${networkDetails.networkStats?.bandwidthInMbps?.toFixed(2) ?? '—'} Mbps`} />
-              <DetailRow label="Egress Bandwidth" value={`${networkDetails.networkStats?.bandwidthOutMbps?.toFixed(2) ?? '—'} Mbps`} />
-              <DetailRow label="Packet Loss" value={`${networkDetails.networkStats?.packetLoss?.toFixed(2) ?? '—'}%`} valueColor="var(--color-warning)" />
-              <DetailRow label="DNS Success" value={`${networkDetails.networkStats?.dnsSuccessRate?.toFixed(1) ?? '—'}%`} valueColor="var(--color-success)" />
-              <DetailRow label="DNS Latency" value={`${networkDetails.networkStats?.dnsLatencyMs?.toFixed(0) ?? '—'} ms`} />
-              <DetailRow label="Port Usage" value={`${networkDetails.portUsage?.used ?? '—'} / ${networkDetails.portUsage?.total ?? '—'}`} />
-            </div>
-          ) : (
-            <div className="text-muted">
-              Network statistics unavailable.
-            </div>
-          )}
-        </div>
-      </div></DetailSection>
-
-      {networkDetails?.connectionPools && networkDetails.connectionPools.length > 0 && (
-        <DetailSection id="connection-pools" title="Connection pools"><div className="card flex-col-gap-md">
-          <div>
-            <h3 className="section-heading">Connection Pools</h3>
-            <div className="card-subtitle">
-              Resource utilization across HTTP/database pools
-            </div>
-          </div>
-          <div className="metric-grid-auto">
-            {networkDetails.connectionPools.map((pool: ConnectionPool) => (
-              <div key={pool.name} className="pool-card">
-                <div className="text-bright mb-sm">{pool.name}</div>
-                <div className="text-dim-xs">
-                  Active: <span data-sm-style="sm-style-bb03b2fa99">{pool.active}</span> · Idle: <span data-sm-style="sm-style-bb03b2fa99">{pool.idle}</span>
-                </div>
-                <div className="text-dim-xs">
-                  Waiting: <span data-sm-style="sm-style-bb03b2fa99">{pool.waiting}</span> / Max {pool.maxSize}
-                </div>
-                <div style={{
-                  marginTop: 'var(--spacing-xs)',
-                  color: getStatusColor(pool.leakRisk ?? '')
-                }}>
-                  Leak risk: {pool.leakRisk}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div></DetailSection>
-      )}
-    </MetricDetailLayout>
-  );
+  const details = detailedMetrics?.networkDetails;
+  const total = metrics?.connections?.state?.case === 'measured' ? metrics.connections.state.value : details?.tcpStates?.total;
+  const tcpStates = details?.tcpStates ? Object.entries(details.tcpStates).filter(([key]) => !['total', '$typeName', '$unknown'].includes(key)).map(([state, value]) => ({ state, value: Number(value) })).filter(item => Number.isFinite(item.value)) : [];
+  const maxTcpState = Math.max(...tcpStates.map(item => item.value), 1);
+  const interfaceCount = details?.interfaces?.length ?? 0;
+  const coverage = details?.ownership?.attributionCoveragePercent;
+  const subhead = detailedMetrics?.timestamp ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}` : undefined;
+  return <MetricDetailLayout layoutId="network" title="NETWORK ACTIVITY" icon={<Network size={22} />} headline={total === undefined ? 'Connections not measured' : `${total.toLocaleString()} active connections`} subhead={subhead} onBack={onBack}>
+    <DetailSection id="network-overview" title="Overview"><div className="network-overview">{[
+      { label: 'Active connections', value: total === undefined ? '—' : total.toLocaleString(), icon: <Activity size={18} />, note: 'Current TCP total' },
+      { label: 'Interfaces', value: interfaceCount ? interfaceCount.toLocaleString() : '—', icon: <Wifi size={18} />, note: 'Native counters' },
+      { label: 'Established rate', value: metricLabel(details?.establishedRate, '/s'), icon: <Radio size={18} />, note: 'Latest sample' },
+      { label: 'Attribution', value: coverage === undefined ? 'On demand' : `${coverage.toFixed(0)}%`, icon: <Server size={18} />, note: coverage === undefined ? 'Diagnostic snapshot' : 'Bounded snapshot' },
+    ].map(stat => <div className="network-stat-card" key={stat.label}><div className="network-stat-icon">{stat.icon}</div><div className="network-stat-label">{stat.label}</div><div className="network-stat-value">{stat.value}</div><div className="network-stat-note">{stat.note}</div></div>)}</div></DetailSection>
+    <DetailSection id="connection-history" title="Connection history">{sectionHeading('Connection history', 'Active TCP connections over the selected history window')}<MetricLineChart status={metricHistory === null ? 'loading' : 'ready'} seriesLabel="connection" className="card" data={networkData.map(point => ({ timestamp: point.timestamp, value: point.value }))} lines={[{ dataKey: 'value', name: 'TCP Connections', color: 'var(--color-primary)' }]} unit="" yDomain={['auto', 'auto']} valueFormatter={value => `${Math.round(value).toLocaleString()} connections`} /></DetailSection>
+    <DetailSection id="network-state" title="Network state">{sectionHeading('Connection state', 'Where the host’s TCP connections are spending time')}<div className="network-state-layout"><div className="card flex-col-gap-sm"><div className="network-state-total">{total === undefined ? '—' : total.toLocaleString()}<span>total connections</span></div>{tcpStates.length ? <div className="network-state-bars">{tcpStates.map(item => <div className="network-state-bar" key={item.state}><div><span>{stateLabel(item.state)}</span><strong>{item.value.toLocaleString()}</strong></div><div className="network-state-track"><span style={{ width: `${Math.max((item.value / maxTcpState) * 100, item.value ? 2 : 0)}%` }} /></div></div>)}</div> : <div className="text-muted">Connection state metrics unavailable.</div>}</div><div className="card flex-col-gap-sm"><h3 className="section-heading">Network health</h3>{details ? <div className="detail-grid detail-grid-md"><DetailRow label="Ingress bandwidth" value={`${details.networkStats?.bandwidthInMbps?.toFixed(2) ?? '—'} Mbps`} /><DetailRow label="Egress bandwidth" value={`${details.networkStats?.bandwidthOutMbps?.toFixed(2) ?? '—'} Mbps`} /><DetailRow label="Packet loss" value="Not measured by host collector" /><DetailRow label="DNS health" value="Owned by network-manager" /><DetailRow label="Port usage" value={`${details.portUsage?.used ?? '—'} / ${details.portUsage?.total ?? '—'}`} /></div> : <div className="text-muted">Network statistics unavailable.</div>}</div></div></DetailSection>
+    <DetailSection id="network-verdict" title="Network verdict">{sectionHeading('Collector verdict', 'A truthful summary of what this host currently proves')}<div className={`network-verdict network-verdict--${details?.verdict?.state ?? 'unavailable'}`}><div className="network-verdict-icon"><ShieldCheck size={20} /></div><div><strong>{details?.verdict?.summary ?? 'Network verdict unavailable'}</strong><div className="text-muted">State: {details?.verdict?.state ?? 'unavailable'}</div>{details?.verdict?.reasons?.length ? <ul>{details.verdict.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul> : null}</div></div></DetailSection>
+    <DetailSection id="connection-rates" title="Connection flow rates">{sectionHeading('Connection flow rates', 'Rates are derived from monotonic host counters where available')}<div className="card detail-grid detail-grid-md"><DetailRow label="Established" value={metricLabel(details?.establishedRate, 'connections/s')} /><DetailRow label="TIME_WAIT" value={metricLabel(details?.timeWaitRate, 'connections/s')} /><DetailRow label="CLOSE_WAIT" value={metricLabel(details?.closeWaitRate, 'connections/s')} /><DetailRow label="Opened" value={metricLabel(details?.connectionsOpenedRate, 'connections/s')} /><DetailRow label="Closed" value={metricLabel(details?.connectionsClosedRate, 'connections/s')} /></div></DetailSection>
+    <DetailSection id="interfaces" title="Interface health">{sectionHeading('Interface health', `${interfaceCount || 'No'} interfaces reported by the native collector`)}<div className="card overflow-auto">{details?.interfaces?.length ? <table className="data-table"><caption className="sr-only">Network interface counters and rates</caption><thead><tr><th scope="col">Interface</th><th scope="col">State</th><th scope="col"><ArrowDownToLine size={14} aria-label="Receive" /></th><th scope="col"><ArrowUpToLine size={14} aria-label="Transmit" /></th><th scope="col">Errors / drops</th></tr></thead><tbody>{details.interfaces.map(iface => <tr key={iface.name}><th scope="row">{iface.name}</th><td><span className={`network-interface-state ${iface.up ? 'is-up' : 'is-down'}`}>{iface.up ? 'up' : 'down'}</span></td><td>{metricLabel(iface.receiveBytesPerSecond, 'bytes/s')}</td><td>{metricLabel(iface.transmitBytesPerSecond, 'bytes/s')}</td><td>{metricLabel(iface.receiveErrors, 'errors')} / {metricLabel(iface.receiveDrops, 'drops')}</td></tr>)}</tbody></table> : <div className="text-muted">Interface counters unavailable.</div>}</div></DetailSection>
+    <DetailSection id="ownership" title="Connection ownership"><div className="card flex-col-gap-sm">{details?.ownership ? <><div className="card-subtitle">{details.ownership.attributedConnections} of {details.ownership.totalConnections} connections attributed ({details.ownership.attributionCoveragePercent.toFixed(1)}%).{details.ownership.truncated ? ' Result truncated.' : ''}</div>{details.ownership.owners?.length ? <div className="detail-grid detail-grid-sm">{details.ownership.owners.map(owner => <DetailRow key={`${owner.pid}-${owner.processName}`} label={`${owner.processName} (PID ${owner.pid})`} value={`${owner.connections.toLocaleString()} connections`} />)}</div> : <div className="text-muted">No owners returned.</div>}{details.ownership.reason && <div className="text-muted">{details.ownership.reason}</div>}</> : <div className="text-muted">Ownership is available from the bounded diagnostic snapshot.</div>}</div></DetailSection>
+    <DetailSection id="topology" title="Endpoint topology"><div className="card detail-grid detail-grid-sm">{details?.endpoints?.length ? details.endpoints.map(endpoint => <DetailRow key={`${endpoint.scope}-${endpoint.direction}-${endpoint.port}`} label={`${endpoint.direction} ${endpoint.scope} :${endpoint.port}`} value={`${endpoint.connections.toLocaleString()} connections`} />) : <div className="text-muted">No endpoint summary is currently available.</div>}</div></DetailSection>
+    <DetailSection id="capabilities" title="Transport capabilities"><div className="card detail-grid detail-grid-md"><DetailRow label="TCP states" value={capabilityLabel(details?.capabilities?.tcpStates)} /><DetailRow label="Interface counters" value={capabilityLabel(details?.capabilities?.interfaceCounters)} /><DetailRow label="Transport counters" value={capabilityLabel(details?.capabilities?.transportCounters)} /><DetailRow label="Ownership" value={capabilityLabel(details?.capabilities?.ownership)} /><DetailRow label="Endpoints" value={capabilityLabel(details?.capabilities?.endpoints)} /></div></DetailSection>
+    {details?.connectionPools && details.connectionPools.length > 0 && <DetailSection id="connection-pools" title="Connection pools"><div className="card flex-col-gap-md"><h3 className="section-heading">Connection Pools</h3><div className="metric-grid-auto">{details.connectionPools.map((pool: ConnectionPool) => <div key={pool.name} className="pool-card"><div className="text-bright mb-sm">{pool.name}</div><div className="text-dim-xs">Active: {pool.active} · Idle: {pool.idle}</div><div className="text-dim-xs">Waiting: {pool.waiting} / Max {pool.maxSize}</div><div className="text-dim-xs">Leak risk: {pool.leakRisk}</div></div>)}</div></div></DetailSection>}
+  </MetricDetailLayout>;
 };

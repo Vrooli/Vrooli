@@ -56,6 +56,48 @@ func TestRehearsalDeclaredBudget(t *testing.T) {
 	}
 }
 
+// TestRehearsalMaintainTickIsBounded frees pages on an already-converted copy
+// and times reconciler passes: each must stay near TickBudget because the
+// adaptive batch keeps every writer hold near BatchHoldTarget.
+func TestRehearsalMaintainTickIsBounded(t *testing.T) {
+	path := os.Getenv("AM_STORAGE_REHEARSAL_DB")
+	if path == "" || strings.Contains(path, "/scenarios/agent-manager/data/") {
+		t.Skip("set AM_STORAGE_REHEARSAL_DB to a converted copy; the live file is refused")
+	}
+	dsn, err := corestorage.SQLiteDSNAt(path, corestorage.SQLiteTuning{PageSizeBytes: 4096})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", dsn+"&_pragma=journal_size_limit(67108864)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	svc, err := New(Options{DB: func() *sql.DB { return db }, Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, "DELETE FROM invocation_read_model_facts"); err != nil {
+		t.Fatal(err)
+	}
+	freed, _ := svc.Stats(ctx)
+	logJSON(t, "freed", freed)
+	for pass := 1; pass <= 3; pass++ {
+		before, _ := svc.Stats(ctx)
+		start := time.Now()
+		if err := svc.Maintain(ctx); err != nil {
+			t.Fatal(err)
+		}
+		elapsed := time.Since(start)
+		after, _ := svc.Stats(ctx)
+		t.Logf("pass %d returned %d bytes in %s", pass, before.FreeBytes-after.FreeBytes, elapsed)
+		if elapsed > svc.opts.Policy.TickBudget+2*time.Second {
+			t.Fatalf("pass %d took %s against a %s budget", pass, elapsed, svc.opts.Policy.TickBudget)
+		}
+	}
+}
+
 func TestRehearsal(t *testing.T) {
 	path := os.Getenv("AM_STORAGE_REHEARSAL_DB")
 	if path == "" || strings.Contains(path, "/scenarios/agent-manager/data/") {

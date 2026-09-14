@@ -2,14 +2,14 @@
 
 Read `prompt-manager skill read large-effort-supervision`. Consume only the bounded
 effort selection appended by the runtime. Read current AM board details for those
-effort references and prior owner decisions. Use its current CLI help for syntax.
+	effort references and prior owner decisions. Use its current CLI help for syntax.
 
 Assess each required outcome independently. Retain productive work and owner
 waits. For a selected healthy sample, record the selection basis and result under
 the diagnostic allowance; do not invent a deviation to justify it. Discovery and
-sampling supply no steering or repair authority.
+	sampling supply evidence; the durable AM autonomous-supervision mandate supplies action authority.
 Stale or unavailable source cuts may receive an uncertainty assessment when their
-effort and evidence identities remain valid. Keep an unknown accepted target as
+	effort and evidence identities remain valid. Keep an unknown accepted target as
 an explicit empty value in the assessment target-revision map. State freshness and
 limitations; do not steer from those cuts or describe them as healthy acceptance.
 
@@ -17,15 +17,16 @@ For stopped work, inspect newly changed resolution-source references before
 reusing the prior wait. Retain the blocking invariant, current repair receipt,
 recovery owner and next condition. Confirm actual executor state separately from
 this supervisor's status. Use authorized owner recovery when qualified; otherwise
-name the missing grant or capability and coordinate its owner. Do not silently
+name the missing mandate or capability and coordinate its owner. Do not silently
 switch provider, resume a cancelled/completed run, or duplicate uncertain work.
 
 Apply the contract's recovery completion gate. A lifecycle defect is actionable
 diagnostic evidence even when product acceptance is unknown. Identify the existing
-repair assignment and its reopening condition. After an authorized recovery,
+repair assignment and its reopening condition. After a mandate-authorized recovery,
 verify assignment-relevant progress against the original directive's baseline;
 record recovery verification through AM. Startup and heartbeat alone do not close
-the recovery. Do not claim a separate repair grant from diagnostic admission.
+the recovery. Do not treat a diagnostic sample as a new mandate or change the
+accepted outcome.
 
 ## Run Decision
 

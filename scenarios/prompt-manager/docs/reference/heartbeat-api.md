@@ -111,6 +111,29 @@ Manual trigger endpoints return `423 Locked` when blocked by heartbeat control:
 
 ## Heartbeat Configuration
 
+### Ordinary wake admission
+
+Create and update requests may include `wakeAdmission` for ordinary (non-finite
+leader, non-standing-supervision) heartbeats:
+
+```json
+{
+  "wakeAdmission": {
+    "mode": "on-change",
+    "changeSources": ["team", "member", "inbox", "corpus"]
+  }
+}
+```
+
+`mode=on-change` requires at least one source. Supported sources are `team`,
+`member`, `inbox`, and `corpus`; their bounded identities are compared between
+scheduled ticks. The first tick admits, unchanged identities are skipped, and a
+changed identity admits. Omitted `wakeAdmission` and `mode=always` preserve
+legacy cadence. Runtime admission state is not configuration state and is not
+returned as a configuration revision. Manual triggers bypass scheduled wake
+admission. Evidence and baseline read failures admit work rather than silently
+suppressing it.
+
 ### Standing supervision policy
 
 The existing generated HeartbeatService create/update operations accept an

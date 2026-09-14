@@ -63,6 +63,22 @@ Initial floors are:
 | Owned projection bytes | SQLite file 6,422,462,464 bytes | Below the 6 GiB alarm (6,442,450,944 bytes) by 19,988,480 bytes; close enough that retention remains operationally important. |
 | Comprehensive Test Genie | Agent Manager `20260905-054133-a6dcfb61`: 20/30 phases; performance and provider-conformance passed. | Broad inherited contracts/unit/storage/tidiness/security/measures/proto/monetization/event-capture debt remains truthful. The run produced the requirements-sync snapshot that earns `REQ-P0-015` through `REQ-P0-026`; requirements validation now passes at L3. |
 
+## Projection slimming rehearsal — 2026-09-14
+
+Rehearsed on a `VACUUM INTO` copy of the live database (986,209 catalog
+documents), not on the live file.
+
+| Evidence | Observation | Disposition |
+|---|---|---|
+| Projection bytes (dbstat) | 8.240 GB before (catalog 1.67, staging 3.56, FTS content copy 0.88, FTS index 0.35, nine removed indexes ~1.2) → 2.388 GB after; all live btrees 10.53 → 4.67 GB | Staging drained, FTS content copy and per-filter/content-hash indexes gone. Unchanged after a full rebuild (steady state). |
+| Startup schema apply on the legacy file | 17 ms; declared-column check accepted it | New objects are created beside the legacy ones; no boot failure, no data mutation. |
+| Legacy upgrade (owner loop) | Copy 2 min 7 s in 987 batches, longest writer hold 257 ms; drops 14.7 s, longest single statement 3.6 s (legacy catalog table) against a 10 s busy timeout | Serving generation kept; no full rebuild; Qdrant vectors keep their document ids. |
+| Staging drain | 3.56 GB of settled staged rows in 4 min 51 s, longest batch 575 ms | Bounded; a 5-minute prune budget resumes on the next call. |
+| Lexical parity | Six live terms: identical match counts and identical top-25 bm25 order read through each index's own document id | External content changes storage only, not ranking. |
+| VACUUM rowid hazard, measured | In the `VACUUM INTO` copy, 585,642 of 986,209 legacy FTS rows joined to the wrong catalog document and 383,762 to none | The legacy rowid join does not survive whole-file compaction; the explicit catalog id does (`TestCatalogFTSSurvivesVacuum`). |
+| Full rebuild on the new schema | 9 min 24 s for 986,209 documents; 0 staged rows after activation | Previously 25-38 min per live generation. |
+| Query latency (single sample) | relevance + project 105 ms; relevance + harness 2 ms; newest 3 ms; newest + harness 127 ms; newest + project + 72 h 3 ms; newest + rarest model 1.2 s | The rare-filter browse without a lexical query walks the time index; telemetry showed no model-filter browsing. |
+
 ## Recovery matrix
 
 | Injected condition | Required behavior | Executable evidence |

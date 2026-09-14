@@ -43,6 +43,27 @@ type WorkspaceSandboxProvider struct {
 	streamClient *http.Client
 }
 
+// IncarnationID returns the unique identity of the currently running
+// workspace-sandbox process. An empty value means an older provider does not
+// expose the identity contract; callers must preserve that uncertainty.
+func (p *WorkspaceSandboxProvider) IncarnationID(ctx context.Context) (string, error) {
+	resp, err := p.doRequest(ctx, http.MethodGet, "/api/v1/identity", nil)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("identity: HTTP %d", resp.StatusCode)
+	}
+	var result struct {
+		IncarnationID string `json:"incarnationId"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("identity: decode: %w", err)
+	}
+	return strings.TrimSpace(result.IncarnationID), nil
+}
+
 // NewWorkspaceSandboxProvider creates a new workspace-sandbox provider.
 func NewWorkspaceSandboxProvider(baseURL string) *WorkspaceSandboxProvider {
 	return &WorkspaceSandboxProvider{
@@ -150,6 +171,36 @@ func (p *WorkspaceSandboxProvider) Get(ctx context.Context, id uuid.UUID) (*Sand
 	}
 
 	return result.toSandbox(), nil
+}
+
+// ListProcesses returns workspace-sandbox's tracked process observations. It
+// is intentionally a read-only reconciliation path: callers must not infer a
+// terminal result when the provider cannot return the process identity.
+func (p *WorkspaceSandboxProvider) ListProcesses(ctx context.Context, id uuid.UUID) ([]ProcessSnapshot, error) {
+	resp, err := p.doRequest(ctx, "GET", fmt.Sprintf("/api/v1/sandboxes/%s/processes", id), nil)
+	if err != nil {
+		return nil, &domain.SandboxError{SandboxID: &id, Operation: "list_processes", Cause: err, IsTransient: true, CanRetry: true}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("list_processes", &id, resp)
+	}
+	var wire struct {
+		Processes []struct {
+			PID       int   `json:"pid"`
+			ExitCode  *int  `json:"exitCode,omitempty"`
+			Signal    *int  `json:"signal,omitempty"`
+			OOMKilled *bool `json:"oomKilled,omitempty"`
+		} `json:"processes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wire); err != nil {
+		return nil, &domain.SandboxError{SandboxID: &id, Operation: "list_processes", Cause: err}
+	}
+	result := make([]ProcessSnapshot, 0, len(wire.Processes))
+	for _, process := range wire.Processes {
+		result = append(result, ProcessSnapshot{PID: process.PID, ExitCode: process.ExitCode, Signal: process.Signal, OOMKilled: process.OOMKilled})
+	}
+	return result, nil
 }
 
 // Delete removes a sandbox and its resources.

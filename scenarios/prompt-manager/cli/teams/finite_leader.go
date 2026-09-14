@@ -110,8 +110,9 @@ func cmdHeartbeatRetireEffort(ctx appctx.Context, args []string) error {
 	return printFiniteLeaderBinding(result, *jsonOut)
 }
 
-// finiteEffortTransitionInput is the bounded operator input for a completion
-// or reopen. It carries no scheduling or configuration changes.
+// finiteEffortTransitionInput is the bounded operator input for a completion,
+// reopen, or terminal-run restart. It carries no scheduling or configuration
+// changes.
 type finiteEffortTransitionInput struct {
 	Revision    string `json:"revision"`
 	EvidenceRef string `json:"evidenceRef"`
@@ -123,6 +124,10 @@ func cmdHeartbeatCompleteEffort(ctx appctx.Context, args []string) error {
 
 func cmdHeartbeatReopenEffort(ctx appctx.Context, args []string) error {
 	return cmdFiniteEffortTransition(ctx, args, "reopen")
+}
+
+func cmdHeartbeatRestartEffort(ctx appctx.Context, args []string) error {
+	return cmdFiniteEffortTransition(ctx, args, "restart")
 }
 
 // cmdFiniteEffortTransition records an explicit authorized lifecycle operation.

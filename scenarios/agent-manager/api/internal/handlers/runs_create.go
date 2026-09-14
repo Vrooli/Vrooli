@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -36,9 +37,6 @@ func bearerToken(value string) string {
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
-		return
-	}
 	if r.Header.Get("Authorization") != "" && bearerToken(r.Header.Get("Authorization")) == "" {
 		writeSimpleError(w, r, "authorization", "a valid Bearer authorization header is required")
 		return
@@ -52,6 +50,25 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	var protoReq apipb.CreateRunRequest
 	if err := protoconv.UnmarshalJSON(body, &protoReq); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body: "+err.Error())
+		return
+	}
+
+	// Ordinary run identities cannot create arbitrary runs. A narrowly scoped
+	// exception allows a verified parent to create a child only when the request
+	// names that exact parent. The orchestration admission path then applies the
+	// persisted dependent-delegation qualification gate before reserving the
+	// child. This keeps child lineage useful without turning a run identity into
+	// general lifecycle authority.
+	delegatedChild := false
+	identityToken := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+	if identityToken != "" && protoReq.ParentRunId != nil {
+		verified, verifyErr := h.svc.VerifyIdentityToken(r.Context(), identityToken)
+		if verifyErr == nil && verified != nil && verified.Valid && verified.Claims != nil {
+			parentID, parseErr := uuid.Parse(protoReq.GetParentRunId())
+			delegatedChild = parseErr == nil && parentID == verified.Claims.RunID
+		}
+	}
+	if !delegatedChild && h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
 		return
 	}
 	if !h.validateProto(w, r, &protoReq) {

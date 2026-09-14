@@ -16,6 +16,7 @@ import (
 	measurelib "github.com/vrooli/measures-go"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	sharedmeasurepb "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	_ "modernc.org/sqlite"
 )
 
@@ -33,6 +34,7 @@ type fakeStore struct {
 	errorPatterns    []invocationreadmodel.ErrorPattern
 	findingMetrics   invocationreadmodel.FindingMetrics
 	filter           invocationreadmodel.Filter
+	latestProjection time.Time
 }
 
 func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
@@ -49,6 +51,24 @@ func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
 func (s *fakeStore) RunMetrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	s.filter = filter
 	return s.runMetrics, nil
+}
+
+func (s *fakeStore) LatestProjection(context.Context) (time.Time, error) {
+	return s.latestProjection, nil
+}
+
+func TestMeasureProvenanceReportsProjectionFreshness(t *testing.T) {
+	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
+	store := &fakeStore{latestProjection: now.Add(-time.Hour)}
+	handler := NewHandler(store, func() time.Time { return now })
+	response, err := handler.RunVolume(context.Background(), connect.NewRequest(&measurepb.RunVolumeRequest{Window: &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Custom{Custom: &sharedmeasurepb.CustomRange{From: timestamppb.New(now.Add(-24 * time.Hour)), To: timestamppb.New(now)}}}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	provenance := response.Msg.GetProvenance()
+	if provenance.GetProjectionAt() != "2026-07-29T11:00:00Z" || !provenance.GetProjectionStale() || provenance.GetProjectionStaleReason() != "projection_before_window_end" {
+		t.Fatalf("provenance freshness = %+v", provenance)
+	}
 }
 
 func (s *fakeStore) RunDurationStatistics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {

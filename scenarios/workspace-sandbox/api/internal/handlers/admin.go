@@ -15,6 +15,15 @@ import (
 	"workspace-sandbox/internal/sandbox"
 )
 
+// Identity returns the process incarnation used for cross-service
+// correlation. It changes only when this API process starts.
+func (h *Handlers) Identity(w http.ResponseWriter, r *http.Request) {
+	h.JSONSuccess(w, map[string]string{
+		"provider":      "workspace-sandbox",
+		"incarnationId": h.ProviderIncarnationID,
+	})
+}
+
 // APIInfo handles requests to the root and /api paths with helpful API documentation.
 // This improves discoverability for developers who don't know the versioned API path.
 func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +35,7 @@ func (h *Handlers) APIInfo(w http.ResponseWriter, r *http.Request) {
 		"basePath":    "/api/v1",
 		"endpoints": map[string]string{
 			"health":    "/api/v1/health",
+			"identity":  "/api/v1/identity",
 			"sandboxes": "/api/v1/sandboxes",
 			"driver":    "/api/v1/driver/info",
 			"stats":     "/api/v1/stats",

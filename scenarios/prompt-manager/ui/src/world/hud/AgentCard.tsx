@@ -72,7 +72,7 @@ export function AgentCard({ actor, teamName, now, actions, following, onFollowCh
       <header className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="truncate font-semibold text-foreground">{actor.name}</h3>
-          <p className="truncate text-xs text-muted-foreground">{teamName ?? 'No team'}</p>
+          <p className="truncate text-xs text-muted-foreground">{teamName ?? 'No team'}{actor.memberType === 'contractor' ? ' · Contractor' : ''}</p>
         </div>
         <button type="button" onClick={onClose} aria-label="Close agent card" className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" data-testid={selectors.world.hud.agentCardClose}>
           ×

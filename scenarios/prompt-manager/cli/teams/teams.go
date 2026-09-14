@@ -35,6 +35,7 @@ type Team struct {
 	DisplayName       string                          `json:"displayName"`
 	Mission           string                          `json:"mission,omitempty"`
 	Enabled           bool                            `json:"enabled"`
+	Archived          bool                            `json:"archived"`
 	Runtime           Runtime                         `json:"runtime"`
 	Coordination      Coordination                    `json:"coordination"`
 	Execution         Execution                       `json:"execution"`
@@ -251,6 +252,7 @@ type UpdateTeamRequest struct {
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`
 	Enabled           *bool                           `json:"enabled,omitempty"`
+	Archived          *bool                           `json:"archived,omitempty"`
 	Runtime           *Runtime                        `json:"runtime,omitempty"`
 	Coordination      *Coordination                   `json:"coordination,omitempty"`
 	Execution         *Execution                      `json:"execution,omitempty"`
@@ -613,6 +615,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatCompleteEffort(ctx, subArgs)
 	case "heartbeat-reopen-effort":
 		return cmdHeartbeatReopenEffort(ctx, subArgs)
+	case "heartbeat-restart-effort":
+		return cmdHeartbeatRestartEffort(ctx, subArgs)
 	case "heartbeat-disable":
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
@@ -719,6 +723,7 @@ Heartbeat Commands:
   heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
   heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
   heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
+  heartbeat-restart-effort <team-id> <agent-id> Recover a terminal dispatched run from --request-file
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
@@ -976,6 +981,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
 	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
+	archived := fs.String("archived", "", "Set team archived state (true|false); archived teams cannot execute")
 	configFlags := registerTeamConfigFlags(fs, false)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -983,7 +989,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
+		return fmt.Errorf("usage: team update <id> [--purpose=...] [--lifetime=...] [--effort-refs=...] [--name=...] [--mission=...] [--enabled=true|false] [--archived=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -1014,6 +1020,13 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 			return fmt.Errorf("invalid --enabled value %q: %w", *enabled, err)
 		}
 		req.Enabled = &parsed
+	}
+	if *archived != "" {
+		parsed, err := strconv.ParseBool(*archived)
+		if err != nil {
+			return fmt.Errorf("invalid --archived value %q: %w", *archived, err)
+		}
+		req.Archived = &parsed
 	}
 
 	if strings.TrimSpace(*configFlags.runtimeMode) != "" ||
@@ -1537,25 +1550,31 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
-	FiniteLeader            *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	FiniteLeaderState       json.RawMessage          `json:"finiteLeaderState,omitempty"`
-	FiniteLeaderError       string                   `json:"finiteLeaderError,omitempty"`
-	Supervision             *teamconfig.Supervision  `json:"supervision,omitempty"`
-	SupervisionState        json.RawMessage          `json:"supervisionState,omitempty"`
-	SupervisionError        string                   `json:"supervisionError,omitempty"`
-	TeamID                  string                   `json:"teamId"`
-	AgentID                 string                   `json:"agentId"`
-	Enabled                 bool                     `json:"enabled"`
-	Schedule                string                   `json:"schedule"`
-	ProfileKey              string                   `json:"profileKey,omitempty"`
-	TimeoutSeconds          int                      `json:"timeoutSeconds,omitempty"`
-	ConsecutiveFailures     int                      `json:"consecutiveFailures"`
-	LifecycleState          string                   `json:"lifecycleState"`
-	LastExecution           *HeartbeatExecResult     `json:"lastExecution,omitempty"`
-	LastSuccessfulExecution *HeartbeatExecResult     `json:"lastSuccessfulExecution,omitempty"`
-	NextExecution           string                   `json:"nextExecution,omitempty"`
-	CreatedAt               string                   `json:"createdAt"`
-	UpdatedAt               string                   `json:"updatedAt"`
+	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	FiniteLeaderState       json.RawMessage           `json:"finiteLeaderState,omitempty"`
+	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
+	Supervision             *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	SupervisionState        json.RawMessage           `json:"supervisionState,omitempty"`
+	SupervisionError        string                    `json:"supervisionError,omitempty"`
+	TeamID                  string                    `json:"teamId"`
+	AgentID                 string                    `json:"agentId"`
+	Enabled                 bool                      `json:"enabled"`
+	TeamEnabled             bool                      `json:"teamEnabled"`
+	EffectiveState          string                    `json:"effectiveState"`
+	EffectiveReason         string                    `json:"effectiveReason,omitempty"`
+	ControlState            string                    `json:"controlState,omitempty"`
+	Scheduled               bool                      `json:"scheduled"`
+	Schedule                string                    `json:"schedule"`
+	ProfileKey              string                    `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                       `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                       `json:"consecutiveFailures"`
+	LifecycleState          string                    `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResult      `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResult      `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string                    `json:"nextExecution,omitempty"`
+	CreatedAt               string                    `json:"createdAt"`
+	UpdatedAt               string                    `json:"updatedAt"`
 }
 
 type HeartbeatFleetHealth struct {
@@ -1584,22 +1603,24 @@ type HeartbeatExecResult struct {
 
 // CreateHeartbeatRequest is the request for creating a heartbeat
 type CreateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
-	Schedule       string                   `json:"schedule"`
-	ProfileKey     string                   `json:"profileKey,omitempty"`
-	Enabled        *bool                    `json:"enabled,omitempty"`
-	TimeoutSeconds int                      `json:"timeoutSeconds,omitempty"`
+	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	Schedule       string                    `json:"schedule"`
+	ProfileKey     string                    `json:"profileKey,omitempty"`
+	Enabled        *bool                     `json:"enabled,omitempty"`
+	TimeoutSeconds int                       `json:"timeoutSeconds,omitempty"`
 }
 
 // UpdateHeartbeatRequest is the request for updating a heartbeat
 type UpdateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	Supervision    *teamconfig.Supervision  `json:"supervision,omitempty"`
-	Schedule       *string                  `json:"schedule,omitempty"`
-	ProfileKey     *string                  `json:"profileKey,omitempty"`
-	Enabled        *bool                    `json:"enabled,omitempty"`
-	TimeoutSeconds *int                     `json:"timeoutSeconds,omitempty"`
+	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	Supervision    *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	Schedule       *string                   `json:"schedule,omitempty"`
+	ProfileKey     *string                   `json:"profileKey,omitempty"`
+	Enabled        *bool                     `json:"enabled,omitempty"`
+	TimeoutSeconds *int                      `json:"timeoutSeconds,omitempty"`
 
 	FiniteEffortTransition *FiniteEffortTransition `json:"finiteEffortTransition,omitempty"`
 }
@@ -1990,15 +2011,15 @@ func cmdHeartbeatList(ctx appctx.Context, args []string) error {
 
 	fmt.Println("Heartbeat Configurations:")
 	for _, c := range configs {
-		status := "disabled"
-		if c.Enabled {
-			status = "enabled"
+		status := c.EffectiveState
+		if status == "" {
+			status = map[bool]string{true: "configured", false: "disabled"}[c.Enabled]
 		}
 		lastRun := "never"
 		if c.LastExecution != nil {
 			lastRun = c.LastExecution.Status + " at " + c.LastExecution.StartedAt
 		}
-		fmt.Printf("  %s: %s [%s] - lifecycle: %s, failures: %d, last: %s\n", c.AgentID, c.Schedule, status, c.LifecycleState, c.ConsecutiveFailures, lastRun)
+		fmt.Printf("  %s: %s [%s] - config: %v, scheduler: %v, lifecycle: %s, failures: %d, last: %s\n", c.AgentID, c.Schedule, status, c.Enabled, c.Scheduled, c.LifecycleState, c.ConsecutiveFailures, lastRun)
 	}
 	return nil
 }
@@ -2152,7 +2173,13 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 	fmt.Printf("Team: %s\n", config.TeamID)
 	fmt.Printf("Agent: %s\n", config.AgentID)
 	fmt.Printf("Schedule: %s\n", config.Schedule)
-	fmt.Printf("Enabled: %v\n", config.Enabled)
+	fmt.Printf("Configuration: %s\n", map[bool]string{true: "enabled", false: "disabled"}[config.Enabled])
+	fmt.Printf("Team execution: %s\n", map[bool]string{true: "enabled", false: "disabled"}[config.TeamEnabled])
+	fmt.Printf("Effective execution: %s\n", config.EffectiveState)
+	if config.EffectiveReason != "" {
+		fmt.Printf("Execution reason: %s\n", config.EffectiveReason)
+	}
+	fmt.Printf("Scheduler entry: %v\n", config.Scheduled)
 	if config.FiniteLeader != nil {
 		if err := printFiniteLeaderBinding(config, false); err != nil {
 			return err
@@ -2169,6 +2196,13 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 		if config.SupervisionError != "" {
 			fmt.Printf("Supervision unavailable: %s\n", config.SupervisionError)
 		}
+	}
+	if config.WakeAdmission != nil {
+		fmt.Printf("Wake admission: %s", config.WakeAdmission.Mode)
+		if len(config.WakeAdmission.ChangeSources) > 0 {
+			fmt.Printf(" (%s)", strings.Join(config.WakeAdmission.ChangeSources, ", "))
+		}
+		fmt.Println()
 	}
 	if config.ProfileKey != "" {
 		fmt.Printf("Profile Key: %s\n", config.ProfileKey)
@@ -2208,6 +2242,8 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	minWake := fs.Int("min-wake-interval-seconds", 300, "Minimum interval between supervisor inference wakes")
 	sampleInterval := fs.Int("healthy-sample-interval-seconds", 0, "Per-effort healthy sampling interval; zero disables")
 	maxSamples := fs.Int("max-healthy-samples-per-wake", 0, "Maximum independent healthy samples in a wake")
+	wakeMode := fs.String("wake-admission", "always", "Ordinary heartbeat admission: always or on-change")
+	wakeSources := fs.String("wake-sources", "", "Comma-separated on-change sources: team,member,inbox,corpus")
 	diagnosticWakes := fs.Int("diagnostic-wakes-per-window", 4, "Maximum supervisor inference attempts per allowance window")
 	diagnosticWindow := fs.Int("diagnostic-window-seconds", 3600, "Diagnostic allowance window in seconds")
 	accountingRef := fs.String("accounting-ref", "", "Standing service allowance reference for shared/idle attribution")
@@ -2233,13 +2269,28 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	}
 	teamID := fs.Arg(0)
 	agentID := fs.Arg(1)
+	var wakeAdmission *teamconfig.WakeAdmission
+	if *wakeMode != teamconfig.WakeAdmissionAlways || strings.TrimSpace(*wakeSources) != "" {
+		var sources []string
+		for _, source := range strings.Split(*wakeSources, ",") {
+			if trimmed := strings.TrimSpace(source); trimmed != "" {
+				sources = append(sources, trimmed)
+			}
+		}
+		wakeAdmission = &teamconfig.WakeAdmission{Mode: *wakeMode, ChangeSources: sources}
+		if err := wakeAdmission.Validate(); err != nil {
+			return err
+		}
+	}
 	var supervisionConfig *teamconfig.Supervision
 	if !*supervision && (*dispatchEffort != "" || *dispatchAuthorization != "") {
 		return fmt.Errorf("dispatcher binding requires --supervision")
 	}
 	if *supervision {
-		supervisionConfig = &teamconfig.Supervision{DiscoveryLimit: *discoveryLimit, MaxEffortsPerWake: *maxEfforts,
-			MinWakeIntervalSeconds: *minWake, HealthySampleIntervalSeconds: *sampleInterval, MaxHealthySamplesPerWake: *maxSamples}
+		supervisionConfig = &teamconfig.Supervision{
+			DiscoveryLimit: *discoveryLimit, MaxEffortsPerWake: *maxEfforts,
+			MinWakeIntervalSeconds: *minWake, HealthySampleIntervalSeconds: *sampleInterval, MaxHealthySamplesPerWake: *maxSamples,
+		}
 		supervisionConfig.DiagnosticAllowance = teamconfig.DiagnosticAllowance{MaxWakesPerWindow: *diagnosticWakes, WindowSeconds: *diagnosticWindow, AccountingRef: *accountingRef}
 		if *dispatchEffort != "" || *dispatchAuthorization != "" {
 			supervisionConfig.DispatchAuthorization = &teamconfig.SupervisorDispatchBinding{EffortRef: *dispatchEffort, AuthorizationID: *dispatchAuthorization}
@@ -2258,6 +2309,7 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 		// Create new config
 		req := CreateHeartbeatRequest{
 			Supervision:    supervisionConfig,
+			WakeAdmission:  wakeAdmission,
 			Schedule:       *schedule,
 			ProfileKey:     *profileKey,
 			Enabled:        &enabled,
@@ -2276,8 +2328,9 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 	} else {
 		// Update existing config
 		req := UpdateHeartbeatRequest{
-			Supervision: supervisionConfig,
-			Enabled:     &enabled,
+			Supervision:   supervisionConfig,
+			WakeAdmission: wakeAdmission,
+			Enabled:       &enabled,
 		}
 		if *schedule != "0 */6 * * *" {
 			req.Schedule = schedule

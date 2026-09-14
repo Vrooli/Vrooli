@@ -61,11 +61,12 @@ func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]inte
 
 	// Schema-compliant health response
 	healthResponse := map[string]interface{}{
-		"status":    overallStatus,
-		"service":   h.config.Server.ServiceName,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"readiness": true, // Service is ready to accept requests
-		"version":   h.config.Server.Version,
+		"status":         overallStatus,
+		"service":        h.config.Server.ServiceName,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"readiness":      true, // Service is ready to accept requests
+		"version":        h.config.Server.Version,
+		"build_identity": strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY")),
 		"processor_active": func() bool {
 			if h.settingsMgr == nil {
 				return true

@@ -77,6 +77,7 @@ export function TeamListPanel({
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
   const [purposeFilter, setPurposeFilter] = useState('')
   const [lifetimeFilter, setLifetimeFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
   const [preset, setPreset] = useState<keyof typeof teamPresets>('custom')
   const [createError, setCreateError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -89,8 +90,9 @@ export function TeamListPanel({
       return `${team.displayName} ${team.id} ${purpose} ${lifetime}`.toLowerCase().includes(lower)
         && (!purposeFilter || (team.purpose || 'unspecified') === purposeFilter)
         && (!lifetimeFilter || (team.lifetime || 'unspecified') === lifetimeFilter)
+        && (!stateFilter || (stateFilter === 'archived' ? team.archived : stateFilter === 'enabled' ? team.enabled && !team.archived : !team.enabled && !team.archived))
     })
-  }, [teams, searchQuery, purposeFilter, lifetimeFilter])
+  }, [teams, searchQuery, purposeFilter, lifetimeFilter, stateFilter])
   const [importModalOpen, setImportModalOpen] = useState(false)
 
   const handleCreateTeam = async () => {
@@ -202,6 +204,12 @@ export function TeamListPanel({
             {Object.entries(teamLifetimeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             <option value="unspecified">Unspecified</option>
           </select>
+          <select aria-label="Filter teams by state" value={stateFilter} onChange={event => setStateFilter(event.target.value)} className="col-span-2 min-w-0 rounded border border-border bg-background p-1 text-xs">
+            <option value="">All states</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+            <option value="archived">Archived</option>
+          </select>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto py-1">
@@ -229,8 +237,8 @@ export function TeamListPanel({
               if (!isSelectMode) onSelectTeam(team.id)
             }}
           >
-            <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', team.enabled ? 'bg-primary/20' : 'bg-muted')}><Users className={cn('h-4 w-4', team.enabled ? 'text-primary' : 'text-muted-foreground')} /></div>
-            <div className="min-w-0 flex-1 space-y-1"><p className="truncate text-sm font-medium text-foreground">{team.displayName}</p><TeamPurposeBadges team={team} /><div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span><span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">{team.enabled ? 'Enabled' : 'Disabled'}</span>{renderHeartbeatChip(team.id)}</div></div>
+            <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', team.archived ? 'bg-slate-500/20' : team.enabled ? 'bg-primary/20' : 'bg-muted')}><Users className={cn('h-4 w-4', team.archived ? 'text-slate-400' : team.enabled ? 'text-primary' : 'text-muted-foreground')} /></div>
+            <div className="min-w-0 flex-1 space-y-1"><p className="truncate text-sm font-medium text-foreground">{team.displayName}</p><TeamPurposeBadges team={team} /><div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span><span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">{team.archived ? 'Archived' : team.enabled ? 'Enabled' : 'Disabled'}</span>{renderHeartbeatChip(team.id)}</div></div>
           </button>}
           className="h-full w-full"
         />

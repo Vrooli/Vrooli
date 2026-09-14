@@ -248,6 +248,8 @@ type Team struct {
 	Mission           string                          `json:"mission,omitempty"`
 	Enabled           bool                            `json:"enabled"`
 	EnabledSet        bool                            `json:"-"`
+	Archived          bool                            `json:"archived"`
+	ArchivedSet       bool                            `json:"-"`
 	Runtime           teamconfig.Runtime              `json:"runtime"`
 	Coordination      teamconfig.Coordination         `json:"coordination"`
 	Execution         teamconfig.Execution            `json:"execution"`
@@ -663,22 +665,36 @@ type TeamsIndexEntry struct {
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
 	BaseEntity
-	FiniteLeader        *teamconfig.FiniteLeader `json:"finiteLeader,omitempty"`
-	Supervision         *teamconfig.Supervision  `json:"supervision,omitempty"`
-	TeamID              string                   `json:"teamId"`
-	AgentID             string                   `json:"agentId"`
-	Enabled             bool                     `json:"enabled"`
-	Schedule            string                   `json:"schedule"`                 // Cron expression
-	ProfileKey          string                   `json:"profileKey,omitempty"`     // agent-manager profile key
-	TimeoutSeconds      int                      `json:"timeoutSeconds,omitempty"` // 0 = use default
-	ConsecutiveFailures int                      `json:"consecutiveFailures"`
-	LifecycleState      string                   `json:"lifecycleState"`
+	FiniteLeader        *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
+	Supervision         *teamconfig.Supervision   `json:"supervision,omitempty"`
+	WakeAdmission       *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
+	TeamID              string                    `json:"teamId"`
+	AgentID             string                    `json:"agentId"`
+	Enabled             bool                      `json:"enabled"`
+	Schedule            string                    `json:"schedule"`                 // Cron expression
+	ProfileKey          string                    `json:"profileKey,omitempty"`     // agent-manager profile key
+	TimeoutSeconds      int                       `json:"timeoutSeconds,omitempty"` // 0 = use default
+	ConsecutiveFailures int                       `json:"consecutiveFailures"`
+	LifecycleState      string                    `json:"lifecycleState"`
 	// LastManualTriggerAt bounds repeated operator/API triggers to one run per
 	// schedule window. Scheduled executions do not update this marker.
 	LastManualTriggerAt     string               `json:"lastManualTriggerAt,omitempty"`
 	LastExecution           *HeartbeatExecResult `json:"lastExecution,omitempty"`
 	LastSuccessfulExecution *HeartbeatExecResult `json:"lastSuccessfulExecution,omitempty"`
 	Timestamps
+}
+
+// HeartbeatAdmissionState is runtime evidence for ordinary wake admission.
+// It is kept separate from heartbeat configuration so a quiet tick does not
+// mutate the configuration revision or create a configuration-write storm.
+type HeartbeatAdmissionState struct {
+	Version          int    `json:"version"`
+	LastSignal       string `json:"lastSignal,omitempty"`
+	LastDecision     string `json:"lastDecision,omitempty"`
+	LastReason       string `json:"lastReason,omitempty"`
+	LastCheckedAt    string `json:"lastCheckedAt,omitempty"`
+	LastAdmittedAt   string `json:"lastAdmittedAt,omitempty"`
+	LastAdmissionKey string `json:"lastAdmissionKey,omitempty"`
 }
 
 // HeartbeatExecResult represents the result of a heartbeat execution

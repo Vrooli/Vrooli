@@ -12,7 +12,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, LayoutGrid, Code } from 'lucide-react'
+import { Menu, X, Users, ChevronDown, ChevronUp, GripVertical, Folder, Power, MoreHorizontal, Trash2, PanelRightOpen, Eye, LayoutDashboard, Activity, UserPlus, LayoutGrid, Code, Archive } from 'lucide-react'
 import { TabList, TabTrigger } from '../shared/TabTrigger'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
@@ -38,6 +38,7 @@ import { MemberPickerModal } from './teamTabs/MembersTab'
 import { TeamDashboardTab, TeamFilesTab, TeamPromptMatrixTab } from './teamTabs'
 import { TeamActivityTab } from './teamTabs/TeamActivityTab'
 import { formatRelativePastTime } from '@/lib/timeUtils'
+import { useTeamContractors } from '@/services/effortService'
 
 // ============================================================================
 // Types
@@ -165,6 +166,7 @@ export function TeamEditorPanel({
 }: TeamEditorPanelProps) {
   const teamId = team?.id
   const teamReportingMode = team?.coordination.reportingMode
+  const { contractors } = useTeamContractors(team?.effortRefs)
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('info')
@@ -444,7 +446,13 @@ export function TeamEditorPanel({
 
   const handleToggleTeam = useCallback(async () => {
     if (!team) return
+    if (team.archived) return
     await onUpdate({ enabled: !team.enabled })
+  }, [team, onUpdate])
+
+  const handleToggleArchive = useCallback(async () => {
+    if (!team) return
+    await onUpdate({ archived: !team.archived, enabled: team.archived ? false : false })
   }, [team, onUpdate])
 
   // Handle edge update
@@ -591,14 +599,15 @@ export function TeamEditorPanel({
               <button
                 type="button"
                 onClick={() => void handleToggleTeam()}
+                disabled={team.archived}
                 className={cn(
                   'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors max-[389px]:hidden',
                   team.enabled
                     ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/25'
                     : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                 )}
-                title={team.enabled ? 'Turn team off' : 'Turn team on'}
-                aria-label={team.enabled ? 'Turn team off' : 'Turn team on'}
+                title={team.archived ? 'Restore the team before enabling it' : team.enabled ? 'Turn team off' : 'Turn team on'}
+                aria-label={team.archived ? 'Team archived' : team.enabled ? 'Turn team off' : 'Turn team on'}
                 aria-pressed={team.enabled}
               >
                 <Power className="h-3.5 w-3.5" />
@@ -618,6 +627,11 @@ export function TeamEditorPanel({
                     label={team.enabled ? 'Turn team off' : 'Turn team on'}
                   />
                 )}
+                <DropdownItem
+                  onClick={() => void handleToggleArchive()}
+                  icon={<Archive className="h-4 w-4" />}
+                  label={team.archived ? 'Restore team' : 'Archive team'}
+                />
                 <DropdownItem
                   onClick={onDelete}
                   disabled={isDeleting}
@@ -691,6 +705,12 @@ export function TeamEditorPanel({
           >
             {/* Content area */}
             <div className="flex-1 min-h-0 flex flex-col">
+              {membersViewMode === 'code' && contractors.length > 0 && (
+                <div className="flex-shrink-0 border-b border-border bg-muted/20 px-3 py-2" data-testid="contractor-roster">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contractors · {contractors.length} runtime worker{contractors.length === 1 ? '' : 's'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{contractors.map((contractor) => `${contractor.displayName} (${contractor.role})`).join(' · ')}</p>
+                </div>
+              )}
               {membersViewMode === 'graph' ? (
                 <>
                   {/* Members-tab toolbar (graph mode toggle, layout direction, code view, add member) */}
@@ -803,6 +823,7 @@ export function TeamEditorPanel({
                         ) : (
                           <OrgChartPanel
                             team={team}
+                            contractors={contractors}
                             edges={edges}
                             allAgents={allAgents}
                             selectedMemberId={selectedMemberId}

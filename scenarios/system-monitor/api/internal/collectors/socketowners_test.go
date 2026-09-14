@@ -1,7 +1,9 @@
 package collectors
 
 import (
+	"context"
 	"testing"
+	"time"
 )
 
 func TestTopSocketOwnersRanksByCountThenPID(t *testing.T) {
@@ -21,6 +23,22 @@ func TestTopSocketOwnersRanksByCountThenPID(t *testing.T) {
 	// Ties break on PID so repeated cycles do not reshuffle the table.
 	if owners[2].PID != 10 {
 		t.Fatalf("tie broken unstably: %+v", owners[2])
+	}
+}
+
+func TestCollectNetworkDiagnosticHonorsBoundsAndCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := NewNetworkCollector().CollectNetworkDiagnostic(ctx, NetworkDiagnosticRequest{
+		Established: 42,
+		TopN:        1000,
+		MaxDuration: time.Minute,
+	})
+	if !result.Truncated {
+		t.Fatal("canceled diagnostic must be reported as truncated")
+	}
+	if result.Total != 42 {
+		t.Fatalf("total=%d, want aggregate total preserved", result.Total)
 	}
 }
 

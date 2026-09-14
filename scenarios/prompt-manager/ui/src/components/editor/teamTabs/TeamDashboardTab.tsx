@@ -375,7 +375,7 @@ export function TeamDashboardTab({
     const membersById = new Map(team.members.map((m) => [m.agentId, m]))
     const entries: { config: HeartbeatConfig; memberName: string; nextRun: Date }[] = []
     for (const config of heartbeatConfigs) {
-      if (!config.enabled) continue
+      if (config.effectiveState !== 'scheduled') continue
       const memberName = membersById.get(config.agentId)?.displayName ?? config.agentId
       const times = config.nextExecutions ?? (config.nextExecution ? [config.nextExecution] : [])
       for (const iso of times) {

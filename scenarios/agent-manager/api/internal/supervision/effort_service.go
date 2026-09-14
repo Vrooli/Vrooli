@@ -155,9 +155,9 @@ func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time)
 			parents++
 		}
 	}
-	if len(e.PermittedActions) > 0 {
-		if !grant || e.AuthorityRef == "" || e.TargetRevision == "" || parents != 1 || e.AuthorizedBy == "" || e.MaximumDirectives < 1 || e.MaximumDirectives > 100 {
-			return errors.New("steering requires actual owner grant, exact revision, one orchestrator and bounded directive allowance")
+	if e.AutonomousSupervision || len(e.PermittedActions) > 0 {
+		if !grant || e.AuthorityRef == "" || e.TargetRevision == "" || e.AuthorizedBy == "" {
+			return errors.New("autonomous supervision requires an actual owner grant, exact revision and authenticated owner")
 		}
 		if e.AuthorityExpiresAt == nil || !e.AuthorityExpiresAt.IsValid() || !e.AuthorityExpiresAt.AsTime().After(now) {
 			return errors.New("steering grant requires a future expiry")
@@ -166,6 +166,9 @@ func validateEffortEnrollment(e *pb.EffortEnrollment, grant bool, now time.Time)
 			if _, err := uuid.Parse(e.SupervisorRunId); err != nil {
 				return errors.New("invalid supervisor run UUID")
 			}
+		}
+		if !e.AutonomousSupervision && (parents != 1 || e.MaximumDirectives < 1 || e.MaximumDirectives > 100) {
+			return errors.New("bounded steering requires one orchestrator and bounded directive allowance")
 		}
 		for _, kind := range e.PermittedActions {
 			if kind != pb.WatchActionKind_WATCH_ACTION_KIND_NUDGE && kind != pb.WatchActionKind_WATCH_ACTION_KIND_CONTINUE && kind != pb.WatchActionKind_WATCH_ACTION_KIND_RECOVER_FRESH {

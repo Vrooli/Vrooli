@@ -26,6 +26,9 @@ type MetricsResponse struct {
 	CPUModeSteal                MetricState `json:"cpu_mode_steal"`
 	MemoryState                 MetricState `json:"memory_state"`
 	ConnectionsState            MetricState `json:"connections_state"`
+	NetworkEstablishedRate      MetricState `json:"network_established_rate"`
+	NetworkTimeWaitRate         MetricState `json:"network_time_wait_rate"`
+	NetworkCloseWaitRate        MetricState `json:"network_close_wait_rate"`
 	GPUState                    MetricState `json:"gpu_state"`
 	SwapState                   MetricState `json:"swap_state"`
 	SwapTrafficState            MetricState `json:"swap_traffic_state"`
@@ -112,6 +115,9 @@ type MetricTimelineSample struct {
 	SwapTrafficState            MetricState `json:"swap_traffic_state"`
 	MajorFaultsState            MetricState `json:"major_faults_state"`
 	FragmentationIndexState     MetricState `json:"fragmentation_index_state"`
+	NetworkEstablishedRate       MetricState `json:"network_established_rate"`
+	NetworkTimeWaitRate          MetricState `json:"network_time_wait_rate"`
+	NetworkCloseWaitRate         MetricState `json:"network_close_wait_rate"`
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -232,11 +238,86 @@ type FragmentationMetrics struct {
 
 // NetworkMetrics contains network-related metrics
 type NetworkMetrics struct {
-	TCPStates       TCPConnectionStates `json:"tcp_states"`
-	PortUsage       PortUsageInfo       `json:"port_usage"`
-	NetworkStats    NetworkStatistics   `json:"network_stats"`
-	ConnectionPools []ConnectionPool    `json:"connection_pools"`
-	SocketOwners    *SocketOwnership    `json:"socket_owners,omitempty"`
+	TCPStates             TCPConnectionStates `json:"tcp_states"`
+	PortUsage             PortUsageInfo       `json:"port_usage"`
+	NetworkStats          NetworkStatistics   `json:"network_stats"`
+	ConnectionPools       []ConnectionPool    `json:"connection_pools"`
+	SocketOwners          *SocketOwnership    `json:"socket_owners,omitempty"`
+	EstablishedRate       MetricState         `json:"established_rate"`
+	TimeWaitRate          MetricState         `json:"time_wait_rate"`
+	CloseWaitRate         MetricState         `json:"close_wait_rate"`
+	ConnectionsOpenedRate MetricState         `json:"connections_opened_rate"`
+	ConnectionsClosedRate MetricState         `json:"connections_closed_rate"`
+	Interfaces            []NetworkInterface  `json:"interfaces,omitempty"`
+	Ownership             *NetworkOwnership   `json:"ownership,omitempty"`
+	Endpoints             []NetworkEndpoint   `json:"endpoints,omitempty"`
+	Capabilities          NetworkCapabilities `json:"capabilities"`
+	Verdict               NetworkVerdict      `json:"verdict"`
+}
+
+type NetworkInterface struct {
+	Name                   string      `json:"name"`
+	HardwareAddress        string      `json:"hardware_address,omitempty"`
+	Up                     bool        `json:"up"`
+	ReceivedBytes          MetricState `json:"received_bytes"`
+	TransmittedBytes       MetricState `json:"transmitted_bytes"`
+	ReceivedPackets        MetricState `json:"received_packets"`
+	TransmittedPackets     MetricState `json:"transmitted_packets"`
+	ReceiveErrors          MetricState `json:"receive_errors"`
+	TransmitErrors         MetricState `json:"transmit_errors"`
+	ReceiveDrops           MetricState `json:"receive_drops"`
+	TransmitDrops          MetricState `json:"transmit_drops"`
+	ReceiveBytesPerSecond  MetricState `json:"receive_bytes_per_second"`
+	TransmitBytesPerSecond MetricState `json:"transmit_bytes_per_second"`
+}
+
+type NetworkOwnership struct {
+	Owners                     []NetworkOwner `json:"owners,omitempty"`
+	TotalConnections           int            `json:"total_connections"`
+	AttributedConnections      int            `json:"attributed_connections"`
+	AttributionCoveragePercent float64        `json:"attribution_coverage_percent"`
+	Truncated                  bool           `json:"truncated"`
+	Reason                     string         `json:"reason,omitempty"`
+	Provenance                 string         `json:"provenance,omitempty"`
+}
+
+type NetworkOwner struct {
+	PID         int    `json:"pid"`
+	ProcessName string `json:"process_name"`
+	ServiceName string `json:"service_name,omitempty"`
+	Connections int    `json:"connections"`
+}
+
+type NetworkEndpoint struct {
+	Scope           string      `json:"scope"`
+	Direction       string      `json:"direction"`
+	Port            int         `json:"port"`
+	Connections     int         `json:"connections"`
+	AgeSeconds      MetricState `json:"age_seconds"`
+	RedactedAddress string      `json:"redacted_address,omitempty"`
+}
+
+type NetworkCapabilities struct {
+	TCPStates         MetricState `json:"tcp_states"`
+	InterfaceCounters MetricState `json:"interface_counters"`
+	TransportCounters MetricState `json:"transport_counters"`
+	Ownership         MetricState `json:"ownership"`
+	Endpoints         MetricState `json:"endpoints"`
+}
+
+type NetworkVerdict struct {
+	State   string   `json:"state"`
+	Summary string   `json:"summary"`
+	Reasons []string `json:"reasons,omitempty"`
+}
+
+type NetworkDiagnosticSnapshot struct {
+	Ownership            *NetworkOwnership `json:"ownership,omitempty"`
+	Endpoints            []NetworkEndpoint `json:"endpoints,omitempty"`
+	InventoryConnections int               `json:"inventory_connections"`
+	Truncated            bool              `json:"truncated"`
+	DurationMilliseconds int64             `json:"duration_ms"`
+	FailureReason        string            `json:"failure_reason,omitempty"`
 }
 
 // SocketOwnership names the processes holding the host's established TCP

@@ -23,10 +23,16 @@ export interface HeartbeatConfig {
   teamId: string
   agentId: string
   enabled: boolean
+  teamEnabled?: boolean
+  effectiveState?: 'scheduled' | 'team-disabled' | 'paused' | 'disabled' | 'not-scheduled' | 'unavailable'
+  effectiveReason?: string
+  controlState?: HeartbeatControlStatusValue
+  scheduled?: boolean
   schedule: string
   profileKey?: string
   lifecycleState?: string
   supervision?: Record<string, unknown>
+  wakeAdmission?: WakeAdmission
   supervisionError?: string
   supervisionState?: {
     status?: string
@@ -43,6 +49,11 @@ export interface HeartbeatConfig {
   updatedAt: string
 }
 
+export interface WakeAdmission {
+  mode: 'always' | 'on-change'
+  changeSources?: Array<'team' | 'member' | 'inbox' | 'corpus'>
+}
+
 export interface HeartbeatExecResult {
   startedAt: string
   endedAt?: string
@@ -56,12 +67,14 @@ export interface CreateHeartbeatRequest {
   schedule: string
   profileKey?: string
   enabled?: boolean
+  wakeAdmission?: WakeAdmission
 }
 
 export interface UpdateHeartbeatRequest {
   schedule?: string
   profileKey?: string
   enabled?: boolean
+  wakeAdmission?: WakeAdmission
 }
 
 export interface TriggerResponse {

@@ -10,19 +10,20 @@ import (
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.
 type MonitorQuerier struct {
-	metrics          *models.MetricsResponse
-	freshMetrics     *models.MetricsResponse
-	pressureSnapshot *models.PressureSnapshot
-	gpuHistory       *models.GPUHistory
-	pressureHistory  *models.PressureHistory
-	detailedMetrics  *models.DetailedMetrics
-	diskDetail       *models.DiskDetailResponse
-	timelineResponse *models.MetricsTimelineResponse
-	processData      *models.ProcessMonitorData
-	processTimeline  []repository.ProcessTimelineEntry
-	infraData        *models.InfrastructureMonitorData
-	active           bool
-	err              error
+	metrics           *models.MetricsResponse
+	freshMetrics      *models.MetricsResponse
+	pressureSnapshot  *models.PressureSnapshot
+	gpuHistory        *models.GPUHistory
+	pressureHistory   *models.PressureHistory
+	detailedMetrics   *models.DetailedMetrics
+	networkDiagnostic *models.NetworkDiagnosticSnapshot
+	diskDetail        *models.DiskDetailResponse
+	timelineResponse  *models.MetricsTimelineResponse
+	processData       *models.ProcessMonitorData
+	processTimeline   []repository.ProcessTimelineEntry
+	infraData         *models.InfrastructureMonitorData
+	active            bool
+	err               error
 }
 
 func (m *MonitorQuerier) WithPressureSnapshot(snapshot *models.PressureSnapshot) *MonitorQuerier {
@@ -56,6 +57,11 @@ func (m *MonitorQuerier) WithFreshMetrics(metrics *models.MetricsResponse) *Moni
 
 func (m *MonitorQuerier) WithDetailedMetrics(metrics *models.DetailedMetrics) *MonitorQuerier {
 	m.detailedMetrics = metrics
+	return m
+}
+
+func (m *MonitorQuerier) WithNetworkDiagnostic(snapshot *models.NetworkDiagnosticSnapshot) *MonitorQuerier {
+	m.networkDiagnostic = snapshot
 	return m
 }
 
@@ -118,6 +124,10 @@ func (m *MonitorQuerier) GetDetailedMetrics(_ context.Context) (*models.Detailed
 
 func (m *MonitorQuerier) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
 	return m.diskDetail, m.err
+}
+
+func (m *MonitorQuerier) GetNetworkDiagnostic(_ context.Context, _ int, _ time.Duration, _ bool) (*models.NetworkDiagnosticSnapshot, error) {
+	return m.networkDiagnostic, m.err
 }
 
 func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*models.MetricsTimelineResponse, error) {

@@ -706,13 +706,8 @@ func (i *Indexer) runIncremental(ctx context.Context, id string, gen Generation)
 		}
 		switch change.Operation {
 		case ChangeUpsertRun:
-			var previous []string
-			var idsErr error
-			if change.SourceEventID != "" {
-				previous, idsErr = i.repository.EventDocumentIDs(ctx, change.SourceRunID, change.SourceEventID)
-			} else {
-				previous, idsErr = i.repository.RunDocumentIDs(ctx, change.SourceRunID)
-			}
+			// Only previously embedded (prose) documents need a vector delete.
+			previous, idsErr := i.repository.SemanticDocumentIDs(ctx, change.SourceRunID, change.SourceEventID)
 			if idsErr != nil {
 				i.rollback(id, idsErr, ctx)
 				return
@@ -816,6 +811,31 @@ func (i *Indexer) rebuildSemanticChanges(ctx context.Context, generationID strin
 	if !ok {
 		return i.rebuildSemantic(ctx, generationID, changeWatermark)
 	}
+	// A document's content class is fixed by its source event, so a changed
+	// document that is not semantically indexable was never embedded and its
+	// prior version has nothing to delete. Sending those deletes anyway made
+	// every tool-payload change copy the whole serving vector collection into a
+	// new generation; on 2026-09-14 thousands of compacted tool events stalled
+	// the indexer behind Qdrant. Tombstoned deletions are not among the changed
+	// documents and always pass through.
+	neverEmbedded := make(map[string]struct{})
+	indexable := 0
+	for _, document := range documents {
+		if semanticIndexableContent(document.ContentClass) {
+			indexable++
+		} else {
+			neverEmbedded[document.DocumentID] = struct{}{}
+		}
+	}
+	deletes := make([]string, 0, len(deletedSourceIDs))
+	for _, id := range deletedSourceIDs {
+		if _, skip := neverEmbedded[id]; !skip {
+			deletes = append(deletes, id)
+		}
+	}
+	if indexable == 0 && len(deletes) == 0 {
+		return nil
+	}
 	validate := func(checkCtx context.Context) error {
 		deleted, err := i.repository.HasPendingDeletionAfter(checkCtx, changeWatermark)
 		if err != nil {
@@ -826,7 +846,11 @@ func (i *Indexer) rebuildSemanticChanges(ctx context.Context, generationID strin
 		}
 		return nil
 	}
-	return semantic.RebuildChanges(ctx, generationID, documents, deletedSourceIDs, validate)
+	// Bounded like a full rebuild: an unbounded leg held the single owner loop,
+	// the change queue, and fenced compaction behind a slow vector store.
+	semanticCtx, cancel := context.WithTimeout(ctx, semanticRebuildBudget(uint64(indexable+len(deletes))))
+	defer cancel()
+	return semantic.RebuildChanges(semanticCtx, generationID, documents, deletes, validate)
 }
 
 func (i *Indexer) rebuildSemantic(ctx context.Context, generationID string, changeWatermark int64) error {

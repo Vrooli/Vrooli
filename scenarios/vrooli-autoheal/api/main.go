@@ -34,6 +34,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/envkit-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/recovery"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
@@ -91,14 +92,12 @@ func recoveryRepositoryRoot() string {
 	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		return root
 	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return "."
-	}
-	for current := workingDir; current != filepath.Dir(current); current = filepath.Dir(current) {
-		if _, err := os.Stat(filepath.Join(current, ".vrooli", "operator-state.json")); err == nil {
-			return current
-		}
 	}
 	return workingDir
 }
@@ -177,7 +176,7 @@ func run() error {
 	if home, err := os.UserHomeDir(); err != nil {
 		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
 	} else {
-		registry.SetRecoveryOwnershipGate(checks.RuntimeRecoveryGate{HomeDir: home})
+		registry.SetRecoveryOwnershipGate(checks.RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"})
 	}
 
 	// Wire config manager into registry for enable/autoHeal checks

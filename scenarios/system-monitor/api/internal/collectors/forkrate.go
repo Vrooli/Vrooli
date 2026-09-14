@@ -68,6 +68,29 @@ func (t *counterRateTracker) observe(name string, total uint64, now time.Time) (
 	return float64(total-previous.total) / elapsed, true
 }
 
+// observeGauge returns the signed change rate for a value that can move in
+// either direction between samples. TCP state populations are gauges: a
+// connection leaving ESTABLISHED is valid movement, not a host reboot.
+func (t *counterRateTracker) observeGauge(name string, value uint64, now time.Time) (rate float64, ok bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.last == nil {
+		t.last = make(map[string]counterRateSample)
+	}
+
+	previous, primed := t.last[name]
+	t.last[name] = counterRateSample{total: value, at: now}
+	if !primed {
+		return 0, false
+	}
+	elapsed := now.Sub(previous.at).Seconds()
+	if elapsed <= 0 {
+		return 0, false
+	}
+	delta := int64(value) - int64(previous.total)
+	return float64(delta) / elapsed, true
+}
+
 func counterRateValues(tracker *counterRateTracker, name string, total uint64, now time.Time) map[string]interface{} {
 	values := map[string]interface{}{
 		name + "_total":        total,

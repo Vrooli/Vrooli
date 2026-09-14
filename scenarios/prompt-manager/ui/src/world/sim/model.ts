@@ -167,6 +167,7 @@ export interface Actor {
   lastRun?: LastRun
   failedError?: string
   skillCount: number
+  memberType: 'employee' | 'contractor'
   colors: ActorColors
   variant: ActorVariant
   idle: IdleLayer
@@ -263,6 +264,7 @@ export interface AgentInput {
   name: string
   colors?: Partial<ActorColors>
   skillCount?: number
+  memberType?: 'employee' | 'contractor'
 }
 
 export interface LayoutOverride {

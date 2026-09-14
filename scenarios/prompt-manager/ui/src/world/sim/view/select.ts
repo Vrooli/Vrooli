@@ -26,6 +26,7 @@ export interface ActorView {
   lastRun?: Actor['lastRun']
   failedError?: string
   skillCount: number
+  memberType: 'employee' | 'contractor'
   equipmentTier: number
   colors: Actor['colors']
   message?: Actor['message']
@@ -117,6 +118,7 @@ export function buildView(state: WorldState, actor: Pick<ActorTuning, 'equipment
       lastRun: a.lastRun,
       failedError: a.failedError,
       skillCount: a.skillCount,
+      memberType: a.memberType,
       equipmentTier: equipmentTier(a.skillCount, actor.equipmentTiers),
       colors: a.colors,
       message: a.message,

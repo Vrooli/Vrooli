@@ -271,6 +271,12 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.EnabledSet {
 		team.Enabled = updates.Enabled
 	}
+	if updates.ArchivedSet {
+		team.Archived = updates.Archived
+		if team.Archived {
+			team.Enabled = false
+		}
+	}
 	if updates.Runtime.Mode != "" {
 		team.Runtime = updates.Runtime
 	}
@@ -340,6 +346,12 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	}
 	if updates.EnabledSet {
 		fields["enabled"] = team.Enabled
+	}
+	if updates.ArchivedSet {
+		fields["archived"] = team.Archived
+		if team.Archived {
+			fields["enabled"] = false
+		}
 	}
 	if updates.Runtime.Mode != "" {
 		fields["runtime"] = team.Runtime
@@ -734,6 +746,50 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 
 	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return SaveJSON(configPath, config)
+}
+
+// GetHeartbeatAdmissionState reads runtime-only wake admission evidence.
+func (s *FileTeamStore) GetHeartbeatAdmissionState(ctx context.Context, teamID, agentID string) (*HeartbeatAdmissionState, error) {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.GetHeartbeatAdmissionState(ctx, teamID, agentID)
+	}
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "wake-admission.json")
+	if !FileExists(path) {
+		return &HeartbeatAdmissionState{Version: 1}, nil
+	}
+	state, err := LoadJSON[HeartbeatAdmissionState](path)
+	if err != nil {
+		return nil, err
+	}
+	if state.Version != 1 {
+		return nil, fmt.Errorf("unsupported heartbeat admission state version %d", state.Version)
+	}
+	return state, nil
+}
+
+// SetHeartbeatAdmissionState persists runtime-only wake admission evidence.
+// It deliberately does not update heartbeat.json metadata or configuration
+// revision.
+func (s *FileTeamStore) SetHeartbeatAdmissionState(ctx context.Context, teamID, agentID string, state *HeartbeatAdmissionState) error {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.SetHeartbeatAdmissionState(ctx, teamID, agentID, state)
+	}
+	if state == nil {
+		return fmt.Errorf("heartbeat admission state is required")
+	}
+	if state.Version == 0 {
+		state.Version = 1
+	}
+	if state.Version != 1 {
+		return fmt.Errorf("unsupported heartbeat admission state version %d", state.Version)
+	}
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+	return SaveJSON(filepath.Join(s.runtimeMemberDir(teamID, agentID), "wake-admission.json"), state)
 }
 
 // DeleteHeartbeatConfig removes the heartbeat.json config for a team member

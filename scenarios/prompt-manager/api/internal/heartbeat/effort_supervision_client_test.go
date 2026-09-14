@@ -119,6 +119,17 @@ func TestStandingSupervisorFreshBoardWithoutGrantRemainsObservationOnly(t *testi
 	}
 }
 
+func TestStandingSupervisorAdmitsAutonomousMandateWithoutActionList(t *testing.T) {
+	row := &ampb.EffortBoardRow{Enrollment: &ampb.EffortEnrollment{
+		EffortRef: "accepted-effort", TargetRevision: "rev-1", AuthorizedBy: "owner",
+		AutonomousSupervision: true, AuthorityExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+	}, Freshness: ampb.EffortFreshness_EFFORT_FRESHNESS_FRESH, ChangeIdentity: "source-1"}
+	cut := mapEffortBoard(&ampb.EffortBoard{Rows: []*ampb.EffortBoardRow{row}, ObservedAt: timestamppb.Now()})
+	if len(cut.Efforts) != 1 || !cut.Efforts[0].Eligible || cut.Efforts[0].ObservationOnly {
+		t.Fatalf("autonomous mandate without action list was not admitted: %+v", cut)
+	}
+}
+
 func (h *effortBoardHandlerFake) GetEffortBoard(_ context.Context, req *connect.Request[ampb.GetEffortBoardRequest]) (*connect.Response[ampb.EffortBoard], error) {
 	h.request = req.Msg
 	return connect.NewResponse(h.board), nil

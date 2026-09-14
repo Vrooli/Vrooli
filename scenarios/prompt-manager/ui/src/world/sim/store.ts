@@ -139,7 +139,7 @@ export function createWorldStore(input: CreateWorldInput, tuning: WorldTuning, t
         const colors = { ...DEFAULT_COLORS, ...input.colors }
         const skillCount = input.skillCount ?? 0
         if (actor.name === input.name && actor.skillCount === skillCount && actor.colors.body === colors.body && actor.colors.head === colors.head && actor.colors.accent === colors.accent) continue
-        actors[input.id] = { ...actor, name: input.name, colors, skillCount }
+        actors[input.id] = { ...actor, name: input.name, colors, skillCount, memberType: input.memberType ?? 'employee' }
         changed = true
       }
       if (!changed) return

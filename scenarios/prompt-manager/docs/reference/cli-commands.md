@@ -546,7 +546,7 @@ Teams are stored with a required `operatingContract`. The default create flow se
 Update an existing team.
 
 ```bash
-prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
+prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--archived=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
 ```
 
 **Options:**
@@ -555,6 +555,7 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | `--name` | New display name |
 | `--mission` | New mission statement |
 | `--enabled` | Enable or disable the team |
+| `--archived` | Archive or restore the team. Archiving also disables it and prevents heartbeat execution; restoring leaves it disabled until explicitly enabled. |
 | `--purpose`, `--lifetime` | Set either classification independently; an explicit empty value clears it |
 | `--effort-refs` | Replace authored effort references; `--effort-refs=` clears them |
 | `--runtime-mode` | Change runtime mode |

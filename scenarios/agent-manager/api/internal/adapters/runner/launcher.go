@@ -54,6 +54,10 @@ type Launcher interface {
 
 // LaunchRequest carries everything a runner needs to start its agent process.
 type LaunchRequest struct {
+	// RunID and EventSink allow infrastructure-level launch failures to be
+	// recorded in the same durable run event stream as runner events.
+	RunID     uuid.UUID
+	EventSink EventSink
 	// Command is the executable to run. The runner is responsible for any
 	// pre-resolution (exec.LookPath for host); the launcher passes Command
 	// straight through. Use "env" with Args[0]="KEY=VALUE" to inject a

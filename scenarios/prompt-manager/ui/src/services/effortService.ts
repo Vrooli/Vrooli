@@ -14,6 +14,60 @@ export interface EffortObservations {
   unavailable: Array<{ effortRef: string; reason: string }>
 }
 
+/** Read-only runtime roster entry for an Agent Manager child run. */
+export interface ContractorMember {
+  id: string
+  runId: string
+  displayName: string
+  status: string
+  role: string
+  assignment: string
+  effortRef: string
+  model?: string
+  runner?: string
+}
+
+/**
+ * Project exact Agent Manager child subjects into Prompt Manager's visual
+ * roster. Contractors are deliberately not team-member relations: they are
+ * runtime assignments and disappear when the owner no longer reports them.
+ */
+export function contractorMembersFromObservations(observations: EffortObservations, effortRefByBoard?: string[]): ContractorMember[] {
+  const byRun = new Map<string, ContractorMember>()
+  observations.boards.forEach((board, boardIndex) => {
+    const fallbackEffortRef = effortRefByBoard?.[boardIndex] ?? ''
+    board.rows.forEach((row) => {
+      const effortRef = row.enrollment?.effortRef ?? fallbackEffortRef
+      row.assignments.forEach((assignment) => {
+        const subject = assignment.subject
+        const runId = subject?.runId?.trim()
+        if (!runId || subject?.role === 'orchestrator' || subject?.role === 'supervisor') return
+        if (!subject) return
+        const role = subject.role?.trim() || 'worker'
+        const assignmentLabel = subject.assignment?.trim() || subject.reference?.trim() || role
+        byRun.set(runId, {
+          id: `contractor:${runId}`,
+          runId,
+          displayName: assignmentLabel,
+          status: assignment.runtimeState?.trim() || row.runtimeState || 'observed',
+          role,
+          assignment: assignmentLabel,
+          effortRef,
+          model: assignment.effectiveModel?.trim() || assignment.requestedModel?.trim() || undefined,
+          runner: assignment.effectiveRunner?.trim() || assignment.requestedRunner?.trim() || undefined,
+        })
+      })
+    })
+  })
+  return [...byRun.values()].sort((a, b) => a.displayName.localeCompare(b.displayName) || a.runId.localeCompare(b.runId))
+}
+
+export function useTeamContractors(effortRefs?: string[]) {
+  const observations = useEffortObservations('', effortRefs?.length ? effortRefs : [])
+  const contractors = contractorMembersFromObservations(observations.data ?? { boards: [], unavailable: [] }, effortRefs)
+  return { ...observations, contractors }
+}
+
 // These are owner reads only. Neither opening this view nor refreshing it
 // performs discovery, enrolls work or dispatches a supervisor.
 export async function readEffortObservations(pageToken: string, effortRefs?: string[], signal?: AbortSignal): Promise<EffortObservations> {

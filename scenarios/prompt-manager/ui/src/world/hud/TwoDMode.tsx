@@ -55,6 +55,7 @@ export function TwoDMode({ actors, teams, now, focusedId, onFocus, weather }: Tw
                     <span className="flex items-center gap-2">
                       <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: actor.colors.body }} aria-hidden="true" />
                       <span className="font-medium">{actor.name}</span>
+                      {actor.memberType === 'contractor' && <span className="rounded border border-dashed border-amber-500/50 px-1 text-[10px] text-amber-600 dark:text-amber-400">Contractor</span>}
                     </span>
                     <span className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{STATE_LABEL[actor.state]}</span>

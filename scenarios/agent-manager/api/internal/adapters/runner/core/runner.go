@@ -300,6 +300,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
+	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
 
 	r.runnerLog().Info("agent launch",
 		obs.KeyRunID, req.RunID.String(),
@@ -497,6 +498,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
 		tag, prompt, env, req.WorkingDir,
 	)
+	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
 	proc, err := launcher.Launch(ctx, launchReq)
 	if err != nil {
 		return nil, &domain.RunnerError{
@@ -845,6 +847,7 @@ func (r *Runner) executeWithDurableTranscript(
 		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
+	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
 	return r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
 		config:       req.GetConfig(),
@@ -902,6 +905,7 @@ func (r *Runner) continueWithDurableTranscript(
 		r.codec.TagEnvKey(), r.codec.BinaryPath(), args,
 		tag, prompt, env, req.WorkingDir,
 	)
+	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
 	result, err := r.runDurable(ctx, durableInputs{
 		runID:        req.RunID,
 		config:       req.GetConfig(),

@@ -461,6 +461,9 @@ func (s *MonitorService) updateLatestSnapshot(cycleID string, observedAt time.Ti
 		case "network":
 			response.ConnectionsState = metricState(metric, "tcp_connections", "network collector unavailable")
 			markObserved(&response.ConnectionsState)
+			response.NetworkEstablishedRate = metricState(metric, "established_rate_per_second", "established rate has not been sampled")
+			response.NetworkTimeWaitRate = metricState(metric, "time_wait_rate_per_second", "TIME_WAIT rate has not been sampled")
+			response.NetworkCloseWaitRate = metricState(metric, "close_wait_rate_per_second", "CLOSE_WAIT rate has not been sampled")
 			if value, ok := metric.Values["tcp_connections"].(int); ok {
 				response.TCPConnections = value
 			}
@@ -920,6 +923,9 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 			SwapTrafficState:            m.SwapTrafficState,
 			MajorFaultsState:            m.MajorFaultsState,
 			FragmentationIndexState:     m.FragmentationIndexState,
+			NetworkEstablishedRate:      m.NetworkEstablishedRate,
+			NetworkTimeWaitRate:         m.NetworkTimeWaitRate,
+			NetworkCloseWaitRate:        m.NetworkCloseWaitRate,
 		})
 	}
 
@@ -968,6 +974,62 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
+}
+
+// GetNetworkDiagnostic performs an explicitly requested, bounded attribution
+// snapshot. It never advances the steady scheduler's collector state.
+func (s *MonitorService) GetNetworkDiagnostic(ctx context.Context, topN int, maxDuration time.Duration, _ bool) (*models.NetworkDiagnosticSnapshot, error) {
+	snapshot := &models.NetworkDiagnosticSnapshot{}
+	latest := s.latestCollectorSnapshot()["network"]
+	if latest != nil {
+		if states, ok := latest.Values["tcp_states"].(map[string]int); ok {
+			snapshot.InventoryConnections = states["established"]
+		}
+	}
+	collector, ok := s.collectors.Get("network")
+	if !ok || !collector.IsEnabled() {
+		snapshot.FailureReason = "network collector is disabled"
+		return snapshot, nil
+	}
+	network, ok := collector.(*collectors.NetworkCollector)
+	if !ok {
+		snapshot.FailureReason = "network collector does not support diagnostics"
+		return snapshot, nil
+	}
+	result := network.CollectNetworkDiagnostic(ctx, collectors.NetworkDiagnosticRequest{
+		Established: snapshot.InventoryConnections,
+		TopN:        topN,
+		MaxDuration: maxDuration,
+	})
+	owners := make([]models.NetworkOwner, len(result.Owners))
+	for i, owner := range result.Owners {
+		owners[i] = models.NetworkOwner{PID: owner.PID, ProcessName: owner.Comm, Connections: owner.Count}
+	}
+	endpoints := make([]models.NetworkEndpoint, len(result.Endpoints))
+	for i, endpoint := range result.Endpoints {
+		endpoints[i] = models.NetworkEndpoint{Scope: endpoint.Scope, Direction: endpoint.Direction, Port: endpoint.Port, Connections: endpoint.Connections}
+	}
+	coverage := 0.0
+	if result.Total > 0 {
+		coverage = float64(result.Attributed) * 100 / float64(result.Total)
+		if coverage > 100 {
+			// A socket inode can be referenced by more than one process (for
+			// example after fork or descriptor sharing). Coverage describes
+			// inventory records, not descriptor references, so it is bounded.
+			coverage = 100
+		}
+	}
+	snapshot.Ownership = &models.NetworkOwnership{
+		Owners: owners, TotalConnections: result.Total, AttributedConnections: result.Attributed,
+		AttributionCoveragePercent: coverage, Truncated: result.Truncated,
+		Reason: result.Reason, Provenance: "native platform socket attribution",
+	}
+	snapshot.Endpoints = endpoints
+	snapshot.InventoryConnections = result.Total
+	snapshot.Truncated = result.Truncated
+	snapshot.DurationMilliseconds = result.Duration.Milliseconds()
+	snapshot.FailureReason = result.Reason
+	return snapshot, nil
 }
 
 // ReadCPUObservation returns the latest scheduler-owned CPU reading for
@@ -1237,7 +1299,16 @@ func pressureState(data *collectors.MetricData, valueKey, statusKey, reasonKey s
 // populateNetworkDetails fills the network section of detailed from the network collector data.
 func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collectors.MetricData) {
 	if netData == nil {
+		detailed.NetworkDetails.Verdict = models.NetworkVerdict{State: "unavailable", Summary: "Network evidence is unavailable", Reasons: []string{"network collector returned no data"}}
 		return
+	}
+
+	detailed.NetworkDetails.Capabilities = models.NetworkCapabilities{
+		TCPStates:         models.MetricState{Status: "measured", Value: 1, Reason: "native TCP state inventory", Provenance: "procfs"},
+		InterfaceCounters: models.MetricState{Status: "measured", Value: 1, Reason: "native interface counters", Provenance: "procfs"},
+		TransportCounters: models.MetricState{Status: "unsupported", Reason: "host does not expose cumulative transport open/close counters", Provenance: "native collector"},
+		Ownership:         models.MetricState{Status: "not_yet_sampled", Reason: "bounded attribution runs only for an on-demand diagnostic", Provenance: "diagnostic RPC"},
+		Endpoints:         models.MetricState{Status: "not_yet_sampled", Reason: "bounded endpoint inventory runs only for an on-demand diagnostic", Provenance: "diagnostic RPC"},
 	}
 
 	if states, ok := netData.Values["tcp_states"].(map[string]int); ok {
@@ -1248,6 +1319,9 @@ func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collector
 			Listen:      states["listen"],
 			Total:       states["total"],
 		}
+	}
+	if _, ok := netData.Values["tcp_states"].(map[string]int); !ok {
+		detailed.NetworkDetails.Capabilities.TCPStates = models.MetricState{Status: "unavailable", Reason: "native TCP state inventory failed", Provenance: "procfs"}
 	}
 
 	if portUsage, ok := netData.Values["port_usage"].(map[string]int); ok {
@@ -1278,7 +1352,68 @@ func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collector
 			Supported:  attribution.Supported,
 			Reason:     attribution.Reason,
 		}
+		detailed.NetworkDetails.Ownership = &models.NetworkOwnership{
+			TotalConnections: attribution.Total, AttributedConnections: attribution.Attributed,
+			AttributionCoveragePercent: coveragePercent(attribution.Attributed, attribution.Total),
+			Truncated:                  attribution.Truncated, Reason: attribution.Reason, Provenance: "bounded /proc diagnostic",
+		}
+		detailed.NetworkDetails.Capabilities.Ownership = models.MetricState{Status: "measured", Value: 1, Reason: "bounded attribution evidence available", Provenance: "diagnostic RPC"}
 	}
+
+	detailed.NetworkDetails.EstablishedRate = networkRateState(netData.Values, "established_rate_per_second")
+	detailed.NetworkDetails.TimeWaitRate = networkRateState(netData.Values, "time_wait_rate_per_second")
+	detailed.NetworkDetails.CloseWaitRate = networkRateState(netData.Values, "close_wait_rate_per_second")
+	detailed.NetworkDetails.ConnectionsOpenedRate = models.MetricState{Status: "unsupported", Reason: "no native cumulative open counter", Units: "connections/second"}
+	detailed.NetworkDetails.ConnectionsClosedRate = models.MetricState{Status: "unsupported", Reason: "no native cumulative close counter", Units: "connections/second"}
+	if rows, ok := netData.Values["interfaces"].([]map[string]interface{}); ok {
+		for _, row := range rows {
+			detailed.NetworkDetails.Interfaces = append(detailed.NetworkDetails.Interfaces, models.NetworkInterface{
+				Name: getStringValue(row, "name"), Up: getBoolValue(row, "up"),
+				ReceivedBytes: networkCounterState(row, "received_bytes", "bytes"), TransmittedBytes: networkCounterState(row, "transmitted_bytes", "bytes"),
+				ReceivedPackets: networkCounterState(row, "received_packets", "packets"), TransmittedPackets: networkCounterState(row, "transmitted_packets", "packets"),
+				ReceiveErrors: networkCounterState(row, "receive_errors", "errors"), TransmitErrors: networkCounterState(row, "transmit_errors", "errors"),
+				ReceiveDrops: networkCounterState(row, "receive_drops", "drops"), TransmitDrops: networkCounterState(row, "transmit_drops", "drops"),
+				ReceiveBytesPerSecond: networkRateState(row, "received_bytes_per_second"), TransmitBytesPerSecond: networkRateState(row, "transmitted_bytes_per_second"),
+			})
+		}
+	} else {
+		detailed.NetworkDetails.Capabilities.InterfaceCounters = models.MetricState{Status: "unavailable", Reason: "native interface counters failed", Provenance: "procfs"}
+	}
+
+	detailed.NetworkDetails.Verdict = models.NetworkVerdict{State: "warning", Summary: "Network evidence is partial", Reasons: []string{"transport open/close counters are unsupported on this host"}}
+	if detailed.NetworkDetails.Capabilities.TCPStates.Status == "unavailable" && detailed.NetworkDetails.Capabilities.InterfaceCounters.Status == "unavailable" {
+		detailed.NetworkDetails.Verdict = models.NetworkVerdict{State: "unavailable", Summary: "Network evidence is unavailable", Reasons: []string{"native TCP and interface collectors failed"}}
+	}
+}
+
+func coveragePercent(attributed, total int) float64 {
+	if total <= 0 {
+		return 0
+	}
+	coverage := float64(attributed) * 100 / float64(total)
+	if coverage > 100 {
+		return 100
+	}
+	return coverage
+}
+
+func networkRateState(values map[string]interface{}, key string) models.MetricState {
+	state := models.MetricState{Status: "not_yet_sampled", Reason: "requires two consecutive samples", Units: "per second"}
+	if value, ok := values[key].(float64); ok {
+		state.Status, state.Value = "measured", value
+	} else if value, ok := values[key].(int64); ok {
+		state.Status, state.Value = "measured", float64(value)
+	}
+	return state
+}
+
+func networkCounterState(values map[string]interface{}, key, units string) models.MetricState {
+	state := networkRateState(values, key)
+	state.Units = units
+	if state.Status == "not_yet_sampled" {
+		state.Status = "measured"
+	}
+	return state
 }
 
 // populateSystemDetails fills the system section of detailed (file descriptors

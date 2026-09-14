@@ -81,6 +81,14 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, "sandbox must be active to start processes", http.StatusConflict)
 		return
 	}
+	if h.lifecycle != nil {
+		release, gateErr := h.lifecycle.beginProcess()
+		if gateErr != nil {
+			h.JSONError(w, gateErr.Error(), http.StatusConflict)
+			return
+		}
+		defer release()
+	}
 	if err := h.validateExecutionMode(r.Context(), req.ExecutionMode); err != nil {
 		h.HandleDomainError(w, err)
 		return

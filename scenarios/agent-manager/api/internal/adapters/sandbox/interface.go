@@ -90,6 +90,22 @@ type Provider interface {
 	//
 	// See execute/protected-sandbox-agent-launch.
 	ExecProcess(ctx context.Context, req ExecProcessRequest) (*ExecProcessResult, error)
+
+	// ListProcesses returns the provider's authoritative process observations.
+	// It is used to reconcile an interrupted log stream without guessing an
+	// exit status from a disconnected transport.
+	ListProcesses(ctx context.Context, sandboxID uuid.UUID) ([]ProcessSnapshot, error)
+}
+
+// ProcessSnapshot is the provider's read-only observation of one launched
+// process. A non-nil ExitCode is authoritative terminal evidence; nil means
+// the provider still observes the process as running or cannot report its
+// terminal state.
+type ProcessSnapshot struct {
+	PID       int
+	ExitCode  *int
+	Signal    *int
+	OOMKilled *bool
 }
 
 // -----------------------------------------------------------------------------

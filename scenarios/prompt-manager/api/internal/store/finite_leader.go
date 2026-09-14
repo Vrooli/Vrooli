@@ -39,6 +39,7 @@ type FiniteLeaderState struct {
 	Error             string                   `json:"error,omitempty"`
 	Completed         *FiniteLeaderCompletion  `json:"completed,omitempty"`
 	CompletionHistory []FiniteLeaderCompletion `json:"completionHistory,omitempty"`
+	RestartHistory    []FiniteLeaderRestart    `json:"restartHistory,omitempty"`
 }
 
 // FiniteLeaderCompletion is the retained completion receipt for a finite
@@ -49,6 +50,17 @@ type FiniteLeaderCompletion struct {
 	Revision    string `json:"revision"`
 	EvidenceRef string `json:"evidenceRef"`
 	CompletedAt string `json:"completedAt"`
+}
+
+// FiniteLeaderRestart records an explicit fresh-run recovery boundary. The
+// accepted effort revision remains stable; only the consumed owner-run
+// reservation is superseded after its exact run is known to be terminal.
+type FiniteLeaderRestart struct {
+	RunID       string `json:"runId"`
+	TaskID      string `json:"taskId,omitempty"`
+	Revision    string `json:"revision"`
+	EvidenceRef string `json:"evidenceRef"`
+	RestartedAt string `json:"restartedAt"`
 }
 
 // Completion and pause are distinct: a completion receipt is terminal until an
@@ -198,6 +210,52 @@ func (s *FileTeamStore) CompleteFiniteLeader(ctx context.Context, teamID, agentI
 		return save()
 	})
 	return out, changed, err
+}
+
+// RestartFiniteLeader explicitly supersedes a terminal dispatched owner run
+// that did not produce a completion receipt. It preserves the old identity and
+// evidence reference, then clears only the reusable reservation. The accepted
+// effort revision remains unchanged because this is run recovery, not a new
+// product acceptance decision.
+func (s *FileTeamStore) RestartFiniteLeader(ctx context.Context, teamID, agentID, revision, evidenceRef, ownerStatus string) error {
+	s = s.forContext(ctx)
+	return s.WithFiniteLeader(ctx, teamID, agentID, func(cfg *HeartbeatConfig, state *FiniteLeaderState, save func() error) error {
+		if !validFiniteReference(revision) || !validFiniteReference(evidenceRef) {
+			return fmt.Errorf("finite leader restart requires an exact revision and retained evidence reference")
+		}
+		if revision != cfg.FiniteLeader.AcceptedRevision {
+			return ErrFiniteLeaderStaleRevision
+		}
+		if state.Completed != nil {
+			return ErrFiniteLeaderCompleted
+		}
+		if !state.DispatchStarted || state.RunID == "" || !isTerminalFiniteLeaderStatus(ownerStatus) {
+			return fmt.Errorf("finite leader restart requires a terminal dispatched owner run")
+		}
+		state.Status = ownerStatus
+		state.RestartHistory = append(state.RestartHistory, FiniteLeaderRestart{
+			RunID: state.RunID, TaskID: state.TaskID, Revision: revision,
+			EvidenceRef: evidenceRef, RestartedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		})
+		state.ID = ""
+		state.TaskID = ""
+		state.RunID = ""
+		state.TaskStarted = false
+		state.DispatchStarted = false
+		state.CreatedAt = ""
+		state.Status = "idle"
+		state.Error = ""
+		return save()
+	})
+}
+
+func isTerminalFiniteLeaderStatus(status string) bool {
+	switch status {
+	case "RUN_STATUS_COMPLETE", "RUN_STATUS_FAILED", "RUN_STATUS_CANCELLED", "complete", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
 }
 
 // ReopenFiniteLeader is the explicit authorized operation that clears a

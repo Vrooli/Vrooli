@@ -103,7 +103,7 @@ func (h *Handler) Compact(w http.ResponseWriter, r *http.Request) {
 	}
 	started, err := h.svc.StartCompaction(r.Context(), subject, reason)
 	switch {
-	case errors.Is(err, ErrFenceNotDrained), errors.Is(err, ErrBusy):
+	case errors.Is(err, ErrFenceNotDrained), errors.Is(err, ErrBusy), errors.Is(err, ErrLegacyProjection):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, ErrInsufficientSpace):
 		writeError(w, http.StatusInsufficientStorage, err.Error())

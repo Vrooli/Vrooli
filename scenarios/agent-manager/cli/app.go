@@ -140,11 +140,13 @@ func (a *App) runCommands() []cliapp.Command {
 	entries := []entry{
 		{"list", "List runs", "agent-manager run list [options]", a.runList},
 		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
+		{"identity", "Show the current Agent Manager run identity", "agent-manager run identity [--json]", a.runIdentity},
 		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport},
 		{"attach", "Attach an operator-started harness session", "agent-manager run attach --harness-kind kind --harness-session-id id [options]", a.runAttach},
 		{"detach", "Close an attached harness session", "agent-manager run detach <id> [--reason text]", a.runDetach},
 		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
 		{"stats", "Show filtered aggregate run statistics", "agent-manager run stats [--profile UUID] [--since RFC3339] [--tag-prefix prefix]", a.runStats},
+		{"efficiency", "Show bounded invocation efficiency evidence", "agent-manager run efficiency [--preset 24h] [--group-by profile] [--compare previous] [--json]", a.runEfficiency},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
 		{"cohort-report", "Show ranked bounded cohort evidence", "agent-manager run cohort-report --run-ids id1,id2 [--json]", a.runCohortReport},
 		{"goal-cohort", "Fold goal progression across a durable cohort", "agent-manager run goal-cohort --cohort name [--json]", a.runGoalCohort},

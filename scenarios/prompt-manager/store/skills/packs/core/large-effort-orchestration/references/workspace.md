@@ -8,7 +8,21 @@ Use the canonical helper for a new folder or a structural review:
 python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py init --repo <repo> --slug <slug>
 python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py validate <effort-path>
 python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py report <effort-path>
+python3 scenarios/prompt-manager/store/skills/packs/core/large-effort-orchestration/scripts/workspace.py preflight <effort-path>
 ```
+
+`init` creates only the safe intake skeleton. It does not make an effort
+reviewable or executable. Before presenting a non-intake effort for review,
+populate the README, preserved sources, requirements, capability observations,
+and a `team/` handoff record, then run `validate`. A passing structural
+validation means the dossier is internally coherent; it does not qualify an
+owner route, create an execution grant, or prove a remote capability.
+
+`preflight` is a read-only join of the dossier gates. It reports whether the
+workspace is complete, the team handoff exists, sources are preserved, owner
+capabilities are qualified, an independent reviewer is assigned, and execution
+approval exists. `safe_to_enable` is false unless every gate passes; the command
+never changes a team, enrollment, grant, heartbeat or approval.
 
 The helper manages local review artifacts only. It does not dispatch agents, enforce runtime grants or decide that remote tests passed. Its derived circuit report is an admission input until the owner implementation enforces that policy.
 
@@ -31,6 +45,12 @@ Preserve this class during manual cleanup and disk-pressure automation. A broad 
 | `handoffs/`, `review/`, `evidence/` | Next-action checkpoints, independent assessments and links/receipts from evidence producers. |
 
 Create optional directories only when they have content. Do not put credentials or private identity tokens into this workspace. Source preservation does not require copying transcripts with unrelated private content.
+
+For a workshop or review-stage effort, `team/` must contain the exact Prompt
+Manager team identity, coordinator/member references, and disabled/approval
+state. `plans/` and `programs/` are required only when those work shapes or
+runtime compositions have actually been selected. A workspace without a team
+handoff is an intake dossier, even if a similarly named team exists elsewhere.
 
 `requirements.json` rows have `id`, `source`, `statement`, `deliverable`,
 `acceptance`, an owner reference, `assessment`, `evidence`, and optionally

@@ -19,6 +19,7 @@ The control plane installs the CLI from the Go module declared in `.vrooli/servi
 | `dashboard` | Open or print the UI URL | None |
 | `metrics current` | Current metrics snapshot | `GET /api/v1/metrics/current` |
 | `metrics detailed` | Detailed CPU, memory, GPU, network, and dependency metrics | `GET /api/v1/metrics/detailed` |
+| `metrics network-diagnostic` | Bounded on-demand network owners and endpoint summaries | `MetricsService.GetNetworkDiagnostic` |
 | `metrics processes` | Process health and hot process matrix | `GET /api/v1/metrics/processes` |
 | `metrics infrastructure` | Pool, queue, and storage I/O metrics | `GET /api/v1/metrics/infrastructure` |
 | `metrics timeline` | Recent metrics history | `GET /api/v1/metrics/timeline` |

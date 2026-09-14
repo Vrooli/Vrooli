@@ -89,7 +89,7 @@ func (s *EffortService) directiveAuthority(e *pb.EffortEnrollment, o *pb.EffortB
 	if e.AuthorizedBy == "" || e.AuthorityRef == "" || e.AuthorityExpiresAt == nil || !e.AuthorityExpiresAt.IsValid() || !e.AuthorityExpiresAt.AsTime().After(s.now()) {
 		return "actual owner grant unavailable or expired"
 	}
-	allowed := false
+	allowed := e.AutonomousSupervision
 	for _, kind := range e.PermittedActions {
 		if kind == d.Kind {
 			allowed = true
@@ -99,7 +99,7 @@ func (s *EffortService) directiveAuthority(e *pb.EffortEnrollment, o *pb.EffortB
 		return "action outside authorized scope"
 	}
 	for _, sub := range e.Subjects {
-		if sub.Role == "orchestrator" && sub.Owner == "agent-manager" && sub.RunId == d.TargetRunId {
+		if sub.Owner == "agent-manager" && sub.Kind == "run" && sub.RunId == d.TargetRunId && (e.AutonomousSupervision || sub.Role == "orchestrator") {
 			return ""
 		}
 	}

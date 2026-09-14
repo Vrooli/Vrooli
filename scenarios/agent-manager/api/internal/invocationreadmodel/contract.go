@@ -28,6 +28,13 @@ type Store interface {
 	FindingMetrics(context.Context, Filter) (FindingMetrics, error)
 }
 
+// FreshnessStore is an optional extension implemented by durable projections
+// that can report their newest materialized row. It is optional so older
+// adapters and focused test doubles remain compatible with Store.
+type FreshnessStore interface {
+	LatestProjection(context.Context) (time.Time, error)
+}
+
 type CanaryRun struct {
 	Role       string
 	Arm        string

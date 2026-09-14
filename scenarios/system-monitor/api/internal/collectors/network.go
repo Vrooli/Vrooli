@@ -17,6 +17,7 @@ type NetworkCollector struct {
 	lastBytesRecv int64
 	lastBytesSent int64
 	lastCheck     time.Time
+	rates         *counterRateTracker
 }
 
 // NewNetworkCollector creates a new network collector
@@ -24,6 +25,7 @@ func NewNetworkCollector() *NetworkCollector {
 	return &NetworkCollector{
 		BaseCollector: NewBaseCollector("network", 10*time.Second),
 		lastCheck:     time.Now(),
+		rates:         newCounterRateTracker(),
 	}
 }
 
@@ -327,6 +329,45 @@ func parseNetDevLine(line string) (string, netDevStats, bool) {
 		errorsOut:   parseInt64OrZero(fields[10]),
 		droppedOut:  parseInt64OrZero(fields[11]),
 	}, true
+}
+
+func readNetDevInterfaces(ctx context.Context, tracker *counterRateTracker) ([]map[string]interface{}, error) {
+	raw, err := os.ReadFile("/proc/net/dev")
+	if err != nil {
+		return nil, err
+	}
+	rows := make([]map[string]interface{}, 0)
+	for _, line := range strings.Split(string(raw), "\n")[2:] {
+		if ctx.Err() != nil {
+			return rows, ctx.Err()
+		}
+		name, stats, ok := parseNetDevLine(line)
+		if !ok {
+			continue
+		}
+		now := time.Now()
+		row := map[string]interface{}{"name": name, "up": true,
+			"received_bytes": stats.bytesRecv, "transmitted_bytes": stats.bytesSent,
+			"received_packets": stats.packetsRecv, "transmitted_packets": stats.packetsSent,
+			"receive_errors": stats.errorsIn, "transmit_errors": stats.errorsOut,
+			"receive_drops": stats.droppedIn, "transmit_drops": stats.droppedOut}
+		for key, total := range map[string]int64{
+			"received_bytes": stats.bytesRecv, "transmitted_bytes": stats.bytesSent,
+			"received_packets": stats.packetsRecv, "transmitted_packets": stats.packetsSent,
+		} {
+			if total < 0 {
+				continue
+			}
+			if rate, measured := tracker.observe(name+":"+key, uint64(total), now); measured {
+				row[key+"_per_second"] = rate
+				row[key+"_rate_status"] = "measured"
+			} else {
+				row[key+"_rate_status"] = "not_yet_sampled"
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }
 
 func parseInt64OrZero(s string) int64 {

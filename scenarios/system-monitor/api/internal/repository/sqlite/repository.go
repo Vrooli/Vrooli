@@ -1084,6 +1084,9 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 		}
 	case "network":
 		resp.ConnectionsState = state
+		resp.NetworkEstablishedRate = cpuMetricState(cycleID, observedAt, values, "established_rate_per_second")
+		resp.NetworkTimeWaitRate = cpuMetricState(cycleID, observedAt, values, "time_wait_rate_per_second")
+		resp.NetworkCloseWaitRate = cpuMetricState(cycleID, observedAt, values, "close_wait_rate_per_second")
 		if tcp, ok := values["tcp_connections"].(float64); ok {
 			resp.TCPConnections = int(tcp)
 		}

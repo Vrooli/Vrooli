@@ -31,6 +31,12 @@ export const TeamMemberSchema = z.object({
   displayName: z.string(),
   roles: nullableStringArray,
   status: z.string(),
+  memberType: z.enum(['employee', 'contractor']).optional(),
+  runId: z.string().optional(),
+  effortRef: z.string().optional(),
+  assignment: z.string().optional(),
+  model: z.string().optional(),
+  runner: z.string().optional(),
 })
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 
@@ -157,6 +163,8 @@ export const TeamSchema = z.object({
   ...TeamClassificationFields,
   objectivesServed: z.array(ObjectiveReferenceSchema).nullish(),
   enabled: z.boolean().optional().default(false),
+  // Optional for compatibility with team records written before archive state existed.
+  archived: z.boolean().optional(),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
@@ -180,6 +188,7 @@ export const CreateTeamRequestSchema = z.object({
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
   mission: z.string().max(500).optional(),
   ...TeamClassificationFields,
+  archived: z.boolean().optional(),
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
@@ -192,6 +201,7 @@ export const UpdateTeamRequestSchema = z.object({
   mission: z.string().max(500).optional(),
   ...TeamClassificationFields,
   enabled: z.boolean().optional(),
+  archived: z.boolean().optional(),
   runtime: RuntimeSchema.optional(),
   coordination: CoordinationSchema.optional(),
   execution: ExecutionSchema.optional(),

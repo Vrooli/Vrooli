@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -72,7 +73,50 @@ func attributeSocketOwners(ctx context.Context, established int, limit int) Sock
 	}
 
 	result.Owners = topSocketOwners(counts, names, limit)
+	result.Endpoints = topSocketEndpoints(ctx, limit)
 	return result
+}
+
+func topSocketEndpoints(ctx context.Context, limit int) []SocketEndpoint {
+	counts := map[int]int{}
+	for _, path := range []string{"/proc/net/tcp", "/proc/net/tcp6"} {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(raw), "\n")[1:] {
+			if ctx.Err() != nil {
+				return nil
+			}
+			fields := strings.Fields(line)
+			if len(fields) < 4 || strings.ToUpper(fields[3]) != "01" {
+				continue
+			}
+			parts := strings.Split(fields[2], ":")
+			if len(parts) != 2 {
+				continue
+			}
+			port, err := strconv.ParseInt(parts[1], 16, 32)
+			if err != nil || port <= 0 {
+				continue
+			}
+			counts[int(port)]++
+		}
+	}
+	endpoints := make([]SocketEndpoint, 0, len(counts))
+	for port, count := range counts {
+		endpoints = append(endpoints, SocketEndpoint{Scope: "external", Direction: "outbound", Port: port, Connections: count})
+	}
+	sort.Slice(endpoints, func(i, j int) bool {
+		if endpoints[i].Connections != endpoints[j].Connections {
+			return endpoints[i].Connections > endpoints[j].Connections
+		}
+		return endpoints[i].Port < endpoints[j].Port
+	})
+	if limit > 0 && len(endpoints) > limit {
+		endpoints = endpoints[:limit]
+	}
+	return endpoints
 }
 
 // establishedSocketInodes collects the inode of every established TCP socket.

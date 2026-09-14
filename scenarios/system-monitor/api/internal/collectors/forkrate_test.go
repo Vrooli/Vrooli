@@ -102,6 +102,18 @@ func TestCounterRateTrackerTracksNamedCountersAndResetsHonestly(t *testing.T) {
 	}
 }
 
+func TestCounterRateTrackerTracksGaugeDecreases(t *testing.T) {
+	tracker := newCounterRateTracker()
+	t0 := time.Unix(100, 0)
+	if _, ok := tracker.observeGauge("tcp:time_wait", 100, t0); ok {
+		t.Fatal("first gauge sample must be pending")
+	}
+	rate, ok := tracker.observeGauge("tcp:time_wait", 40, t0.Add(2*time.Second))
+	if !ok || rate != -30 {
+		t.Fatalf("rate = %v, ok = %v, want -30 true", rate, ok)
+	}
+}
+
 func TestCounterRateValuesOmitsUnmeasuredRate(t *testing.T) {
 	tracker := newCounterRateTracker()
 	values := counterRateValues(tracker, "pgmajfault", 4, time.Unix(1, 0))

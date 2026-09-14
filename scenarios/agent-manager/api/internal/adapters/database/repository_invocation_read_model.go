@@ -23,7 +23,16 @@ var (
 	_ invocationreadmodel.WorkloadStore         = (*invocationReadModelRepository)(nil)
 	_ invocationreadmodel.ProjectionStore       = (*invocationReadModelRepository)(nil)
 	_ invocationreadmodel.CohortDefinitionStore = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.FreshnessStore        = (*invocationReadModelRepository)(nil)
 )
+
+func (r *invocationReadModelRepository) LatestProjection(ctx context.Context) (time.Time, error) {
+	var projected SQLiteTime
+	if err := r.db.GetContext(ctx, &projected, `SELECT MAX(projected_at) FROM invocation_read_model_runs`); err != nil {
+		return time.Time{}, err
+	}
+	return projected.Time(), nil
+}
 
 func (r *invocationReadModelRepository) DefineCohort(ctx context.Context, definition invocationreadmodel.CohortDefinition) error {
 	if strings.TrimSpace(definition.Name) == "" || strings.TrimSpace(definition.FilterJSON) == "" || strings.TrimSpace(definition.ClassifierVersion) == "" {

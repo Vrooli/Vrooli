@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/uuid"
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"
@@ -15,6 +16,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
 	apicoreserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -36,6 +38,7 @@ import (
 	"workspace-sandbox/internal/sandbox"
 	"workspace-sandbox/internal/server"
 
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	workspaceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace/workspaceconnect"
 
 	"github.com/vrooli/api-core/schedule"
@@ -317,23 +320,25 @@ func NewServer() (*Server, error) {
 
 	// Create handlers with injected dependencies
 	h := &handlers.Handlers{
-		Service:         svc,
-		DriverSlot:      driverSlot,
-		DB:              db,
-		Config:          cfg,
-		Behavior:        behavior,
-		StatsGetter:     repo, // Repository implements StatsGetter
-		ProcessTracker:  processTracker,
-		ProcessLogger:   processLogger,
-		GCService:       gcService,
-		ProfileStore:    profileStore,
-		InUserNamespace: inUserNS,
-		Reconcilers:     lifecycleRecon,
-		RetentionStore:  retentionStore,
-		Clock:           clk,
-		Mounter:         mounter,
-		Starter:         starter,
+		ProviderIncarnationID: uuid.NewString(),
+		Service:               svc,
+		DriverSlot:            driverSlot,
+		DB:                    db,
+		Config:                cfg,
+		Behavior:              behavior,
+		StatsGetter:           repo, // Repository implements StatsGetter
+		ProcessTracker:        processTracker,
+		ProcessLogger:         processLogger,
+		GCService:             gcService,
+		ProfileStore:          profileStore,
+		InUserNamespace:       inUserNS,
+		Reconcilers:           lifecycleRecon,
+		RetentionStore:        retentionStore,
+		Clock:                 clk,
+		Mounter:               mounter,
+		Starter:               starter,
 	}
+	h.ConfigureLifecycle("workspace-sandbox", "workspace-sandbox", h.ProviderIncarnationID)
 	h.SetProfileSnapshot(profileSnapshot)
 
 	// Initialize structured logger
@@ -374,6 +379,8 @@ func (s *Server) setupRoutes() {
 		Clock:              s.clock,
 		CORSAllowedOrigins: s.config.Server.CORSAllowedOrigins,
 	}.Apply(s.router)
+	path, lifecycleHandler := commonconnect.NewLifecycleMaintenanceServiceHandler(s.handlers.LifecycleService())
+	connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(lifecycleHandler)})
 
 	// Health endpoint using api-core/health for standardized response format
 	healthHandler := health.New().
@@ -382,6 +389,7 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/api/v1/identity", s.handlers.Identity).Methods("GET")
 	connectPath, connectHandler := workspaceconnect.NewWorkspaceSandboxServiceHandler(handlers.NewConnectHandler(s.handlers.Service))
 	connectx.RegisterServices(s.router, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 

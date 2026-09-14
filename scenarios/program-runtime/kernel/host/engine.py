@@ -1256,7 +1256,12 @@ class BridgeBinding:
             candidates = ", ".join(self.row_field_candidates)
             raise AmbiguousResponse(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}", binding_id=self.binding_id)
         selected_rows_field = rows_override or self.rows_field
-        if selected_rows_field:
+        if selected_rows_field == "$response":
+            # A declared scalar primary field means the aggregate response
+            # itself is the one Handle row. This keeps multi-list responses
+            # usable without selecting an arbitrary repeated field.
+            rows = [payload]
+        elif selected_rows_field:
             rows = payload.get(selected_rows_field, [])
             if not isinstance(rows, list):
                 raise BindingError(f"binding {self.binding_id} response field {selected_rows_field!r} is not a list", binding_id=self.binding_id)

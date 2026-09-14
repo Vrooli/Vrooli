@@ -187,6 +187,10 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		Coordination:      req.Coordination,
 		Execution:         req.Execution,
 		OperatingContract: req.OperatingContract,
+		Archived:          req.Archived,
+	}
+	if team.Archived {
+		team.Enabled = false
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -254,6 +258,10 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		updates.Enabled = *req.Enabled
 		updates.EnabledSet = true
 	}
+	if req.Archived != nil {
+		updates.Archived = *req.Archived
+		updates.ArchivedSet = true
+	}
 	if req.Runtime != nil {
 		updates.Runtime = *req.Runtime
 	}
@@ -296,6 +304,16 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if updates.EnabledSet {
 		merged.Enabled = updates.Enabled
 	}
+	if updates.ArchivedSet {
+		merged.Archived = updates.Archived
+		if merged.Archived {
+			merged.Enabled = false
+		}
+	}
+	if merged.Archived && merged.Enabled {
+		http.Error(w, "archived teams cannot be enabled; restore the team first", http.StatusBadRequest)
+		return
+	}
 	if updates.Runtime.Mode != "" {
 		merged.Runtime = updates.Runtime
 	}
@@ -334,6 +352,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	if req.Enabled != nil {
 		h.updateHeartbeatSchedules(ctx, id, *req.Enabled)
+	}
+	if req.Archived != nil && *req.Archived {
+		h.updateHeartbeatSchedules(ctx, id, false)
 	}
 
 	// Get updated team
@@ -1053,6 +1074,7 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		DisplayName:        t.DisplayName,
 		Mission:            t.Mission,
 		Enabled:            t.Enabled,
+		Archived:           t.Archived,
 		Runtime:            t.Runtime,
 		Coordination:       t.Coordination,
 		Execution:          t.Execution,

@@ -28,6 +28,7 @@ import { OrgChartNode } from './OrgChartNode'
 import { FlowShell, layoutFlowDagre } from '@/components/graph/FlowShell'
 import type { TeamDetails } from '@/types/team'
 import type { Agent, AgentAppearance } from '@/types/agent'
+import type { ContractorMember } from '@/services/effortService'
 import type { OrgEdge, OrgChartNode as OrgChartNodeType, OrgChartFlowEdge, OrgChartNodeData } from '@/types/orgChart'
 
 import * as heartbeatService from '@/services/heartbeatService'
@@ -42,6 +43,7 @@ import '@xyflow/react/dist/style.css'
 
 interface OrgChartPanelProps {
   team: TeamDetails
+  contractors?: ContractorMember[]
   edges: OrgEdge[]
   allAgents: Agent[]
   selectedMemberId: string | null
@@ -183,6 +185,7 @@ function getLayoutedElements(
 
 export function OrgChartPanel({
   team,
+  contractors = [],
   edges: orgEdges,
   allAgents,
   selectedMemberId,
@@ -500,6 +503,23 @@ export function OrgChartPanel({
 
   return (
     <div className={cn('h-full flex flex-col', className)}>
+      {contractors.length > 0 && (
+        <div className="flex-shrink-0 border-b border-border bg-muted/20 px-3 py-2" data-testid="contractor-roster">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contractors</p>
+            <span className="text-[10px] text-muted-foreground">{contractors.length} runtime worker{contractors.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {contractors.map((contractor) => (
+              <span key={contractor.runId} className="inline-flex items-center gap-1 rounded-full border border-dashed border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-foreground" title={`${contractor.role} · ${contractor.status} · ${contractor.runId}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden="true" />
+                <span className="max-w-[180px] truncate">{contractor.displayName}</span>
+                <span className="text-[10px] text-muted-foreground">{contractor.role}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {reportingChip && (
         <div
           className={cn(

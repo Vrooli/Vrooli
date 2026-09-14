@@ -113,6 +113,17 @@ func (f *supervisionFixture) receipt(t *testing.T, disposition string) {
 	}
 }
 
+func TestStandingSupervisorSelectsHigherConsequenceBeforeFairnessTieBreak(t *testing.T) {
+	f := newSupervisionFixture(t)
+	low, high := effort("effort:low"), effort("effort:high")
+	low.Priority, high.Priority = 1, 9
+	f.owner.rows = []EffortObservation{low, high}
+	state := f.tick(t)
+	if state.Pending == nil || len(state.Pending.Efforts) != 1 || state.Pending.Efforts[0].ID != high.ID {
+		t.Fatalf("higher-priority changed effort was not selected: %+v", state.Pending)
+	}
+}
+
 func TestStandingSupervisorRetainsSharedQuotaOnceInWake(t *testing.T) {
 	f := newSupervisionFixture(t)
 	f.owner.rows = []EffortObservation{effort("effort:quota")}

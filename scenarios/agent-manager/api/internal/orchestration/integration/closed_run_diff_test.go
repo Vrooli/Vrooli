@@ -103,6 +103,10 @@ func (p *archiveAwareSandboxProvider) GetDiff(_ context.Context, _ uuid.UUID) (*
 	return &c, nil
 }
 
+func (p *archiveAwareSandboxProvider) ListProcesses(_ context.Context, _ uuid.UUID) ([]sandbox.ProcessSnapshot, error) {
+	return nil, nil
+}
+
 func (p *archiveAwareSandboxProvider) Approve(_ context.Context, _ sandbox.ApproveRequest) (*sandbox.ApproveResult, error) {
 	return &sandbox.ApproveResult{Success: true}, nil
 }

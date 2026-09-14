@@ -71,6 +71,7 @@ describe('metric detail variants', () => {
         tcpStates: { total: 7, established: 4, '$typeName': 'x' },
         networkStats: { bandwidthInMbps: 1.2, bandwidthOutMbps: 2.3, packetLoss: 0.1, dnsSuccessRate: 99, dnsLatencyMs: 4 },
         portUsage: { used: 2, total: 10 },
+        verdict: { state: 'warning', summary: 'Network evidence is partial', reasons: ['transport counters unsupported'] },
         connectionPools: [{ name: 'http', active: 1, idle: 2, waiting: 0, maxSize: 10, leakRisk: 'low' }],
       } } as never}
       metricHistory={{ network: [{ timestamp: 'now', value: 7 }] } as never} onBack={vi.fn()}
@@ -78,6 +79,7 @@ describe('metric detail variants', () => {
     expect(screen.getByText('7 active connections')).toBeInTheDocument();
     expect(screen.getByText('ESTABLISHED')).toBeInTheDocument();
     expect(screen.getByText('http')).toBeInTheDocument();
+    expect(screen.getByText('Network evidence is partial')).toBeInTheDocument();
 
     render(<NetworkDetailView metrics={null} detailedMetrics={null} metricHistory={null} onBack={vi.fn()} />);
     expect(screen.getByText('Connections not measured')).toBeInTheDocument();

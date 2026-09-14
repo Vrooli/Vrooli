@@ -169,6 +169,9 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 				}
 			}
 			response.ConnectionsState = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "tcp_connections")
+			response.NetworkEstablishedRate = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "established_rate_per_second")
+			response.NetworkTimeWaitRate = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "time_wait_rate_per_second")
+			response.NetworkCloseWaitRate = memoryMetricState(entry.CycleID, entry.Timestamp, entry.CollectorName, entry.Values, "close_wait_rate_per_second")
 		}
 
 		if entry.CollectorName == "gpu" {

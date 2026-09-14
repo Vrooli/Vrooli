@@ -6,6 +6,33 @@ Heartbeats enable team members (agents) to execute autonomous tasks on a schedul
 
 Each team member can have at most one heartbeat configuration. Heartbeats are **disabled by default** to prevent accidental expensive LLM usage - they must be explicitly enabled.
 
+### Ordinary wake admission
+
+Ordinary heartbeats retain the historical run-on-every-schedule behavior unless
+their configuration explicitly sets `wakeAdmission` to `on-change`:
+
+```json
+{
+  "wakeAdmission": {
+    "mode": "on-change",
+    "changeSources": ["team", "member", "inbox", "corpus"]
+  }
+}
+```
+
+The first observation admits a run. Later schedule ticks are quiet when the
+selected bounded source identities are unchanged, and admit again when any
+selected identity changes. Admission evidence is runtime-only, stored beside
+the member heartbeat state rather than in `heartbeat.json`, so polling does not
+create configuration revisions. Manual triggers bypass this gate. Finite-leader
+and standing-supervision heartbeats retain their own admission protocols.
+
+The gate is deliberately fail-open: if source evidence or its runtime baseline
+cannot be read, the scheduled run is admitted. A failed queue or execution does
+not consume the observed change, allowing a later tick to retry it. Use
+`mode: "always"` (or omit the block) for proactive members whose cadence is
+itself the work, such as recurring scans.
+
 ## Standing effort supervision
 
 For the organizational model, read
@@ -167,6 +194,29 @@ an allowlist of supervised efforts. New subjects come from Agent Manager discove
 | Active enrollment | The watch has not been withdrawn. It does not mean the orchestrator is running. |
 | Board `finished`, `unknown`, or legacy `loop_state=stopped` | Inspect orchestrator/worker coverage, outcome standing and stop reasons separately. Observer runs no longer imply business runtime; terminal executors still do not prove acceptance. |
 
+### Effective execution state
+
+Heartbeat configuration is retained when a team is turned off so that the
+operator can restore the prior schedule. Therefore `enabled: true` on a
+heartbeat configuration is not an execution claim. The API and CLI also expose
+the derived fields `teamEnabled`, `effectiveState`, `effectiveReason`,
+`controlState`, and `scheduled`.
+
+Treat `effectiveState` as the execution authority:
+
+| State | Meaning |
+|---|---|
+| `scheduled` | The team and heartbeat are enabled, heartbeat control allows starts, and a scheduler entry exists. |
+| `team-archived` | The team is retained for historical recovery, but all execution is refused until it is restored. |
+| `team-disabled` | The heartbeat configuration is retained, but the team is turned off. |
+| `paused` | Heartbeat control is blocking new starts. |
+| `disabled` | The member heartbeat configuration is off. |
+| `not-scheduled` | Configuration is enabled, but no live scheduler entry exists. |
+| `unavailable` | Prompt Manager could not establish a trustworthy state; do not infer that execution is active. |
+
+All scheduled, manual, retry, and finite-leader dispatch paths re-check the
+team archive/enable state and heartbeat-control gates before starting work.
+
 The team dashboard labels local-log coverage separately and leaves total run
 counts and success rate unavailable. Standing supervisor runs can have owner
 receipts but no such files. Exact team-wide AM accounting still needs public,
@@ -234,6 +284,25 @@ and global/team pause retain the reservation. Retirement does not cancel a run.
 Identity and profile changes and binding deletion are refused. This minimum
 interface does not implement Aquila's unbuilt finite-team runtime or autonomous
 fresh-run recovery, and does not supply missing human deployment inputs.
+
+### Child cohorts, parking, and watchdogs
+
+Finite coordinators that delegate child runs use Agent Manager's durable cohort
+watch rather than a five-minute polling loop:
+
+1. Resolve the verified parent identity with `agent-manager run identity --json`.
+2. Create children with `agent-manager run create --parent-run-id <parent-run-id>`.
+3. Create one cohort watch with the parent run and the exact child run subjects.
+4. Park the parent with `agent-manager run park <parent-run-id> --producer supervision --key <watch-id>`.
+5. Let the watch wake the same parent when all children are terminal. The parent
+   reconciles the child results and cancels the settled watch.
+
+The park deadline is a watchdog, not a replacement-run timer. A timeout wakes the
+same parent so it can classify active, terminal, missing, or uncertain children.
+The parent must not retry an uncertain child or create a fresh coordinator run.
+The supervision waiter and watch action path are server-owned and survive an
+Agent Manager restart. A finite coordinator that has no child cohort should end
+normally with a durable handoff; it should not claim to be parked.
 
 Implementation checkpoint (2026-09-12, scoped W3 repair): twelve finite-leader
 test functions pass with the race detector across heartbeat, store and teamconfig,

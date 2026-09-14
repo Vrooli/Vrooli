@@ -3953,6 +3953,26 @@
           }
         },
         {
+          "name": "efficiency",
+          "description": "Bounded invocation efficiency evidence",
+          "flags": [
+            {"name": "preset", "description": "Time window preset"},
+            {"name": "start", "description": "RFC3339 lower time bound"},
+            {"name": "end", "description": "RFC3339 upper time bound"},
+            {"name": "tag-prefix", "description": "Run tag prefix"},
+            {"name": "group-by", "description": "Breakdown dimension"},
+            {"name": "limit", "description": "Maximum rows per breakdown"},
+            {"name": "compare", "description": "Optional comparison window: previous"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "operational"}
+        },
+        {
           "name": "stop",
           "description": "Stop a run",
           "binding": {
@@ -4358,7 +4378,8 @@
             "method": "RunCost"
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "proto_list",
+            "primary_field": "total_cost_usd"
           },
           "governance": {
             "effect": "read",

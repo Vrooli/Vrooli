@@ -62,6 +62,8 @@ type responseProjection struct {
 	candidateFields []string
 }
 
+const projectionWholeResponse = "$response"
+
 // responseProjectionFor resolves the response shape from protobuf descriptors
 // and the owning command declaration. JSON object ordering is deliberately not
 // part of this contract: an ambiguous response is refused until its owner
@@ -85,14 +87,30 @@ func responseProjectionFor(output protoreflect.MessageDescriptor, declaredPrimar
 		projection.rowsField = repeated[0]
 	case len(repeated) > 1:
 		primary := normalizeField(declaredPrimary)
+		primaryCompact := strings.ReplaceAll(primary, "_", "")
 		for _, candidate := range repeated {
-			if normalizeField(candidate) == primary {
+			candidateName := normalizeField(candidate)
+			if candidateName == primary || strings.ReplaceAll(candidateName, "_", "") == primaryCompact {
 				projection.rowsField = candidate
 				break
 			}
 		}
 		if projection.rowsField == "" {
-			projection.candidateFields = repeated
+			// A scalar primary field declares that the response itself is the
+			// record. This is useful for aggregate RPCs that also carry several
+			// optional/repeated distributions (for example RunCost). The
+			// declaration removes ambiguity without pretending one repeated
+			// field is the operation's row set.
+			for _, field := range all {
+				fieldName := normalizeField(field)
+				if fieldName == primary || strings.ReplaceAll(fieldName, "_", "") == primaryCompact {
+					projection.rowsField = projectionWholeResponse
+					break
+				}
+			}
+			if projection.rowsField == "" {
+				projection.candidateFields = repeated
+			}
 		}
 	}
 	filtered := projection.metaFields[:0]

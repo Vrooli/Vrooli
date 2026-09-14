@@ -206,6 +206,79 @@ func (a *App) runStats(args []string) error {
 	return nil
 }
 
+func (a *App) runEfficiency(args []string) error {
+	fs := flag.NewFlagSet("run efficiency", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	preset := fs.String("preset", "24h", "Time window preset: 6h, 12h, 24h, 7d, or 30d")
+	start := fs.String("start", "", "RFC3339 lower time bound")
+	end := fs.String("end", "", "RFC3339 upper time bound")
+	tagPrefix := fs.String("tag-prefix", "", "Run tag prefix")
+	groupBy := fs.String("group-by", "profile", "Breakdown: runner, model, profile, workload, or workload_kind")
+	limit := fs.Int("limit", 20, "Maximum rows per breakdown")
+	compare := fs.String("compare", "", "Optional comparison: previous")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	query := url.Values{"preset": {*preset}, "group_by": {*groupBy}, "limit": {strconv.Itoa(*limit)}}
+	if *compare != "" {
+		query.Set("compare", *compare)
+	}
+	if *start != "" {
+		query.Set("start", *start)
+	}
+	if *end != "" {
+		query.Set("end", *end)
+	}
+	if *tagPrefix != "" {
+		query.Set("tag_prefix", *tagPrefix)
+	}
+	body, err := a.services.Runs.Efficiency(query)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	var report struct {
+		Status  string `json:"status"`
+		Metrics struct {
+			TotalRuns         int64   `json:"totalRuns"`
+			TotalTokens       int64   `json:"totalTokens"`
+			AverageDurationMS float64 `json:"averageDurationMs"`
+			SuccessRate       float64 `json:"successRate"`
+			FileRereadRate    float64 `json:"fileRereadRate"`
+		} `json:"metrics"`
+		Unknown   []string `json:"unknown"`
+		Freshness struct {
+			Available bool  `json:"available"`
+			AgeMS     int64 `json:"age_ms"`
+			Stale     bool  `json:"stale"`
+		} `json:"freshness"`
+		Dispositions []struct {
+			Disposition string `json:"disposition"`
+			Count       int64  `json:"count"`
+		} `json:"dispositions"`
+	}
+	if err := json.Unmarshal(body, &report); err != nil {
+		return fmt.Errorf("decode efficiency report: %w", err)
+	}
+	fmt.Printf("Efficiency: status=%s runs=%d tokens=%d avg_duration_ms=%.0f success_rate=%.3f file_reread_rate=%.3f\n", report.Status, report.Metrics.TotalRuns, report.Metrics.TotalTokens, report.Metrics.AverageDurationMS, report.Metrics.SuccessRate, report.Metrics.FileRereadRate)
+	for _, unknown := range report.Unknown {
+		fmt.Printf("Unknown: %s\n", unknown)
+	}
+	if report.Freshness.Available {
+		fmt.Printf("Projection freshness: age_ms=%d stale=%t\n", report.Freshness.AgeMS, report.Freshness.Stale)
+	} else {
+		fmt.Println("Projection freshness: unavailable")
+	}
+	for _, disposition := range report.Dispositions {
+		fmt.Printf("Disposition: %s=%d (terminal status only)\n", disposition.Disposition, disposition.Count)
+	}
+	support.NextSteps("agent-manager run efficiency --json", "agent-manager run stats --since <RFC3339>")
+	return nil
+}
+
 func (a *App) runResult(args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: agent-manager run result <id>")

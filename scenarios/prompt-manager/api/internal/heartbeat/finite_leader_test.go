@@ -45,7 +45,8 @@ func newFiniteFixture(t *testing.T) *finiteFixture {
 	}
 	cfg := &store.HeartbeatConfig{Enabled: true, Schedule: "@hourly", ProfileKey: "qualified-profile", FiniteLeader: &teamconfig.FiniteLeader{
 		EffortRef: "arbitrary:new-effort/42", AcceptedRevision: "accepted:revision/7", CoordinatorPromptRef: "prompt-manager://teams/committee/members/lead/heartbeat",
-		SourceRefs: []string{"owner:accepted-assignment/7"}}}
+		SourceRefs: []string{"owner:accepted-assignment/7"},
+	}}
 	if err := teams.SetHeartbeatConfig(ctx, "committee", "lead", cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -105,8 +106,10 @@ func TestFiniteLeaderExactBindingAndConcurrentAdmission(t *testing.T) {
 	if !strings.Contains(description, "retain the human input wait") || !strings.Contains(description, state.Binding.SourceRefs[0]) {
 		t.Fatal("normal coordinator prompt or accepted source references lost")
 	}
-	for _, guidance := range []string{"durable owner reads", "independent, verifiable work", "Park or checkpoint", "final handoff", "explicit completion receipt",
-		"planners or workers", "parent handoff identity", "Independent review is bounded work", "successful finite child stays terminal"} {
+	for _, guidance := range []string{
+		"durable owner reads", "independent, verifiable work", "Park or checkpoint", "final handoff", "explicit completion receipt",
+		"planners or workers", "parent handoff identity", "Independent review is bounded work", "successful finite child stays terminal",
+	} {
 		if !strings.Contains(description, guidance) {
 			t.Fatalf("finite coordinator guidance missing %q", guidance)
 		}
@@ -147,7 +150,9 @@ func TestFiniteLeaderLostDispatchResponseReconcilesOnlyExactRun(t *testing.T) {
 	f.agent.createRunErr = nil
 	f.runtime = &FiniteLeaderRuntime{Executor: f.runtime.Executor, Queue: &effortQueueFake{}}
 	for _, rows := range []*ListRunsResponse{
-		{}, {HasMore: true}, {Runs: []*Run{{ID: "other", TaskID: "task-1", Tag: "wrong"}}},
+		{},
+		{HasMore: true},
+		{Runs: []*Run{{ID: "other", TaskID: "task-1", Tag: "wrong"}}},
 		{Runs: []*Run{{ID: "a"}, {ID: "b"}}},
 	} {
 		f.agent.listRunsResp = rows
@@ -157,7 +162,7 @@ func TestFiniteLeaderLostDispatchResponseReconcilesOnlyExactRun(t *testing.T) {
 	}
 	f.agent.listRunsResp = &ListRunsResponse{Runs: []*Run{{ID: "recovered-exact", TaskID: "task-1", Tag: "finite-leader-" + state.ID, Status: "parked"}}, Total: 1}
 	recovered, err := f.runtime.Tick(context.Background(), "committee", "lead")
-	if err != nil || recovered.RunID != "recovered-exact" || len(f.agent.createRunCalls) != 1 {
+	if err != nil || recovered.RunID != "recovered-exact" || len(f.agent.createRunCalls) != 2 || f.agent.createRunCalls[0].IdempotencyKey != f.agent.createRunCalls[1].IdempotencyKey {
 		t.Fatalf("lost response not reconciled to original: %+v %v", recovered, err)
 	}
 }
@@ -413,5 +418,34 @@ func TestFiniteLeaderCompletionRetainsActiveRunAccounting(t *testing.T) {
 	retained, _ := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
 	if retained.Completed == nil || retained.RunID != state.RunID {
 		t.Fatalf("completion receipt or owner identity lost after settling: %+v", retained)
+	}
+}
+
+func TestFiniteLeaderRestartRequiresTerminalOwnerAndPreservesHistory(t *testing.T) {
+	f := newFiniteFixture(t)
+	ctx := context.Background()
+	state := f.dispatch(t)
+	if err := f.runtime.Restart(ctx, "committee", "lead", "accepted:revision/7", "evidence:owner/terminal"); err == nil {
+		t.Fatal("nonterminal owner run allowed a replacement")
+	}
+	f.agent.getRuns[state.RunID].Status = "complete"
+	if err := f.runtime.Restart(ctx, "committee", "lead", "accepted:revision/7", "evidence:owner/terminal"); err != nil {
+		t.Fatalf("terminal owner restart refused: %v", err)
+	}
+	retained, err := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+	if err != nil || retained.DispatchStarted || retained.RunID != "" || len(retained.RestartHistory) != 1 {
+		t.Fatalf("restart did not clear reusable reservation or retain history: %+v %v", retained, err)
+	}
+	if retained.RestartHistory[0].RunID != state.RunID || retained.RestartHistory[0].EvidenceRef != "evidence:owner/terminal" {
+		t.Fatalf("restart history lost prior identity/evidence: %+v", retained.RestartHistory)
+	}
+	if _, err := f.runtime.Tick(ctx, "committee", "lead"); err != nil {
+		t.Fatalf("fresh reservation after restart refused: %v", err)
+	}
+	if _, err := f.runtime.Executor.Execute(ctx, "committee", "lead", "ignored"); err != nil {
+		t.Fatalf("replacement reservation did not dispatch: %v", err)
+	}
+	if len(f.agent.createRunCalls) != 2 {
+		t.Fatalf("restart did not permit exactly one replacement run: %d", len(f.agent.createRunCalls))
 	}
 }

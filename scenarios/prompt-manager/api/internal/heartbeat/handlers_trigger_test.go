@@ -389,3 +389,80 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 		t.Fatalf("expected status 409, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestEffectiveExecutionStateDistinguishesRetainedConfiguration(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	team := newIndependentTestTeam("team-1", "Team")
+	team.Enabled = false
+	if err := teamStore.Create(context.Background(), team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+
+	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore})
+	config := &store.HeartbeatConfig{TeamID: team.ID, AgentID: "agent-1", Enabled: true, Schedule: "*/5 * * * *"}
+	teamEnabled, state, reason, controlState, scheduled := handlers.effectiveExecutionState(context.Background(), config)
+
+	if teamEnabled {
+		t.Fatal("retained heartbeat configuration must not make a disabled team executable")
+	}
+	if state != "team-disabled" {
+		t.Fatalf("effective state = %q, want team-disabled", state)
+	}
+	if reason != "team is disabled" {
+		t.Fatalf("effective reason = %q, want team is disabled", reason)
+	}
+	if controlState != "active" {
+		t.Fatalf("control state = %q, want active", controlState)
+	}
+	if scheduled {
+		t.Fatal("disabled team must not report a scheduler entry")
+	}
+}
+
+func TestEffectiveExecutionStateReportsArchivedTeamAndBlocksTrigger(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+
+	team := newIndependentTestTeam("team-archived", "Archived Team")
+	team.Enabled = false
+	team.Archived = true
+	if err := teamStore.Create(context.Background(), team); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := agentStore.Create(context.Background(), &store.Agent{ID: "agent-archived", DisplayName: "Agent"}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := relationStore.SetTeamMember(context.Background(), &store.TeamMemberRelation{
+		TeamID: "team-archived", AgentID: "agent-archived", Status: store.MemberStatusActive,
+	}); err != nil {
+		t.Fatalf("create membership: %v", err)
+	}
+	if err := teamStore.SetHeartbeatConfig(context.Background(), "team-archived", "agent-archived", &store.HeartbeatConfig{
+		TeamID: "team-archived", AgentID: "agent-archived", Schedule: "0 */6 * * *", Enabled: true,
+	}); err != nil {
+		t.Fatalf("set heartbeat config: %v", err)
+	}
+
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore,
+		Executor: newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil),
+	})
+	config := &store.HeartbeatConfig{TeamID: team.ID, AgentID: "agent-archived", Enabled: true, Schedule: "*/5 * * * *"}
+	teamEnabled, state, reason, _, scheduled := handlers.effectiveExecutionState(context.Background(), config)
+	if teamEnabled || state != "team-archived" || reason != "team is archived" || scheduled {
+		t.Fatalf("archived execution state = enabled:%v state:%q reason:%q scheduled:%v", teamEnabled, state, reason, scheduled)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/teams/team-archived/heartbeats/agent-archived/trigger", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team-archived", "agentId": "agent-archived"})
+	w := httptest.NewRecorder()
+	handlers.TriggerHeartbeat(w, req)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("expected archived team trigger status 409, got %d: %s", w.Code, w.Body.String())
+	}
+}

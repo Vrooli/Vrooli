@@ -18,10 +18,13 @@ import (
 // effort across the owner boundary.
 const finiteLeaderGuidance = "\n\nFinite effort coordinator guidance:\n" +
 	"- Prefer durable owner reads (files, journals, owner APIs) over re-deriving state; never invent a private outcome ledger.\n" +
-	"- Do independent, verifiable work while waiting; never hold a wait inside the run.\n" +
-	"- Park or checkpoint unfinished work through its owner when blocked; preserve owner identity instead of replacing a run.\n" +
+	"- Do independent, verifiable work before waiting; never hold a child wait inside the run.\n" +
+	"- When delegated children are pending, obtain the verified parent ID with `agent-manager run identity --json`, create durable child lineage with `agent-manager run create --parent-run-id`, and create one Agent Manager cohort watch containing the exact child run IDs and this parent run ID.\n" +
+	"- Park or checkpoint the parent on that watch with `agent-manager run park <parent-run-id> --producer supervision --key <watch-id> --deadline-unix <watch-deadline>`; parking must be an actual owner operation, not a statement in the handoff.\n" +
+	"- A supervision wake resumes this same parent run with terminal child evidence. Reconcile the exact child IDs, cancel the completed watch, and select the next bounded action; never create a replacement coordinator run.\n" +
+	"- If the watch deadline wakes the parent, classify the children as active, terminal, missing, or uncertain. Do not retry an uncertain child or invent a fresh grant.\n" +
 	"- Before ending a pass, write the final handoff: changed, verified, remaining, unverified and the exact next action.\n" +
-	"- Accept the effort only through the explicit completion receipt; a terminal run is not effort acceptance."
+	"- Accept the effort only through the explicit completion receipt; a terminal run is not effort acceptance. After acceptance, retire the finite binding so future heartbeat ticks are fenced."
 
 // finiteMemberGuidance describes how a finite leader delegates to its members.
 // It grants no authority; it states the planner/worker contract and the exact
@@ -142,16 +145,42 @@ func (f *FiniteLeaderRuntime) observe(ctx context.Context, state *store.FiniteLe
 	if state.RunID != "" {
 		run, err = f.Executor.agentClient.GetRun(ctx, state.RunID)
 	} else {
-		// Bounded owner lookup after a lost admission response. Empty, truncated
-		// or conflicting results never justify another CreateRun.
+		// Bounded owner lookup after a lost admission response. Truncated or
+		// conflicting results never justify another CreateRun; an authoritative
+		// zero-run result permits only the original idempotency-key replay.
 		var runs *ListRunsResponse
 		runs, err = f.Executor.agentClient.ListRuns(ctx, ListRunsOptions{TaskID: state.TaskID, Limit: 2})
 		if err == nil {
-			if runs == nil || runs.HasMore || runs.Total > 1 || len(runs.Runs) != 1 || runs.Runs[0] == nil {
+			if runs == nil || runs.HasMore || runs.Total > 1 {
 				return nil, fmt.Errorf("finite leader dispatch uncertain; retain task %s", state.TaskID)
 			}
-			run = runs.Runs[0]
-			if run.TaskID != state.TaskID || run.Tag != "finite-leader-"+state.ID {
+			if runs.Total == 0 && len(runs.Runs) == 0 {
+				// The task exists but the original run admission was definitively
+				// absent. Replay the exact idempotency key; this is reconciliation,
+				// not a replacement dispatch.
+				binding := state.Binding
+				tag := "finite-leader-" + state.ID
+				attributionKey, attributionValue := buildHeartbeatAttributionEnv(state.TeamID, state.AgentID)
+				run, err = f.Executor.agentClient.CreateRun(ctx, &CreateRunRequest{
+					TaskID: state.TaskID, IdempotencyKey: tag, Tag: &tag,
+					ProfileRef:  &ProfileRef{ProfileKey: state.ProfileKey},
+					Environment: map[string]string{attributionKey: attributionValue},
+					WorkReferences: []*eventpb.WorkReference{{
+						Kind: "effort", Id: binding.EffortRef,
+						Revision: binding.AcceptedRevision, Relationship: "orchestrator", Verified: true,
+						Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+						State:      eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+					}},
+				})
+				if err != nil {
+					return nil, fmt.Errorf("finite leader dispatch remains uncertain after same-key replay: %w", err)
+				}
+			} else if len(runs.Runs) != 1 || runs.Runs[0] == nil {
+				return nil, fmt.Errorf("finite leader dispatch uncertain; retain task %s", state.TaskID)
+			} else {
+				run = runs.Runs[0]
+			}
+			if run == nil || run.TaskID != state.TaskID || run.Tag != "finite-leader-"+state.ID {
 				return nil, fmt.Errorf("finite leader owner response does not match reserved task and tag")
 			}
 		}
@@ -221,8 +250,10 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 		if err := save(); err != nil {
 			return err
 		}
-		task, err := f.Executor.agentClient.CreateTask(ctx, &Task{Title: "Finite effort leader: " + teamID + "/" + agentID,
-			Description: prompt, ScopePath: f.Executor.vrooliRoot, ProjectRoot: f.Executor.vrooliRoot})
+		task, err := f.Executor.agentClient.CreateTask(ctx, &Task{
+			Title:       "Finite effort leader: " + teamID + "/" + agentID,
+			Description: prompt, ScopePath: f.Executor.vrooliRoot, ProjectRoot: f.Executor.vrooliRoot,
+		})
 		if err != nil {
 			return err
 		}
@@ -235,11 +266,15 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 		}
 		tag := "finite-leader-" + current.ID
 		key, value := buildHeartbeatAttributionEnv(teamID, agentID)
-		run, err = f.Executor.agentClient.CreateRun(ctx, &CreateRunRequest{TaskID: task.ID, IdempotencyKey: tag, Tag: &tag,
+		run, err = f.Executor.agentClient.CreateRun(ctx, &CreateRunRequest{
+			TaskID: task.ID, IdempotencyKey: tag, Tag: &tag,
 			ProfileRef: &ProfileRef{ProfileKey: current.ProfileKey}, Environment: map[string]string{key: value},
-			WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: current.Binding.EffortRef, Revision: current.Binding.AcceptedRevision,
+			WorkReferences: []*eventpb.WorkReference{{
+				Kind: "effort", Id: current.Binding.EffortRef, Revision: current.Binding.AcceptedRevision,
 				Relationship: "orchestrator", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
-				State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}}})
+				State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+			}},
+		})
 		if err != nil {
 			return err
 		}
@@ -284,9 +319,11 @@ func (f *FiniteLeaderRuntime) record(ctx context.Context, state *store.FiniteLea
 		return err
 	}
 	if changed {
-		e.appendAttempt(ctx, &store.HeartbeatAttempt{ID: state.ID, TeamID: state.TeamID, AgentID: state.AgentID,
+		e.appendAttempt(ctx, &store.HeartbeatAttempt{
+			ID: state.ID, TeamID: state.TeamID, AgentID: state.AgentID,
 			ProfileKey: state.ProfileKey, TaskID: state.TaskID, RunID: run.ID, Tag: "finite-leader-" + state.ID,
-			Status: status, Phase: "finite_leader_owner_observed", StartedAt: startedAt, EndedAt: run.EndedAt, Error: run.Error})
+			Status: status, Phase: "finite_leader_owner_observed", StartedAt: startedAt, EndedAt: run.EndedAt, Error: run.Error,
+		})
 	}
 	if e.teamExecStore != nil {
 		e.teamExecStore.SetRunningRunID(state.TeamID, state.AgentID, run.ID)
@@ -309,6 +346,27 @@ func (f *FiniteLeaderRuntime) record(ctx context.Context, state *store.FiniteLea
 // It is idempotent for a repeated exact completion and never reopens work.
 func (f *FiniteLeaderRuntime) Complete(ctx context.Context, teamID, agentID, revision, evidenceRef string) (*store.FiniteLeaderCompletion, bool, error) {
 	return f.Executor.teamStore.CompleteFiniteLeader(ctx, teamID, agentID, revision, evidenceRef)
+}
+
+// Restart explicitly recovers a terminal dispatched owner run. The exact
+// Agent Manager run is reread before the persistent reservation is cleared;
+// an unavailable or nonterminal owner never authorizes a replacement.
+func (f *FiniteLeaderRuntime) Restart(ctx context.Context, teamID, agentID, revision, evidenceRef string) error {
+	state, err := f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
+	if err != nil {
+		return err
+	}
+	if state == nil || !state.DispatchStarted || state.RunID == "" {
+		return fmt.Errorf("finite leader restart requires a dispatched owner run")
+	}
+	run, err := f.Executor.agentClient.GetRun(ctx, state.RunID)
+	if err != nil {
+		return fmt.Errorf("read exact finite leader owner run: %w", err)
+	}
+	if run == nil || run.ID != state.RunID || !IsTerminalStatus(run.Status) {
+		return fmt.Errorf("finite leader owner run is not terminal; replacement dispatch is refused")
+	}
+	return f.Executor.teamStore.RestartFiniteLeader(ctx, teamID, agentID, revision, evidenceRef, run.Status)
 }
 
 // Reopen is the explicit authorized counter-operation to completion.

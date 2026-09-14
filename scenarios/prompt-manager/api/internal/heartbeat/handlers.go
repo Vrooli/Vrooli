@@ -345,6 +345,10 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if err := req.WakeAdmission.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	team, err := h.teamStore.Get(ctx, teamID)
 	if err != nil {
@@ -373,13 +377,14 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Create config
 	config := &store.HeartbeatConfig{
-		FiniteLeader: req.FiniteLeader,
-		Supervision:  req.Supervision,
-		TeamID:       teamID,
-		AgentID:      agentID,
-		Schedule:     req.Schedule,
-		ProfileKey:   req.ProfileKey,
-		Enabled:      false, // Off by default
+		FiniteLeader:  req.FiniteLeader,
+		Supervision:   req.Supervision,
+		WakeAdmission: req.WakeAdmission,
+		TeamID:        teamID,
+		AgentID:       agentID,
+		Schedule:      req.Schedule,
+		ProfileKey:    req.ProfileKey,
+		Enabled:       false, // Off by default
 	}
 
 	if req.Enabled != nil {
@@ -492,6 +497,13 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	if req.Supervision != nil {
 		config.Supervision = req.Supervision
 	}
+	if err := req.WakeAdmission.Validate(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.WakeAdmission != nil {
+		config.WakeAdmission = req.WakeAdmission
+	}
 	if req.Schedule != nil {
 		config.Schedule = *req.Schedule
 	}
@@ -554,7 +566,7 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Request, teamID, agentID string, req UpdateHeartbeatRequest) {
 	ctx := r.Context()
 	transition := req.FiniteEffortTransition
-	if req.FiniteLeader != nil || req.Supervision != nil || req.Schedule != nil || req.ProfileKey != nil || req.Enabled != nil || req.TimeoutSeconds != nil {
+	if req.FiniteLeader != nil || req.Supervision != nil || req.WakeAdmission != nil || req.Schedule != nil || req.ProfileKey != nil || req.Enabled != nil || req.TimeoutSeconds != nil {
 		http.Error(w, "finite effort transition must not be combined with configuration changes", http.StatusBadRequest)
 		return
 	}
@@ -578,8 +590,17 @@ func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Re
 			writeFiniteEffortTransitionError(w, err)
 			return
 		}
+	case "restart":
+		if h.executor == nil || h.executor.FiniteLeader == nil {
+			http.Error(w, "finite leader runtime unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := h.executor.FiniteLeader.Restart(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
+			writeFiniteEffortTransitionError(w, err)
+			return
+		}
 	default:
-		http.Error(w, "finite effort transition operation must be 'complete' or 'reopen'", http.StatusBadRequest)
+		http.Error(w, "finite effort transition operation must be 'complete', 'reopen', or 'restart'", http.StatusBadRequest)
 		return
 	}
 	updated, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
@@ -597,7 +618,7 @@ func writeFiniteEffortTransitionError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrFiniteLeaderStaleRevision), errors.Is(err, store.ErrFiniteLeaderCompleted):
 		http.Error(w, err.Error(), http.StatusConflict)
-	case strings.Contains(err.Error(), "not completed"):
+	case strings.Contains(err.Error(), "not completed"), strings.Contains(err.Error(), "requires a terminal"), strings.Contains(err.Error(), "not terminal"):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -706,6 +727,9 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 	team, err := h.teamStore.Get(ctx, teamID)
 	if err != nil {
 		return nil, http.StatusNotFound, errors.New("Team not found")
+	}
+	if err := h.requireTeamExecution(ctx, team); err != nil {
+		return nil, http.StatusConflict, err
 	}
 	if err := h.requireMember(ctx, teamID, agentID); err != nil {
 		if errors.Is(err, errMemberNotFound) {
@@ -2407,10 +2431,16 @@ func formatDuration(d time.Duration) string {
 
 // toResponse converts a HeartbeatConfig to API response
 func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResponse {
+	teamEnabled, effectiveState, effectiveReason, controlState, scheduled := h.effectiveExecutionState(context.Background(), config)
 	resp := HeartbeatConfigResponse{
 		TeamID:              config.TeamID,
 		AgentID:             config.AgentID,
 		Enabled:             config.Enabled,
+		TeamEnabled:         teamEnabled,
+		EffectiveState:      effectiveState,
+		EffectiveReason:     effectiveReason,
+		ControlState:        controlState,
+		Scheduled:           scheduled,
 		Schedule:            config.Schedule,
 		ProfileKey:          config.ProfileKey,
 		TimeoutSeconds:      config.TimeoutSeconds,
@@ -2421,6 +2451,7 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 	}
 
 	resp.Supervision = config.Supervision
+	resp.WakeAdmission = config.WakeAdmission
 	resp.FiniteLeader = config.FiniteLeader
 	if config.FiniteLeader != nil && h.teamStore != nil {
 		state, err := h.teamStore.ReadFiniteLeader(context.Background(), config.TeamID, config.AgentID)
@@ -2458,7 +2489,7 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 	}
 
 	// Get next execution times from scheduler
-	if config.Enabled && h.scheduler != nil {
+	if scheduled && h.scheduler != nil {
 		if nextRun := h.scheduler.GetNextRun(config.TeamID, config.AgentID); nextRun != nil {
 			resp.NextExecution = nextRun.Format(time.RFC3339)
 		}
@@ -2471,6 +2502,64 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 	}
 
 	return resp
+}
+
+// requireTeamExecution is the common admission gate for every execution path.
+// Heartbeat configuration is intentionally retained when a team is turned off,
+// but retained configuration must never be mistaken for execution authority.
+func (h *Handlers) requireTeamExecution(ctx context.Context, team *store.Team) error {
+	if team == nil {
+		return errors.New("Team not found")
+	}
+	if !team.Enabled {
+		return errors.New("Team is disabled; enable the team to run heartbeats")
+	}
+	if team.Archived {
+		return errors.New("Team is archived; restore the team before running heartbeats")
+	}
+	if h.controlStore != nil {
+		if paused, err := h.controlStore.AllowStart(ctx, team.ID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				return errors.New(paused.Message)
+			}
+			return fmt.Errorf("heartbeat control check failed: %w", err)
+		}
+	}
+	return nil
+}
+
+// effectiveExecutionState reports the state an operator or caller can rely on.
+// It deliberately distinguishes retained configuration from actual scheduling.
+func (h *Handlers) effectiveExecutionState(ctx context.Context, config *store.HeartbeatConfig) (bool, string, string, string, bool) {
+	team, err := h.teamStore.Get(ctx, config.TeamID)
+	if err != nil {
+		return false, "unavailable", "team state unavailable", "unavailable", false
+	}
+	controlState := "active"
+	if h.controlStore != nil {
+		status, statusErr := h.controlStore.TeamStatus(ctx, config.TeamID)
+		if statusErr != nil {
+			return team.Enabled, "unavailable", "heartbeat control state unavailable", "unavailable", false
+		}
+		controlState = status.Status
+		if status.Status == HeartbeatControlStatusPausedAuto || status.Status == HeartbeatControlStatusPausedManual {
+			return team.Enabled, "paused", status.PausedReason, controlState, false
+		}
+	}
+	if team.Archived {
+		return false, "team-archived", "team is archived", controlState, false
+	}
+	if !team.Enabled {
+		return false, "team-disabled", "team is disabled", controlState, false
+	}
+	if !config.Enabled {
+		return true, "disabled", "heartbeat configuration is disabled", controlState, false
+	}
+	scheduled := h.scheduler != nil && h.scheduler.IsScheduled(config.TeamID, config.AgentID)
+	if !scheduled {
+		return true, "not-scheduled", "heartbeat is enabled but has no active scheduler entry", controlState, false
+	}
+	return true, "scheduled", "", controlState, true
 }
 
 // --- Handoff handlers ---

@@ -3,7 +3,7 @@ import { EffortBoardSchema } from '@vrooli/proto-types/agent-manager/v1/domain/e
 import { afterEach, expect, test, vi } from 'vitest'
 import { renderHookWithProviders } from '@/test'
 import { waitFor } from '@/test-utils/renderWithProviders'
-import { effortBoardClient, effortOwnerPath, readEffortObservations, useAgentManagerUrl } from './effortService'
+import { contractorMembersFromObservations, effortBoardClient, effortOwnerPath, readEffortObservations, useAgentManagerUrl } from './effortService'
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
@@ -38,6 +38,22 @@ test('requests beyond the linked page bound fail before reaching the owner', asy
   const read = vi.spyOn(effortBoardClient, 'getEffortBoard')
   await expect(readEffortObservations('', ['1', '2', '3', '4', '5', '6'])).rejects.toThrow('page limit')
   expect(read).not.toHaveBeenCalled()
+})
+
+test('projects exact child subjects as deduplicated contractor members', () => {
+  const contractors = contractorMembersFromObservations({
+    unavailable: [],
+    boards: [create(EffortBoardSchema, { rows: [{
+      enrollment: { effortRef: 'effort:ux' },
+      runtimeState: 'watching',
+      assignments: [
+        { subject: { runId: 'child-1', role: 'worker', assignment: 'Researcher' }, runtimeState: 'running', effectiveModel: 'model-a', effectiveRunner: 'codex' },
+        { subject: { runId: 'parent-1', role: 'supervisor', assignment: 'Coordinator' }, runtimeState: 'running' },
+        { subject: { runId: 'child-1', role: 'worker', assignment: 'Researcher' }, runtimeState: 'completed' },
+      ],
+    }] })],
+  })
+  expect(contractors).toEqual([expect.objectContaining({ id: 'contractor:child-1', runId: 'child-1', displayName: 'Researcher', role: 'worker', effortRef: 'effort:ux' })])
 })
 
 test('outages remain errors and owner links retain exact effort identity', async () => {

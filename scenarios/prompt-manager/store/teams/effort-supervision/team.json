@@ -21,9 +21,19 @@
     "maxConcurrentRuns": 1
   },
   "id": "effort-supervision",
+  "instrument": {
+    "status": "partial",
+    "scenario": "agent-manager",
+    "archetype": "coverage-board",
+    "coversScenarios": [
+      "agent-manager",
+      "prompt-manager"
+    ],
+    "gapMarker": "2026-09-14 — Agent Manager owns the effort board, identity, directives, recovery and accounting projections; Prompt Manager owns admission and continuity. The autonomous supervisor contract and focused owner tests are implemented, but scenario-level Test Genie qualification and a disposable unattended pilot remain open."
+  },
   "kind": "team",
   "lifetime": "standing",
-  "mission": "Supervise discovered efforts against accepted outcomes, diagnose consequential stops, coordinate owner repairs and qualified recovery, and improve supervision within its allowance and actual effort grants.",
+  "mission": "Act as the trusted delivery executive for enrolled efforts: keep orchestration progressing against accepted outcomes, resolve blockers, coordinate teams, recover eligible work, and improve the operating method while preserving owner invariants.",
   "operatingContract": {
     "schemaVersion": 1,
     "governance": {},
@@ -77,7 +87,7 @@
     },
     "members": {
       "effort-supervisor": {
-        "lane": "Observe, diagnose premature stops, verify resolution evidence and coordinate existing owner repairs for runtime-selected efforts; steering and recovery only through qualified owner controls under the effort's actual grant.",
+        "lane": "Continuously manage enrolled delivery efforts: diagnose and resolve blockers, coordinate orchestrators and workers, recover eligible work, repair integration, and improve reusable methods through Agent Manager owner controls.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -85,10 +95,10 @@
         ],
         "forbiddenWrites": [],
         "safetyCriticalRules": [
-          "Discovery permits observation only; it never supplies a steering or repair grant.",
+            "Discovery supplies evidence only; a durable owner-issued autonomous supervision mandate supplies action authority.",
           "Retain the wake ID, exact effort references and shared accounting reference in the assessment.",
-          "Do not change workers, active effort files, grants, accepted outcomes, global heartbeat policy or paid fallback routes.",
-          "Use large-effort-supervision. A healthy sample is diagnosis, not repair authority.",
+            "Do not change accepted outcomes, owner grants, global heartbeat policy or paid fallback routes; repair delivery within the enrolled mandate.",
+            "Use large-effort-supervision and reuse Agent Manager identity, supervision-evaluate, supervision-observation-read and efficiency-report programs before inventing a workflow.",
           "Finish each bounded wake with owner waits retained; the standing scheduler owns recurrence."
         ],
         "readOnlyModeBehavior": {
@@ -99,7 +109,7 @@
     }
   },
   "purpose": "supervision",
-  "revision": 4,
+  "revision": 5,
   "runtime": {
     "mode": "multi-process"
   },
@@ -108,5 +118,5 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "updatedAt": "2026-09-14T05:06:18Z"
+  "updatedAt": "2026-09-14T16:30:00Z"
 }

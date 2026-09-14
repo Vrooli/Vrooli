@@ -32,6 +32,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runList(args[1:])
 	case "get":
 		return a.runGet(args[1:])
+	case "identity":
+		return a.runIdentity(args[1:])
 	case "report":
 		return a.runReport(args[1:])
 	case "attach":
@@ -86,6 +88,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runInvocationMetrics(args[1:])
 	case "stats":
 		return a.runStats(args[1:])
+	case "efficiency":
+		return a.runEfficiency(args[1:])
 	case "result":
 		return a.runResult(args[1:])
 	case "tools":
@@ -462,6 +466,7 @@ func (a *App) runCreate(args []string) error {
 	until := fs.String("until", "", "Engine-owned completion test for this run")
 	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
+	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -476,6 +481,9 @@ func (a *App) runCreate(args []string) error {
 
 	req := &apipb.CreateRunRequest{
 		TaskId: *taskID,
+	}
+	if *parentRunID != "" {
+		req.ParentRunId = protoString(*parentRunID)
 	}
 	if *profileID != "" {
 		req.AgentProfileId = protoString(*profileID)

@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-12T00:00:00Z",
-  "description": "Supervise approved efforts against accepted outcomes, investigate consequential friction, deliver bounded steering, and improve supervision itself using attributable cost and outcome evidence.",
+  "description": "Autonomously supervise accepted efforts against agreed outcomes, resolve consequential friction with freedom of means, and improve supervision itself using attributable cost and outcome evidence.",
   "entry": "SKILL.md",
   "icon": "eye",
   "id": "large-effort-supervision",
@@ -25,7 +25,7 @@
       "program-runtime"
     ]
   },
-  "revision": 6,
+  "revision": 8,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -35,5 +35,5 @@
     "orchestration",
     "evidence"
   ],
-  "updatedAt": "2026-09-12T00:00:00Z"
+  "updatedAt": "2026-09-14T00:00:00Z"
 }

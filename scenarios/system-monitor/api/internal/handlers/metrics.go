@@ -95,6 +95,26 @@ func (h *MetricsHandler) GetDetailedMetrics(ctx context.Context, _ *connect.Requ
 	}), nil
 }
 
+// GetNetworkDiagnostic handles the bounded, on-demand network inventory.
+func (h *MetricsHandler) GetNetworkDiagnostic(ctx context.Context, req *connect.Request[metricspb.GetNetworkDiagnosticRequest]) (*connect.Response[metricspb.GetNetworkDiagnosticResponse], error) {
+	topN := int(req.Msg.GetTopN())
+	if topN <= 0 {
+		topN = 10
+	}
+	maxDuration := time.Duration(req.Msg.GetMaxDurationMs()) * time.Millisecond
+	if maxDuration <= 0 {
+		maxDuration = 2 * time.Second
+	}
+	if maxDuration > 10*time.Second {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("max_duration_ms must not exceed 10000"))
+	}
+	snapshot, err := h.monitorSvc.GetNetworkDiagnostic(ctx, topN, maxDuration, req.Msg.GetIncludeAddresses())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetNetworkDiagnosticResponse{Snapshot: convert.NetworkDiagnosticSnapshotToProto(snapshot)}), nil
+}
+
 // GetProcessMonitor handles the typed Connect-RPC process monitor contract.
 func (h *MetricsHandler) GetProcessMonitor(ctx context.Context, _ *connect.Request[metricspb.GetProcessMonitorRequest]) (*connect.Response[metricspb.GetProcessMonitorResponse], error) {
 	data, err := h.monitorSvc.GetProcessMonitorData(ctx)

@@ -77,6 +77,9 @@ type sandboxTestServer struct {
 
 	// Buffered exit info; sent on exitFrame as JSON.
 	exitInfo *remoteExitInfo
+	// listProcessExit simulates provider-side terminal evidence available
+	// after the SSE transport itself was interrupted.
+	listProcessExit *remoteExitInfo
 }
 
 type sseChunk struct {
@@ -101,6 +104,8 @@ func (m *sandboxTestServer) startServer(t *testing.T) *httptest.Server {
 			m.handleStdin(w, r)
 		case r.Method == "GET" && strings.Contains(path, "/processes/") && strings.HasSuffix(path, "/logs/stream"):
 			m.handleStreamLogs(w, r)
+		case r.Method == "GET" && strings.HasSuffix(path, "/processes"):
+			m.handleListProcesses(w, r)
 		case r.Method == "DELETE" && strings.Contains(path, "/processes/"):
 			m.handleKillProcess(w, r)
 		case r.Method == "GET" && !strings.Contains(path, "/processes"):
@@ -111,6 +116,23 @@ func (m *sandboxTestServer) startServer(t *testing.T) *httptest.Server {
 		}
 	})
 	return httptest.NewServer(mux)
+}
+
+func (m *sandboxTestServer) handleListProcesses(w http.ResponseWriter, r *http.Request) {
+	m.mu.Lock()
+	exit := m.listProcessExit
+	m.mu.Unlock()
+	processes := []map[string]any{}
+	if exit != nil {
+		processes = append(processes, map[string]any{
+			"pid":       m.procPID,
+			"exitCode":  exit.ExitCode,
+			"signal":    exit.Signal,
+			"oomKilled": exit.OOMKilled,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"processes": processes, "total": len(processes), "running": 0})
 }
 
 func (m *sandboxTestServer) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
@@ -693,6 +715,44 @@ func TestSandboxLauncher_NoExitInfo_ReportsFailure(t *testing.T) {
 	}
 	if got := sbxErr.Code(); got != domain.ErrCodeSandboxNoExitInfo {
 		t.Errorf("SandboxError.Code() = %q; want %q", got, domain.ErrCodeSandboxNoExitInfo)
+	}
+}
+
+func TestSandboxLauncher_ReconcilesExitInfoAfterStreamDisconnect(t *testing.T) {
+	mock := newSandboxTestServer(910)
+	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-reconcile/merged"
+	mock.listProcessExit = &remoteExitInfo{ExitCode: 23, Signal: 0}
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+	proc, err := launcher.Launch(context.Background(), runner.LaunchRequest{Command: "claude"})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	time.Sleep(50 * time.Millisecond)
+	mock.subsMu.Lock()
+	for _, ch := range mock.stdoutSubs {
+		close(ch)
+	}
+	for _, ch := range mock.stderrSubs {
+		close(ch)
+	}
+	mock.stdoutSubs = nil
+	mock.stderrSubs = nil
+	mock.subsMu.Unlock()
+
+	werr := proc.Wait()
+	var exitErr *remoteExitError
+	if !errors.As(werr, &exitErr) {
+		t.Fatalf("Wait error = %T (%v); want reconciled remote exit", werr, werr)
+	}
+	if exitErr.ExitCode() != 23 {
+		t.Fatalf("reconciled exit code = %d; want 23", exitErr.ExitCode())
 	}
 }
 

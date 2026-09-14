@@ -66,6 +66,23 @@ numeric zero.
 
 ## Platform tiers
 
+## Network telemetry
+
+Network detail uses two collection tiers. The steady cycle reads native TCP
+state gauges and interface counters without subprocesses. TCP state rates are
+signed changes in the state population, so a negative value means that state
+is draining; they are `not_yet_sampled` only until the first valid consecutive
+interval. Monotonic counter-derived rates remain `not_yet_sampled` on the first
+sample or after a reset. Interface rows are bounded by the current native
+interface inventory.
+
+Ownership and endpoint data are diagnostic snapshots, not steady metrics.
+They enforce a top-N and duration limit, preserve aggregate connection totals
+when permissions prevent attribution, and report coverage, truncation,
+duration, and reasons. Endpoint summaries are classified and redacted; raw
+addresses are not retained in history. Unsupported transport evidence carries
+`MetricValue` provenance and a reason rather than a synthetic zero.
+
 ## CPU signal catalog
 
 Signal keys are stable API vocabulary. A refusal is an observation with a

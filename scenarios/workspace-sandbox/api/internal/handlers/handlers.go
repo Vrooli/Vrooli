@@ -21,6 +21,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/fsmount"
@@ -41,22 +42,27 @@ type StatsGetter interface {
 // Handlers contains dependencies for HTTP handlers.
 // Dependencies are expressed as interfaces to enable testing with mocks.
 type Handlers struct {
-	Service         sandbox.ServiceAPI // Service interface for testability
-	DriverSlot      *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
-	DB              Pinger
-	Config          config.Config         // Unified configuration for accessing levers
-	Behavior        config.BehaviorConfig // Operator-tunable behavior knobs (loaded from .vrooli/config.json)
-	StatsGetter     StatsGetter           // For retrieving sandbox statistics
-	ProcessTracker  *process.Tracker      // For tracking sandbox processes (OT-P0-008)
-	ProcessLogger   *process.Logger       // For capturing process logs (Phase 2)
-	GCService       GCService             // For garbage collection operations (OT-P1-003)
-	ProfileStore    config.ProfileStore   // For isolation profile storage (admin write paths)
-	InUserNamespace bool                  // Whether API is running in a user namespace
-	Reconcilers     *sandbox.Runner       // Periodic reconciler dispatcher (Phase 2 Round 3)
-	RetentionStore  config.RetentionStore // Diff-archive retention config (Phase 4)
-	Clock           schedule.Clock        // Wall-clock seam (Round 4 Phase 2). Required.
-	Mounter         fsmount.Mounter       // Mount/unmount seam (Round 4 Phase 7). Required.
-	Starter         process.Starter       // Process exec seam (Round 4 Phase 7). Required.
+	// ProviderIncarnationID is generated once per API process. It lets callers
+	// distinguish a provider restart from a transient request failure without
+	// inferring identity from logs, ports, or timestamps.
+	ProviderIncarnationID string
+	Service               sandbox.ServiceAPI // Service interface for testability
+	DriverSlot            *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
+	DB                    Pinger
+	Config                config.Config         // Unified configuration for accessing levers
+	Behavior              config.BehaviorConfig // Operator-tunable behavior knobs (loaded from .vrooli/config.json)
+	StatsGetter           StatsGetter           // For retrieving sandbox statistics
+	ProcessTracker        *process.Tracker      // For tracking sandbox processes (OT-P0-008)
+	ProcessLogger         *process.Logger       // For capturing process logs (Phase 2)
+	GCService             GCService             // For garbage collection operations (OT-P1-003)
+	ProfileStore          config.ProfileStore   // For isolation profile storage (admin write paths)
+	InUserNamespace       bool                  // Whether API is running in a user namespace
+	Reconcilers           *sandbox.Runner       // Periodic reconciler dispatcher (Phase 2 Round 3)
+	RetentionStore        config.RetentionStore // Diff-archive retention config (Phase 4)
+	Clock                 schedule.Clock        // Wall-clock seam (Round 4 Phase 2). Required.
+	Mounter               fsmount.Mounter       // Mount/unmount seam (Round 4 Phase 7). Required.
+	Starter               process.Starter       // Process exec seam (Round 4 Phase 7). Required.
+	lifecycle             *providerLifecycle
 
 	// profileSnapshot holds the immutable {ID → profile} snapshot used
 	// by every Resolve in the request path. Loaded once at startup
@@ -79,6 +85,15 @@ func (h *Handlers) SetProfileSnapshot(snapshot map[string]config.IsolationProfil
 		panic("Handlers.SetProfileSnapshot: snapshot is nil")
 	}
 	h.profileSnapshot.Store(&snapshot)
+}
+
+// ConfigureLifecycle installs the provider-owned maintenance fence.
+func (h *Handlers) ConfigureLifecycle(provider, scenario, instance string) {
+	h.lifecycle = newProviderLifecycle(h.ProcessTracker, provider, scenario, instance)
+}
+
+func (h *Handlers) LifecycleService() commonconnect.LifecycleMaintenanceServiceHandler {
+	return h.lifecycle
 }
 
 // ProfileSnapshot returns the current snapshot or an empty map when

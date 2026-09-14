@@ -98,8 +98,8 @@ version, and the replay result reports that status rather than implying a full
 historical rebuild.
 
 Conversation-search state has a different retention class. Canonical messages
-remain in `run_events` under the policy above. `conversation_search_documents`,
-its FTS table, generation/checkpoint rows, and the variant-scoped Qdrant
+remain in `run_events` under the policy above. `conversation_search_catalog`,
+its external-content FTS table, generation/checkpoint rows, and the variant-scoped Qdrant
 collection are regenerable projections and never become a historical source of
 truth. `conversation_search_telemetry` contains categorical request/outcome
 facts only. It retains at most 30 days and 100,000 newest rows; a read samples at

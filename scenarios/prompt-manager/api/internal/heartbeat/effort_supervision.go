@@ -45,6 +45,7 @@ type EffortDiscovery struct {
 }
 
 type EffortObservation struct {
+	Priority                    uint32 `json:"priority,omitempty"`
 	RecoveryVerificationPending bool   `json:"recoveryVerificationPending,omitempty"`
 	Freshness                   string `json:"freshness,omitempty"`
 	ObservationOnly             bool   `json:"observationOnly,omitempty"`
@@ -240,6 +241,9 @@ func (s *StandingSupervisor) Tick(ctx context.Context, teamID, agentID string) (
 	}
 	sort.Slice(eligible, func(i, j int) bool {
 		a, b := state.Efforts[eligible[i].ID], state.Efforts[eligible[j].ID]
+		if eligible[i].Priority != eligible[j].Priority {
+			return eligible[i].Priority > eligible[j].Priority
+		}
 		if a.LastAttempt != b.LastAttempt {
 			return a.LastAttempt < b.LastAttempt
 		}
@@ -726,12 +730,12 @@ func supervisionAssessmentPrompt(teamID string, wake *SupervisionWake) string {
 		"Use agent-manager effort assess --request-file <request.json> --json with the runtime-issued VROOLI_AGENT_IDENTITY_TOKEN. " +
 		"The FAMILY_PARENT enum selects the existing signed run-token authentication path; do not invent a plan family or use operator credentials. " +
 		"AM binds supervisorRunId from the signed caller. Preserve wake idempotencyKey, sharedOperationRef and exact target revisions. " +
+		"Before doing bespoke analysis, reuse Agent Manager's supervision-observation-read for the compact owner packet, supervision-evaluate for a bounded symbolic recommendation, and efficiency-report for attributable run cost, friction and outcome evidence; unavailable usage remains unknown. " +
 		"A sample disposition requires the selected sample actually be performed; otherwise report unknown and its limitation. " +
 		"When a policy-selected diagnostic sample is admitted, perform it even for a stopped or observation-only effort; sampling is separate from steering authority and does not authorize a directive. " +
 		fmt.Sprintf("After AM acceptance, use prompt-manager team knowledge-add %q --topic=%q --content='<assessmentId, wake ID, unknowns and next owner condition>' --json once. ", teamID, "supervision-assessment/"+wake.ID) +
 		"This existing facade writes the typed link to Source Ledger. Do not substitute a plain journal note. Retain any link failure separately from the accepted AM receipt and finish; do not repeat assessment or investigate topic/journal infrastructure in this wake. Knowledge or run success alone is not an AM receipt. " +
-		"Observed-supervisor membership permits assessment, not directives; only an actual qualified effort grant may authorize steering. " +
-		"Cuts marked observationOnly or stale/unavailable cannot authorize business steering. A runtime-selected diagnostic sample retains its separate diagnostic allowance. " +
+		"An enrolled autonomous-supervision mandate permits the supervisor to choose operational means without per-action human approval. Cuts marked stale or unavailable still require owner evidence before effects; a runtime-selected diagnostic sample retains its separate diagnostic allowance. " +
 		"A lifecycle defect does not need product acceptance evidence before diagnosis. Reconcile the existing infrastructure repair assignment and its next owner action; do not repeat an unnamed reconciliation wait. " +
 		"Carry the latest typed repairLinks from the compact owner cut. Use the canonical Swarm work_ref once, name its assigning_owner_ref and next_operation, retain completion_evidence_refs and stopping_condition, and mark state assigned or resolved only when the full tuple is present. If no canonical item exists, use needs_assignment with the assigning owner, next operation and stopping condition only; do not claim dispatch or create a second ledger/grant. Escalate that missing assignment once, then retain the named wait. " +
 		"For an authorized recovery, retain a progress condition and baseline on the directive, then verify new assignment-relevant owner evidence through update-directive. Startup and heartbeat alone are not useful progress; keep recovery verification separate from causal benefit.\n" + string(b)

@@ -130,9 +130,9 @@ func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
 			observationOnly = true
 			reason += "; accepted target revision unknown; retain exact empty revision for assessment, no steering"
 		}
-		if enrollment.GetAuthorizedBy() == "" || len(enrollment.GetPermittedActions()) == 0 || enrollment.GetAuthorityExpiresAt() == nil || board.GetObservedAt() == nil || !enrollment.AuthorityExpiresAt.AsTime().After(board.ObservedAt.AsTime()) {
+		if enrollment.GetAuthorizedBy() == "" || (!enrollment.GetAutonomousSupervision() && len(enrollment.GetPermittedActions()) == 0) || enrollment.GetAuthorityExpiresAt() == nil || board.GetObservedAt() == nil || !enrollment.AuthorityExpiresAt.AsTime().After(board.ObservedAt.AsTime()) {
 			observationOnly = true
-			reason += "; qualified steering grant unavailable or expired; observation and owner repair coordination remain distinct from business mutation"
+			reason += "; qualified supervision mandate unavailable or expired; retain observation and owner reconciliation"
 		}
 		if !valid {
 			reason += "; observation excluded: evidence identity unavailable"
@@ -175,6 +175,7 @@ func mapEffortBoard(board *ampb.EffortBoard) *EffortDiscovery {
 		detailRefs = boundedRefs(detailRefs, 32)
 		assessment := row.GetLastAssessment()
 		cut.Efforts = append(cut.Efforts, EffortObservation{
+			Priority:                    enrollment.GetSupervisionPriority(),
 			RecoveryVerificationPending: verificationPending,
 			ID:                          enrollment.GetEffortRef(), TargetRevision: enrollment.GetTargetRevision(),
 			EvidenceRevision:       row.GetChangeIdentity(),

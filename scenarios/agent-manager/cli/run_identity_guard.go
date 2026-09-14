@@ -20,7 +20,6 @@ func rejectRunIdentityLifecycleCommand(subcommand string) error {
 		"apply-investigation": {},
 		"approve":             {},
 		"continue":            {},
-		"create":              {},
 		"delete":              {},
 		"investigate":         {},
 		"quiesce":             {},

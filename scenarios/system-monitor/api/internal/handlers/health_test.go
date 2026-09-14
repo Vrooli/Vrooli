@@ -1,6 +1,34 @@
 package handlers
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
+	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+)
+
+func TestHealthResponseReportsLifecycleBuildIdentity(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-system-monitor")
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ollama.Close()
+	t.Setenv("OLLAMA_BASE_URL", ollama.URL)
+
+	handler := NewHealthHandler(
+		&config.Config{Server: config.ServerConfig{ServiceName: "system-monitor", Version: "test"}},
+		handlermocks.NewMonitorQuerier().WithCurrentMetrics(&models.MetricsResponse{}),
+		nil,
+	)
+
+	response := handler.buildHealthResponse(t.Context())
+	if got := response["build_identity"]; got != "sha256:test-system-monitor" {
+		t.Fatalf("build_identity = %v, want sha256:test-system-monitor", got)
+	}
+}
 
 func TestParseHealthDependencyURL(t *testing.T) {
 	tests := []struct {

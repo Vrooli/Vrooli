@@ -30,6 +30,7 @@ type Response struct {
 	DisplayName        string                          `json:"displayName"`
 	Mission            string                          `json:"mission,omitempty"`
 	Enabled            bool                            `json:"enabled"`
+	Archived           bool                            `json:"archived"`
 	Runtime            RuntimeDTO                      `json:"runtime"`
 	Coordination       CoordinationDTO                 `json:"coordination"`
 	Execution          ExecutionDTO                    `json:"execution"`
@@ -98,6 +99,7 @@ type CreateRequest struct {
 	Coordination      CoordinationDTO                 `json:"coordination"`
 	Execution         ExecutionDTO                    `json:"execution"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	Archived          bool                            `json:"archived,omitempty"`
 }
 
 // UpdateRequest is the request body for updating a team.
@@ -109,6 +111,7 @@ type UpdateRequest struct {
 	DisplayName       *string                         `json:"displayName,omitempty"`
 	Mission           *string                         `json:"mission,omitempty"`
 	Enabled           *bool                           `json:"enabled,omitempty"`
+	Archived          *bool                           `json:"archived,omitempty"`
 	Runtime           *RuntimeDTO                     `json:"runtime,omitempty"`
 	Coordination      *CoordinationDTO                `json:"coordination,omitempty"`
 	Execution         *ExecutionDTO                   `json:"execution,omitempty"`

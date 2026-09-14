@@ -65,10 +65,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 3,
+  "revision": 7,
   "runtime": {
     "mode": "single-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T05:16:00Z"
+  "updatedAt": "2026-09-14T14:41:02Z"
 }

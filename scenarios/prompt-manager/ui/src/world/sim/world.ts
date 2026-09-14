@@ -233,6 +233,7 @@ export function createLiveWorld(generated: GeneratedWorld, input: CreateWorldInp
       speed: 0,
       hurrying: false,
       skillCount: agent.skillCount ?? 0,
+      memberType: agent.memberType ?? 'employee',
       colors: { ...DEFAULT_COLORS, ...agent.colors },
       variant: variantFor(agent.id),
       idle: { activity: 'rest', until: input.now + rng.range(0, tuning.sim.idle.rollIntervalSeconds) },
@@ -320,7 +321,7 @@ export function reconcileGeneratedWorld(state: WorldState, fresh: WorldState): W
     if (relocated && next.seatId) occupancy[next.seatId] = id
     actors[id] = {
       ...actor,
-      name: next.name, teamId: next.teamId, colors: next.colors, skillCount: next.skillCount,
+      name: next.name, teamId: next.teamId, colors: next.colors, skillCount: next.skillCount, memberType: next.memberType,
       deskSeatId: next.deskSeatId,
       position: relocated ? next.position : isWalkable(fresh.nav, actor.position) ? actor.position : nearestWalkable(fresh.nav, actor.position, 8) ?? next.position,
       facing: relocated ? next.facing : actor.facing,

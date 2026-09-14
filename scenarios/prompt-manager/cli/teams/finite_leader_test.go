@@ -12,15 +12,17 @@ import (
 )
 
 func finiteCLIConfig() HeartbeatConfig {
-	return HeartbeatConfig{TeamID: "new-team", AgentID: "leader", ProfileKey: "qualified", Schedule: "*/5 * * * *",
+	return HeartbeatConfig{
+		TeamID: "new-team", AgentID: "leader", ProfileKey: "qualified", Schedule: "*/5 * * * *",
 		FiniteLeader:      &teamconfig.FiniteLeader{EffortRef: "owner:any-effort", AcceptedRevision: "accepted:r3", CoordinatorPromptRef: "pm:coordinator", SourceRefs: []string{"owner:source"}},
-		FiniteLeaderState: json.RawMessage(`{"id":"reservation","runId":"existing-run","status":"parked"}`)}
+		FiniteLeaderState: json.RawMessage(`{"id":"reservation","runId":"existing-run","status":"parked"}`),
+	}
 }
 
 func finiteCLIRequest(t *testing.T, payload string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "binding.json")
-	if err := os.WriteFile(path, []byte(payload), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -109,7 +111,7 @@ func TestFiniteLeaderCLIRetirementPreservesBinding(t *testing.T) {
 }
 
 func TestFiniteLeaderCLICompletionAndReopenAreExplicitTransitions(t *testing.T) {
-	for _, operation := range []string{"complete", "reopen"} {
+	for _, operation := range []string{"complete", "reopen", "restart"} {
 		t.Run(operation, func(t *testing.T) {
 			current, updated := finiteCLIConfig(), finiteCLIConfig()
 			ctx := &fakeContext{getResponse: current, response: updated}

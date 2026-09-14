@@ -166,6 +166,33 @@ func TestRunCreateUntilOverrideIsForwarded(t *testing.T) {
 	}
 }
 
+func TestRunCreateParentRunIDIsForwarded(t *testing.T) {
+	var received apipb.CreateRunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(readAll(t, r), &received); err != nil {
+			t.Error(err)
+		}
+		body, err := protojson.Marshal(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "child-run"}})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{
+		"create", "--task-id=task-1", "--profile-id=profile-1",
+		"--parent-run-id=parent-run", "--json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if received.GetParentRunId() != "parent-run" {
+		t.Fatalf("parent run ID = %q, want parent-run", received.GetParentRunId())
+	}
+}
+
 func TestRunAttachAndDetachUseTypedIdentityEndpoints(t *testing.T) {
 	var attachRequest apipb.AttachRunRequest
 	var detachRequest apipb.DetachRunRequest
@@ -233,7 +260,7 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
 
 	for _, subcommand := range []string{
-		"apply-investigation", "approve", "continue", "create", "delete",
+		"apply-investigation", "approve", "continue", "delete",
 		"investigate", "quiesce", "recover", "reject", "sandbox-sync",
 		"stop", "stop-all", "stop-by-tag", "wake",
 	} {
@@ -242,7 +269,7 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 		}
 	}
 
-	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park"} {
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity"} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
 			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
 		}

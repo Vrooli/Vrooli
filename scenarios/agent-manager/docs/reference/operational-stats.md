@@ -13,6 +13,45 @@ pages all sit on top of the same `internal/stats` engine and
 
 ## HTTP endpoints
 
+### `GET /api/v1/stats/efficiency`
+
+Returns one bounded, read-only efficiency report from the durable invocation
+projection. It performs no model inference and preserves partial failures as
+`status: "partial"` with explicit `unknown` entries.
+
+Supported query parameters are `preset=6h|12h|24h|7d|30d` (default `24h`),
+`start`/`end` RFC3339 bounds, `tag_prefix`, `group_by=runner|model|profile|workload|workload_kind`
+(default `profile`), `limit` from 1 to 100 (default 20), and optional
+`compare=previous`. The response
+includes token factors, success and completion denominators, duration summary,
+tool usage, terminal-status dispositions, selected breakdown rows, projection
+freshness, and an evidence declaration stating that the report is read-only and
+used zero inference calls. Dispositions are status evidence only; they do not
+claim that a successful run produced useful work.
+
+The CLI equivalent is:
+
+```bash
+agent-manager run efficiency --preset 24h --group-by profile --compare previous --json
+```
+
+`compare=previous` adds an equal-length preceding window and signed deltas for
+run count, tokens, successful runs, success rate, and average duration. This is
+directional evidence, not causal proof. If the newest projection precedes the
+requested window end, the report is marked `partial` with
+`unknown: ["projection_stale"]`. Consumers should not make decisions
+when freshness is unavailable, the report is partial, `unknown` is non-empty,
+or the denominator is too small. Prompt changes, team steering, and repair
+decisions remain owned by their existing skills and control-plane workflows.
+
+The same freshness evidence is available on governed `MeasuresService` responses
+under `provenance`: `projection_at`, `projection_age_ms`, `projection_stale`,
+and `projection_stale_reason`. The Program Runtime program
+`agent-manager.efficiency-report` uses these fields and returns
+`stale_evidence` with `status: "partial"` when the projection is older than its
+requested window. It composes existing read-only measure bindings and keeps its
+output bounded; it does not call an inference model or change team policy.
+
 All endpoints live under the existing API base. JSON in, JSON out.
 
 ### `GET /api/v1/stats/operational?category=<cat>`

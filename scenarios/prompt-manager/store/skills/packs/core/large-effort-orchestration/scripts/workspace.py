@@ -136,6 +136,16 @@ def inspect(folder):
                 "effort_ref must be a bounded stable owner reference")
     execution = manifest["execution"]
     require(execution["status"] in {"not-approved", "approved", "revoked", "complete"}, "invalid execution authority")
+    if manifest["stage"] != "intake":
+        require((folder / "README.md").is_file(), "reviewable effort needs README.md")
+        require((folder / "sources").is_dir() and any((folder / "sources").iterdir()),
+                "reviewable effort needs preserved source material")
+        require(manifest.get("destination_ref"), "reviewable effort needs destination_ref")
+        require(manifest.get("target_revision"), "reviewable effort needs target_revision")
+        require(manifest.get("work_shape"), "reviewable effort needs work_shape")
+        require(manifest.get("owners", {}).get("coordinator"), "reviewable effort needs a coordinator owner")
+        require((folder / "team").is_dir() and any((folder / "team").iterdir()),
+                "reviewable effort needs a team handoff record")
     if execution["status"] in {"approved", "complete"}:
         require(execution.get("approval_ref") and execution.get("approved_source_digest"), "missing approval evidence/digest")
     if execution["schedule"].get("enabled"):
@@ -203,19 +213,63 @@ def inspect(folder):
             "recovery": recovery_report, "validation": "structural_only"}
 
 
+def preflight(folder):
+    """Return review and execution gates without granting authority."""
+    manifest = read_json(folder / "effort.json")
+    requirements = read_json(folder / "requirements.json")
+    capabilities = read_json(folder / "capabilities.json")
+    execution = manifest.get("execution", {})
+    gates = {
+        "workspace_complete": False,
+        "team_configured": False,
+        "source_material_preserved": False,
+        "owner_capabilities_qualified": False,
+        "independent_reviewer_assigned": False,
+        "execution_approval": execution.get("status") == "approved",
+        "safe_to_enable": False,
+    }
+    reasons = []
+    try:
+        inspect(folder)
+        gates["workspace_complete"] = True
+    except (ValueError, KeyError, OSError, TypeError) as error:
+        reasons.append(str(error))
+    gates["team_configured"] = (folder / "team").is_dir() and any((folder / "team").iterdir()) and bool(manifest.get("owners", {}).get("coordinator"))
+    gates["source_material_preserved"] = (folder / "sources").is_dir() and any((folder / "sources").iterdir())
+    gates["owner_capabilities_qualified"] = bool(capabilities) and all(row.get("assessment") == "usable" for row in capabilities)
+    gates["independent_reviewer_assigned"] = manifest.get("owners", {}).get("review", "").startswith("scenario:")
+    if not gates["team_configured"]:
+        reasons.append("team handoff or coordinator is missing")
+    if not gates["source_material_preserved"]:
+        reasons.append("preserved source material is missing")
+    if not gates["owner_capabilities_qualified"]:
+        reasons.append("one or more owner capabilities remain unqualified")
+    if not gates["independent_reviewer_assigned"]:
+        reasons.append("independent reviewer is not assigned")
+    if not gates["execution_approval"]:
+        reasons.append("execution is not approved")
+    gates["safe_to_enable"] = all(gates[name] for name in (
+        "workspace_complete", "team_configured", "source_material_preserved",
+        "owner_capabilities_qualified", "independent_reviewer_assigned", "execution_approval"))
+    return {"slug": manifest.get("slug"), "gates": gates, "reasons": reasons,
+            "requirements": len(requirements), "assessment": "read_only_preflight"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("init")
     create.add_argument("--repo", type=Path, required=True)
     create.add_argument("--slug", required=True)
-    for name in ("validate", "report"):
+    for name in ("validate", "report", "preflight"):
         command = commands.add_parser(name)
         command.add_argument("folder", type=Path)
     args = parser.parse_args()
     try:
         if args.command == "init":
             print(init(args.repo, args.slug))
+        elif args.command == "preflight":
+            print(json.dumps(preflight(args.folder), indent=2))
         else:
             result = inspect(args.folder)
             print(json.dumps(result, indent=2))

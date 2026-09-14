@@ -123,7 +123,8 @@ export function Labels({ labels, profile, fovDeg, focusedId, hoveredId, unreadId
       // An unread marker must clear an enclosing roof, not disappear inside it.
       const enclosure = unreadIds?.has(id) ? [...rooms.values()].find(room => room.space && insideSpace(room, actor.position)) : undefined
       const markerY = enclosure ? Math.max(pose.y + t.labels.offsetY, heightAt(state.terrain, ...enclosure.position) + architecture.wallHeight + architecture.cabinRoofHeight + architecture.enclosureMarkerClearance) : pose.y + t.labels.offsetY
-      consider(id, unreadIds?.has(id) ? `New message · ${actor.name}` : actor.name, pose.x, markerY, pose.z, labels.priorities[actor.state] + (pinned.has(id) ? labels.pinnedBonus : 0))
+      const label = actor.memberType === 'contractor' ? `Contractor · ${actor.name}` : actor.name
+      consider(id, unreadIds?.has(id) ? `New message · ${label}` : label, pose.x, markerY, pose.z, labels.priorities[actor.state] + (pinned.has(id) ? labels.pinnedBonus : 0))
     }
     for (const cluster of clustered.clusters) {
       const room = state.places[cluster.roomId]

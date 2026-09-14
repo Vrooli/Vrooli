@@ -40,8 +40,9 @@ func (s *Server) buildStorageHealth(routed *coredb.RoutedDB, repoRoot string) er
 			standing, err := s.maintenance.Observe(ctx)
 			return storagehealth.FenceState{Closed: standing.Closed, Drained: standing.Drained, Revision: standing.Revision}, err
 		},
-		Pause:  runtime.pauser(s),
-		Logger: obs.Component("storage-health"),
+		Pause:      runtime.pauser(s),
+		Watermarks: s.rowidWatermarks(),
+		Logger:     obs.Component("storage-health"),
 	})
 	if err != nil {
 		return err
@@ -56,6 +57,15 @@ func (s *Server) buildStorageHealth(routed *coredb.RoutedDB, repoRoot string) er
 		s.reconciler.SetStorageMaintainer(service)
 	}
 	return nil
+}
+
+// rowidWatermarks are the in-memory run_events rowid positions a VACUUM must
+// carry. Persisted positions are rewritten by the compaction itself.
+func (s *Server) rowidWatermarks() []storagehealth.NamedWatermark {
+	if s.statsEngine == nil {
+		return nil
+	}
+	return []storagehealth.NamedWatermark{{Name: "stats_engine.watermark", Holder: s.statsEngine}}
 }
 
 func (s *Server) storageHealthHandler() *storagehealth.Handler {
@@ -85,9 +95,11 @@ func (r *storageHealthRuntime) workers() context.Context {
 	return r.workersCtx
 }
 
-// pauser stops the writers that would otherwise wait on VACUUM's lock: the
-// conversation indexer (refusing while a generation builds), the reconciler,
-// and the transcript and friction schedulers. Admitted agent work is already
+// pauser stops the writers that would otherwise wait on VACUUM's lock and the
+// consumers whose run_events rowid positions VACUUM may renumber: the
+// conversation indexer (refusing while a generation builds), supervision watch
+// processing, the reconciler (and with it imported-payload compaction), and
+// the transcript and friction schedulers. Admitted agent work is already
 // drained by the fence.
 func (r *storageHealthRuntime) pauser(s *Server) storagehealth.Pauser {
 	return func(context.Context) (func(), error) {
@@ -99,6 +111,10 @@ func (r *storageHealthRuntime) pauser(s *Server) storagehealth.Pauser {
 			}
 			s.conversationIndexer.Stop()
 		}
+		resumeSupervision := func() {}
+		if s.supervisionScheduler != nil {
+			resumeSupervision = s.supervisionScheduler.Pause()
+		}
 		if s.reconciler != nil {
 			_ = s.reconciler.Stop()
 		}
@@ -109,6 +125,7 @@ func (r *storageHealthRuntime) pauser(s *Server) storagehealth.Pauser {
 			s.frictionPublisher.Stop()
 		}
 		return func() {
+			resumeSupervision()
 			ctx := r.workers()
 			if s.conversationIndexer != nil {
 				s.conversationIndexer.Start(ctx)

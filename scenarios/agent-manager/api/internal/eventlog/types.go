@@ -57,8 +57,9 @@ const (
 // sandbox.operation event. The closed set matches the verbs the
 // finalize/apply paths actually invoke.
 const (
-	SandboxOpDelete = "delete"
-	SandboxOpStop   = "stop"
+	SandboxOpDelete            = "delete"
+	SandboxOpStop              = "stop"
+	SandboxOpStreamInterrupted = "stream_interrupted"
 )
 
 // HeartbeatTarget identifies which heartbeat write missed in a
@@ -190,11 +191,17 @@ type RunnerHealthTransitionPayload struct {
 // action issued from finalize. Replaces the older "failed to delete
 // sandbox: <err>" / "sandbox stopped (finalize)" string emissions.
 type SandboxOperationPayload struct {
-	Operation  string         `json:"operation"`
-	Success    bool           `json:"success"`
-	DurationMS int64          `json:"duration_ms,omitempty"`
-	Reason     FallbackReason `json:"reason,omitempty"`
-	Message    string         `json:"message,omitempty"`
+	Operation                     string         `json:"operation"`
+	Success                       bool           `json:"success"`
+	DurationMS                    int64          `json:"duration_ms,omitempty"`
+	Reason                        FallbackReason `json:"reason,omitempty"`
+	Message                       string         `json:"message,omitempty"`
+	SandboxID                     string         `json:"sandbox_id,omitempty"`
+	PID                           int            `json:"pid,omitempty"`
+	ExpectedProviderIncarnationID string         `json:"expected_provider_incarnation_id,omitempty"`
+	ObservedProviderIncarnationID string         `json:"observed_provider_incarnation_id,omitempty"`
+	ProviderRestartDetected       *bool          `json:"provider_restart_detected,omitempty"`
+	Disposition                   string         `json:"disposition,omitempty"`
 }
 
 // HeartbeatMissPayload records a heartbeat write that failed. Operators

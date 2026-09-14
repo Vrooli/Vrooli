@@ -93,6 +93,33 @@ api/internal/
 
 ## Core Seams
 
+### Parent-authorized child admission and supervision lineage
+
+**Purpose:** Let a running coordinator create only its own explicitly linked
+children, then hand waiting to Agent Manager's durable supervision watcher.
+
+**Admission contract:** A request to `POST /api/v1/runs` carrying an Agent
+Manager run-identity token is rejected unless `parent_run_id` is present and
+equals the verified token's run ID. This is a narrow transport exception; the
+normal dependent-delegation qualification gate still validates the child's
+runner, model, effort, and attributable work references before admission.
+Operator-created runs remain supported through the ordinary owner credential
+path.
+
+**Waiting contract:** The parent creates an exact child cohort watch, parks
+with producer `supervision` and the watch ID as key, and is resumed by the
+watcher when all exact children are terminal. A park deadline is the watchdog
+for missing, stalled, or uncertain children. The resumed parent reconciles
+child receipts and cancels the settled watch; it does not poll or replace
+children speculatively.
+
+**Testability:**
+- Transport lineage guard: `TestCreateRunAllowsOnlyVerifiedParentLinkedChildren`
+- Durable supervision wake path: `internal/supervision` and
+  `internal/orchestration` tests named
+  `TestQuietWatchParksParentAndTerminalWatchWakesItOnce` and
+  `TestSupervisionWaiterReturnsBoundedTerminalEvidence`
+
 ### Durable analytics read model
 
 **Purpose:** Make cross-run statistics stable after raw event retention and
@@ -1995,3 +2022,16 @@ observational until a pricing allocator is configured.
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start
 - [requirements/README.md](../../requirements/README.md) - Detailed requirements by module
+### Protected-run provider incarnation correlation
+
+Protected launches capture the workspace-sandbox process `incarnationId`
+before creating the agent process. If both SSE log streams end without an
+exit frame, Agent Manager performs one bounded `GET /processes` reconciliation
+and records a typed `sandbox.operation` event with
+`operation=stream_interrupted`. The event carries the run identity from the
+event envelope plus the sandbox ID, PID, expected provider incarnation,
+observed provider incarnation, restart-detected verdict, and reconciliation
+disposition. A missing identity is represented as unknown; it is never
+inferred from timestamps, ports, or log text. Lifecycle restart operations
+remain authoritative in the control-plane operation registry and are not
+duplicated in Agent Manager.

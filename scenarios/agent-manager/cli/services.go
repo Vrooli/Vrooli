@@ -893,6 +893,11 @@ func (s *RunService) Stats(query url.Values) ([]byte, error) {
 	return s.api.Get("/api/v1/stats/summary", query)
 }
 
+// Efficiency returns the bounded, read-only invocation efficiency projection.
+func (s *RunService) Efficiency(query url.Values) ([]byte, error) {
+	return s.api.Get("/api/v1/stats/efficiency", query)
+}
+
 // GetReceipts retrieves platform observations for one run.
 func (s *RunService) GetReceipts(id string) ([]byte, error) {
 	return s.api.Get("/api/v1/runs/"+id+"/observed-receipts", nil)
@@ -1322,11 +1327,17 @@ func (s *RunnerService) GetStatus() ([]byte, []*domainpb.RunnerStatus, error) {
 
 func (s *RunnerService) ExecutionOptions(role string) ([]byte, *apipb.ListExecutionOptionsResponse, error) {
 	path := "/api/v1/execution-options"
-	if role != "" { path += "?role=" + url.QueryEscape(role) }
+	if role != "" {
+		path += "?role=" + url.QueryEscape(role)
+	}
 	body, err := s.api.Get(path, nil)
-	if err != nil { return body, nil, err }
+	if err != nil {
+		return body, nil, err
+	}
 	response := &apipb.ListExecutionOptionsResponse{}
-	if err := unmarshalProtoResponse(body, response); err != nil { return body, nil, err }
+	if err := unmarshalProtoResponse(body, response); err != nil {
+		return body, nil, err
+	}
 	return body, response, nil
 }
 

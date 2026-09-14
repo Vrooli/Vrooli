@@ -97,6 +97,14 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 	return e.advanceLocked(ctx)
 }
 
+// HoldWatermark blocks Refresh and Rebuild and exposes the run_events rowid
+// position, so storage compaction can carry it across a VACUUM that
+// renumbers run_events rowids. The caller must call release.
+func (e *Engine) HoldWatermark() (current int64, set func(int64), release func()) {
+	e.mu.Lock()
+	return e.watermark, func(w int64) { e.watermark = w }, e.mu.Unlock
+}
+
 // Refresh advances the watermark by processing events appended since
 // the last Refresh / Rebuild. Safe to call frequently; it short-circuits
 // when no new events are present.

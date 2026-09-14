@@ -121,7 +121,32 @@ The standing effort supervisor observes the team-native effort through the owner
 
 Reuse Program Runtime compositions for repeated joins and bounded fan-out. Read a discovered program and its owner skill together. Runtime code must retain owner IDs, cancellation, budgets, partial results and idempotency. Promote repeated deterministic composition only after its inputs and stop rule are known. Put state-machine, repair and scheduling invariants in their owning scenario, not a private shell loop or a growing program.
 
-The leader advances every useful admitted branch before waiting. On pending work, park on a supported producer or checkpoint and end its turn. A configured recurring wake is a recovery opportunity, not a queue: skip while the leader is running, queued, parked or uncertain. Qualify restart/outage behavior before enabling unattended wakeups. Never interpret an unavailable run lookup as a dead process.
+The leader advances every useful admitted branch before waiting. When delegated child
+runs are pending, represent them with exact parent/child identities and one durable
+Agent Manager cohort watch. Park the parent on the supervision watch with an explicit
+deadline; a terminal child wakes the same parent run with bounded evidence, while the
+deadline is only a watchdog for missed events or stuck children. A configured recurring
+wake is a recovery opportunity, not a queue: skip while the leader is running, queued,
+parked or uncertain. Qualify restart/outage behavior before enabling unattended
+wakeups. Never interpret an unavailable run lookup as a dead process.
+
+The supported coordinator sequence is:
+
+1. Read the verified parent identity with `agent-manager run identity --json`.
+2. Create each child with `agent-manager run create --parent-run-id <parent-run-id>`
+   and retain every returned task/run identity.
+3. Create one `agent-manager watch` cohort whose `parent_run_id` is the coordinator
+   and whose subjects are exactly those child run IDs.
+4. Park the coordinator with
+   `agent-manager run park <parent-run-id> --producer supervision --key <watch-id>`
+   and a bounded watchdog deadline.
+5. On wake, reconcile the exact children and watch result, cancel the settled watch,
+   and choose the next bounded action in the same parent run.
+
+Do not claim to be parked from prompt text alone. Do not poll children in a loop or
+create a replacement coordinator because a watch is uncertain. A terminal parent
+run is not accepted completion; write the revision-checked completion receipt and
+retire the finite binding when the destination is actually met.
 
 A maintenance admission fence belongs to the operation recorded in its owner,
 reason and revision. Do not reopen a different operation's hold to admit your
@@ -134,6 +159,14 @@ For runner exhaustion, use the recovery reference to distinguish context capacit
 Exit: work is complete, durably pending, or bounded by a recorded recovery decision. No child exists solely in the leader's recollection.
 
 Before enabling recurring finite wakes, prove separately that the owner can select an explicit continuation, the accepted grant and revision propagate to that continuation, a lost response reconciles to the original task/run identity, restart/outage recovery preserves the reservation, and retirement prevents replacement dispatch. If any gate is unqualified, keep the finite heartbeat disabled and use a single explicitly admitted run or a recorded owner wait.
+
+When a dispatched finite leader run is terminal but the effort has not earned a
+completion receipt, use the owner’s explicit terminal-run restart operation.
+The owner must reread and verify that exact task/run identity is terminal,
+retain its evidence reference, record the restart history, and clear only the
+reusable reservation. Never delete the old reservation or reset it solely from
+the prompt text. A restarted run is still subject to the same accepted effort
+revision and must earn its own handoff or completion evidence.
 
 ### 4. Review evidence and choose the next round
 

@@ -14,9 +14,11 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -48,6 +50,64 @@ func TestCreateRunPreservesExplicitIdentityNarrowing(t *testing.T) {
 		if strings.Contains(response.Body.String(), "private-owner-bearer") {
 			t.Fatal("credential leaked into response")
 		}
+	}
+}
+
+func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
+	parentID := uuid.New()
+	capture := &createIdentityCapture{}
+	h := New(orchestration.HandlerServices{
+		RunService: capture,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	body := `{"taskId":"` + uuid.NewString() + `","parentRunId":"` + parentID.String() + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response := httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if capture.request.ParentRunID == nil || *capture.request.ParentRunID != parentID {
+		t.Fatalf("parent run identity was not preserved: %+v body=%s", capture.request, response.Body.String())
+	}
+
+	denied := &createIdentityCapture{}
+	h = New(orchestration.HandlerServices{
+		RunService: denied,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+uuid.NewString()+`"}`))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response = httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("unlinked child status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if denied.request.TaskID != uuid.Nil {
+		t.Fatal("unlinked run reached the owner")
+	}
+
+	mismatched := &createIdentityCapture{}
+	h = New(orchestration.HandlerServices{
+		RunService: mismatched,
+		IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{
+			Valid:  true,
+			Claims: &identity.Claims{RunID: parentID},
+		}},
+	})
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(`{"taskId":"`+uuid.NewString()+`","parentRunId":"`+uuid.NewString()+`"}`))
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "parent-token")
+	response = httptest.NewRecorder()
+	h.CreateRun(response, req)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("mismatched parent status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+	if mismatched.request.TaskID != uuid.Nil {
+		t.Fatal("mismatched child reached the owner")
 	}
 }
 

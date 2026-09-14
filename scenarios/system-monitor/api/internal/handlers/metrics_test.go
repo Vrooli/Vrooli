@@ -301,4 +301,14 @@ func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
 	}
 }
 
+func TestGetNetworkDiagnosticRejectsUnboundedDuration(t *testing.T) {
+	handler := NewMetricsHandler(&config.Config{}, handlermocks.NewMonitorQuerier(), slog.Default())
+	_, err := handler.GetNetworkDiagnostic(context.Background(), connect.NewRequest(&metricspb.GetNetworkDiagnosticRequest{
+		MaxDurationMs: 10001,
+	}))
+	if err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("error = %v, want invalid argument", err)
+	}
+}
+
 var _ MonitorQuerier = (*handlermocks.MonitorQuerier)(nil)

@@ -113,6 +113,9 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			CpuCoreImbalanceIndex:       metricValue(s.CPUCoreImbalanceIndex, 0),
 			CpuModeIowait:               metricValue(s.CPUModeIowait, 0),
 			CpuModeSteal:                metricValue(s.CPUModeSteal, 0),
+			NetworkEstablishedRate:      metricValue(s.NetworkEstablishedRate, 0),
+			NetworkTimeWaitRate:         metricValue(s.NetworkTimeWaitRate, 0),
+			NetworkCloseWaitRate:        metricValue(s.NetworkCloseWaitRate, 0),
 		}
 	}
 	return &metricspb.MetricsTimelineResponse{
@@ -290,11 +293,82 @@ func fragmentationMetricsToProto(m models.FragmentationMetrics) *metricspb.Fragm
 }
 
 func networkMetricsToProto(m models.NetworkMetrics) *metricspb.NetworkMetrics {
-	return &metricspb.NetworkMetrics{
-		TcpStates:       tcpConnectionStatesToProto(m.TCPStates),
-		PortUsage:       portUsageInfoToProto(m.PortUsage),
-		NetworkStats:    networkStatisticsToProto(m.NetworkStats),
-		ConnectionPools: connectionPoolSliceToProto(m.ConnectionPools),
+	pb := &metricspb.NetworkMetrics{
+		TcpStates:             tcpConnectionStatesToProto(m.TCPStates),
+		PortUsage:             portUsageInfoToProto(m.PortUsage),
+		NetworkStats:          networkStatisticsToProto(m.NetworkStats),
+		ConnectionPools:       connectionPoolSliceToProto(m.ConnectionPools),
+		EstablishedRate:       metricValue(m.EstablishedRate, 0),
+		TimeWaitRate:          metricValue(m.TimeWaitRate, 0),
+		CloseWaitRate:         metricValue(m.CloseWaitRate, 0),
+		ConnectionsOpenedRate: metricValue(m.ConnectionsOpenedRate, 0),
+		ConnectionsClosedRate: metricValue(m.ConnectionsClosedRate, 0),
+		Interfaces:            networkInterfaceSliceToProto(m.Interfaces),
+		Endpoints:             networkEndpointSliceToProto(m.Endpoints),
+		Capabilities:          networkCapabilitiesToProto(m.Capabilities),
+		Verdict:               networkVerdictToProto(m.Verdict),
+	}
+	if m.Ownership != nil {
+		pb.Ownership = networkOwnershipToProto(*m.Ownership)
+	}
+	return pb
+}
+
+func networkInterfaceSliceToProto(ms []models.NetworkInterface) []*metricspb.NetworkInterface {
+	result := make([]*metricspb.NetworkInterface, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.NetworkInterface{
+			Name: m.Name, HardwareAddress: m.HardwareAddress, Up: m.Up,
+			ReceivedBytes: metricValue(m.ReceivedBytes, 0), TransmittedBytes: metricValue(m.TransmittedBytes, 0),
+			ReceivedPackets: metricValue(m.ReceivedPackets, 0), TransmittedPackets: metricValue(m.TransmittedPackets, 0),
+			ReceiveErrors: metricValue(m.ReceiveErrors, 0), TransmitErrors: metricValue(m.TransmitErrors, 0),
+			ReceiveDrops: metricValue(m.ReceiveDrops, 0), TransmitDrops: metricValue(m.TransmitDrops, 0),
+			ReceiveBytesPerSecond: metricValue(m.ReceiveBytesPerSecond, 0), TransmitBytesPerSecond: metricValue(m.TransmitBytesPerSecond, 0),
+		}
+	}
+	return result
+}
+
+func networkOwnershipToProto(m models.NetworkOwnership) *metricspb.NetworkOwnership {
+	owners := make([]*metricspb.NetworkOwner, len(m.Owners))
+	for i, owner := range m.Owners {
+		owners[i] = &metricspb.NetworkOwner{Pid: int32(owner.PID), ProcessName: owner.ProcessName, ServiceName: owner.ServiceName, Connections: int32(owner.Connections)}
+	}
+	return &metricspb.NetworkOwnership{Owners: owners, TotalConnections: int32(m.TotalConnections), AttributedConnections: int32(m.AttributedConnections), AttributionCoveragePercent: m.AttributionCoveragePercent, Truncated: m.Truncated, Reason: m.Reason, Provenance: m.Provenance}
+}
+
+func networkEndpointSliceToProto(ms []models.NetworkEndpoint) []*metricspb.NetworkEndpoint {
+	result := make([]*metricspb.NetworkEndpoint, len(ms))
+	for i, m := range ms {
+		result[i] = &metricspb.NetworkEndpoint{Scope: m.Scope, Direction: m.Direction, Port: int32(m.Port), Connections: int32(m.Connections), AgeSeconds: metricValue(m.AgeSeconds, 0), RedactedAddress: m.RedactedAddress}
+	}
+	return result
+}
+
+func networkCapabilitiesToProto(m models.NetworkCapabilities) *metricspb.NetworkCapabilities {
+	return &metricspb.NetworkCapabilities{TcpStates: metricValue(m.TCPStates, 0), InterfaceCounters: metricValue(m.InterfaceCounters, 0), TransportCounters: metricValue(m.TransportCounters, 0), Ownership: metricValue(m.Ownership, 0), Endpoints: metricValue(m.Endpoints, 0)}
+}
+
+func networkVerdictToProto(m models.NetworkVerdict) *metricspb.NetworkVerdict {
+	return &metricspb.NetworkVerdict{State: m.State, Summary: m.Summary, Reasons: m.Reasons}
+}
+
+func networkDiagnosticOwnershipToProto(m *models.NetworkOwnership) *metricspb.NetworkOwnership {
+	if m == nil {
+		return nil
+	}
+	return networkOwnershipToProto(*m)
+}
+
+func NetworkDiagnosticSnapshotToProto(m *models.NetworkDiagnosticSnapshot) *metricspb.NetworkDiagnosticSnapshot {
+	if m == nil {
+		return nil
+	}
+	endpoints := networkEndpointSliceToProto(m.Endpoints)
+	return &metricspb.NetworkDiagnosticSnapshot{
+		Ownership: networkDiagnosticOwnershipToProto(m.Ownership), Endpoints: endpoints,
+		InventoryConnections: int32(m.InventoryConnections), Truncated: m.Truncated,
+		DurationMs: m.DurationMilliseconds, FailureReason: m.FailureReason,
 	}
 }
 

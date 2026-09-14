@@ -2341,6 +2341,53 @@ input[type="range"]::-moz-range-thumb:hover {
 .detail-layout-content[data-density="dense"] { --detail-gap: var(--spacing-xs); }
 .detail-layout-section { min-width: 0; }
 
+/* Network detail surface */
+.network-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.network-stat-card {
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(145deg, var(--overlay-light), transparent);
+  min-width: 0;
+}
+
+.network-stat-icon { color: var(--color-primary); margin-bottom: var(--spacing-sm); }
+.network-stat-label { color: var(--color-text-secondary); font-size: var(--text-xs); letter-spacing: .04em; }
+.network-stat-value { color: var(--color-text-heading); font: 700 var(--text-xl)/1.2 var(--font-mono); margin-top: var(--spacing-2xs); overflow-wrap: anywhere; }
+.network-stat-note { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: var(--spacing-xs); }
+.network-section-heading { display: flex; justify-content: space-between; gap: var(--spacing-md); margin-bottom: var(--spacing-md); }
+.network-section-heading h2 { color: var(--color-text-heading); font-size: var(--text-lg); margin: 0; }
+.network-section-heading p { color: var(--color-text-secondary); font-size: var(--text-sm); margin: var(--spacing-2xs) 0 0; }
+.network-state-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, 1fr); gap: var(--spacing-lg); }
+.network-state-total { color: var(--color-text-heading); font: 700 1.6rem/1.1 var(--font-mono); }
+.network-state-total span { display: block; color: var(--color-text-muted); font: normal var(--text-xs)/1.4 var(--font-sans); margin-top: var(--spacing-xs); }
+.network-state-bars { display: grid; gap: var(--spacing-sm); }
+.network-state-bar > div:first-child { display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: var(--text-xs); margin-bottom: var(--spacing-2xs); }
+.network-state-bar strong { color: var(--color-text-heading); font-family: var(--font-mono); }
+.network-state-track { height: 6px; border-radius: 99px; background: var(--overlay-light); overflow: hidden; }
+.network-state-track span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); }
+.network-verdict { display: flex; gap: var(--spacing-md); padding: var(--spacing-md); border: 1px solid var(--color-border); border-left: 3px solid var(--color-primary); border-radius: var(--radius-md); background: var(--overlay-light); }
+.network-verdict--warning { border-left-color: var(--color-warning); }
+.network-verdict--unavailable { border-left-color: var(--color-error); }
+.network-verdict-icon { color: var(--color-primary); }
+.network-verdict--warning .network-verdict-icon { color: var(--color-warning-text); }
+.network-verdict--unavailable .network-verdict-icon { color: var(--color-error-text); }
+.network-verdict strong { color: var(--color-text-heading); }
+.network-verdict ul { color: var(--color-text-secondary); margin: var(--spacing-sm) 0 0; padding-left: var(--spacing-lg); }
+.network-interface-state { display: inline-flex; align-items: center; gap: var(--spacing-xs); color: var(--color-text-secondary); text-transform: capitalize; }
+.network-interface-state::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ''; }
+.network-interface-state.is-up { color: var(--color-success-text); }
+.network-interface-state.is-down { color: var(--color-error-text); }
+
+@media (max-width: 60rem) {
+  .network-state-layout { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 48rem) {
   .detail-layout-content { grid-template-columns: minmax(0, 1fr); }
   .detail-layout-controls__row { align-items: stretch; flex-direction: column; }

@@ -1,6 +1,6 @@
 ---
 name: large-effort-supervision
-description: Supervise approved efforts against accepted outcomes, investigate consequential friction, deliver bounded steering, and improve supervision itself using attributable cost and outcome evidence.
+description: Autonomously supervise accepted efforts against agreed outcomes, resolve consequential friction with freedom of means, and improve supervision itself using attributable cost and outcome evidence.
 license: CC-BY-4.0
 metadata:
   kind: skill
@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 7
+  revision: 8
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-09-13T00:00:00Z"
+  updatedAt: "2026-09-14T00:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager, program-runtime]
     commands: [agent-manager, prompt-manager skill read, program-runtime]
@@ -22,8 +22,11 @@ metadata:
 ## Practice focus: Large effort supervision
 
 Improve delivery of accepted outcomes while accounting for the full cost and
-disruption of supervision itself. Observe, investigate and intervene only when
-the evidence and the effort's authority support the selected action.
+disruption of supervision itself. The enrolled supervisor is an active delivery
+executive with freedom of means: it observes, investigates, coordinates,
+repairs, recovers, delegates and improves whatever is reasonably needed within
+the accepted effort's owner mandate. It does not wait for human approval for
+each action.
 
 Read `path:docs/agent-system/EFFORT_SUPERVISION.md` for ownership, enrollment,
 evidence, metrics, authority and qualification. It is the target contract, not
@@ -40,15 +43,17 @@ needs fresher evidence.
 ### Scope
 
 Supervise enrolled orchestrators and assess their progress, judgment, delegation,
-friction and resource use. Improve supervision methods inside the granted repair
-scope. Preserve the accepted destination and quality floors. Portfolio amendments
-belong to their authority; worker assignments normally remain with the orchestrator.
-The skill does not grant production access, spend or another team's write authority.
+friction and resource use. Actively manage delivery: coordinate teams, address
+blockers, recover eligible runs, repair workspace/runtime integration, delegate
+work and improve reusable methods. Preserve the accepted destination and quality
+floors. The owner mandate, not a predicted action list, determines whether the
+supervisor may act.
 
 ### 1. Observe a recoverable evidence cut
 
-Entry: owner discovery or enrollment identifies an effort. Unknown steering
-authority permits scoped observation only.
+Entry: owner discovery or enrollment identifies an effort. Unknown mandate
+authority permits scoped observation only. A durable autonomous-supervision
+mandate permits action with freedom of means; discovery itself never creates it.
 
 Use owner discovery to include new orchestrations and changes without named-effort
 configuration. Discovery grants observation, not an extension of the effort's

@@ -75,12 +75,12 @@ func (s *EffortService) originalDirectiveAuthority(current *pb.EffortEnrollment,
 	if original.AuthorityExpiresAt == nil || !original.AuthorityExpiresAt.IsValid() || !original.AuthorityExpiresAt.AsTime().After(s.now()) {
 		return "original directive grant expired; renewal does not carry old instructions forward"
 	}
-	allowed, exactTarget := false, false
+	allowed, exactTarget := original.AutonomousSupervision, false
 	for _, action := range original.PermittedActions {
 		allowed = allowed || action == d.Kind
 	}
 	for _, subject := range original.Subjects {
-		exactTarget = exactTarget || subject.Role == "orchestrator" && subject.Owner == "agent-manager" && subject.RunId == d.TargetRunId
+		exactTarget = exactTarget || subject.Owner == "agent-manager" && subject.Kind == "run" && subject.RunId == d.TargetRunId && (original.AutonomousSupervision || subject.Role == "orchestrator")
 	}
 	if !allowed || !exactTarget {
 		return "original grant does not authorize this action and exact target"

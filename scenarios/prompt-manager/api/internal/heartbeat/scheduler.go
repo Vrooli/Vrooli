@@ -29,6 +29,10 @@ type HeartbeatConfigStore interface {
 	GetHeartbeatConfig(ctx context.Context, teamID, agentID string) (*store.HeartbeatConfig, error)
 }
 
+type TeamStateStore interface {
+	Get(ctx context.Context, teamID string) (*store.Team, error)
+}
+
 // ScheduledHeartbeat represents a scheduled heartbeat with its timer
 type ScheduledHeartbeat struct {
 	TeamID    string
@@ -49,9 +53,13 @@ type Scheduler struct {
 	profileKey       string
 	agentClient      AgentClient
 	configStore      HeartbeatConfigStore
+	teamStore        TeamStateStore
 	teamExecStore    *TeamExecutionStore
 	controlStore     *HeartbeatControlStore
 	effortSupervisor *StandingSupervisor
+	admissionMu      sync.Mutex
+	wakeSignals      WakeSignalProvider
+	admissionState   wakeAdmissionStateStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
@@ -59,14 +67,27 @@ func NewScheduler(executor HeartbeatExecutor, agentClient AgentClient, configSto
 	if e, ok := executor.(*Executor); ok && e.teamStore != nil && teamExecStore != nil {
 		e.FiniteLeader = &FiniteLeaderRuntime{Executor: e, Queue: teamExecStore}
 	}
+	var teamStore TeamStateStore
+	if teams, ok := configStore.(TeamStateStore); ok {
+		teamStore = teams
+	}
+	var wakeSignals WakeSignalProvider
+	var admissionState wakeAdmissionStateStore
+	if teams, ok := configStore.(*store.FileTeamStore); ok {
+		wakeSignals = FileWakeSignalProvider{Store: teams}
+		admissionState = teams
+	}
 	return &Scheduler{
-		cron:          cron.New(),
-		scheduled:     make(map[string]*ScheduledHeartbeat),
-		executor:      executor,
-		profileKey:    "prompt-manager-heartbeat",
-		agentClient:   agentClient,
-		configStore:   configStore,
-		teamExecStore: teamExecStore,
+		cron:           cron.New(),
+		scheduled:      make(map[string]*ScheduledHeartbeat),
+		executor:       executor,
+		profileKey:     "prompt-manager-heartbeat",
+		agentClient:    agentClient,
+		configStore:    configStore,
+		teamStore:      teamStore,
+		teamExecStore:  teamExecStore,
+		wakeSignals:    wakeSignals,
+		admissionState: admissionState,
 	}
 }
 
@@ -293,6 +314,18 @@ func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string) {
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
 
+	if s.teamStore != nil {
+		team, err := s.teamStore.Get(ctx, teamID)
+		if err != nil {
+			log.Printf("Heartbeat execution aborted for %s/%s: team lookup failed: %v", teamID, agentID, err)
+			return
+		}
+		if !team.Enabled || team.Archived {
+			log.Printf("Heartbeat execution skipped for %s/%s: team disabled or archived", teamID, agentID)
+			return
+		}
+	}
+
 	if s.controlStore != nil {
 		if paused, err := s.controlStore.AllowStart(ctx, teamID); err != nil {
 			if errors.Is(err, ErrHeartbeatPaused) {
@@ -307,8 +340,10 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 	// Start with empty profileKey; Execute() resolves the default based on
 	// the team's runtime mode when the key is empty.
 	var profileKey string
+	var config *store.HeartbeatConfig
 	if s.configStore != nil {
-		config, err := s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
+		var err error
+		config, err = s.configStore.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err != nil {
 			log.Printf("Heartbeat execution aborted for %s/%s: %v", teamID, agentID, err)
 			return
@@ -343,30 +378,91 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 	}
 
 	// Route through the team execution store so the configured queue policy is enforced.
-	if s.teamExecStore != nil {
-		result, err := s.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
-		if err != nil {
-			if IsMemberAlreadyQueued(err) {
-				log.Printf("Heartbeat skipped for %s/%s: already queued or running", teamID, agentID)
-				return
+	// The ordinary wake gate wraps the admission operation, so an unchanged
+	// signal never buys an agent run while legacy and explicitly-always configs
+	// retain the historical behavior.
+	s.runOrdinaryWake(ctx, teamID, agentID, config, func() error {
+		if s.teamExecStore != nil {
+			result, err := s.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
+			if err != nil {
+				if IsMemberAlreadyQueued(err) {
+					log.Printf("Heartbeat skipped for %s/%s: already queued or running", teamID, agentID)
+				}
+				if !IsMemberAlreadyQueued(err) {
+					log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
+				}
+				return err
 			}
-			log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
-			return
+			log.Printf("Heartbeat enqueued for %s/%s: status=%s, position=%d",
+				teamID, agentID, result.Status, result.Position)
+			return nil
 		}
-		log.Printf("Heartbeat enqueued for %s/%s: status=%s, position=%d",
-			teamID, agentID, result.Status, result.Position)
+
+		// Fallback: direct execution (no team execution store)
+		result, err := s.executor.Execute(ctx, teamID, agentID, profileKey)
+		if err != nil {
+			log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
+			return err
+		}
+
+		log.Printf("Heartbeat execution completed for %s/%s, run ID: %s, status: %s",
+			teamID, agentID, result.RunID, result.Status)
+		return nil
+	})
+}
+
+// runOrdinaryWake applies only to ordinary heartbeats. It holds a process-local
+// admission lock across the signal check and enqueue so two cron callbacks
+// cannot consume the same change concurrently. Runtime evidence is persisted
+// separately from heartbeat.json and is best-effort: any inability to prove a
+// signal or persist its baseline admits work rather than suppressing it.
+func (s *Scheduler) runOrdinaryWake(ctx context.Context, teamID, agentID string, config *store.HeartbeatConfig, execute func() error) {
+	if config == nil {
+		_ = execute()
+		return
+	}
+	policy := config.WakeAdmission
+	if policy == nil || policy.Mode != teamconfig.WakeAdmissionOnChange || s.wakeSignals == nil || s.admissionState == nil {
+		_ = execute()
 		return
 	}
 
-	// Fallback: direct execution (no team execution store)
-	result, err := s.executor.Execute(ctx, teamID, agentID, profileKey)
+	s.admissionMu.Lock()
+	defer s.admissionMu.Unlock()
+
+	previous, err := s.admissionState.GetHeartbeatAdmissionState(ctx, teamID, agentID)
 	if err != nil {
-		log.Printf("Heartbeat execution failed for %s/%s: %v", teamID, agentID, err)
+		log.Printf("Heartbeat wake admission unavailable for %s/%s; admitting work: state read failed: %v", teamID, agentID, err)
+		_ = execute()
+		return
+	}
+	signal, err := s.wakeSignals.Snapshot(ctx, teamID, agentID, policy.ChangeSources)
+	if err != nil {
+		log.Printf("Heartbeat wake admission unavailable for %s/%s; admitting work: signal read failed: %v", teamID, agentID, err)
+		_ = execute()
+		return
+	}
+	decision := evaluateWakeAdmission(policy, previous, signal)
+	if decision.Decision == wakeDecisionQuiet {
+		recordWakeAdmission(previous, signal, decision, time.Now())
+		if err := s.admissionState.SetHeartbeatAdmissionState(ctx, teamID, agentID, previous); err != nil {
+			log.Printf("Heartbeat wake admission state update failed for %s/%s: %v", teamID, agentID, err)
+		}
+		log.Printf("Heartbeat skipped for %s/%s: wake signal unchanged", teamID, agentID)
 		return
 	}
 
-	log.Printf("Heartbeat execution completed for %s/%s, run ID: %s, status: %s",
-		teamID, agentID, result.RunID, result.Status)
+	if err := execute(); err != nil {
+		// Do not consume a change when the actual queue/execute operation failed.
+		return
+	}
+	if previous == nil {
+		previous = &store.HeartbeatAdmissionState{Version: 1}
+	}
+	recordWakeAdmission(previous, signal, decision, time.Now())
+	if err := s.admissionState.SetHeartbeatAdmissionState(ctx, teamID, agentID, previous); err != nil {
+		log.Printf("Heartbeat wake admission state persistence failed for %s/%s: %v", teamID, agentID, err)
+	}
 }
 
 // ensureProfile reconciles the heartbeat profiles declared in service.json.

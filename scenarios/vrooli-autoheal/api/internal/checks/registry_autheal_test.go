@@ -2,11 +2,56 @@ package checks
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
+
+type sequenceRecoveryGate struct {
+	allowed []bool
+	calls   int
+}
+
+func (g *sequenceRecoveryGate) AllowsAutoHealRestart(_ context.Context, _, _ string) (bool, string) {
+	g.calls++
+	if len(g.allowed) == 0 {
+		return true, ""
+	}
+	index := g.calls - 1
+	if index >= len(g.allowed) {
+		index = len(g.allowed) - 1
+	}
+	if !g.allowed[index] {
+		return false, fmt.Sprintf("owner gate call %d refused", g.calls)
+	}
+	return true, ""
+}
+
+func TestRunAutoHealRefreshesRecoveryOwnershipBeforeAction(t *testing.T) {
+	reg := newTestRegistry()
+	check := &mockHealableCheck{
+		id: "scenario-agent-manager", result: Result{CheckID: "scenario-agent-manager", Status: StatusCritical},
+		actions:       []RecoveryAction{{ID: "restart", Available: true, Dangerous: true}},
+		executeResult: ActionResult{Success: true},
+	}
+	reg.Register(check)
+	reg.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-agent-manager": true}})
+	gate := &sequenceRecoveryGate{allowed: []bool{true, false}}
+	reg.SetRecoveryOwnershipGate(gate)
+
+	results := reg.RunAutoHeal(context.Background(), []Result{{CheckID: "scenario-agent-manager", Status: StatusCritical}})
+	if gate.calls != 2 {
+		t.Fatalf("recovery gate calls = %d, want phase and pre-action refresh", gate.calls)
+	}
+	if len(check.executedActions) != 0 {
+		t.Fatalf("actions executed after owner gate tightened: %v", check.executedActions)
+	}
+	if len(results) != 1 || results[0].Attempted || results[0].Reason == "" {
+		t.Fatalf("autoheal result = %+v, want a non-attempted owner-gated result", results)
+	}
+}
 
 func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T) {
 	reg := newTestRegistry()

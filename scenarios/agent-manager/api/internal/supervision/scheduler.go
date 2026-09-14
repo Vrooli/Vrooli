@@ -18,6 +18,17 @@ type Scheduler struct {
 	policies  *PolicyStore
 	lastPrune time.Time
 	efforts   *EffortService
+	// hold lets storage compaction stop watch processing: every cursor commit
+	// happens inside RecoverOnce, which takes the read side.
+	hold sync.RWMutex
+}
+
+// Pause waits for in-flight watch processing, then blocks new processing
+// until resume. Storage compaction uses it so no watch commits a
+// run_events rowid cursor while VACUUM renumbers those rowids.
+func (s *Scheduler) Pause() (resume func()) {
+	s.hold.Lock()
+	return s.hold.Unlock
 }
 
 func (s *Scheduler) SetEffortService(e *EffortService) { s.efforts = e }
@@ -42,6 +53,8 @@ func (s *Scheduler) Start(ctx context.Context) {
 // RecoverOnce is the synchronous restart boundary used by startup tests and
 // by the timer loop. The bounded due query prevents a restart storm.
 func (s *Scheduler) RecoverOnce(ctx context.Context) (int, error) {
+	s.hold.RLock()
+	defer s.hold.RUnlock()
 	if s.efforts != nil {
 		if err := s.efforts.Tick(ctx); err != nil && s.onError != nil {
 			s.onError(err)

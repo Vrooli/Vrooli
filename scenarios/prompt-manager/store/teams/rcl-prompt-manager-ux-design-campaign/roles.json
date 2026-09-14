@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "rcl-prompt-manager-ux-design-campaign",
-  "roles": []
+  "roles": [
+    {
+      "id": "rcl-prompt-manager-ux-design-coordinator",
+      "name": "UX Design Campaign Coordinator",
+      "description": "Coordinates bounded UX design work, preserves accepted decisions and owner identities, and admits follow-up work only through explicit lifecycle evidence."
+    }
+  ]
 }

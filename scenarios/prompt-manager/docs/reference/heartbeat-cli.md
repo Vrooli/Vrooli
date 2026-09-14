@@ -120,11 +120,13 @@ Live adoption still requires qualified finite recurrence and purpose-bound
 coordinator authority; the initial single-run binding is not that qualification.
 
 Record the revision-checked completion receipt, or explicitly reopen a completed
-effort:
+effort. For a dispatched owner run that ended without a completion receipt, use
+the explicit terminal-run restart operation:
 
 ```bash
 prompt-manager team heartbeat-complete-effort <team-id> <leader-id> --request-file transition.json
 prompt-manager team heartbeat-reopen-effort <team-id> <leader-id> --request-file transition.json
+prompt-manager team heartbeat-restart-effort <team-id> <leader-id> --request-file transition.json
 ```
 
 `transition.json` is a single JSON object of at most 16 KiB with no unknown
@@ -140,8 +142,16 @@ starts until an explicit reopen. Reopen requires a replacement revision
 different from the completed one and retains the prior receipt in
 `finiteLeaderState.completionHistory`. Both commands read the exact binding
 first and send only `finiteEffortTransition`; they never combine the lifecycle
-operation with scheduling or configuration changes. Neither cancels an active
-run or claims effort acceptance on its own.
+operation with scheduling or configuration changes. Restart requires the exact
+owner run to be reread from Agent Manager and confirmed terminal; it preserves
+the prior task/run/evidence in `finiteLeaderState.restartHistory` and clears
+only the reusable reservation. It does not cancel an active run, replace an
+uncertain dispatch, or claim effort acceptance on its own.
+
+When an initial run admission loses its response, the owner retains the task
+reservation. A later reconciliation may replay the same idempotency key only
+after Agent Manager returns an authoritative zero-run result for that exact
+task; truncated, conflicting, unavailable, or nonzero results remain fenced.
 
 Focused CLI verification (2026-09-12): `go test -race ./teams -run
 '^TestFiniteLeaderCLI|^TestHeartbeatEnableStanding' -count=1 -timeout=60s`
@@ -303,7 +313,7 @@ prompt-manager team heartbeat my-team agent-1
 Enable or create a heartbeat configuration for a member.
 
 ```bash
-prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--profile=<key>] [--json]
+prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--profile=<key>] [--wake-admission=always|on-change] [--wake-sources=team,inbox] [--json]
 ```
 
 **Options:**
@@ -311,6 +321,8 @@ prompt-manager team heartbeat-enable <team-id> <agent-id> --schedule=<cron> [--p
 |------|----------|-------------|
 | `--schedule` | Yes | Cron expression for execution schedule |
 | `--profile` | No | Declared Agent Manager profile key override. Defaults to `prompt-manager/heartbeat-judgment` (declared in `.vrooli/agent-manager/heartbeat.json`; role `code.economy.judgment`, Codex gpt-5.6-luna at effort xhigh) for multi-process teams and `prompt-manager/heartbeat-inspection` (declared in `.vrooli/agent-manager/heartbeat-single-process.json`; role `code.flatrate`, OpenCode Go DeepSeek V4.1 Flash) for single-process teams. The runner and model come from the role, not the profile; change the role in the declaration to move heartbeats to another model. |
+| `--wake-admission` | No | `always` (default) runs on every schedule; `on-change` admits only when a selected bounded source identity changes. |
+| `--wake-sources` | No | Comma-separated `team`, `member`, `inbox`, or `corpus` sources required with `--wake-admission=on-change`. |
 | `--json` | No | Output as JSON |
 
 **Schedule Examples:**

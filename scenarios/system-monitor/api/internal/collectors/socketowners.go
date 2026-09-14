@@ -1,9 +1,11 @@
 package collectors
 
 import (
+	"context"
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
 
 // defaultSocketAttributionThreshold is the established-connection count above
@@ -32,11 +34,52 @@ type SocketOwner struct {
 // the walk. Reporting the coverage keeps a partial answer from reading as a
 // complete one.
 type SocketAttribution struct {
-	Owners     []SocketOwner `json:"owners"`
-	Attributed int           `json:"attributed"`
-	Total      int           `json:"total"`
-	Supported  bool          `json:"supported"`
-	Reason     string        `json:"reason,omitempty"`
+	Owners     []SocketOwner    `json:"owners"`
+	Attributed int              `json:"attributed"`
+	Total      int              `json:"total"`
+	Supported  bool             `json:"supported"`
+	Reason     string           `json:"reason,omitempty"`
+	Truncated  bool             `json:"truncated"`
+	Duration   time.Duration    `json:"duration"`
+	Endpoints  []SocketEndpoint `json:"endpoints,omitempty"`
+}
+
+type SocketEndpoint struct {
+	Scope       string `json:"scope"`
+	Direction   string `json:"direction"`
+	Port        int    `json:"port"`
+	Connections int    `json:"connections"`
+}
+
+// NetworkDiagnosticRequest bounds the on-demand inventory walk. It is never
+// used by the steady collector.
+type NetworkDiagnosticRequest struct {
+	Established int
+	TopN        int
+	MaxDuration time.Duration
+}
+
+// CollectNetworkDiagnostic performs a bounded, permission-aware attribution
+// snapshot. Aggregate totals remain available when the walk is interrupted.
+func (c *NetworkCollector) CollectNetworkDiagnostic(ctx context.Context, request NetworkDiagnosticRequest) SocketAttribution {
+	if request.TopN <= 0 || request.TopN > 100 {
+		request.TopN = 10
+	}
+	if request.MaxDuration <= 0 || request.MaxDuration > 10*time.Second {
+		request.MaxDuration = 2 * time.Second
+	}
+	started := time.Now()
+	boundedCtx, cancel := context.WithTimeout(ctx, request.MaxDuration)
+	defer cancel()
+	result := attributeSocketOwners(boundedCtx, request.Established, request.TopN)
+	result.Duration = time.Since(started)
+	if boundedCtx.Err() != nil {
+		result.Truncated = true
+		if result.Reason == "" {
+			result.Reason = "diagnostic inventory exceeded its time budget"
+		}
+	}
+	return result
 }
 
 func socketAttributionThreshold() int {

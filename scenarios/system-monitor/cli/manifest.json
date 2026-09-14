@@ -127,6 +127,24 @@
           }
         },
         {
+          "name": "network-diagnostic",
+          "description": "Run a bounded on-demand network ownership and endpoint snapshot",
+          "flags": [
+            {"name": "top", "description": "Maximum owners/endpoints"},
+            {"name": "timeout", "description": "Maximum diagnostic duration"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "GetNetworkDiagnostic"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "processes",
           "description": "Get process monitoring metrics",
           "binding": {

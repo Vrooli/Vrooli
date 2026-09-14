@@ -609,6 +609,7 @@ export function MemberDetailPanel({
               runningRunId={runningAgent?.runId}
               onOpenRun={(runId) => navigate(runDetailPath(runId))}
               heartbeatControlStatus={teamHeartbeatControlStatus}
+              teamEnabled={team.enabled}
             />
 
             <section>

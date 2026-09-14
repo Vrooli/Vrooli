@@ -41,10 +41,12 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/cli-core/agentcatalog"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
 )
@@ -80,6 +82,7 @@ type RouteDependencies struct {
 	ConversationSearchFile   string
 	ConversationControlToken func() string
 	StorageHealth            *storagehealth.Handler
+	LifecycleService         commonconnect.LifecycleMaintenanceServiceHandler
 	WorkspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -91,6 +94,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Use(httpmw.Logging)
 	router.Use(httpmw.SecurityHeaders)
 	router.Use(httpmw.CORS)
+	if deps.LifecycleService != nil {
+		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(handler)})
+	}
 
 	healthHandler := withLifecycleRefusalObservation(health.New().
 		Version("1.0.0").
@@ -244,6 +251,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
 	}
 	handlers.NewCanaryHandler(deps.InvocationReadModel).RegisterRoutes(router)
+	handlers.NewEfficiencyHandler(deps.InvocationReadModel).RegisterRoutes(router)
 	if deps.EventRepository != nil {
 		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
 		routesLog.Info("events endpoint registered", "path", "/api/v1/events")

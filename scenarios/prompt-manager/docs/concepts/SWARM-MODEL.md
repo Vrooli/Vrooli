@@ -63,10 +63,13 @@ membership, worker lineage, and an Agent Manager run are different identities.
 
 The finite-team row describes intended lifecycle, not a qualified recurring
 runtime. The current optional PM `finiteLeader` binding retains one admission
-and AM run identity; subsequent heartbeat ticks observe that run. It does not
-schedule continuation from an explicit owner wait/next-action decision or prove
-accepted effort completion. Binding persistence and retirement fences do not
-qualify recurrence or legacy-driver adoption. See the
+and AM run identity; subsequent heartbeat ticks observe that run. Child
+continuation is supported when the coordinator explicitly creates an Agent
+Manager cohort watch and parks on its `supervision` await handle; the watch wakes
+the same parent run on terminal child evidence. PM does not infer child lineage,
+invent a continuation, or replace an uncertain run. This watch path does not by
+itself prove accepted effort completion. Binding persistence and retirement
+fences do not qualify fresh-run recovery or legacy-driver adoption. See the
 [finite leader implementation checkpoint](HEARTBEATS.md#finite-effort-leader-binding).
 
 ### Governed finite-effort start

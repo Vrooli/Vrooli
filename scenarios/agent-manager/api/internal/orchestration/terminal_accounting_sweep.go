@@ -1,3 +1,4 @@
+// This file recovers terminal usage for stopped runs from harness session records.
 package orchestration
 
 import (

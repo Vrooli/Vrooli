@@ -67,13 +67,18 @@ type Policy struct {
 	FreeTriggerBytes    int64   `json:"freeTriggerBytes"`
 	FreeTriggerFraction float64 `json:"freeTriggerFraction"`
 	FreeFloorBytes      int64   `json:"freeFloorBytes"`
-	// BatchPages bounds one incremental_vacuum transaction so the writer lock
-	// is never held long; TickBudget bounds one maintenance pass and
-	// ReclaimBudget one explicit reclaim request.
-	BatchPages    int64         `json:"batchPages"`
-	TickBudget    time.Duration `json:"tickBudget"`
-	ReclaimBudget time.Duration `json:"reclaimBudget"`
-	BatchPause    time.Duration `json:"batchPause"`
+	// Each incremental_vacuum transaction holds the writer while it relocates
+	// live pages from the end of the file. The batch adapts between
+	// MinBatchPages and BatchPages so one hold stays near BatchHoldTarget: a
+	// fixed 2048-page batch held it ~4 s on the 10 GB rehearsal copy
+	// (2026-09-14). TickBudget bounds one maintenance pass and ReclaimBudget
+	// one reclaim request.
+	BatchPages      int64         `json:"batchPages"`
+	MinBatchPages   int64         `json:"minBatchPages"`
+	BatchHoldTarget time.Duration `json:"batchHoldTarget"`
+	TickBudget      time.Duration `json:"tickBudget"`
+	ReclaimBudget   time.Duration `json:"reclaimBudget"`
+	BatchPause      time.Duration `json:"batchPause"`
 	// MaintainEvery spaces idle measurements; a pass that found work runs again
 	// on the next reconcile cycle.
 	MaintainEvery time.Duration `json:"maintainEvery"`
@@ -86,7 +91,8 @@ func DefaultPolicy() Policy {
 	return Policy{
 		ReclaimRatio: 0.70, AlarmRatio: 0.85,
 		FreeTriggerBytes: 64 << 20, FreeTriggerFraction: 0.05, FreeFloorBytes: 16 << 20,
-		BatchPages: 2048, TickBudget: 5 * time.Second, ReclaimBudget: time.Minute, BatchPause: 20 * time.Millisecond,
+		BatchPages: 2048, MinBatchPages: 16, BatchHoldTarget: 250 * time.Millisecond,
+		TickBudget: 5 * time.Second, ReclaimBudget: 30 * time.Second, BatchPause: 20 * time.Millisecond,
 		MaintainEvery: 5 * time.Minute, AlarmLogEvery: time.Hour, SpaceMarginBytes: 1 << 30,
 	}
 }
@@ -129,12 +135,15 @@ type (
 type Options struct {
 	// DB returns the production pool. Compaction and vacuum never run against a
 	// routed test pool.
-	DB         func() *sql.DB
-	Path       string
-	Budget     func() Budget
-	Policy     Policy
-	Fence      FenceObserver
-	Pause      Pauser
+	DB     func() *sql.DB
+	Path   string
+	Budget func() Budget
+	Policy Policy
+	Fence  FenceObserver
+	Pause  Pauser
+	// Watermarks are in-memory positions over run_events.rowid that a VACUUM
+	// could invalidate; see rowids.go.
+	Watermarks []NamedWatermark
 	FreeSpace  func(dir string) (uint64, error)
 	SameDevice func(a, b string) bool
 	TempDir    func() string
@@ -172,9 +181,15 @@ type CompactionReceipt struct {
 	CheckpointLog    int64  `json:"checkpointLogFrames"`
 	CheckpointDone   int64  `json:"checkpointedFrames"`
 	TempDir          string `json:"tempDir"`
-	VacuumMillis     int64  `json:"vacuumMillis"`
-	CheckMillis      int64  `json:"checkMillis"`
-	TotalMillis      int64  `json:"totalMillis"`
+	// RemappedWatermarks are the run_events rowid positions carried across
+	// the VACUUM; SearchBefore/SearchAfter prove the lexical index still
+	// matches its catalog.
+	RemappedWatermarks []RemappedWatermark `json:"remappedWatermarks"`
+	SearchBefore       SearchCheck         `json:"searchBefore"`
+	SearchAfter        SearchCheck         `json:"searchAfter"`
+	VacuumMillis       int64               `json:"vacuumMillis"`
+	CheckMillis        int64               `json:"checkMillis"`
+	TotalMillis        int64               `json:"totalMillis"`
 }
 
 // CompactionStatus is the asynchronous compaction's latest outcome.
@@ -188,16 +203,31 @@ type CompactionStatus struct {
 	Error      string             `json:"error,omitempty"`
 }
 
-// ReclaimReceipt answers the storage-manager reclaim contract.
+// Performed names what one reclaim request actually did.
+const (
+	PerformedPreview           = "preview"
+	PerformedNone              = "none"
+	PerformedIncrementalVacuum = "incremental_vacuum"
+)
+
+// ReclaimReceipt answers the storage-manager reclaim contract. Byte fields
+// count the database file plus its WAL. ProjectedBytesAfter is where the file
+// lands once every free page is returned: online for an incremental-mode file,
+// or only after the fenced compaction when CompactionRequired is true.
 type ReclaimReceipt struct {
-	DryRun         bool   `json:"dryRun"`
-	Action         Action `json:"action"`
-	Before         Stats  `json:"before"`
-	After          *Stats `json:"after,omitempty"`
-	ReclaimedBytes int64  `json:"reclaimedBytes"`
-	Complete       bool   `json:"complete"`
-	DurationMillis int64  `json:"durationMillis"`
-	Guidance       string `json:"guidance,omitempty"`
+	DryRun              bool   `json:"dryRun"`
+	Action              Action `json:"action"`
+	Performed           string `json:"performed"`
+	CompactionRequired  bool   `json:"compactionRequired"`
+	BytesBefore         int64  `json:"bytesBefore"`
+	BytesAfter          int64  `json:"bytesAfter"`
+	ProjectedBytesAfter int64  `json:"projectedBytesAfter"`
+	ReclaimedBytes      int64  `json:"reclaimedBytes"`
+	Complete            bool   `json:"complete"`
+	DurationMillis      int64  `json:"durationMillis"`
+	Guidance            string `json:"guidance,omitempty"`
+	Before              Stats  `json:"before"`
+	After               *Stats `json:"after,omitempty"`
 }
 
 type Service struct {
@@ -205,6 +235,10 @@ type Service struct {
 	// run serializes every mutation of the file's footprint: a maintenance
 	// pass, an explicit reclaim, and a compaction never overlap.
 	run sync.Mutex
+
+	// afterVacuum runs between VACUUM and the rowid remap; tests use it to
+	// renumber rowids the way SQLite documents VACUUM may.
+	afterVacuum func(context.Context, *sql.Conn) error
 
 	mu           sync.Mutex
 	lastMaintain time.Time
@@ -316,6 +350,7 @@ func (s *Service) Maintain(ctx context.Context) error {
 	now := s.opts.Clock()
 	s.mu.Lock()
 	idle := s.lastAction == ActionNone || s.lastAction == ""
+	draining := s.lastAction == ActionIncrementalVacuum
 	due := s.lastMaintain.IsZero() || !idle || now.Sub(s.lastMaintain) >= s.opts.Policy.MaintainEvery
 	s.mu.Unlock()
 	if !due {
@@ -325,11 +360,20 @@ func (s *Service) Maintain(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// The trigger starts a drain and the floor ends it: a drain cut short by
+	// TickBudget continues on later passes even once the remainder is below
+	// the trigger, rather than stranding up to the trigger's worth of pages.
+	work := st.Action == ActionIncrementalVacuum ||
+		(draining && st.AutoVacuum == "incremental" && st.FreeBytes > s.opts.Policy.FreeFloorBytes)
+	next := st.Action
+	if work {
+		next = ActionIncrementalVacuum
+	}
 	s.mu.Lock()
-	s.lastMaintain, s.lastAction = now, st.Action
+	s.lastMaintain, s.lastAction = now, next
 	s.mu.Unlock()
 	s.escalate(st)
-	if st.Action != ActionIncrementalVacuum {
+	if !work {
 		return nil
 	}
 	_, err = s.vacuumTo(ctx, s.opts.Policy.FreeFloorBytes, s.opts.Policy.TickBudget)
@@ -375,6 +419,9 @@ func (s *Service) vacuumTo(ctx context.Context, target int64, budget time.Durati
 		return 0, errors.New("database pool is closed")
 	}
 	deadline := s.opts.Clock().Add(budget)
+	policy := s.opts.Policy
+	minBatch := max(policy.MinBatchPages, 1)
+	batch := max(min(policy.BatchPages, 256), minBatch)
 	var returned int64
 	for {
 		var pageSize, free int64
@@ -388,10 +435,11 @@ func (s *Service) vacuumTo(ctx context.Context, target int64, budget time.Durati
 		if excess <= 0 || !s.opts.Clock().Before(deadline) {
 			return returned, nil
 		}
-		batch := min(excess, s.opts.Policy.BatchPages)
+		pages := min(excess, batch)
+		held := s.opts.Clock()
 		// incremental_vacuum emits one result row per page moved; a caller
 		// that does not step every row returns a single page.
-		rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", batch))
+		rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pages))
 		if err != nil {
 			return returned, fmt.Errorf("incremental vacuum: %w", err)
 		}
@@ -401,6 +449,14 @@ func (s *Service) vacuumTo(ctx context.Context, target int64, budget time.Durati
 		_ = rows.Close()
 		if err != nil {
 			return returned, fmt.Errorf("incremental vacuum: %w", err)
+		}
+		if target := policy.BatchHoldTarget; target > 0 {
+			switch elapsed := s.opts.Clock().Sub(held); {
+			case elapsed > target && batch > minBatch:
+				batch = max(minBatch, batch/2)
+			case elapsed < target/4 && batch < policy.BatchPages:
+				batch = min(policy.BatchPages, batch*2)
+			}
 		}
 		var after int64
 		if err := db.QueryRowContext(ctx, "PRAGMA freelist_count").Scan(&after); err != nil {
@@ -420,10 +476,11 @@ func (s *Service) vacuumTo(ctx context.Context, target int64, budget time.Durati
 	}
 }
 
-// Reclaim is the non-destructive contract storage-manager calls when the
-// declared budget is exceeded: a dry run previews, otherwise free pages are
-// returned online. A file that needs the fenced compaction is reported, never
-// compacted from here.
+// Reclaim is the unauthenticated, bounded contract storage-manager calls as
+// its over-budget backstop. It never rewrites the whole file: an incremental
+// file returns free pages for at most ReclaimBudget and passively checkpoints
+// the WAL; a none-mode file is only reported as needing the fenced compaction.
+// Pages left over are returned by the reconciler's later passes.
 func (s *Service) Reclaim(ctx context.Context, dryRun bool) (ReclaimReceipt, error) {
 	start := s.opts.Clock()
 	if !dryRun {
@@ -436,28 +493,49 @@ func (s *Service) Reclaim(ctx context.Context, dryRun bool) (ReclaimReceipt, err
 	if err != nil {
 		return ReclaimReceipt{}, err
 	}
-	receipt := ReclaimReceipt{DryRun: dryRun, Action: before.Action, Before: before, Guidance: guidance(before.Action)}
-	if before.AutoVacuum != "incremental" || before.FreeBytes == 0 {
-		receipt.Complete = before.FreeBytes == 0
+	receipt := ReclaimReceipt{
+		DryRun: dryRun, Action: before.Action, Performed: PerformedNone, Before: before, Guidance: guidance(before.Action),
+		CompactionRequired: before.AutoVacuum != "incremental" && before.FreeBytes > 0,
+		BytesBefore:        before.OccupiedBytes, BytesAfter: before.OccupiedBytes,
+		ProjectedBytesAfter: before.OccupiedBytes - before.FreeBytes,
+	}
+	finish := func() (ReclaimReceipt, error) {
 		receipt.DurationMillis = s.opts.Clock().Sub(start).Milliseconds()
 		return receipt, nil
 	}
 	if dryRun {
-		receipt.Guidance = fmt.Sprintf("%d free bytes would be returned online in batches of %d pages", before.FreeBytes, s.opts.Policy.BatchPages)
-		return receipt, nil
+		receipt.Performed = PerformedPreview
+		receipt.Complete = before.FreeBytes == 0
+		if !receipt.CompactionRequired && before.FreeBytes > 0 {
+			receipt.Guidance = fmt.Sprintf("%d free bytes would be returned online in bounded incremental_vacuum batches", before.FreeBytes)
+		}
+		return finish()
 	}
+	if receipt.CompactionRequired || before.FreeBytes == 0 {
+		receipt.Complete = before.FreeBytes == 0
+		return finish()
+	}
+	receipt.Performed = PerformedIncrementalVacuum
 	if _, err := s.vacuumTo(ctx, 0, s.opts.Policy.ReclaimBudget); err != nil {
 		return receipt, err
 	}
+	// PASSIVE never waits on readers or blocks writers; journal_size_limit
+	// then trims the WAL at its next reset.
+	var busy, frames, done int64
+	_ = s.opts.DB().QueryRowContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)").Scan(&busy, &frames, &done)
 	after, err := s.Stats(ctx)
 	if err != nil {
 		return receipt, err
 	}
 	receipt.After = &after
+	receipt.BytesAfter = after.OccupiedBytes
+	receipt.ProjectedBytesAfter = after.OccupiedBytes - after.FreeBytes
 	receipt.ReclaimedBytes = before.OccupiedBytes - after.OccupiedBytes
 	receipt.Complete = after.FreeBytes == 0
-	receipt.DurationMillis = s.opts.Clock().Sub(start).Milliseconds()
-	return receipt, nil
+	if !receipt.Complete {
+		receipt.Guidance = fmt.Sprintf("%d free bytes remain; the reconciler keeps returning them in bounded passes", after.FreeBytes)
+	}
+	return finish()
 }
 
 // CompactionStatus reports the latest asynchronous compaction.
@@ -544,6 +622,11 @@ func (s *Service) preflight(ctx context.Context) (compactionPlan, error) {
 	if !fence.Closed || !fence.Drained {
 		return compactionPlan{}, fmt.Errorf("%w (closed=%t drained=%t revision=%d)", ErrFenceNotDrained, fence.Closed, fence.Drained, fence.Revision)
 	}
+	if legacy, err := tableExists(ctx, s.opts.DB(), legacyProjectionTable); err != nil {
+		return compactionPlan{}, err
+	} else if legacy {
+		return compactionPlan{}, ErrLegacyProjection
+	}
 	before, err := s.Stats(ctx)
 	if err != nil {
 		return compactionPlan{}, err
@@ -625,6 +708,29 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 	defer func() {
 		_, _ = conn.ExecContext(context.WithoutCancel(ctx), fmt.Sprintf("PRAGMA temp_store=%d", tempStore))
 	}()
+	if legacy, err := tableExists(ctx, conn, legacyProjectionTable); err != nil {
+		return receipt, err
+	} else if legacy {
+		return receipt, ErrLegacyProjection
+	}
+	if receipt.SearchBefore, err = searchConsistency(ctx, conn); err != nil {
+		return receipt, err
+	}
+	if !receipt.SearchBefore.consistent() {
+		return receipt, fmt.Errorf("%w before compaction (catalog=%d indexed=%d integrity=%s); repair it before compacting",
+			ErrSearchInconsistent, receipt.SearchBefore.CatalogDocuments, receipt.SearchBefore.IndexedDocuments, receipt.SearchBefore.Integrity)
+	}
+	// Hold every in-memory rowid consumer until its position is rewritten.
+	held := make([]heldWatermark, 0, len(s.opts.Watermarks))
+	for _, watermark := range s.opts.Watermarks {
+		current, set, release := watermark.Holder.HoldWatermark()
+		defer release()
+		held = append(held, heldWatermark{name: watermark.Name, current: current, set: set})
+	}
+	anchors, err := captureAnchors(ctx, conn, held)
+	if err != nil {
+		return receipt, fmt.Errorf("anchor run_events rowid positions: %w", err)
+	}
 	vacuumStart := s.opts.Clock()
 	if plan.before.AutoVacuum != "incremental" {
 		err = retention.EnsureIncrementalAutoVacuum(ctx, conn, s.opts.Logger)
@@ -635,6 +741,15 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 	if err != nil {
 		return receipt, fmt.Errorf("vacuum: %w", err)
 	}
+	if s.afterVacuum != nil {
+		if err := s.afterVacuum(ctx, conn); err != nil {
+			return receipt, err
+		}
+	}
+	if receipt.RemappedWatermarks, err = remapAnchors(ctx, conn, anchors); err != nil {
+		// Consumers would read renumbered rowids from stale positions.
+		return receipt, fmt.Errorf("REQUIRES OWNER ACTION: run_events rowid positions were not rewritten after VACUUM (%w); keep the fence closed and rebuild stats and supervision cursors", err)
+	}
 	if err := conn.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)").Scan(&receipt.CheckpointBusy, &receipt.CheckpointLog, &receipt.CheckpointDone); err != nil {
 		return receipt, fmt.Errorf("checkpoint: %w", err)
 	}
@@ -643,6 +758,13 @@ func (s *Service) compact(ctx context.Context, plan compactionPlan, actor, reaso
 	receipt.CheckMillis = s.opts.Clock().Sub(checkStart).Milliseconds()
 	if err != nil {
 		return receipt, err
+	}
+	if receipt.SearchAfter, err = searchConsistency(ctx, conn); err != nil {
+		return receipt, err
+	}
+	if !receipt.SearchAfter.consistent() || receipt.SearchAfter.CatalogDocuments != receipt.SearchBefore.CatalogDocuments {
+		return receipt, fmt.Errorf("%w after compaction (catalog %d -> %d, indexed %d, integrity=%s)", ErrSearchInconsistent,
+			receipt.SearchBefore.CatalogDocuments, receipt.SearchAfter.CatalogDocuments, receipt.SearchAfter.IndexedDocuments, receipt.SearchAfter.Integrity)
 	}
 	after, err := s.Stats(ctx)
 	if err != nil {

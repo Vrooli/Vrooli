@@ -1,3 +1,4 @@
+// This file issues authoritative terminal usage receipts for workflow child runs.
 package orchestration
 
 import (

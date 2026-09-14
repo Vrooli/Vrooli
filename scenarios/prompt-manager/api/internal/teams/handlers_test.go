@@ -110,6 +110,12 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.EnabledSet {
 		existing.Enabled = updates.Enabled
 	}
+	if updates.ArchivedSet {
+		existing.Archived = updates.Archived
+		if existing.Archived {
+			existing.Enabled = false
+		}
+	}
 	if updates.Runtime.Mode != "" {
 		existing.Runtime = updates.Runtime
 	}
@@ -736,6 +742,38 @@ func TestUpdateNotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestUpdateArchivesTeamAndPreventsExecution(t *testing.T) {
+	handlers, teamStore, _, _ := setupTestHandlers()
+	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Archive Me")
+
+	archived := true
+	bodyBytes, _ := json.Marshal(UpdateRequest{Archived: &archived})
+	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w := httptest.NewRecorder()
+	handlers.Update(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected archive update 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !teamStore.teams["team-1"].Archived {
+		t.Fatal("expected team to be archived")
+	}
+	if teamStore.teams["team-1"].Enabled {
+		t.Fatal("archived team must be disabled")
+	}
+
+	enabled := true
+	bodyBytes, _ = json.Marshal(UpdateRequest{Enabled: &enabled})
+	req = httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
+	w = httptest.NewRecorder()
+	handlers.Update(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected archived enable refusal 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
